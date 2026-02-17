@@ -1,0 +1,118 @@
+# all classes/functions defined by ImportFrom need no definition or decorator, just import.
+# the type annotation in ImportFrom/Declare is only for comprehension. do not define
+# Keep indent depth small.
+# English comments.
+# write test code in test_main whitch is called in __main__
+# match[x, y] is a builtin primitive, used in 4 cases:
+# 1. alias: match[$success bool, bool]
+# 2. pattern match: match[list[$name str * $edge int], StudentInfos]
+# 3. function call: match[$is_valid bool < $array_idx int, CheckOutRange]. $array_idx is predefined type-alias
+# 4. for-loop expressed as match plus handle function with the same name shared in matched element and an argument of function. example: void <- match[list[$element str], List] <- ($do_each (void <- $element str))
+# inline means no mock. the inlined logic should be implemented in this function body
+
+MatchResult := dict[$pattern fx.Node, $target fx.Node]
+
+StructMatcher := 
+    # __call__
+    list[MatchResult]
+    <- $target_gm fx.GraphModule
+    <- (
+      ($sole_output_node fx.Node | $output_tuple list[fx.Node])
+      <- $target_gm
+    )
+    # inline
+    <- SoleOutputPatternStructMatcher
+    <- OutputTuplePatternStructMatcher
+    # __init__
+    <- $pattern_gm fx.GraphModule
+    
+OutputTuplePatternStructMatcher :=
+    # __call__
+    list[MatchResult]
+    <- $target_gm fx.GraphModule
+    # inline
+    <- ($biggest_sole_sink_dag_in_pattern_dag set[fx.Node] <- $pattern_gm)
+    <- (
+      (
+        Object
+        * $biggest_sub_pattern fx.GraphModule
+        * dict[$sub_pattern_node fx.Node, $pattern_node fx.Node]
+      )
+      <- $biggest_sole_sink_dag_in_pattern_dag
+      <- $pattern_gm
+   	)
+    <- ($remainder_pattern_nodes list[fx.Node] <- $biggest_sole_sink_dag_in_pattern_dag <- $pattern_gm)
+    <- match[
+      ($subpattern_match_result Generator[MatchResult] <- $target_gm <- $biggest_sub_pattern),
+      SoleOutputPatternStructMatcher
+    ]
+    <- ($existed_match_result dict[$pattern_node fx.Node, $target_node fx.Node] <- $subpattern_match_result <- dict[$sub_pattern_node fx.Node, $pattern_node fx.Node])
+    <- match[
+      $remainder_fuzzy_match_result FuzzyMatchResult
+      	<- $existed_match_result <- $remainder_pattern_nodes <- $pattern <- $target,
+      match_remainder_struct
+    ]
+    <- ($is_each_pattern_node_matched_to_sole_target_node bool <- $remainder_fuzzy_match_result)
+    # __init__
+    <- $pattern_gm fx.GraphModule
+
+FuzzyMatchResult :=
+	dict[$pattern fx.Node, set[$target fx.Node] | Uninitiated] # empty list means mismatched.
+  
+    
+match_remainder_struct :=
+		FuzzyMatchResult
+  	<- $existed_node_match_result MatchResult
+    <- $remainder_pattern_nodes list[fx.Node]
+    <- $pattern $fx.GraphModule
+    <- $target $fx.GraphModule
+    # inline
+    <- ($existed_node_fuzzy_match_result FuzzyMatchResult <- $existed_node_match_result)
+    <- ($remainder_node_map_to_Uninitiated FuzzyMatchResult <- $remainder_pattern_nodes)
+    <- ($merged_initial <- $existed_node_fuzzy_match_result <- $remainder_node_map_to_Uninitiated)
+    <- $any_node_mismatched (bool <- FuzzyMatchResult)
+    <- $reach_fixed_point (bool <- $before_iter FuzzyMatchResult <- $after_iter FuzzyMatchResult)
+    <- $defuzzy_by_inputs (FuzzyMatchResult <- FuzzyMatchResult <- $pattern <- $target)
+    <- $defuzzy_by_outputs (FuzzyMatchResult <- FuzzyMatchResult <- $pattern <- $target)
+    <- ($fuzzy_match_result_in_fixed_point_or_mistach
+        <- $merged_initial
+        <- $existed_node_match_result
+        <- $remainder_pattern_nodes
+        <- $pattern
+        <- $target
+        <- $any_node_mismatched
+        <- $reach_fixed_point
+        <- $defuzzy_by_inputs
+        <- $defuzzy_by_outputs
+       )
+
+
+SoleOutputPatternStructMatcher := 
+    # __call__
+    list[MatchResult]
+    <- $target_gm fx.GraphModule
+    # inline
+    <- is_struct_match_for_sole_output_node
+    # __init__
+    <- $pattern_gm fx.GraphModule
+
+is_struct_match_for_sole_output_node := 
+    ($success bool * $match_result MatchResult) 
+    <- $env MatchResult 
+    <- $pattern fx.Node 
+    <- $target fx.Node
+    <- match[$placeholder_pattern fx.Node | $compute_node_pattern fx.Node, $pattern]
+    <- ($placeholder_matched bool <- $target fx.Node <- $placeholder_pattern)
+    <- ($is_compute_node_op_matched bool <- $target.op <- $compute_node_pattern.op)
+    # Decompose argument streams
+    <- match[list[$target_arg (fx.Node | Any)], $target.args]
+    <- match[list[$pattern_arg (fx.Node | Any)], $pattern.args]
+    # Reconcile elements
+    <- match[
+          ($arg_matched bool * $arg_matched_result MatchResult) <- $match_result <- $pattern_arg <- $target_arg,
+          is_struct_match_for_sole_output_node
+       ]
+
+# 5 test cases for each function or class
+
+    
