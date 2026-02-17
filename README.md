@@ -24,7 +24,7 @@ MatchContext :=
   * $pattern fx.GraphModule
 
 StructMatcher := ImportFrom[
-	"tst/torch_ap/struct_matcher.py",
+  "tst/torch_ap/struct_matcher.py",
   # __call__
   list[MatchResult]
   <- $target_gm fx.GraphModule
