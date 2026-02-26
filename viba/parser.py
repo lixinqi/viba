@@ -217,6 +217,21 @@ def p_adt_arg_list(p):
         p[0] = []
 
 
+# ================================================================= #
+# PARSER RULES: TUPLE & PRIMARY EXPRESSIONS
+# ================================================================= #
+
+
+def p_adt_expr_list(p):
+    """adt_expr_list : adt_expr COMMA adt_expr
+    | adt_expr COMMA adt_expr_list"""
+    # Flattens comma-separated expressions into a Python list
+    if len(p) == 4 and not isinstance(p[3], list):
+        p[0] = [p[1], p[3]]
+    else:
+        p[0] = [p[1]] + p[3]
+
+
 def p_primary_expr(p):
     """primary_expr : CLASS_NAME
     | TAGGED_CLASS_NAME
@@ -225,26 +240,49 @@ def p_primary_expr(p):
     | NEVER
     | ELLIPSIS
     | LPAREN adt_expr RPAREN
+    | LPAREN adt_expr_list RPAREN
     | LPAREN RPAREN"""
+    # 1. Handle atomic units (Length 2)
     if len(p) == 2:
-        if isinstance(p[1], dict):
-            p[0] = p[1]
-        elif p[1] == "void":
+        val = p[1]
+        if isinstance(val, dict):
+            p[0] = val
+        elif val == "void":
             p[0] = {"node": "Identity", "type": "ProductIdentity"}
-        elif p[1] == "never":
+        elif val == "never":
             p[0] = {"node": "Identity", "type": "SumIdentity"}
-        elif p[1] == "...":
+        elif val == "...":
             p[0] = {"node": "Ellipsis"}
-        elif str(p[1]).startswith("$"):
-            p[0] = {"node": "PureTag", "name": p[1], "path": p[1][1:].split(".")}
+        elif str(val).startswith("$"):
+            # Semantic tag as a standalone atom
+            p[0] = {"node": "PureTag", "name": val, "path": val[1:].split(".")}
         else:
-            p[0] = {"node": "TypeRef", "name": p[1]}
+            # Simple type reference
+            p[0] = {"node": "TypeRef", "name": val}
+
+    # 2. Handle empty tuple () as alias for void (Length 3)
     elif len(p) == 3:
-        # Handles () as an alias for void
         p[0] = {"node": "Identity", "type": "ProductIdentity", "alias": "()"}
+
+    # 3. Handle Parentheses or Tuples (Length 4)
     else:
-        # Handles ( adt_expr )
-        p[0] = p[2]
+        content = p[2]
+        if isinstance(content, list):
+            # Transform (A, B, C) into a nested ProductType tree
+            # This ensures (A, B) is semantically identical to A * B
+            def fold_to_product(lst):
+                if len(lst) == 2:
+                    return {"node": "ProductType", "left": lst[0], "right": lst[1]}
+                return {
+                    "node": "ProductType",
+                    "left": lst[0],
+                    "right": fold_to_product(lst[1:]),
+                }
+
+            p[0] = fold_to_product(content)
+        else:
+            # Standard grouping: ( adt_expr )
+            p[0] = content
 
 
 def p_literal(p):
@@ -346,6 +384,11 @@ if __name__ == "__main__":
             'FinalBoss[In, Out] := ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99',
             "Comprehensive test",
         ),
+        ("Tuple_Basic := (A, B)", "Binary tuple as product"),
+        ("Tuple_Ternary := (A, B, C)", "Ternary tuple nested product"),
+        ("Tuple_Tagged := ($input In, $config Conf)", "Tagged members in tuple"),
+        ("Tuple_Complex := (Result <- Op, $meta Meta)", "Mixed expressions in tuple"),
+        ("Nested_Parens := ((A | B), C)", "Nested grouping inside tuple"),
     ]
 
     print(f"{'TEST CASE':<50} | {'STATUS'}")
