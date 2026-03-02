@@ -16,6 +16,9 @@ from viba.type import (
     EllipsisType,
     PureTagType,
     LiteralType,
+    SumChainType,
+    ProductChainType,
+    ExponentChainType,
 )
 
 
@@ -37,6 +40,9 @@ def viba_type_match(
     EllipsisType: Callable[[EllipsisType], Any] = None,
     PureTagType: Callable[[PureTagType], Any] = None,
     LiteralType: Callable[[LiteralType], Any] = None,
+    SumChainType: Callable[[SumChainType], Any] = None,
+    ProductChainType: Callable[[ProductChainType], Any] = None,
+    ExponentChainType: Callable[[ExponentChainType], Any] = None,
     _: Callable[[Type], Any] = None,  # default/wildcard handler
     strict: bool = True,  # if True, raise exception when no handler matches
 ) -> Any:
@@ -59,6 +65,9 @@ def viba_type_match(
         EllipsisType: Handler for EllipsisType
         PureTagType: Handler for PureTagType
         LiteralType: Handler for LiteralType
+        SumChainType: Handler for SumChainType
+        ProductChainType: Handler for ProductChainType
+        ExponentChainType: Handler for ExponentChainType
         _: Default handler for any type (if no specific handler matches)
         strict: If True (default), raise TypeError when no handler matches.
                 If False, return None when no handler matches.
@@ -192,7 +201,29 @@ if __name__ == "__main__":
     for t in [test_def, TypeRefType(node="TypeRef", name="Int"), test_literal]:
         print(f"  {t.__class__.__name__} -> {matcher(t)}")
 
-    # Example 5: Extract nested information (strict=True ensures completeness)
+    # Example 5: Test chain types
+    print("\n=== Testing chain types ===")
+
+    # Create chain types
+    a = TypeRefType(node="TypeRef", name="A")
+    b = TypeRefType(node="TypeRef", name="B")
+    c = TypeRefType(node="TypeRef", name="C")
+
+    sum_chain = SumChainType(a, b, c)
+    prod_chain = ProductChainType(a, b, c)
+    exp_chain = ExponentChainType(c, a, b)
+
+    # Match on chain types
+    chain_result = viba_type_match(
+        sum_chain,
+        SumChainType=lambda s: f"Sum chain with {len(s.elements)} elements",
+        ProductChainType=lambda p: f"Product chain with {len(p.elements)} elements",
+        ExponentChainType=lambda e: f"Exponent chain with {len(e.args)} args -> {e.result}",
+        _=lambda t: f"Other chain type: {type(t).__name__}",
+    )
+    print(f"  {chain_result}")
+
+    # Example 6: Extract nested information (complete patterns)
     print("\n=== Nested extraction (complete patterns) ===")
 
     def extract_info(type_obj: Type) -> Dict[str, Any]:
@@ -242,6 +273,19 @@ if __name__ == "__main__":
                 "result": extract_info(e.result),
                 "argument": extract_info(e.argument),
             },
+            SumChainType=lambda s: {
+                "kind": "sum_chain",
+                "elements": [extract_info(e) for e in s.elements],
+            },
+            ProductChainType=lambda p: {
+                "kind": "product_chain",
+                "elements": [extract_info(e) for e in p.elements],
+            },
+            ExponentChainType=lambda e: {
+                "kind": "exponent_chain",
+                "args": [extract_info(arg) for arg in e.args],
+                "result": extract_info(e.result),
+            },
         )
 
     nested_type = SumType(
@@ -258,7 +302,7 @@ if __name__ == "__main__":
 
     print(json.dumps(extract_info(nested_type), indent=2))
 
-    # Example 6: Incomplete patterns with strict=True would raise
+    # Example 7: Incomplete patterns with strict=True would raise
     print("\n=== Incomplete patterns with strict=True (would raise) ===")
 
     def incomplete_extract(type_obj: Type) -> Dict[str, Any]:

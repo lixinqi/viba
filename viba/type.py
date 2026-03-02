@@ -30,6 +30,12 @@ class Type:
             return ProductType.from_dict(data)
         elif node_type == "ExponentType":
             return ExponentType.from_dict(data)
+        elif node_type == "SumChain":
+            return SumChainType.from_dict(data)
+        elif node_type == "ProductChain":
+            return ProductChainType.from_dict(data)
+        elif node_type == "ExponentChainType":
+            return ExponentChainType.from_dict(data)
         elif node_type == "TaggedType":
             return TaggedType.from_dict(data)
         elif node_type == "TypeApp":
@@ -318,6 +324,69 @@ class LiteralType(Type):
 
     def to_dict(self) -> Dict[str, Any]:
         return {"node": self.node, "val": self.val, "val_type": self.val_type}
+
+
+# ----------------------------------------------------------------------
+# Chain type definitions
+# ----------------------------------------------------------------------
+
+
+class SumChainType(Type):
+    def __init__(self, *elements: Type):
+        self.node = "SumChain"
+        self.elements = list(elements)
+
+    def __repr__(self) -> str:
+        return f"SumChainType({', '.join(repr(e) for e in self.elements)})"
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SumChainType":
+        elements = [Type.from_dict(e) for e in data.get("elements", [])]
+        return cls(*elements)
+
+    def to_dict(self) -> dict:
+        return {"node": self.node, "elements": [e.to_dict() for e in self.elements]}
+
+
+class ProductChainType(Type):
+    def __init__(self, *elements: Type):
+        self.node = "ProductChain"
+        self.elements = list(elements)
+
+    def __repr__(self) -> str:
+        return f"ProductChainType({', '.join(repr(e) for e in self.elements)})"
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ProductChainType":
+        elements = [Type.from_dict(e) for e in data.get("elements", [])]
+        return cls(*elements)
+
+    def to_dict(self) -> dict:
+        return {"node": self.node, "elements": [e.to_dict() for e in self.elements]}
+
+
+class ExponentChainType(Type):
+    def __init__(self, result: Type, *args: Type):
+        self.node = "ExponentChain"
+        self.result = result
+        self.args = list(args)
+
+    def __repr__(self) -> str:
+        args_repr = ", ".join(repr(a) for a in self.args)
+        return f"ExponentChainType({repr(self.result)}{', ' + args_repr if args_repr else ''})"
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ExponentChainType":
+        result = Type.from_dict(data["result"])
+        args = [Type.from_dict(a) for a in data.get("args", [])]
+        return cls(result, *args)
+
+    def to_dict(self) -> dict:
+        return {
+            "node": self.node,
+            "result": self.result.to_dict(),
+            "args": [a.to_dict() for a in self.args],
+        }
 
 
 # ----------------------------------------------------------------------
