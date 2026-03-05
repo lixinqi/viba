@@ -34,6 +34,8 @@ class Type:
             return SumChainType.from_dict(data)
         elif node_type == "ProductChain":
             return ProductChainType.from_dict(data)
+        elif node_type == "ExponentChain":
+            return ExponentChainType.from_dict(data)
         elif node_type == "ExponentChainType":
             return ExponentChainType.from_dict(data)
         elif node_type == "TaggedType":

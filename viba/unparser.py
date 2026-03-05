@@ -3,7 +3,23 @@
 # Converts Type AST back to VIBA source code
 
 from typing import List
-from viba.type import Type
+from viba.type import (
+    Type,
+    DefinitionType,
+    SumType,
+    ProductType,
+    ExponentType,
+    TaggedType,
+    TypeAppType,
+    TypeRefType,
+    IdentityType,
+    EllipsisType,
+    PureTagType,
+    LiteralType,
+    SumChainType,
+    ProductChainType,
+    ExponentChainType,
+)
 from viba.match import viba_type_match
 
 
@@ -39,7 +55,7 @@ def _unparse_type(type_obj: Type, indent: int, depth: int) -> str:
         SumType=lambda s: _unparse_binary(s, " | ", indent, depth),
         ProductType=lambda p: _unparse_binary(p, " * ", indent, depth),
         ExponentType=lambda e: _unparse_exponent(e, indent, depth),
-        TaggedType=lambda t: f"{unparse_tag(t)} {_unparse_type(t.type, indent, depth)}",
+        TaggedType=lambda t: f"{unparse_tag(t)}{_tagged_body_parens(t.type, _unparse_type(t.type, indent, depth))}",
         TypeAppType=lambda a: _unparse_typeapp(a, indent, depth),
         TypeRefType=lambda r: r.name,
         LiteralType=lambda l: _unparse_literal(l),
@@ -92,10 +108,13 @@ def _unparse_exponent(exp_type, indent: int, depth: int) -> str:
     result = _unparse_type(exp_type.result, indent, depth + 1)
     argument = _unparse_type(exp_type.argument, indent, depth + 1)
 
-    # Add parentheses if needed
-    if _is_binary(exp_type.argument) and not isinstance(
-        exp_type.argument, ExponentType
-    ):
+    # Add parentheses around result if it's a binary type
+    if _is_binary(exp_type.result):
+        result = f"({result})"
+
+    # Add parentheses around argument if it's a binary type (not just ExponentType)
+    # This preserves right-associative structure like A <- (B <- (C <- D))
+    if _is_binary(exp_type.argument):
         argument = f"({argument})"
 
     return f"{result} <- {argument}"
@@ -217,27 +236,18 @@ def _is_binary(type_obj: Type) -> bool:
     return type_obj.__class__.__name__ in ("SumType", "ProductType", "ExponentType")
 
 
+def _tagged_body_parens(type_obj: Type, unparsed: str) -> str:
+    """Add parentheses around tagged body if it's a binary type or another tagged type."""
+    if _is_binary(type_obj) or isinstance(type_obj, TaggedType):
+        return f"({unparsed})"
+    return f" {unparsed}"
+
+
 # ----------------------------------------------------------------------
 # Tests
 # ----------------------------------------------------------------------
 
 if __name__ == "__main__":
-    from viba.type import (
-        DefinitionType,
-        SumType,
-        ProductType,
-        ExponentType,
-        TaggedType,
-        TypeAppType,
-        TypeRefType,
-        IdentityType,
-        EllipsisType,
-        PureTagType,
-        LiteralType,
-        SumChainType,
-        ProductChainType,
-        ExponentChainType,
-    )
 
     print("Testing unparse with proper indentation...")
 
