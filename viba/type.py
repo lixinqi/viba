@@ -36,8 +36,6 @@ class Type:
             return ProductChainType.from_dict(data)
         elif node_type == "ExponentChain":
             return ExponentChainType.from_dict(data)
-        elif node_type == "ExponentChainType":
-            return ExponentChainType.from_dict(data)
         elif node_type == "TaggedType":
             return TaggedType.from_dict(data)
         elif node_type == "TypeApp":
