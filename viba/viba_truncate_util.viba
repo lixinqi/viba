@@ -1,0 +1,45 @@
+# viba_truncate_util.py
+
+get_all_truncated_vibe_code :=
+    ($intent_base str, list[$truncated_intent str])
+    <- $vibe_segments_list list[$vibe_segments list[str]]
+    <- $num_parts int # default 5
+    # inline
+    <- (list[$part int] <- range <- $num_parts)
+    <- (
+        ($is_func_impl True | $is_not_func_impl False)
+        <- $vibe_segments
+        # inline
+        <- Import['viba.parser'].parser
+        <- Import['viba.type'].parse
+        <- Import['viba.std_coding_style']
+        <- check_viba_std_coding_style
+        <- FuncImplementStdCodingStyle
+        )
+    <- ($class_intent_base_segment str
+        <- $is_not_func_impl 
+        <- $join_with "\n"
+        <- vibe_segments)
+    <- ($func_intent_base_segment str
+        <- $is_func_impl
+        <- vibe_segments[0])
+    <- ($intent_base str
+        <- $join_with "\n"
+        <- list[$class_intent_base_segment | $func_intent_base_segment])
+    <- ($func_intent_truncated_segment str
+        <- $is_func_impl
+        <- $join_with "\n"
+        <- '''
+            return vibe_segment[0:part+1]
+        ''')
+    <- ($truncated_intent <- remove_all_comments <- ($class_intent_base_segment | $func_intent_truncated_segment))
+    <- list[$truncated_intent str]
+
+remove_all_comments :=
+    $ret str
+    <- $source_viba_code str
+    <- Import['viba.parser'].parser
+    <- Import['viba.type'].parse
+    <- Import['viba.unparser'].unparse
+
+# more complex code like ["A := B <- C", "<- D", "<- E", "<- F"]
