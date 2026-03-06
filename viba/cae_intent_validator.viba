@@ -1,0 +1,19 @@
+# cae: code autoencoder
+
+CaeIntentValidator :=
+    # __call__
+    ($success void | $error_msg str)
+    <- list[$raw_statment list[str]]
+    # __init__
+    <- ()
+    # inline
+    <- (list[$cumulative_statment str]
+       	<- $raw_statment list[str] <- $implement_hint '''
+       	"\n".join(raw_statment[0:i+1] for i in range(len(raw_statment)))
+       	''')
+    <- ($viba_code Type
+       	<- $cumulative_statment
+       	<- Import["parser"].parser.parse 
+        <- Import["type"].parse
+        <- Import["chain"].convert_to_chain_style)
+    <- Import["std_coding_style"].check_viba_std_coding_style
