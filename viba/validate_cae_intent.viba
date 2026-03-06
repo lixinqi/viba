@@ -1,0 +1,6 @@
+
+main :=
+    (void | $error_msg never)
+    <- ArgParse[FileContent[JsonStr[list[$intent_segment list str]]]]
+    # inline
+    <- Import['viba.xxx'].CaeIntentValidator

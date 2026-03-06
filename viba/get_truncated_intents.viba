@@ -1,4 +1,3 @@
-# viba_truncate.py
 
 main :=
     JsonStr[$intent_base str * $truncated_intents list[str]]
