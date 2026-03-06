@@ -1,0 +1,6 @@
+# cae: code autoencoder
+
+
+CaeScoreCalculator :=
+    $score float
+    <- list[]

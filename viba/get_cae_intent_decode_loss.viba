@@ -1,0 +1,15 @@
+# get_cae_intent_decode_loss.py
+
+get_cae_intent_decode_loss :=
+    $ret float
+    <- $input str
+    <- list[$output str, $intent_len int]
+    <- $beta float
+    # inline
+    <- ($Y <- list[$output])
+    <- $D($LevenshteinDistance int <- $input <- $output)
+    <- ($ret <- $impl_hint '''
+    x = input
+    l(I_i) = intent_len
+    Avg_i^|I|{(beta*l(I_i) + l(D(x, Y_i))) / (l(x) + 1)}
+    ''')

@@ -1,0 +1,21 @@
+# get_cae_loss.py
+
+get_cae_loss :=
+    $ret float
+    <- $input str
+    <- list[$output str, $intent_len int]
+    <- $intent_base_len int
+    <- $alpha float # default 1.0
+    <- $beta float # default 1.0
+    # inline
+    <- ($decode_loss float
+        <- get_cae_intent_decode_loss 
+        <- list[$output str, $intent_len int]
+        <- $beta)
+    <- ($norm_loss float
+        <- get_cae_intent_norm_loss
+        <- list[$intent_len]
+        <- $intent_base_len)
+    <- $impl_hint '''
+    ret = decode_loss + alpha * norm_loss
+    '''

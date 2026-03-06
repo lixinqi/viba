@@ -1,0 +1,17 @@
+# get_cae_intent_norm_loss.py
+
+get_cae_intent_norm_loss :=
+    $ret float
+    <- $intent_base_len int
+    <- $raw_intent_lens list[int]
+    # inline
+    <- Assert[$raw_intent_lens[i] > $intent_base_len]
+    <- ($diffs <- $impl_hint '''
+    intent_lens = [intent_base_len, *raw_intent_lens]
+    return [intent_lens[i+1]-intent_lens[i] for i in range(len(raw_intent_lens))]
+    ''')
+    <- ($probibilities list[float] <- $diffs <- ($diff_sum int <- $diffs) <- $epislon)
+    <- ($normalized_entropy float <- $probibilities)
+    <- ($ret <- $impl_hint '''
+    return 1 - normalized_entropy / log(len(raw_intent_lens))
+    ''')

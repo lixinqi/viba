@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(git add test/test_cae_intent_validator.py viba/cae_intent_validator.py viba/cae_intent_validator.viba)",
+      "Bash(git add viba/cae_score_calculator.viba viba/get_cae_intent_decode_loss.py viba/get_cae_intent_decode_loss.viba viba/get_cae_intent_norm_loss.py viba/get_cae_intent_norm_loss.viba viba/get_cae_loss.py viba/get_cae_loss.viba .claude/)"
+    ]
+  }
+}
