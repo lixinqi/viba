@@ -1,4 +1,4 @@
-# viba_truncate_util.py
+# intent_truncate_util.py
 
 get_all_truncated_vibe_code :=
     ($intent_base str, list[$truncated_intent str])
