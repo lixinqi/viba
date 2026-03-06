@@ -12,6 +12,8 @@ tokens = (
     "FLOAT",
     "INT",
     "STRING",
+    "SINGLE_STRING",
+    "TRIPLE_STRING",
     "BOOLEAN",
     "ASSIGN",  # :=
     "SUM_OP",  # |
@@ -74,7 +76,21 @@ def t_INT(t):
 
 
 def t_STRING(t):
-    r"\"([^\\\n]|(\\.))*?\" "
+    r'"([^\\\n]|(\\.))*?" '
+    t.value = t.value[1:-1]
+    return t
+
+
+def t_TRIPLE_STRING(t):
+    r"'''[\s\S]*?'''"
+    # Preserve the content exactly as-is (including newlines and spaces)
+    # Just strip the opening and closing triple quotes
+    t.value = t.value[3:-3]
+    return t
+
+
+def t_SINGLE_STRING(t):
+    r"'([^\\\n]|(\\.))*?' "
     t.value = t.value[1:-1]
     return t
 
@@ -289,6 +305,8 @@ def p_literal(p):
     """literal : FLOAT
     | INT
     | STRING
+    | SINGLE_STRING
+    | TRIPLE_STRING
     | BOOLEAN"""
     p[0] = {"node": "Literal", "val": p[1], "val_type": type(p[1]).__name__}
 
@@ -389,6 +407,58 @@ if __name__ == "__main__":
         ("Tuple_Tagged := ($input In, $config Conf)", "Tagged members in tuple"),
         ("Tuple_Complex := (Result <- Op, $meta Meta)", "Mixed expressions in tuple"),
         ("Nested_Parens := ((A | B), C)", "Nested grouping inside tuple"),
+        # ====== TRIPLE-QUOTED STRING TESTS (20 cases) ======
+        ("TripleSimple := '''a b c'''", "Simple triple-quoted string"),
+        ("TripleSingleWord := '''hello'''", "Triple-quoted with single word"),
+        ("TripleMultiLine := '''line1\nline2\nline3'''", "Triple-quoted with newlines"),
+        ("TripleSpaces := '''  multiple   spaces  '''", "Triple-quoted with spaces"),
+        ("TripleProduct := '''text1''' * '''text2'''", "Triple-quoted strings in product"),
+        ("TripleSum := '''option1''' | '''option2'''", "Triple-quoted strings in sum"),
+        ("TripleExponent := '''result''' <- '''input'''", "Triple-quoted in exponent"),
+        ("TripleWithTags := $tag '''value'''", "Triple-quoted with semantic tag"),
+        ("TripleTuple := ('''first''', '''second''')", "Triple-quoted in tuple"),
+        ("TripleNested := ('''a''' * '''b''') | '''c'''", "Nested triple-quoted expressions"),
+        ("TripleGeneric := List['''item''']", "Triple-quoted as generic argument"),
+        ("TripleWithVoid := '''data''' * void", "Triple-quoted with void identity"),
+        ("TripleWithNever := '''text''' | never", "Triple-quoted with never identity"),
+        ("TripleEllipsis := '''base''' | ...", "Triple-quoted with ellipsis"),
+        ("TripleEllipsisTail := '''head''' * ...", "Triple-quoted product with ellipsis"),
+        ("TripleComplex := ($res '''OK''' | $err '''Error''') <- '''input'''", "Complex triple-quoted expression"),
+        ("TripleCurried := '''C''' <- '''B''' <- '''A'''", "Triple-quoted currying"),
+        ("TripleRecursive := '''item''' * TripleRecursive | void", "Recursive with triple-quoted"),
+        ("TripleVariadic := '''a''' | '''b''' | '''c''' | ...", "Multiple triple-quoted sum with ellipsis"),
+        ("TripleFinal := ('''x''' * '''y''', '''z''')", "Triple-quoted in nested tuple"),
+        # ====== SINGLE-QUOTED STRING TESTS (20 cases) ======
+        ("SingleSimple := 'a b c'", "Simple single-quoted string"),
+        ("SingleWord := 'hello'", "Single word in single quotes"),
+        ("SingleSpaces := '  multiple   spaces  '", "Single-quoted with spaces"),
+        ("SingleProduct := 'text1' * 'text2'", "Single-quoted strings in product"),
+        ("SingleSum := 'option1' | 'option2'", "Single-quoted strings in sum"),
+        ("SingleExponent := 'result' <- 'input'", "Single-quoted in exponent"),
+        ("SingleWithTags := $tag 'value'", "Single-quoted with semantic tag"),
+        ("SingleTuple := ('first', 'second')", "Single-quoted in tuple"),
+        ("SingleNested := ('a' * 'b') | 'c'", "Nested single-quoted expressions"),
+        ("SingleGeneric := List['item']", "Single-quoted as generic argument"),
+        ("SingleWithVoid := 'data' * void", "Single-quoted with void identity"),
+        ("SingleWithNever := 'text' | never", "Single-quoted with never identity"),
+        ("SingleEllipsis := 'base' | ...", "Single-quoted with ellipsis"),
+        ("SingleEllipsisTail := 'head' * ...", "Single-quoted product with ellipsis"),
+        ("SingleComplex := ($res 'OK' | $err 'Error') <- 'input'", "Complex single-quoted expression"),
+        ("SingleCurried := 'C' <- 'B' <- 'A'", "Single-quoted currying"),
+        ("SingleRecursive := 'item' * SingleRecursive | void", "Recursive with single-quoted"),
+        ("SingleVariadic := 'a' | 'b' | 'c' | ...", "Multiple single-quoted sum with ellipsis"),
+        ("SingleFinal := ('x' * 'y', 'z')", "Single-quoted in nested tuple"),
+        # ====== MIXED STRING TYPE TESTS (10 cases) ======
+        ("MixedSingleDouble := 'single' * \"double\"", "Single and double quotes together"),
+        ("MixedDoubleSingle := \"double\" | 'single'", "Double and single quotes together"),
+        ("MixedTripleSingle := '''triple''' * 'single'", "Triple and single quotes together"),
+        ("MixedAll := 'one' * \"two\" | '''three'''", "All three string types together"),
+        ("MixedWithTypes := 'text' * 42 * 3.14 * \"str\"", "Mixed with number literals"),
+        ("MixedInTuple := ('first', \"second\", 'third')", "Mixed quotes in tuple"),
+        ("MixedInSum := 'a' | \"b\" | 'c'", "Mixed quotes in sum"),
+        ("MixedInExponent := 'result' <- (\"input1\" * 'input2')", "Mixed quotes in exponent"),
+        ("MixedTagged := $tag 'val' * $other \"val2\"", "Mixed quotes with tags"),
+        ("MixedComplex := ('''A''' | 'B') <- (\"x\" * 'y' * '''z''')", "Complex mixed quotes"),
     ]
 
     print(f"{'TEST CASE':<50} | {'STATUS'}")
