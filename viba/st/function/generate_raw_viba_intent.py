@@ -9,7 +9,7 @@ import torch
 from torch.autograd import Function
 
 # Import the existing get_file_content implementation from the correct module.
-from viba.symbolic_model.tensor_util.get_file_content import get_file_content
+from viba.st.tensor_util.get_file_content import get_file_content
 
 # ----------------------------------------------------------------------
 # Helper: encode a list of strings into a 3D uint8 tensor (batch, 1, feature_len)
@@ -161,10 +161,10 @@ generate_raw_viba_intent = GenerateRawVibaIntent.apply
 # Unit tests (only in __main__)
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
-    from viba.symbolic_model.data_loader.sole_file_batch_data_loader import (
+    from viba.st.data_loader.sole_file_batch_data_loader import (
         SoleFileBatchDataLoader,
     )
-    from viba.symbolic_model.data_loader.convert_list_str_to_2d_tensor import (
+    from viba.st.data_loader.convert_list_str_to_2d_tensor import (
         convert_2d_tensor_to_list_str,
     )
     from unittest.mock import patch

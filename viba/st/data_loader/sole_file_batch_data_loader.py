@@ -3,8 +3,8 @@ import torch
 from torch.utils.data import IterableDataset
 
 # Import previously defined helper functions
-from viba.symbolic_model.data_loader.get_all_relative_file_paths import get_all_relative_file_paths
-from viba.symbolic_model.data_loader.convert_list_str_to_2d_tensor import convert_list_str_to_2d_tensor
+from viba.st.data_loader.get_all_relative_file_paths import get_all_relative_file_paths
+from viba.st.data_loader.convert_list_str_to_2d_tensor import convert_list_str_to_2d_tensor
 
 def convert_2d_tensor_to_3d_tensor(two_dim_tensor: torch.Tensor, max_use_count: int) -> torch.Tensor:
     """

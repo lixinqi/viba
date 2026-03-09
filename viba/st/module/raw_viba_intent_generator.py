@@ -6,7 +6,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
-from viba.symbolic_model.function.generate_raw_viba_intent import generate_raw_viba_intent
+from viba.st.function.generate_raw_viba_intent import generate_raw_viba_intent
 
 
 class RawVibaIntentGenerator(nn.Module):
@@ -85,7 +85,7 @@ class RawVibaIntentGenerator(nn.Module):
 
 if __name__ == "__main__":
     # Imports allowed only in __main__
-    from viba.symbolic_model.data_loader.convert_list_str_to_2d_tensor import (
+    from viba.st.data_loader.convert_list_str_to_2d_tensor import (
         convert_2d_tensor_to_list_str,
     )
     from unittest.mock import patch
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         else:
             return json.dumps({"key": "some_key", "diff": "some_diff"})
 
-    target_patch = 'viba.symbolic_model.function.generate_raw_viba_intent._call_claude'
+    target_patch = 'viba.st.function.generate_raw_viba_intent._call_claude'
 
     with patch(target_patch, side_effect=mock_claude_response):
         with tempfile.TemporaryDirectory() as tmpdir:
