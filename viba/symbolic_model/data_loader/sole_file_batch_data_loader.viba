@@ -1,0 +1,26 @@
+SoleFileBatchDataLoader :=
+    torch.DataLoader[ThreeDimTensor]
+    <- $root_dir str
+    <- $file_content_type str
+    <- $extention str
+    <- ...
+    <- $batch_size int #default 1
+    <- $max_use_count int # default 64. for backward diff accumulate. use concat to avoid '+' on ascii uint8 type
+    # inline
+    <- Import['viba/symbolic_model/data_loader/get_all_relative_file_paths.py']
+    <- Import ['viba/symbolic_model/data_loader/convert_list_str_to_2d_tensor.py']
+    <- ($ret_tensor <- convert_2d_tensor_to_3d_tensor <- ...)
+    <- '''
+        ret_tensor.st_relative_to = root_dir  # st is short for symbolic tensor
+        ret_tensor.st_file_content_type = file_content_type
+    '''
+
+convert_2d_tensor_to_3d_tensor :=
+    torch.Tensor
+    <- $two_dim_tensor torch.Tensor
+    <- $max_use_count int
+    # inline
+    <- '''
+        ret = torch.zeros(two_dim_tensor.shape[0], max_use_count, two_dim_tensor.shape[1])
+        ret[:, 0, :] = two_dim_tensor[:, None, :]
+    '''

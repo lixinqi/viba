@@ -1,0 +1,59 @@
+# only for comprehension. do not generate
+Tensor[T] := torch.Tensor[
+    $shape (batch_size, max_use_count, feature_len), 
+    $dtype uint8, 
+    $file_content_type T
+]
+
+generate_raw_viba_intent_forward :=
+    $output Tensor[Json[list[list[str]]]]
+    <- $input Tensor[Python, $require_grads False]
+    <- $weight Tensor[Json[list[$key Python * $value Viba]]]
+    # inline
+    <- Tensor.st_relative_to
+    <- $get_file_content ImportFrom["viba/symbolic_model/tensor_util/get_file_content"]
+    # see viba/get_all_truncated_vibe_code.*, viba/std_coding_style.py to generate LLMs prompt
+    # generate 6 viba segment for each ExponentChain
+    <- $get_output_json_for_each_batch (Json[list[list[str]]] <- '''
+    unset CLAUDECODE && claude -p '{prompt} {weight_file_content} {input_file_content}'
+    ''')
+
+generate_raw_viba_intent_backward :=
+    $ret (
+        $input_grad None, 
+        $weigh_grad Tensor[Json[list[$key Diff[Python] * $value Diff[Viba]]]]
+    )
+    <- $output_grad Tensor[Json[list[list[Diff[str]]]]]
+    <- $input Tensor[Python, $require_grads False]
+    <- $weight Tensor[Json[list[$key Python * $value Viba]]]
+    # inline
+    <- Tensor.st_relative_to
+    <- Import["viba/symbolic_model/tensor_util/get_file_content"].get_file_content
+    <- $get_weight_grad_json (Json[list[$key Diff[Python] * $value Diff[Viba]]] <- '''
+    unset CLAUDECODE && claude -p '{prompt} {all_weights_file_content} {input_file_content} {output_grad_file_content}'
+    ''')
+    <- ($ret <- $get_weight_grad_json)
+
+
+GenerateRawVibaIntent :=
+    torch.autograd.Function
+    * $forward (
+        ...
+        <- ...
+        # inline
+        <- generate_raw_viba_intent_forward
+    )
+    * $backward (
+        ...
+        <- ...
+        <- generate_raw_viba_intent_backward
+    )
+
+generate_raw_viba_intent := GenerateRawVibaIntent.xxx_replace_me_xxx
+
+# 3 test cases in __main__
+# use viba/symbolic_model/data_loaders/sole_file_batch_data_loader.py::SoleFileBatchDataLoader to generate input tensors
+# import data loader only in __main__
+# generate weight symbolic tensors by temp directory and random string
+# mock LLMs behaviors in test cases
+# english comments

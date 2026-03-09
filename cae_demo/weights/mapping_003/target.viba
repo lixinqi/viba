@@ -1,0 +1,2 @@
+compute :=
+  ((int <- int) <- int) <- str

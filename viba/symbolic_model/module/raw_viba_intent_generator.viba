@@ -1,0 +1,10 @@
+
+RawVibaIntentGenerator :=
+    # base torch.nn.Module
+    # forward
+    Tensor
+    <- $input Tensor
+    # __init__
+    <- ...
+    # inline
+    <- $generate_raw_viba_intent ImportFrom["viba/symbolic_model/function/generate_raw_viba_intent.py"]

@@ -1,0 +1,8 @@
+get_all_relative_file_paths :=
+    list[$relative_file_path str] # relative to root_dir, no "./" prefix
+    <- $root_dir str
+    <- $extention (str | None)
+
+
+# at least 5 test cases.
+# use temp directory to mock 
