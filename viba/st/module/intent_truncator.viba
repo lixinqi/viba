@@ -3,7 +3,7 @@ IntentTruncator :=
     # base torch.nn.Module
     # forward
     ($intent_base Tensor[Viba], $truncated_intents list[$truncated_intent Tensor[Viba]])
-    <- $input Tensor[Json[list[list[str]]]]
+    <- $input Tensor[Viba]
     # __init__
     <- $num_parts int
     # inline

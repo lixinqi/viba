@@ -7,13 +7,12 @@ Tensor[T] := torch.Tensor[
 
 get_truncated_intents_forward :=
     ($intent_base Tensor[Viba], $truncated_intents list[$truncated_intent Tensor[Viba]])
-    <- $input Tensor[Json[list[list[str]]]]
+    <- $input Tensor[Viba]
     <- $num_parts
     # inline
     <- Getter[Tensor.st_relative_to]
     <- $convert_st_tensor_to_file_contents ImportFrom["viba/st/tensor_util/convert_st_tensor_to_file_contents"]
     <- Import['viba.intent_truncate_util'].get_all_truncated_vibe_code
-    <- 
     <- Setter[Tensor.st_relative_to]
     <- Setter[Tensor.st_file_content_type]
     <- ($intent_base.shape[0] <- $input.shape[0])
@@ -22,19 +21,15 @@ get_truncated_intents_forward :=
 
 
 get_truncated_intents_backward :=
-    $ret (
-        $input_grad Tensor[Json[list[list[Diff[str]]]]], 
-        $weigh_grad Tensor[Json[list[$key Diff[Python] * $value Diff[Viba]]]]
-    )
+    $ret $input_grad Tensor[Diff[Viba]]
     <- $intent_base_grad Tensor[Diff[Viba]]
-    <- $truncated_intents_grad Tensor[Json[list[Diff[Viba]]]]
+    <- $truncated_intents_grad Tensor[Diff[Viba]]
     # inline
     <- Tensor.st_relative_to
     <- Import["viba/st/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
-    <- $get_weight_grad_json (Json[list[$key Diff[Python] * $value Diff[Viba]]] <- '''
     unset CLAUDECODE && claude -p '{prompt} {intent_base_grad_file_content} {truncated_intents_grad}'
     ''')
-    <- ($weigh_grad.shape[0] <- $input.shape[0])
+    <- ($ret.shape[0] <- $input.shape[0])
     <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
 
 

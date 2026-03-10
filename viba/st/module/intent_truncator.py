@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import List, Tuple
 
@@ -15,11 +14,11 @@ class IntentTruncator(nn.Module):
     During initialization, `num_parts` is stored as the number of truncation levels
     to produce in the forward pass.
 
-    In the forward pass, the input tensor must contain file paths (with `st_relative_to`)
-    pointing to JSON files of shape list[list[str]] (segment groups). The module delegates
-    to the autograd Function `get_truncated_intents`, which internally uses
-    `convert_st_tensor_to_file_contents` to read the actual content, applies
-    `get_all_truncated_vibe_code` per sample, and returns:
+    In the forward pass, the input tensor (Tensor[Viba]) must contain file paths
+    (with `st_relative_to`) pointing to files containing raw viba source code.
+    The module delegates to the autograd Function `get_truncated_intents`, which
+    internally uses `convert_st_tensor_to_file_contents` to read the actual content,
+    applies `get_all_truncated_vibe_code` per sample, and returns:
       - intent_base: Tensor[Viba] of shape (batch, 1, feature_len)
       - truncated_intents: list of num_parts Tensor[Viba], each (batch, 1, feature_len)
 
@@ -36,10 +35,10 @@ class IntentTruncator(nn.Module):
         Execute one forward pass.
 
         Args:
-            input_tensor (torch.Tensor): uint8 tensor of shape (batch, max_use_count, feature_len)
-                containing UTF-8 encoded relative paths to JSON files. Each JSON file holds
-                a list[list[str]] of Viba segment groups. Must have the attribute `st_relative_to`
-                pointing to the root directory.
+            input_tensor (torch.Tensor): Tensor[Viba] - uint8 tensor of shape
+                (batch, max_use_count, feature_len) containing UTF-8 encoded relative
+                paths to files with raw viba source code. Must have the attribute
+                `st_relative_to` pointing to the root directory.
 
         Returns:
             intent_base (torch.Tensor): uint8 tensor of shape (batch, 1, feature_len)
@@ -62,20 +61,18 @@ if __name__ == "__main__":
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # --------------------------------------------------------------
-        # Prepare input data: two samples of Viba segment groups.
+        # Prepare input data: two samples of raw viba code (Tensor[Viba]).
         # --------------------------------------------------------------
-        sample_0 = [["compute := $result int <- $a int", "<- $b int", "<- $op str"]]
-        sample_1 = [["Person := $name str * $age int"]]
-
-        input_json_strings = [json.dumps(s) for s in [sample_0, sample_1]]
+        sample_0 = "compute := $result int <- $a int <- $b int <- $op str"
+        sample_1 = "Person := $name str * $age int"
 
         input_tensor = convert_file_contents_to_st_tensor(
-            file_contents=input_json_strings,
+            file_contents=[sample_0, sample_1],
             relative_to=tmpdir,
             max_use_count=1,
             feature_len=256,
         )
-        input_tensor.st_file_content_type = "Json[list[list[str]]]"
+        input_tensor.st_file_content_type = "Viba"
 
         num_parts = 3
 

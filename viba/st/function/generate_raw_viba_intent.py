@@ -77,7 +77,7 @@ def generate_raw_viba_intent_forward(
 
         prompt = (
             "Given the following Python code and the existing Python→Viba mapping, "
-            "generate exactly 6 Viba intent segments (as a JSON list of strings). "
+            "generate the Viba intent code. "
             "Python code:\n" + input_content +
             "\nMapping:\n" + weight_content
         )
@@ -98,7 +98,7 @@ def generate_raw_viba_intent_forward(
     )
     # The builder already sets st_relative_to and st_file_content_type.
     # Override the content type to the expected one.
-    output_tensor.st_file_content_type = "Json[list[list[str]]]"
+    output_tensor.st_file_content_type = "Viba"
     return output_tensor
 
 # ----------------------------------------------------------------------
@@ -187,8 +187,8 @@ if __name__ == "__main__":
     import tempfile
 
     def mock_claude_response(prompt: str) -> str:
-        if "Viba intent segments" in prompt:  # forward prompt heuristic
-            return json.dumps(["intent1", "intent2", "intent3", "intent4", "intent5", "intent6"])
+        if "Viba intent code" in prompt:  # forward prompt heuristic
+            return "compute := $ret int <- $a int <- $b int"
         else:  # backward prompt
             return json.dumps({"key": "some_key", "diff": "some_diff"})
 
@@ -243,7 +243,7 @@ if __name__ == "__main__":
             # Expect shape (2, 1, 256) because input second dim is 1
             assert out.shape == (2, 1, 256), f"Unexpected shape: {out.shape}"
             assert out.dtype == torch.uint8
-            assert out.st_file_content_type == "Json[list[list[str]]]"
+            assert out.st_file_content_type == "Viba"
 
             stored_paths = convert_2d_tensor_to_list_str(out[:, 0, :])
             for i, path in enumerate(stored_paths):
@@ -252,30 +252,22 @@ if __name__ == "__main__":
                 assert full_path.exists(), f"File not found: {full_path}"
                 written = full_path.read_text(encoding='utf-8')
                 print(f"File content (repr): {repr(written)}")
-                if not written:
-                    raise AssertionError(f"File content is empty for sample {i}")
-                try:
-                    parsed_written = json.loads(written)
-                except json.JSONDecodeError as e:
-                    print(f"JSON decode error: {e}")
-                    raise
-                expected_json = json.dumps(["intent1", "intent2", "intent3", "intent4", "intent5", "intent6"])
-                assert parsed_written == json.loads(expected_json), f"Content mismatch for sample {i}"
+                assert written == "compute := $ret int <- $a int <- $b int", f"Content mismatch for sample {i}"
             print("  Forward test passed.\n")
 
             # -------------------- Test 2: Backward pass --------------------
             print("Test 2: Backward pass")
             dummy_grad_strings = [
-                json.dumps([{"diff": "change1"}, {"diff": "change2"}]),
-                json.dumps([{"diff": "changeA"}, {"diff": "changeB"}]),
+                "diff: change result type",
+                "diff: change argument type",
             ]
             grad_out = convert_file_contents_to_st_tensor(
                 dummy_grad_strings,
                 relative_to=tmpdir,
-                max_use_count=1,        # match weight's second dimension (1)
+                max_use_count=1,
                 feature_len=256
             )
-            grad_out.st_file_content_type = "Json[list[list[Diff[str]]]]"
+            grad_out.st_file_content_type = "Diff[Viba]"
 
             weight_grad = generate_raw_viba_intent_backward(grad_out, input_tensor, weight_tensor)
 

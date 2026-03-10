@@ -6,7 +6,7 @@ Tensor[T] := torch.Tensor[
 ]
 
 generate_raw_viba_intent_forward :=
-    $output Tensor[Json[list[list[str]]]]
+    $output Tensor[Viba]
     <- $input Tensor[Python, $require_grads False]
     <- $weight Tensor[Json[list[$key Python * $value Viba]]]
     # inline
@@ -27,7 +27,7 @@ generate_raw_viba_intent_backward :=
         $input_grad None, 
         $weigh_grad Tensor[Json[list[$key Diff[Python] * $value Diff[Viba]]]]
     )
-    <- $output_grad Tensor[Json[list[list[Diff[str]]]]]
+    <- $output_grad Tensor[Diff[Viba]]
     <- $input Tensor[Python, $require_grads False]
     <- $weight Tensor[Json[list[$key Python * $value Viba]]]
     # inline
