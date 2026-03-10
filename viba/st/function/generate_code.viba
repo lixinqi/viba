@@ -7,21 +7,22 @@ Tensor[T] := torch.Tensor[
 ]
 
 generate_code_forward :=
-    $output Tensor[T]
+    $output Tensor[$output_file_content_type]
     <- $input Tensor[Viba]
     <- $weight Tensor[Json[list[$key Viba * $value T]]]
+    <- $output_file_content_type str
     # inline
     <- Tensor.st_relative_to
     <- $convert_st_tensor_to_file_contents ImportFrom["viba/st/tensor_util/convert_st_tensor_to_file_contents"]
     # see viba/get_all_truncated_vibe_code.*, viba/std_coding_style.py to generate LLMs prompt
     # generate 7 viba segment for each ExponentChain
     <- $get_output_json_for_each_batch (Viba <- '''
-    unset CLAUDECODE && claude -p '{prompt} {weight.st_file_content_type} {weight_file_content} {input_file_content}'
+    unset CLAUDECODE && claude -p '{prompt} {output_file_content_type} {weight_file_content} {input_file_content}'
     ''')
     <- ($output.shape[1] <- $input.shape[1])
     <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
     <- Setter[Tensor.st_relative_to]
-    <- Setter[Tensor.st_file_content_type]
+    <- ($output.st_file_content_type <- output_file_content_type)
 
 generate_code_backward :=
     $ret (

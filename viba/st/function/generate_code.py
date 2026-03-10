@@ -37,7 +37,8 @@ def _call_claude(prompt: str) -> str:
 # ----------------------------------------------------------------------
 def generate_code_forward(
     input_tensor: torch.Tensor,
-    weight_tensor: torch.Tensor
+    weight_tensor: torch.Tensor,
+    output_file_content_type: str
 ) -> torch.Tensor:
     """
     Forward pass: for each sample in the batch, invoke claude to generate
@@ -53,15 +54,13 @@ def generate_code_forward(
     batch_size = input_tensor.shape[0]
     output_strings = []
 
-    weight_content_type = getattr(weight_tensor, 'st_file_content_type', '')
-
     for i in range(batch_size):
         input_content = input_contents_2d[i][0]
         weight_content = weight_contents_2d[i][0]
 
         prompt = (
             "Given the following Viba intent code and the existing Viba→T mapping "
-            "(content type: " + weight_content_type + "), "
+            "(output type: " + output_file_content_type + "), "
             "generate the target code. "
             "Viba intent:\n" + input_content +
             "\nMapping:\n" + weight_content
@@ -81,8 +80,8 @@ def generate_code_forward(
         max_use_count=max_use_count,        # preserve input's second dimension
         feature_len=feature_len
     )
-    # Override the content type to the expected one.
-    output_tensor.st_file_content_type = "T"
+    # Set the content type from the explicit parameter.
+    output_tensor.st_file_content_type = output_file_content_type
     return output_tensor
 
 # ----------------------------------------------------------------------
@@ -172,9 +171,9 @@ def generate_code_backward(
 # ----------------------------------------------------------------------
 class GenerateCode(Function):
     @staticmethod
-    def forward(ctx, input_tensor, weight_tensor):
+    def forward(ctx, input_tensor, weight_tensor, output_file_content_type):
         ctx.save_for_backward(input_tensor, weight_tensor)
-        return generate_code_forward(input_tensor, weight_tensor)
+        return generate_code_forward(input_tensor, weight_tensor, output_file_content_type)
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -182,8 +181,8 @@ class GenerateCode(Function):
         input_grad, weight_grad = generate_code_backward(
             grad_output, input_tensor, weight_tensor
         )
-        # Both input and weight receive gradients
-        return input_grad, weight_grad
+        # Both input and weight receive gradients; no grad for output_file_content_type
+        return input_grad, weight_grad, None
 
 # Convenience alias
 generate_code = GenerateCode.apply
@@ -253,11 +252,11 @@ if __name__ == "__main__":
 
             # -------------------- Test 1: Forward pass --------------------
             print("Test 1: Forward pass")
-            out = generate_code(input_tensor, weight_tensor)
+            out = generate_code(input_tensor, weight_tensor, "Python")
             # Expect shape (2, 1, 256) because input second dim is 1
             assert out.shape == (2, 1, 256), f"Unexpected shape: {out.shape}"
             assert out.dtype == torch.uint8
-            assert out.st_file_content_type == "T"
+            assert out.st_file_content_type == "Python"
 
             stored_paths = convert_2d_tensor_to_list_str(out[:, 0, :])
             for i, path in enumerate(stored_paths):
@@ -317,14 +316,15 @@ if __name__ == "__main__":
 
             # -------------------- Test 3: Autograd Function returns both grads --------------------
             print("Test 3: Autograd Function returns both grads")
-            # Verify GenerateCode.backward returns (input_grad, weight_grad), both non-None
+            # Verify GenerateCode.backward returns (input_grad, weight_grad, None)
             class MockCtx:
                 saved_tensors = (input_tensor, weight_tensor)
             mock_ctx = MockCtx()
             result = GenerateCode.backward(mock_ctx, grad_out)
-            assert isinstance(result, tuple) and len(result) == 2, f"Expected tuple of 2, got {type(result)}"
+            assert isinstance(result, tuple) and len(result) == 3, f"Expected tuple of 3, got {type(result)}"
             assert result[0] is not None, "input_grad should not be None"
             assert result[1] is not None, "weight_grad should not be None"
+            assert result[2] is None, "output_file_content_type grad should be None"
             assert result[0].st_file_content_type == "Diff[Viba]"
             assert result[1].st_file_content_type == "Json[list[$key Diff[Viba] * $value Diff[T]]]"
             print("  Autograd Function test passed.\n")

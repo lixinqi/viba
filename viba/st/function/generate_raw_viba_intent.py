@@ -59,7 +59,7 @@ def generate_raw_viba_intent_forward(
 ) -> torch.Tensor:
     """
     Forward pass: for each sample in the batch, invoke claude to generate
-    a JSON list of 6 intent segments.
+    Viba intent code (7 segments per ExponentChain).
 
     The output tensor has the same batch size and second dimension (max_use_count)
     as the input tensor, with data placed in the first layer (index 0). The remaining
@@ -76,14 +76,14 @@ def generate_raw_viba_intent_forward(
         weight_content = weight_contents_2d[i][0]
 
         prompt = (
-            "Given the following Python code and the existing Python→Viba mapping, "
+            "Given the following source code and the existing T→Viba mapping, "
             "generate the Viba intent code. "
-            "Python code:\n" + input_content +
+            "Source code:\n" + input_content +
             "\nMapping:\n" + weight_content
         )
 
-        result_json = _call_claude(prompt)
-        output_strings.append(result_json)
+        result = _call_claude(prompt)
+        output_strings.append(result)
 
     feature_len = input_tensor.shape[2]
     root_dir = getattr(input_tensor, 'st_relative_to', None)
@@ -129,11 +129,11 @@ def generate_raw_viba_intent_backward(
         grad_content = grad_contents_2d[i][0]
 
         prompt = (
-            "Given the following Python code, the current Python→Viba mapping, "
+            "Given the following source code, the current T→Viba mapping, "
             "and the gradient of the output (as a Diff string), suggest modifications "
             "to the mapping to reduce loss. Output a JSON object with keys "
-            "'key' (Python fragment) and 'diff' (Viba diff). "
-            "Python code:\n" + input_content +
+            "'key' (T fragment diff) and 'diff' (Viba diff). "
+            "Source code:\n" + input_content +
             "\nCurrent mapping:\n" + weight_content +
             "\nOutput gradient (Diff):\n" + grad_content
         )
@@ -152,7 +152,7 @@ def generate_raw_viba_intent_backward(
         max_use_count=max_use_count,        # preserve weight's second dimension
         feature_len=feature_len
     )
-    grad_tensor.st_file_content_type = "Json[list[$key Diff[Python] * $value Diff[Viba]]]"
+    grad_tensor.st_file_content_type = "Json[list[$key Diff[T] * $value Diff[Viba]]]"
     return grad_tensor
 
 # ----------------------------------------------------------------------
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     import tempfile
 
     def mock_claude_response(prompt: str) -> str:
-        if "Viba intent code" in prompt:  # forward prompt heuristic
+        if "generate the Viba intent code" in prompt:  # forward prompt heuristic
             return "compute := $ret int <- $a int <- $b int"
         else:  # backward prompt
             return json.dumps({"key": "some_key", "diff": "some_diff"})
@@ -218,7 +218,7 @@ if __name__ == "__main__":
             # Input tensor (batch=2, max_use_count=1, feature_len=256)
             input_loader = SoleFileBatchDataLoader(
                 root_dir=tmpdir,
-                file_content_type="Python",
+                file_content_type="T",
                 extension=".py",
                 batch_size=2,
                 max_use_count=1,
@@ -229,7 +229,7 @@ if __name__ == "__main__":
             # Weight tensor (batch=2, max_use_count=1, feature_len=256)
             weight_loader = SoleFileBatchDataLoader(
                 root_dir=tmpdir,
-                file_content_type="Json[list[$key Python * $value Viba]]",
+                file_content_type="Json[list[$key T * $value Viba]]",
                 extension=".json",
                 batch_size=2,
                 max_use_count=1,
@@ -273,7 +273,7 @@ if __name__ == "__main__":
 
             assert weight_grad.shape == (2, 1, 256), f"Unexpected weight_grad shape: {weight_grad.shape}"
             assert weight_grad.dtype == torch.uint8
-            assert weight_grad.st_file_content_type == "Json[list[$key Diff[Python] * $value Diff[Viba]]]"
+            assert weight_grad.st_file_content_type == "Json[list[$key Diff[T] * $value Diff[Viba]]]"
 
             stored_weight_grad_paths = convert_2d_tensor_to_list_str(weight_grad[:, 0, :])
             for i, path in enumerate(stored_weight_grad_paths):

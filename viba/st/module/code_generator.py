@@ -29,10 +29,11 @@ class CodeGenerator(nn.Module):
         feature_len (int): Fixed byte length for encoding each relative path. Default: 4096.
     """
 
-    def __init__(self, weight_dir: str, feature_len: int = 4096):
+    def __init__(self, weight_dir: str, output_file_content_type: str = "T", feature_len: int = 4096):
         super().__init__()
         self.feature_len = feature_len
         self.weight_dir = weight_dir
+        self.output_file_content_type = output_file_content_type
 
         weight_tensor = self._build_path_tensor(weight_dir, feature_len)
         weight_tensor.st_relative_to = weight_dir
@@ -80,7 +81,7 @@ class CodeGenerator(nn.Module):
         # Expand creates a view; preserve the st_relative_to attribute.
         if hasattr(self.weight, 'st_relative_to'):
             expanded_weight.st_relative_to = self.weight.st_relative_to
-        return generate_code(input_tensor, expanded_weight)
+        return generate_code(input_tensor, expanded_weight, self.output_file_content_type)
 
 
 if __name__ == "__main__":
@@ -132,7 +133,7 @@ if __name__ == "__main__":
             # Instantiate the module under test. It will build the weight buffer
             # containing paths to the JSON files.
             # ------------------------------------------------------------------
-            model = CodeGenerator(tmpdir, feature_len=256)
+            model = CodeGenerator(tmpdir, output_file_content_type="Python", feature_len=256)
 
             # ------------------------------------------------------------------
             # Create an input tensor that contains paths to the Viba files,
@@ -158,7 +159,7 @@ if __name__ == "__main__":
             output = model(input_tensor)
             assert output.shape == (2, 1, 256), f"Unexpected output shape: {output.shape}"
             assert output.dtype == torch.uint8
-            assert output.st_file_content_type == "T"
+            assert output.st_file_content_type == "Python"
 
             # Decode the output and verify content.
             first_layer = output[:, 0, :]

@@ -1,4 +1,5 @@
-# only for comprehension. do not generate
+
+# Tensor is only for comprehension. do not generate
 Tensor[T] := torch.Tensor[
     $shape (batch_size, max_use_count, feature_len), 
     $dtype uint8, 

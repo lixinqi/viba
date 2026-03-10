@@ -95,8 +95,8 @@ if __name__ == "__main__":
     # Mock the internal _call_claude function used by generate_raw_viba_intent.
     # ------------------------------------------------------------------
     def mock_claude_response(prompt: str) -> str:
-        if "Viba intent segments" in prompt:
-            return json.dumps(["intent1", "intent2", "intent3", "intent4", "intent5", "intent6"])
+        if "generate the Viba intent code" in prompt:
+            return "compute := $ret int <- $a int <- $b int"
         else:
             return json.dumps({"key": "some_key", "diff": "some_diff"})
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     with patch(target_patch, side_effect=mock_claude_response):
         with tempfile.TemporaryDirectory() as tmpdir:
             # ------------------------------------------------------------------
-            # Prepare input Python files.
+            # Prepare input source files.
             # ------------------------------------------------------------------
             input_files = {
                 "sample1.py": "print('hello 1')",
@@ -117,7 +117,7 @@ if __name__ == "__main__":
                     f.write(content)
 
             # ------------------------------------------------------------------
-            # Prepare weight JSON files (Python → Viba mappings).
+            # Prepare weight JSON files (T → Viba mappings).
             # ------------------------------------------------------------------
             weight_files = {
                 "weight1.json": json.dumps({"py_key1": "viba_val1", "py_key2": "viba_val2"}),
@@ -132,14 +132,14 @@ if __name__ == "__main__":
             # Instantiate the module under test. It will build the weight buffer
             # containing paths to the JSON files.
             # ------------------------------------------------------------------
-            model = RawVibaIntentGenerator(tmpdir, feature_len=128)
+            model = RawVibaIntentGenerator(tmpdir, feature_len=256)
 
             # ------------------------------------------------------------------
-            # Create an input tensor that contains paths to the Python files,
+            # Create an input tensor that contains paths to the source files,
             # and set its st_relative_to attribute.
             # ------------------------------------------------------------------
             input_paths = [["sample1.py"], ["sample2.py"]]   # batch=2, max_use_count=1
-            feature_len = 128
+            feature_len = 256
             encoded_rows = []
             for sample in input_paths:
                 for path in sample:
@@ -156,23 +156,25 @@ if __name__ == "__main__":
             # ------------------------------------------------------------------
             print("Test 1: Forward pass")
             output = model(input_tensor)
-            assert output.shape == (2, 1, 128), f"Unexpected output shape: {output.shape}"
+            assert output.shape == (2, 1, 256), f"Unexpected output shape: {output.shape}"
             assert output.dtype == torch.uint8
-            assert output.st_file_content_type == "Json[list[list[str]]]"
+            assert output.st_file_content_type == "Viba"
 
-            # Decode the output and verify JSON structure.
+            # Decode the output and verify content.
             first_layer = output[:, 0, :]
             decoded = convert_2d_tensor_to_list_str(first_layer)
-            for json_str in decoded:
-                data = json.loads(json_str)
-                assert isinstance(data, list) and len(data) == 6
+            for path_str in decoded:
+                full_path = Path(tmpdir) / path_str
+                assert full_path.exists(), f"Output file not found: {full_path}"
+                written = full_path.read_text(encoding='utf-8')
+                assert written == "compute := $ret int <- $a int <- $b int"
             print("  Forward test passed.\n")
 
             # ------------------------------------------------------------------
             # Test 2: Weight buffer shape and content.
             # ------------------------------------------------------------------
             print("Test 2: Module weight buffer")
-            assert model.weight.shape == (1, 2, 128)   # two mapping files
+            assert model.weight.shape == (1, 2, 256)   # two mapping files
             weight_paths = convert_2d_tensor_to_list_str(model.weight[0])  # shape (2,)
             expected_paths = ["weight1.json", "weight2.json"]
             assert weight_paths == expected_paths, f"Expected {expected_paths}, got {weight_paths}"
