@@ -1,0 +1,10 @@
+
+IntentTruncator :=
+    # base torch.nn.Module
+    # forward
+    ($intent_base Tensor[Viba], $truncated_intents list[$truncated_intent Tensor[Viba]])
+    <- $input Tensor[Json[list[list[str]]]]
+    # __init__
+    <- $num_parts int
+    # inline
+    <- $get_truncated_intents ImportFrom["viba/st/function/get_truncated_intents.py"]

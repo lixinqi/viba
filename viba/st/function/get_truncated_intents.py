@@ -35,44 +35,44 @@ def _call_claude(prompt: str) -> str:
 def get_truncated_intents_forward(
     input_tensor: torch.Tensor,
     num_parts: int
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, List[torch.Tensor]]:
     """
     Forward pass: read the input tensor (which stores paths to JSON files containing
     list[list[str]] intent data), apply truncation to generate a base intent and
     multiple truncated variants for each sample.
 
     Returns:
-        intent_base_tensor: Tensor of shape (batch, 1, feature_len) storing paths to files
-                            containing the base Viba intent (string).
-        truncated_intents_tensor: Tensor of shape (batch, 1, feature_len) storing paths
-                                  to files containing JSON lists of truncated Viba intents.
+        intent_base_tensor: Tensor[Viba] of shape (batch, 1, feature_len) storing paths
+                            to files containing the base Viba intent (string).
+        truncated_intents: list of num_parts Tensor[Viba], each of shape
+                           (batch, 1, feature_len) storing paths to files containing
+                           one truncated Viba intent per sample.
     """
     # Retrieve the list of intent strings for each sample
-    # input_tensor stores paths to files containing JSON list of list of strings
-    input_contents_2d = convert_st_tensor_to_file_contents(input_tensor)          # list of list of str, shape (batch, max_use_count)
-    # Take the first slot (index 0) as the actual intent list
+    input_contents_2d = convert_st_tensor_to_file_contents(input_tensor)
     batch_size = input_tensor.shape[0]
-    input_intents = [input_contents_2d[i][0] for i in range(batch_size)]   # list of JSON strings
+    input_intents = [input_contents_2d[i][0] for i in range(batch_size)]
 
     # Parse each JSON into list[list[str]] (segment groups for one sample)
-    parsed_intents = [json.loads(s) for s in input_intents]     # list[list[list[str]]]
+    parsed_intents = [json.loads(s) for s in input_intents]
 
     # Apply truncation logic per sample.
     # get_all_truncated_vibe_code signature:
     #   (vibe_segments_list: list[list[str]], num_parts: int) -> tuple[str, list[str]]
     # It processes ONE sample at a time, returning (base_intent_str, [truncated_str, ...]).
     base_intents = []
-    truncated_json_strings = []
+    # truncated_by_part[p] = list of truncated strings for part p across batch
+    truncated_by_part: List[List[str]] = [[] for _ in range(num_parts)]
     for segments in parsed_intents:
         base, truncated = get_all_truncated_vibe_code(segments, num_parts)
         base_intents.append(base)
-        truncated_json_strings.append(json.dumps(truncated))
+        for p in range(num_parts):
+            truncated_by_part[p].append(truncated[p])
 
     feature_len = input_tensor.shape[2]
     root_dir = getattr(input_tensor, 'st_relative_to', None)
 
-    # Convert both result lists into path tensors (each batch element stored as a file)
-    # We set max_use_count = 1 because each output is a single string per sample.
+    # Convert base intents into a path tensor
     intent_base_tensor = convert_file_contents_to_st_tensor(
         file_contents=base_intents,
         relative_to=root_dir,
@@ -81,22 +81,26 @@ def get_truncated_intents_forward(
     )
     intent_base_tensor.st_file_content_type = "Viba"
 
-    truncated_intents_tensor = convert_file_contents_to_st_tensor(
-        file_contents=truncated_json_strings,
-        relative_to=root_dir,
-        max_use_count=1,
-        feature_len=feature_len
-    )
-    truncated_intents_tensor.st_file_content_type = "Json[list[Viba]]"
+    # Convert each truncation level into a separate Tensor[Viba]
+    truncated_tensors = []
+    for p in range(num_parts):
+        t = convert_file_contents_to_st_tensor(
+            file_contents=truncated_by_part[p],
+            relative_to=root_dir,
+            max_use_count=1,
+            feature_len=feature_len
+        )
+        t.st_file_content_type = "Viba"
+        truncated_tensors.append(t)
 
-    return intent_base_tensor, truncated_intents_tensor
+    return intent_base_tensor, truncated_tensors
 
 # ----------------------------------------------------------------------
 # Backward implementation
 # ----------------------------------------------------------------------
 def get_truncated_intents_backward(
     intent_base_grad: torch.Tensor,          # Tensor[Diff[Viba]]
-    truncated_intents_grad: torch.Tensor,    # Tensor[Json[list[Diff[Viba]]]]
+    truncated_intents_grad: List[torch.Tensor],  # list[Tensor[Diff[Viba]]]
     input_tensor: torch.Tensor,              # saved from forward
     num_parts: int                            # saved from forward
 ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
@@ -111,25 +115,21 @@ def get_truncated_intents_backward(
                      for weight update (if any), otherwise None.
     """
     # Read the gradient contents (Diff strings)
-    base_grad_contents = convert_st_tensor_to_file_contents(intent_base_grad)          # list of list of str
-    truncated_grad_contents = convert_st_tensor_to_file_contents(truncated_intents_grad)  # list of list of str
+    base_grad_contents = convert_st_tensor_to_file_contents(intent_base_grad)
+    truncated_grad_contents_per_part = [
+        convert_st_tensor_to_file_contents(g) for g in truncated_intents_grad
+    ]
 
     batch_size = intent_base_grad.shape[0]
 
     # For each sample, extract the first slot (only meaningful slot)
     base_grad_strings = [base_grad_contents[i][0] for i in range(batch_size)]
-    truncated_grad_strings = [truncated_grad_contents[i][0] for i in range(batch_size)]
 
-    # In a real implementation, we might combine these gradients and call an LLM
-    # to produce a weight update. Here we mock by constructing a single JSON diff.
-    # According to the DSL, we generate a weight gradient JSON via LLM.
-    # For simplicity, we create a dummy diff JSON for each sample.
     weight_grad_strings = []
     for i in range(batch_size):
-        # Construct a prompt that includes the gradient information (mocked)
-        # In production, you would call _call_claude with an appropriate prompt.
-        # For the mock, we return a fixed JSON.
-        prompt = f"Generate weight grad based on base_grad: {base_grad_strings[i]} and truncated_grad: {truncated_grad_strings[i]}"
+        # Collect truncated grads for this sample across all parts
+        trunc_grads = [truncated_grad_contents_per_part[p][i][0] for p in range(num_parts)]
+        prompt = f"Generate weight grad based on base_grad: {base_grad_strings[i]} and truncated_grads: {json.dumps(trunc_grads)}"
         # _call_claude(prompt) would be used here
         weight_grad_json = json.dumps({"key": "some_key", "diff": "some_diff"})
         weight_grad_strings.append(weight_grad_json)
@@ -155,19 +155,24 @@ def get_truncated_intents_backward(
 class GetTruncatedIntents(Function):
     @staticmethod
     def forward(ctx, input_tensor, num_parts):
-        ctx.save_for_backward(input_tensor, torch.tensor(num_parts))  # save num_parts as tensor
-        return get_truncated_intents_forward(input_tensor, num_parts)
+        ctx.save_for_backward(input_tensor, torch.tensor(num_parts))
+        intent_base, truncated_list = get_truncated_intents_forward(input_tensor, num_parts)
+        # Store num_parts for backward; return base + each truncated tensor
+        return (intent_base, *truncated_list)
 
     @staticmethod
-    def backward(ctx, grad_intent_base, grad_truncated_intents):
+    def backward(ctx, grad_intent_base, *grad_truncated_intents):
         input_tensor, num_parts_tensor = ctx.saved_tensors
         num_parts = num_parts_tensor.item()
         return get_truncated_intents_backward(
-            grad_intent_base, grad_truncated_intents, input_tensor, num_parts
+            grad_intent_base, list(grad_truncated_intents), input_tensor, num_parts
         )
 
-# Convenience alias
-get_truncated_intents = GetTruncatedIntents.apply
+
+def get_truncated_intents(input_tensor: torch.Tensor, num_parts: int) -> Tuple[torch.Tensor, List[torch.Tensor]]:
+    """Convenience wrapper that returns (intent_base, list[truncated_tensors])."""
+    results = GetTruncatedIntents.apply(input_tensor, num_parts)
+    return results[0], list(results[1:])
 
 # ----------------------------------------------------------------------
 # Unit tests (only in __main__)
@@ -204,9 +209,12 @@ if __name__ == "__main__":
         assert intent_base.shape == (2, 1, 256), f"Unexpected base shape: {intent_base.shape}"
         assert intent_base.dtype == torch.uint8
         assert intent_base.st_file_content_type == "Viba"
-        assert truncated_intents.shape == (2, 1, 256), f"Unexpected truncated shape: {truncated_intents.shape}"
-        assert truncated_intents.dtype == torch.uint8
-        assert truncated_intents.st_file_content_type == "Json[list[Viba]]"
+        assert isinstance(truncated_intents, list), "truncated_intents should be a list"
+        assert len(truncated_intents) == num_parts, f"Expected {num_parts} tensors, got {len(truncated_intents)}"
+        for p, t in enumerate(truncated_intents):
+            assert t.shape == (2, 1, 256), f"Unexpected truncated[{p}] shape: {t.shape}"
+            assert t.dtype == torch.uint8
+            assert t.st_file_content_type == "Viba"
 
         # Decode and verify base intents
         base_paths = convert_2d_tensor_to_list_str(intent_base[:, 0, :])
@@ -217,35 +225,38 @@ if __name__ == "__main__":
             print(f"  Base {i}: {repr(content[:60])}")
             assert len(content) > 0, f"Base content {i} is empty"
 
-        # Decode and verify truncated intents (JSON lists)
-        truncated_paths = convert_2d_tensor_to_list_str(truncated_intents[:, 0, :])
-        for i, path in enumerate(truncated_paths):
-            full = Path(tmpdir) / path
-            assert full.exists(), f"Truncated file {i} missing: {full}"
-            content = full.read_text(encoding='utf-8')
-            parsed = json.loads(content)
-            assert isinstance(parsed, list), f"Truncated {i} is not a list"
-            assert len(parsed) == num_parts, f"Truncated {i} has {len(parsed)} parts, expected {num_parts}"
-            print(f"  Truncated {i}: {len(parsed)} parts, first={repr(parsed[0][:40])}")
+        # Decode and verify each truncated intent tensor
+        for p, t in enumerate(truncated_intents):
+            trunc_paths = convert_2d_tensor_to_list_str(t[:, 0, :])
+            for i, path in enumerate(trunc_paths):
+                full = Path(tmpdir) / path
+                assert full.exists(), f"Truncated[{p}] file {i} missing: {full}"
+                content = full.read_text(encoding='utf-8')
+                assert len(content) > 0, f"Truncated[{p}] content {i} is empty"
+            print(f"  Truncated part {p}: verified {len(trunc_paths)} samples")
         print("  Forward test passed.\n")
 
         # ── Test 2: Backward pass ──
         print("Test 2: Backward pass")
         grad_base_strings = [json.dumps({"diff": "base_change"})] * 2
-        grad_trunc_strings = [json.dumps([{"diff": "t1"}, {"diff": "t2"}])] * 2
 
         grad_base = convert_file_contents_to_st_tensor(
             grad_base_strings, relative_to=tmpdir, max_use_count=1, feature_len=256
         )
         grad_base.st_file_content_type = "Diff[Viba]"
 
-        grad_trunc = convert_file_contents_to_st_tensor(
-            grad_trunc_strings, relative_to=tmpdir, max_use_count=1, feature_len=256
-        )
-        grad_trunc.st_file_content_type = "Json[list[Diff[Viba]]]"
+        # Create one grad tensor per truncation part
+        grad_trunc_list = []
+        for p in range(num_parts):
+            grad_trunc_strings = [json.dumps({"diff": f"t{p}"})] * 2
+            gt = convert_file_contents_to_st_tensor(
+                grad_trunc_strings, relative_to=tmpdir, max_use_count=1, feature_len=256
+            )
+            gt.st_file_content_type = "Diff[Viba]"
+            grad_trunc_list.append(gt)
 
         input_grad, weight_grad = get_truncated_intents_backward(
-            grad_base, grad_trunc, input_tensor, num_parts
+            grad_base, grad_trunc_list, input_tensor, num_parts
         )
 
         assert input_grad is None, "Input grad should be None"
@@ -264,13 +275,14 @@ if __name__ == "__main__":
 
         # ── Test 3: Verify truncation produces variation for function impl ──
         print("Test 3: Truncation variation for function implementation")
-        trunc_path_0 = Path(tmpdir) / truncated_paths[0]
-        trunc_list_0 = json.loads(trunc_path_0.read_text(encoding='utf-8'))
-        # Function impl should have increasing lengths across truncation levels
-        lengths = [len(t) for t in trunc_list_0]
+        # Read each part's content for sample 0
+        lengths = []
+        for p, t in enumerate(truncated_intents):
+            trunc_path = Path(tmpdir) / convert_2d_tensor_to_list_str(t[:, 0, :])[0]
+            content = trunc_path.read_text(encoding='utf-8')
+            lengths.append(len(content))
         print(f"  Truncation lengths: {lengths}")
         assert lengths[0] <= lengths[-1], "First truncation should be <= last"
-        # At least some variation expected for a 3-segment function
         assert len(set(lengths)) > 1, f"Expected variation in truncation lengths, got {lengths}"
         print("  Variation test passed.\n")
 

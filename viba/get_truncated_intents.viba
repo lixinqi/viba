@@ -3,4 +3,4 @@ main :=
     JsonStr[$intent_base str * $truncated_intents list[str]]
     <- ArgParse[FileContent[JsonStr[list[$intent_segment list[str]]]]]
     # inline
-    <- Import['viba.xxx'].get_all_truncated_vibe_code
+    <- Import['viba.intent_truncate_util'].get_all_truncated_vibe_code

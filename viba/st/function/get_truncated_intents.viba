@@ -6,7 +6,7 @@ Tensor[T] := torch.Tensor[
 ]
 
 get_truncated_intents_forward :=
-    ($intent_base Tensor[Viba], $truncated_intents Tensor[Json[list[Viba]]])
+    ($intent_base Tensor[Viba], $truncated_intents list[$truncated_intent Tensor[Viba]])
     <- $input Tensor[Json[list[list[str]]]]
     <- $num_parts
     # inline
@@ -17,7 +17,7 @@ get_truncated_intents_forward :=
     <- Setter[Tensor.st_relative_to]
     <- Setter[Tensor.st_file_content_type]
     <- ($intent_base.shape[0] <- $input.shape[0])
-    <- ($truncated_intents.shape[0] <- $input.shape[0])
+    <- ($truncated_intent.shape[0] <- $input.shape[0])
     <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
 
 
