@@ -1,5 +1,6 @@
 import os
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -11,6 +12,25 @@ from torch.autograd import Function
 from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
 from viba.st.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
 from viba.intent_truncate_util import get_all_truncated_vibe_code
+
+# ----------------------------------------------------------------------
+# Helper
+# ----------------------------------------------------------------------
+def _call_claude(prompt: str) -> str:
+    """
+    Internal helper that runs the claude command.
+    In production this uses subprocess; in tests it is mocked.
+    """
+    env = os.environ.copy()
+    env.pop("CLAUDECODE", None)
+    result = subprocess.run(
+        ["claude", "-p", prompt],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=True,
+    )
+    return result.stdout.strip()
 
 # ----------------------------------------------------------------------
 # Forward implementation
@@ -96,14 +116,18 @@ def get_truncated_intents_backward(
 
     batch_size = intent_base_grad.shape[0]
 
-    # Combine base grad and truncated grads into a single input grad per sample
+    # Combine base grad and truncated grads via LLM into a single input grad per sample
     input_grad_strings = []
     for i in range(batch_size):
         base_grad = base_grad_contents[i][0]
         trunc_grads = [truncated_grad_contents_per_part[p][i][0] for p in range(num_parts)]
-        # Combine all grads into a single diff string
-        combined = base_grad + "\n" + "\n".join(trunc_grads)
-        input_grad_strings.append(combined)
+        prompt = (
+            "Merge the following intent gradients into a single Diff[Viba] "
+            "for the input. Base grad:\n" + base_grad +
+            "\nTruncated grads:\n" + "\n".join(trunc_grads)
+        )
+        merged = _call_claude(prompt)
+        input_grad_strings.append(merged)
 
     feature_len = intent_base_grad.shape[2]
     root_dir = getattr(intent_base_grad, 'st_relative_to', None)
@@ -149,6 +173,7 @@ def get_truncated_intents(input_tensor: torch.Tensor, num_parts: int) -> Tuple[t
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
     from viba.st.data_loader.convert_list_str_to_2d_tensor import convert_2d_tensor_to_list_str
+    from unittest.mock import patch
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -206,6 +231,10 @@ if __name__ == "__main__":
 
         # ── Test 2: Backward pass ──
         print("Test 2: Backward pass")
+
+        def mock_claude_merge(prompt: str) -> str:
+            return "merged: base_change + truncated_part_0 + truncated_part_1 + truncated_part_2"
+
         grad_base_strings = ["diff: base_change"] * 2
 
         grad_base = convert_file_contents_to_st_tensor(
@@ -223,9 +252,10 @@ if __name__ == "__main__":
             gt.st_file_content_type = "Diff[Viba]"
             grad_trunc_list.append(gt)
 
-        input_grad = get_truncated_intents_backward(
-            grad_base, grad_trunc_list, input_tensor, num_parts
-        )
+        with patch('__main__._call_claude', side_effect=mock_claude_merge):
+            input_grad = get_truncated_intents_backward(
+                grad_base, grad_trunc_list, input_tensor, num_parts
+            )
 
         assert input_grad.shape == (2, 1, 256), f"Unexpected input_grad shape: {input_grad.shape}"
         assert input_grad.dtype == torch.uint8

@@ -23,11 +23,12 @@ get_truncated_intents_forward :=
 get_truncated_intents_backward :=
     $ret $input_grad Tensor[Diff[Viba]]
     <- $intent_base_grad Tensor[Diff[Viba]]
-    <- $truncated_intents_grad Tensor[Diff[Viba]]
+    <- $truncated_intents_grad list[Tensor[Diff[Viba]]]
     # inline
     <- Tensor.st_relative_to
     <- Import["viba/st/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
-    unset CLAUDECODE && claude -p '{prompt} {intent_base_grad_file_content} {truncated_intents_grad}'
+    <- ($use_claude_to_merge_intents_grads '''
+    unset CLAUDECODE && claude -p '{prompt} {intent_base_grad_file_content} {truncated_intents_grad_content}'
     ''')
     <- ($ret.shape[0] <- $input.shape[0])
     <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
