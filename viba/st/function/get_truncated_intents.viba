@@ -1,0 +1,62 @@
+# only for comprehension. do not generate
+Tensor[T] := torch.Tensor[
+    $shape (batch_size, max_use_count, feature_len), 
+    $dtype uint8, 
+    $file_content_type T
+]
+
+get_truncated_intents_forward :=
+    ($intent_base Tensor[Viba], $truncated_intents Tensor[Json[list[Viba]]])
+    <- $input Tensor[Json[list[list[str]]]]
+    <- $num_parts
+    # inline
+    <- Getter[Tensor.st_relative_to]
+    <- $get_file_content ImportFrom["viba/st/tensor_util/get_file_content"]
+    <- Import['viba.intent_truncate_util'].get_all_truncated_vibe_code
+    <- 
+    <- Setter[Tensor.st_relative_to]
+    <- Setter[Tensor.st_file_content_type]
+    <- ($intent_base.shape[0] <- $input.shape[0])
+    <- ($truncated_intents.shape[0] <- $input.shape[0])
+    <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
+
+
+get_truncated_intents_backward :=
+    $ret (
+        $input_grad Tensor[Json[list[list[Diff[str]]]]], 
+        $weigh_grad Tensor[Json[list[$key Diff[Python] * $value Diff[Viba]]]]
+    )
+    <- $intent_base_grad Tensor[Diff[Viba]]
+    <- $truncated_intents_grad Tensor[Json[list[Diff[Viba]]]]
+    # inline
+    <- Tensor.st_relative_to
+    <- Import["viba/st/tensor_util/get_file_content"].get_file_content
+    <- $get_weight_grad_json (Json[list[$key Diff[Python] * $value Diff[Viba]]] <- '''
+    unset CLAUDECODE && claude -p '{prompt} {intent_base_grad_file_content} {truncated_intents_grad}'
+    ''')
+    <- ($weigh_grad.shape[0] <- $input.shape[0])
+    <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
+
+
+GetTruncatedIntents :=
+    torch.autograd.Function
+    * $forward (
+        ...
+        <- ...
+        # inline
+        <- get_truncated_intents_forward
+    )
+    * $backward (
+        ...
+        <- ...
+        <- get_truncated_intents_backward
+    )
+
+get_truncated_intents := GetTruncatedIntents.xxx_replace_me_xxx
+
+# 3 test cases in __main__
+# use viba/st/data_loaders/sole_file_batch_data_loader.py::SoleFileBatchDataLoader to generate input tensors
+# import data loader only in __main__
+# generate weight symbolic tensors by temp directory and random string
+# mock LLMs behaviors in test cases
+# english comments
