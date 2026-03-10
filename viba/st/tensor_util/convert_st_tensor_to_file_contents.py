@@ -36,7 +36,7 @@ def _get_file_path(tensor: torch.Tensor) -> List[List[str]]:
     return result
 
 
-def get_file_content(tensor: torch.Tensor) -> List[List[str]]:
+def convert_st_tensor_to_file_contents(tensor: torch.Tensor) -> List[List[str]]:
     """
     Convert a symbolic tensor (containing relative file paths) into a 2D list of file contents.
     The tensor must have an attribute `st_relative_to` (root directory path). For each slot,
@@ -83,10 +83,10 @@ def get_file_content(tensor: torch.Tensor) -> List[List[str]]:
 
 if __name__ == "__main__":
     # Imports allowed only in __main__
-    from viba.st.data_loaders.sole_file_batch_data_loader import (
+    from viba.st.data_loader.sole_file_batch_data_loader import (
         SoleFileBatchDataLoader,
     )
-    from viba.st.data_loaders.convert_list_str_to_2d_tensor import (
+    from viba.st.data_loader.convert_list_str_to_2d_tensor import (
         convert_list_str_to_2d_tensor,
     )
 
@@ -143,9 +143,9 @@ if __name__ == "__main__":
         run_test("Path decoding matches", decoded_paths == expected_paths,
                  expected_paths, decoded_paths)
 
-        # Test 2: get_file_content reading actual files and comparing with original content
-        print("\nTest 2: get_file_content (file reading)")
-        contents = get_file_content(three_dim)
+        # Test 2: convert_st_tensor_to_file_contents reading actual files and comparing with original content
+        print("\nTest 2: convert_st_tensor_to_file_contents (file reading)")
+        contents = convert_st_tensor_to_file_contents(three_dim)
         expected_contents = [
             [files["hello.txt"], files["sub/greet.txt"], files["empty.txt"]],
             [files["chinese.txt"], files["hello.txt"], ""],
@@ -160,7 +160,7 @@ if __name__ == "__main__":
             [bad_paths[0][0]], feature_len
         ).view(1, 1, feature_len)
         two_dim_bad.st_relative_to = tmpdir
-        bad_contents = get_file_content(two_dim_bad)
+        bad_contents = convert_st_tensor_to_file_contents(two_dim_bad)
         run_test("Non‑existent file returns empty string", bad_contents == [[""]],
                  [[""]], bad_contents)
 

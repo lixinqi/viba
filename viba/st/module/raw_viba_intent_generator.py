@@ -19,7 +19,7 @@ class RawVibaIntentGenerator(nn.Module):
 
     In the forward pass, the input tensor must also contain file paths (with its own `st_relative_to`).
     The module expands the weight buffer to match the batch size and passes both tensors to the
-    imported autograd Function `generate_raw_viba_intent`, which internally uses `get_file_content`
+    imported autograd Function `generate_raw_viba_intent`, which internally uses `convert_st_tensor_to_file_contents`
     to read the actual content from the files. The result is a tensor of shape (batch, 1, feature_len)
     containing JSON lists of six Viba intent segments per sample.
 

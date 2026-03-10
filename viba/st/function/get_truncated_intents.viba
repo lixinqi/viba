@@ -11,7 +11,7 @@ get_truncated_intents_forward :=
     <- $num_parts
     # inline
     <- Getter[Tensor.st_relative_to]
-    <- $get_file_content ImportFrom["viba/st/tensor_util/get_file_content"]
+    <- $convert_st_tensor_to_file_contents ImportFrom["viba/st/tensor_util/convert_st_tensor_to_file_contents"]
     <- Import['viba.intent_truncate_util'].get_all_truncated_vibe_code
     <- 
     <- Setter[Tensor.st_relative_to]
@@ -30,7 +30,7 @@ get_truncated_intents_backward :=
     <- $truncated_intents_grad Tensor[Json[list[Diff[Viba]]]]
     # inline
     <- Tensor.st_relative_to
-    <- Import["viba/st/tensor_util/get_file_content"].get_file_content
+    <- Import["viba/st/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
     <- $get_weight_grad_json (Json[list[$key Diff[Python] * $value Diff[Viba]]] <- '''
     unset CLAUDECODE && claude -p '{prompt} {intent_base_grad_file_content} {truncated_intents_grad}'
     ''')

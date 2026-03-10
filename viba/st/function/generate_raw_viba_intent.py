@@ -8,8 +8,10 @@ from typing import List, Optional, Tuple
 import torch
 from torch.autograd import Function
 
-# Import the existing get_file_content implementation from the correct module.
-from viba.st.tensor_util.get_file_content import get_file_content
+# Import the existing convert_st_tensor_to_file_contents implementation from the correct module.
+from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
+# Import the new tensor builder
+from viba.st.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
 
 # ----------------------------------------------------------------------
 # Helper: encode a list of strings into a 3D uint8 tensor (batch, 1, feature_len)
@@ -58,9 +60,13 @@ def generate_raw_viba_intent_forward(
     """
     Forward pass: for each sample in the batch, invoke claude to generate
     a JSON list of 6 intent segments.
+
+    The output tensor has the same batch size and second dimension (max_use_count)
+    as the input tensor, with data placed in the first layer (index 0). The remaining
+    layers are zero-filled to allow for future gradient accumulation.
     """
-    input_contents_2d = get_file_content(input_tensor)
-    weight_contents_2d = get_file_content(weight_tensor)
+    input_contents_2d = convert_st_tensor_to_file_contents(input_tensor)
+    weight_contents_2d = convert_st_tensor_to_file_contents(weight_tensor)
 
     batch_size = input_tensor.shape[0]
     output_strings = []
@@ -81,12 +87,18 @@ def generate_raw_viba_intent_forward(
 
     feature_len = input_tensor.shape[2]
     root_dir = getattr(input_tensor, 'st_relative_to', None)
-    output_tensor = encode_strings_to_tensor(
-        output_strings,
-        root_dir=root_dir,
-        content_type="Json[list[list[str]]]",
+    max_use_count = input_tensor.shape[1]   # second dimension from input, for consistency
+
+    # Use the new tensor builder to store the outputs as files and return a path tensor
+    output_tensor = convert_file_contents_to_st_tensor(
+        file_contents=output_strings,
+        relative_to=root_dir,
+        max_use_count=max_use_count,        # preserve input's second dimension
         feature_len=feature_len
     )
+    # The builder already sets st_relative_to and st_file_content_type.
+    # Override the content type to the expected one.
+    output_tensor.st_file_content_type = "Json[list[list[str]]]"
     return output_tensor
 
 # ----------------------------------------------------------------------
@@ -100,10 +112,13 @@ def generate_raw_viba_intent_backward(
     """
     Backward pass: based on the gradient of the output (Diff strings), produce
     weight gradient (Diff JSON for each weight sample).
+
+    The returned weight gradient tensor has the same shape as the weight tensor
+    (batch, max_use_count, feature_len), with data placed in the first layer.
     """
-    input_contents_2d = get_file_content(input_tensor)
-    weight_contents_2d = get_file_content(weight_tensor)
-    grad_contents_2d = get_file_content(grad_output_tensor)
+    input_contents_2d = convert_st_tensor_to_file_contents(input_tensor)
+    weight_contents_2d = convert_st_tensor_to_file_contents(weight_tensor)
+    grad_contents_2d = convert_st_tensor_to_file_contents(grad_output_tensor)
 
     batch_size = weight_tensor.shape[0]
     weight_grad_strings = []
@@ -128,12 +143,16 @@ def generate_raw_viba_intent_backward(
 
     feature_len = weight_tensor.shape[2]
     root_dir = getattr(weight_tensor, 'st_relative_to', None)
-    grad_tensor = encode_strings_to_tensor(
-        weight_grad_strings,
-        root_dir=root_dir,
-        content_type="Json[list[$key Diff[Python] * $value Diff[Viba]]]",
+    max_use_count = input_tensor.shape[1]   # second dimension from weight tensor
+
+    # Use the new tensor builder for the weight gradient as well
+    grad_tensor = convert_file_contents_to_st_tensor(
+        file_contents=weight_grad_strings,
+        relative_to=root_dir,
+        max_use_count=max_use_count,        # preserve weight's second dimension
         feature_len=feature_len
     )
+    grad_tensor.st_file_content_type = "Json[list[$key Diff[Python] * $value Diff[Viba]]]"
     return grad_tensor
 
 # ----------------------------------------------------------------------
@@ -161,21 +180,20 @@ generate_raw_viba_intent = GenerateRawVibaIntent.apply
 # Unit tests (only in __main__)
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
-    from viba.st.data_loader.sole_file_batch_data_loader import (
-        SoleFileBatchDataLoader,
-    )
-    from viba.st.data_loader.convert_list_str_to_2d_tensor import (
-        convert_2d_tensor_to_list_str,
-    )
+    from viba.st.data_loader.sole_file_batch_data_loader import SoleFileBatchDataLoader
+    from viba.st.data_loader.convert_list_str_to_2d_tensor import convert_2d_tensor_to_list_str
+    from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
     from unittest.mock import patch
+    import tempfile
 
     def mock_claude_response(prompt: str) -> str:
-        if "Viba intent segments" in prompt:  # forward
+        if "Viba intent segments" in prompt:  # forward prompt heuristic
             return json.dumps(["intent1", "intent2", "intent3", "intent4", "intent5", "intent6"])
-        else:  # backward
+        else:  # backward prompt
             return json.dumps({"key": "some_key", "diff": "some_diff"})
 
-    with patch(__name__ + "._call_claude", side_effect=mock_claude_response):
+    # Correctly patch the _call_claude function inside __main__
+    with patch('__main__._call_claude', side_effect=mock_claude_response):
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create input Python files
             input_files = {
@@ -197,66 +215,87 @@ if __name__ == "__main__":
                 with open(full, "w", encoding="utf-8") as f:
                     f.write(content)
 
-            # Input tensor (batch=2)
+            # Input tensor (batch=2, max_use_count=1, feature_len=256)
             input_loader = SoleFileBatchDataLoader(
                 root_dir=tmpdir,
                 file_content_type="Python",
                 extension=".py",
                 batch_size=2,
                 max_use_count=1,
-                feature_len=128,
+                feature_len=256,
             )
             input_tensor = next(iter(input_loader))
 
-            # Weight tensor (batch=2)
+            # Weight tensor (batch=2, max_use_count=1, feature_len=256)
             weight_loader = SoleFileBatchDataLoader(
                 root_dir=tmpdir,
                 file_content_type="Json[list[$key Python * $value Viba]]",
                 extension=".json",
                 batch_size=2,
                 max_use_count=1,
-                feature_len=128,
+                feature_len=256,
             )
             weight_tensor = next(iter(weight_loader))
 
-            # Test 1: Forward pass
+            # -------------------- Test 1: Forward pass --------------------
             print("Test 1: Forward pass")
             out = generate_raw_viba_intent(input_tensor, weight_tensor)
-            assert out.shape == (2, 1, 128)
+            # Expect shape (2, 1, 256) because input second dim is 1
+            assert out.shape == (2, 1, 256), f"Unexpected shape: {out.shape}"
             assert out.dtype == torch.uint8
             assert out.st_file_content_type == "Json[list[list[str]]]"
-            first_layer = out[:, 0, :]
-            decoded = convert_2d_tensor_to_list_str(first_layer)
-            for json_str in decoded:
-                data = json.loads(json_str)
-                assert isinstance(data, list) and len(data) == 6
+
+            stored_paths = convert_2d_tensor_to_list_str(out[:, 0, :])
+            for i, path in enumerate(stored_paths):
+                full_path = Path(tmpdir) / path
+                print(f"Sample {i} path: {path}")
+                assert full_path.exists(), f"File not found: {full_path}"
+                written = full_path.read_text(encoding='utf-8')
+                print(f"File content (repr): {repr(written)}")
+                if not written:
+                    raise AssertionError(f"File content is empty for sample {i}")
+                try:
+                    parsed_written = json.loads(written)
+                except json.JSONDecodeError as e:
+                    print(f"JSON decode error: {e}")
+                    raise
+                expected_json = json.dumps(["intent1", "intent2", "intent3", "intent4", "intent5", "intent6"])
+                assert parsed_written == json.loads(expected_json), f"Content mismatch for sample {i}"
             print("  Forward test passed.\n")
 
-            # Test 2: Backward pass (direct function call, not through autograd)
+            # -------------------- Test 2: Backward pass --------------------
             print("Test 2: Backward pass")
-            # Create a dummy grad_output tensor
             dummy_grad_strings = [
                 json.dumps([{"diff": "change1"}, {"diff": "change2"}]),
                 json.dumps([{"diff": "changeA"}, {"diff": "changeB"}]),
             ]
-            grad_out = encode_strings_to_tensor(
+            grad_out = convert_file_contents_to_st_tensor(
                 dummy_grad_strings,
-                root_dir=tmpdir,
-                content_type="Json[list[list[Diff[str]]]]",
-                feature_len=128
+                relative_to=tmpdir,
+                max_use_count=1,        # match weight's second dimension (1)
+                feature_len=256
             )
+            grad_out.st_file_content_type = "Json[list[list[Diff[str]]]]"
 
-            # Call backward function directly
             weight_grad = generate_raw_viba_intent_backward(grad_out, input_tensor, weight_tensor)
 
-            assert weight_grad.shape == weight_tensor.shape
+            assert weight_grad.shape == (2, 1, 256), f"Unexpected weight_grad shape: {weight_grad.shape}"
             assert weight_grad.dtype == torch.uint8
             assert weight_grad.st_file_content_type == "Json[list[$key Diff[Python] * $value Diff[Viba]]]"
+
+            stored_weight_grad_paths = convert_2d_tensor_to_list_str(weight_grad[:, 0, :])
+            for i, path in enumerate(stored_weight_grad_paths):
+                full_path = Path(tmpdir) / path
+                print(f"Weight grad {i} path: {path}")
+                assert full_path.exists(), f"Weight grad file not found: {full_path}"
+                written = full_path.read_text(encoding='utf-8')
+                print(f"Weight grad content: {repr(written)}")
+                expected = json.dumps({"key": "some_key", "diff": "some_diff"})
+                assert json.loads(written) == json.loads(expected), f"Weight grad content mismatch for sample {i}"
             print("  Backward test passed.\n")
 
-            # Test 3: Check that input gradient is None (if we had autograd, but we skip it)
+            # -------------------- Test 3: Input gradient is None (not applicable) --------------------
             print("Test 3: No autograd dependency")
-            # In our design, input does not require grad, so we don't need to check anything.
             print("  (Input gradient concept is not applicable with uint8 tensors.)\n")
 
     print("All tests completed.")

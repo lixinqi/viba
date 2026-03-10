@@ -9,7 +9,7 @@ import torch
 from torch.autograd import Function
 
 # Import required utilities
-from viba.st.tensor_util.get_file_content import get_file_content
+from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
 from viba.st.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
 from viba.intent_truncate_util import get_all_truncated_vibe_code
 
@@ -49,7 +49,7 @@ def get_truncated_intents_forward(
     """
     # Retrieve the list of intent strings for each sample
     # input_tensor stores paths to files containing JSON list of list of strings
-    input_contents_2d = get_file_content(input_tensor)          # list of list of str, shape (batch, max_use_count)
+    input_contents_2d = convert_st_tensor_to_file_contents(input_tensor)          # list of list of str, shape (batch, max_use_count)
     # Take the first slot (index 0) as the actual intent list
     batch_size = input_tensor.shape[0]
     input_intents = [input_contents_2d[i][0] for i in range(batch_size)]   # list of JSON strings
@@ -111,8 +111,8 @@ def get_truncated_intents_backward(
                      for weight update (if any), otherwise None.
     """
     # Read the gradient contents (Diff strings)
-    base_grad_contents = get_file_content(intent_base_grad)          # list of list of str
-    truncated_grad_contents = get_file_content(truncated_intents_grad)  # list of list of str
+    base_grad_contents = convert_st_tensor_to_file_contents(intent_base_grad)          # list of list of str
+    truncated_grad_contents = convert_st_tensor_to_file_contents(truncated_intents_grad)  # list of list of str
 
     batch_size = intent_base_grad.shape[0]
 

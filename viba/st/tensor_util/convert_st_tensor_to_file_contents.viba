@@ -5,7 +5,7 @@ Tensor[T] := torch.Tensor[
     $file_content_type T
 ]
 
-get_file_content :=
+convert_st_tensor_to_file_contents :=
     list[list[str]]
     <- Tensor[Any]
     # inline
