@@ -1,0 +1,12 @@
+main :=
+    void
+    <- ()
+    # inline
+    <- $model DemoModel
+    <- $data_set ./dataset/
+    <- $dataloader Import[viba/st/data_loader/sole_file_batch_data_loader.py]
+    <- $get_loss Import[viba/st/function/get_diff_ratio.py].get_diff_ratio
+    <- '''
+        5 train iters
+        validation: convergence trend
+    '''

@@ -1,0 +1,7 @@
+DemoModel[torch.nn.Module] :=
+    # forward
+    Tensor
+    <- Tensor
+    # __init__
+    <- Import['viba/st/module/raw_viba_intent_generator.py'].RawVibaIntentGenerator
+    <- Import['viba/st/module/code_generator.py'].CodeGenerator
