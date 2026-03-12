@@ -3,7 +3,16 @@
     "allow": [
       "Bash(python:*)",
       "Bash(git add test/test_cae_intent_validator.py viba/cae_intent_validator.py viba/cae_intent_validator.viba)",
-      "Bash(git add viba/cae_score_calculator.viba viba/get_cae_intent_decode_loss.py viba/get_cae_intent_decode_loss.viba viba/get_cae_intent_norm_loss.py viba/get_cae_intent_norm_loss.viba viba/get_cae_loss.py viba/get_cae_loss.viba .claude/)"
+      "Bash(git add viba/cae_score_calculator.viba viba/get_cae_intent_decode_loss.py viba/get_cae_intent_decode_loss.viba viba/get_cae_intent_norm_loss.py viba/get_cae_intent_norm_loss.viba viba/get_cae_loss.py viba/get_cae_loss.viba .claude/)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(chmod +x /workspace/viba/test/test_validate_cae_intent.sh)",
+      "Bash(bash /workspace/viba/test/test_validate_cae_intent.sh)",
+      "Bash(git add test/test_validate_cae_intent.sh viba/validate_cae_intent.py viba/validate_cae_intent.viba viba/get_truncated_intents.viba)",
+      "Bash(git commit:*)",
+      "Bash(git push origin main)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(source:*)"
     ]
   }
 }

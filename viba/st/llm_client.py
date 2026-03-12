@@ -10,6 +10,7 @@ def _call_claude(prompt: str) -> str:
     environment variables.
     """
     env = os.environ
+    print(f"ENTER _call_claude, model={env.get('SILICONFLOW_MODEL')}, {len(prompt)=}")
     client = OpenAI(
         api_key=env.get('SILICONFLOW_API_KEY'),
         base_url=env.get('SILICONFLOW_BASE_URL'),
@@ -20,4 +21,6 @@ def _call_claude(prompt: str) -> str:
             {'role': 'user', 'content': prompt},
         ],
     )
-    return response.choices[0].message.content.strip()
+    ret = response.choices[0].message.content.strip()
+    print(f"EXIT _call_claude, model={env.get('SILICONFLOW_MODEL')}, {len(prompt)=}")
+    return ret

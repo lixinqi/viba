@@ -1,0 +1,43 @@
+
+# Tensor is only for comprehension. do not generate
+Tensor[T] := torch.Tensor[
+    $shape (batch_size, max_use_count, feature_len), 
+    $dtype bfloat16,
+    $file_content_type T
+]
+
+copy_impl :=
+    $output Tensor[T]
+    <- $input Tensor[T]
+    <- $dst_relative_to str
+    # inline
+    <- Getter[Tensor.st_relative_to]
+    <- $convert_st_tensor_to_file_contents ImportFrom["viba/st/tensor_util/convert_st_tensor_to_file_contents"]
+    <- Import['viba.intent_truncate_util'].get_all_truncated_vibe_code
+    <- Setter[Tensor.st_relative_to]
+    <- Setter[Tensor.st_file_content_type]
+    <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
+
+
+Copy :=
+    torch.autograd.Function
+    * $forward (
+        ...
+        <- ...
+        # inline
+        <- copy_impl
+    )
+    * $backward (
+        ...
+        <- ...
+        <- copy_impl
+    )
+
+copy := Copy.apply
+
+# 3 test cases in __main__
+# use viba/st/data_loaders/sole_file_batch_data_loader.py::SoleFileBatchDataLoader to generate input tensors
+# import data loader only in __main__
+# generate weight symbolic tensors by temp directory and random string
+# mock LLMs behaviors in test cases
+# english comments

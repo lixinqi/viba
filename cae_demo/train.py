@@ -14,6 +14,7 @@ import torch
 
 from viba.st.data_loader.sole_file_batch_data_loader import SoleFileBatchDataLoader
 from viba.st.function.get_diff_ratio import get_diff_ratio
+from viba.st.function.copy import copy as copy_tensor
 from cae_demo.model import DemoModel
 
 
@@ -46,13 +47,19 @@ def main():
         epoch_losses = []
         for batch_idx, input_tensor in enumerate(dataloader):
             # Forward pass
+            input_tensor = copy_tensor(input_tensor, "/tmp/tensor_data")
+            print(f"before forward, {input_tensor.st_relative_to=}")
             output_tensor = model(input_tensor)
+            print(f"after forward, {output_tensor.st_relative_to=}")
 
             # Loss: diff ratio between reconstructed output and original input
             loss = get_diff_ratio(output_tensor, input_tensor)
             batch_loss = loss.mean().item()
             epoch_losses.append(batch_loss)
             print(f"  Batch {batch_idx}: loss = {batch_loss:.4f}")
+
+            # Backward pass
+            loss.mean().backward()
 
         avg_loss = sum(epoch_losses) / len(epoch_losses) if epoch_losses else 0.0
         loss_history.append(avg_loss)

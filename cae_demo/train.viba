@@ -5,6 +5,8 @@ main :=
     <- $model DemoModel
     <- $data_set ./dataset/
     <- $dataloader Import[viba/st/data_loader/sole_file_batch_data_loader.py]
+    <- Import[viba/st/function/copy.py]
+    <- $dst_relative_to /tmp/tensor_data
     <- $get_loss Import[viba/st/function/get_diff_ratio.py].get_diff_ratio
     <- '''
         5 train iters
