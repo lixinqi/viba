@@ -48,6 +48,7 @@ def main():
         for batch_idx, input_tensor in enumerate(dataloader):
             # Forward pass
             input_tensor = copy_tensor(input_tensor, "/tmp/tensor_data")
+            input_tensor.requires_grad_(True)  # Enable gradient tracking
             print(f"before forward, {input_tensor.st_relative_to=}")
             output_tensor = model(input_tensor)
             print(f"after forward, {output_tensor.st_relative_to=}")
