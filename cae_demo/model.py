@@ -37,9 +37,9 @@ class DemoModel(nn.Module):
         for path in viba_files:
             rel_path = str(path.relative_to(weight_dir))
             b = rel_path.encode('utf-8')[:feature_len]
-            row = torch.zeros(feature_len, dtype=torch.uint8)
+            row = torch.zeros(feature_len, dtype=torch.bfloat16)
             if b:
-                row[:len(b)] = torch.tensor(list(b), dtype=torch.uint8)
+                row[:len(b)] = torch.tensor(list(b), dtype=torch.bfloat16)
             encoded_rows.append(row)
 
         return torch.stack(encoded_rows, dim=0).unsqueeze(0)

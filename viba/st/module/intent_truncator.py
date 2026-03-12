@@ -35,15 +35,15 @@ class IntentTruncator(nn.Module):
         Execute one forward pass.
 
         Args:
-            input_tensor (torch.Tensor): Tensor[Viba] - uint8 tensor of shape
+            input_tensor (torch.Tensor): Tensor[Viba] - bfloat16 tensor of shape
                 (batch, max_use_count, feature_len) containing UTF-8 encoded relative
                 paths to files with raw viba source code. Must have the attribute
                 `st_relative_to` pointing to the root directory.
 
         Returns:
-            intent_base (torch.Tensor): uint8 tensor of shape (batch, 1, feature_len)
+            intent_base (torch.Tensor): bfloat16 tensor of shape (batch, 1, feature_len)
                 storing paths to files containing the base Viba intent.
-            truncated_intents (list[torch.Tensor]): list of num_parts uint8 tensors,
+            truncated_intents (list[torch.Tensor]): list of num_parts bfloat16 tensors,
                 each of shape (batch, 1, feature_len), storing paths to files containing
                 one truncated Viba intent per sample.
         """
@@ -84,13 +84,13 @@ if __name__ == "__main__":
         intent_base, truncated_intents = model(input_tensor)
 
         assert intent_base.shape == (2, 1, 256), f"Unexpected base shape: {intent_base.shape}"
-        assert intent_base.dtype == torch.uint8
+        assert intent_base.dtype == torch.bfloat16
         assert intent_base.st_file_content_type == "Viba"
         assert isinstance(truncated_intents, list), "truncated_intents should be a list"
         assert len(truncated_intents) == num_parts, f"Expected {num_parts} tensors, got {len(truncated_intents)}"
         for p, t in enumerate(truncated_intents):
             assert t.shape == (2, 1, 256), f"Unexpected truncated[{p}] shape: {t.shape}"
-            assert t.dtype == torch.uint8
+            assert t.dtype == torch.bfloat16
             assert t.st_file_content_type == "Viba"
 
         # Decode and verify base intents

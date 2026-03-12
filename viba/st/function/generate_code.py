@@ -235,7 +235,7 @@ if __name__ == "__main__":
             out = generate_code(input_tensor, weight_tensor, "Python")
             # Expect shape (2, 1, 256) because input second dim is 1
             assert out.shape == (2, 1, 256), f"Unexpected shape: {out.shape}"
-            assert out.dtype == torch.uint8
+            assert out.dtype == torch.bfloat16
             assert out.st_file_content_type == "Python"
 
             stored_paths = convert_2d_tensor_to_list_str(out[:, 0, :])
@@ -266,7 +266,7 @@ if __name__ == "__main__":
 
             # Verify input_grad
             assert input_grad.shape == (2, 1, 256), f"Unexpected input_grad shape: {input_grad.shape}"
-            assert input_grad.dtype == torch.uint8
+            assert input_grad.dtype == torch.bfloat16
             assert input_grad.st_file_content_type == "Diff[Viba]"
 
             stored_input_grad_paths = convert_2d_tensor_to_list_str(input_grad[:, 0, :])
@@ -280,7 +280,7 @@ if __name__ == "__main__":
 
             # Verify weight_grad
             assert weight_grad.shape == (2, 1, 256), f"Unexpected weight_grad shape: {weight_grad.shape}"
-            assert weight_grad.dtype == torch.uint8
+            assert weight_grad.dtype == torch.bfloat16
             assert weight_grad.st_file_content_type == "Json[list[$key Diff[Viba] * $value Diff[T]]]"
 
             stored_weight_grad_paths = convert_2d_tensor_to_list_str(weight_grad[:, 0, :])

@@ -13,7 +13,7 @@ from viba.st.tensor_util.convert_file_contents_to_st_tensor import convert_file_
 from viba.st.llm_client import _call_claude
 
 # ----------------------------------------------------------------------
-# Helper: encode a list of strings into a 3D uint8 tensor (batch, 1, feature_len)
+# Helper: encode a list of strings into a 3D bfloat16 tensor (batch, 1, feature_len)
 # ----------------------------------------------------------------------
 def encode_strings_to_tensor(
     strings: List[str],
@@ -23,11 +23,11 @@ def encode_strings_to_tensor(
 ) -> torch.Tensor:
     """Convert a list of strings to a 3D tensor of shape (len(strings), 1, feature_len)."""
     batch = len(strings)
-    two_dim = torch.zeros((batch, feature_len), dtype=torch.uint8)
+    two_dim = torch.zeros((batch, feature_len), dtype=torch.bfloat16)
     for i, s in enumerate(strings):
         b = s.encode('utf-8')[:feature_len]
         if b:
-            two_dim[i, :len(b)] = torch.tensor(list(b), dtype=torch.uint8)
+            two_dim[i, :len(b)] = torch.tensor(list(b), dtype=torch.bfloat16)
     three_dim = two_dim.unsqueeze(1)  # shape (batch, 1, feature_len)
     three_dim.st_relative_to = root_dir
     three_dim.st_file_content_type = content_type
@@ -225,7 +225,7 @@ if __name__ == "__main__":
             out = generate_raw_viba_intent(input_tensor, weight_tensor)
             # Expect shape (2, 1, 256) because input second dim is 1
             assert out.shape == (2, 1, 256), f"Unexpected shape: {out.shape}"
-            assert out.dtype == torch.uint8
+            assert out.dtype == torch.bfloat16
             assert out.st_file_content_type == "Viba"
 
             stored_paths = convert_2d_tensor_to_list_str(out[:, 0, :])
@@ -255,7 +255,7 @@ if __name__ == "__main__":
             weight_grad = generate_raw_viba_intent_backward(grad_out, input_tensor, weight_tensor)
 
             assert weight_grad.shape == (2, 1, 256), f"Unexpected weight_grad shape: {weight_grad.shape}"
-            assert weight_grad.dtype == torch.uint8
+            assert weight_grad.dtype == torch.bfloat16
             assert weight_grad.st_file_content_type == "Json[list[$key Diff[T] * $value Diff[Viba]]]"
 
             stored_weight_grad_paths = convert_2d_tensor_to_list_str(weight_grad[:, 0, :])
@@ -271,6 +271,6 @@ if __name__ == "__main__":
 
             # -------------------- Test 3: Input gradient is None (not applicable) --------------------
             print("Test 3: No autograd dependency")
-            print("  (Input gradient concept is not applicable with uint8 tensors.)\n")
+            print("  (Input gradient concept is not applicable with bfloat16 tensors.)\n")
 
     print("All tests completed.")

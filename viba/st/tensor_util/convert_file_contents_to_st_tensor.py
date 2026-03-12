@@ -43,14 +43,14 @@ def _convert_2d_tensor_to_3d_tensor(two_dim: torch.Tensor, max_use_count: int) -
     The original data is placed in the first layer (index 0); the remaining layers are zero‑filled.
 
     Args:
-        two_dim: Input tensor of shape (batch, feature_len) with dtype torch.uint8.
+        two_dim: Input tensor of shape (batch, feature_len) with dtype torch.bfloat16.
         max_use_count: Size of the new second dimension.
 
     Returns:
         A 3D tensor of shape (batch, max_use_count, feature_len).
     """
     batch, feat = two_dim.shape
-    three_dim = torch.zeros((batch, max_use_count, feat), dtype=torch.uint8)
+    three_dim = torch.zeros((batch, max_use_count, feat), dtype=torch.bfloat16)
     three_dim[:, 0, :] = two_dim
     return three_dim
 
@@ -62,7 +62,7 @@ def convert_file_contents_to_st_tensor(
     feature_len: int
 ) -> torch.Tensor:
     """
-    Convert a list of file content strings into a symbolic tensor (3D uint8).
+    Convert a list of file content strings into a symbolic tensor (3D bfloat16).
 
     For each string:
       - Write it to disk under the `relative_to` directory using a hash‑based path.
@@ -81,7 +81,7 @@ def convert_file_contents_to_st_tensor(
         feature_len: Fixed byte length for encoding each relative path.
 
     Returns:
-        A uint8 tensor of shape (batch, max_use_count, feature_len).
+        A bfloat16 tensor of shape (batch, max_use_count, feature_len).
     """
     tensor_name = _get_hashed_tensor_name(file_contents)
 
@@ -96,9 +96,9 @@ def convert_file_contents_to_st_tensor(
 
         # Encode the relative path as bytes, truncate/pad to feature_len
         b = rel_path.encode('utf-8')[:feature_len]
-        row = torch.zeros(feature_len, dtype=torch.uint8)
+        row = torch.zeros(feature_len, dtype=torch.bfloat16)
         if b:
-            row[:len(b)] = torch.tensor(list(b), dtype=torch.uint8)
+            row[:len(b)] = torch.tensor(list(b), dtype=torch.bfloat16)
         encoded_paths.append(row)
 
     two_dim = torch.stack(encoded_paths, dim=0)                     # (batch, feature_len)
@@ -136,11 +136,11 @@ if __name__ == "__main__":
         )
 
         run_test("Test1: Output shape", tensor.shape == (1, 3, 256))
-        run_test("Test1: dtype uint8", tensor.dtype == torch.uint8)
+        run_test("Test1: dtype bfloat16", tensor.dtype == torch.bfloat16)
         run_test("Test1: st_relative_to set", tensor.st_relative_to == tmpdir)
 
         # Decode the stored path from the tensor and verify the file exists with correct content.
-        row = tensor[0, 0, :].tolist()
+        row = tensor[0, 0, :].to(torch.uint8).tolist()
         bytes_data = bytes(row)
         zero_pos = bytes_data.find(b'\x00')
         if zero_pos != -1:
@@ -169,7 +169,7 @@ if __name__ == "__main__":
         expected_name = hashlib.sha256(joint.encode('utf-8')).hexdigest()
 
         for i, content in enumerate(contents):
-            row = tensor[i, 0, :].tolist()
+            row = tensor[i, 0, :].to(torch.uint8).tolist()
             bytes_data = bytes(row)
             zero_pos = bytes_data.find(b'\x00')
             if zero_pos != -1:
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         )
 
         # Check empty content
-        row0 = tensor[0, 0, :].tolist()
+        row0 = tensor[0, 0, :].to(torch.uint8).tolist()
         bytes0 = bytes(row0)
         zero_pos0 = bytes0.find(b'\x00')
         if zero_pos0 != -1:
@@ -207,7 +207,7 @@ if __name__ == "__main__":
             run_test("Test3: Empty file content", written0 == "")
 
         # Check long content
-        row1 = tensor[1, 0, :].tolist()
+        row1 = tensor[1, 0, :].to(torch.uint8).tolist()
         bytes1 = bytes(row1)
         zero_pos1 = bytes1.find(b'\x00')
         if zero_pos1 != -1:

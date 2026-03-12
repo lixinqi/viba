@@ -2,7 +2,7 @@ import torch
 
 def convert_list_str_to_2d_tensor(strs: list[str], feature_len: int = 4096) -> torch.Tensor:
     """
-    Encode a list of strings into a 2D uint8 tensor (CPU).
+    Encode a list of strings into a 2D bfloat16 tensor (CPU).
     Each string is UTF-8 encoded and truncated/padded to fixed length.
 
     Args:
@@ -10,27 +10,27 @@ def convert_list_str_to_2d_tensor(strs: list[str], feature_len: int = 4096) -> t
         feature_len: Number of bytes per string.
 
     Returns:
-        Tensor of shape (len(strs), feature_len), dtype=torch.uint8, on CPU.
+        Tensor of shape (len(strs), feature_len), dtype=torch.bfloat16, on CPU.
     """
     batch_size = len(strs)
-    tensor = torch.zeros((batch_size, feature_len), dtype=torch.uint8)
+    tensor = torch.zeros((batch_size, feature_len), dtype=torch.bfloat16)
     for i, s in enumerate(strs):
         # Encode to bytes and truncate
         b = s.encode('utf-8')[:feature_len]
         # Place bytes into tensor row (directly convert list of ints to tensor)
         if b:  # non-empty bytes
-            tensor[i, :len(b)] = torch.tensor(list(b), dtype=torch.uint8)
+            tensor[i, :len(b)] = torch.tensor(list(b), dtype=torch.bfloat16)
     return tensor
 
 
 def convert_2d_tensor_to_list_str(tensor: torch.Tensor) -> list[str]:
     """
-    Decode a 2D uint8 tensor (CPU) back to a list of strings.
+    Decode a 2D bfloat16 tensor (CPU) back to a list of strings.
     Each row is interpreted as a UTF-8 byte sequence, stopping at the first zero byte.
     Invalid UTF-8 sequences are handled by replacing errors.
 
     Args:
-        tensor: Tensor of shape (batch_size, feature_len), dtype=torch.uint8, on CPU.
+        tensor: Tensor of shape (batch_size, feature_len), dtype=torch.bfloat16, on CPU.
 
     Returns:
         List of decoded strings.
@@ -38,7 +38,7 @@ def convert_2d_tensor_to_list_str(tensor: torch.Tensor) -> list[str]:
     batch_size, feature_len = tensor.shape
     result = []
     for i in range(batch_size):
-        row = tensor[i].numpy()  # tensor is guaranteed to be on CPU
+        row = tensor[i].to(torch.uint8).numpy()  # cast bfloat16 back to uint8 for byte extraction
         # Find first zero byte (padding)
         zero_pos = (row == 0).argmax() if (row == 0).any() else feature_len
         bytes_data = bytes(row[:zero_pos])

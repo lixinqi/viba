@@ -180,13 +180,13 @@ if __name__ == "__main__":
         intent_base, truncated_intents = get_truncated_intents_forward(input_tensor, num_parts)
 
         assert intent_base.shape == (2, 1, 256), f"Unexpected base shape: {intent_base.shape}"
-        assert intent_base.dtype == torch.uint8
+        assert intent_base.dtype == torch.bfloat16
         assert intent_base.st_file_content_type == "Viba"
         assert isinstance(truncated_intents, list), "truncated_intents should be a list"
         assert len(truncated_intents) == num_parts, f"Expected {num_parts} tensors, got {len(truncated_intents)}"
         for p, t in enumerate(truncated_intents):
             assert t.shape == (2, 1, 256), f"Unexpected truncated[{p}] shape: {t.shape}"
-            assert t.dtype == torch.uint8
+            assert t.dtype == torch.bfloat16
             assert t.st_file_content_type == "Viba"
 
         # Decode and verify base intents
@@ -238,7 +238,7 @@ if __name__ == "__main__":
             )
 
         assert input_grad.shape == (2, 1, 256), f"Unexpected input_grad shape: {input_grad.shape}"
-        assert input_grad.dtype == torch.uint8
+        assert input_grad.dtype == torch.bfloat16
         assert input_grad.st_file_content_type == "Diff[Viba]"
 
         grad_paths = convert_2d_tensor_to_list_str(input_grad[:, 0, :])

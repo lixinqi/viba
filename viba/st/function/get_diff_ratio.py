@@ -144,11 +144,13 @@ class GetDiffRatio(Function):
         actual_grad = get_diff_ratio_backward(
             grad_output, actual_tensor, expected_tensor
         )
-        # expected does not require grad
+        # actual_tensor gets grad; expected does not require grad
         return actual_grad, None
 
-# Convenience alias
-get_diff_ratio = GetDiffRatio.apply
+
+def get_diff_ratio(actual_tensor, expected_tensor):
+    """Convenience wrapper for GetDiffRatio autograd Function."""
+    return GetDiffRatio.apply(actual_tensor, expected_tensor)
 
 # ----------------------------------------------------------------------
 # Unit tests (only in __main__)
@@ -206,7 +208,7 @@ if __name__ == "__main__":
         actual_grad = get_diff_ratio_backward(dummy_grad, actual_tensor, expected_tensor)
 
         assert actual_grad.shape == (2, 1, 256), f"Unexpected actual_grad shape: {actual_grad.shape}"
-        assert actual_grad.dtype == torch.uint8
+        assert actual_grad.dtype == torch.bfloat16
         assert actual_grad.st_file_content_type == "Diff"
         assert hasattr(actual_grad, 'st_diff_coefficient_tensor'), "Missing st_diff_coefficient_tensor"
         assert torch.equal(actual_grad.st_diff_coefficient_tensor, dummy_grad), \
@@ -220,7 +222,7 @@ if __name__ == "__main__":
         print("  Backward test passed.\n")
 
         # -------------------- Test 3: Autograd Function returns (actual_grad, None) --------------------
-        print("Test 3: Autograd Function returns (actual_grad, None)")
+        print("Test 3: Autograd Function returns correct grad tuple")
         class MockCtx:
             saved_tensors = (actual_tensor, expected_tensor)
         mock_ctx = MockCtx()
@@ -231,5 +233,21 @@ if __name__ == "__main__":
         assert result[0].st_file_content_type == "Diff"
         assert hasattr(result[0], 'st_diff_coefficient_tensor')
         print("  Autograd Function test passed.\n")
+
+        # -------------------- Test 4: loss.sum().backward() works --------------------
+        print("Test 4: loss.sum().backward()")
+        # Recreate actual_tensor with requires_grad=True (bfloat16 supports autograd)
+        actual_tensor_grad = convert_file_contents_to_st_tensor(
+            file_contents=actual_contents,
+            relative_to=tmpdir,
+            max_use_count=1,
+            feature_len=256,
+        )
+        actual_tensor_grad.st_file_content_type = "T"
+        actual_tensor_grad.requires_grad_(True)
+        loss = get_diff_ratio(actual_tensor_grad, expected_tensor)
+        loss.sum().backward()
+        print(f"  loss = {loss.tolist()}, backward() completed.")
+        print("  Backward autograd test passed.\n")
 
     print("All tests completed.")

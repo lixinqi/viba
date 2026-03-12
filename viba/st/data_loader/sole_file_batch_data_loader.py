@@ -10,18 +10,17 @@ def convert_2d_tensor_to_3d_tensor(two_dim_tensor: torch.Tensor, max_use_count: 
     """
     Convert a 2D tensor (batch, feature_len) into a 3D tensor (batch, max_use_count, feature_len).
     The original data is placed in the first layer (index 0); remaining layers are zero.
-    This extra dimension is reserved for gradient accumulation via concatenation,
-    avoiding addition on uint8 tensors.
+    This extra dimension is reserved for gradient accumulation via concatenation.
 
     Args:
-        two_dim_tensor: Input tensor of shape (batch, feature_len), dtype=torch.uint8.
+        two_dim_tensor: Input tensor of shape (batch, feature_len), dtype=torch.bfloat16.
         max_use_count: Size of the second dimension (for future accumulation).
 
     Returns:
-        A tensor of shape (batch, max_use_count, feature_len), dtype=torch.uint8.
+        A tensor of shape (batch, max_use_count, feature_len), dtype=torch.bfloat16.
     """
     batch, feature_len = two_dim_tensor.shape
-    three_dim = torch.zeros((batch, max_use_count, feature_len), dtype=torch.uint8)
+    three_dim = torch.zeros((batch, max_use_count, feature_len), dtype=torch.bfloat16)
     three_dim[:, 0, :] = two_dim_tensor  # first slot holds the original data
     return three_dim
 
@@ -42,7 +41,7 @@ class SoleFileDataset(IterableDataset):
 
 class SoleFileBatchDataLoader:
     """
-    A DataLoader-like iterator that yields 3D uint8 tensors from a directory of files.
+    A DataLoader-like iterator that yields 3D bfloat16 tensors from a directory of files.
 
     Args:
         root_dir: Root directory to scan for files.
@@ -120,7 +119,7 @@ if __name__ == "__main__":
             print(f"  st_file_content_type: {batch.st_file_content_type}")
             # Decode the first sample for verification — should be a relative file path
             first_row = batch[0, 0, :]  # first sample, first accumulation slot
-            bytes_data = bytes(first_row.tolist())
+            bytes_data = bytes(first_row.to(torch.uint8).tolist())
             zero_pos = bytes_data.find(b'\x00')
             if zero_pos != -1:
                 bytes_data = bytes_data[:zero_pos]

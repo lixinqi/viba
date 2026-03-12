@@ -14,7 +14,7 @@ class RawVibaIntentGenerator(nn.Module):
     A PyTorch module that holds references to Python→Viba mapping files as a persistent buffer.
 
     During initialization, all JSON mapping files located under `weight_dir` are enumerated,
-    and their relative paths are stored in a 3D uint8 tensor of shape (1, num_mappings, feature_len).
+    and their relative paths are stored in a 3D bfloat16 tensor of shape (1, num_mappings, feature_len).
     This tensor is registered as a buffer, with the attribute `st_relative_to` set to `weight_dir`.
 
     In the forward pass, the input tensor must also contain file paths (with its own `st_relative_to`).
@@ -44,7 +44,7 @@ class RawVibaIntentGenerator(nn.Module):
         and encode each relative path as a zero‑padded UTF‑8 byte sequence of length `feature_len`.
 
         Returns:
-            A uint8 tensor of shape (1, num_files, feature_len).
+            A bfloat16 tensor of shape (1, num_files, feature_len).
         """
         json_files = sorted(Path(weight_dir).glob('**/*.json'))
         if not json_files:
@@ -54,9 +54,9 @@ class RawVibaIntentGenerator(nn.Module):
         for path in json_files:
             rel_path = str(path.relative_to(weight_dir))
             b = rel_path.encode('utf-8')[:feature_len]
-            row = torch.zeros(feature_len, dtype=torch.uint8)
+            row = torch.zeros(feature_len, dtype=torch.bfloat16)
             if b:
-                row[:len(b)] = torch.tensor(list(b), dtype=torch.uint8)
+                row[:len(b)] = torch.tensor(list(b), dtype=torch.bfloat16)
             encoded_rows.append(row)
 
         # Stack rows to (num_files, feature_len) and add a batch dimension
@@ -67,12 +67,12 @@ class RawVibaIntentGenerator(nn.Module):
         Execute one forward pass.
 
         Args:
-            input_tensor (torch.Tensor): uint8 tensor of shape (batch, max_use_count, feature_len)
+            input_tensor (torch.Tensor): bfloat16 tensor of shape (batch, max_use_count, feature_len)
                 containing UTF‑8 encoded relative paths to Python source files. Must have the
                 attribute `st_relative_to` pointing to the root directory of those files.
 
         Returns:
-            torch.Tensor: uint8 tensor of shape (batch, 1, feature_len) containing
+            torch.Tensor: bfloat16 tensor of shape (batch, 1, feature_len) containing
                 JSON‑encoded lists of six Viba intent segments.
         """
         batch_size = input_tensor.shape[0]
@@ -144,9 +144,9 @@ if __name__ == "__main__":
             for sample in input_paths:
                 for path in sample:
                     b = path.encode('utf-8')[:feature_len]
-                    row = torch.zeros(feature_len, dtype=torch.uint8)
+                    row = torch.zeros(feature_len, dtype=torch.bfloat16)
                     if b:
-                        row[:len(b)] = torch.tensor(list(b), dtype=torch.uint8)
+                        row[:len(b)] = torch.tensor(list(b), dtype=torch.bfloat16)
                     encoded_rows.append(row)
             input_tensor = torch.stack(encoded_rows, dim=0).view(2, 1, feature_len)
             input_tensor.st_relative_to = tmpdir
@@ -157,7 +157,7 @@ if __name__ == "__main__":
             print("Test 1: Forward pass")
             output = model(input_tensor)
             assert output.shape == (2, 1, 256), f"Unexpected output shape: {output.shape}"
-            assert output.dtype == torch.uint8
+            assert output.dtype == torch.bfloat16
             assert output.st_file_content_type == "Viba"
 
             # Decode the output and verify content.

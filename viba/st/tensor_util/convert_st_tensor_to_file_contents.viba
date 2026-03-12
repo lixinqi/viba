@@ -1,7 +1,7 @@
 # only for comprehension. do not generate
 Tensor[T] := torch.Tensor[
     $shape (batch_size, max_use_count, feature_len), 
-    $dtype uint8, 
+    $dtype bfloat16,
     $file_content_type T
 ]
 

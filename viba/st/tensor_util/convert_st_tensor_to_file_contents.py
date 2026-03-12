@@ -9,11 +9,11 @@ from typing import List, Optional
 
 def _get_file_path(tensor: torch.Tensor) -> List[List[str]]:
     """
-    Decode each slot of a symbolic tensor (uint8, shape B x M x F) into a string,
+    Decode each slot of a symbolic tensor (bfloat16, shape B x M x F) into a string,
     interpreted as a relative file path (UTF-8, zero‑padded).
 
     Args:
-        tensor: A torch.Tensor of shape (batch, max_use_count, feature_len), dtype=torch.uint8.
+        tensor: A torch.Tensor of shape (batch, max_use_count, feature_len), dtype=torch.bfloat16.
 
     Returns:
         A list of length batch, each element is a list of length max_use_count
@@ -25,7 +25,7 @@ def _get_file_path(tensor: torch.Tensor) -> List[List[str]]:
         sample_paths = []
         for j in range(max_use_count):
             row = tensor[i, j, :]
-            bytes_data = bytes(row.tolist())
+            bytes_data = bytes(row.to(torch.uint8).tolist())
             # Truncate at first zero byte
             zero_pos = bytes_data.find(b'\x00')
             if zero_pos != -1:
@@ -44,7 +44,7 @@ def convert_st_tensor_to_file_contents(tensor: torch.Tensor) -> List[List[str]]:
     (UTF‑8 text). If a file does not exist or cannot be read, an empty string is returned.
 
     Args:
-        tensor: A torch.Tensor of shape (batch, max_use_count, feature_len), dtype=torch.uint8,
+        tensor: A torch.Tensor of shape (batch, max_use_count, feature_len), dtype=torch.bfloat16,
                 with attribute `st_relative_to`.
 
     Returns:
