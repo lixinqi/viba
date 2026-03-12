@@ -1,7 +1,5 @@
 import os
 import json
-import subprocess
-import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -12,25 +10,7 @@ from torch.autograd import Function
 from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
 from viba.st.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
 from viba.intent_truncate_util import get_all_truncated_vibe_code
-
-# ----------------------------------------------------------------------
-# Helper
-# ----------------------------------------------------------------------
-def _call_claude(prompt: str) -> str:
-    """
-    Internal helper that runs the claude command.
-    In production this uses subprocess; in tests it is mocked.
-    """
-    env = os.environ.copy()
-    env.pop("CLAUDECODE", None)
-    result = subprocess.run(
-        ["claude", "-p", prompt],
-        capture_output=True,
-        text=True,
-        env=env,
-        check=True,
-    )
-    return result.stdout.strip()
+from viba.st.llm_client import _call_claude
 
 # ----------------------------------------------------------------------
 # Forward implementation
@@ -252,7 +232,7 @@ if __name__ == "__main__":
             gt.st_file_content_type = "Diff[Viba]"
             grad_trunc_list.append(gt)
 
-        with patch('__main__._call_claude', side_effect=mock_claude_merge):
+        with patch(f'{__name__}._call_claude', side_effect=mock_claude_merge):
             input_grad = get_truncated_intents_backward(
                 grad_base, grad_trunc_list, input_tensor, num_parts
             )

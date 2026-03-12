@@ -1,7 +1,5 @@
 import os
 import json
-import subprocess
-import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -12,25 +10,7 @@ from torch.autograd import Function
 from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
 # Import the new tensor builder
 from viba.st.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
-
-# ----------------------------------------------------------------------
-# Helper: call claude via subprocess
-# ----------------------------------------------------------------------
-def _call_claude(prompt: str) -> str:
-    """
-    Internal helper that runs the claude command.
-    In production this uses subprocess; in tests it is mocked.
-    """
-    env = os.environ.copy()
-    env.pop("CLAUDECODE", None)
-    result = subprocess.run(
-        ["claude", "-p", prompt],
-        capture_output=True,
-        text=True,
-        env=env,
-        check=True,
-    )
-    return result.stdout.strip()
+from viba.st.llm_client import _call_claude
 
 # ----------------------------------------------------------------------
 # Forward implementation
@@ -205,8 +185,8 @@ if __name__ == "__main__":
         else:  # weight grad prompt
             return json.dumps({"key": "some_viba_key", "diff": "some_t_diff"})
 
-    # Correctly patch the _call_claude function inside __main__
-    with patch('__main__._call_claude', side_effect=mock_claude_response):
+    # Patch _call_claude in the current module namespace
+    with patch(f'{__name__}._call_claude', side_effect=mock_claude_response):
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create input Viba intent files
             input_files = {
