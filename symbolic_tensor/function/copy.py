@@ -5,8 +5,8 @@ from pathlib import Path
 import torch
 from torch.autograd import Function
 
-from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
-from viba.st.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
+from symbolic_tensor.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
+from symbolic_tensor.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
 
 
 def copy_impl(input_tensor: torch.Tensor, dst_relative_to: str) -> torch.Tensor:
@@ -60,8 +60,8 @@ copy = Copy.apply
 
 
 if __name__ == "__main__":
-    from viba.st.data_loader.sole_file_batch_data_loader import SoleFileBatchDataLoader
-    from viba.st.data_loader.convert_list_str_to_2d_tensor import convert_2d_tensor_to_list_str
+    from symbolic_tensor.data_loader.sole_file_batch_data_loader import SoleFileBatchDataLoader
+    from symbolic_tensor.data_loader.convert_list_str_to_2d_tensor import convert_2d_tensor_to_list_str
 
     def run_test(name: str, condition: bool, expected=None, actual=None):
         if condition:

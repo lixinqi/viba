@@ -12,9 +12,9 @@ import sys
 
 import torch
 
-from viba.st.data_loader.sole_file_batch_data_loader import SoleFileBatchDataLoader
-from viba.st.function.get_diff_ratio import get_diff_ratio
-from viba.st.function.copy import copy as copy_tensor
+from symbolic_tensor.data_loader.sole_file_batch_data_loader import SoleFileBatchDataLoader
+from symbolic_tensor.function.get_diff_ratio import get_diff_ratio
+from symbolic_tensor.function.copy import copy as copy_tensor
 from cae_demo.model import DemoModel
 
 
@@ -28,6 +28,9 @@ def main():
         output_file_content_type="Python",
     )
 
+    # Use SGD optimizer to apply gradients to the weight parameter
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+
     dataloader = SoleFileBatchDataLoader(
         root_dir=dataset_dir,
         file_content_type="Python",
@@ -36,7 +39,7 @@ def main():
         max_use_count=1,
     )
 
-    num_iters = 5
+    num_iters = 3
     loss_history = []
 
     for iteration in range(num_iters):
@@ -49,9 +52,7 @@ def main():
             # Forward pass
             input_tensor = copy_tensor(input_tensor, "/tmp/tensor_data")
             input_tensor.requires_grad_(True)  # Enable gradient tracking
-            print(f"before forward, {input_tensor.st_relative_to=}")
             output_tensor = model(input_tensor)
-            print(f"after forward, {output_tensor.st_relative_to=}")
 
             # Loss: diff ratio between reconstructed output and original input
             loss = get_diff_ratio(output_tensor, input_tensor)
@@ -60,7 +61,9 @@ def main():
             print(f"  Batch {batch_idx}: loss = {batch_loss:.4f}")
 
             # Backward pass
+            optimizer.zero_grad()
             loss.mean().backward()
+            optimizer.step()
 
         avg_loss = sum(epoch_losses) / len(epoch_losses) if epoch_losses else 0.0
         loss_history.append(avg_loss)

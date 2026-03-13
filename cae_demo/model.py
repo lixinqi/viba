@@ -4,8 +4,8 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from viba.st.function.generate_raw_viba_intent import generate_raw_viba_intent
-from viba.st.function.generate_code import generate_code
+from symbolic_tensor.function.generate_raw_viba_intent import generate_raw_viba_intent
+from symbolic_tensor.function.generate_code import generate_code
 
 
 class DemoModel(nn.Module):
@@ -26,7 +26,8 @@ class DemoModel(nn.Module):
         weight_tensor = self._build_path_tensor(weight_dir, feature_len)
         weight_tensor.st_relative_to = weight_dir
         weight_tensor.st_file_content_type = "Json[list[$key T * $value Viba]]"
-        self.register_buffer('weight', weight_tensor)
+        # Register as parameter (not buffer) to enable gradient-based updates
+        self.weight = nn.Parameter(weight_tensor)
 
     def _build_path_tensor(self, weight_dir: str, feature_len: int) -> torch.Tensor:
         viba_files = sorted(Path(weight_dir).glob('**/*.viba'))
@@ -45,18 +46,17 @@ class DemoModel(nn.Module):
         return torch.stack(encoded_rows, dim=0).unsqueeze(0)
 
     def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
-        batch_size = input_tensor.shape[0]
+        # Use weight as-is (not expanded) to maintain correct gradient shapes
+        # The custom functions will handle batching internally
+        weight = self.weight
+        weight.st_relative_to = self.weight_dir
 
         # Encoder: T → Viba intent
-        enc_w = self.weight.expand(batch_size, -1, -1)
-        enc_w.st_relative_to = self.weight_dir
-        enc_w.st_file_content_type = "Json[list[$key T * $value Viba]]"
-        viba_intent = generate_raw_viba_intent(input_tensor, enc_w)
+        weight.st_file_content_type = "Json[list[$key T * $value Viba]]"
+        viba_intent = generate_raw_viba_intent(input_tensor, weight)
 
         # Decoder: Viba intent → T
-        dec_w = self.weight.expand(batch_size, -1, -1)
-        dec_w.st_relative_to = self.weight_dir
-        dec_w.st_file_content_type = "Json[list[$key Viba * $value T]]"
-        output = generate_code(viba_intent, dec_w, self.output_file_content_type)
+        weight.st_file_content_type = "Json[list[$key Viba * $value T]]"
+        output = generate_code(viba_intent, weight, self.output_file_content_type)
 
         return output

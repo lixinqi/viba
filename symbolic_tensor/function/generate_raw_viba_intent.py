@@ -7,10 +7,10 @@ import torch
 from torch.autograd import Function
 
 # Import the existing convert_st_tensor_to_file_contents implementation from the correct module.
-from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
+from symbolic_tensor.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
 # Import the new tensor builder
-from viba.st.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
-from viba.st.llm_client import _call_claude
+from symbolic_tensor.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
+from symbolic_tensor.llm_client import _call_claude
 
 # ----------------------------------------------------------------------
 # Helper: encode a list of strings into a 3D bfloat16 tensor (batch, 1, feature_len)
@@ -163,9 +163,9 @@ generate_raw_viba_intent = GenerateRawVibaIntent.apply
 # Unit tests (only in __main__)
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
-    from viba.st.data_loader.sole_file_batch_data_loader import SoleFileBatchDataLoader
-    from viba.st.data_loader.convert_list_str_to_2d_tensor import convert_2d_tensor_to_list_str
-    from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
+    from symbolic_tensor.data_loader.sole_file_batch_data_loader import SoleFileBatchDataLoader
+    from symbolic_tensor.data_loader.convert_list_str_to_2d_tensor import convert_2d_tensor_to_list_str
+    from symbolic_tensor.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
     from unittest.mock import patch
     import tempfile
 

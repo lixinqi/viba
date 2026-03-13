@@ -83,10 +83,10 @@ def convert_st_tensor_to_file_contents(tensor: torch.Tensor) -> List[List[str]]:
 
 if __name__ == "__main__":
     # Imports allowed only in __main__
-    from viba.st.data_loader.sole_file_batch_data_loader import (
+    from symbolic_tensor.data_loader.sole_file_batch_data_loader import (
         SoleFileBatchDataLoader,
     )
-    from viba.st.data_loader.convert_list_str_to_2d_tensor import (
+    from symbolic_tensor.data_loader.convert_list_str_to_2d_tensor import (
         convert_list_str_to_2d_tensor,
     )
 

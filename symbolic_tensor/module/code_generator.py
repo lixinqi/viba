@@ -6,12 +6,12 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
-from viba.st.function.generate_raw_viba_intent import generate_raw_viba_intent
+from symbolic_tensor.function.generate_code import generate_code
 
 
-class RawVibaIntentGenerator(nn.Module):
+class CodeGenerator(nn.Module):
     """
-    A PyTorch module that holds references to Python→Viba mapping files as a persistent buffer.
+    A PyTorch module that holds references to Viba→T mapping files as a persistent buffer.
 
     During initialization, all JSON mapping files located under `weight_dir` are enumerated,
     and their relative paths are stored in a 3D bfloat16 tensor of shape (1, num_mappings, feature_len).
@@ -19,20 +19,21 @@ class RawVibaIntentGenerator(nn.Module):
 
     In the forward pass, the input tensor must also contain file paths (with its own `st_relative_to`).
     The module expands the weight buffer to match the batch size and passes both tensors to the
-    imported autograd Function `generate_raw_viba_intent`, which internally uses `convert_st_tensor_to_file_contents`
-    to read the actual content from the files. The result is a tensor of shape (batch, 1, feature_len)
-    containing JSON lists of six Viba intent segments per sample.
+    imported autograd Function `generate_code`, which internally uses `convert_st_tensor_to_file_contents`
+    to read the actual content from the files. The result is a tensor of shape (batch, max_use_count, feature_len)
+    containing generated code per sample.
 
     Args:
         weight_dir (str): Path to a directory containing .json files. Each file must contain
-            a valid JSON object mapping Python fragments (keys) to Viba fragments (values).
+            a valid JSON object mapping Viba fragments (keys) to T fragments (values).
         feature_len (int): Fixed byte length for encoding each relative path. Default: 4096.
     """
 
-    def __init__(self, weight_dir: str, feature_len: int = 4096):
+    def __init__(self, weight_dir: str, output_file_content_type: str = "T", feature_len: int = 4096):
         super().__init__()
         self.feature_len = feature_len
         self.weight_dir = weight_dir
+        self.output_file_content_type = output_file_content_type
 
         weight_tensor = self._build_path_tensor(weight_dir, feature_len)
         weight_tensor.st_relative_to = weight_dir
@@ -41,7 +42,7 @@ class RawVibaIntentGenerator(nn.Module):
     def _build_path_tensor(self, weight_dir: str, feature_len: int) -> torch.Tensor:
         """
         Recursively collect all .json files under `weight_dir`, compute their relative paths,
-        and encode each relative path as a zero‑padded UTF‑8 byte sequence of length `feature_len`.
+        and encode each relative path as a zero-padded UTF-8 byte sequence of length `feature_len`.
 
         Returns:
             A bfloat16 tensor of shape (1, num_files, feature_len).
@@ -68,48 +69,48 @@ class RawVibaIntentGenerator(nn.Module):
 
         Args:
             input_tensor (torch.Tensor): bfloat16 tensor of shape (batch, max_use_count, feature_len)
-                containing UTF‑8 encoded relative paths to Python source files. Must have the
+                containing UTF-8 encoded relative paths to Viba intent files. Must have the
                 attribute `st_relative_to` pointing to the root directory of those files.
 
         Returns:
-            torch.Tensor: bfloat16 tensor of shape (batch, 1, feature_len) containing
-                JSON‑encoded lists of six Viba intent segments.
+            torch.Tensor: bfloat16 tensor of shape (batch, max_use_count, feature_len) containing
+                generated code (type T).
         """
         batch_size = input_tensor.shape[0]
         expanded_weight = self.weight.expand(batch_size, -1, -1)
         # Expand creates a view; preserve the st_relative_to attribute.
         if hasattr(self.weight, 'st_relative_to'):
             expanded_weight.st_relative_to = self.weight.st_relative_to
-        return generate_raw_viba_intent(input_tensor, expanded_weight)
+        return generate_code(input_tensor, expanded_weight, self.output_file_content_type)
 
 
 if __name__ == "__main__":
     # Imports allowed only in __main__
-    from viba.st.data_loader.convert_list_str_to_2d_tensor import (
+    from symbolic_tensor.data_loader.convert_list_str_to_2d_tensor import (
         convert_2d_tensor_to_list_str,
     )
     from unittest.mock import patch
     import tempfile
 
     # ------------------------------------------------------------------
-    # Mock the internal _call_claude function used by generate_raw_viba_intent.
+    # Mock the internal _call_claude function used by generate_code.
     # ------------------------------------------------------------------
     def mock_claude_response(prompt: str) -> str:
-        if "generate the Viba intent code" in prompt:
-            return "compute := $ret int <- $a int <- $b int"
+        if "generate the target code" in prompt:
+            return "def compute(a: int, b: int) -> int:\n    return a + b"
         else:
-            return json.dumps({"key": "some_key", "diff": "some_diff"})
+            return json.dumps({"key": "some_viba_key", "diff": "some_t_diff"})
 
-    target_patch = 'viba.st.function.generate_raw_viba_intent._call_claude'
+    target_patch = 'symbolic_tensor.function.generate_code._call_claude'
 
     with patch(target_patch, side_effect=mock_claude_response):
         with tempfile.TemporaryDirectory() as tmpdir:
             # ------------------------------------------------------------------
-            # Prepare input source files.
+            # Prepare input Viba intent files.
             # ------------------------------------------------------------------
             input_files = {
-                "sample1.py": "print('hello 1')",
-                "sample2.py": "print('hello 2')",
+                "intent1.viba": "compute := $ret int <- $a int <- $b int",
+                "intent2.viba": "greet := $ret str <- $name str",
             }
             for name, content in input_files.items():
                 full = os.path.join(tmpdir, name)
@@ -117,11 +118,11 @@ if __name__ == "__main__":
                     f.write(content)
 
             # ------------------------------------------------------------------
-            # Prepare weight JSON files (T → Viba mappings).
+            # Prepare weight JSON files (Viba → T mappings).
             # ------------------------------------------------------------------
             weight_files = {
-                "weight1.json": json.dumps({"py_key1": "viba_val1", "py_key2": "viba_val2"}),
-                "weight2.json": json.dumps({"py_keyA": "viba_valA", "py_keyB": "viba_valB"}),
+                "weight1.json": json.dumps({"viba_key1": "code_val1", "viba_key2": "code_val2"}),
+                "weight2.json": json.dumps({"viba_keyA": "code_valA", "viba_keyB": "code_valB"}),
             }
             for name, content in weight_files.items():
                 full = os.path.join(tmpdir, name)
@@ -132,13 +133,13 @@ if __name__ == "__main__":
             # Instantiate the module under test. It will build the weight buffer
             # containing paths to the JSON files.
             # ------------------------------------------------------------------
-            model = RawVibaIntentGenerator(tmpdir, feature_len=256)
+            model = CodeGenerator(tmpdir, output_file_content_type="Python", feature_len=256)
 
             # ------------------------------------------------------------------
-            # Create an input tensor that contains paths to the source files,
+            # Create an input tensor that contains paths to the Viba files,
             # and set its st_relative_to attribute.
             # ------------------------------------------------------------------
-            input_paths = [["sample1.py"], ["sample2.py"]]   # batch=2, max_use_count=1
+            input_paths = [["intent1.viba"], ["intent2.viba"]]   # batch=2, max_use_count=1
             feature_len = 256
             encoded_rows = []
             for sample in input_paths:
@@ -158,7 +159,7 @@ if __name__ == "__main__":
             output = model(input_tensor)
             assert output.shape == (2, 1, 256), f"Unexpected output shape: {output.shape}"
             assert output.dtype == torch.bfloat16
-            assert output.st_file_content_type == "Viba"
+            assert output.st_file_content_type == "Python"
 
             # Decode the output and verify content.
             first_layer = output[:, 0, :]
@@ -167,7 +168,7 @@ if __name__ == "__main__":
                 full_path = Path(tmpdir) / path_str
                 assert full_path.exists(), f"Output file not found: {full_path}"
                 written = full_path.read_text(encoding='utf-8')
-                assert written == "compute := $ret int <- $a int <- $b int"
+                assert written == "def compute(a: int, b: int) -> int:\n    return a + b"
             print("  Forward test passed.\n")
 
             # ------------------------------------------------------------------

@@ -7,4 +7,4 @@ RawVibaIntentGenerator :=
     # __init__
     <- ...
     # inline
-    <- $generate_raw_viba_intent ImportFrom["viba/st/function/generate_raw_viba_intent.py"]
+    <- $generate_raw_viba_intent ImportFrom["symbolic_tensor/function/generate_raw_viba_intent.py"]

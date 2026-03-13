@@ -4,7 +4,7 @@ from typing import List, Tuple
 import torch
 import torch.nn as nn
 
-from viba.st.function.get_truncated_intents import get_truncated_intents
+from symbolic_tensor.function.get_truncated_intents import get_truncated_intents
 
 
 class IntentTruncator(nn.Module):
@@ -51,10 +51,10 @@ class IntentTruncator(nn.Module):
 
 
 if __name__ == "__main__":
-    from viba.st.data_loader.convert_list_str_to_2d_tensor import (
+    from symbolic_tensor.data_loader.convert_list_str_to_2d_tensor import (
         convert_2d_tensor_to_list_str,
     )
-    from viba.st.tensor_util.convert_file_contents_to_st_tensor import (
+    from symbolic_tensor.tensor_util.convert_file_contents_to_st_tensor import (
         convert_file_contents_to_st_tensor,
     )
     import tempfile

@@ -7,10 +7,10 @@ import torch
 from torch.autograd import Function
 
 # Import required utilities
-from viba.st.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
-from viba.st.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
+from symbolic_tensor.tensor_util.convert_st_tensor_to_file_contents import convert_st_tensor_to_file_contents
+from symbolic_tensor.tensor_util.convert_file_contents_to_st_tensor import convert_file_contents_to_st_tensor
 from viba.intent_truncate_util import get_all_truncated_vibe_code
-from viba.st.llm_client import _call_claude
+from symbolic_tensor.llm_client import _call_claude
 
 # ----------------------------------------------------------------------
 # Forward implementation
@@ -152,7 +152,7 @@ def get_truncated_intents(input_tensor: torch.Tensor, num_parts: int) -> Tuple[t
 # Unit tests (only in __main__)
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
-    from viba.st.data_loader.convert_list_str_to_2d_tensor import convert_2d_tensor_to_list_str
+    from symbolic_tensor.data_loader.convert_list_str_to_2d_tensor import convert_2d_tensor_to_list_str
     from unittest.mock import patch
     import tempfile
 

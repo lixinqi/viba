@@ -32,6 +32,6 @@ _get_file_path :=
 
 
 # 3 test cases in __main__
-# use viba/st/data_loaders/sole_file_batch_data_loader.py::SoleFileBatchDataLoader to generate input tensors
+# use symbolic_tensor/data_loaders/sole_file_batch_data_loader.py::SoleFileBatchDataLoader to generate input tensors
 # import data loader only in __main__
 # english comments

@@ -12,14 +12,14 @@ generate_raw_viba_intent_forward :=
     <- $weight Tensor[Json[list[$key T * $value Viba]]]
     # inline
     <- Tensor.st_relative_to
-    <- $convert_st_tensor_to_file_contents ImportFrom["viba/st/tensor_util/convert_st_tensor_to_file_contents"]
+    <- $convert_st_tensor_to_file_contents ImportFrom["symbolic_tensor/tensor_util/convert_st_tensor_to_file_contents"]
     # see viba/get_all_truncated_vibe_code.*, viba/std_coding_style.py to generate LLMs prompt
     # generate 7 viba segment for each ExponentChain
     <- $get_output_for_each_batch (Viba <- '''
     unset CLAUDECODE && claude -p '{prompt} {weight_file_content} {input_file_content}'
     ''')
     <- $max_use_count ($input.shape[1])
-    <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
+    <- Import["symbolic_tensor/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
     <- Setter[Tensor.st_relative_to]
     <- Setter[Tensor.st_file_content_type]
 
@@ -33,12 +33,12 @@ generate_raw_viba_intent_backward :=
     <- $weight Tensor[Json[list[$key T * $value Viba]]]
     # inline
     <- Tensor.st_relative_to
-    <- Import["viba/st/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
+    <- Import["symbolic_tensor/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
     <- $get_weight_grad_json (Json[list[$key Diff[T] * $value Diff[Viba]]] <- '''
     unset CLAUDECODE && claude -p '{prompt} {all_weights_file_content} {input_file_content} {output_grad_file_content}'
     ''')
     <- $max_use_count ($input.shape[1])
-    <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
+    <- Import["symbolic_tensor/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
     <- Setter[Tensor.st_relative_to]
     <- Setter[Tensor.st_file_content_type]
 
@@ -60,7 +60,7 @@ GenerateRawVibaIntent :=
 generate_raw_viba_intent := GenerateRawVibaIntent.xxx_replace_me_xxx
 
 # 3 test cases in __main__
-# use viba/st/data_loaders/sole_file_batch_data_loader.py::SoleFileBatchDataLoader to generate input tensors
+# use symbolic_tensor/data_loaders/sole_file_batch_data_loader.py::SoleFileBatchDataLoader to generate input tensors
 # import data loader only in __main__
 # generate weight symbolic tensors by temp directory and random string
 # mock LLMs behaviors in test cases

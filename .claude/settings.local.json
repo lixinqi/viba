@@ -12,7 +12,9 @@
       "Bash(git push origin main)",
       "Bash(python3:*)",
       "Bash(ls:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(export:*)",
+      "Bash(git mv:*)"
     ]
   }
 }

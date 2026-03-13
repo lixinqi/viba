@@ -7,4 +7,4 @@ IntentTruncator :=
     # __init__
     <- $num_parts int
     # inline
-    <- $get_truncated_intents ImportFrom["viba/st/function/get_truncated_intents.py"]
+    <- $get_truncated_intents ImportFrom["symbolic_tensor/function/get_truncated_intents.py"]

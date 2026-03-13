@@ -13,14 +13,14 @@ generate_code_forward :=
     <- $output_file_content_type str
     # inline
     <- Tensor.st_relative_to
-    <- $convert_st_tensor_to_file_contents ImportFrom["viba/st/tensor_util/convert_st_tensor_to_file_contents"]
+    <- $convert_st_tensor_to_file_contents ImportFrom["symbolic_tensor/tensor_util/convert_st_tensor_to_file_contents"]
     # see viba/get_all_truncated_vibe_code.*, viba/std_coding_style.py to generate LLMs prompt
     # generate 7 viba segment for each ExponentChain
     <- $get_output_json_for_each_batch (Viba <- '''
     unset CLAUDECODE && claude -p '{prompt} {output_file_content_type} {weight_file_content} {input_file_content}'
     ''')
     <- ($output.shape[1] <- $input.shape[1])
-    <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
+    <- Import["symbolic_tensor/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
     <- Setter[Tensor.st_relative_to]
     <- ($output.st_file_content_type <- output_file_content_type)
 
@@ -34,7 +34,7 @@ generate_code_backward :=
     <- $weight Tensor[Json[list[$key Viba * $value T]]]
     # inline
     <- Tensor.st_relative_to
-    <- Import["viba/st/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
+    <- Import["symbolic_tensor/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
     <- $get_input_grad (Viba <- '''
     unset CLAUDECODE && claude -p '{prompt} {all_weights_file_content} {input_file_content} {output_grad_file_content}'
     ''')
@@ -42,7 +42,7 @@ generate_code_backward :=
     unset CLAUDECODE && claude -p '{prompt} {all_weights_file_content} {input_file_content} {output_grad_file_content}'
     ''')
     <- ($input_grad.shape[1] <- $input.shape[1])
-    <- Import["viba/st/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
+    <- Import["symbolic_tensor/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
     <- Setter[Tensor.st_relative_to]
     <- Setter[Tensor.st_file_content_type]
 
@@ -64,7 +64,7 @@ GenerateCode :=
 generate_code := GenerateCode.apply
 
 # 3 test cases in __main__
-# use viba/st/data_loaders/sole_file_batch_data_loader.py::SoleFileBatchDataLoader to generate input tensors
+# use symbolic_tensor/data_loaders/sole_file_batch_data_loader.py::SoleFileBatchDataLoader to generate input tensors
 # import data loader only in __main__
 # generate weight symbolic tensors by temp directory and random string
 # mock LLMs behaviors in test cases

@@ -7,4 +7,4 @@ CodeGenerator :=
     # __init__
     <- ...
     # inline
-    <- $generate_code ImportFrom["viba/st/function/generate_code.py"]
+    <- $generate_code ImportFrom["symbolic_tensor/function/generate_code.py"]
