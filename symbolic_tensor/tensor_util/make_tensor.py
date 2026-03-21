@@ -61,7 +61,8 @@ def make_tensor(nested_data: NestedList, relative_to: str) -> torch.Tensor:
         relative_to: Root directory for file storage.
 
     Returns:
-        A zero-filled torch.Tensor with st_relative_to and st_tensor_uid set.
+        A ones-filled torch.Tensor with st_relative_to and st_tensor_uid set.
+        Values of 1 indicate content has been persisted to disk.
         File contents are saved under {relative_to}/{tensor_uid}/storage/{digit_dirs}/data.
         Shape is saved as JSON under {relative_to}/{tensor_uid}/shape.
     """
@@ -99,6 +100,9 @@ def make_tensor(nested_data: NestedList, relative_to: str) -> torch.Tensor:
     with open(shape_path, "w", encoding="utf-8") as f:
         f.write(json.dumps(shape))
 
+    # Fill tensor with ones: nonzero means content is saved, value represents importance
+    tensor.fill_(1)
+
     return tensor
 
 
@@ -123,6 +127,7 @@ if __name__ == "__main__":
         data = ["hello", "world"]
         t = make_tensor(data, tmpdir)
         run_test("Shape is [2]", list(t.shape) == [2], [2], list(t.shape))
+        run_test("All ones", torch.all(t == 1).item())
         run_test("st_relative_to set", t.st_relative_to == tmpdir)
         run_test("st_tensor_uid set", isinstance(t.st_tensor_uid, str) and len(t.st_tensor_uid) > 0)
         root = os.path.join(tmpdir, t.st_tensor_uid)
@@ -141,6 +146,7 @@ if __name__ == "__main__":
         data = [["a", "b", "c"], ["d", "e", "f"]]
         t = make_tensor(data, tmpdir)
         run_test("Shape is [2, 3]", list(t.shape) == [2, 3], [2, 3], list(t.shape))
+        run_test("All ones", torch.all(t == 1).item())
         root = os.path.join(tmpdir, t.st_tensor_uid)
         # Index 0 -> "a", index 5 -> "f"
         with open(os.path.join(root, "storage", "0", "data")) as f:

@@ -1,0 +1,69 @@
+
+# SymboilcTensor is only for comprehension. do not generate
+SymboilcTensor := torch.Tensor[
+    $shape (batch_size, max_use_count, max_file_path_bytes), 
+    $dtype bfloat16,
+]
+
+# Prompt is only for comprehension. do not generate
+Prompt := str
+
+# SymbolicParameter is only for comprehension. do not generate
+SymbolicParameter := torch.Tensor[
+    $shape (max_qkv_triples, 3, max_file_path_bytes), # 3 means (query, key, value)
+    $dtype bfloat16,
+]
+
+get_input_query_tensor :=
+    $query_tensor SymboilcTensor
+    <- $input SymboilcTensor
+    # inline
+    TODO
+
+symbolic_transform_forward :=
+    ($output SymboilcTensor, $selected_weight_qkv_indexes_list list[list[int]])
+    <- $input SymboilcTensor
+    <- $weight SymbolicParameter
+    <- $forward_prompt Prompt
+    <- $topk int
+    # inline
+    <- ($output.shape <- $input.shape)
+    <- ($output.st_relative_to <- $input.st_relative_to)
+    <- ($input_query_tensor <- get_input_query_tensor <- ...)
+    <- $input.st_relative_to
+    <- $get_file_contents ImportFrom["symbolic_tensor/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
+    <- ($input_file_contents list[$batch_input_file_content str] <- $get_file_contents <- ...)
+    <- ($prompt_for_get_input_query_keys str <- $return_format Json[list[str]])
+    <- $call_claude Import['symbolic_tensor/llm_client.py']._call_claude
+    <- ($batch_query_keys list[str] <- $call_claude <- $prompt_for_get_input_query_keys <- $batch_file_content)
+    <- $weight_querys $weight[:, 0, :]
+    <- ($batch_selected_weight_qkv_indexes list[int] <- QkvIndexesSelector <- $batch_query_keys <- ...)
+    <- ($selected_weight_qkv_indexes_list <- list[$batch_selected_weight_qkv_indexes])
+    <- ($selected_kv_weight <- $weight[$batch_selected_weight_qkv_indexes, 1:, :])
+    <- ($selected_kv_weight_tmp_dir str <- $selected_kv_weight <- soft_link)
+    <- ($selected_kv_repomix str <- repomix <- $selected_kv_weight_tmp_dir)
+    <- ($prompt_for_output str <- merge <- $forward_prompt <- $batch_input_file_content <- $selected_kv_repomix)
+    <- ($batch_output_file_content str <- $call_claude <- $prompt_for_output)
+    <- ($output_file_contents list[str] <- list[$batch_output_file_content])
+    <- $get_tensor Import["symbolic_tensor/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
+    <- ($output <- $get_tensor <- $output_file_contents)
+
+# QueryParameter is only for comprehension. do not generate
+QueryParameter := torch.Tensor[
+    $shape (max_qkv_triples, max_file_path_bytes),
+    $dtype bfloat16,
+]
+
+QkvIndexesSelector :=
+    # __call__
+    $selected_weigh_qkv_indexes list[int]
+    <- $batch_query_keys list[str]
+    <- $topk int
+    # __init__
+    <- $query_weight QueryParameter
+    # inline
+    <- $query_weight.st_relative_to
+    <- ($query_weight_file_contents list[$query_file_content str] <- ImportFrom["symbolic_tensor/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents)
+    <- ($query_file_keys list[str] <- split <- ' ' <- $query_file_content)
+    <- ($jaccard_distance float <- $batch_query_keys <- $query_file_keys)
+    <- ($selected_weigh_qkv_indexes  <- arg_top_k <- list[$jaccard_distance] <- "ascend" <- $topk)

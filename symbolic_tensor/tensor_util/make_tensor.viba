@@ -27,3 +27,7 @@ make_tensor :=
         <- save_to_file_system 
         <- $path ($joined_path <- tensor_root_dir <- "shape")
         <- $content ($json_dumped_str <- $shape))
+    # the values in wrapper `tensor` means that
+    #   1) contents are saved to file system if nonzero
+    #   2) the importance of file contents
+    <- (void <- fill_with_one <- $tensor)
