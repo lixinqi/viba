@@ -14,7 +14,8 @@
       "Bash(ls:*)",
       "Bash(source:*)",
       "Bash(export:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(git push:*)"
     ]
   }
 }
