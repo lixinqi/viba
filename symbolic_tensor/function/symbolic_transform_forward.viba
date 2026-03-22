@@ -2,12 +2,6 @@
 # Prompt is only for comprehension. do not generate
 Prompt := str
 
-get_input_query_tensor :=
-    $query_tensor SymboilcTensor
-    <- $input SymboilcTensor
-    # inline
-    TODO
-
 symbolic_transform_forward :=
     ($output SymboilcTensor, $selected_weight_qkv_indexes_list list[list[int]])
     <- $input SymboilcTensor
@@ -17,7 +11,8 @@ symbolic_transform_forward :=
     # inline
     <- ($output.shape <- $input.shape)
     <- ($output.st_relative_to <- $input.st_relative_to)
-    <- ($input_query_tensor <- get_input_query_tensor <- ...)
+    <- $get_input_query_tensor Import[symbolic_tensor/function/get_input_query_tensor.viba]
+    <- ($input_query_tensor <- $get_input_query_tensor <- ...)
     <- $input.st_relative_to
     <- $get_file_contents ImportFrom["symbolic_tensor/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
     <- ($input_file_contents list[$batch_input_file_content str] <- $get_file_contents <- ...)

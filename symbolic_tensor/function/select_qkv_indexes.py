@@ -1,0 +1,186 @@
+import os
+import torch
+from typing import List, Tuple
+
+from symbolic_tensor.tensor_util.dump_view import dump_view
+
+
+def _get_jaccard_similarity(a: List[str], b: List[str]) -> float:
+    """Compute Jaccard similarity between two lists of keywords."""
+    set_a = set(a)
+    set_b = set(b)
+    if not set_a and not set_b:
+        return 0.0
+    intersection = set_a & set_b
+    union = set_a | set_b
+    return len(intersection) / len(union)
+
+
+def _filter_non_empty_query_file_paths(view_dir: str) -> List[str]:
+    """Walk the view directory and return paths to all non-empty data files."""
+    result = []
+    for root, _dirs, files in os.walk(view_dir):
+        for fname in files:
+            fpath = os.path.join(root, fname)
+            # Resolve symlinks to check actual content
+            real_path = os.path.realpath(fpath)
+            if os.path.isfile(real_path) and os.path.getsize(real_path) > 0:
+                result.append(fpath)
+    return sorted(result)
+
+
+def _extract_coordinates(file_path: str, view_dir: str) -> List[int]:
+    """Extract coordinate indices from a view file path.
+
+    Given view_dir/0/1/2/data.txt, extracts [0, 1, 2].
+    """
+    rel = os.path.relpath(file_path, view_dir)
+    parts = rel.split(os.sep)
+    # Last part is the filename (data.txt), rest are coordinate dirs
+    coord_parts = parts[:-1]
+    return [int(p) for p in coord_parts]
+
+
+def _unzip_to_tensor_list(coordinates: List[List[int]]) -> List[torch.Tensor]:
+    """Unzip a list of coordinate tuples into a list of tensors, one per dimension.
+
+    [[0,1], [2,3], [0,3]] -> [tensor([0,2,0]), tensor([1,3,3])]
+    """
+    if not coordinates:
+        return []
+    ndim = len(coordinates[0])
+    return [torch.tensor([coord[d] for coord in coordinates], dtype=torch.long)
+            for d in range(ndim)]
+
+
+def select_qkv_indexes(
+    weight_tensor: torch.Tensor,
+    query_key_words: List[str],
+    topk: int,
+) -> List[torch.Tensor]:
+    """
+    Select top-k entries from an Experience tensor by Jaccard similarity.
+
+    Dumps a coordinate-based view of the weight tensor (cached), reads
+    keywords from each file, computes Jaccard similarity against the
+    query keywords, and returns the coordinates of the top-k matches
+    as a list of index tensors (one per dimension).
+
+    Args:
+        weight_tensor: An Experience symbolic tensor (last dim = 3: q, k, v).
+        query_key_words: List of query keywords to match against.
+        topk: Number of top matches to return.
+
+    Returns:
+        A list of torch.Tensor[int], one per dimension of the tensor
+        (excluding the last qkv dimension), containing the selected indices.
+    """
+    original_tensor_dir = os.path.join(
+        weight_tensor.st_relative_to, weight_tensor.st_tensor_uid
+    )
+    qkv_data_view_dir = os.path.join(original_tensor_dir, "qkv_data_view")
+
+    # Dump view only if not already done (cached)
+    if not os.path.isdir(qkv_data_view_dir):
+        dump_view(weight_tensor, qkv_data_view_dir, "txt")
+
+    # Find all non-empty data files in the view
+    query_file_paths = _filter_non_empty_query_file_paths(qkv_data_view_dir)
+
+    # Compute Jaccard similarity for each file
+    similarities: List[Tuple[str, float]] = []
+    for query_file_path in query_file_paths:
+        real_path = os.path.realpath(query_file_path)
+        with open(real_path, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+        query_file_key_words = [w for w in content.split("\n") if w.strip()]
+        similarity = _get_jaccard_similarity(query_key_words, query_file_key_words)
+        similarities.append((query_file_path, similarity))
+
+    # Select top-k by highest similarity
+    similarities.sort(key=lambda x: x[1], reverse=True)
+    selected = similarities[:topk]
+    selected_paths = [path for path, _ in selected]
+
+    # Extract coordinates from selected file paths and unzip to tensor list
+    coordinates = [_extract_coordinates(p, qkv_data_view_dir) for p in selected_paths]
+    return _unzip_to_tensor_list(coordinates)
+
+
+if __name__ == "__main__":
+    import tempfile
+    from symbolic_tensor.tensor_util.make_tensor import make_tensor
+
+    print("Running tests for select_qkv_indexes...\n")
+
+    def run_test(name: str, condition: bool, expected=None, actual=None):
+        if condition:
+            print(f"  ✓ {name}")
+        else:
+            print(f"  ✗ {name}")
+            if expected is not None and actual is not None:
+                print(f"    expected: {expected}")
+                print(f"    actual:   {actual}")
+
+    # Test 1: Basic selection from a 2x3 experience tensor (shape [2, 3])
+    # Last dim = 3 means q, k, v
+    print("Test 1: Basic top-k selection")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a 2x3 tensor where last dim=3 (q,k,v)
+        # Each string contains keywords (one per line)
+        data = [
+            ["python\nfunction\ndef", "key_a", "value_a"],   # row 0
+            ["java\nclass\nobject", "key_b", "value_b"],     # row 1
+        ]
+        t = make_tensor(data, tmpdir)
+        # shape is [2, 3]
+
+        # Query for python-related keywords
+        result = select_qkv_indexes(t, ["python", "function"], topk=1)
+        run_test("Returns list of tensors", isinstance(result, list))
+        run_test("Two index tensors (2 dims)", len(result) == 2)
+        # Row 0 has "python\nfunction\ndef" -> highest Jaccard with ["python", "function"]
+        run_test("First dim index is 0", result[0].item() == 0)
+        print(f"    Selected indices: dim0={result[0].tolist()}, dim1={result[1].tolist()}")
+
+    # Test 2: Top-2 selection
+    print("Test 2: Top-2 selection")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        data = [
+            ["alpha\nbeta", "k0", "v0"],
+            ["gamma\ndelta", "k1", "v1"],
+            ["alpha\ngamma\nepsilon", "k2", "v2"],
+        ]
+        t = make_tensor(data, tmpdir)
+
+        result = select_qkv_indexes(t, ["alpha", "beta"], topk=2)
+        run_test("Two index tensors", len(result) == 2)
+        run_test("Two results each", len(result[0]) == 2)
+        # Row 0 has jaccard(["alpha","beta"], ["alpha","beta"]) = 1.0
+        # Row 2 has jaccard(["alpha","beta"], ["alpha","gamma","epsilon"]) = 1/4 = 0.25
+        # Row 1 has jaccard(["alpha","beta"], ["gamma","delta"]) = 0.0
+        run_test("Best match is row 0", result[0][0].item() == 0)
+        print(f"    Selected: dim0={result[0].tolist()}, dim1={result[1].tolist()}")
+
+    # Test 3: Cached view (second call reuses)
+    print("Test 3: Cached view directory")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        data = [["hello\nworld", "k", "v"]]
+        t = make_tensor(data, tmpdir)
+
+        view_dir = os.path.join(tmpdir, t.st_tensor_uid, "qkv_data_view")
+        result1 = select_qkv_indexes(t, ["hello"], topk=1)
+        run_test("View dir created", os.path.isdir(view_dir))
+        result2 = select_qkv_indexes(t, ["world"], topk=1)
+        run_test("View dir still exists (cached)", os.path.isdir(view_dir))
+        run_test("Same results shape", len(result1) == len(result2))
+
+    # Test 4: Empty query keywords
+    print("Test 4: Empty query returns zero similarity")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        data = [["keyword", "k", "v"]]
+        t = make_tensor(data, tmpdir)
+        result = select_qkv_indexes(t, [], topk=1)
+        run_test("Still returns results", len(result) == 2)
+
+    print("\nAll tests completed.")
