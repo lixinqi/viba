@@ -1,16 +1,24 @@
 import os
 import json
+import shutil
 import torch
+from pathlib import Path
 from typing import List, Union
 from symbolic_tensor.tensor_util.make_none_tensor import make_none_tensor
 
 
-NestedList = Union[str, List["NestedList"]]
+NestedDataType = Union[str, Path]
+NestedList = Union[NestedDataType, List["NestedList"]]
+
+
+def _is_leaf(item) -> bool:
+    """Check if item is a leaf node (str or Path, not a list)."""
+    return isinstance(item, (str, Path))
 
 
 def _get_shape(nested_data: NestedList) -> List[int]:
-    """Derive the shape from a consistently nested list of strings."""
-    if isinstance(nested_data, str):
+    """Derive the shape from a consistently nested list."""
+    if _is_leaf(nested_data):
         return []
     if len(nested_data) == 0:
         return [0]
@@ -22,8 +30,8 @@ def _get_shape(nested_data: NestedList) -> List[int]:
 def _assert_consistent_shape(nested_data: NestedList, shape: List[int]) -> None:
     """Assert that all branches of nested_data match the derived shape."""
     if not shape:
-        assert isinstance(nested_data, str), (
-            f"Expected str at leaf, got {type(nested_data)}"
+        assert _is_leaf(nested_data), (
+            f"Expected str or Path at leaf, got {type(nested_data)}"
         )
         return
     assert isinstance(nested_data, list), (
@@ -36,9 +44,9 @@ def _assert_consistent_shape(nested_data: NestedList, shape: List[int]) -> None:
         _assert_consistent_shape(item, shape[1:])
 
 
-def _flatten(nested_data: NestedList) -> List[str]:
-    """Flatten a nested list of strings into a flat list."""
-    if isinstance(nested_data, str):
+def _flatten(nested_data: NestedList) -> List[NestedDataType]:
+    """Flatten a nested list into a flat list of leaf elements."""
+    if _is_leaf(nested_data):
         return [nested_data]
     result = []
     for item in nested_data:
@@ -51,14 +59,15 @@ def _str_to_digit_list(s: str) -> List[str]:
     return list(s)
 
 
-def make_tensor(nested_data: NestedList, relative_to: str) -> torch.Tensor:
+def make_tensor(nested_data: NestedList, relative_to: str, symlink: bool = False) -> torch.Tensor:
     """
-    Create a symbolic tensor from a nested list of strings, persisting each
-    string to disk under a hash-based directory structure.
+    Create a symbolic tensor from a nested list of strings or Paths, persisting each
+    element to disk under a hash-based directory structure.
 
     Args:
-        nested_data: A consistently shaped nested list of strings.
+        nested_data: A consistently shaped nested list of strings or pathlib.Path objects.
         relative_to: Root directory for file storage.
+        symlink: If True and element is a Path, create a relative symlink instead of copying.
 
     Returns:
         A ones-filled torch.Tensor with st_relative_to and st_tensor_uid set.
@@ -81,8 +90,8 @@ def make_tensor(nested_data: NestedList, relative_to: str) -> torch.Tensor:
     # Build root dir for this tensor's storage
     tensor_root_dir = os.path.join(tensor.st_relative_to, tensor.st_tensor_uid)
 
-    # Save each file content
-    for i, file_content in enumerate(flattened_data):
+    # Save each element (string content or Path)
+    for i, file_content_or_path in enumerate(flattened_data):
         index_digits = _str_to_digit_list(str(i))
         file_path = os.path.join(
             tensor_root_dir,
@@ -91,8 +100,18 @@ def make_tensor(nested_data: NestedList, relative_to: str) -> torch.Tensor:
             "data",
         )
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(file_content)
+        if isinstance(file_content_or_path, Path):
+            if symlink:
+                rel_src = os.path.relpath(
+                    str(file_content_or_path.resolve()),
+                    os.path.dirname(file_path),
+                )
+                os.symlink(rel_src, file_path)
+            else:
+                shutil.copy2(str(file_content_or_path), file_path)
+        else:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(file_content_or_path)
 
     # Save shape as JSON
     shape_path = os.path.join(tensor_root_dir, "shape")
@@ -178,5 +197,48 @@ if __name__ == "__main__":
             run_test("Should have raised", False)
         except AssertionError:
             run_test("AssertionError raised", True)
+
+    # Test 5: Path elements (copy mode)
+    print("Test 5: Path elements (copy)")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src_file = Path(tmpdir) / "source.txt"
+        src_file.write_text("path content", encoding="utf-8")
+        data = [src_file]
+        t = make_tensor(data, tmpdir)
+        run_test("Shape is [1]", list(t.shape) == [1])
+        root = os.path.join(tmpdir, t.st_tensor_uid)
+        stored = os.path.join(root, "storage", "0", "data")
+        run_test("File exists", os.path.isfile(stored))
+        run_test("Not a symlink", not os.path.islink(stored))
+        with open(stored) as f:
+            run_test("Content matches", f.read() == "path content")
+
+    # Test 6: Path elements (symlink mode)
+    print("Test 6: Path elements (symlink)")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src_file = Path(tmpdir) / "source.txt"
+        src_file.write_text("symlinked content", encoding="utf-8")
+        data = [src_file]
+        t = make_tensor(data, tmpdir, symlink=True)
+        root = os.path.join(tmpdir, t.st_tensor_uid)
+        stored = os.path.join(root, "storage", "0", "data")
+        run_test("Is a symlink", os.path.islink(stored))
+        target = os.readlink(stored)
+        run_test("Symlink is relative", not os.path.isabs(target))
+        with open(stored) as f:
+            run_test("Content via symlink", f.read() == "symlinked content")
+
+    # Test 7: Mixed str and Path elements
+    print("Test 7: Mixed str and Path")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src_file = Path(tmpdir) / "mixed.txt"
+        src_file.write_text("from path", encoding="utf-8")
+        data = ["from string", src_file]
+        t = make_tensor(data, tmpdir)
+        root = os.path.join(tmpdir, t.st_tensor_uid)
+        with open(os.path.join(root, "storage", "0", "data")) as f:
+            run_test("Str element", f.read() == "from string")
+        with open(os.path.join(root, "storage", "1", "data")) as f:
+            run_test("Path element", f.read() == "from path")
 
     print("\nAll tests completed.")

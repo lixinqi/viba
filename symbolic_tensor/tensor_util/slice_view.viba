@@ -1,0 +1,6 @@
+slice_view :=
+    Symbolic[torch.Tensor]
+    <- $input Symbolic[torch.Tensor]
+    <- $slice_tensors list[torch.Tensor]
+    # inline
+    <- Assert[len($slice_tensors) == len($input.size)]

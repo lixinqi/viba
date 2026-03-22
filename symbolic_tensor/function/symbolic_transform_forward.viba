@@ -30,23 +30,3 @@ symbolic_transform_forward :=
     <- ($output_file_contents list[str] <- list[$batch_output_file_content])
     <- $get_tensor Import["symbolic_tensor/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
     <- ($output <- $get_tensor <- $output_file_contents)
-
-# QueryParameter is only for comprehension. do not generate
-QueryParameter := torch.Tensor[
-    $shape (max_qkv_triples, max_file_path_bytes),
-    $dtype bfloat16,
-]
-
-QkvIndexesSelector :=
-    # __call__
-    $selected_weigh_qkv_indexes list[int]
-    <- $batch_query_keys list[str]
-    <- $topk int
-    # __init__
-    <- $query_weight QueryParameter
-    # inline
-    <- $query_weight.st_relative_to
-    <- ($query_weight_file_contents list[$query_file_content str] <- ImportFrom["symbolic_tensor/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents)
-    <- ($query_file_keys list[str] <- split <- ' ' <- $query_file_content)
-    <- ($jaccard_distance float <- $batch_query_keys <- $query_file_keys)
-    <- ($selected_weigh_qkv_indexes  <- arg_top_k <- list[$jaccard_distance] <- "ascend" <- $topk)
