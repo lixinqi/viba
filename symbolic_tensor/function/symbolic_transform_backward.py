@@ -1,0 +1,395 @@
+import os
+import asyncio
+import tempfile
+import itertools
+import torch
+from typing import Any, List, Tuple, Union
+
+from symbolic_tensor.tensor_util.todo_tensor_like import todo_tensor_like
+from symbolic_tensor.tensor_util.slice_view import slice_view
+from symbolic_tensor.tensor_util.dump_view import dump_view
+from symbolic_tensor.llm_client.coding_agent_query import coding_agent_query
+
+
+def _scalar_slice_indices(shape: torch.Size) -> List[List[int]]:
+    """Generate all coordinate tuples for iterating over each scalar element."""
+    ranges = [range(s) for s in shape]
+    return [list(coord) for coord in itertools.product(*ranges)]
+
+
+def _replace_last_tensor_with_full_slice(
+    index_tensors: List[torch.Tensor],
+    last_dim_size: int,
+) -> List[Union[torch.Tensor, slice]]:
+    """Replace the last index tensor with a full slice to keep all q/k/v."""
+    result: List[Union[torch.Tensor, slice]] = list(index_tensors[:-1])
+    result.append(slice(None))  # full slice on last dim (q, k, v)
+    return result
+
+
+def _flatten_nested_indexes(
+    nested: Any,
+    shape: List[int],
+) -> List[List[torch.Tensor]]:
+    """Flatten a nested list of index tensor lists matching the given shape."""
+    if not shape:
+        return [nested]
+    result = []
+    for item in nested:
+        result.extend(_flatten_nested_indexes(item, shape[1:]))
+    return result
+
+
+def _pad_indexes_to_topk_with_none_experience_indexes(
+    select_experience_query_indexes: List[torch.Tensor],
+    topk: int,
+    experience: torch.Tensor,
+) -> List[torch.Tensor]:
+    """Pad index tensors to topk length with zero-index when fewer entries were selected."""
+    if not select_experience_query_indexes:
+        ndim = len(experience.size())
+        return [torch.zeros(topk, dtype=torch.long) for _ in range(ndim)]
+
+    current_len = len(select_experience_query_indexes[0])
+    if current_len >= topk:
+        return select_experience_query_indexes
+
+    padded = []
+    for idx_tensor in select_experience_query_indexes:
+        pad_count = topk - current_len
+        pad_tensor = torch.zeros(pad_count, dtype=idx_tensor.dtype)
+        padded.append(torch.cat([idx_tensor, pad_tensor]))
+    return padded
+
+
+def _resolve_storage_paths(view_dir: str, tensor: torch.Tensor) -> list:
+    """Pre-resolve symlinks from tensor storage to real paths.
+
+    Must be called BEFORE the LLM runs, while symlinks are still intact.
+    Returns a list of (view_file, real_storage_path) tuples.
+    """
+    result = []
+    coords_list = [list(coord) for coord in itertools.product(*[range(s) for s in tensor.size()])]
+    for coords in coords_list:
+        flat_index = sum(c * s for c, s in zip(coords, tensor.stride()))
+        digits = list(str(flat_index))
+        storage_path = os.path.join(
+            tensor.st_relative_to,
+            tensor.st_tensor_uid,
+            "storage",
+            os.path.join(*digits),
+            "data",
+        )
+        # Resolve while symlinks are still intact
+        real_storage_path = os.path.realpath(storage_path)
+        if coords:
+            coord_dirs = os.path.join(*[str(c) for c in coords])
+            view_file = os.path.join(view_dir, coord_dirs, "data.txt")
+        else:
+            view_file = os.path.join(view_dir, "data.txt")
+        result.append((view_file, real_storage_path))
+    return result
+
+
+def _copy_view_back_to_storage(resolved_paths: list) -> None:
+    """Copy results back from workspace view files to tensor storage.
+
+    Takes pre-resolved (view_file, real_storage_path) tuples from
+    _resolve_storage_paths. The real_storage_path was resolved before
+    the LLM ran, so it points to the true parent tensor storage even
+    if intermediate symlinks were broken by the LLM's Write/Edit tool.
+    """
+    for view_file, real_storage_path in resolved_paths:
+        if os.path.isfile(view_file):
+            with open(view_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            with open(real_storage_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+
+def symbolic_transform_backward(
+    grad_output: torch.Tensor,
+    input: torch.Tensor,
+    output: torch.Tensor,
+    experience: torch.Tensor,
+    selected_experience_qkv_indexes_list: Any,
+    forward_prompt: str = "",
+    topk: int = 16,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Backward pass of the symbolic transform.
+
+    Two gradient channels:
+      a) Numeric channel (coefficient): grad_input copies from grad_output;
+         grad_experience accumulates grad_output coefficients per used experience entry.
+      b) Symbolic channel (text diff): LLM infers how input and experience texts
+         should change given the output gradient.
+
+    Processes each scalar element sequentially.
+
+    Args:
+        grad_output: Gradient w.r.t. forward output (symbolic tensor with text diffs).
+        input: Original input tensor (saved from forward ctx).
+        output: Original output tensor (saved from forward ctx).
+        experience: Experience tensor (saved from forward ctx, last dim=3: q/k/v).
+        selected_experience_qkv_indexes_list: Nested list of index tensors from forward.
+        forward_prompt: The prompt used during forward pass.
+        topk: Number of top experience entries used per element.
+
+    Returns:
+        A tuple of:
+        - grad_input: Gradient w.r.t. input (same shape as input).
+        - grad_experience: Gradient w.r.t. experience (same shape as experience).
+    """
+    # Initialize gradient tensors with TODO text
+    grad_input = todo_tensor_like(input)
+    grad_experience = todo_tensor_like(experience)
+
+    # ── Numeric channel (coefficient) ──
+    # grad_input coefficient: pass-through copy from grad_output
+    grad_input.data.copy_(grad_output.data)
+    # grad_experience coefficient: zero-init, then scatter-add
+    grad_experience.data.zero_()
+
+    # Flatten nested indexes to iterate per scalar element
+    input_shape = list(input.size())
+    coords_list = _scalar_slice_indices(input.size())
+    flat_selected_indexes = _flatten_nested_indexes(
+        selected_experience_qkv_indexes_list, input_shape
+    )
+
+    # Scatter-add grad_output coefficients to grad_experience for each element
+    for coords, select_experience_query_indexes in zip(coords_list, flat_selected_indexes):
+        scalar_grad_output_coeff = grad_output[tuple(coords)].item()
+
+        padded_select_indexes = _pad_indexes_to_topk_with_none_experience_indexes(
+            select_experience_query_indexes, topk, experience
+        )
+        select_experience_indexes = _replace_last_tensor_with_full_slice(
+            padded_select_indexes, experience.size()[-1]
+        )
+        # scatter-add: grad_experience[select_experience_indexes] += scalar_grad_output_coeff
+        grad_experience.data[select_experience_indexes] += scalar_grad_output_coeff
+
+    # ── Symbolic channel (text diff) ──
+    # Process each scalar element sequentially
+    for coords, select_experience_query_indexes in zip(coords_list, flat_selected_indexes):
+        int_slices = [c for c in coords]
+
+        # Slice all relevant tensors to scalar views
+        scalar_grad_output = slice_view(grad_output, int_slices)
+        scalar_input = slice_view(input, int_slices)
+        scalar_output = slice_view(output, int_slices)
+        scalar_grad_input = slice_view(grad_input, int_slices)
+
+        # Pad indexes to topk
+        padded_select_indexes = _pad_indexes_to_topk_with_none_experience_indexes(
+            select_experience_query_indexes, topk, experience
+        )
+        select_experience_indexes = _replace_last_tensor_with_full_slice(
+            padded_select_indexes, experience.size()[-1]
+        )
+
+        # Slice experience (const) and grad_experience (mutable) with same indexes
+        experience_sliced_view = slice_view(experience, select_experience_indexes)
+        grad_experience_sliced_view = slice_view(grad_experience, select_experience_indexes)
+
+        # Create workspace with dump views
+        with tempfile.TemporaryDirectory() as workspace_dir:
+            grad_output_view_dir = os.path.join(workspace_dir, "const_grad_output_view")
+            input_view_dir = os.path.join(workspace_dir, "const_input_view")
+            output_view_dir = os.path.join(workspace_dir, "const_output_view")
+            experience_view_dir = os.path.join(workspace_dir, "const_experience_view")
+            grad_input_view_dir = os.path.join(workspace_dir, "mutable_grad_input_view")
+            grad_experience_view_dir = os.path.join(workspace_dir, "mutable_grad_experience_view")
+
+            # Dump const views (read-only context for LLM)
+            dump_view(scalar_grad_output, grad_output_view_dir, "txt")
+            dump_view(scalar_input, input_view_dir, "txt")
+            dump_view(scalar_output, output_view_dir, "txt")
+            dump_view(experience_sliced_view, experience_view_dir, "txt")
+
+            # Dump mutable views (LLM writes gradients here)
+            dump_view(scalar_grad_input, grad_input_view_dir, "txt")
+            dump_view(grad_experience_sliced_view, grad_experience_view_dir, "txt")
+
+            # Pre-resolve symlinks BEFORE LLM runs (LLM's Write/Edit breaks symlinks)
+            grad_input_resolved = _resolve_storage_paths(grad_input_view_dir, scalar_grad_input)
+            grad_experience_resolved = _resolve_storage_paths(grad_experience_view_dir, grad_experience_sliced_view)
+
+            prompt = (
+                "You are a symbolic gradient calculator for backward pass.\n\n"
+                f"{forward_prompt}\n\n"
+                "During forward pass, the input was translated to output using experience entries.\n"
+                "Now given the output gradient (how output should change), compute gradients for\n"
+                "input and experience.\n\n"
+                "Context (read-only):\n"
+                f"- Output gradient (text diff): \"{grad_output_view_dir}\"\n"
+                f"- Original input: \"{input_view_dir}\"\n"
+                f"- Original output: \"{output_view_dir}\"\n"
+                f"- Experience entries used during forward: \"{experience_view_dir}\"\n"
+                "  where .../0/data.xxx = query, .../1/data.xxx = key, .../2/data.xxx = value\n\n"
+                "Compute and write:\n"
+                f"1. Input gradient in \"{grad_input_view_dir}\":\n"
+                "   How should the input text change to improve the output?\n"
+                f"2. Experience gradients in \"{grad_experience_view_dir}\":\n"
+                "   How should each experience entry (query, key, value) change to improve the output?\n\n"
+                "Replace all TODO with computed text diffs.\n"
+            )
+
+            # Ensure CLAUDECODE env var is unset
+            env_backup = os.environ.pop("CLAUDECODE", None)
+            try:
+                async def _run_query():
+                    async for _ in coding_agent_query(prompt=prompt, cwd=workspace_dir, allowed_tools=["Read", "Edit", "Write"]):
+                        pass
+
+                asyncio.run(_run_query())
+            finally:
+                if env_backup is not None:
+                    os.environ["CLAUDECODE"] = env_backup
+
+            # Copy results back from workspace view to tensor storage
+            _copy_view_back_to_storage(grad_input_resolved)
+            _copy_view_back_to_storage(grad_experience_resolved)
+
+    return grad_input, grad_experience
+
+
+if __name__ == "__main__":
+    import subprocess
+    from symbolic_tensor.tensor_util.make_tensor import make_tensor
+
+    # Source anthropic env vars
+    result = subprocess.run(
+        ["bash", "-c", "source ~/.anthropic.sh && env"],
+        capture_output=True, text=True,
+    )
+    for line in result.stdout.splitlines():
+        if "=" in line:
+            key, _, val = line.partition("=")
+            os.environ[key] = val
+    os.environ.pop("CLAUDECODE", None)
+
+    print("Running symbolic_transform_backward tests...\n")
+
+    def run_test(name: str, condition: bool, expected=None, actual=None):
+        if condition:
+            print(f"  ✓ {name}")
+        else:
+            print(f"  ✗ {name}")
+            if expected is not None and actual is not None:
+                print(f"    expected: {expected}")
+                print(f"    actual:   {actual}")
+
+    # Test 1: _pad_indexes_to_topk_with_none_experience_indexes
+    print("Test 1: Padding indexes to topk")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        exp_data = [["q0", "k0", "v0"]]
+        exp_tensor = make_tensor(exp_data, tmpdir)
+        indexes = [torch.tensor([0], dtype=torch.long), torch.tensor([0], dtype=torch.long)]
+        padded = _pad_indexes_to_topk_with_none_experience_indexes(indexes, 3, exp_tensor)
+        run_test("Padded to length 3", len(padded[0]) == 3, 3, len(padded[0]))
+        run_test("Original index preserved", padded[0][0].item() == 0)
+        run_test("Pad values are 0", padded[0][1].item() == 0 and padded[0][2].item() == 0)
+
+    # Test 2: No padding needed
+    print("Test 2: No padding when already at topk")
+    indexes = [torch.tensor([0, 1], dtype=torch.long)]
+    padded = _pad_indexes_to_topk_with_none_experience_indexes(indexes, 2, exp_tensor)
+    run_test("Length unchanged", len(padded[0]) == 2)
+
+    # Test 3: _flatten_nested_indexes
+    print("Test 3: Flatten nested indexes")
+    nested = [[torch.tensor([0]), torch.tensor([1])], [torch.tensor([2]), torch.tensor([3])]]
+    flat = _flatten_nested_indexes(nested, [2])
+    run_test("Flat length is 2", len(flat) == 2)
+
+    # Test 4: Numeric channel — coefficient pass-through and scatter-add
+    print("Test 4: Numeric channel")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_data = ["text_a", "text_b"]
+        input_tensor = make_tensor(input_data, tmpdir)
+
+        exp_data = [["q0", "k0", "v0"], ["q1", "k1", "v1"]]
+        exp_tensor = make_tensor(exp_data, tmpdir)
+
+        grad_out = todo_tensor_like(input_tensor)
+        grad_out.data.fill_(2.0)
+
+        sel_indexes = [
+            [torch.tensor([0], dtype=torch.long), torch.tensor([0], dtype=torch.long)],
+            [torch.tensor([0, 1], dtype=torch.long), torch.tensor([0, 0], dtype=torch.long)],
+        ]
+
+        grad_input = todo_tensor_like(input_tensor)
+        grad_experience = todo_tensor_like(exp_tensor)
+
+        # Numeric channel: pass-through
+        grad_input.data.copy_(grad_out.data)
+        run_test("grad_input coeff copied", torch.all(grad_input.data == 2.0).item())
+
+        # Numeric channel: scatter-add
+        grad_experience.data.zero_()
+        coords_list_t = _scalar_slice_indices(input_tensor.size())
+        for coords, sel_idx in zip(coords_list_t, sel_indexes):
+            coeff = grad_out[tuple(coords)].item()
+            padded = _pad_indexes_to_topk_with_none_experience_indexes(sel_idx, 2, exp_tensor)
+            sel_exp_idx = _replace_last_tensor_with_full_slice(padded, exp_tensor.size()[-1])
+            grad_experience.data[sel_exp_idx] += coeff
+
+        run_test("exp[0] accumulated", grad_experience.data[0, 0].item() == 4.0, 4.0, grad_experience.data[0, 0].item())
+        run_test("exp[1] from element 1", grad_experience.data[1, 0].item() == 2.0, 2.0, grad_experience.data[1, 0].item())
+
+    # Test 5: Full backward (symbolic channel, requires LLM)
+    print("Test 5: Full backward with LLM")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_tensor = make_tensor(["Hello world in English"], tmpdir)
+        exp_data = [
+            ["greeting\nhello\nworld", "Hello world in English", "Bonjour le monde en francais"],
+            ["farewell\ngoodbye", "Goodbye in English", "Au revoir en francais"],
+        ]
+        exp_tensor = make_tensor(exp_data, tmpdir)
+        output_tensor = make_tensor(["Bonjour le monde en francais"], tmpdir)
+        grad_output_tensor = make_tensor(
+            ["The translation should use formal French: 'Bonjour le monde en francais' -> 'Bonjour au monde en francais'"],
+            tmpdir,
+        )
+        grad_output_tensor.data.fill_(1.0)
+
+        sel_indexes = [[torch.tensor([0, 1], dtype=torch.long), torch.tensor([0, 0], dtype=torch.long)]]
+
+        grad_input, grad_experience = symbolic_transform_backward(
+            grad_output_tensor, input_tensor, output_tensor, exp_tensor,
+            selected_experience_qkv_indexes_list=sel_indexes,
+            forward_prompt="Translate the English text to French.",
+            topk=2,
+        )
+
+        run_test("grad_input shape matches input", list(grad_input.shape) == list(input_tensor.shape))
+        run_test("grad_experience shape matches experience", list(grad_experience.shape) == list(exp_tensor.shape))
+
+        # Check grad_input text diff
+        root = os.path.join(tmpdir, grad_input.st_tensor_uid, "storage")
+        path = os.path.join(root, "0", "data")
+        if os.path.isfile(path):
+            with open(path) as f:
+                content = f.read()
+            run_test("grad_input text diff not TODO", "TODO" not in content)
+            print(f"  grad_input text: {repr(content[:120])}")
+
+        # Check grad_experience text diffs
+        root = os.path.join(tmpdir, grad_experience.st_tensor_uid, "storage")
+        for i in range(grad_experience.numel()):
+            digits = list(str(i))
+            path = os.path.join(root, os.path.join(*digits), "data")
+            if os.path.isfile(path):
+                with open(path) as f:
+                    content = f.read()
+                print(f"  grad_experience[{i}]: TODO={'TODO' == content.strip()} {repr(content[:80])}")
+
+        # Numeric channel checks
+        run_test("grad_input coeff == 1.0", grad_input.data[0].item() == 1.0)
+        run_test("grad_experience coeff accumulated", grad_experience.data[0, 0].item() == 1.0)
+
+    print("\nAll tests completed.")
