@@ -65,7 +65,8 @@ def make_tensor(nested_data: NestedList, relative_to: str, symlink: bool = False
     element to disk under a hash-based directory structure.
 
     Args:
-        nested_data: A consistently shaped nested list of strings or pathlib.Path objects.
+        nested_data: A single str/Path (scalar tensor) or a consistently shaped
+            nested list of strings or pathlib.Path objects.
         relative_to: Root directory for file storage.
         symlink: If True and element is a Path, create a relative symlink instead of copying.
 

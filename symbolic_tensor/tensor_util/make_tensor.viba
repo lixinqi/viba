@@ -2,7 +2,7 @@ NestedDataType := str | pathlib.Path
 
 make_tensor :=
     torch.Tensor
-    <- $nested_data NestedList[NestedDataType]
+    <- $nested_data (NestedList[NestedDataType] | NestedDataType)
     <- $relative_to str
     <- $symlink bool # default False, only for pathlib.Path and relative_symlink
     # inline

@@ -215,17 +215,23 @@ if __name__ == "__main__":
         with open(os.path.join(root, "1", "data")) as f:
             run_test("(0,1) -> 'y'", f.read() == "y")
 
-    # Test 6: All dims collapsed -> scalar-like
-    print("Test 6: All dims collapsed")
+    # Test 6: All dims collapsed -> scalar tensor (bare Path to make_tensor)
+    print("Test 6: All dims collapsed -> scalar")
     with tempfile.TemporaryDirectory() as tmpdir:
         data = [["a", "b"], ["c", "d"]]
         t = mt(data, tmpdir)
         result = slice_view(t, [1, 0])
         run_test("Shape is [] (0-dim)", list(result.shape) == [])
-        # Single element tensor
-        root = os.path.join(tmpdir, result.st_tensor_uid, "storage")
-        with open(os.path.join(root, "0", "data")) as f:
+        run_test("numel is 1", result.numel() == 1)
+        # Scalar tensor: single element stored at storage/0/data
+        stored = os.path.join(tmpdir, result.st_tensor_uid, "storage", "0", "data")
+        run_test("Storage file exists", os.path.isfile(stored))
+        run_test("Is symlink", os.path.islink(stored))
+        with open(stored) as f:
             run_test("(1,0) -> 'c'", f.read() == "c")
+        # Verify symlink target resolves to the original tensor's storage
+        real = os.path.realpath(stored)
+        run_test("Resolves to input storage", t.st_tensor_uid in real)
 
     # Test 7: Dimension mismatch assertion
     print("Test 7: Dimension mismatch")
