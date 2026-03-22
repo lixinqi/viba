@@ -20,6 +20,9 @@ get_input_query_tensor :=
     ''')
     <- $llm_query Import[symbolic_tensor/llm_client/coding_agent_query.py]
     <- (void <- $llm_query <- $prompt <- $tmp_dir)
+    # copy back: LLM Write tool replaces symlinks with regular files,
+    # so read from view files and write back to tensor storage.
+    <- (void <- copy_view_back_to_storage <- f"{tmp_dir}/output_view" <- $output)
 
 # be carefull there claude code instance called in coding_agent_query.
 # make sure env var CLAUDECODE unset.

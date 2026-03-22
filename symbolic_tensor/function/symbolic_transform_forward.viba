@@ -3,30 +3,71 @@
 Prompt := str
 
 symbolic_transform_forward :=
-    ($output SymboilcTensor, $selected_weight_qkv_indexes_list list[list[int]])
-    <- $input SymboilcTensor
-    <- $weight SymbolicParameter
-    <- $forward_prompt Prompt
-    <- $topk int
+    ($output Symboilc[torch.Tensor], $selected_experience_qkv_indexes_list NestList[list[torch.Tensor[int]]])
+    <- $input Symboilc[torch.Tensor]
+    <- $experience Experience[Symbolic[torch.Tensor]]
+    <- $forward_prompt Prompt # default ""
+    <- $topk int # default 16
     # inline
-    <- ($output.shape <- $input.shape)
-    <- ($output.st_relative_to <- $input.st_relative_to)
-    <- $get_input_query_tensor Import[symbolic_tensor/function/get_input_query_tensor.viba]
-    <- ($input_query_tensor <- $get_input_query_tensor <- ...)
-    <- $input.st_relative_to
-    <- $get_file_contents ImportFrom["symbolic_tensor/tensor_util/convert_st_tensor_to_file_contents"].convert_st_tensor_to_file_contents
-    <- ($input_file_contents list[$batch_input_file_content str] <- $get_file_contents <- ...)
-    <- ($prompt_for_get_input_query_keys str <- $return_format Json[list[str]])
-    <- $call_claude Import['symbolic_tensor/llm_client.py']._call_claude
-    <- ($batch_query_keys list[str] <- $call_claude <- $prompt_for_get_input_query_keys <- $batch_file_content)
-    <- $weight_querys $weight[:, 0, :]
-    <- ($batch_selected_weight_qkv_indexes list[int] <- QkvIndexesSelector <- $batch_query_keys <- ...)
-    <- ($selected_weight_qkv_indexes_list <- list[$batch_selected_weight_qkv_indexes])
-    <- ($selected_kv_weight <- $weight[$batch_selected_weight_qkv_indexes, 1:, :])
-    <- ($selected_kv_weight_tmp_dir str <- $selected_kv_weight <- soft_link)
-    <- ($selected_kv_repomix str <- repomix <- $selected_kv_weight_tmp_dir)
-    <- ($prompt_for_output str <- merge <- $forward_prompt <- $batch_input_file_content <- $selected_kv_repomix)
-    <- ($batch_output_file_content str <- $call_claude <- $prompt_for_output)
-    <- ($output_file_contents list[str] <- list[$batch_output_file_content])
-    <- $get_tensor Import["symbolic_tensor/tensor_util/convert_file_contents_to_st_tensor.py"].convert_file_contents_to_st_tensor
-    <- ($output <- $get_tensor <- $output_file_contents)
+    <- ($output
+        <- Import[symbolic_tensor/tensor_util/todo_tensor_like.viba]
+        <- $input)
+    <- $slice_view Import[symbolic_tensor/tensor_util/slice_view.viba]
+    <- (NestList[$scalar_ouput_view Symbolic[torch.Tensor]] <- NestList[$slice_view] <- $output)
+    <- ($input_query
+        <- Import[symbolic_tensor/function/get_input_query_tensor.viba]
+        <- $input)
+    <- (NestList[$scalar_input_view Symbolic[torch.Tensor]] <- NestList[$slice_view] <- $input)
+    <- ($batch_input_file_content str <- $scalar_input_view)
+    <- ($select_experience_query_indexes list[torch.Tensor[int]]
+        <- Import[symbolic_tensor/function/select_qkv_indexes.viba]
+        <- $experience
+        <- $batch_input_file_content
+        <- $topk)
+    <- ($selected_experience_qkv_indexes_list <- NestList[$select_experience_query_indexes])
+    <- ($select_experience_indexes <- replace_last_tensor_with_full_slice <- $select_experience_query_indexes)
+    <- ($experience_sliced_view Experience[Symbolic[torch.Tensor]]
+        <- $slice_view
+        <- $experience
+        <- $select_experience_indexes)
+    <- ($workspace_dir <- TemporaryDirectory)
+    <- $dump_view Import[symbolic_tensor/tensor_util/dump_view.viba]
+    <- (void
+        <- $dump_view
+        <- $experience_sliced_view
+        <- f"{workspace_dir}/const_experiance_view")
+    <- (void
+        <- $dump_view
+        <- $scalar_input_view
+        <- f"{workspace_dir}/const_input_view")
+    <- (void
+        <- $dump_view
+        <- $scalar_output_view
+        <- f"{workspace_dir}/mutable_output_view")
+    <- ($prompt <- '''
+        You are a semantic translator.
+
+        f"{forward_prompt}"
+
+        Experience mappings are defined as:
+            1) file "<root_dir>/<experience_coordinate>.../0/data.xxx" means query file of <experience_coordinate>...
+            2) file "<root_dir>/<experience_coordinate>.../1/data.xxx" means key file of <experience_coordinate>...
+            3) file "<root_dir>/<experience_coordinate>.../2/data.xxx" means value file of <experience_coordinate>...
+
+        You need read all the key => value pairs to get the experiences.
+
+        Conducted by f"{workspace_dir}/const_experiance_view",
+        please translate source semantic text f"{workspace_dir}/const_input_view"
+        to target semantic text f"{workspace_dir}/mutable_output_view".
+
+        replace TODO in f"{workspace_dir}/mutable_output_view" with target semantic text
+    ''')
+    <- $llm_query Import[symbolic_tensor/llm_client/coding_agent_query.py].coding_agent_query
+    <- $async_do_for_one_batch (void <- $llm_query <- $prompt <- $workspace_dir)
+    <- (void <- async_gather_run <- NestList[$async_do_for_one_batch])
+    # copy back: LLM Write tool replaces symlinks with regular files,
+    # so read from view files and write back to tensor storage.
+    <- (void <- copy_view_back_to_storage <- f"{workspace_dir}/mutable_output_view" <- $scalar_output_view)
+
+# be carefull there claude code instance called in coding_agent_query.
+# make sure env var CLAUDECODE unset.

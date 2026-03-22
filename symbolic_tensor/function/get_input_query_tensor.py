@@ -1,5 +1,6 @@
 import os
 import asyncio
+import itertools
 import tempfile
 import torch
 
@@ -56,6 +57,31 @@ def get_input_query_tensor(input: torch.Tensor) -> torch.Tensor:
         finally:
             if env_backup is not None:
                 os.environ["CLAUDECODE"] = env_backup
+
+        # Copy results back from workspace view to tensor storage.
+        # The LLM's Write tool may replace symlinks with regular files,
+        # so we read from the view files and write to the actual storage.
+        coords_list = [list(coord) for coord in itertools.product(*[range(s) for s in output.size()])]
+        for coords in coords_list:
+            flat_index = sum(c * s for c, s in zip(coords, output.stride()))
+            digits = list(str(flat_index))
+            storage_path = os.path.join(
+                output.st_relative_to,
+                output.st_tensor_uid,
+                "storage",
+                os.path.join(*digits),
+                "data",
+            )
+            if coords:
+                coord_dirs = os.path.join(*[str(c) for c in coords])
+                view_file = os.path.join(output_view_dir, coord_dirs, "data.txt")
+            else:
+                view_file = os.path.join(output_view_dir, "data.txt")
+            if os.path.isfile(view_file):
+                with open(view_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+                with open(storage_path, "w", encoding="utf-8") as f:
+                    f.write(content)
 
     return output
 

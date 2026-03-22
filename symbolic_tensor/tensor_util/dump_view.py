@@ -49,12 +49,12 @@ def dump_view(tensor: torch.Tensor, dump_dir: str, extension: str) -> None:
         )
 
         # Destination file path: {dump_dir}/{coord_dirs}/data.{extension}
-        coord_dirs = os.path.join(*[str(c) for c in coordinates])
-        dst_file_path = os.path.join(
-            dump_dir,
-            coord_dirs,
-            f"data.{extension}",
-        )
+        if coordinates:
+            coord_dirs = os.path.join(*[str(c) for c in coordinates])
+            dst_file_path = os.path.join(dump_dir, coord_dirs, f"data.{extension}")
+        else:
+            # Scalar tensor: no coordinate directories
+            dst_file_path = os.path.join(dump_dir, f"data.{extension}")
 
         # Create parent directories for destination
         os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
