@@ -1,2 +1,0 @@
-Person :=
-  str * int * bool

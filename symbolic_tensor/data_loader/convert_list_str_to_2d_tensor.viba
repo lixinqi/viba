@@ -1,6 +1,0 @@
-convert_list_str_to_2d_tensor :=
-    torch.Tensor
-    <- $strs list[$batch str]
-    <- $feature_len int # default 4096
-    # inline
-    # convert $batch to list[uint8] with fixed length $feature_len, zero padding.
