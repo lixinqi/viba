@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from claude_agent_sdk import query, ClaudeAgentOptions
 
 async def coding_agent_query(
@@ -17,6 +18,7 @@ async def coding_agent_query(
             cwd=cwd,
         ),
     ):
+        # print(item, file=sys.stderr)
         yield item
 
 def async_run(handlers : list):

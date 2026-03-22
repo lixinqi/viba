@@ -1,0 +1,10 @@
+main :=
+    void
+    # inline
+    <- $dataset_root_dir "./dataset"
+    # parepare 3 python files and 3 viba files. 
+    # including:
+    #   1) sequential code. python seq v.s. viba seq
+    #   2) branch code. python if v.s. viba sum_type
+    #   3) loop code. python for-loop v.s. viba pattern match code like `(list[$elem str] <- $elems list[str])`
+    

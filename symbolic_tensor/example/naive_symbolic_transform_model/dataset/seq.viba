@@ -1,0 +1,6 @@
+greet :=
+    $message str
+    <- $name str
+    # inline
+    <- ($greeting <- 'Hello')
+    <- ($message <- $greeting + ', ' + $name + '!')
