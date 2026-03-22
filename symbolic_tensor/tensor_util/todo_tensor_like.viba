@@ -1,0 +1,6 @@
+todo_tensor_like :=
+    Symbolic[torch.Tensor]
+    <- $input Symbolic[torch.Tensor]
+    # inline
+    <- Import[make_tensor.viba]
+    <- ($flatten_data NestedList[str] <- expand <- ($input.size) <- "TODO")

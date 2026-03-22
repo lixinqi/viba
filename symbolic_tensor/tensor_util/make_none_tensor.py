@@ -2,6 +2,8 @@ import uuid
 import torch
 from typing import List
 
+def make_none_like_tensor(tensor: torch.Tensor) -> torch.Tensor:
+    return make_none_tensor(tensor.shape, tensor.st_relative_to, tensor.dtype)
 
 def make_none_tensor(shape: List[int], relative_to: str, dtype=torch.bfloat16) -> torch.Tensor:
     """

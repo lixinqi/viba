@@ -1,0 +1,5 @@
+get_input_query_tensor :=
+    $query_tensor Symbolic[torch.Tensor]
+    <- $input Symbolic[torch.Tensor]
+    # inline
+    TODO

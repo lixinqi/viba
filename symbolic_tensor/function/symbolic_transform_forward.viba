@@ -1,18 +1,6 @@
 
-# SymboilcTensor is only for comprehension. do not generate
-SymboilcTensor := torch.Tensor[
-    $shape (batch_size, max_use_count, max_file_path_bytes), 
-    $dtype bfloat16,
-]
-
 # Prompt is only for comprehension. do not generate
 Prompt := str
-
-# SymbolicParameter is only for comprehension. do not generate
-SymbolicParameter := torch.Tensor[
-    $shape (max_qkv_triples, 3, max_file_path_bytes), # 3 means (query, key, value)
-    $dtype bfloat16,
-]
 
 get_input_query_tensor :=
     $query_tensor SymboilcTensor
