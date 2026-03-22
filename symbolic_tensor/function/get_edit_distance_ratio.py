@@ -2,6 +2,7 @@ import os
 import subprocess
 import tempfile
 
+import Levenshtein
 import torch
 from torch.autograd import Function
 
@@ -44,22 +45,16 @@ def _get_diff(actual_content: str, expected_content: str) -> str:
     return diff_output
 
 
-def _num_lines(content: str) -> int:
-    """Count lines in a string. Empty string has 0 lines."""
-    if not content:
-        return 0
-    return len(content.splitlines())
-
-
-def get_diff_ratio_impl(
+def get_edit_distance_ratio_impl(
     actual: torch.Tensor,
     expected: torch.Tensor,
 ) -> torch.Tensor:
     """
-    Forward: for each flat element, compute diff ratio between actual and expected text.
-    diff_ratio = num_lines(diff_output) / num_lines(expected_text)
-    Returns a float32 tensor with the same shape as actual.
+    Forward: for each flat element, compute edit distance ratio.
+    edit_distance_ratio = edit_distance(actual, expected) / (max(len(actual), len(expected)) + epsilon)
+    Returns a bfloat16 tensor with the same shape as actual.
     """
+    epsilon = 1e-8
     numel = actual.numel()
     ratios = []
 
@@ -67,21 +62,16 @@ def get_diff_ratio_impl(
         actual_text = _read_storage(actual, i)
         expected_text = _read_storage(expected, i)
 
-        diff_output = _get_diff(actual_text, expected_text)
-        diff_lines = _num_lines(diff_output)
-        expected_lines = _num_lines(expected_text)
-
-        if expected_lines == 0:
-            ratio = 0.0
-        else:
-            ratio = diff_lines / expected_lines
+        dist = Levenshtein.distance(actual_text, expected_text)
+        max_len = max(len(actual_text), len(expected_text))
+        ratio = dist / (max_len + epsilon)
 
         ratios.append(ratio)
 
-    return torch.tensor(ratios, dtype=torch.float32).reshape(actual.shape)
+    return torch.tensor(ratios, dtype=torch.bfloat16).reshape(actual.shape)
 
 
-def get_diff_ratio_backward_impl(
+def get_edit_distance_ratio_backward_impl(
     grad_output: torch.Tensor,
     actual: torch.Tensor,
     expected: torch.Tensor,
@@ -118,26 +108,26 @@ def get_diff_ratio_backward_impl(
     return actual_grad
 
 
-class GetDiffRatio(Function):
+class GetEditDistanceRatio(Function):
     @staticmethod
     def forward(ctx, actual, expected):
         ctx.save_for_backward(actual, expected)
-        return get_diff_ratio_impl(actual, expected)
+        return get_edit_distance_ratio_impl(actual, expected)
 
     @staticmethod
     def backward(ctx, grad_output):
         actual, expected = ctx.saved_tensors
-        actual_grad = get_diff_ratio_backward_impl(grad_output, actual, expected)
+        actual_grad = get_edit_distance_ratio_backward_impl(grad_output, actual, expected)
         return actual_grad, None
 
 
-get_diff_ratio = GetDiffRatio.apply
+get_edit_distance_ratio = GetEditDistanceRatio.apply
 
 
 if __name__ == "__main__":
     from symbolic_tensor.tensor_util.make_tensor import make_tensor
 
-    print("Running get_diff_ratio tests...\n")
+    print("Running get_edit_distance_ratio tests...\n")
 
     def run_test(name: str, condition: bool, expected=None, actual=None):
         if condition:
@@ -163,43 +153,53 @@ if __name__ == "__main__":
     # Test 1: Forward - identical texts give ratio 0.0
     print("Test 1: Forward - identical texts")
     with tempfile.TemporaryDirectory() as tmpdir:
-        actual_t = make_tensor(["line1\nline2\nline3"], tmpdir)
-        expected_t = make_tensor(["line1\nline2\nline3"], tmpdir)
+        actual_t = make_tensor(["hello world"], tmpdir)
+        expected_t = make_tensor(["hello world"], tmpdir)
 
-        out = get_diff_ratio_impl(actual_t, expected_t)
+        out = get_edit_distance_ratio_impl(actual_t, expected_t)
         run_test("Shape matches", list(out.shape) == [1])
-        run_test("dtype float32", out.dtype == torch.float32)
+        run_test("dtype bfloat16", out.dtype == torch.bfloat16)
         run_test("Identical => ratio 0.0", out[0].item() == 0.0, 0.0, out[0].item())
 
     # Test 2: Forward - different texts give ratio > 0
     print("Test 2: Forward - different texts")
     with tempfile.TemporaryDirectory() as tmpdir:
-        actual_t = make_tensor(["alpha\nbeta\ngamma"], tmpdir)
-        expected_t = make_tensor(["alpha\nBETA\ngamma\ndelta"], tmpdir)
+        actual_t = make_tensor(["hello world"], tmpdir)
+        expected_t = make_tensor(["hello earth"], tmpdir)
 
-        out = get_diff_ratio_impl(actual_t, expected_t)
+        out = get_edit_distance_ratio_impl(actual_t, expected_t)
         run_test("Ratio > 0.0", out[0].item() > 0.0)
+        run_test("Ratio <= 1.0", out[0].item() <= 1.0)
         print(f"    ratio = {out[0].item():.4f}")
 
-    # Test 3: Forward - 2D batch
-    print("Test 3: Forward - 2D batch")
+    # Test 3: Forward - completely different strings
+    print("Test 3: Forward - completely different")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        actual_t = make_tensor(["abc"], tmpdir)
+        expected_t = make_tensor(["xyz"], tmpdir)
+
+        out = get_edit_distance_ratio_impl(actual_t, expected_t)
+        run_test("Ratio == 1.0", out[0].item() == 1.0, 1.0, out[0].item())
+
+    # Test 4: Forward - 2D batch
+    print("Test 4: Forward - 2D batch")
     with tempfile.TemporaryDirectory() as tmpdir:
         actual_t = make_tensor([["same", "differs"]], tmpdir)
         expected_t = make_tensor([["same", "original"]], tmpdir)
 
-        out = get_diff_ratio_impl(actual_t, expected_t)
+        out = get_edit_distance_ratio_impl(actual_t, expected_t)
         run_test("Shape [1, 2]", list(out.shape) == [1, 2])
         run_test("Identical element => 0.0", out[0, 0].item() == 0.0)
         run_test("Different element => > 0.0", out[0, 1].item() > 0.0)
 
-    # Test 4: Backward produces symbolic gradient
-    print("Test 4: Backward - symbolic gradient")
+    # Test 5: Backward produces symbolic gradient
+    print("Test 5: Backward - symbolic gradient")
     with tempfile.TemporaryDirectory() as tmpdir:
         actual_t = make_tensor(["hello world"], tmpdir)
         expected_t = make_tensor(["hello earth"], tmpdir)
-        grad_out = torch.tensor([1.0], dtype=torch.float32)
+        grad_out = torch.tensor([1.0], dtype=torch.bfloat16)
 
-        actual_grad = get_diff_ratio_backward_impl(grad_out, actual_t, expected_t)
+        actual_grad = get_edit_distance_ratio_backward_impl(grad_out, actual_t, expected_t)
         run_test("Grad has st_tensor_uid", hasattr(actual_grad, "st_tensor_uid"))
         run_test("Grad has st_relative_to", hasattr(actual_grad, "st_relative_to"))
         run_test("Grad shape matches actual", list(actual_grad.shape) == list(actual_t.shape))
@@ -207,30 +207,30 @@ if __name__ == "__main__":
         run_test("Diff text non-empty", len(diff_text) > 0)
         print(f"    diff (first 80): {repr(diff_text[:80])}")
 
-    # Test 5: Backward - identical texts produce empty diff
-    print("Test 5: Backward - identical texts => empty diff")
+    # Test 6: Backward - identical texts produce empty diff
+    print("Test 6: Backward - identical texts => empty diff")
     with tempfile.TemporaryDirectory() as tmpdir:
         actual_t = make_tensor(["same content"], tmpdir)
         expected_t = make_tensor(["same content"], tmpdir)
-        grad_out = torch.tensor([1.0], dtype=torch.float32)
+        grad_out = torch.tensor([1.0], dtype=torch.bfloat16)
 
-        actual_grad = get_diff_ratio_backward_impl(grad_out, actual_t, expected_t)
+        actual_grad = get_edit_distance_ratio_backward_impl(grad_out, actual_t, expected_t)
         diff_text = read_storage(actual_grad, 0)
         run_test("Identical => empty diff", diff_text == "")
 
-    # Test 6: GetDiffRatio autograd Function
-    print("Test 6: GetDiffRatio autograd Function")
+    # Test 7: GetEditDistanceRatio autograd Function
+    print("Test 7: GetEditDistanceRatio autograd Function")
     with tempfile.TemporaryDirectory() as tmpdir:
-        actual_t = make_tensor(["foo\nbar"], tmpdir)
-        expected_t = make_tensor(["foo\nbaz"], tmpdir)
+        actual_t = make_tensor(["foo bar"], tmpdir)
+        expected_t = make_tensor(["foo baz"], tmpdir)
 
         ctx = type("MockCtx", (), {})()
         ctx.save_for_backward = lambda *ts: setattr(ctx, "saved_tensors", ts)
-        fwd = GetDiffRatio.forward(ctx, actual_t, expected_t)
-        run_test("Forward returns float32", fwd.dtype == torch.float32)
+        fwd = GetEditDistanceRatio.forward(ctx, actual_t, expected_t)
+        run_test("Forward returns bfloat16", fwd.dtype == torch.bfloat16)
 
-        grad_out = torch.tensor([0.5], dtype=torch.float32)
-        result = GetDiffRatio.backward(ctx, grad_out)
+        grad_out = torch.tensor([0.5], dtype=torch.bfloat16)
+        result = GetEditDistanceRatio.backward(ctx, grad_out)
         run_test("Returns tuple of 2", len(result) == 2)
         run_test("Second is None", result[1] is None)
         run_test("First has st_tensor_uid", hasattr(result[0], "st_tensor_uid"))

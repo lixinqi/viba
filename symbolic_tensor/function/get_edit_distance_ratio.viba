@@ -3,18 +3,18 @@
 # forward: returns float tensor of diff_ratio per element
 # backward: returns diff text as symbolic gradient
 
-get_diff_ratio_impl :=
-    $output torch.Tensor[float32]
+get_edit_distance_ratio_impl :=
+    $output torch.Tensor[bfloat16]
     <- $actual Symbolic[torch.Tensor]
     <- $expected Symbolic[torch.Tensor]
     # inline
-    # for each flat element, diff actual vs expected text
-    # diff_ratio = num_lines(diff_output) / num_lines(expected_text)
-    # output shape = actual.shape, dtype float32
+    # for each flat element, actual_text vs expected_text
+    # diff_ratio = edit_distance(actual_text, expected_text) / (max(len(actual_text), len(expected_text)) + epsilon)
+    # output shape = actual.shape, dtype bfloat16
 
-get_diff_ratio_backward_impl :=
+get_edit_distance_ratio_backward_impl :=
     ($actual_grad Symbolic[torch.Tensor], None)
-    <- $grad_output torch.Tensor[float32]
+    <- $grad_output torch.Tensor[bfloat16]
     <- $actual Symbolic[torch.Tensor]
     <- $expected Symbolic[torch.Tensor]
     # inline
@@ -23,26 +23,26 @@ get_diff_ratio_backward_impl :=
     # store diff texts as a new symbolic tensor via make_tensor
     # actual_grad.data = grad_output (coefficient channel)
 
-GetDiffRatio :=
+GetEditDistanceRatio :=
     torch.autograd.Function
     * $forward (
-        ($output torch.Tensor[float32])
+        ($output torch.Tensor[bfloat16])
         <- $ctx
         <- $actual Symbolic[torch.Tensor]
         <- $expected Symbolic[torch.Tensor]
         # inline
         <- (void <- $ctx.save_for_backward <- $actual <- $expected)
-        <- ($output <- get_diff_ratio_impl <- $actual <- $expected)
+        <- ($output <- get_edit_distance_ratio_impl <- $actual <- $expected)
     )
     * $backward (
         ($actual_grad Symbolic[torch.Tensor], None)
         <- $ctx
-        <- $grad_output torch.Tensor[float32]
+        <- $grad_output torch.Tensor[bfloat16]
         # inline
         <- ($actual, $expected <- $ctx.saved_tensors)
-        <- ($actual_grad <- get_diff_ratio_backward_impl <- $grad_output <- $actual <- $expected)
+        <- ($actual_grad <- get_edit_distance_ratio_backward_impl <- $grad_output <- $actual <- $expected)
     )
 
-get_diff_ratio := GetDiffRatio.apply
+get_edit_distance_ratio := GetEditDistanceRatio.apply
 
 # tests in __main__ block
