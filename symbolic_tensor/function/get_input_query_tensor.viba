@@ -15,7 +15,8 @@ get_input_query_tensor :=
         please generate the query key words into corresponding file in f"{tmp_dir}/output_view".
         each line in a output file contains only single key word that used for grep/query like things.
         the key words of files are used for calucating simmularity between files.
-        all "TODO" in output files should be replaced with key words
+        all "TODO" in output files should be replaced with key words.
+        the length of key words list should be kept small for it's a semantic summary.
     ''')
     <- $llm_query Import[symbolic_tensor/llm_client/coding_agent_query.py]
     <- (void <- $llm_query <- $prompt <- $tmp_dir)

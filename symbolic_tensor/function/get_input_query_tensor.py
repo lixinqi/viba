@@ -42,6 +42,7 @@ def get_input_query_tensor(input: torch.Tensor) -> torch.Tensor:
             "that would be used for grep/query-like operations.\n"
             "The keywords of files are used for calculating similarity between files.\n"
             "All \"TODO\" in output files should be replaced with keywords.\n"
+            "The length of keywords list should be kept small for it's a semantic summary.\n"
         )
 
         # Ensure CLAUDECODE env var is unset to avoid conflicts with nested claude instances
