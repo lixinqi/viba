@@ -1,0 +1,94 @@
+
+# Prompt is only for comprehension. do not generate
+Prompt := str
+
+# SymbolicSGD extends torch.optim.Optimizer
+# Two-channel update: numeric coefficient SGD + symbolic text diff via LLM
+#
+# Usage:
+#   optimizer = SymbolicSGD([experience_tensor], lr=0.01, step_prompt="")
+#   optimizer.zero_grad()
+#   ... forward / backward ...
+#   optimizer.step()
+
+SymbolicSGD := torch.optim.Optimizer
+
+__init__ :=
+    void
+    <- $self SymbolicSGD
+    <- $params ParamsT
+    <- $lr float # default 0.01
+    <- $step_prompt Prompt # default ""
+    # inline
+    <- (void <- super().__init__ <- $params <- dict[lr=$lr, step_prompt=$step_prompt])
+
+step :=
+    void
+    <- $self SymbolicSGD
+    <- $closure Optional[Callable] # default None
+    # inline
+    <- $slice_view Import[symbolic_tensor/tensor_util/slice_view.viba]
+    <- $slice_tensor Import[symbolic_tensor/tensor_util/slice_tensor.viba]
+    <- $dump_view Import[symbolic_tensor/tensor_util/dump_view.viba]
+    <- $llm_query Import[symbolic_tensor/llm_client/coding_agent_query.py].coding_agent_query
+
+    # for each param_group, for each param with grad:
+    <- ($lr float <- $param_group['lr'])
+    <- ($step_prompt Prompt <- $param_group['step_prompt'])
+    <- ($param Symbolic[torch.Tensor] <- $param_group['params'])
+    <- ($grad Symbolic[torch.Tensor] <- $param.grad)
+
+    # ── Numeric channel ──
+    # standard SGD: param.data -= lr * grad.data
+    <- (void <- $param.data -= $lr * $grad.data)
+
+    # ── Symbolic channel ──
+    # per scalar element: LLM applies text diff to param text
+    <- (NestList[$scalar_coords list[int]] <- NestList[scalar_indices] <- $param)
+    <- ($param_view Symbolic[torch.Tensor] <- $slice_view <- $param <- $scalar_coords)
+    <- ($param_value Symbolic[torch.Tensor] <- $slice_tensor <- $param <- $scalar_coords)
+    <- ($grad_view Symbolic[torch.Tensor] <- $slice_view <- $grad <- $scalar_coords)
+    <- ($grad_coeff float <- $grad.data[tuple($scalar_coords)].item())
+    <- ($workspace_dir <- TemporaryDirectory)
+    # dump const grad view (read-only: what should change)
+    <- (void <- $dump_view <- $grad_view <- f"{workspace_dir}/const_grad_view")
+    # dump mutable param copy (LLM modifies in-place)
+    <- (void <- $dump_view <- $param_value <- f"{workspace_dir}/mutable_param_dir")
+    <- ($prompt <- '''
+        You are a parameter updater for a symbolic optimizer.
+
+        f"{step_prompt}"
+
+        The gradient describes how the parameter should change.
+        The update strength (learning_rate * |gradient_coefficient|) is f"{lr * abs(grad_coeff):.4f}".
+        Higher values mean the gradient signal is stronger — apply changes more confidently.
+        Lower values mean subtle adjustments.
+
+        Read the gradient (how to change) at f"{workspace_dir}/const_grad_view".
+        Apply the suggested changes to the current parameter at f"{workspace_dir}/mutable_param_dir".
+        Modify the parameter text in-place. Do not add commentary, just update the text.
+
+        If the gradient says "TODO" or "No change needed", leave the parameter unchanged.
+    ''')
+    <- $do_for_one_element (void <- $llm_query <- $prompt <- $workspace_dir)
+    <- (void <- do_for_all <- NestList[$do_for_one_element])
+    # copy back: from mutable dir through view symlinks to parent storage
+    <- (void <- copy_back_to_storage_view <- f"{workspace_dir}/mutable_param_dir" <- $param_view)
+
+zero_grad :=
+    void
+    <- $self SymbolicSGD
+    <- $set_to_none bool # default True
+    # inline
+    # set_to_none=True: param.grad = None (standard torch, next backward creates fresh grad)
+    # set_to_none=False: zero coefficients + reset text storage to "TODO"
+    <- (void <- super().zero_grad <- $set_to_none)
+    # if set_to_none=False, also reset grad text storage files to "TODO"
+    <- (void <- If[not $set_to_none] <- reset_grad_text_to_todo <- $self)
+
+# reset_grad_text_to_todo: for each param with grad, overwrite all storage files with "TODO"
+
+# be carefull there claude code instance called in coding_agent_query.
+# make sure env var CLAUDECODE unset.
+
+# add tests in __main__ block
