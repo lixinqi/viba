@@ -13,7 +13,9 @@ symbolic_transform_forward :=
         <- Import[symbolic_tensor/tensor_util/todo_tensor_like.viba]
         <- $input)
     <- $slice_view Import[symbolic_tensor/tensor_util/slice_view.viba]
-    <- (NestList[$scalar_ouput_view Symbolic[torch.Tensor]] <- NestList[$slice_view] <- $output)
+    <- $slice_tensor Import[symbolic_tensor/tensor_util/slice_tensor.viba]
+    <- (NestList[$scalar_output_view Symbolic[torch.Tensor]] <- NestList[$slice_view] <- $output)
+    <- (NestList[$scalar_output_value Symbolic[torch.Tensor]] <- NestList[$slice_tensor] <- $output)
     <- ($input_query
         <- Import[symbolic_tensor/function/get_input_query_tensor.viba]
         <- $input)
@@ -42,8 +44,8 @@ symbolic_transform_forward :=
         <- f"{workspace_dir}/const_input_view")
     <- (void
         <- $dump_view
-        <- $scalar_output_view
-        <- f"{workspace_dir}/mutable_output_view")
+        <- $scalar_output_value
+        <- f"{workspace_dir}/mutable_output_dir")
     <- ($prompt <- '''
         You are a semantic translator.
 
@@ -58,16 +60,16 @@ symbolic_transform_forward :=
 
         Conducted by f"{workspace_dir}/const_experiance_view",
         please translate source semantic text f"{workspace_dir}/const_input_view"
-        to target semantic text f"{workspace_dir}/mutable_output_view".
+        to target semantic text f"{workspace_dir}/mutable_output_dir".
 
-        replace TODO in f"{workspace_dir}/mutable_output_view" with target semantic text
+        replace TODO in f"{workspace_dir}/mutable_output_dir" with target semantic text
     ''')
     <- $llm_query Import[symbolic_tensor/llm_client/coding_agent_query.py].coding_agent_query
     <- $async_do_for_one_batch (void <- $llm_query <- $prompt <- $workspace_dir)
     <- (void <- async_gather_run <- NestList[$async_do_for_one_batch])
     # copy back: LLM Write tool replaces symlinks with regular files,
     # so read from view files and write back to tensor storage.
-    <- (void <- copy_view_back_to_storage <- f"{workspace_dir}/mutable_output_view" <- $scalar_output_view)
+    <- (void <- copy_back_to_storage_view <- f"{workspace_dir}/mutable_output_dir" <- $scalar_output_view)
 
 # be carefull there claude code instance called in coding_agent_query.
 # make sure env var CLAUDECODE unset.

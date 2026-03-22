@@ -78,11 +78,12 @@ class SymbolicTransform(torch.autograd.Function):
         # Return grads for (input, experience, forward_prompt, topk)
         return grad_input, grad_experience, None, None
 
+
 symbolic_transform = SymbolicTransform.apply
+
 
 if __name__ == "__main__":
     from symbolic_tensor.tensor_util.make_tensor import make_tensor
-    from symbolic_tensor.tensor_util.todo_tensor_like import todo_tensor_like
 
     # Source anthropic env vars
     result = subprocess.run(
@@ -139,7 +140,7 @@ if __name__ == "__main__":
             run_test("Output not TODO", "TODO" not in content)
             print(f"  Output: {repr(content[:120])}")
 
-    # Test 2: Forward + backward called directly
+    # Test 2: Forward + backward (direct call, no loss.backward)
     print("\nTest 2: Forward + backward (direct call)")
     with tempfile.TemporaryDirectory() as tmpdir:
         input_tensor = make_tensor(["Hello world in English"], tmpdir)

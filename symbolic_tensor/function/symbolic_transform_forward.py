@@ -7,6 +7,7 @@ from typing import Any, List, Tuple, Union
 
 from symbolic_tensor.tensor_util.todo_tensor_like import todo_tensor_like
 from symbolic_tensor.tensor_util.slice_view import slice_view
+from symbolic_tensor.tensor_util.slice_tensor import slice_tensor
 from symbolic_tensor.tensor_util.dump_view import dump_view
 from symbolic_tensor.function.get_input_query_tensor import get_input_query_tensor
 from symbolic_tensor.function.select_qkv_indexes import select_qkv_indexes
@@ -58,6 +59,37 @@ def _build_nested_result(flat_results: List[Any], shape: List[int]) -> Any:
     ]
 
 
+def _copy_back_to_storage_view(mutable_dir: str, view_tensor: torch.Tensor) -> None:
+    """Copy LLM results from mutable workspace dir back through view tensor's symlinks.
+
+    The mutable dir contains files written by the LLM (independent copies, no symlinks).
+    The view_tensor was created by slice_view and has symlink storage pointing to the
+    parent tensor. We resolve symlinks to find the real parent storage path.
+    """
+    coords_list = [list(coord) for coord in itertools.product(*[range(s) for s in view_tensor.size()])]
+    for coords in coords_list:
+        flat_index = sum(c * s for c, s in zip(coords, view_tensor.stride()))
+        digits = list(str(flat_index))
+        view_storage_path = os.path.join(
+            view_tensor.st_relative_to,
+            view_tensor.st_tensor_uid,
+            "storage",
+            os.path.join(*digits),
+            "data",
+        )
+        real_storage_path = os.path.realpath(view_storage_path)
+        if coords:
+            coord_dirs = os.path.join(*[str(c) for c in coords])
+            mutable_file = os.path.join(mutable_dir, coord_dirs, "data.txt")
+        else:
+            mutable_file = os.path.join(mutable_dir, "data.txt")
+        if os.path.isfile(mutable_file):
+            with open(mutable_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            with open(real_storage_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+
 def symbolic_transform_forward(
     input: torch.Tensor,
     experience: torch.Tensor,
@@ -102,10 +134,12 @@ def symbolic_transform_forward(
 
     async def _process_element(coords: List[int]):
         """Process a single scalar element asynchronously."""
-        # Create scalar views for this element
         int_slices = [c for c in coords]
+
+        # Create scalar views: view (symlink for copy-back) + value (copy for LLM)
         scalar_input_view = slice_view(input, int_slices)
         scalar_output_view = slice_view(output, int_slices)
+        scalar_output_value = slice_tensor(output, int_slices)
 
         # Read the input file content for this element
         stride = input.stride()
@@ -133,11 +167,12 @@ def symbolic_transform_forward(
         with tempfile.TemporaryDirectory() as workspace_dir:
             exp_view_dir = os.path.join(workspace_dir, "const_experiance_view")
             input_view_dir = os.path.join(workspace_dir, "const_input_view")
-            output_view_dir = os.path.join(workspace_dir, "mutable_output_view")
+            output_dir = os.path.join(workspace_dir, "mutable_output_dir")
 
             dump_view(experience_sliced_view, exp_view_dir, "txt")
             dump_view(scalar_input_view, input_view_dir, "txt")
-            dump_view(scalar_output_view, output_view_dir, "txt")
+            # Dump the copy (not the view) — LLM writes here freely
+            dump_view(scalar_output_value, output_dir, "txt")
 
             prompt = (
                 "You are a semantic translator.\n\n"
@@ -149,8 +184,8 @@ def symbolic_transform_forward(
                 "You need read all the key => value pairs to get the experiences.\n\n"
                 f"Conducted by \"{exp_view_dir}\",\n"
                 f"please translate source semantic text \"{input_view_dir}\"\n"
-                f"to target semantic text \"{output_view_dir}\".\n\n"
-                f"Replace TODO in \"{output_view_dir}\" with target semantic text.\n"
+                f"to target semantic text \"{output_dir}\".\n\n"
+                f"Replace TODO in \"{output_dir}\" with target semantic text.\n"
             )
 
             # Ensure CLAUDECODE env var is unset
@@ -162,27 +197,8 @@ def symbolic_transform_forward(
                 if env_backup is not None:
                     os.environ["CLAUDECODE"] = env_backup
 
-            # Copy results back from workspace view to tensor storage.
-            # The LLM's Write tool may replace symlinks with regular files,
-            # so we read from the view files and write to the actual storage.
-            output_stride = output.stride()
-            output_flat_index = sum(c * s for c, s in zip(coords, output_stride))
-            output_digits = list(str(output_flat_index))
-            output_storage_path = os.path.join(
-                output.st_relative_to,
-                output.st_tensor_uid,
-                "storage",
-                os.path.join(*output_digits),
-                "data",
-            )
-            # Find the output view data file
-            for root, _dirs, files in os.walk(output_view_dir):
-                for fname in files:
-                    view_file = os.path.join(root, fname)
-                    with open(view_file, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    with open(output_storage_path, "w", encoding="utf-8") as f:
-                        f.write(content)
+            # Copy results back from mutable dir through view symlinks to parent storage
+            _copy_back_to_storage_view(output_dir, scalar_output_view)
 
     async def _run_all():
         await asyncio.gather(*[_process_element(coords) for coords in coords_list])
@@ -216,9 +232,9 @@ if __name__ == "__main__":
 
     def run_test(name: str, condition: bool, expected=None, actual=None):
         if condition:
-            print(f"  ✓ {name}")
+            print(f"  \u2713 {name}")
         else:
-            print(f"  ✗ {name}")
+            print(f"  \u2717 {name}")
             if expected is not None and actual is not None:
                 print(f"    expected: {expected}")
                 print(f"    actual:   {actual}")

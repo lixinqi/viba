@@ -7,6 +7,7 @@ from typing import Any, List, Tuple, Union
 
 from symbolic_tensor.tensor_util.todo_tensor_like import todo_tensor_like
 from symbolic_tensor.tensor_util.slice_view import slice_view
+from symbolic_tensor.tensor_util.slice_tensor import slice_tensor
 from symbolic_tensor.tensor_util.dump_view import dump_view
 from symbolic_tensor.llm_client.coding_agent_query import coding_agent_query
 
@@ -62,46 +63,35 @@ def _pad_indexes_to_topk_with_none_experience_indexes(
     return padded
 
 
-def _resolve_storage_paths(view_dir: str, tensor: torch.Tensor) -> list:
-    """Pre-resolve symlinks from tensor storage to real paths.
+def _copy_back_to_storage_view(mutable_dir: str, view_tensor: torch.Tensor) -> None:
+    """Copy LLM results from mutable workspace dir back through view tensor's symlinks.
 
-    Must be called BEFORE the LLM runs, while symlinks are still intact.
-    Returns a list of (view_file, real_storage_path) tuples.
+    The mutable dir contains files written by the LLM (independent copies, no symlinks).
+    The view_tensor was created by slice_view and has symlink storage pointing to the
+    parent tensor. Writing to the view's storage files writes through to the parent.
     """
-    result = []
-    coords_list = [list(coord) for coord in itertools.product(*[range(s) for s in tensor.size()])]
+    coords_list = [list(coord) for coord in itertools.product(*[range(s) for s in view_tensor.size()])]
     for coords in coords_list:
-        flat_index = sum(c * s for c, s in zip(coords, tensor.stride()))
+        flat_index = sum(c * s for c, s in zip(coords, view_tensor.stride()))
         digits = list(str(flat_index))
-        storage_path = os.path.join(
-            tensor.st_relative_to,
-            tensor.st_tensor_uid,
+        # View tensor's storage — symlinks to parent
+        view_storage_path = os.path.join(
+            view_tensor.st_relative_to,
+            view_tensor.st_tensor_uid,
             "storage",
             os.path.join(*digits),
             "data",
         )
-        # Resolve while symlinks are still intact
-        real_storage_path = os.path.realpath(storage_path)
+        # Resolve to real parent storage path
+        real_storage_path = os.path.realpath(view_storage_path)
+        # Mutable workspace file written by LLM
         if coords:
             coord_dirs = os.path.join(*[str(c) for c in coords])
-            view_file = os.path.join(view_dir, coord_dirs, "data.txt")
+            mutable_file = os.path.join(mutable_dir, coord_dirs, "data.txt")
         else:
-            view_file = os.path.join(view_dir, "data.txt")
-        result.append((view_file, real_storage_path))
-    return result
-
-
-def _copy_view_back_to_storage(resolved_paths: list) -> None:
-    """Copy results back from workspace view files to tensor storage.
-
-    Takes pre-resolved (view_file, real_storage_path) tuples from
-    _resolve_storage_paths. The real_storage_path was resolved before
-    the LLM ran, so it points to the true parent tensor storage even
-    if intermediate symlinks were broken by the LLM's Write/Edit tool.
-    """
-    for view_file, real_storage_path in resolved_paths:
-        if os.path.isfile(view_file):
-            with open(view_file, "r", encoding="utf-8") as f:
+            mutable_file = os.path.join(mutable_dir, "data.txt")
+        if os.path.isfile(mutable_file):
+            with open(mutable_file, "r", encoding="utf-8") as f:
                 content = f.read()
             with open(real_storage_path, "w", encoding="utf-8") as f:
                 f.write(content)
@@ -124,6 +114,9 @@ def symbolic_transform_backward(
          grad_experience accumulates grad_output coefficients per used experience entry.
       b) Symbolic channel (text diff): LLM infers how input and experience texts
          should change given the output gradient.
+
+    Uses slice_view (symlinks) for copy-back targets and slice_tensor (copies) for
+    LLM-writable mutable dirs. This avoids the symlink breakage issue.
 
     Processes each scalar element sequentially.
 
@@ -176,11 +169,14 @@ def symbolic_transform_backward(
     for coords, select_experience_query_indexes in zip(coords_list, flat_selected_indexes):
         int_slices = [c for c in coords]
 
-        # Slice all relevant tensors to scalar views
+        # Slice const tensors to scalar views (symlinks, read-only)
         scalar_grad_output = slice_view(grad_output, int_slices)
         scalar_input = slice_view(input, int_slices)
         scalar_output = slice_view(output, int_slices)
-        scalar_grad_input = slice_view(grad_input, int_slices)
+
+        # Slice grad_input: view (symlink) for copy-back, value (copy) for LLM to write
+        scalar_grad_input_view = slice_view(grad_input, int_slices)
+        scalar_grad_input_value = slice_tensor(grad_input, int_slices)
 
         # Pad indexes to topk
         padded_select_indexes = _pad_indexes_to_topk_with_none_experience_indexes(
@@ -190,9 +186,10 @@ def symbolic_transform_backward(
             padded_select_indexes, experience.size()[-1]
         )
 
-        # Slice experience (const) and grad_experience (mutable) with same indexes
+        # Slice experience (const view) and grad_experience (view + value)
         experience_sliced_view = slice_view(experience, select_experience_indexes)
         grad_experience_sliced_view = slice_view(grad_experience, select_experience_indexes)
+        grad_experience_sliced_value = slice_tensor(grad_experience, select_experience_indexes)
 
         # Create workspace with dump views
         with tempfile.TemporaryDirectory() as workspace_dir:
@@ -200,8 +197,8 @@ def symbolic_transform_backward(
             input_view_dir = os.path.join(workspace_dir, "const_input_view")
             output_view_dir = os.path.join(workspace_dir, "const_output_view")
             experience_view_dir = os.path.join(workspace_dir, "const_experience_view")
-            grad_input_view_dir = os.path.join(workspace_dir, "mutable_grad_input_view")
-            grad_experience_view_dir = os.path.join(workspace_dir, "mutable_grad_experience_view")
+            grad_input_dir = os.path.join(workspace_dir, "mutable_grad_input_dir")
+            grad_experience_dir = os.path.join(workspace_dir, "mutable_grad_experience_dir")
 
             # Dump const views (read-only context for LLM)
             dump_view(scalar_grad_output, grad_output_view_dir, "txt")
@@ -209,13 +206,9 @@ def symbolic_transform_backward(
             dump_view(scalar_output, output_view_dir, "txt")
             dump_view(experience_sliced_view, experience_view_dir, "txt")
 
-            # Dump mutable views (LLM writes gradients here)
-            dump_view(scalar_grad_input, grad_input_view_dir, "txt")
-            dump_view(grad_experience_sliced_view, grad_experience_view_dir, "txt")
-
-            # Pre-resolve symlinks BEFORE LLM runs (LLM's Write/Edit breaks symlinks)
-            grad_input_resolved = _resolve_storage_paths(grad_input_view_dir, scalar_grad_input)
-            grad_experience_resolved = _resolve_storage_paths(grad_experience_view_dir, grad_experience_sliced_view)
+            # Dump mutable copies (LLM writes gradients here — no symlinks to break)
+            dump_view(scalar_grad_input_value, grad_input_dir, "txt")
+            dump_view(grad_experience_sliced_value, grad_experience_dir, "txt")
 
             prompt = (
                 "You are a symbolic gradient calculator for backward pass.\n\n"
@@ -230,10 +223,12 @@ def symbolic_transform_backward(
                 f"- Experience entries used during forward: \"{experience_view_dir}\"\n"
                 "  where .../0/data.xxx = query, .../1/data.xxx = key, .../2/data.xxx = value\n\n"
                 "Compute and write:\n"
-                f"1. Input gradient in \"{grad_input_view_dir}\":\n"
+                f"1. Input gradient in \"{grad_input_dir}\":\n"
                 "   How should the input text change to improve the output?\n"
-                f"2. Experience gradients in \"{grad_experience_view_dir}\":\n"
-                "   How should each experience entry (query, key, value) change to improve the output?\n\n"
+                f"2. Experience gradients in \"{grad_experience_dir}\":\n"
+                "   How should each experience entry (query, key, value) change to improve the output?\n"
+                "   Notice, it's possible that there are existed Experience gradients accumulated "
+                "in mutable_grad_experience_dir in previous iteration. You should merge them.\n\n"
                 "Replace all TODO with computed text diffs.\n"
             )
 
@@ -249,9 +244,9 @@ def symbolic_transform_backward(
                 if env_backup is not None:
                     os.environ["CLAUDECODE"] = env_backup
 
-            # Copy results back from workspace view to tensor storage
-            _copy_view_back_to_storage(grad_input_resolved)
-            _copy_view_back_to_storage(grad_experience_resolved)
+            # Copy results back from mutable dir through view symlinks to parent storage
+            _copy_back_to_storage_view(grad_input_dir, scalar_grad_input_view)
+            _copy_back_to_storage_view(grad_experience_dir, grad_experience_sliced_view)
 
     return grad_input, grad_experience
 
@@ -275,9 +270,9 @@ if __name__ == "__main__":
 
     def run_test(name: str, condition: bool, expected=None, actual=None):
         if condition:
-            print(f"  ✓ {name}")
+            print(f"  \u2713 {name}")
         else:
-            print(f"  ✗ {name}")
+            print(f"  \u2717 {name}")
             if expected is not None and actual is not None:
                 print(f"    expected: {expected}")
                 print(f"    actual:   {actual}")
