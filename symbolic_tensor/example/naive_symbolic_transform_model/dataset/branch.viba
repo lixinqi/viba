@@ -1,7 +1,0 @@
-classify :=
-    | 'positive'
-    | 'zero'
-    | 'negative'
-    <- $x int
-    # inline
-    <- Match[$x > 0 -> 'positive', $x == 0 -> 'zero', _ -> 'negative']

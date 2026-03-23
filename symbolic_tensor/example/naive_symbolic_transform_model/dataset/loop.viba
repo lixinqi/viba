@@ -1,5 +1,0 @@
-double_all :=
-    list[$doubled int]
-    <- $items list[int]
-    # inline
-    <- (list[$doubled <- $item * 2] <- $items list[$item int])
