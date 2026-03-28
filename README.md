@@ -13,13 +13,13 @@ Name[T, U, ...] := body
 | Operator | Syntax | Meaning |
 |----------|--------|---------|
 | Assign | `Name := body` | Type definition |
-| Sum | `A \| B` | Either A or B |
+| Sum | `A | B` | Either A or B |
 | Product | `A * B` | Both A and B |
 | Exponent | `B <- A` | Function from A to B |
 | Generic | `Name[T]` | Parameterized type |
 | Tag | `$label T` | Named field / variant |
 | Void | `void` | Product identity (`A * void = A`) |
-| Never | `never` | Sum identity (`A \| never = A`) |
+| Never | `never` | Sum identity (`A | never = A`) |
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Shorthand for `A * B * C` |
 | Code block | `{ ... }` | Arbitrary text, supports nesting |
@@ -36,7 +36,7 @@ Name[T, U, ...] := body
 
 ### Operator Precedence (low to high)
 
-1. `\|` (sum) — left-associative
+1. `|` (sum) — left-associative
 2. `*` (product) — left-associative
 3. `<-` (exponent) — right-associative
 
