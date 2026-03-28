@@ -23,10 +23,13 @@ tokens = (
     "RBRACKET",  # ]
     "LPAREN",  # (
     "RPAREN",  # )
+    "LBRACE",  # {
+    "RBRACE",  # }
     "COMMA",
     "VOID",
     "NEVER",
     "ELLIPSIS",  # ...
+    "CODE_BLOCK",  # { ... }
 )
 
 t_ASSIGN = r":="
@@ -37,6 +40,8 @@ t_LBRACKET = r"\["
 t_RBRACKET = r"\]"
 t_LPAREN = r"\("
 t_RPAREN = r"\)"
+t_LBRACE = r"\{"
+t_RBRACE = r"\}"
 t_COMMA = r","
 t_ELLIPSIS = r"\.\.\."
 
@@ -102,6 +107,30 @@ def t_TAGGED_CLASS_NAME(t):
 
 def t_CLASS_NAME(t):
     r"\w+(\.\w+)*"
+    return t
+
+
+def t_CODE_BLOCK(t):
+    r'\{'
+    depth = 1
+    start = t.lexer.lexpos
+    lexdata = t.lexer.lexdata
+    while depth > 0:
+        if start >= len(lexdata):
+            print(f"Lexical Error: Unterminated code block at line {t.lexer.lineno}")
+            t.lexer.skip(1)
+            return
+        c = lexdata[start]
+        if c == '\n':
+            t.lexer.lineno += 1
+        elif c == '{':
+            depth += 1
+        elif c == '}':
+            depth -= 1
+        start += 1
+    # Value is everything between the outer { and }
+    t.value = {"node": "CodeBlock", "code": lexdata[t.lexer.lexpos : start - 1]}
+    t.lexer.lexpos = start
     return t
 
 
@@ -257,7 +286,8 @@ def p_primary_expr(p):
     | ELLIPSIS
     | LPAREN adt_expr RPAREN
     | LPAREN adt_expr_list RPAREN
-    | LPAREN RPAREN"""
+    | LPAREN RPAREN
+    | CODE_BLOCK"""
     # 1. Handle atomic units (Length 2)
     if len(p) == 2:
         val = p[1]
@@ -459,6 +489,20 @@ if __name__ == "__main__":
         ("MixedInExponent := 'result' <- (\"input1\" * 'input2')", "Mixed quotes in exponent"),
         ("MixedTagged := $tag 'val' * $other \"val2\"", "Mixed quotes with tags"),
         ("MixedComplex := ('''A''' | 'B') <- (\"x\" * 'y' * '''z''')", "Complex mixed quotes"),
+        # ====== CODE BLOCK TESTS ======
+        ("CodeBlockBasic := {hello}", "Simple code block"),
+        ("CodeBlockWithSpaces := {  some text  }", "Code block with spaces"),
+        ("CodeBlockMultiLine := {line1\nline2\nline3}", "Code block with newlines"),
+        ("CodeBlockNested := {outer {inner} end}", "Nested code block"),
+        ("CodeBlockDeepNested := {a {b {c {d} c} b} a}", "Deeply nested code block"),
+        ("CodeBlockInProduct := {fn} * {config}", "Code blocks in product"),
+        ("CodeBlockInSum := {opt1} | {opt2}", "Code blocks in sum"),
+        ("CodeBlockInExponent := {result} <- {input}", "Code blocks in exponent"),
+        ("CodeBlockTagged := $tag {value}", "Tagged code block"),
+        ("CodeBlockMixed := {code} * void | never", "Code block with identities"),
+        ("CodeBlockWithTuple := ({a}, {b})", "Code blocks in tuple"),
+        ("CodeBlockGeneric := List[{item}]", "Code block as generic arg"),
+        ("CodeBlockComplex := ({res {OK} | {err}} <- {inp})", "Complex code block expression"),
     ]
 
     print(f"{'TEST CASE':<50} | {'STATUS'}")
