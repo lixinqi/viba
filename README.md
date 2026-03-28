@@ -69,75 +69,14 @@ Handler := {def forward(self, x): return x}
 
 ## Modules
 
-```
-viba/
-  parser.py          Lexer + parser (PLY)      — .viba source -> dict AST
-  type.py            Typed AST dataclasses     — dict AST -> Type objects
-  unparser.py        Code generator             — Type objects -> .viba source
-  chain.py           Chain flattening           — nested binary <-> flat chain
-  match.py           Pattern matching           — dispatch on Type subclass
-  std_coding_style.py  Style checker           — validate coding conventions
-```
-
-### Pipeline
-
-```
-.viba source --parser.py--> dict AST --type.py--> Type objects --unparser.py--> .viba source
-                                                 |
-                                           chain.py (flatten / reconstruct)
-                                           match.py (pattern dispatch)
-                                           std_coding_style.py (validate)
-```
-
-### parser.py
-
-Tokenizer and recursive-descent parser built on PLY. Produces a list of dicts (one per definition). Supports 114 test cases covering all language features.
-
-### type.py
-
-Dataclass-based AST with `from_dict` / `to_dict` round-tripping. `Type.from_dict(data)` dispatches to the correct subclass by `"node"` field.
-
-### unparser.py
-
-Converts Type AST back to formatted .viba source. Chain types render with aligned operators:
-
-```
-Pipeline[A, B, C] :=
-  C
-  <- A
-  <- B
-```
-
-### chain.py
-
-Flattens nested binary trees into flat chains and back:
-
-- `SumType` <-> `SumChainType(elements=[...])`
-- `ProductType` <-> `ProductChainType(elements=[...])`
-- `ExponentType` <-> `ExponentChainType(result=..., args=[...])`
-
-### match.py
-
-Keyword-argument pattern matching over Type subclasses:
-
-```python
-viba_type_match(
-    node,
-    SumType=lambda s: s.left,
-    TypeRefType=lambda r: r.name,
-    _=lambda t: "other",
-)
-```
-
-### std_coding_style.py
-
-Validates definitions against three standard styles:
-
-| Style | Rule |
-|-------|------|
-| `ClassDefine` | No exponent types in body |
-| `FuncDeclare` | Exactly one exponent at top level |
-| `FuncImplement` | Exponent chain as top-level body |
+| Module | Summary |
+|--------|---------|
+| `parser.py` | Lexer + parser (PLY) — .viba source to dict AST |
+| `type.py` | Typed AST dataclasses — dict to Type objects with round-tripping |
+| `unparser.py` | Code generator — Type objects back to .viba source |
+| `chain.py` | Flattens nested binary trees into Sum/Product/Exponent chains and back |
+| `match.py` | Keyword-argument pattern matching over Type subclasses |
+| `std_coding_style.py` | Validates definitions against Class/FuncDeclare/FuncImplement styles |
 
 ## Installation
 
