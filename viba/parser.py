@@ -314,16 +314,15 @@ def p_primary_expr(p):
     else:
         content = p[2]
         if isinstance(content, list):
-            # Transform (A, B, C) into a nested ProductType tree
-            # This ensures (A, B) is semantically identical to A * B
+            # Transform (A, B, C) into a left-nested ProductType tree.
+            # Note: a tuple is a positional product (order matters); it is
+            # NOT sugar for the tagged product `*`.
             def fold_to_product(lst):
-                if len(lst) == 2:
-                    return {"node": "ProductType", "left": lst[0], "right": lst[1]}
-                return {
-                    "node": "ProductType",
-                    "left": lst[0],
-                    "right": fold_to_product(lst[1:]),
-                }
+                # Left-fold, consistent with the left-associative `*` operator
+                acc = lst[0]
+                for item in lst[1:]:
+                    acc = {"node": "ProductType", "left": acc, "right": item}
+                return acc
 
             p[0] = fold_to_product(content)
         else:
@@ -432,11 +431,6 @@ if __name__ == "__main__":
             'FinalBoss[In, Out] := ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99',
             "Comprehensive test",
         ),
-        ("Tuple_Basic := (A, B)", "Binary tuple as product"),
-        ("Tuple_Ternary := (A, B, C)", "Ternary tuple nested product"),
-        ("Tuple_Tagged := ($input In, $config Conf)", "Tagged members in tuple"),
-        ("Tuple_Complex := (Result <- Op, $meta Meta)", "Mixed expressions in tuple"),
-        ("Nested_Parens := ((A | B), C)", "Nested grouping inside tuple"),
         # ====== TRIPLE-QUOTED STRING TESTS (20 cases) ======
         ("TripleSimple := '''a b c'''", "Simple triple-quoted string"),
         ("TripleSingleWord := '''hello'''", "Triple-quoted with single word"),

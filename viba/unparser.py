@@ -16,6 +16,7 @@ from viba.type import (
     EllipsisType,
     PureTagType,
     LiteralType,
+    CodeBlockType,
     SumChainType,
     ProductChainType,
     ExponentChainType,
@@ -62,6 +63,7 @@ def _unparse_type(type_obj: Type, indent: int, depth: int) -> str:
         IdentityType=lambda i: _unparse_identity(i),
         EllipsisType=lambda e: "...",
         PureTagType=lambda p: p.name,
+        CodeBlockType=lambda c: _unparse_codeblock(c),
         SumChainType=lambda s: _unparse_sumchain(s, indent, depth),
         ProductChainType=lambda p: _unparse_productchain(p, indent, depth),
         ExponentChainType=lambda e: _unparse_exponentchain(e, indent, depth),
@@ -132,11 +134,21 @@ def _unparse_typeapp(app_type, indent: int, depth: int) -> str:
 def _unparse_literal(lit_type) -> str:
     """Unparse a LiteralType."""
     if lit_type.val_type == "str":
-        return f'"{lit_type.val}"'
+        val = lit_type.val
+        # Double-quoted strings cannot contain raw newlines (lexer rule);
+        # fall back to triple quotes for multi-line content.
+        if "\n" in val:
+            return f"'''{val}'''"
+        return f'"{val}"'
     elif lit_type.val_type == "bool":
         return str(lit_type.val).lower()
     else:
         return str(lit_type.val)
+
+
+def _unparse_codeblock(codeblock_type) -> str:
+    """Unparse a CodeBlockType: content goes back inside braces as-is."""
+    return "{" + codeblock_type.code + "}"
 
 
 def _unparse_identity(ident_type) -> str:
@@ -195,12 +207,28 @@ def _unparse_exponentchain(chain, indent: int, depth: int) -> str:
     base_indent = " " * (indent * depth)
     arg_indent = " " * (indent * (depth + 1))
 
+    # `<-` binds tighter than `|` and `*`, so any composite result or
+    # argument must be parenthesized to preserve the grouping.
+    composite = (
+        "SumType", "ProductType", "ExponentType",
+        "SumChainType", "ProductChainType", "ExponentChainType",
+    )
+
+    def _parenthesize(type_obj, unparsed):
+        if type_obj.__class__.__name__ in composite:
+            return f"({unparsed})"
+        return unparsed
+
     lines = []
-    result_str = _unparse_type(chain.result, indent, depth)
+    result_str = _parenthesize(
+        chain.result, _unparse_type(chain.result, indent, depth)
+    )
     lines.append(f"{base_indent}{result_str}")
 
-    for arg in chain.args:
-        arg_str = _unparse_type(arg, indent, depth + 1)
+    # chain.args is application order (args[0] is fed first); the Viba
+    # chain syntax lists arguments right-to-left, so emit in reverse.
+    for arg in reversed(chain.args):
+        arg_str = _parenthesize(arg, _unparse_type(arg, indent, depth + 1))
         lines.append(f"{arg_indent}<- {arg_str}")
 
     return "\n".join(lines)

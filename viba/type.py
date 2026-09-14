@@ -50,6 +50,8 @@ class Type:
             return PureTagType.from_dict(data)
         elif node_type == "Literal":
             return LiteralType.from_dict(data)
+        elif node_type == "CodeBlock":
+            return CodeBlockType.from_dict(data)
         else:
             raise ValueError(f"Unknown node type: {node_type}")
 
@@ -324,6 +326,21 @@ class LiteralType(Type):
 
     def to_dict(self) -> Dict[str, Any]:
         return {"node": self.node, "val": self.val, "val_type": self.val_type}
+
+
+@dataclass
+class CodeBlockType(Type):
+    """Code block node: { ... } with arbitrary nested content"""
+
+    node: str
+    code: str  # raw content between the outer braces
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "CodeBlockType":
+        return cls(node=data.get("node", "CodeBlock"), code=data["code"])
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"node": self.node, "code": self.code}
 
 
 # ----------------------------------------------------------------------

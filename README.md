@@ -21,7 +21,7 @@ Name[T, U, ...] := body
 | Void | `void` | Product identity (`A * void = A`) |
 | Never | `never` | Sum identity (`A | never = A`) |
 | Ellipsis | `...` | Open/variadic type |
-| Tuple | `(A, B, C)` | Shorthand for `A * B * C` |
+| Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
 | Code block | `{ ... }` | Arbitrary text, supports nesting |
 
 ### Strings
