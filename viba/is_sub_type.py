@@ -24,11 +24,14 @@ Semantics (per design):
   at the Type level whenever a side lifts to a Type (TypeRef
   resolution, constants).
 - TypeRef resolves through module_get_type in its own container
-  module (lexical scoping). A TypeRef the judgment actually reaches
-  and cannot resolve is a contract authoring mistake: the check
-  aborts with Err (UnresolvedTypeError caught at the boundary).
-  Generic parameters never trigger this — generic bodies are nominal
-  and never unfold.
+  module (lexical scoping); when that fails, the env_get bindings of
+  the side's AstNodeType stack are consulted, innermost first (this
+  is how free names — e.g. generic parameters — get their meanings).
+  A TypeRef the judgment actually reaches and cannot resolve by
+  either channel is a contract authoring mistake: the check aborts
+  with Err (UnresolvedTypeError caught at the boundary). Generic
+  definition bodies never trigger this — they are nominal and never
+  unfold.
 - AssertionViolated is not special here: it is a plain nominal
   generic from the builtin library (viba/builtin.viba). On the sub
   side it simply never seats (Ok(False)); on the sup side it is a
@@ -114,18 +117,75 @@ class _Checker:
         self.memo: dict = {}
         self._walk_memo: dict = {}
         self._walking: set = set()
+        self._env_stacks = {"sub": [], "sup": []}
 
     # ------------------------------------------------------------------
     # Type-level dispatch
     # ------------------------------------------------------------------
 
     def check(self, sub: Type, sup: Type) -> bool:
-        key = (_type_key(sub), _type_key(sup))
+        sub_key = _type_key(sub, self._env_ids("sub"))
+        sup_key = _type_key(sup, self._env_ids("sup"))
+        key = (sub_key, sup_key)
         if key in self.memo:
             return self.memo[key]
-        result = self._check_uncached(sub, sup)
+        pushed = self._push_envs(sub, sup)
+        try:
+            result = self._check_uncached(sub, sup)
+        finally:
+            self._pop_envs(pushed)
         self.memo[key] = result
         return result
+
+    def _push_envs(self, sub: Type, sup: Type):
+        """An AstNodeType carrying env_get scopes its own free names."""
+        pushed = []
+        for side, t in (("sub", sub), ("sup", sup)):
+            self._push_one(side, t, pushed)
+        return pushed
+
+    def _push_one(self, side: str, t, pushed):
+        env = getattr(t, "env_get", None)
+        if env is None:
+            return
+        self._env_stacks[side].append(env)
+        pushed.append(side)
+
+    def _pop_envs(self, pushed):
+        for side in pushed:
+            self._env_stacks[side].pop()
+
+    def _env_ids(self, side: str) -> tuple:
+        return tuple(id(e) for e in self._env_stacks[side])
+
+    def _resolve_name(self, name: str, module: ModuleType, side: str) -> Result:
+        """Module definitions win; the side's env_get supplements
+        (innermost binding first) — the free-variable channel."""
+        resolved = module_get_type(module, name)
+        if isinstance(resolved, Ok):
+            return resolved
+        envs = reversed(self._env_stacks[side])
+        hits = (e(name) for e in envs)
+        return next((h for h in hits if isinstance(h, Ok)), resolved)
+
+    def _lift(self, node, module: ModuleType, side: str):
+        """Lift a Constant, TypeRef, Nil or Never to a Type; else None.
+        An unresolvable TypeRef is a contract authoring mistake."""
+        if isinstance(node, viba_ast.Constant):
+            return _literal_type(node.value)
+        if isinstance(node, viba_ast.Nil):
+            return NilType()
+        if isinstance(node, viba_ast.Never):
+            return NeverType()
+        if isinstance(node, viba_ast.TypeRef):
+            return self._lift_ref(node, module, side)
+        return None
+
+    def _lift_ref(self, node, module: ModuleType, side: str):
+        resolved = self._resolve_name(node.name, module, side)
+        if isinstance(resolved, Err):
+            raise UnresolvedTypeError(f"unresolvable TypeRef {node.name!r}")
+        return resolved.value
 
     def _check_uncached(self, sub: Type, sup: Type) -> bool:
         if isinstance(sub, NeverType):
@@ -180,9 +240,10 @@ class _Checker:
     # ------------------------------------------------------------------
 
     def _walk(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
-        sn, s_mod = self._unfold_ref(sn, s_mod)
-        sp, p_mod = self._unfold_ref(sp, p_mod)
-        key = (id(sn), id(sp), id(s_mod), id(p_mod))
+        sn, s_mod = self._unfold_ref(sn, s_mod, "sub")
+        sp, p_mod = self._unfold_ref(sp, p_mod, "sup")
+        senv, penv = self._env_ids("sub"), self._env_ids("sup")
+        key = (id(sn), id(sp), id(s_mod), id(p_mod), senv, penv)
         if key in self._walking:
             return True  # coinductive assumption (design: 假设表)
         if key in self._walk_memo:
@@ -193,12 +254,12 @@ class _Checker:
         self._walk_memo[key] = result
         return result
 
-    def _unfold_ref(self, node, module: ModuleType):
+    def _unfold_ref(self, node, module: ModuleType, side: str):
         """A TypeRef to a plain TypeDefinition is transparent: unfold
         to its body, whose own TypeRefs resolve in its home module."""
         if not isinstance(node, viba_ast.TypeRef):
             return node, module
-        resolved = module_get_type(module, node.name)
+        resolved = self._resolve_name(node.name, module, side)
         if isinstance(resolved, Err):
             return node, module
         target = resolved.value
@@ -220,8 +281,8 @@ class _Checker:
 
     def _walk_lifted(self, sn, s_mod, sp, p_mod):
         """Handle sides that lift to the Type level (Constants, TypeRefs)."""
-        sub_t = _lift(sn, s_mod)
-        sup_t = _lift(sp, p_mod)
+        sub_t = self._lift(sn, s_mod, "sub")
+        sup_t = self._lift(sp, p_mod, "sup")
         if sub_t is not None and sup_t is not None:
             return self.check(sub_t, sup_t)
         if sub_t is not None:
@@ -280,7 +341,7 @@ class _Checker:
 
     def _walk_tagged(self, sn, s_mod, sp, p_mod) -> bool:
         if isinstance(sn, _PROD_NODES):
-            tagged, _ = self._split_product(sn, s_mod)
+            tagged, _ = self._split_product(sn, s_mod, "sub")
             return sp.tag in tagged and self._walk(tagged[sp.tag], s_mod, sp.type, p_mod)
         if not isinstance(sn, viba_ast.Tagged):
             return self._walk(sn, s_mod, sp.type, p_mod)
@@ -291,8 +352,8 @@ class _Checker:
         all be present in sub (width). Untagged elements pair in order.
         Bare TypeRefs to plain TypeDefinitions unfold so their tags
         participate (B := A * $find bool carries A's tags)."""
-        sub_tagged, sub_bare = self._split_product(sn, s_mod)
-        sup_tagged, sup_bare = self._split_product(sp, p_mod)
+        sub_tagged, sub_bare = self._split_product(sn, s_mod, "sub")
+        sup_tagged, sup_bare = self._split_product(sp, p_mod, "sup")
         if not self._tags_covered(sub_tagged, s_mod, sup_tagged, p_mod):
             return False
         if len(sub_bare) != len(sup_bare):
@@ -300,20 +361,20 @@ class _Checker:
         pairs = zip(sub_bare, sup_bare)
         return all(self._walk(a, s_mod, b, p_mod) for a, b in pairs)
 
-    def _split_product(self, node, module):
+    def _split_product(self, node, module, side: str):
         """Flatten a Product/ProductChain into ({tag: body}, [bare]),
         unfolding transparent TypeDefinitions along the way."""
         tagged, bare = {}, []
         for elem in _product_elements(node):
-            t, b = self._split_element(elem, module)
+            t, b = self._split_element(elem, module, side)
             tagged.update(t)
             bare.extend(b)
         return tagged, bare
 
-    def _split_element(self, elem, module):
-        elem, elem_mod = self._unfold_ref(elem, module)
+    def _split_element(self, elem, module, side: str):
+        elem, elem_mod = self._unfold_ref(elem, module, side)
         if isinstance(elem, _PROD_NODES):
-            return self._split_product(elem, elem_mod)
+            return self._split_product(elem, elem_mod, side)
         if isinstance(elem, viba_ast.Tagged):
             return {elem.tag: elem.type}, []
         return {}, [elem]
@@ -336,7 +397,9 @@ class _Checker:
 
     def _walk_exponent(self, sn, s_mod, sp, p_mod) -> bool:
         """Result covariant; arguments contravariant in application
-        order; a longer sub argument list is a subtype of a shorter."""
+        order; a longer sub argument list is a subtype of a shorter.
+        Argument walks swap modules, so the env stacks swap with them:
+        a free name resolves through the env of the syntax it came from."""
         if not isinstance(sn, _EXP_NODES):
             return False
         sub_res, sub_args = _exponent_parts(sn)
@@ -345,8 +408,17 @@ class _Checker:
             return False
         if not self._walk(sub_res, s_mod, sup_res, p_mod):
             return False
-        pairs = zip(sup_args, sub_args)
-        return all(self._walk(sa, p_mod, sb, s_mod) for sa, sb in pairs)
+        self._swap_envs()
+        try:
+            pairs = zip(sup_args, sub_args)
+            walks = (self._walk(sa, p_mod, sb, s_mod) for sa, sb in pairs)
+            return all(walks)
+        finally:
+            self._swap_envs()
+
+    def _swap_envs(self):
+        stacks = self._env_stacks
+        stacks["sub"], stacks["sup"] = stacks["sup"], stacks["sub"]
 
     # Literal containers: ListLiteral[a, b, c] is a resident of
     # list[a | b | c]; SetLiteral likewise; DictLiteral[(k, v), ...]
@@ -354,8 +426,8 @@ class _Checker:
     _LITERAL_OF = {"list": "ListLiteral", "set": "SetLiteral", "dict": "DictLiteral"}
 
     def _walk_typeapps(self, sn, s_mod, sp, p_mod) -> bool:
-        sub_c = self._resolve_constructor(sn.constructor, s_mod)
-        sup_c = self._resolve_constructor(sp.constructor, p_mod)
+        sub_c = self._resolve_constructor(sn.constructor, s_mod, "sub")
+        sup_c = self._resolve_constructor(sp.constructor, p_mod, "sup")
         if self._literal_resident(sn, s_mod, sub_c, sp, p_mod, sup_c):
             return True
         if len(sn.args) != len(sp.args):
@@ -396,8 +468,8 @@ class _Checker:
         vals_ok = self._walk(v, s_mod, val_t, p_mod)
         return keys_ok and vals_ok
 
-    def _resolve_constructor(self, name: str, module: ModuleType):
-        resolved = module_get_type(module, name)
+    def _resolve_constructor(self, name: str, module: ModuleType, side: str):
+        resolved = self._resolve_name(name, module, side)
         if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable constructor {name!r}")
         return resolved.value
@@ -435,23 +507,6 @@ def _unwrap_definition(entry: AstNodeType):
 
 def _is_poison_ref(node) -> bool:
     return isinstance(node, viba_ast.TypeRef) and node.name == "AssertionViolated"
-
-
-def _lift(node, module: ModuleType):
-    """Lift a Constant, TypeRef, Nil or Never to a Type; else None.
-    An unresolvable TypeRef is a contract authoring mistake."""
-    if isinstance(node, viba_ast.Constant):
-        return _literal_type(node.value)
-    if isinstance(node, viba_ast.Nil):
-        return NilType()
-    if isinstance(node, viba_ast.Never):
-        return NeverType()
-    if isinstance(node, viba_ast.TypeRef):
-        resolved = module_get_type(module, node.name)
-        if isinstance(resolved, Err):
-            raise UnresolvedTypeError(f"unresolvable TypeRef {node.name!r}")
-        return resolved.value
-    return None
 
 
 def _literal_type(value) -> Type:
@@ -498,12 +553,14 @@ def _exponent_parts(node):
     return res, [node.argument] + args
 
 
-def _type_key(t: Type):
-    """Canonical comparison key for the memo table."""
+def _type_key(t: Type, env: tuple = ()):
+    """Canonical comparison key for the memo table. `env` is the id
+    tuple of the env_get stack the type is judged under: the same
+    node resolves differently under different free-name bindings."""
     if isinstance(t, AstNodeType):
         defn = _as_definition(t.ast_node)
         node_key = ("defn", defn.name) if defn is not None else ("inline", id(t.ast_node))
-        return ("ast", id(t.container_module), node_key)
+        return ("ast", id(t.container_module), node_key, env)
     if isinstance(t, BuiltinGenericType):
         return ("generic", t.name)
     if isinstance(t, _LITERAL_TYPES):

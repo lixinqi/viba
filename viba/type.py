@@ -197,11 +197,23 @@ def _is_definition(node) -> bool:
 
 
 class AstNodeType(Type):
-    """Any structural viba.ast node + the module its TypeRefs resolve in."""
+    """Any structural viba.ast node + the module its TypeRefs resolve in.
 
-    def __init__(self, ast_node: viba_ast.AST, container_module: ModuleType):
+    `env_get` models the optional third field of the spec's AstNodeType:
+    a fallback resolver for free type names (e.g. generic parameters
+    bound by a surrounding TypeApp). Module-local definitions always
+    win; env_get only answers names the module cannot resolve.
+    """
+
+    def __init__(
+        self,
+        ast_node: viba_ast.AST,
+        container_module: ModuleType,
+        env_get: Callable[[str], Result] = None,
+    ):
         self.ast_node = ast_node
         self.container_module = container_module
+        self.env_get = env_get
 
 
 # ----------------------------------------------------------------------

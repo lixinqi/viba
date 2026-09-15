@@ -34,6 +34,7 @@ AstNodeType :=
   Object
   * $ast_node ast.Ast
   * $container_module ModuleType
+  * $env_get (Result[Type] <- $type_name str)
 
 ModuleGetType :=
   Result[Type]
@@ -45,10 +46,12 @@ IsSubType :=
   <- $sub Type
   <- $sup Type
   <- Hint[{
-    内部会用到 ModuleGetType：TypeRef 经它解析为 $ast_node_type
-    （Definition 节点 + 所在模块）。判定实际走到却解析不了的
-    TypeRef 是契约书写错误，整个判定 Err（UnresolvedTypeError
-    在边界转为 Err）；泛型参数不会触发——泛型体名义判定永不展开。
+    内部会用到 ModuleGetType：TypeRef 先经它在本模块解析；失败再
+    沿 $env_get（自由名通道，内层绑定优先）查找——泛型实参等自由
+    名的意义由此获得。两路都失败才是契约书写错误，整个判定
+    Err（UnresolvedTypeError 在边界转为 Err）。
+    指数参数交换模块时 env 随之交换：自由名永远经自己语法一侧的
+    env_get 解析。
     AssertionViolated 不是特殊节点：它是内建库（viba/builtin.viba）
     里的普通名义泛型，sub 侧自然不入围（Ok(false)）；sup 侧按名字
     lint 出 Err。

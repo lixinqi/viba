@@ -18,8 +18,11 @@ import ast as py_ast
 from viba import ast as viba_ast
 from viba.type import (
     BUILTIN_MODULE,
+    AstNodeType,
     Err,
+    IntType,
     Ok,
+    StrType,
     custom_module,
     entry_type,
 )
@@ -172,6 +175,53 @@ def check_generic_env_case():
     check_result(is_sub_type(sub, sup), False, "generic env vs local: nominal")
 
 
+def _type_serving(target, wanted: str):
+    def env(name):
+        return Ok(target) if name == wanted else Err("?")
+    return env
+
+
+def entry_with_env(source, env_get, module=None):
+    """An inline entry whose free names fall back to env_get."""
+    module = module or custom_module("")
+    node = entry_type(source, module).ast_node
+    return AstNodeType(node, module, env_get)
+
+
+def run_env_get_cases():
+    """AstNodeType.env_get: free-name channel and module priority."""
+    env_int = _type_serving(IntType(), "T")
+    env_str = _type_serving(StrType(), "T")
+    bound = entry_with_env("$x T", env_int)
+    res = is_sub_type(bound, entry_type("$x int"))
+    check_result(res, True, "env_get binds free name -> True")
+    local = custom_module("T := $t str")
+    over = entry_with_env("$x T", env_int, local)
+    res = is_sub_type(over, entry_type("$x str", local))
+    check_result(res, True, "module definition wins over env_get")
+    res = is_sub_type(over, entry_type("$x int"))
+    check_result(res, False, "module definition wins: not the env meaning")
+    sub_t = entry_with_env("$x T", env_int)
+    sup_t = entry_with_env("$x T", env_str)
+    res = is_sub_type(sub_t, sup_t)
+    check_result(res, False, "sides stay independent under the same free name")
+    bare = entry_with_env("$x T", _err_env)
+    res = is_sub_type(bare, entry_type("$x int"))
+    check_result(res, "error", "env_get miss falls back to the module error")
+
+
+def run_env_get_scope_cases():
+    """env_get reaches into TypeApp args and survives exponent swaps."""
+    env_int = _type_serving(IntType(), "T")
+    elem = entry_with_env("list[T]", env_int)
+    res = is_sub_type(elem, entry_type("list[int]"))
+    check_result(res, True, "env_get reaches inside a TypeApp argument")
+    swapped = entry_with_env("int <- $a int", None)
+    sup_swapped = entry_with_env("int <- $a T", env_int)
+    res = is_sub_type(swapped, sup_swapped)
+    check_result(res, True, "exponent contravariance keeps the sup env")
+
+
 def _is_test_cases_assign(node) -> bool:
     if not isinstance(node, py_ast.Assign):
         return False
@@ -214,6 +264,8 @@ def run_suite_reflexivity():
 run_data_cases()
 run_py_side_cases()
 run_env_cases()
+run_env_get_cases()
+run_env_get_scope_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)
