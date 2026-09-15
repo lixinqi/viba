@@ -1,0 +1,1 @@
+ChainB := $head int * $tail ChainB * $tag bool

@@ -37,3 +37,15 @@
 036 false
 037 true
 038 false
+039 false
+040 false
+041 true
+042 false
+043 true
+044 false
+045 true
+046 true
+047 true
+048 false
+049 true
+050 true
