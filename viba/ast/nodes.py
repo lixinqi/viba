@@ -4,7 +4,8 @@ The parser (viba.parser) builds these nodes directly; unparse, chain
 canonicalization, dump and visitors all work on this single hierarchy.
 
 Composite nodes:
-    Module, Definition, Sum, Product, Exponent, Tagged, TypeApp, Tuple
+    Module, TypeDefinition, GenericDefinition, Sum, Product, Exponent,
+    Tagged, TypeApp, Tuple
 Atomic nodes:
     TypeRef, Constant, Void, Never, Ellipsis, CodeBlock
 Canonical (chain-style) nodes, produced by convert_to_chain_style:
@@ -45,8 +46,14 @@ class Module(AST):
     _fields = ("body",)
 
 
-class Definition(AST):
-    """name[T, U] := body"""
+class TypeDefinition(AST):
+    """name := body — a definition without generic parameters."""
+
+    _fields = ("name", "body")
+
+
+class GenericDefinition(AST):
+    """name[T, U] := body — a definition with generic parameters."""
 
     _fields = ("name", "generic_params", "body")
 

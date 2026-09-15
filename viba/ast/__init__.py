@@ -18,7 +18,8 @@ from typing import Any, Iterator, List, Optional
 from viba.ast.nodes import (
     AST,
     Module,
-    Definition,
+    TypeDefinition,
+    GenericDefinition,
     Import,
     Sum,
     Product,
@@ -40,7 +41,8 @@ from viba.ast.chain import convert_to_chain_style, convert_from_chain_style
 from viba.ast.unparse import unparse_module
 
 __all__ = [
-    "AST", "Module", "Definition", "Import", "Sum", "Product", "Exponent", "Tagged",
+    "AST", "Module", "TypeDefinition", "GenericDefinition", "Import",
+    "Sum", "Product", "Exponent", "Tagged",
     "TypeApp", "Tuple", "TypeRef", "Constant", "Void", "Never", "Ellipsis",
     "CodeBlock", "SumChain", "ProductChain", "ExponentChain",
     "parse", "unparse", "canonical", "dump",

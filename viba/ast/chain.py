@@ -11,7 +11,8 @@ from typing import List
 from viba.ast._match import viba_type_match
 from viba.ast.nodes import (
     AST,
-    Definition,
+    TypeDefinition,
+    GenericDefinition,
     Sum,
     Product,
     Exponent,
@@ -30,7 +31,10 @@ def convert_to_chain_style(node: AST) -> AST:
         Sum=lambda s: _flatten_sum(s),
         Product=lambda p: _flatten_product(p),
         Exponent=lambda e: _flatten_exponent(e),
-        Definition=lambda d: Definition(
+        TypeDefinition=lambda d: TypeDefinition(
+            d.name, convert_to_chain_style(d.body)
+        ),
+        GenericDefinition=lambda d: GenericDefinition(
             d.name, d.generic_params, convert_to_chain_style(d.body)
         ),
         Tagged=lambda t: Tagged(t.tag, convert_to_chain_style(t.type)),
@@ -103,7 +107,10 @@ def convert_from_chain_style(node: AST) -> AST:
         SumChain=lambda s: _reconstruct_sum(s),
         ProductChain=lambda p: _reconstruct_product(p),
         ExponentChain=lambda e: _reconstruct_exponent(e),
-        Definition=lambda d: Definition(
+        TypeDefinition=lambda d: TypeDefinition(
+            d.name, convert_from_chain_style(d.body)
+        ),
+        GenericDefinition=lambda d: GenericDefinition(
             d.name, d.generic_params, convert_from_chain_style(d.body)
         ),
         Tagged=lambda t: Tagged(t.tag, convert_from_chain_style(t.type)),

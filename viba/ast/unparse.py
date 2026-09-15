@@ -6,7 +6,8 @@ from viba.ast._match import viba_type_match
 from viba.ast.nodes import (
     AST,
     Module,
-    Definition,
+    TypeDefinition,
+    GenericDefinition,
     Import,
     Sum,
     Product,
@@ -44,7 +45,8 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
 
     return viba_type_match(
         node,
-        Definition=lambda d: _unparse_definition(d, indent, depth),
+        TypeDefinition=lambda d: _unparse_type_definition(d, indent, depth),
+        GenericDefinition=lambda d: _unparse_generic_definition(d, indent, depth),
         Import=lambda i: _unparse_import(i),
         Sum=lambda s: _unparse_binary(s, " | ", indent, depth),
         Product=lambda p: _unparse_binary(p, " * ", indent, depth),
@@ -64,15 +66,16 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
     )
 
 
-def _unparse_definition(defn: Definition, indent: int, depth: int) -> str:
-    """Unparse a Definition."""
-    if defn.generic_params:
-        params = "[" + ", ".join(defn.generic_params) + "]"
-    else:
-        params = ""
-
+def _unparse_type_definition(defn: TypeDefinition, indent: int, depth: int) -> str:
+    """Unparse a TypeDefinition (no generic parameters)."""
     body = _unparse_type(defn.body, indent, depth + 1)
+    return f"{defn.name} :=\n{' ' * indent * (depth + 1)}{body}"
 
+
+def _unparse_generic_definition(defn: GenericDefinition, indent: int, depth: int) -> str:
+    """Unparse a GenericDefinition."""
+    params = "[" + ", ".join(defn.generic_params) + "]"
+    body = _unparse_type(defn.body, indent, depth + 1)
     return f"{defn.name}{params} :=\n{' ' * indent * (depth + 1)}{body}"
 
 

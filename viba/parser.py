@@ -2,7 +2,8 @@ import ply.lex as lex
 import ply.yacc as yacc
 
 from viba.ast.nodes import (
-    Definition,
+    TypeDefinition,
+    GenericDefinition,
     Import,
     Sum,
     Product,
@@ -205,8 +206,19 @@ def p_statement(p):
 
 
 def p_definition(p):
-    """definition : CLASS_NAME optional_type_params ASSIGN adt_expr"""
-    p[0] = Definition(p[1], p[2], p[4])
+    """definition : type_definition
+    | generic_definition"""
+    p[0] = p[1]
+
+
+def p_type_definition(p):
+    """type_definition : CLASS_NAME ASSIGN adt_expr"""
+    p[0] = TypeDefinition(p[1], p[3])
+
+
+def p_generic_definition(p):
+    """generic_definition : CLASS_NAME LBRACKET CLASS_NAME type_param_list RBRACKET ASSIGN adt_expr"""
+    p[0] = GenericDefinition(p[1], [p[3]] + p[4], p[7])
 
 
 def p_import_stmt(p):
@@ -218,15 +230,6 @@ def p_optional_alias(p):
     """optional_alias : AS CLASS_NAME
     | epsilon"""
     p[0] = p[2] if len(p) > 2 else None
-
-
-def p_optional_type_params(p):
-    """optional_type_params : LBRACKET CLASS_NAME type_param_list RBRACKET
-    | epsilon"""
-    if len(p) > 2:
-        p[0] = [p[2]] + p[3]
-    else:
-        p[0] = []
 
 
 def p_type_param_list(p):

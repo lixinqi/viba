@@ -14,7 +14,8 @@ from viba.ast.nodes import AST
 def viba_type_match(
     node: AST,
     Module: Callable[[Any], Any] = None,
-    Definition: Callable[[Any], Any] = None,
+    TypeDefinition: Callable[[Any], Any] = None,
+    GenericDefinition: Callable[[Any], Any] = None,
     Import: Callable[[Any], Any] = None,
     Sum: Callable[[Any], Any] = None,
     Product: Callable[[Any], Any] = None,
