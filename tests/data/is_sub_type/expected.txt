@@ -22,8 +22,8 @@
 021 false
 022 false
 023 false
-024 true
-025 false
+024 error  # ellipsis anywhere is a lint Err now
+025 error  # sup is ellipsis -> lint Err (sub poison moot)
 026 false
 027 true
 028 false
@@ -71,7 +71,7 @@
 070 true
 071 true
 072 true  # nil is the unit of product: nil * A == A
-073 true
+073 error  # mid-sum ellipsis is a lint Err now
 074 true
 075 true
 076 true

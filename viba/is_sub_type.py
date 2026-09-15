@@ -1,7 +1,13 @@
-"""Subtype judgment over the Type model: is_sub_type(sub, sup) -> bool.
+"""Subtype judgment over the Type model: is_sub_type(sub, sup) -> Result[bool].
 
 Contract: consumes Type values only (viba.type). Nothing here knows
 about rules, results or compliance semantics.
+
+Ok(True/False) is the judgment. Err is a lint error, never a verdict:
+- ellipsis (...) anywhere on either side -> Err (an open type is a
+  contract-authoring mistake, not something to judge);
+- AssertionViolated on the sup side -> Err; on the sub side it is a
+  normal negative witness, Ok(False).
 
 Semantics (per design):
 - GenericDefinition references are nominal: same container module
@@ -21,14 +27,11 @@ Semantics (per design):
   module (lexical scoping); unresolvable names become OpaqueType
   nominal atoms keyed by (module identity, name) — exactly the
   semantics of free generic parameters.
-- AssertionViolated (PoisonType): on sub -> False; on sup -> lint
-  error (RuleContainsPoisonError).
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
   SetLiteral likewise; DictLiteral[(k, v), ...] of
   dict[k_union, v_union]. The reverse is False, and so is
   mixing container families.
-- `...` on the sup side absorbs anything.
 - The memo table maps (sub_key, sup_key) to the result in flight;
   under nominal semantics no cycle can require assuming a pair, so
   it is a pure memoization / shared-subgraph guard.
@@ -47,9 +50,10 @@ from viba.type import (
     IntType,
     ModuleType,
     NeverType,
+    Ok,
     OpaqueType,
     PoisonType,
-    RuleContainsPoisonError,
+    Result,
     StrLiteralType,
     StrType,
     Type,
@@ -70,22 +74,32 @@ _PROD_NODES = (viba_ast.Product, viba_ast.ProductChain)
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 
-def is_sub_type(sub: Type, sup: Type) -> bool:
-    """Return True iff sub <: sup."""
-    _assert_no_poison(sup)
-    return _Checker().check(sub, sup)
+def is_sub_type(sub: Type, sup: Type) -> Result:
+    """Ok(True/False) is the judgment; Err is a lint error."""
+    err = _lint_error(sub, sup)
+    if err is not None:
+        return Err(err)
+    return Ok(_Checker().check(sub, sup))
 
 
-def _assert_no_poison(sup: Type):
-    """Lint: the sup side must not contain AssertionViolated anywhere,
-    whether or not the comparison would have reached it."""
+def _lint_error(sub: Type, sup: Type):
+    """Ellipsis anywhere, or AssertionViolated on the sup side."""
+    for label, side in (("sub", sub), ("sup", sup)):
+        if not isinstance(side, AstNodeType):
+            continue
+        nodes = viba_ast.walk(side.ast_node)
+        if any(isinstance(n, viba_ast.Ellipsis) for n in nodes):
+            return f"ellipsis is not allowed on the {label} side"
+    return _poison_error(sup)
+
+
+def _poison_error(sup: Type):
     if isinstance(sup, PoisonType):
-        raise RuleContainsPoisonError("AssertionViolated on the sup side")
+        return "AssertionViolated on the sup side"
     if not isinstance(sup, AstNodeType):
-        return
+        return None
     poisoned = [n for n in viba_ast.walk(sup.ast_node) if _is_poison_ref(n)]
-    if poisoned:
-        raise RuleContainsPoisonError("AssertionViolated on the sup side")
+    return "AssertionViolated on the sup side" if poisoned else None
 
 
 class _Checker:
@@ -99,8 +113,6 @@ class _Checker:
     # ------------------------------------------------------------------
 
     def check(self, sub: Type, sup: Type) -> bool:
-        if isinstance(sup, PoisonType):
-            raise RuleContainsPoisonError("AssertionViolated on the sup side")
         if isinstance(sub, PoisonType):
             return False
         key = (_type_key(sub), _type_key(sup))
@@ -198,14 +210,10 @@ class _Checker:
         return target.ast_node.body, target.container_module
 
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
-        # Poison beats even the ellipsis wildcard: AssertionViolated
-        # fails against ANY sup, and must never appear on the sup side.
+        # Poison on the sub side fails against ANY sup (lint for the
+        # sup side happens before the walk ever starts).
         if _is_poison_ref(sn):
             return False
-        if _is_poison_ref(sp):
-            raise RuleContainsPoisonError("AssertionViolated on the sup side")
-        if isinstance(sp, viba_ast.Ellipsis):
-            return True
         if isinstance(sn, viba_ast.Never):
             return True  # bottom fits anywhere
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):

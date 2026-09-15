@@ -219,10 +219,6 @@ class UnresolvedTypeError(Exception):
     """A TypeRef could not be resolved to a Type."""
 
 
-class RuleContainsPoisonError(Exception):
-    """AssertionViolated appeared on the sup (Rule) side — lint error."""
-
-
 def module_get_type(module: ModuleType, type_name: str) -> Result:
     """Resolve a type name against a module (ModuleGetType).
 
