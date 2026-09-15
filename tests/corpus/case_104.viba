@@ -6,10 +6,8 @@ Handler1[Out] :=
         Option[
             $next void,
             'auto fast lazy'
-                * $a.b.c.d
-                * (
-                    $env.scope Unit
-                )
+                * $a.b.c.d ()
+                * $env.scope ()
         ]
     )
 
@@ -80,7 +78,7 @@ Tensor3[U] :=
                         | false
                         | Error
                         | (
-                            $a.b.c.d
+                            $a.b.c.d ()
                                 * void
                                 * '''line one
 line two'''
@@ -109,3 +107,8 @@ b
 c'''
         ]
     )
+
+Guarded6 :=
+    $x float
+    * Assert[{x <= 469}]
+    * Sigma

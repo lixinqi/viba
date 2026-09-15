@@ -87,7 +87,7 @@ Slice7[S, E] :=
         $meta (
             Delta
                 * 3
-                * $cfg.mode
+                * $cfg.mode ()
                 * torch.Tensor
                 * (
                     'strict viba'
@@ -107,7 +107,7 @@ Slice7[S, E] :=
 Edge8[Out] :=
     (
         fx.Graph
-            | $cfg.mode
+            | $cfg.mode ()
     )
         <- (
             ...

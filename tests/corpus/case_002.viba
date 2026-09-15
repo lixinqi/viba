@@ -11,7 +11,7 @@ Result1[S, V] :=
         | (
             $err (
                 Error
-                    * $meta.id
+                    * $meta.id ()
                     * true
             )
         )
@@ -20,7 +20,7 @@ Result1[S, V] :=
                 Input
                     | 258
                     | ...
-                    | $res.val
+                    | $res.val ()
             )
                 <- (
                     fx.Graph
@@ -39,7 +39,7 @@ b
 c'''
                         <- '''line one
 line two'''
-                        <- $a.b.c.d
+                        <- $a.b.c.d ()
                         <- 'viba'
                 )
         )
@@ -69,7 +69,7 @@ Report4[K, S] :=
         )
             <- (
                 never
-                    * $cfg.mode
+                    * $cfg.mode ()
             )
             <- (
                 '''line one
@@ -105,13 +105,13 @@ Task5[U, S] :=
 line two'''
             | true
             | true
-            | $meta.id
+            | $meta.id ()
     )
         * (
             Pair[Handler]
         )
         * (
-            $cfg.mode
+            $cfg.mode ()
                 <- '''keep
   indent'''
                 <- Delta

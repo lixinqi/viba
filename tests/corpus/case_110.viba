@@ -5,9 +5,7 @@ Config1[Out] :=
     $src (
         'auto lazy slow'
             * 'lazy'
-            * (
-                $cfg.mode Unit
-            )
+            * $cfg.mode ()
     )
 
 Rule2 :=
@@ -68,7 +66,7 @@ Config4[S] :=
                 )
                 <- (
                     Output
-                        * $res.val
+                        * $res.val ()
                 )
                 <- (
                     $cfg 2.6
@@ -78,7 +76,7 @@ Config4[S] :=
             (
                 9.73
                     * 748
-                    * $env.scope
+                    * $env.scope ()
             )
                 <- (
                     false
@@ -94,17 +92,19 @@ Config4[S] :=
                 )
         )
 
-Plan6[S, U] :=
-    (
-        void
-            <- Omega
+Plan6[Out, K] :=
+    $src (
+        (
+            {x + 1}
+                <- torch.Tensor
+                <- void
+        )
+            | (
+                $kind {fn(x + 1)}
+            )
     )
-        * Error
-        * Error
-        * Metric
-        * void
 
-Report9[T, E] :=
-    (
-        $meta.id Unit
-    )
+Guarded7 :=
+    $lines int
+    * Assert[{lines <= 201}]
+    * MatchResult

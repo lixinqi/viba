@@ -41,7 +41,7 @@ Result5[S, U] :=
                     * void
             )
             <- (
-                $res.val
+                $res.val ()
                     * '''keep
   indent'''
                     * never
@@ -56,7 +56,7 @@ Task6[K, Out] :=
         )
             | (
                 ...
-                    * $cfg.mode
+                    * $cfg.mode ()
             )
             | 'lazy strict slow'
             | never

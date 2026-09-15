@@ -53,7 +53,7 @@ Batch2[In] :=
             $kind (
                 '''keep
   indent'''
-                    * $a.b.c.d
+                    * $a.b.c.d ()
                     * Beta
             )
         )
@@ -61,9 +61,9 @@ Batch2[In] :=
             Map[
                 torch.Tensor
                     <- 530,
-                $env.scope
+                $env.scope ()
                     <- 739
-                    <- $cfg.mode,
+                    <- $cfg.mode (),
                 Metric
                     * 5.0
                     * Config

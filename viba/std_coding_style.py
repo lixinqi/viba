@@ -192,7 +192,6 @@ if __name__ == "__main__":
         TypeRefType,
         IdentityType,
         EllipsisType,
-        PureTagType,
         LiteralType,
         SumChainType,
         ProductChainType,

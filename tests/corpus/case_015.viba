@@ -45,7 +45,7 @@ Plan4[U] :=
     (
         (
             true
-                * $res.val
+                * $res.val ()
                 * 143
                 * '''line one
 line two'''
@@ -63,7 +63,7 @@ line two'''
             Map[
                 false
                     | 'fast',
-                List[$a.b.c.d, 'fast', GraphModule],
+                List[$a.b.c.d (), 'fast', GraphModule],
                 (
                     '''keep
   indent'''
@@ -99,11 +99,7 @@ Graph7[Out] :=
         * void
         * 9.628
         * (
-            List[
-                'auto',
-                void,
-                $env.scope Unit
-            ]
+            List['auto', void, $env.scope ()]
         )
 
 Guarded8 :=

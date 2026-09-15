@@ -30,7 +30,6 @@ from viba.type import (
     TypeRefType,
     IdentityType,
     EllipsisType,
-    PureTagType,
     LiteralType,
     CodeBlockType,
 )
@@ -95,12 +94,6 @@ class Tagged(AST):
     """$tag Type"""
 
     _fields = ("tag", "type")
-
-
-class PureTag(AST):
-    """Standalone $a.b.c used as an atom."""
-
-    _fields = ("name", "path")
 
 
 class TypeApp(AST):
@@ -173,8 +166,6 @@ def _from_dict(data: dict) -> AST:
         return Void() if data["type"] == "ProductIdentity" else Never()
     if node == "Ellipsis":
         return Ellipsis()
-    if node == "PureTag":
-        return PureTag(data["name"], data["path"])
     if node == "Literal":
         return Constant(data["val"])
     if node == "CodeBlock":
@@ -222,8 +213,6 @@ def _to_type(node: AST) -> Type:
         return IdentityType(node="Identity", type="SumIdentity")
     if isinstance(node, Ellipsis):
         return EllipsisType(node="Ellipsis")
-    if isinstance(node, PureTag):
-        return PureTagType(node="PureTag", name=node.name, path=node.path)
     if isinstance(node, CodeBlock):
         return CodeBlockType(node="CodeBlock", code=node.code)
     raise TypeError(f"Cannot convert {node.__class__.__name__} to viba.type")

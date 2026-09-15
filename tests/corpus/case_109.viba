@@ -27,7 +27,7 @@ Edge1[K, T] :=
     )
         * (
             (
-                $meta.id
+                $meta.id ()
             )
         )
         * (
@@ -42,7 +42,7 @@ Edge1[K, T] :=
                     | GraphModule
                     | ...
                     | (
-                        $a.b.c.d
+                        $a.b.c.d ()
                             * State
                             * ...
                     )

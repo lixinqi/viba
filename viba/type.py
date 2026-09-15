@@ -46,8 +46,6 @@ class Type:
             return IdentityType.from_dict(data)
         elif node_type == "Ellipsis":
             return EllipsisType.from_dict(data)
-        elif node_type == "PureTag":
-            return PureTagType.from_dict(data)
         elif node_type == "Literal":
             return LiteralType.from_dict(data)
         elif node_type == "CodeBlock":
@@ -288,26 +286,6 @@ class EllipsisType(Type):
 
     def to_dict(self) -> Dict[str, Any]:
         return {"node": self.node}
-
-
-@dataclass
-class PureTagType(Type):
-    """Pure tag: $a.b.c (standalone semantic tag)"""
-
-    node: str
-    name: str  # full tag, e.g. "$a.b.c"
-    path: List[str]  # components split by "."
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PureTagType":
-        return cls(
-            node=data.get("node", "PureTag"),
-            name=data["name"],
-            path=data.get("path", []),
-        )
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {"node": self.node, "name": self.name, "path": self.path}
 
 
 @dataclass

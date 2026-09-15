@@ -47,7 +47,7 @@ Config2 :=
 
 Check3 :=
     (
-        $res.val
+        $res.val ()
             | 1.8
     )
 
@@ -68,7 +68,9 @@ Config5[U, S] :=
 
 Batch7 :=
     Pair[
-        $cfg $res.val,
+        $cfg (
+            $res.val ()
+        ),
         {x + 1}
             * {fn(fn(x + 1))}
             * Beta

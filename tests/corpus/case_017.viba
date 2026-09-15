@@ -36,7 +36,7 @@ c'''
                     | 966,
                 ...
                     | Gamma
-                    | $env.scope
+                    | $env.scope ()
                     | Gamma
             ]
         )
@@ -61,7 +61,7 @@ line two'''
 Check4[E] :=
     List[
         Result[
-            $a.b.c.d
+            $a.b.c.d ()
                 * 146,
             void
                 * 'lazy'
@@ -72,14 +72,16 @@ Check4[E] :=
 Map6[K, S] :=
     (
         torch.Tensor
-            | $res.val
+            | $res.val ()
             | (
                 (
                     ...
                 )
             )
             | (
-                $next $cfg.mode
+                $next (
+                    $cfg.mode ()
+                )
             )
             | (
                 $src 'fast viba'
@@ -87,7 +89,7 @@ Map6[K, S] :=
     )
         * (
             $meta (
-                $res.val
+                $res.val ()
                     * 1.775
                     * fx.Graph
                     * Beta
@@ -107,8 +109,3 @@ Map6[K, S] :=
         * (
             $idx {fn(x + 1)}
         )
-
-Guarded7 :=
-    $lines int
-    * Assert[{lines <= 362}]
-    * Context

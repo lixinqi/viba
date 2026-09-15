@@ -14,7 +14,6 @@ from viba.type import (
     TypeRefType,
     IdentityType,
     EllipsisType,
-    PureTagType,
     LiteralType,
     CodeBlockType,
     SumChainType,
@@ -39,7 +38,6 @@ def viba_type_match(
     TypeRefType: Callable[[TypeRefType], Any] = None,
     IdentityType: Callable[[IdentityType], Any] = None,
     EllipsisType: Callable[[EllipsisType], Any] = None,
-    PureTagType: Callable[[PureTagType], Any] = None,
     LiteralType: Callable[[LiteralType], Any] = None,
     CodeBlockType: Callable[[CodeBlockType], Any] = None,
     SumChainType: Callable[[SumChainType], Any] = None,
@@ -65,7 +63,6 @@ def viba_type_match(
         TypeRefType: Handler for TypeRefType
         IdentityType: Handler for IdentityType
         EllipsisType: Handler for EllipsisType
-        PureTagType: Handler for PureTagType
         LiteralType: Handler for LiteralType
         SumChainType: Handler for SumChainType
         ProductChainType: Handler for ProductChainType
@@ -259,7 +256,6 @@ if __name__ == "__main__":
                 "alias": i.alias,
             },
             EllipsisType=lambda e: {"kind": "ellipsis"},
-            PureTagType=lambda p: {"kind": "puretag", "name": p.name, "path": p.path},
             TypeAppType=lambda a: {
                 "kind": "typeapp",
                 "constructor": a.constructor,

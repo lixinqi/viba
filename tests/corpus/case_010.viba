@@ -28,7 +28,7 @@ Map2 :=
                 $idx Gamma
             )
                 | (
-                    $meta.id
+                    $meta.id ()
                         <- 'strict slow'
                 )
         )

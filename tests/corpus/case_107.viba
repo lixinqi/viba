@@ -22,7 +22,7 @@ Node2[U, T] :=
             * (
                 $input (
                     Beta
-                        * $env.scope
+                        * $env.scope ()
                 )
             )
             * (
@@ -107,5 +107,5 @@ Map5[Out] :=
 
 Batch7 :=
     torch.Tensor
-        <- $cfg.mode
+        <- $cfg.mode ()
         <- false

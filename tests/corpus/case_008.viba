@@ -26,11 +26,11 @@ State2[T, In] :=
                     Gamma
                         | {fn(fn(x + 1))}
                         | 6.264
-                        | $a.b.c.d
+                        | $a.b.c.d ()
                 )
                 * {fn(x + 1)}
                 * Beta
-                * $a.b.c.d
+                * $a.b.c.d ()
         )
         | (
             $src (
@@ -41,12 +41,12 @@ State2[T, In] :=
             (
                 Handler
                     <- void
-                    <- $meta.id
+                    <- $meta.id ()
             )
                 <- (
                     GraphModule
                         <- Sigma
-                        <- $env.scope
+                        <- $env.scope ()
                         <- 274
                 )
                 <- (
@@ -81,7 +81,9 @@ Pair4 :=
 Node6 :=
     (
         (
-            $err $cfg.mode
+            $err (
+                $cfg.mode ()
+            )
         )
             | (
                 (

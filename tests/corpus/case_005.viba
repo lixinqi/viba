@@ -33,7 +33,7 @@ Node3[Out] :=
             $name {fn(x + 1)}
         ],
         (
-            Pair['slow', $cfg.mode]
+            Pair['slow', $cfg.mode ()]
         )
             * 1.8
             * Delta
@@ -88,11 +88,9 @@ Config7 :=
         * (
             $output 0.311
         )
-        * $res.val
+        * $res.val ()
         * Beta
-        * (
-            $res.val Unit
-        )
+        * $res.val ()
 
 Config9 :=
     List[

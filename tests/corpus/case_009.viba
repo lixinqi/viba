@@ -106,7 +106,7 @@ Batch8[E, S] :=
             * Sigma
             * void
             * Beta
-            * $env.scope
+            * $env.scope ()
             * MatchResult
             * '''a
 b

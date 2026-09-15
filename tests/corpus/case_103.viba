@@ -13,7 +13,7 @@ Batch1 :=
             * (
                 (
                     GraphModule
-                        <- $env.scope
+                        <- $env.scope ()
                         <- ...
                 )
                     <- (
@@ -37,7 +37,7 @@ c'''
                     * 112
             )
             | (
-                $env.scope
+                $env.scope ()
                     <- GraphModule
                     <- 'slow strict lazy'
             )
@@ -76,7 +76,7 @@ Config3[Out] :=
     (
         $cfg (
             torch.Tensor
-                * $env.scope
+                * $env.scope ()
                 * 214
                 * never
                 * false

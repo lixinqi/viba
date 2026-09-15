@@ -6,7 +6,7 @@ Option1[S] :=
         $kind never,
         'fast slow'
             <- never
-            <- $cfg.mode,
+            <- $cfg.mode (),
         47
             | '''line one
 line two'''

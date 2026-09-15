@@ -136,7 +136,9 @@ def render_atom(node):
     if kind == "never":
         return "never"
     if kind == "puretag":
-        return node[1]
+        # bare $tag no longer parses (PureTag was cut from the grammar);
+        # a standalone tag atom is written with the unit body
+        return f"{node[1]} ()"
     if kind == "code":
         return "{" + node[1] + "}"
     if kind == "ellipsis":
@@ -188,8 +190,10 @@ def render(node, level):
 
     if kind == "tag":
         body = node[2]
-        if is_atom(body):
+        if is_atom(body) and body[0] != "puretag":
             return [pad + f"{node[1]} {render_atom(body)}"]
+        # a tagged body (e.g. $x ()) is a unary_expr, not a primary:
+        # grammar requires parentheses around it
         inner = render(body, level + 1)
         return [pad + f"{node[1]} ("] + inner + [pad + ")"]
 
@@ -241,38 +245,11 @@ def render_operand(node, level):
     return [pad + "("] + inner + [pad + ")"]
 
 
-def fix_trailing_puretag(node):
-    """If the definition's final textual token is a bare $tag, give it a
-    body (`$tag Unit`). A bare tag at the very end is ambiguous with the
-    start of the next definition under LALR(1) — and parentheses do not
-    help, because the unparser re-emits the bare tag without them.
-    Descends to the textual-last leaf: rightmost child, except exponents,
-    where the first argument is rendered last.
-    """
-    kind = node[0]
-    if kind == "puretag":
-        return ("tag", node[1], ("ref", "Unit"))
-    if kind == "paren":
-        return ("paren", fix_trailing_puretag(node[1]))
-    if kind == "tag":
-        return (kind, node[1], fix_trailing_puretag(node[2]))
-    if kind in ("sum", "prod"):
-        children = node[1]
-        return (kind, children[:-1] + [fix_trailing_puretag(children[-1])])
-    if kind == "app":
-        _, ctor, args = node
-        return (kind, ctor, args[:-1] + [fix_trailing_puretag(args[-1])])
-    if kind == "exp":
-        _, result, args = node
-        return (kind, result, [fix_trailing_puretag(args[0])] + args[1:])
-    return node
-
-
 def render_definition(gen, theme, depth):
     """Build one (name, params, node) definition rendered as lines."""
     name = gen.name(theme)
     params = gen.rng.sample(GENERIC_PARAMS, gen.rng.randint(0, 2))
-    node = fix_trailing_puretag(gen.expr(depth))
+    node = gen.expr(depth)
     header = name + ("[" + ", ".join(params) + "]" if params else "") + " :="
     return [header] + render(node, 1)
 

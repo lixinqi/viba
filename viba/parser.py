@@ -279,7 +279,6 @@ def p_adt_expr_list(p):
 
 def p_primary_expr(p):
     """primary_expr : CLASS_NAME
-    | TAGGED_CLASS_NAME
     | literal
     | VOID
     | NEVER
@@ -299,9 +298,6 @@ def p_primary_expr(p):
             p[0] = {"node": "Identity", "type": "SumIdentity"}
         elif val == "...":
             p[0] = {"node": "Ellipsis"}
-        elif str(val).startswith("$"):
-            # Semantic tag as a standalone atom
-            p[0] = {"node": "PureTag", "name": val, "path": val[1:].split(".")}
         else:
             # Simple type reference
             p[0] = {"node": "TypeRef", "name": val}

@@ -65,7 +65,7 @@ Node5 :=
         * 'lazy viba'
         * (
             489
-                | $meta.id
+                | $meta.id ()
                 | Sigma
                 | 5.6
         )
@@ -94,7 +94,7 @@ Node5 :=
 
 Result6[K] :=
     never
-        * $cfg.mode
+        * $cfg.mode ()
         * true
         * Input
         * {fn(fn(x + 1))}

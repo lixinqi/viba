@@ -7,7 +7,7 @@ Handler1[T] :=
             Metric
                 | 497
                 | fx.Graph
-                | $cfg.mode
+                | $cfg.mode ()
                 | (
                     $res false
                 )
@@ -51,11 +51,11 @@ c'''
         | Sigma
         | never
         | (
-            $a.b.c.d
+            $a.b.c.d ()
                 * '''line one
 line two'''
         )
-        | $env.scope
+        | $env.scope ()
         | 8.435
         | 'auto viba slow'
         | State
@@ -65,7 +65,7 @@ line two'''
                 * 9.3
         )
         | (
-            $meta.id
+            $meta.id ()
                 * 650
                 * void
         )
@@ -77,7 +77,7 @@ Slice3[T] :=
                 'viba'
                     <- 1.307
             )
-                * $env.scope
+                * $env.scope ()
                 * false
                 * 'fast lazy'
                 * 772

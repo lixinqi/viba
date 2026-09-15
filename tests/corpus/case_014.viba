@@ -45,7 +45,7 @@ line two'''
     )
         | 381
         | 4.8
-        | $cfg.mode
+        | $cfg.mode ()
         | (
             (
                 'auto'
@@ -62,7 +62,7 @@ List3[K, Out] :=
             | Metric
             | never,
         never
-            * $res.val
+            * $res.val ()
             * Sigma,
         5.689
             | 'lazy'
@@ -73,7 +73,7 @@ List3[K, Out] :=
 Slice4[In] :=
     $input (
         $kind (
-            $res.val Unit
+            $res.val ()
         )
     )
 
@@ -99,7 +99,7 @@ List6[E] :=
 Handler7[K] :=
     0.66
         | Beta
-        | $meta.id
+        | $meta.id ()
         | (
             $data void
         )
@@ -107,7 +107,7 @@ Handler7[K] :=
             $dst ...
         )
         | (
-            $env.scope
+            $env.scope ()
                 * never
                 * void
         )

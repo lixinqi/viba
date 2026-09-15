@@ -7,9 +7,9 @@ Plan1 :=
             'viba'
         )
     )
-        | $meta.id
+        | $meta.id ()
         | Metric
-        | $a.b.c.d
+        | $a.b.c.d ()
         | MatchResult
         | (
             (
@@ -64,12 +64,12 @@ Batch2[T] :=
                 Box[
                     Input
                         | Config
-                        | $meta.id
-                        | $cfg.mode,
+                        | $meta.id ()
+                        | $cfg.mode (),
                     ...
                         | ...,
                     ...
-                        <- $env.scope
+                        <- $env.scope ()
                         <- ...
                         <- 'viba strict'
                 ]
