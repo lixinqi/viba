@@ -47,7 +47,7 @@ All binary operators are left-associative.
 
 ```viba
 # Standard ADTs
-Option[T] := $some T | ()
+Option[T] := $some T | nil
 Result[T, E] := $ok T | $err E
 
 # Function types
@@ -101,20 +101,20 @@ print(ast.unparse(tree))   # canonical chain-style source
 pip install ply
 python -m viba.parser                    # parser test suite
 python -m viba.ast                       # ast round-trip checks
-python tests/corpus/generate_corpus.py --check   # 120-file corpus round-trip
+python tests/corpus/generate_corpus.py --check   # 130-file corpus round-trip
 ```
 
 ## Demo
 
 ```viba
 # Optional value
-Option[T] := $some T | ()
+Option[T] := $some T | nil
 
 # Result with error
 Result[T, E] := $ok T | $err E
 
 # Linked list
-List[T] := T * List[T] | ()
+List[T] := T * List[T] | nil
 
 # Dictionary entry
 Pair[K, V] := $key K * $value V
