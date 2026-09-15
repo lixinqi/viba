@@ -1,0 +1,2 @@
+B := $y A | void
+A := $x B | void

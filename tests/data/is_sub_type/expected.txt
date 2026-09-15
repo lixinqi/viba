@@ -62,3 +62,15 @@
 061 true
 062 false
 063 true
+064 true
+065 true
+066 false
+067 true
+068 false
+069 true
+070 true
+071 true
+072 true  # void is the unit of product: void * A == A
+073 true
+074 true
+075 true

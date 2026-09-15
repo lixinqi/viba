@@ -1,0 +1,2 @@
+B2 := $next B2 * $v str
+X := B2
