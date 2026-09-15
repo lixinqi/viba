@@ -260,8 +260,16 @@ def _needs_parens(child: Type, parent_type: str, position: str) -> bool:
 
 
 def _is_binary(type_obj: Type) -> bool:
-    """Check if a type is a binary type (Sum/Product/Exponent)."""
-    return type_obj.__class__.__name__ in ("SumType", "ProductType", "ExponentType")
+    """Check if a type is a binary type or a flattened chain of one.
+
+    Chain types (SumChainType etc.) are the post-convert_to_chain_style
+    form of binary types; they are just as composite and need the same
+    parentheses treatment around tags and exponents.
+    """
+    return type_obj.__class__.__name__ in (
+        "SumType", "ProductType", "ExponentType",
+        "SumChainType", "ProductChainType", "ExponentChainType",
+    )
 
 
 def _tagged_body_parens(type_obj: Type, unparsed: str) -> str:
