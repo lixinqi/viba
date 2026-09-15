@@ -1,6 +1,22 @@
 import ply.lex as lex
 import ply.yacc as yacc
-import json
+
+from viba.ast.nodes import (
+    Definition,
+    Sum,
+    Product,
+    Exponent,
+    Tagged,
+    TypeApp,
+    Tuple,
+    TypeRef,
+    Constant,
+    Void,
+    Never,
+    Ellipsis,
+    CodeBlock,
+    AST,
+)
 
 # ================================================================= #
 # 1. LEXER DEFINITIONS
@@ -129,7 +145,7 @@ def t_CODE_BLOCK(t):
             depth -= 1
         start += 1
     # Value is everything between the outer { and }
-    t.value = {"node": "CodeBlock", "code": lexdata[t.lexer.lexpos : start - 1]}
+    t.value = CodeBlock(lexdata[t.lexer.lexpos : start - 1])
     t.lexer.lexpos = start
     return t
 
@@ -172,7 +188,7 @@ def p_statement_list(p):
 # Fixed: Removed the Literal token ":=" and used ASSIGN token instead
 def p_statement(p):
     """statement : CLASS_NAME optional_type_params ASSIGN adt_expr"""
-    p[0] = {"node": "Definition", "name": p[1], "generic_params": p[2], "body": p[4]}
+    p[0] = Definition(p[1], p[2], p[4])
 
 
 def p_optional_type_params(p):
@@ -200,7 +216,7 @@ def p_adt_expr(p):
     """adt_expr : adt_expr SUM_OP product_expr
     | product_expr"""
     if len(p) == 4:
-        p[0] = {"node": "SumType", "left": p[1], "right": p[3]}
+        p[0] = Sum(p[1], p[3])
     else:
         p[0] = p[1]
 
@@ -209,7 +225,7 @@ def p_product_expr(p):
     """product_expr : product_expr PROD_OP exponent_expr
     | exponent_expr"""
     if len(p) == 4:
-        p[0] = {"node": "ProductType", "left": p[1], "right": p[3]}
+        p[0] = Product(p[1], p[3])
     else:
         p[0] = p[1]
 
@@ -218,7 +234,7 @@ def p_exponent_expr(p):
     """exponent_expr : exponent_expr EXP_OP unary_expr
     | unary_expr"""
     if len(p) == 4:
-        p[0] = {"node": "ExponentType", "result": p[1], "argument": p[3]}
+        p[0] = Exponent(p[1], p[3])
     else:
         p[0] = p[1]
 
@@ -227,7 +243,7 @@ def p_unary_expr(p):
     """unary_expr : TAGGED_CLASS_NAME type_app_expr
     | type_app_expr"""
     if len(p) == 3:
-        p[0] = {"node": "TaggedType", "tag": p[1], "type": p[2]}
+        p[0] = Tagged(p[1], p[2])
     else:
         p[0] = p[1]
 
@@ -237,9 +253,9 @@ def p_type_app_expr(p):
     | primary_expr"""
     if len(p) == 3:
         if p[2] is not None:
-            p[0] = {"node": "TypeApp", "constructor": p[1], "args": p[2]}
+            p[0] = TypeApp(p[1], p[2])
         else:
-            p[0] = {"node": "TypeRef", "name": p[1]}
+            p[0] = TypeRef(p[1])
     else:
         p[0] = p[1]
 
@@ -290,21 +306,22 @@ def p_primary_expr(p):
     # 1. Handle atomic units (Length 2)
     if len(p) == 2:
         val = p[1]
-        if isinstance(val, dict):
+        if isinstance(val, AST):
+            # Literal (Constant), CODE_BLOCK (CodeBlock): pass through
             p[0] = val
         elif val == "void":
-            p[0] = {"node": "Identity", "type": "ProductIdentity"}
+            p[0] = Void()
         elif val == "never":
-            p[0] = {"node": "Identity", "type": "SumIdentity"}
+            p[0] = Never()
         elif val == "...":
-            p[0] = {"node": "Ellipsis"}
+            p[0] = Ellipsis()
         else:
             # Simple type reference
-            p[0] = {"node": "TypeRef", "name": val}
+            p[0] = TypeRef(val)
 
-    # 2. Handle empty tuple () as alias for void (Length 3)
+    # 2. Handle empty parens () as void (Length 3)
     elif len(p) == 3:
-        p[0] = {"node": "Identity", "type": "ProductIdentity", "alias": "()"}
+        p[0] = Void()
 
     # 3. Handle Parentheses or Tuples (Length 4)
     else:
@@ -312,9 +329,8 @@ def p_primary_expr(p):
         if isinstance(content, list):
             # (A, B, C) is a Tuple: positional product, order matters.
             # It is NOT sugar for the tagged product `*` — the two are
-            # distinct nodes at every layer (parser dict, viba.type,
-            # viba.ast).
-            p[0] = {"node": "Tuple", "elements": content}
+            # distinct nodes at every layer (parser, viba.ast).
+            p[0] = Tuple(content)
         else:
             # Standard grouping: ( adt_expr )
             p[0] = content
@@ -327,7 +343,7 @@ def p_literal(p):
     | SINGLE_STRING
     | TRIPLE_STRING
     | BOOLEAN"""
-    p[0] = {"node": "Literal", "val": p[1], "val_type": type(p[1]).__name__}
+    p[0] = Constant(p[1])
 
 
 def p_epsilon(p):

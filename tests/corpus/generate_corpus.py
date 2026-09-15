@@ -361,14 +361,11 @@ def gen_file(rng, index):
 
 
 def check_file(path, ast_mod):
-    from viba.chain import convert_to_chain_style
-    from viba.unparser import unparse as vunparse
-
     src = path.read_text()
     tree1 = ast_mod.parse(src)
-    canon1 = vunparse([convert_to_chain_style(t) for t in ast_mod.to_type(tree1)])
+    canon1 = ast_mod.unparse(tree1)
     tree2 = ast_mod.parse(canon1)
-    canon2 = vunparse([convert_to_chain_style(t) for t in ast_mod.to_type(tree2)])
+    canon2 = ast_mod.unparse(tree2)
     n_lines = src.count("\n")
     max_indent = max(
         (len(line) - len(line.lstrip(" "))) for line in src.splitlines() if line.strip()
