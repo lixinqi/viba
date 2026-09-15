@@ -310,17 +310,11 @@ def p_primary_expr(p):
     else:
         content = p[2]
         if isinstance(content, list):
-            # Transform (A, B, C) into a left-nested ProductType tree.
-            # Note: a tuple is a positional product (order matters); it is
-            # NOT sugar for the tagged product `*`.
-            def fold_to_product(lst):
-                # Left-fold, consistent with the left-associative `*` operator
-                acc = lst[0]
-                for item in lst[1:]:
-                    acc = {"node": "ProductType", "left": acc, "right": item}
-                return acc
-
-            p[0] = fold_to_product(content)
+            # (A, B, C) is a Tuple: positional product, order matters.
+            # It is NOT sugar for the tagged product `*` — the two are
+            # distinct nodes at every layer (parser dict, viba.type,
+            # viba.ast).
+            p[0] = {"node": "Tuple", "elements": content}
         else:
             # Standard grouping: ( adt_expr )
             p[0] = content

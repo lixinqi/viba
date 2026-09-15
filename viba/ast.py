@@ -27,6 +27,7 @@ from viba.type import (
     ExponentType,
     TaggedType,
     TypeAppType,
+    TupleType,
     TypeRefType,
     IdentityType,
     EllipsisType,
@@ -102,6 +103,12 @@ class TypeApp(AST):
     _fields = ("constructor", "args")
 
 
+class Tuple(AST):
+    """(A, B, C) — positional product; distinct from Product (A * B)."""
+
+    _fields = ("elements",)
+
+
 class TypeRef(AST):
     """A named type reference."""
 
@@ -159,6 +166,8 @@ def _from_dict(data: dict) -> AST:
         return Tagged(data["tag"], _from_dict(data["type"]))
     if node == "TypeApp":
         return TypeApp(data["constructor"], [_from_dict(a) for a in data["args"]])
+    if node == "Tuple":
+        return Tuple([_from_dict(e) for e in data["elements"]])
     if node == "TypeRef":
         return TypeRef(data["name"])
     if node == "Identity":
@@ -203,6 +212,8 @@ def _to_type(node: AST) -> Type:
         return TaggedType(node="TaggedType", tag=node.tag, type=_to_type(node.type))
     if isinstance(node, TypeApp):
         return TypeAppType(node="TypeApp", constructor=node.constructor, args=[_to_type(a) for a in node.args])
+    if isinstance(node, Tuple):
+        return TupleType(node="Tuple", elements=[_to_type(e) for e in node.elements])
     if isinstance(node, TypeRef):
         return TypeRefType(node="TypeRef", name=node.name)
     if isinstance(node, Constant):
@@ -393,6 +404,15 @@ if __name__ == "__main__":
     empty = parse("")
     assert empty.body == []
     print("empty source OK")
+
+    # 5b. Tuple vs Product are distinct nodes
+    tup = parse("X := (A, B, C)").body[0].body
+    prod = parse("X := A * B * C").body[0].body
+    assert isinstance(tup, Tuple) and len(tup.elements) == 3, dump(tup)
+    assert isinstance(prod, Product), dump(prod)
+    nested = parse("X := (A, (B, C))").body[0].body
+    assert isinstance(nested.elements[1], Tuple), dump(nested)
+    print("tuple/product distinction OK")
 
     # 6. Round-trip on the ast layer: ast.unparse(ast.parse(X))
     strict = fixed = failed = 0

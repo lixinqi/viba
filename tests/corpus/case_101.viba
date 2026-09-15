@@ -40,8 +40,10 @@ Batch2[In] :=
                 Option[Input]
             )
             | (
-                Beta
-                    * 'auto'
+                (
+                    Beta,
+                    'auto'
+                )
             )
             | (
                 Alpha
@@ -50,24 +52,24 @@ Batch2[In] :=
             )
     )
         * (
-            $kind (
-                '''keep
+            (
+                $kind (
+                    '''keep
   indent'''
-                    * $a.b.c.d ()
-                    * Beta
+                        * $a.b.c.d ()
+                        * Beta
+                ),
+                Map[
+                    torch.Tensor
+                        <- 530,
+                    $env.scope ()
+                        <- 739
+                        <- $cfg.mode (),
+                    Metric
+                        * 5.0
+                        * Config
+                ]
             )
-        )
-        * (
-            Map[
-                torch.Tensor
-                    <- 530,
-                $env.scope ()
-                    <- 739
-                    <- $cfg.mode (),
-                Metric
-                    * 5.0
-                    * Config
-            ]
         )
         * (
             $src (
@@ -77,34 +79,37 @@ Batch2[In] :=
             )
         )
 
-Option3[In] :=
+Option4 :=
     (
-        'fast slow lazy'
-            <- true
-            <- ...
+        32
+            <- 699
+            <- void
+            <- void
     )
-        | (
-            Input
-                * 7.575
-                * Gamma
+        <- (
+            never
+                <- GraphModule
+                <- never
+                <- 6.2
         )
-        | (
-            $name {x + 1}
-        )
-        | (
-            ...
-                * Context
-        )
-        | (
-            Pair[
-                Pair[0.8]
-            ]
-        )
-        | (
-            $dst (
-                34
-                    * State
-                    * fx.Graph
-                    * Gamma
-            )
-        )
+
+Batch7 :=
+    ...
+        | ...
+        | '''a
+b
+c'''
+        | Metric
+        | 'auto fast'
+        | 'strict viba'
+
+Graph9 :=
+    (
+        void
+    )
+
+Rule11[Out, In] :=
+    (
+        Option['''keep
+  indent''']
+    )

@@ -93,23 +93,23 @@ List3 :=
         )
         | (
             (
-                $output never
-            )
-                * (
-                    void
-                        <- Output
-                )
-                * (
-                    'slow fast'
-                        | Beta
-                )
-                * (
-                    $data '''keep
+                $output never,
+                void
+                    <- Output,
+                'slow fast'
+                    | Beta,
+                $data '''keep
   indent'''
-                )
+            )
         )
 
 Handler6[E] :=
     $name (
         $value 3.019
     )
+
+Tensor8 :=
+    List[
+        Option[Gamma],
+        Box[8.5]
+    ]

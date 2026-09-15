@@ -11,6 +11,7 @@ from viba.type import (
     ExponentType,
     TaggedType,
     TypeAppType,
+    TupleType,
     TypeRefType,
     IdentityType,
     EllipsisType,
@@ -35,6 +36,7 @@ def viba_type_match(
     ExponentType: Callable[[ExponentType], Any] = None,
     TaggedType: Callable[[TaggedType], Any] = None,
     TypeAppType: Callable[[TypeAppType], Any] = None,
+    TupleType: Callable[[TupleType], Any] = None,
     TypeRefType: Callable[[TypeRefType], Any] = None,
     IdentityType: Callable[[IdentityType], Any] = None,
     EllipsisType: Callable[[EllipsisType], Any] = None,
@@ -60,6 +62,7 @@ def viba_type_match(
         ExponentType: Handler for ExponentType
         TaggedType: Handler for TaggedType
         TypeAppType: Handler for TypeAppType
+        TupleType: Handler for TupleType
         TypeRefType: Handler for TypeRefType
         IdentityType: Handler for IdentityType
         EllipsisType: Handler for EllipsisType
@@ -260,6 +263,10 @@ if __name__ == "__main__":
                 "kind": "typeapp",
                 "constructor": a.constructor,
                 "args": [extract_info(arg) for arg in a.args],
+            },
+            TupleType=lambda t: {
+                "kind": "tuple",
+                "elements": [extract_info(e) for e in t.elements],
             },
             TaggedType=lambda t: {
                 "kind": "tagged",

@@ -11,6 +11,7 @@ from viba.type import (
     ExponentType,
     TaggedType,
     TypeAppType,
+    TupleType,
     TypeRefType,
     IdentityType,
     EllipsisType,
@@ -57,6 +58,7 @@ def _unparse_type(type_obj: Type, indent: int, depth: int) -> str:
         ExponentType=lambda e: _unparse_exponent(e, indent, depth),
         TaggedType=lambda t: f"{unparse_tag(t)}{_tagged_body_parens(t.type, _unparse_type(t.type, indent, depth))}",
         TypeAppType=lambda a: _unparse_typeapp(a, indent, depth),
+        TupleType=lambda t: _unparse_tuple(t, indent, depth),
         TypeRefType=lambda r: r.name,
         LiteralType=lambda l: _unparse_literal(l),
         IdentityType=lambda i: _unparse_identity(i),
@@ -127,6 +129,12 @@ def _unparse_typeapp(app_type, indent: int, depth: int) -> str:
 
     args = ", ".join(_unparse_type(arg, indent, depth + 1) for arg in app_type.args)
     return f"{app_type.constructor}[{args}]"
+
+
+def _unparse_tuple(tuple_type, indent: int, depth: int) -> str:
+    """Unparse a TupleType: (A, B, C)."""
+    args = ", ".join(_unparse_type(e, indent, depth + 1) for e in tuple_type.elements)
+    return f"({args})"
 
 
 def _unparse_literal(lit_type) -> str:

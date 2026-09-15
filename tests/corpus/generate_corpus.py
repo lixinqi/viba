@@ -101,7 +101,7 @@ class Gen:
             return ("app", ctor, [self.expr(depth - 1) for _ in range(n)])
         if roll < 0.90:
             n = r.randint(2, 4)
-            return ("prod", [self.expr(depth - 1) for _ in range(n)])
+            return ("tuple", [self.expr(depth - 1) for _ in range(n)])
         return ("paren", self.expr(depth - 1))
 
 
@@ -231,6 +231,17 @@ def render(node, level):
                 sub[-1] += ","
             lines.extend(sub)
         lines.append(pad + "]")
+        return lines
+
+    if kind == "tuple":
+        children = node[1]
+        lines = [pad + "("]
+        for i, child in enumerate(children):
+            sub = render(child, level + 1)
+            if i < len(children) - 1:
+                sub[-1] += ","
+            lines.extend(sub)
+        lines.append(pad + ")")
         return lines
 
     raise AssertionError(node)

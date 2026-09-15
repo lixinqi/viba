@@ -11,6 +11,7 @@ from viba.type import (
     ExponentType,
     TaggedType,
     TypeAppType,
+    TupleType,
     TypeRefType,
     IdentityType,
     EllipsisType,
@@ -47,6 +48,10 @@ def convert_to_chain_style(type_obj: Type) -> Type:
             node=a.node,
             constructor=a.constructor,
             args=[convert_to_chain_style(arg) for arg in a.args],
+        ),
+        TupleType=lambda t: TupleType(
+            node=t.node,
+            elements=[convert_to_chain_style(e) for e in t.elements],
         ),
         TypeRefType=lambda r: r,
         IdentityType=lambda i: i,

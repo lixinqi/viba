@@ -28,6 +28,8 @@ class Type:
             return SumType.from_dict(data)
         elif node_type == "ProductType":
             return ProductType.from_dict(data)
+        elif node_type == "Tuple":
+            return TupleType.from_dict(data)
         elif node_type == "ExponentType":
             return ExponentType.from_dict(data)
         elif node_type == "SumChain":
@@ -159,6 +161,32 @@ class ProductType(Type):
             "node": self.node,
             "left": self.left.to_dict(),
             "right": self.right.to_dict(),
+        }
+
+
+@dataclass
+class TupleType(Type):
+    """Tuple: (A, B, C) — positional product, order matters.
+
+    Distinct from ProductType (A * B): tuples group by position,
+    products combine by name (tag). Never empty; () stays the
+    ProductIdentity alias.
+    """
+
+    node: str
+    elements: List[Type]
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "TupleType":
+        return cls(
+            node=data.get("node", "Tuple"),
+            elements=[Type.from_dict(e) for e in data["elements"]],
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "node": self.node,
+            "elements": [e.to_dict() for e in self.elements],
         }
 
 
