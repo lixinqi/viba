@@ -3,7 +3,10 @@
 # Generate a corpus of .viba test files:
 #   120 files (100 + 20 extra), ~100 lines each, indentation at least
 #   3 levels deep.
-# Deterministic: fixed seed. Re-run to regenerate; verify with --check.
+# Deterministic: fixed seed. APPEND-ONLY: existing case_*.viba files are
+# never rewritten — re-runs only create missing indices (the rng stream is
+# still consumed for skipped indices, so new files stay deterministic).
+# Verify with --check.
 
 import random
 import sys
@@ -382,17 +385,24 @@ def check_file(path, ast_mod):
 def main():
     rng = random.Random(SEED)
     rng_extra = random.Random(SEED + 777)  # extra batch: own stream, so
-    # re-runs keep case_001..case_100 byte-identical
+    # re-runs keep case_101..case_120 byte-identical
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    for f in OUT_DIR.glob("case_*.viba"):
-        f.unlink()
 
     stats = []
+    created = 0
     for i in range(1, N_FILES + 1):
-        (OUT_DIR / f"case_{i:03d}.viba").write_text(gen_file(rng, i))
+        path = OUT_DIR / f"case_{i:03d}.viba"
+        text = gen_file(rng, i)  # stream consumed even when skipping,
+        if not path.exists():    # so future appends stay deterministic
+            path.write_text(text)
+            created += 1
         stats.append(i)
     for i in range(N_FILES + 1, N_FILES + N_EXTRA + 1):
-        (OUT_DIR / f"case_{i:03d}.viba").write_text(gen_file(rng_extra, i))
+        path = OUT_DIR / f"case_{i:03d}.viba"
+        text = gen_file(rng_extra, i)
+        if not path.exists():
+            path.write_text(text)
+            created += 1
         stats.append(i)
 
     if "--check" in sys.argv:
@@ -434,7 +444,7 @@ def main():
             sys.exit(1)
         print("all corpus files OK")
     else:
-        print(f"generated {len(stats)} files in {OUT_DIR}")
+        print(f"created {created} new file(s), {len(stats)} present in {OUT_DIR}")
 
 
 if __name__ == "__main__":
