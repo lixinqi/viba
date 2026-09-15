@@ -65,7 +65,20 @@ _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 def is_sub_type(sub: Type, sup: Type) -> bool:
     """Return True iff sub <: sup."""
+    _assert_no_poison(sup)
     return _Checker().check(sub, sup)
+
+
+def _assert_no_poison(sup: Type):
+    """Lint: the sup side must not contain AssertionViolated anywhere,
+    whether or not the comparison would have reached it."""
+    if isinstance(sup, PoisonType):
+        raise RuleContainsPoisonError("AssertionViolated on the sup side")
+    if not isinstance(sup, AstNodeType):
+        return
+    poisoned = [n for n in viba_ast.walk(sup.ast_node) if _is_poison_ref(n)]
+    if poisoned:
+        raise RuleContainsPoisonError("AssertionViolated on the sup side")
 
 
 class _Checker:
@@ -123,8 +136,8 @@ class _Checker:
         return None
 
     def _same_opaque(self, sub: Type, sup: Type) -> bool:
-        same_module = getattr(sub, "container_module", None) is sup.container_module
-        return isinstance(sub, OpaqueType) and same_module and sub.name == sup.name
+        """Free-variable identity is the name alone (see OpaqueType)."""
+        return isinstance(sub, OpaqueType) and sub.name == sup.name
 
     # ------------------------------------------------------------------
     # AstNodeType pairs
@@ -147,6 +160,12 @@ class _Checker:
     # ------------------------------------------------------------------
 
     def _walk(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
+        # Poison beats even the ellipsis wildcard: AssertionViolated
+        # fails against ANY sup, and must never appear on the sup side.
+        if _is_poison_ref(sn):
+            return False
+        if _is_poison_ref(sp):
+            raise RuleContainsPoisonError("AssertionViolated on the sup side")
         if isinstance(sp, viba_ast.Ellipsis):
             return True
         if isinstance(sn, viba_ast.Never):
@@ -318,10 +337,18 @@ def _as_definition(node):
     return node if isinstance(node, kinds) else None
 
 
+def _is_poison_ref(node) -> bool:
+    return isinstance(node, viba_ast.TypeRef) and node.name == "AssertionViolated"
+
+
 def _lift(node, module: ModuleType):
-    """Lift a Constant or TypeRef to a Type; None for structural nodes."""
+    """Lift a Constant, TypeRef, Void or Never to a Type; else None."""
     if isinstance(node, viba_ast.Constant):
         return _literal_type(node.value)
+    if isinstance(node, viba_ast.Void):
+        return UnitType()
+    if isinstance(node, viba_ast.Never):
+        return NeverType()
     if isinstance(node, viba_ast.TypeRef):
         if node.name == "AssertionViolated":
             return PoisonType()
@@ -376,12 +403,16 @@ def _flatten_sum(node):
 
 def _exponent_parts(node):
     """Normalize an Exponent or ExponentChain to (result, args-in-
-    application-order)."""
-    if isinstance(node, viba_ast.Exponent):
-        return node.result, [node.argument]
+    application-order); nested binary Exponents flatten fully so raw
+    parses and canonical chains line up."""
     if isinstance(node, viba_ast.ExponentChain):
         return node.result, list(node.args)
-    raise TypeError(f"not an exponent: {node!r}")
+    if not isinstance(node, viba_ast.Exponent):
+        raise TypeError(f"not an exponent: {node!r}")
+    head = node.result
+    base = head if not isinstance(head, _EXP_NODES) else None
+    res, args = (base, []) if base is not None else _exponent_parts(head)
+    return res, [node.argument] + args
 
 
 def _type_key(t: Type):
@@ -393,7 +424,7 @@ def _type_key(t: Type):
     if isinstance(t, BuiltinGenericType):
         return ("generic", t.name)
     if isinstance(t, OpaqueType):
-        return ("opaque", id(t.container_module), t.name)
+        return ("opaque", t.name)
     if isinstance(t, _LITERAL_TYPES):
         return (type(t).__name__, t.value)
     return (type(t).__name__,)

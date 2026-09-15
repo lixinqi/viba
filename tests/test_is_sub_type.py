@@ -62,6 +62,7 @@ CASES = [
     "$ok int | $err never",
     "(int, str)",
     "str <- int",
+    "int <- X <- str",
     "$head int * $tail List[int] | void",
     "int | ...",
 ]
@@ -190,6 +191,90 @@ for node in _py_ast.walk(tree_src):
                     print(f"FAIL: suite case {src!r} raised {type(e).__name__}: {e}")
                     FAIL += 1
 print(f"bulk reflexivity on {count} suite definition bodies")
+
+# ----------------------------------------------------------------------
+# White-box cases: one per checker branch (see viba/is_sub_type.py)
+# ----------------------------------------------------------------------
+
+# Poison beats the ellipsis wildcard; nested poison on sub is False,
+# nested poison on sup raises.
+check(entry_type("AssertionViolated"), entry_type("..."), False,
+      "poison vs ellipsis -> False (poison beats wildcard)")
+check(entry_type("$a 1 | $b AssertionViolated"), entry_type("$a int | $b str"), False,
+      "poison nested in sub sum -> False, no raise")
+try:
+    is_sub_type(entry_type("$a 1"), entry_type("$a int | $b AssertionViolated"))
+    print("FAIL: poison nested in sup sum must raise")
+    FAIL += 1
+except RuleContainsPoisonError:
+    PASS += 1
+
+# Unit/bottom nodes lift to UnitType/NeverType: () IS void by name.
+check(entry_type("()"), entry_type("void"), True, "() <: void (unit identity)")
+check(entry_type("()"), entry_type("42"), False, "() /<: 42")
+check(entry_type("never"), entry_type("never"), True, "never node <: never ref")
+check(entry_type("never"), entry_type("int"), True, "never node is bottom")
+
+# Exponent flattening: raw left-nested binaries must agree with
+# canonical ExponentChain, and arity direction is long <: short.
+check(entry_type("int <- X <- str"), entry_type("int <- str"), True,
+      "extra leading-fed arg: long chain <: short chain")
+check(entry_type("int <- X <- float"), entry_type("int <- str"), False,
+      "long chain with mismatched shared arg")
+check(entry_type("int <- str"), entry_type("int <- X <- str"), False,
+      "short chain is NOT <: long chain")
+canon_exp = viba_ast.unparse(viba_ast.parse("E := int <- X <- str"))
+chain_exp = entry_type(canon_exp.split(":=")[1].strip())
+check(chain_exp, entry_type("int <- X <- str"), True,
+      "canonical ExponentChain == raw nested Exponent")
+
+# A resolved named definition is not its own expansion (nominal).
+shapes = custom_module("Shape := $w int * $h int")
+check(entry_type("Shape", shapes), entry_type("$w int * $h int", shapes), False,
+      "named definition is NOT structurally its body")
+check(entry_type("Shape", shapes), entry_type("Shape", shapes), True,
+      "named definition reflexive")
+
+# Same name resolved through different module objects -> nominal False.
+env_target = custom_module("Widget := $w int")
+env_a = custom_module("", environment=lambda name: Ok(env_target))
+check(entry_type("Widget", env_a), entry_type("Widget", other), False,
+      "same name via env vs local: different module objects -> False")
+
+# OpaqueType atoms are free variables: identity is the name alone.
+opaque_mod = custom_module("")
+check(entry_type("T", opaque_mod), entry_type("T", opaque_mod), True,
+      "opaque atom same module same name")
+check(entry_type("T", opaque_mod), entry_type("T", custom_module("")), True,
+      "opaque atom is a free variable: name only, module-agnostic")
+check(entry_type("T", opaque_mod), entry_type("U", opaque_mod), False,
+      "opaque atom different name -> False")
+
+# Tagged body that is itself a product.
+check(entry_type("$cfg ($a int * $b str)"), entry_type("$cfg ($a int * $b str)"),
+      True, "tagged body is a product")
+check(entry_type("$cfg ($a int * $b str)"), entry_type("$cfg ($a int * $b float)"),
+      False, "tagged product body mismatch")
+
+# TypeApp arity and argument order.
+check(entry_type("List[int]"), entry_type("List[int, str]"), False,
+      "TypeApp arity mismatch")
+check(entry_type("List[str, int]"), entry_type("List[int, str]"), False,
+      "TypeApp argument order matters")
+
+# Builtin generic vs a user-defined generic of compatible shape:
+# nominal, so they never mix.
+generics = custom_module("MyList[T] := $head T * $tail MyList[T] | void")
+check(entry_type("MyList[int]", generics), entry_type("List[int]", generics),
+      False, "builtin List vs user MyList: nominal, never mix")
+box_a = custom_module("Box[T] := $value T")
+box_b = custom_module("Box[T] := $value T")
+check(entry_type("Box[int]", box_a), entry_type("Box[int]", box_b), False,
+      "same generic name in different modules -> False")
+
+# Tuple vs product stay distinct at the judgment layer.
+check(entry_type("(int, str)"), entry_type("$a int * $b str"), False,
+      "tuple is not a tagged product")
 
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

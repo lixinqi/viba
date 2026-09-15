@@ -110,13 +110,12 @@ class PoisonType(Type):
 
 
 class OpaqueType(Type):
-    """An unresolvable TypeRef, treated as a nominal atom keyed by
-    (container module identity, name).
+    """An unresolvable TypeRef, treated as a nominal atom keyed by name.
 
-    This is exactly the right semantics for free generic parameters
-    (comparing Option[T] against Option[U] compares T against U by
-    name, with no substitution). Genuine typos in closed contexts
-    simply never match anything.
+    Unresolved names are free variables (generic parameters, open
+    contexts), and a free variable's identity is its name alone — the
+    same text compared with itself must be reflexive. Genuine typos
+    in closed contexts simply never match anything defined.
     """
 
     def __init__(self, container_module: "ModuleType", name: str):
