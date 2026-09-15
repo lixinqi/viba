@@ -73,28 +73,28 @@ def t_COMMENT(t):
 
 
 def t_BOOLEAN(t):
-    r"true|false"
+    r"true\b|false\b"
     t.value = t.value == "true"
     return t
 
 
 def t_VOID(t):
-    r"void"
+    r"void\b"
     return t
 
 
 def t_NEVER(t):
-    r"never"
+    r"never\b"
     return t
 
 
 def t_IMPORT(t):
-    r"import"
+    r"import\b"
     return t
 
 
 def t_AS(t):
-    r"as"
+    r"as\b"
     return t
 
 

@@ -9,7 +9,7 @@ Decoupling contract: this layer knows how to build Type values from
 viba.ast nodes, but nothing about rules, results or compliance.
 """
 
-from typing import Callable, Dict, Union
+from typing import Callable, Union
 
 from viba import ast as viba_ast
 
@@ -175,14 +175,22 @@ class CustomModuleType(ModuleType):
         module_environment: Callable[[str], Result] = None,
     ):
         self.module = module
-        self.module_environment = module_environment or (lambda name: Err(f"module {name!r} not found"))
+        if module_environment is None:
+            module_environment = lambda name: Err(f"module {name!r} not found")
+        self.module_environment = module_environment
 
     def lookup_local(self, type_name: str) -> Result:
         """Find a top-level definition by name (no environment fallback)."""
-        for defn in self.module.body:
-            if isinstance(defn, (viba_ast.TypeDefinition, viba_ast.GenericDefinition)) and defn.name == type_name:
-                return Ok(AstNodeType(defn, self))
-        return Err(f"no type named {type_name!r} in module")
+        named = (d for d in self.module.body
+            if _is_definition(d) and d.name == type_name)
+        found = next(named, None)
+        if found is None:
+            return Err(f"no type named {type_name!r} in module")
+        return Ok(AstNodeType(found, self))
+
+
+def _is_definition(node) -> bool:
+    return isinstance(node, (viba_ast.TypeDefinition, viba_ast.GenericDefinition))
 
 
 # ----------------------------------------------------------------------
@@ -221,17 +229,21 @@ def module_get_type(module: ModuleType, type_name: str) -> Result:
     if isinstance(module, BuiltinModuleType):
         return module.lookup(type_name)
     if isinstance(module, CustomModuleType):
-        local = module.lookup_local(type_name)
-        if isinstance(local, Ok):
-            return local
-        via_env = module.module_environment(type_name)
-        if isinstance(via_env, Ok):
-            return module_get_type(via_env.value, type_name)
-        builtin = BUILTIN_MODULE.lookup(type_name)
-        if isinstance(builtin, Ok):
-            return builtin
-        return Err(f"type {type_name!r} unresolved: {local.message}; {via_env.message}")
+        return _lookup_custom(module, type_name)
     return Err(f"unknown module kind: {module!r}")
+
+
+def _lookup_custom(module: CustomModuleType, type_name: str) -> Result:
+    local = module.lookup_local(type_name)
+    if isinstance(local, Ok):
+        return local
+    via_env = module.module_environment(type_name)
+    if isinstance(via_env, Ok):
+        return module_get_type(via_env.value, type_name)
+    builtin = BUILTIN_MODULE.lookup(type_name)
+    if isinstance(builtin, Ok):
+        return builtin
+    return Err(f"type {type_name!r} unresolved: {local.message}; {via_env.message}")
 
 
 # ----------------------------------------------------------------------

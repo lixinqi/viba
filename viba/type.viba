@@ -1,0 +1,51 @@
+# The Type universe consumed by is_sub_type (see viba/type.py).
+# Oneof is never (sum identity); Object is void (product identity).
+# Everything structural stays at the ast.Ast layer and reaches the
+# checker through $ast_node_type; this universe models leaves,
+# references and the module machinery behind them.
+
+Type :=
+  Oneof
+  | $never_type ()
+  | $unit_type ()
+  | $bool_type ()
+  | $int_type ()
+  | $float_type ()
+  | $str_type ()
+  | $bool_literal_type bool
+  | $int_literal_type int
+  | $float_literal_type float
+  | $str_literal_type str
+  | $ast_node_type AstNodeType
+  | $module_type ModuleType
+
+ModuleType :=
+  Oneof
+  | $builtin_module BuiltinModuleType
+  | $custom_module CustomModuleType
+
+CustomModuleType :=
+  Object
+  * $module ast.Module
+  * $module_environment (Result[ModuleType] <- $module_name str)
+
+AstNodeType :=
+  Object
+  * $ast_node ast.Ast
+  * $container_module ModuleType
+
+ModuleGetType :=
+  Result[Type]
+  <- $module ModuleType
+  <- $type_name str
+
+IsSubType :=
+  bool
+  <- $sub Type
+  <- $sup Type
+  <- Hint[{
+    内部会用到 ModuleGetType：TypeRef 经它解析为 $ast_node_type
+    （Definition 节点 + 所在模块）；解析不了的 TypeRef 按
+    (container_module, name) 当 nominal 原子，自由泛型参数即如此。
+    递归定义按需展开，判定器维护 (sub, sup) 假设表，重复命中即假设成立。
+  }]
