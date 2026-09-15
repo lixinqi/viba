@@ -67,6 +67,13 @@ nested = parse("X := (A, (B, C))").body[0].body
 assert isinstance(nested.elements[1], Tuple), dump(nested)
 print("tuple/product distinction OK")
 
+# 5c. Import statements: parse, round-trip, alias
+imp = parse("import fx.graph as g\nX := g.Tensor")
+assert imp.body[0].module == "fx.graph" and imp.body[0].alias == "g", dump(imp)
+assert unparse(parse("import a.b.c")) == "import a.b.c"
+assert unparse(parse("import a.b as c")) == "import a.b as c"
+print("import statements OK")
+
 # 6. Round-trip on the ast layer: ast.unparse(ast.parse(X))
 strict = fixed = failed = 0
 for node in _py_ast.walk(tree_src):

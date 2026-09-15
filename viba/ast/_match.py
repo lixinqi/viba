@@ -15,6 +15,7 @@ def viba_type_match(
     node: AST,
     Module: Callable[[Any], Any] = None,
     Definition: Callable[[Any], Any] = None,
+    Import: Callable[[Any], Any] = None,
     Sum: Callable[[Any], Any] = None,
     Product: Callable[[Any], Any] = None,
     Exponent: Callable[[Any], Any] = None,

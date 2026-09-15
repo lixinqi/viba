@@ -7,6 +7,7 @@ from viba.ast.nodes import (
     AST,
     Module,
     Definition,
+    Import,
     Sum,
     Product,
     Exponent,
@@ -44,6 +45,7 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
     return viba_type_match(
         node,
         Definition=lambda d: _unparse_definition(d, indent, depth),
+        Import=lambda i: _unparse_import(i),
         Sum=lambda s: _unparse_binary(s, " | ", indent, depth),
         Product=lambda p: _unparse_binary(p, " * ", indent, depth),
         Exponent=lambda e: _unparse_exponent(e, indent, depth),
@@ -72,6 +74,13 @@ def _unparse_definition(defn: Definition, indent: int, depth: int) -> str:
     body = _unparse_type(defn.body, indent, depth + 1)
 
     return f"{defn.name}{params} :=\n{' ' * indent * (depth + 1)}{body}"
+
+
+def _unparse_import(import_node: Import) -> str:
+    """Unparse an Import: `import a.b [as c]`."""
+    if import_node.alias:
+        return f"import {import_node.module} as {import_node.alias}"
+    return f"import {import_node.module}"
 
 
 def _unparse_binary(bin_node: Union[Sum, Product], op: str, indent: int, depth: int) -> str:

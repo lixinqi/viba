@@ -3,6 +3,7 @@ import ply.yacc as yacc
 
 from viba.ast.nodes import (
     Definition,
+    Import,
     Sum,
     Product,
     Exponent,
@@ -35,6 +36,8 @@ tokens = (
     "SUM_OP",  # |
     "PROD_OP",  # *
     "EXP_OP",  # <-
+    "IMPORT",  # import
+    "AS",  # as
     "LBRACKET",  # [
     "RBRACKET",  # ]
     "LPAREN",  # (
@@ -81,6 +84,16 @@ def t_VOID(t):
 
 def t_NEVER(t):
     r"never"
+    return t
+
+
+def t_IMPORT(t):
+    r"import"
+    return t
+
+
+def t_AS(t):
+    r"as"
     return t
 
 
@@ -185,10 +198,26 @@ def p_statement_list(p):
         p[0] = [p[1]] + p[2]
 
 
-# Fixed: Removed the Literal token ":=" and used ASSIGN token instead
 def p_statement(p):
-    """statement : CLASS_NAME optional_type_params ASSIGN adt_expr"""
+    """statement : definition
+    | import_stmt"""
+    p[0] = p[1]
+
+
+def p_definition(p):
+    """definition : CLASS_NAME optional_type_params ASSIGN adt_expr"""
     p[0] = Definition(p[1], p[2], p[4])
+
+
+def p_import_stmt(p):
+    """import_stmt : IMPORT CLASS_NAME optional_alias"""
+    p[0] = Import(p[2], p[3])
+
+
+def p_optional_alias(p):
+    """optional_alias : AS CLASS_NAME
+    | epsilon"""
+    p[0] = p[2] if len(p) > 2 else None
 
 
 def p_optional_type_params(p):
@@ -503,6 +532,15 @@ if __name__ == "__main__":
         ("CodeBlockWithTuple := ({a}, {b})", "Code blocks in tuple"),
         ("CodeBlockGeneric := List[{item}]", "Code block as generic arg"),
         ("CodeBlockComplex := ({res {OK} | {err}} <- {inp})", "Complex code block expression"),
+        # ====== IMPORT TESTS ======
+        ("import numpy", "Plain import"),
+        ("import fx.graph", "Dotted module import"),
+        ("import torch as t", "Aliased import"),
+        ("import a.b.c as abc", "Dotted aliased import"),
+        (
+            "import numpy\nimport torch as t\nTensor := t.Tensor * numpy.ndarray",
+            "Imports before definitions",
+        ),
     ]
 
     print(f"{'TEST CASE':<50} | {'STATUS'}")

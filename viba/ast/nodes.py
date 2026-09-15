@@ -123,6 +123,12 @@ class CodeBlock(AST):
     _fields = ("code",)
 
 
+class Import(AST):
+    """import a.b.c [as d] — module reference at the top level."""
+
+    _fields = ("module", "alias")
+
+
 class SumChain(AST):
     """Canonical flat form of a sum: elements joined by |."""
 

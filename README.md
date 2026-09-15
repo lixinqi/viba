@@ -23,6 +23,7 @@ Name[T, U, ...] := body
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
 | Code block | `{ ... }` | Arbitrary text, supports nesting |
+| Import | `import a.b [as c]` | Module reference (top level) |
 
 ### Strings
 
