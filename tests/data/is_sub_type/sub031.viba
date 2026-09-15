@@ -1,0 +1,1 @@
+Chain2 := $head int * $tail Chain2 | void

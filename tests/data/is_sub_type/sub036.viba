@@ -1,0 +1,2 @@
+Box[T] := $value T
+X := Box[int]

@@ -1,13 +1,11 @@
-"""Round-trip and semantics tests for viba.is_sub_type.
+"""Data-driven tests for viba.is_sub_type.
+
+Layout:  tests/data/is_sub_type/{sub,sup}NNN.viba  +  expected.txt
+Each .viba file is a module whose LAST definition is the entry
+(earlier ones provide context: aliases, generics, recursion).
+expected.txt maps NNN -> the expected judgment.
 
 Run directly:  python3 tests/test_is_sub_type.py
-Each entry_type("...") below is a *type*; `check` asserts the expected
-judgment. The round-trip identities per design:
-
-    A <: A                    (reflexivity)
-    Cloned(A) <: A   -> False (nominal: a renamed copy is NOT A)
-    A <: Cloned(A)   -> False
-    parse(unparse(A)) <: A    (serialization is judgment-preserving)
 """
 
 import sys
@@ -15,10 +13,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import ast as py_ast
+
 from viba import ast as viba_ast
 from viba.type import (
     BUILTIN_MODULE,
-    CustomModuleType,
     Err,
     Ok,
     RuleContainsPoisonError,
@@ -27,12 +26,12 @@ from viba.type import (
 )
 from viba.is_sub_type import is_sub_type
 
+DATA = Path(__file__).resolve().parent / "data" / "is_sub_type"
 PASS = FAIL = 0
 
 
-def check(sub, sup, expected: bool, label: str):
+def check(got: bool, expected: bool, label: str):
     global PASS, FAIL
-    got = is_sub_type(sub, sup)
     if got is expected:
         PASS += 1
     else:
@@ -40,276 +39,120 @@ def check(sub, sup, expected: bool, label: str):
         print(f"FAIL: {label}: expected {expected}, got {got}")
 
 
-def cloned(entry):
-    """The same inline structure wrapped as if from another module."""
-    return entry_type(viba_ast.unparse(viba_ast.parse(f"X := {entry}")).split(":=")[1].strip())
+def _entry_node(text: str):
+    tree = viba_ast.parse(text)
+    defs = [n for n in tree.body if not isinstance(n, viba_ast.Import)]
+    node = defs[-1]
+    return node.body if isinstance(node, viba_ast.TypeDefinition) else node
 
 
-def roundtrip(entry):
-    """parse -> unparse -> re-parse; must preserve the judgment."""
-    canon = viba_ast.unparse(viba_ast.parse(f"X := {entry}"))
-    re_parsed = canon.split(":=")[1].strip()
-    return entry_type(re_parsed)
+def load_entry(text: str):
+    """Last definition of the module, as the judgment's entry type."""
+    from viba.type import AstNodeType
+    module = custom_module(text)
+    return AstNodeType(_entry_node(text), module)
 
 
-# ----------------------------------------------------------------------
-# Round-trip identities
-# ----------------------------------------------------------------------
+def load_entry_as(text: str, module):
+    """Re-parsed entry node pinned to an existing module context.
 
-CASES = [
-    "$x int",
-    "$x int * $y str",
-    "$ok int | $err never",
-    "(int, str)",
-    "str <- int",
-    "int <- X <- str",
-    "$head int * $tail List[int] | void",
-    "int | ...",
-]
+    Round-trip identity: unparse -> re-parse must denote the same type
+    in the SAME module, or nominal constructors would differ by the
+    fresh module's object identity alone.
+    """
+    from viba.type import AstNodeType
+    return AstNodeType(_entry_node(text), module)
 
-for src in CASES:
-    a = entry_type(src)
-    check(a, a, True, f"reflexive {src}")
-    check(roundtrip(src), a, True, f"parse(unparse(A)) <: A   [{src}]")
-    check(roundtrip(src), roundtrip(src), True, f"roundtrip reflexive   [{src}]")
 
-# Nominal: only GenericDefinitions are nominal. Plain TypeDefinitions
-# are transparent and compare structurally.
-m1 = custom_module("Holder := $x int")
-m2 = custom_module("Holder := $x int")
-t1 = entry_type("Holder", m1)
-t2 = entry_type("Holder", m2)
-check(t1, t1, True, "same module object, same name")
-check(t1, t2, True, "plain TypeDefinition is transparent: structural across modules")
+def expect_raise_poison(label: str, thunk):
+    global PASS, FAIL
+    try:
+        thunk()
+        print(f"FAIL: {label}: no RuleContainsPoisonError raised")
+        FAIL += 1
+    except RuleContainsPoisonError:
+        PASS += 1
 
-# ----------------------------------------------------------------------
-# Literals vs base types
-# ----------------------------------------------------------------------
 
-check(entry_type("42"), entry_type("int"), True, "42 <: int")
-check(entry_type("42"), entry_type("float"), False, "42 /<: float (nominal basics)")
-check(entry_type("3.5"), entry_type("float"), True, "3.5 <: float")
-check(entry_type('"hi"'), entry_type("str"), True, '"hi" <: str')
-check(entry_type("true"), entry_type("bool"), True, "true <: bool")
-check(entry_type("true"), entry_type("int"), False, "true /<: int (bool not int)")
-check(entry_type("42"), entry_type("43"), False, "42 /<: 43 (literal equality)")
-check(entry_type("42"), entry_type("42"), True, "42 <: 42")
+def has_poison(entry) -> bool:
+    refs = viba_ast.walk(entry.ast_node)
+    return any(isinstance(n, viba_ast.TypeRef) and n.name == "AssertionViolated" for n in refs)
 
-# ----------------------------------------------------------------------
-# Poison leaf
-# ----------------------------------------------------------------------
 
-check(entry_type("AssertionViolated"), entry_type("int"), False,
-      "AssertionViolated <: int -> False")
-try:
-    is_sub_type(entry_type("42"), entry_type("AssertionViolated"))
-    print("FAIL: poison on sup side must raise")
-    FAIL += 1
-except RuleContainsPoisonError:
-    PASS += 1
+def run_data_cases():
+    expected = {}
+    for line in (DATA / "expected.txt").read_text().splitlines():
+        num, _, want = line.partition(" ")
+        if num:
+            expected[num] = want.strip().startswith("true")
+    for sup_path in sorted(DATA.glob("sup*.viba")):
+        num = sup_path.stem[3:]
+        want = expected[num]
+        sub_e = load_entry((DATA / f"sub{num}.viba").read_text())
+        sup_e = load_entry(sup_path.read_text())
+        check(is_sub_type(sub_e, sup_e), want, f"case {num}")
+        if has_poison(sub_e) or has_poison(sup_e):
+            continue  # reflexive checks would lint-raise on the poison
+        check(is_sub_type(sub_e, sub_e), True, f"case {num} sub reflexive")
+        check(is_sub_type(sup_e, sup_e), True, f"case {num} sup reflexive")
+        canon_sub = viba_ast.unparse(viba_ast.parse((DATA / f"sub{num}.viba").read_text()))
+        canon_sup = viba_ast.unparse(viba_ast.parse(sup_path.read_text()))
+        rt_sub = load_entry_as(canon_sub, sub_e.container_module)
+        rt_sup = load_entry_as(canon_sup, sup_e.container_module)
+        check(is_sub_type(rt_sub, sub_e), True, f"case {num} sub roundtrip")
+        check(is_sub_type(rt_sup, sup_e), True, f"case {num} sup roundtrip")
 
-# ----------------------------------------------------------------------
-# Structure: sums, products, tuples, exponents, ellipsis
-# ----------------------------------------------------------------------
 
-check(entry_type("$a int | $b str"), entry_type("$a int | $b str"), True, "sum skeleton")
-check(entry_type("$a 42"), entry_type("$a int | $b str"), True, "witness picks a branch")
-check(entry_type("$c 42"), entry_type("$a int | $b str"), False, "unknown tag")
-check(entry_type("$b 'x' * $a 42"), entry_type("$a int * $b str"), True,
-      "product tag order irrelevant (commutative)")
-check(entry_type("$a 42"), entry_type("$a int * $b str"), False,
-      "product missing a sup field")
-check(entry_type("$a 42 * $extra 'z'"), entry_type("$a int"), True,
-      "width: sub may carry extra fields")
-check(entry_type("(42, 'x')"), entry_type("(int, str)"), True, "tuple positional")
-check(entry_type("(42, 'x')"), entry_type("(str, int)"), False, "tuple order matters")
-check(entry_type("(42, 'x')"), entry_type("(int, str, float)"), False, "tuple arity")
-check(entry_type("(42, 'x')"), entry_type("int * str"), False, "tuple is not product")
-check(entry_type("int <- str"), entry_type("int <- str"), True, "exponent")
-check(entry_type("42"), entry_type("..."), True, "ellipsis absorbs")
-check(entry_type("$x never"), entry_type("$x never"), True, "never copied verbatim")
-check(entry_type("$x 1"), entry_type("$x never"), False, "value in never branch -> forbidden")
+def run_py_side_cases():
+    """What data files cannot express: poison raises, env generics."""
+    check(is_sub_type(entry_type("42"), entry_type("int")), True, "42 <: int")
+    expect_raise_poison(
+        "poison on sup side raises",
+        lambda: is_sub_type(entry_type("42"), entry_type("AssertionViolated")))
+    expect_raise_poison(
+        "poison nested in sup sum raises",
+        lambda: is_sub_type(entry_type("$a 1"), entry_type("$a int | $b AssertionViolated")))
+    g_target = custom_module("G[T] := $v T")
+    g_source = custom_module("", environment=lambda name: Ok(g_target))
+    g_local = custom_module("G[T] := $v T")
+    check(is_sub_type(entry_type("G[int]", g_source), entry_type("G[int]", g_local)),
+          False, "generic via env vs local: nominal, different modules -> False")
 
-# ----------------------------------------------------------------------
-# Definitions, generics, recursion, cross-module
-# ----------------------------------------------------------------------
 
-mod = custom_module("""
-List[T] := $head T * $tail List[T] | void
-IntList := List[int]
-MyList[T] := $head T * $tail MyList[T] | void
-""")
+def _is_test_cases_assign(node) -> bool:
+    if not isinstance(node, py_ast.Assign):
+        return False
+    return getattr(node.targets[0], "id", "") == "test_cases"
 
-check(entry_type("List[int]", mod), entry_type("List[int]", mod), True,
-      "recursive generic, same instantiation")
-check(entry_type("List[int]", mod), entry_type("List[float]", mod), False,
-      "List[int] /<: List[float] (nominal args)")
-check(entry_type("MyList[int]", mod), entry_type("List[int]", mod), False,
-      "structural clone is NOT List (nominal)")
-check(entry_type("IntList", mod), entry_type("List[int]", mod), True,
-      "transparent alias: IntList := List[int] IS List[int]")
-check(entry_type("List", BUILTIN_MODULE), entry_type("List", BUILTIN_MODULE), True,
-      "builtin List constructor nominal self-check")
 
-other = custom_module("Widget := $w int")
-main = custom_module(
-    "Gadget := $g Widget",
-    environment=lambda name: Ok(other) if name == "ext" else Err("nope"),
-)
-# TypeRef `Widget` is not in main; environment maps *module* names, so
-# reference it through the imported name resolution path:
-main_with_ref = custom_module(
-    "Gadget := $g Widget",
-    environment=lambda name: Ok(other) if name == "Widget" else Err("nope"),
-)
-check(entry_type("Gadget", main_with_ref), entry_type("Gadget", main_with_ref), True,
-      "cross-module TypeRef via environment resolves")
+def _is_case_tuple(tup) -> bool:
+    return isinstance(tup, py_ast.Tuple) and isinstance(tup.elts[0], py_ast.Constant)
 
-# Bulk reflexivity: every parser test case compares equal to itself.
-import ast as _py_ast
 
-tree_src = _py_ast.parse(open("viba/parser.py").read())
-count = 0
-for node in _py_ast.walk(tree_src):
-    if isinstance(node, _py_ast.Assign) and getattr(node.targets[0], "id", "") == "test_cases":
-        for tup in node.value.elts:
-            if isinstance(tup, _py_ast.Tuple) and isinstance(tup.elts[0], _py_ast.Constant):
-                src = tup.elts[0].value
-                try:
-                    body = viba_ast.parse(src).body[0]
-                    if isinstance(body, viba_ast.Import):
-                        continue
-                    text = viba_ast.unparse(viba_ast.Module([body]))
-                    t = entry_type(text.split(":=")[1].strip())
-                    if not is_sub_type(t, t):
-                        print(f"FAIL: reflexivity of suite case {src!r}")
-                        FAIL += 1
-                    else:
-                        PASS += 1
-                    count += 1
-                except Exception as e:
-                    print(f"FAIL: suite case {src!r} raised {type(e).__name__}: {e}")
-                    FAIL += 1
-print(f"bulk reflexivity on {count} suite definition bodies")
+def _suite_case_nodes():
+    """Source strings of the parser suite's definition cases."""
+    src = Path("viba/parser.py").read_text()
+    for node in filter(_is_test_cases_assign, py_ast.walk(py_ast.parse(src))):
+        for tup in filter(_is_case_tuple, node.value.elts):
+            yield tup.elts[0].value
 
-# ----------------------------------------------------------------------
-# White-box cases: one per checker branch (see viba/is_sub_type.py)
-# ----------------------------------------------------------------------
 
-# Poison beats the ellipsis wildcard; nested poison on sub is False,
-# nested poison on sup raises.
-check(entry_type("AssertionViolated"), entry_type("..."), False,
-      "poison vs ellipsis -> False (poison beats wildcard)")
-check(entry_type("$a 1 | $b AssertionViolated"), entry_type("$a int | $b str"), False,
-      "poison nested in sub sum -> False, no raise")
-try:
-    is_sub_type(entry_type("$a 1"), entry_type("$a int | $b AssertionViolated"))
-    print("FAIL: poison nested in sup sum must raise")
-    FAIL += 1
-except RuleContainsPoisonError:
-    PASS += 1
+def run_suite_reflexivity():
+    """Every parser test case must be reflexive."""
+    count = 0
+    for src in _suite_case_nodes():
+        body = viba_ast.parse(src).body[0]
+        if isinstance(body, viba_ast.Import):
+            continue
+        text = viba_ast.unparse(viba_ast.Module([body]))
+        t = load_entry(text)
+        check(is_sub_type(t, t), True, f"suite reflexive {src!r}")
+        count += 1
+    print(f"bulk reflexivity on {count} suite definitions")
 
-# Unit/bottom nodes lift to UnitType/NeverType: () IS void by name.
-check(entry_type("()"), entry_type("void"), True, "() <: void (unit identity)")
-check(entry_type("()"), entry_type("42"), False, "() /<: 42")
-check(entry_type("never"), entry_type("never"), True, "never node <: never ref")
-check(entry_type("never"), entry_type("int"), True, "never node is bottom")
 
-# Exponent flattening: raw left-nested binaries must agree with
-# canonical ExponentChain, and arity direction is long <: short.
-check(entry_type("int <- X <- str"), entry_type("int <- str"), True,
-      "extra leading-fed arg: long chain <: short chain")
-check(entry_type("int <- X <- float"), entry_type("int <- str"), False,
-      "long chain with mismatched shared arg")
-check(entry_type("int <- str"), entry_type("int <- X <- str"), False,
-      "short chain is NOT <: long chain")
-canon_exp = viba_ast.unparse(viba_ast.parse("E := int <- X <- str"))
-chain_exp = entry_type(canon_exp.split(":=")[1].strip())
-check(chain_exp, entry_type("int <- X <- str"), True,
-      "canonical ExponentChain == raw nested Exponent")
-
-# A resolved plain TypeDefinition is transparent: it IS its body.
-shapes = custom_module("Shape := $w int * $h int")
-check(entry_type("Shape", shapes), entry_type("$w int * $h int", shapes), True,
-      "plain TypeDefinition unfolds to its body")
-check(entry_type("Shape", shapes), entry_type("Shape", shapes), True,
-      "plain TypeDefinition reflexive")
-
-# Same name resolved through different module objects: plain defs are
-# structural (true when bodies match); generics stay nominal (false).
-env_target = custom_module("Widget := $w int")
-env_a = custom_module("", environment=lambda name: Ok(env_target))
-check(entry_type("Widget", env_a), entry_type("Widget", other), True,
-      "plain def via env vs local: structural, bodies match")
-g_target = custom_module("G[T] := $v T")
-g_source = custom_module("", environment=lambda name: Ok(g_target))
-g_local = custom_module("G[T] := $v T")
-check(entry_type("G[int]", g_source), entry_type("G[int]", g_local), False,
-      "generic via env vs local: nominal, different modules -> False")
-
-# OpaqueType atoms are free variables: identity is the name alone.
-opaque_mod = custom_module("")
-check(entry_type("T", opaque_mod), entry_type("T", opaque_mod), True,
-      "opaque atom same module same name")
-check(entry_type("T", opaque_mod), entry_type("T", custom_module("")), True,
-      "opaque atom is a free variable: name only, module-agnostic")
-check(entry_type("T", opaque_mod), entry_type("U", opaque_mod), False,
-      "opaque atom different name -> False")
-
-# Tagged body that is itself a product.
-check(entry_type("$cfg ($a int * $b str)"), entry_type("$cfg ($a int * $b str)"),
-      True, "tagged body is a product")
-check(entry_type("$cfg ($a int * $b str)"), entry_type("$cfg ($a int * $b float)"),
-      False, "tagged product body mismatch")
-
-# TypeApp arity and argument order.
-check(entry_type("List[int]"), entry_type("List[int, str]"), False,
-      "TypeApp arity mismatch")
-check(entry_type("List[str, int]"), entry_type("List[int, str]"), False,
-      "TypeApp argument order matters")
-
-# Builtin generic vs a user-defined generic of compatible shape:
-# nominal, so they never mix.
-generics = custom_module("MyList[T] := $head T * $tail MyList[T] | void")
-check(entry_type("MyList[int]", generics), entry_type("List[int]", generics),
-      False, "builtin List vs user MyList: nominal, never mix")
-box_a = custom_module("Box[T] := $value T")
-box_b = custom_module("Box[T] := $value T")
-check(entry_type("Box[int]", box_a), entry_type("Box[int]", box_b), False,
-      "same generic name in different modules -> False")
-
-# Tuple vs product stay distinct at the judgment layer.
-check(entry_type("(int, str)"), entry_type("$a int * $b str"), False,
-      "tuple is not a tagged product")
-
-# Plain TypeDefinitions are transparent: the width case.
-transparent = custom_module("""
-A := $nice int * $good str
-B := A * $find bool
-C := $nice int
-D := $nice str * $good int
-""")
-check(entry_type("B", transparent), entry_type("A", transparent), True,
-      "B := A * $find bool <: A (width through a transparent ref)")
-check(entry_type("A", transparent), entry_type("B", transparent), False,
-      "A /<: B (missing $find)")
-check(entry_type("C", transparent), entry_type("A", transparent), False,
-      "C missing $good")
-check(entry_type("D", transparent), entry_type("A", transparent), False,
-      "same tags, swapped types -> False")
-
-# Recursive plain TypeDefinitions: the coinductive assumption table.
-recursive = custom_module("""
-Chain := $head int * $tail Chain | void
-Chain2 := $head int * $tail Chain2 | void
-Broken := $head str * $tail Broken | void
-""")
-check(entry_type("Chain", recursive), entry_type("Chain", recursive), True,
-      "recursive plain def reflexive (no infinite unfold)")
-check(entry_type("Chain2", recursive), entry_type("Chain", recursive), True,
-      "structural clones of recursive defs are equal")
-check(entry_type("Broken", recursive), entry_type("Chain", recursive), False,
-      "different leaf type breaks the recursion")
-
+run_data_cases()
+run_py_side_cases()
+run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

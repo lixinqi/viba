@@ -1,0 +1,2 @@
+A := $nice int * $good str
+B := A * $find bool

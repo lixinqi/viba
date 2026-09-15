@@ -1,0 +1,2 @@
+List[T] := $head T * $tail List[T] | void
+IntList := List[int]
