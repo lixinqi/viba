@@ -23,6 +23,11 @@ Semantics (per design):
   semantics of free generic parameters.
 - AssertionViolated (PoisonType): on sub -> False; on sup -> lint
   error (RuleContainsPoisonError).
+- Literal containers: ListLiteral[a, b, c] is a resident of
+  list[a | b | c] (containment: every element fits the union);
+  SetLiteral likewise; DictLiteral[(k, v), ...] of
+  dict[k_union, v_union]. The reverse is False, and so is
+  mixing container families.
 - `...` on the sup side absorbs anything.
 - The memo table maps (sub_key, sup_key) to the result in flight;
   under nominal semantics no cycle can require assuming a pair, so
@@ -340,15 +345,53 @@ class _Checker:
         pairs = zip(sup_args, sub_args)
         return all(self._walk(sa, p_mod, sb, s_mod) for sa, sb in pairs)
 
+    # Literal containers: ListLiteral[a, b, c] is a resident of
+    # list[a | b | c]; SetLiteral likewise; DictLiteral[(k, v), ...]
+    # of dict[k_union, v_union]. Containment, not nominal equality.
+    _LITERAL_OF = {"list": "ListLiteral", "set": "SetLiteral", "dict": "DictLiteral"}
+
     def _walk_typeapps(self, sn, s_mod, sp, p_mod) -> bool:
-        if len(sn.args) != len(sp.args):
-            return False
         sub_c = self._resolve_constructor(sn.constructor, s_mod)
         sup_c = self._resolve_constructor(sp.constructor, p_mod)
+        if self._literal_resident(sn, s_mod, sub_c, sp, p_mod, sup_c):
+            return True
+        if len(sn.args) != len(sp.args):
+            return False
         if not self._generic_equal(sub_c, sup_c):
             return False
         pairs = zip(sn.args, sp.args)
         return all(self._walk(a, s_mod, b, p_mod) for a, b in pairs)
+
+    def _literal_resident(self, sn, s_mod, sub_c, sp, p_mod, sup_c) -> bool:
+        """A *Literal constructor against its container: every literal
+        element must fit the container's element union."""
+        if not isinstance(sub_c, BuiltinGenericType):
+            return False
+        if not isinstance(sup_c, BuiltinGenericType):
+            return False
+        if self._LITERAL_OF.get(sup_c.name) != sub_c.name:
+            return False
+        if sup_c.name == "dict":
+            return self._dict_literal_resident(sn, s_mod, sp, p_mod)
+        if len(sp.args) != 1:
+            return False
+        elem = sp.args[0]
+        return all(self._walk(a, s_mod, elem, p_mod) for a in sn.args)
+
+    def _dict_literal_resident(self, sn, s_mod, sp, p_mod) -> bool:
+        if len(sp.args) != 2:
+            return False
+        key_t, val_t = sp.args
+        good = (self._dict_pair(a, s_mod, key_t, val_t, p_mod) for a in sn.args)
+        return all(good)
+
+    def _dict_pair(self, pair, s_mod, key_t, val_t, p_mod) -> bool:
+        if not isinstance(pair, viba_ast.Tuple) or len(pair.elements) != 2:
+            return False
+        k, v = pair.elements
+        keys_ok = self._walk(k, s_mod, key_t, p_mod)
+        vals_ok = self._walk(v, s_mod, val_t, p_mod)
+        return keys_ok and vals_ok
 
     def _resolve_constructor(self, name: str, module: ModuleType):
         if name == "AssertionViolated":

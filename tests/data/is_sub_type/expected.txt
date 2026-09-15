@@ -77,3 +77,11 @@
 076 true
 077 false  # () is the empty tuple, NOT an alias of nil; distinct nodes
 078 false  # nil is not the empty tuple either; cardinality equal only
+079 true
+080 false
+081 true
+082 true
+083 false
+084 true
+085 false
+086 false

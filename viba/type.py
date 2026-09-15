@@ -149,7 +149,10 @@ class BuiltinModuleType(ModuleType):
         "None": NilType,  # accepted alias
         "never": NeverType,
     }
-    _GENERIC_NAMES = {"List"}
+    _GENERIC_NAMES = {
+        "List", "list", "set", "dict",
+        "ListLiteral", "SetLiteral", "DictLiteral",
+    }
 
     def lookup(self, type_name: str) -> Result:
         if type_name in self._BASIC_NAMES:
