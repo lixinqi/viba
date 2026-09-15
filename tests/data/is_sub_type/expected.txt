@@ -85,3 +85,11 @@
 084 true
 085 false
 086 false
+087 true
+088 true
+089 false
+090 true
+091 true
+092 false
+093 true
+094 true
