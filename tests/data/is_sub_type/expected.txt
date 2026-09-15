@@ -9,7 +9,7 @@
 008 false
 009 false
 010 false
-011 true
+011 false  # was ()<:nil under the old alias reading; () is the empty tuple now
 012 true
 013 true
 014 false
@@ -74,3 +74,6 @@
 073 true
 074 true
 075 true
+076 true
+077 false  # () is the empty tuple, NOT an alias of nil; distinct nodes
+078 false  # nil is not the empty tuple either; cardinality equal only

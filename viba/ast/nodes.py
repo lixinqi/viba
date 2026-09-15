@@ -107,8 +107,9 @@ class Constant(AST):
 
 
 class Nil(AST):
-    """nil — the product identity. () parses to this as well.
-    `void` and `None` are accepted aliases, canonicalized at parse."""
+    """nil — the product identity. `void`/`None` parse here (aliases).
+    The empty tuple () is NOT this node: it is Tuple([]), its own type
+    that happens to share the cardinality 1."""
 
     _fields = ()
 

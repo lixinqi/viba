@@ -326,6 +326,13 @@ def p_adt_expr_list(p):
         p[0] = [p[1]] + p[3]
 
 
+def p_adt_expr_list_empty(p):
+    "adt_expr_list :"
+    # The empty production exists so () reaches the tuple rule as an
+    # empty list: () is the EMPTY TUPLE (its own node, |()| = 1).
+    p[0] = []
+
+
 def p_primary_expr(p):
     """primary_expr : CLASS_NAME
     | literal
@@ -334,7 +341,6 @@ def p_primary_expr(p):
     | ELLIPSIS
     | LPAREN adt_expr RPAREN
     | LPAREN adt_expr_list RPAREN
-    | LPAREN RPAREN
     | CODE_BLOCK"""
     # 1. Handle atomic units (Length 2)
     if len(p) == 2:
@@ -352,17 +358,14 @@ def p_primary_expr(p):
             # Simple type reference
             p[0] = TypeRef(val)
 
-    # 2. Handle empty parens () as nil (Length 3)
-    elif len(p) == 3:
-        p[0] = Nil()
-
-    # 3. Handle Parentheses or Tuples (Length 4)
+    # 2. Parentheses: empty list () is the EMPTY TUPLE (its own node,
+    # |()| = 1); a non-empty list is Tuple; a lone expr is grouping.
     else:
         content = p[2]
         if isinstance(content, list):
-            # (A, B, C) is a Tuple: positional product, order matters.
-            # It is NOT sugar for the tagged product `*` — the two are
-            # distinct nodes at every layer (parser, viba.ast).
+            # (A, B, C) is a Tuple: positional product, order matters,
+            # and () is its nullary form. Neither is sugar for the
+            # tagged product `*` — distinct nodes at every layer.
             p[0] = Tuple(content)
         else:
             # Standard grouping: ( adt_expr )
@@ -446,8 +449,8 @@ if __name__ == "__main__":
             'FinalBoss[In, Out] := ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99',
             "Comprehensive stress test",
         ),
-        ("NilAlias := ()", "Using () as primary"),
-        ("MixedNil := A | () | nil", "Mixing () and nil in sum"),
+        ("EmptyTuple := ()", "Empty tuple: its own node, |()| = 1"),
+        ("MixedNil := A | () | nil", "Mixing empty tuple and nil in sum"),
         ("VoidAlias := void", "void is an alias of nil"),
         ("NoneAlias := None", "None is an alias of nil"),
         ("AliasMix := A * void | None", "void and None alias mix"),
