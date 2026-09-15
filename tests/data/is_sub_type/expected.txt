@@ -35,8 +35,8 @@
 034 false
 035 false
 036 false
-037 true
-038 false
+037 error  # free-var atoms are gone: unresolvable TypeRef is an Err
+038 error  # unresolvable TypeRef is an Err, names no longer compared
 039 false
 040 false
 041 true

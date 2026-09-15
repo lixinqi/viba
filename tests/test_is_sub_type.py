@@ -148,10 +148,10 @@ def run_env_cases():
     hard = custom_module("", environment=_err_env)
     t_here = entry_type("T", hard)
     t_there = entry_type("T", custom_module(""))
-    check_result(is_sub_type(t_here, t_here), True, "env Err: opaque atom reflexive")
-    check_result(is_sub_type(t_here, t_there), True, "env Err: opaque is name-keyed")
+    check_result(is_sub_type(t_here, t_here), "error", "env Err: unresolved -> Err")
+    check_result(is_sub_type(t_here, t_there), "error", "env Err: unresolved either side")
     u_here = entry_type("U", hard)
-    check_result(is_sub_type(t_here, u_here), False, "env Err: different names differ")
+    check_result(is_sub_type(t_here, u_here), "error", "env Err: names differ, still Err")
     mixed = custom_module("Local := $y str", environment=_env_serving(target, "Ext"))
     ext = entry_type("Ext", mixed)
     ext_again = entry_type("Ext", custom_module("Ext := $x int"))
@@ -159,7 +159,7 @@ def run_env_cases():
     wrap = custom_module("Wrap := $w Missing", environment=_err_env)
     wrap_a = entry_type("Wrap", wrap)
     wrap_b = entry_type("Wrap", custom_module("Wrap := $w Missing"))
-    check_result(is_sub_type(wrap_a, wrap_b), True, "env Err inside body: name-keyed")
+    check_result(is_sub_type(wrap_a, wrap_b), "error", "env Err inside body: Err")
     check_generic_env_case()
 
 
@@ -191,7 +191,7 @@ def _suite_case_nodes():
 
 
 def run_suite_reflexivity():
-    """Every parser test case must be reflexive (ellipsis cases skip)."""
+    """Every closed parser suite case must be reflexive (others skip)."""
     count = skipped = 0
     for src in _suite_case_nodes():
         body = viba_ast.parse(src).body[0]
@@ -202,9 +202,13 @@ def run_suite_reflexivity():
             skipped += 1  # open types are lint errors, not judgments
             continue
         t = load_entry(text)
-        check_result(is_sub_type(t, t), True, f"suite reflexive {src!r}")
+        result = is_sub_type(t, t)
+        if isinstance(result, Err):
+            skipped += 1  # parser cases need not be closed judgments
+            continue
+        check(result.value, True, f"suite reflexive {src!r}")
         count += 1
-    print(f"bulk reflexivity on {count} suite definitions ({skipped} ellipsis skipped)")
+    print(f"bulk reflexivity on {count} suite definitions ({skipped} skipped)")
 
 
 run_data_cases()

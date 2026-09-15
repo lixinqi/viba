@@ -24,9 +24,15 @@ Semantics (per design):
   at the Type level whenever a side lifts to a Type (TypeRef
   resolution, constants).
 - TypeRef resolves through module_get_type in its own container
-  module (lexical scoping); unresolvable names become OpaqueType
-  nominal atoms keyed by (module identity, name) — exactly the
-  semantics of free generic parameters.
+  module (lexical scoping). A TypeRef the judgment actually reaches
+  and cannot resolve is a contract authoring mistake: the check
+  aborts with Err (UnresolvedTypeError caught at the boundary).
+  Generic parameters never trigger this — generic bodies are nominal
+  and never unfold.
+- AssertionViolated is not special here: it is a plain nominal
+  generic from the builtin library (viba/builtin.viba). On the sub
+  side it simply never seats (Ok(False)); on the sup side it is a
+  lint error, detected by name.
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
   SetLiteral likewise; DictLiteral[(k, v), ...] of
@@ -51,13 +57,12 @@ from viba.type import (
     ModuleType,
     NeverType,
     Ok,
-    OpaqueType,
-    PoisonType,
     Result,
     StrLiteralType,
     StrType,
     Type,
     NilType,
+    UnresolvedTypeError,
     module_get_type,
 )
 
@@ -75,11 +80,14 @@ _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 
 def is_sub_type(sub: Type, sup: Type) -> Result:
-    """Ok(True/False) is the judgment; Err is a lint error."""
+    """Ok(True/False) is the judgment; Err is a lint/resolution error."""
     err = _lint_error(sub, sup)
     if err is not None:
         return Err(err)
-    return Ok(_Checker().check(sub, sup))
+    try:
+        return Ok(_Checker().check(sub, sup))
+    except UnresolvedTypeError as exc:
+        return Err(str(exc))
 
 
 def _lint_error(sub: Type, sup: Type):
@@ -94,8 +102,7 @@ def _lint_error(sub: Type, sup: Type):
 
 
 def _poison_error(sup: Type):
-    if isinstance(sup, PoisonType):
-        return "AssertionViolated on the sup side"
+    """Name-based lint: a Rule must not require its own violation."""
     if not isinstance(sup, AstNodeType):
         return None
     poisoned = [n for n in viba_ast.walk(sup.ast_node) if _is_poison_ref(n)]
@@ -113,8 +120,6 @@ class _Checker:
     # ------------------------------------------------------------------
 
     def check(self, sub: Type, sup: Type) -> bool:
-        if isinstance(sub, PoisonType):
-            return False
         key = (_type_key(sub), _type_key(sup))
         if key in self.memo:
             return self.memo[key]
@@ -152,13 +157,7 @@ class _Checker:
     def _check_nominal(self, sub: Type, sup: Type):
         if isinstance(sup, BuiltinGenericType):
             return isinstance(sub, BuiltinGenericType) and sub.name == sup.name
-        if isinstance(sup, OpaqueType):
-            return self._same_opaque(sub, sup)
         return None
-
-    def _same_opaque(self, sub: Type, sup: Type) -> bool:
-        """Free-variable identity is the name alone (see OpaqueType)."""
-        return isinstance(sub, OpaqueType) and sub.name == sup.name
 
     # ------------------------------------------------------------------
     # AstNodeType pairs
@@ -210,10 +209,6 @@ class _Checker:
         return target.ast_node.body, target.container_module
 
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
-        # Poison on the sub side fails against ANY sup (lint for the
-        # sup side happens before the walk ever starts).
-        if _is_poison_ref(sn):
-            return False
         if isinstance(sn, viba_ast.Never):
             return True  # bottom fits anywhere
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
@@ -402,11 +397,9 @@ class _Checker:
         return keys_ok and vals_ok
 
     def _resolve_constructor(self, name: str, module: ModuleType):
-        if name == "AssertionViolated":
-            return PoisonType()
         resolved = module_get_type(module, name)
         if isinstance(resolved, Err):
-            return OpaqueType(module, name)
+            raise UnresolvedTypeError(f"unresolvable constructor {name!r}")
         return resolved.value
 
     def _generic_equal(self, sub_c, sup_c) -> bool:
@@ -445,7 +438,8 @@ def _is_poison_ref(node) -> bool:
 
 
 def _lift(node, module: ModuleType):
-    """Lift a Constant, TypeRef, Nil or Never to a Type; else None."""
+    """Lift a Constant, TypeRef, Nil or Never to a Type; else None.
+    An unresolvable TypeRef is a contract authoring mistake."""
     if isinstance(node, viba_ast.Constant):
         return _literal_type(node.value)
     if isinstance(node, viba_ast.Nil):
@@ -453,11 +447,9 @@ def _lift(node, module: ModuleType):
     if isinstance(node, viba_ast.Never):
         return NeverType()
     if isinstance(node, viba_ast.TypeRef):
-        if node.name == "AssertionViolated":
-            return PoisonType()
         resolved = module_get_type(module, node.name)
         if isinstance(resolved, Err):
-            return OpaqueType(module, node.name)
+            raise UnresolvedTypeError(f"unresolvable TypeRef {node.name!r}")
         return resolved.value
     return None
 
@@ -514,8 +506,6 @@ def _type_key(t: Type):
         return ("ast", id(t.container_module), node_key)
     if isinstance(t, BuiltinGenericType):
         return ("generic", t.name)
-    if isinstance(t, OpaqueType):
-        return ("opaque", t.name)
     if isinstance(t, _LITERAL_TYPES):
         return (type(t).__name__, t.value)
     return (type(t).__name__,)

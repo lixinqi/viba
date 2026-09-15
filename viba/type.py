@@ -9,6 +9,7 @@ Decoupling contract: this layer knows how to build Type values from
 viba.ast nodes, but nothing about rules, results or compliance.
 """
 
+from pathlib import Path
 from typing import Callable, Union
 
 from viba import ast as viba_ast
@@ -92,34 +93,13 @@ class StrLiteralType(Type):
 
 
 class BuiltinGenericType(Type):
-    """A built-in generic constructor by name (e.g. List).
+    """A built-in generic constructor by name (e.g. list).
 
     Nominal: only same-named constructors are comparable; arguments
     are compared covariantly at the use site (TypeApp layer).
     """
 
     def __init__(self, name: str):
-        self.name = name
-
-
-class PoisonType(Type):
-    """AssertionViolated — evidence claims absence; always fails.
-
-    Must never appear on the sup side (lint error if it does).
-    """
-
-
-class OpaqueType(Type):
-    """An unresolvable TypeRef, treated as a nominal atom keyed by name.
-
-    Unresolved names are free variables (generic parameters, open
-    contexts), and a free variable's identity is its name alone — the
-    same text compared with itself must be reflexive. Genuine typos
-    in closed contexts simply never match anything defined.
-    """
-
-    def __init__(self, container_module: "ModuleType", name: str):
-        self.container_module = container_module
         self.name = name
 
 
@@ -135,8 +115,8 @@ class ModuleType(Type):
 class BuiltinModuleType(ModuleType):
     """The module that holds built-in types.
 
-    Its environment is empty: every lookup is answered by the
-    registry, anything else is an error.
+    Every lookup is answered by the registry or the builtin
+    library (viba/builtin.viba); anything else is an error.
     """
 
     _BASIC_NAMES = {
@@ -154,12 +134,26 @@ class BuiltinModuleType(ModuleType):
         "ListLiteral", "SetLiteral", "DictLiteral",
     }
 
+    def __init__(self):
+        self._library = _load_builtin_library()
+
     def lookup(self, type_name: str) -> Result:
         if type_name in self._BASIC_NAMES:
             return Ok(self._BASIC_NAMES[type_name]())
         if type_name in self._GENERIC_NAMES:
             return Ok(BuiltinGenericType(type_name))
+        if type_name in self._library:
+            node = self._library[type_name]
+            return Ok(AstNodeType(node, BUILTIN_MODULE))
         return Err(f"no built-in type named {type_name!r}")
+
+
+def _load_builtin_library() -> dict:
+    """Parse viba/builtin.viba into {name: definition node}."""
+    path = Path(__file__).with_name("builtin.viba")
+    tree = viba_ast.parse(path.read_text())
+    kinds = (viba_ast.TypeDefinition, viba_ast.GenericDefinition)
+    return {n.name: n for n in tree.body if isinstance(n, kinds)}
 
 
 # The single shared built-in module instance.

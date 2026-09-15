@@ -1,0 +1,9 @@
+# Builtin library — visible from every module, lowest precedence:
+# a custom module's own definitions and environment win.
+#
+# AssertionViolated marks a failed assertion in a Result. It is a
+# plain nominal generic: it never seats in any Rule type, so a Result
+# carrying it judges False against everything — no special machinery.
+AssertionViolated[T, MsgStr] :=
+  $__assertion_violated_original_data T
+  * $__assertion_violated_error_msg MsgStr

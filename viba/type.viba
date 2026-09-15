@@ -46,8 +46,12 @@ IsSubType :=
   <- $sup Type
   <- Hint[{
     内部会用到 ModuleGetType：TypeRef 经它解析为 $ast_node_type
-    （Definition 节点 + 所在模块）；解析不了的 TypeRef 按名字当
-    nominal 原子，自由泛型参数即如此。
+    （Definition 节点 + 所在模块）。判定实际走到却解析不了的
+    TypeRef 是契约书写错误，整个判定 Err（UnresolvedTypeError
+    在边界转为 Err）；泛型参数不会触发——泛型体名义判定永不展开。
+    AssertionViolated 不是特殊节点：它是内建库（viba/builtin.viba）
+    里的普通名义泛型，sub 侧自然不入围（Ok(false)）；sup 侧按名字
+    lint 出 Err。
     GenericDefinition 名义判定（同模块同名才相等，永不展开）；
     TypeDefinition 透明展开、结构比较，递归对由假设表共归纳兜底。
     内建 list/set/dict 与其字面量构造器 ListLiteral/SetLiteral/
@@ -55,6 +59,5 @@ IsSubType :=
     是 list[a | b | c] 的居民（每个元素入席元素的并）；DictLiteral
     的 (k, v) 对分别入席键的并与值的并。反向与跨家族均为假。
     Ok(true/false) 是判定；Err 是 lint 错误：任何一侧出现
-    ellipsis，或 AssertionViolated 出现在 sup 侧。AssertionViolated
-    在 sub 侧不是错误，判 Ok(false)。
+    ellipsis，或 AssertionViolated 出现在 sup 侧。
   }]
