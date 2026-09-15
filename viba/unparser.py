@@ -191,6 +191,10 @@ def _unparse_productchain(chain, indent: int, depth: int) -> str:
     lines = []
     for i, elem in enumerate(chain.elements):
         elem_str = _unparse_type(elem, indent, depth + 1)
+        # `*` binds tighter than `|`, so a bare sum element would split the
+        # product on reparse: `(A | B) * C` must keep its parentheses.
+        if isinstance(elem, SumChainType):
+            elem_str = f"({elem_str})"
         if i == 0:
             lines.append(f"{base_indent}{elem_str}")
         else:

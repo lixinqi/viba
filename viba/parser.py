@@ -81,7 +81,7 @@ def t_INT(t):
 
 
 def t_STRING(t):
-    r'"([^\\\n]|(\\.))*?" '
+    r'"([^\\\n]|(\\.))*?"'
     t.value = t.value[1:-1]
     return t
 
@@ -95,7 +95,7 @@ def t_TRIPLE_STRING(t):
 
 
 def t_SINGLE_STRING(t):
-    r"'([^\\\n]|(\\.))*?' "
+    r"'([^\\\n]|(\\.))*?'"
     t.value = t.value[1:-1]
     return t
 
