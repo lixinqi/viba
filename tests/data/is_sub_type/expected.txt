@@ -50,3 +50,15 @@
 049 true
 050 true
 051 true
+052 true
+053 false
+054 true
+055 true
+056 false
+057 false
+058 true
+059 false
+060 true
+061 true
+062 false
+063 true

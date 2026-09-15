@@ -1,0 +1,1 @@
+X := $val 1 * $left ($val 'x' * $left void * $right void) * $right void

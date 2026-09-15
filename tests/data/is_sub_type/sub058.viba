@@ -1,0 +1,1 @@
+X := $val 1 * $kids ($head ($val 2 * $kids void) * $tail void)

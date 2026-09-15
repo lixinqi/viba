@@ -1,0 +1,1 @@
+X := $plus ($l ($plus ($l ($num 1) * $r ($num 2))) * $r ($num 3))

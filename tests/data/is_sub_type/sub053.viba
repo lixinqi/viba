@@ -1,0 +1,1 @@
+X := $head 3 * $tail ($head 4 * $tail ($head 'x' * $tail void))
