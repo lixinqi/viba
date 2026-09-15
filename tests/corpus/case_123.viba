@@ -8,7 +8,7 @@ import torch.nn
 State1[V, E] :=
     (
         (
-            Box['strict lazy', void]
+            Box['strict lazy', nil]
         )
             | (
                 State
@@ -34,7 +34,7 @@ Edge2[Out] :=
                 (
                     $res.val ()
                         * 39
-                        * void
+                        * nil
                 )
                     <- (
                         $cfg 'lazy slow fast'
@@ -71,7 +71,7 @@ Map3[K] :=
             )
         )
         <- (
-            void
+            nil
                 | 6.4
         )
 

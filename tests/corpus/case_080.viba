@@ -71,7 +71,7 @@ Batch3[In, K] :=
         )
             * (
                 (
-                    void
+                    nil
                         <- '''line one
 line two'''
                         <- {x + 1}
@@ -109,7 +109,7 @@ Config6[T, Out] :=
     (
         (
             $src Delta,
-            $next void,
+            $next nil,
             Map['viba lazy auto', Sigma]
         )
     )

@@ -77,7 +77,7 @@ Edge6[E, In] :=
             )
             | (
                 (
-                    void
+                    nil
                 )
             )
     )

@@ -61,7 +61,7 @@ Rule2[E] :=
         * (
             (
                 'viba strict lazy',
-                void
+                nil
             )
         )
         * Beta

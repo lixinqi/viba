@@ -8,7 +8,7 @@ Edge1[T] :=
                 Error
                     * Beta
                     * 289
-                    * void,
+                    * nil,
                 Option[Config]
             )
         )
@@ -60,7 +60,7 @@ c'''
     )
         | (
             State
-                * void
+                * nil
                 * Alpha
         )
         | (
@@ -71,7 +71,7 @@ Config8[S] :=
     $next (
         (
             Input,
-            void
+            nil
         )
     )
 
@@ -79,9 +79,9 @@ Map9[In, K] :=
     (
         ...
             * MatchResult,
-        void
+        nil
             * Handler,
-        void
+        nil
             | 6.752
             | Alpha,
         (

@@ -69,7 +69,7 @@ Slice5[In] :=
         * (
             (
                 'lazy strict viba'
-                    <- void,
+                    <- nil,
                 $cfg fx.Graph,
                 'fast auto'
                     | never
@@ -82,7 +82,7 @@ Slice5[In] :=
         * false
         * '''keep
   indent'''
-        * void
+        * nil
         * {x + 1}
 
 Pair8[In] :=

@@ -78,7 +78,7 @@ Pair4[E, T] :=
             $src (
                 (
                     (
-                        void
+                        nil
                     )
                 )
                     * (

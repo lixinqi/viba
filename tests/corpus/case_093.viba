@@ -8,7 +8,7 @@ Edge1 :=
                 | Sigma
                 | ...
         )
-            * void
+            * nil
             * 358,
         Map[
             fx.Graph
@@ -83,11 +83,11 @@ c'''
 
 List5 :=
     (
-        Option[void, 'lazy'],
+        Option[nil, 'lazy'],
         $meta MatchResult,
         2.543
             | $meta.id (),
-        void
+        nil
             * '''a
 b
 c'''

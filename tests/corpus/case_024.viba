@@ -31,13 +31,13 @@ Check3[Out, In] :=
                     | Handler
             )
                 * (
-                    void
-                        <- void
+                    nil
+                        <- nil
                         <- Config
                         <- true
                 )
                 * (
-                    void
+                    nil
                         | $cfg.mode ()
                         | 9.4
                         | false
@@ -67,7 +67,7 @@ Check3[Out, In] :=
         | (
             (
                 (
-                    void
+                    nil
                         * fx.Graph
                         * Output
                 )
@@ -85,7 +85,7 @@ Check3[Out, In] :=
                         ...,
                         'fast slow',
                         $a.b.c.d (),
-                        void
+                        nil
                     ),
                     (
                         Error,
@@ -94,7 +94,7 @@ Check3[Out, In] :=
                         Beta
                     ),
                     Error
-                        | void
+                        | nil
                         | Config
                 ]
             )

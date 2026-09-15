@@ -44,7 +44,7 @@ Result2[In, K] :=
                 $name MatchResult
             )
             * (
-                Option['viba', Gamma, void]
+                Option['viba', Gamma, nil]
             )
             * 630
             * '''keep
@@ -84,7 +84,7 @@ List3 :=
         | (
             (
                 (
-                    void
+                    nil
                 )
             )
                 * 863
@@ -94,7 +94,7 @@ List3 :=
         | (
             (
                 $output never,
-                void
+                nil
                     <- Output,
                 'slow fast'
                     | Beta,

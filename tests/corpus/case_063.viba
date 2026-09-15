@@ -7,7 +7,7 @@ List1 :=
             * Omega
             * Delta
             * 'fast lazy',
-        Result['lazy strict slow', Metric, void]
+        Result['lazy strict slow', Metric, nil]
     ]
 
 Stream2[U, V] :=
@@ -35,7 +35,7 @@ Rule4[Out] :=
         <- (
             (
                 $output 'fast viba',
-                $name void,
+                $name nil,
                 fx.Graph
                     | 5.08
                     | GraphModule
@@ -68,7 +68,7 @@ Slice5[V] :=
         )
             * (
                 (
-                    void
+                    nil
                         | torch.Tensor
                         | 'auto lazy'
                         | false,

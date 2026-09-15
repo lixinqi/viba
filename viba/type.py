@@ -51,8 +51,8 @@ class NeverType(Type):
     """never — the sum identity (bottom)."""
 
 
-class UnitType(Type):
-    """void — the product identity (unit)."""
+class NilType(Type):
+    """nil — the product identity (unit). void/None are aliases."""
 
 
 class BoolType(Type):
@@ -144,7 +144,9 @@ class BuiltinModuleType(ModuleType):
         "int": IntType,
         "float": FloatType,
         "str": StrType,
-        "void": UnitType,
+        "nil": NilType,
+        "void": NilType,  # accepted alias
+        "None": NilType,  # accepted alias
         "never": NeverType,
     }
     _GENERIC_NAMES = {"List"}

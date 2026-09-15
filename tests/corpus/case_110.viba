@@ -62,7 +62,7 @@ Graph4 :=
             ),
         (
             Error
-                | void
+                | nil
         )
             * (
                 true
@@ -92,7 +92,7 @@ Pair5[E] :=
     $kind (
         $data (
             $env.scope ()
-                | void
+                | nil
                 | torch.Tensor
                 | ...
         )

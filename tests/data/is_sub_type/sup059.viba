@@ -1,2 +1,2 @@
-NTree := $val int * $kids NKids | void
-NKids := $head NTree * $tail NKids | void
+NTree := $val int * $kids NKids | nil
+NKids := $head NTree * $tail NKids | nil

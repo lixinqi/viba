@@ -3,10 +3,10 @@
 
 Task1[K] :=
     $res.val ()
-        | void
-        | void
+        | nil
+        | nil
         | (
-            Map[Handler, void]
+            Map[Handler, nil]
         )
         | Config
         | 'lazy strict'
@@ -42,7 +42,7 @@ List4 :=
             )
                 <- (
                     true
-                        <- void
+                        <- nil
                         <- $env.scope ()
                         <- '''keep
   indent'''
@@ -71,7 +71,7 @@ List4 :=
             <- (
                 List[
                     'viba lazy'
-                        * void,
+                        * nil,
                     325
                         | true
                 ]

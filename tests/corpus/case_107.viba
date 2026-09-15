@@ -9,7 +9,7 @@ Slice1[T] :=
             'fast'
                 <- '''line one
 line two'''
-                <- void
+                <- nil
                 <- 492
         )
         * 396
@@ -35,11 +35,11 @@ line two'''
                     $res 'viba'
                 )
                 <- (
-                    $idx void
+                    $idx nil
                 )
         )
         * 'slow strict'
-        * void
+        * nil
         * ...
         * (
             (
@@ -80,7 +80,7 @@ Report4[In, Out] :=
 Task5[V] :=
     (
         $meta.id ()
-            * void
+            * nil
             * {fn(x + 1)}
     )
         | (

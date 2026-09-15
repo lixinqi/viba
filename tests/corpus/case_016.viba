@@ -67,12 +67,12 @@ c'''
 Rule5[K, V] :=
     (
         Gamma
-            * void
+            * nil
             * {x + 1}
             * $a.b.c.d ()
     )
         | (
-            void
+            nil
                 <- Output
         )
 
@@ -82,10 +82,10 @@ Handler6[S, V] :=
             * fx.Graph
             * false
             * (
-                $meta void
+                $meta nil
             )
             * (
-                $dst void
+                $dst nil
             )
     )
         | (
@@ -106,8 +106,8 @@ Config8[Out] :=
     (
         $dst false
     )
-        * void
+        * nil
         * 9.628
         * (
-            List['auto', void, $env.scope ()]
+            List['auto', nil, $env.scope ()]
         )

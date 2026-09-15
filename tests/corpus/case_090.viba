@@ -18,7 +18,7 @@ Map3 :=
             | false
             | Beta
             | torch.Tensor
-            | void
+            | nil
             | Error
             | (
                 $cfg.mode ()
@@ -33,7 +33,7 @@ Map3 :=
         <- (
             $meta (
                 {fn(x + 1)}
-                    * void
+                    * nil
                     * Error
             )
         )
@@ -61,7 +61,7 @@ c'''
         <- (
             (
                 ...
-                    | void
+                    | nil
             )
                 <- (
                     769
@@ -75,7 +75,7 @@ c'''
                 )
                 <- (
                     (
-                        void,
+                        nil,
                         Context
                     )
                 )
@@ -94,7 +94,7 @@ State6[V, U] :=
             * Context,
         'slow viba'
             <- {fn(x + 1)}
-            <- void,
+            <- nil,
         '''keep
   indent'''
             * torch.Tensor

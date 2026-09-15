@@ -45,7 +45,7 @@ Handler4[Out] :=
     (
         $input (
             Option[
-                void
+                nil
                     | false
             ]
         )
@@ -55,7 +55,7 @@ Handler4[Out] :=
                 (
                     Config
                         | 'lazy slow strict',
-                    void
+                    nil
                         <- 2.67
                         <- 1.0,
                     $dst {x + 1}
@@ -82,7 +82,7 @@ Handler4[Out] :=
                     )
                         * (
                             (
-                                void,
+                                nil,
                                 Input,
                                 'slow auto strict'
                             )

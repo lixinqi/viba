@@ -44,7 +44,7 @@ c'''
                 * true,
             Omega
                 * false
-                * void
+                * nil
         )
     )
         <- (

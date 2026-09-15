@@ -29,7 +29,7 @@ Slice3[E, K] :=
             (
                 Sigma,
                 676,
-                void,
+                nil,
                 Delta
             )
         )
@@ -62,13 +62,13 @@ Pair4 :=
 
 Plan5 :=
     789
-        | void
+        | nil
         | (
             $cfg.mode ()
                 * Output
         )
         | (
-            void
+            nil
                 * Config
                 * 6.773
                 * never
@@ -84,7 +84,7 @@ Task6[K] :=
         Alpha
             | fx.Graph
             | Sigma
-            | void,
+            | nil,
         $output ...,
         $kind {x + 1}
     ]
@@ -93,7 +93,7 @@ State8[E, T] :=
     $err (
         '''line one
 line two'''
-            | void
+            | nil
             | Input
             | $res.val ()
     )

@@ -20,7 +20,7 @@ Node2 :=
                 ...
                     * Metric
                     * 'lazy viba'
-                    * void
+                    * nil
             )
     )
 
@@ -80,11 +80,11 @@ Option6[E] :=
                 $src Context
             )
                 <- (
-                    void
+                    nil
                         * 9.2
                 )
                 <- (
-                    void
+                    nil
                         * 'strict viba'
                 ),
             (

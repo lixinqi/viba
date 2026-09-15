@@ -49,9 +49,9 @@ Rule2[E, S] :=
                 $err Handler
             )
                 * 'strict auto'
-                * void
+                * nil
                 * (
-                    void
+                    nil
                         | 592
                         | 'lazy strict fast'
                 )

@@ -22,7 +22,7 @@ line two'''
         (
             Delta
                 * Omega,
-            void
+            nil
                 * 7.0
                 * 382
         ),
@@ -68,7 +68,7 @@ Config3 :=
             | (
                 (
                     (
-                        void
+                        nil
                     )
                 )
             )
@@ -77,7 +77,7 @@ Config3 :=
 State4 :=
     (
         (
-            void
+            nil
                 * MatchResult
                 * 'slow lazy auto'
                 * 'slow'
@@ -92,18 +92,18 @@ Edge6[S] :=
                 | 'slow'
                 | 259,
             Delta
-                | void
+                | nil
                 | false,
             Map[Input, State, Delta]
         ]
     )
-        * void
+        * nil
         * '''a
 b
 c'''
         * Config
         * (
-            $next void
+            $next nil
         )
         * (
             torch.Tensor

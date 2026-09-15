@@ -55,7 +55,7 @@ Slice5[K, Out] :=
             * never
             * Alpha
             * Beta
-            * void
+            * nil
             * (
                 Context
                     | Beta

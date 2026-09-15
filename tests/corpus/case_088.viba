@@ -30,8 +30,8 @@ line two''', {x + 1}]
                 )
                 <- (
                     Alpha
-                        * void
-                        * void
+                        * nil
+                        * nil
                         * Input
                 )
         )
@@ -39,7 +39,7 @@ line two''', {x + 1}]
 Handler3 :=
     $next (
         (
-            void
+            nil
                 * 'lazy viba'
                 * 938
         )

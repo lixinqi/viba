@@ -67,7 +67,7 @@ Rule4[S, V] :=
                 )
             )
             * (
-                $value void
+                $value nil
             )
             * (
                 State

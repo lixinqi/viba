@@ -18,7 +18,7 @@ Name[T, U, ...] := body
 | Exponent | `B <- A` | Function from A to B |
 | Generic | `Name[T]` | Parameterized type |
 | Tag | `$label T` | Named field / variant |
-| Void | `void` | Product identity (`A * void = A`) |
+| Nil | `nil` | Product identity (`A * nil = A`); `void` and `None` are aliases |
 | Never | `never` | Sum identity (`A \| never = A`) |
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
@@ -90,7 +90,7 @@ intermediate representation.
 ```python
 from viba import ast
 
-tree = ast.parse("Option[T] := $some T | void")
+tree = ast.parse("Option[T] := $some T | nil")
 print(ast.dump(tree))
 print(ast.unparse(tree))   # canonical chain-style source
 ```

@@ -9,7 +9,7 @@ Plan1[S] :=
             | 793
             | (
                 (
-                    void,
+                    nil,
                     torch.Tensor,
                     ...,
                     384
@@ -29,7 +29,7 @@ Batch2[T, K] :=
 
 Batch3[In] :=
     (
-        void
+        nil
             <- 'lazy strict auto'
     )
         * (
@@ -48,7 +48,7 @@ Edge4[K] :=
                 Pair[6.9]
             )
                 | (
-                    void
+                    nil
                         * Handler
                         * $meta.id ()
                         * {fn(fn(x + 1))}
@@ -89,7 +89,7 @@ c'''
             (
                 'strict slow viba'
                     <- 595
-                    <- void,
+                    <- nil,
                 'lazy strict'
                     | 9.408
                     | false

@@ -6,7 +6,7 @@ State1[Out] :=
         (
             (
                 204
-                    <- void
+                    <- nil
                     <- 0.305
                     <- Error
             )
@@ -26,7 +26,7 @@ State1[Out] :=
             $idx (
                 (
                     437
-                        <- void
+                        <- nil
                 )
                     <- (
                         false
@@ -59,7 +59,7 @@ State1[Out] :=
                             * torch.Tensor
                     )
                         <- (
-                            Result[Error, void]
+                            Result[Error, nil]
                         )
                         <- (
                             ...

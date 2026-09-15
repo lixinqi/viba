@@ -32,12 +32,12 @@ Tensor2[S] :=
         )
             * (
                 (
-                    void
+                    nil
                 )
             )
             * (
                 Input
-                    | void
+                    | nil
             )
     )
 
@@ -101,7 +101,7 @@ line two'''
             ),
         $data (
             (
-                Box[$res.val (), void, GraphModule]
+                Box[$res.val (), nil, GraphModule]
             )
                 * (
                     $name Config

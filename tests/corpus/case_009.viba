@@ -57,7 +57,7 @@ Tensor2 :=
             | 161
             | ...
             | Metric
-            | void
+            | nil
             | (
                 Metric
                     <- ...
@@ -67,12 +67,12 @@ Tensor2 :=
             (
                 MatchResult
                     | Error
-                    | void
+                    | nil
             )
                 <- (
                     0.32
                         | $meta.id ()
-                        | void
+                        | nil
                 )
         )
         <- (

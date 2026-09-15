@@ -19,7 +19,7 @@ line two''',
             )
         )
         * (
-            void
+            nil
                 <- '''a
 b
 c'''
@@ -34,7 +34,7 @@ Batch2 :=
         )
     )
         * 488
-        * void
+        * nil
 
 Plan4 :=
     $input (
@@ -64,7 +64,7 @@ Rule6[U] :=
     )
         <- (
             (
-                void
+                nil
                     <- false
             )
                 * 'lazy strict'
@@ -74,7 +74,7 @@ Rule6[U] :=
 
 Rule7[V] :=
     (
-        void
+        nil
             | Delta
             | 450
     )
@@ -87,7 +87,7 @@ Rule7[V] :=
         )
         * true
         * Output
-        * void
+        * nil
 
 Plan8 :=
     List[

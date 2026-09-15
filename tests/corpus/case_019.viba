@@ -69,7 +69,7 @@ Task2[In] :=
         )
         * (
             'fast strict auto'
-                | void
+                | nil
                 | 79
                 | '''keep
   indent'''

@@ -4,7 +4,7 @@
 Check2[In] :=
     (
         (
-            void,
+            nil,
             torch.Tensor,
             $meta.id (),
             81
@@ -29,7 +29,7 @@ Plan3[Out, T] :=
                 | 'viba'
         ),
         $next (
-            List[void, false]
+            List[nil, false]
         )
     ]
 

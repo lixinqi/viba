@@ -41,8 +41,8 @@ line two'''
                     (
                         false
                             <- $res.val ()
-                            <- void
-                            <- void
+                            <- nil
+                            <- nil
                     )
                         <- (
                             'fast viba strict'
@@ -54,28 +54,28 @@ line two'''
             never
                 * 0.99
                 * never
-                * void
+                * nil
                 * (
                     $meta Alpha
                 )
                 * (
                     1.559
                         | Omega
-                        | void
+                        | nil
                 )
                 * $meta.id ()
-                * void
+                * nil
                 * (
                     (
                         {fn(x + 1)},
                         Omega,
-                        void,
+                        nil,
                         Metric
                     )
                 )
                 * (
                     fx.Graph
-                        | void
+                        | nil
                 )
                 * (
                     $env.scope ()

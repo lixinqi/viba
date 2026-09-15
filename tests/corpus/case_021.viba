@@ -33,7 +33,7 @@ Result2 :=
                     | ...
             )
                 <- (
-                    List[void]
+                    List[nil]
                 )
                 <- (
                     $idx 'viba auto'
@@ -54,14 +54,14 @@ Rule3 :=
         733
             * MatchResult
             * never
-            * void
+            * nil
             * 'strict'
             * Config
-            * void
+            * nil
             * Error
             * (
                 519
-                    <- void
+                    <- nil
                     <- Omega
                     <- Output
             )
@@ -80,7 +80,7 @@ Report4[V] :=
             | (
                 $value (
                     Handler
-                        <- void
+                        <- nil
                         <- 331
                         <- never
                 )

@@ -13,7 +13,7 @@ from viba.ast.nodes import (
     Tuple,
     TypeRef,
     Constant,
-    Void,
+    Nil,
     Never,
     Ellipsis,
     CodeBlock,
@@ -46,7 +46,7 @@ tokens = (
     "LBRACE",  # {
     "RBRACE",  # }
     "COMMA",
-    "VOID",
+    "NIL",
     "NEVER",
     "ELLIPSIS",  # ...
     "CODE_BLOCK",  # { ... }
@@ -78,8 +78,9 @@ def t_BOOLEAN(t):
     return t
 
 
-def t_VOID(t):
-    r"void\b"
+def t_NIL(t):
+    r"nil\b|void\b|None\b"
+    t.value = "nil"  # canonical spelling; void/None are aliases
     return t
 
 
@@ -328,7 +329,7 @@ def p_adt_expr_list(p):
 def p_primary_expr(p):
     """primary_expr : CLASS_NAME
     | literal
-    | VOID
+    | NIL
     | NEVER
     | ELLIPSIS
     | LPAREN adt_expr RPAREN
@@ -341,8 +342,8 @@ def p_primary_expr(p):
         if isinstance(val, AST):
             # Literal (Constant), CODE_BLOCK (CodeBlock): pass through
             p[0] = val
-        elif val == "void":
-            p[0] = Void()
+        elif val == "nil":
+            p[0] = Nil()
         elif val == "never":
             p[0] = Never()
         elif val == "...":
@@ -351,9 +352,9 @@ def p_primary_expr(p):
             # Simple type reference
             p[0] = TypeRef(val)
 
-    # 2. Handle empty parens () as void (Length 3)
+    # 2. Handle empty parens () as nil (Length 3)
     elif len(p) == 3:
-        p[0] = Void()
+        p[0] = Nil()
 
     # 3. Handle Parentheses or Tuples (Length 4)
     else:
@@ -400,8 +401,8 @@ if __name__ == "__main__":
     test_cases = [
         # 1-5: Basic Algebraic Identities & Atomic Types
         ("IdentitySum := A | never", "Sum with identity zero"),
-        ("IdentityProd := A * void", "Product with identity unit"),
-        ("UnitOnly := void", "Pure unit type"),
+        ("IdentityProd := A * nil", "Product with identity unit"),
+        ("UnitOnly := nil", "Pure unit type"),
         ("BottomOnly := never", "Pure bottom type"),
         ("Variadic := A | B | ...", "Open sum type with ellipsis"),
         # 6-10: Literals & Constants
@@ -409,7 +410,7 @@ if __name__ == "__main__":
         ("ConfigFloat := 3.1415", "Float literal"),
         ("ConfigBool := true * false", "Boolean literals in product"),
         ('ConfigStr := "viba_v1" * 1.0', "Mixed string and float"),
-        ("ComplexLiteral := 0.5 * void | never", "Mixed literals and identities"),
+        ("ComplexLiteral := 0.5 * nil | never", "Mixed literals and identities"),
         # 11-15: Semantic Paths & Tagging
         ("SimpleTag := $target Output", "Basic tagged type"),
         ("NestedPath := $meta.id.hash STRING", "Nested semantic path ($a.b.c)"),
@@ -435,9 +436,9 @@ if __name__ == "__main__":
             "AE style currying",
         ),
         # 21-25: Generics & Combinations
-        ("List[T] := T * List[T] | void", "Recursive generic list"),
+        ("List[T] := T * List[T] | nil", "Recursive generic list"),
         ("Pair[K, V] := K * V", "Multi-parameter generic"),
-        ("Option[T] := T | void", "Standard Option type"),
+        ("Option[T] := T | nil", "Standard Option type"),
         ("Result[T, E] := $ok T | $err E", "Tagged result sum type"),
         ("HLSegment[T] := $data T * $next ...", "Generic with variadic tail"),
         # 26: The "Final Boss" case
@@ -445,11 +446,14 @@ if __name__ == "__main__":
             'FinalBoss[In, Out] := ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99',
             "Comprehensive stress test",
         ),
-        ("VoidAlias := ()", "Using () as primary"),
-        ("MixedVoid := A | () | void", "Mixing () and void in sum"),
+        ("NilAlias := ()", "Using () as primary"),
+        ("MixedNil := A | () | nil", "Mixing () and nil in sum"),
+        ("VoidAlias := void", "void is an alias of nil"),
+        ("NoneAlias := None", "None is an alias of nil"),
+        ("AliasMix := A * void | None", "void and None alias mix"),
         ("AE_ReturnUnit := () <- Input", "Using () as return type"),
         ("IdentitySum := A | never", "Sum with identity zero"),
-        ("IdentityProd := A * void", "Product with identity unit"),
+        ("IdentityProd := A * nil", "Product with identity unit"),
         ("Variadic := A | B | ...", "Open sum type with ellipsis"),
         ("ConfigInt := 42", "Integer literal"),
         ("ConfigFloat := 3.1415", "Float literal"),
@@ -481,13 +485,13 @@ if __name__ == "__main__":
         ("TripleTuple := ('''first''', '''second''')", "Triple-quoted in tuple"),
         ("TripleNested := ('''a''' * '''b''') | '''c'''", "Nested triple-quoted expressions"),
         ("TripleGeneric := List['''item''']", "Triple-quoted as generic argument"),
-        ("TripleWithVoid := '''data''' * void", "Triple-quoted with void identity"),
+        ("TripleWithNil := '''data''' * nil", "Triple-quoted with nil identity"),
         ("TripleWithNever := '''text''' | never", "Triple-quoted with never identity"),
         ("TripleEllipsis := '''base''' | ...", "Triple-quoted with ellipsis"),
         ("TripleEllipsisTail := '''head''' * ...", "Triple-quoted product with ellipsis"),
         ("TripleComplex := ($res '''OK''' | $err '''Error''') <- '''input'''", "Complex triple-quoted expression"),
         ("TripleCurried := '''C''' <- '''B''' <- '''A'''", "Triple-quoted currying"),
-        ("TripleRecursive := '''item''' * TripleRecursive | void", "Recursive with triple-quoted"),
+        ("TripleRecursive := '''item''' * TripleRecursive | nil", "Recursive with triple-quoted"),
         ("TripleVariadic := '''a''' | '''b''' | '''c''' | ...", "Multiple triple-quoted sum with ellipsis"),
         ("TripleFinal := ('''x''' * '''y''', '''z''')", "Triple-quoted in nested tuple"),
         # ====== SINGLE-QUOTED STRING TESTS (20 cases) ======
@@ -501,13 +505,13 @@ if __name__ == "__main__":
         ("SingleTuple := ('first', 'second')", "Single-quoted in tuple"),
         ("SingleNested := ('a' * 'b') | 'c'", "Nested single-quoted expressions"),
         ("SingleGeneric := List['item']", "Single-quoted as generic argument"),
-        ("SingleWithVoid := 'data' * void", "Single-quoted with void identity"),
+        ("SingleWithNil := 'data' * nil", "Single-quoted with nil identity"),
         ("SingleWithNever := 'text' | never", "Single-quoted with never identity"),
         ("SingleEllipsis := 'base' | ...", "Single-quoted with ellipsis"),
         ("SingleEllipsisTail := 'head' * ...", "Single-quoted product with ellipsis"),
         ("SingleComplex := ($res 'OK' | $err 'Error') <- 'input'", "Complex single-quoted expression"),
         ("SingleCurried := 'C' <- 'B' <- 'A'", "Single-quoted currying"),
-        ("SingleRecursive := 'item' * SingleRecursive | void", "Recursive with single-quoted"),
+        ("SingleRecursive := 'item' * SingleRecursive | nil", "Recursive with single-quoted"),
         ("SingleVariadic := 'a' | 'b' | 'c' | ...", "Multiple single-quoted sum with ellipsis"),
         ("SingleFinal := ('x' * 'y', 'z')", "Single-quoted in nested tuple"),
         # ====== MIXED STRING TYPE TESTS (10 cases) ======
@@ -531,7 +535,7 @@ if __name__ == "__main__":
         ("CodeBlockInSum := {opt1} | {opt2}", "Code blocks in sum"),
         ("CodeBlockInExponent := {result} <- {input}", "Code blocks in exponent"),
         ("CodeBlockTagged := $tag {value}", "Tagged code block"),
-        ("CodeBlockMixed := {code} * void | never", "Code block with identities"),
+        ("CodeBlockMixed := {code} * nil | never", "Code block with identities"),
         ("CodeBlockWithTuple := ({a}, {b})", "Code blocks in tuple"),
         ("CodeBlockGeneric := List[{item}]", "Code block as generic arg"),
         ("CodeBlockComplex := ({res {OK} | {err}} <- {inp})", "Complex code block expression"),

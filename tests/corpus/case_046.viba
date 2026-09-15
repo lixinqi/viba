@@ -30,11 +30,11 @@ Option2[S] :=
                         | 'strict'
                         | Input
                         | 371,
-                    void
-                        <- void
-                        <- void
+                    nil
+                        <- nil
+                        <- nil
                         <- Alpha,
-                    void
+                    nil
                         | Config
                 )
             )
@@ -87,7 +87,7 @@ line two'''
         )
             <- (
                 1.523
-                    <- void
+                    <- nil
                     <- Gamma
                     <- '''keep
   indent'''

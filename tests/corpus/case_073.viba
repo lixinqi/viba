@@ -86,7 +86,7 @@ Config4[E] :=
         <- (
             Output
                 <- Gamma
-                <- void
+                <- nil
         )
         <- (
             (

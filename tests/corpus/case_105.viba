@@ -89,7 +89,7 @@ c''',
         * (
             (
                 (
-                    void,
+                    nil,
                     never,
                     570,
                     994
@@ -104,7 +104,7 @@ line two''',
                     '''a
 b
 c''',
-                    void
+                    nil
                 ),
                 Metric
                     | $env.scope ()

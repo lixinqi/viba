@@ -1,1 +1,1 @@
-ResultChain := $head 3 * $tail ($head 3 * $tail void)
+ResultChain := $head 3 * $tail ($head 3 * $tail nil)

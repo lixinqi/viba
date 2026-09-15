@@ -36,7 +36,7 @@ Graph1 :=
                         (
                             9.7,
                             Alpha,
-                            void
+                            nil
                         )
                     )
             )

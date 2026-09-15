@@ -15,7 +15,7 @@ Config1[V, T] :=
             1.589
                 | 'auto'
                 | 722
-                | void
+                | nil
         )
         * (
             (
@@ -106,7 +106,7 @@ State2[U] :=
         )
         | 2.862
         | torch.Tensor
-        | void
+        | nil
 
 List4 :=
     Config

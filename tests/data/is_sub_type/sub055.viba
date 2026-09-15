@@ -1,1 +1,1 @@
-X := $val 1 * $left void * $right void * $meta 'root'
+X := $val 1 * $left nil * $right nil * $meta 'root'

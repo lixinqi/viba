@@ -39,7 +39,7 @@ Stream3 :=
             (
                 true,
                 516,
-                void
+                nil
             )
         )
             | (
@@ -85,7 +85,7 @@ Batch6[T, U] :=
         false
             | Alpha
             | MatchResult,
-        void
+        nil
             | true
             | 40
     ]

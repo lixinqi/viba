@@ -14,7 +14,7 @@ List1 :=
 Config2 :=
     $dst (
         (
-            void
+            nil
                 <- true
         )
             | (
@@ -66,7 +66,7 @@ Check4 :=
             (
                 $data (
                     (
-                        void,
+                        nil,
                         Alpha
                     )
                 )
@@ -110,5 +110,5 @@ line two'''
 
 Batch7[E] :=
     (
-        Map['viba slow lazy', void, Sigma]
+        Map['viba slow lazy', nil, Sigma]
     )

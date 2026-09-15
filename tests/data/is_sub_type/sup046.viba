@@ -1,1 +1,1 @@
-Chain := $head int * $tail Chain | void
+Chain := $head int * $tail Chain | nil

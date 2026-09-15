@@ -17,7 +17,7 @@ Tensor1[E] :=
             )
             * (
                 State
-                    | void
+                    | nil
                     | 'auto'
             )
             * (
@@ -84,7 +84,7 @@ Graph3[U, V] :=
         )
         | true
         | Delta
-        | void
+        | nil
         | (
             $meta ...
         )
@@ -93,7 +93,7 @@ Graph3[U, V] :=
         | (
             (
                 Handler
-                    <- void
+                    <- nil
                     <- State
             )
                 * (

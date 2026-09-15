@@ -17,7 +17,7 @@ from viba.ast.nodes import (
     Tuple,
     TypeRef,
     Constant,
-    Void,
+    Nil,
     Never,
     Ellipsis,
     CodeBlock,
@@ -56,7 +56,7 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
         Tuple=lambda t: _unparse_tuple(t, indent, depth),
         TypeRef=lambda r: r.name,
         Constant=lambda c: _unparse_constant(c),
-        Void=lambda v: "void",
+        Nil=lambda v: "nil",
         Never=lambda n: "never",
         Ellipsis=lambda e: "...",
         CodeBlock=lambda c: _unparse_codeblock(c),
@@ -173,7 +173,7 @@ def _unparse_sumchain(chain: SumChain, indent: int, depth: int) -> str:
 def _unparse_productchain(chain: ProductChain, indent: int, depth: int) -> str:
     """Unparse a ProductChain."""
     if not chain.elements:
-        return "void"
+        return "nil"
 
     base_indent = " " * (indent * depth)
     elem_indent = " " * (indent * (depth + 1))

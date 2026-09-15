@@ -74,7 +74,7 @@ class Gen:
         if choice < 0.72:
             return ("tstr", r.choice(["line one\nline two", "keep\n  indent", "a\nb\nc"]))
         if choice < 0.78:
-            return ("void",)
+            return ("nil",)
         if choice < 0.84:
             return ("never",)
         if choice < 0.90:
@@ -121,7 +121,7 @@ class Gen:
 
 def is_atom(node):
     return node[0] in (
-        "ref", "int", "float", "bool", "str", "tstr", "void", "never",
+        "ref", "int", "float", "bool", "str", "tstr", "nil", "never",
         "puretag", "code", "ellipsis",
     )
 
@@ -140,8 +140,8 @@ def render_atom(node):
         return f"'{node[1]}'"
     if kind == "tstr":
         return f"'''{node[1]}'''"
-    if kind == "void":
-        return "void"
+    if kind == "nil":
+        return "nil"
     if kind == "never":
         return "never"
     if kind == "puretag":

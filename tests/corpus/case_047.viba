@@ -4,12 +4,12 @@
 State1[T] :=
     (
         {fn(x + 1)}
-            * void
+            * nil
             * 'lazy strict'
     )
         <- (
             Error
-                | void
+                | nil
         )
 
 Config3 :=
@@ -31,7 +31,7 @@ Config3 :=
         | (
             $name (
                 (
-                    void
+                    nil
                 )
             )
         )
@@ -63,7 +63,7 @@ Config4 :=
                         <- $meta.id ()
                 )
                 | (
-                    void
+                    nil
                         * MatchResult
                 )
                 | (
@@ -75,7 +75,7 @@ Config4 :=
                 )
             )
                 * (
-                    void
+                    nil
                         <- 903
                 )
                 * ...

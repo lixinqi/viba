@@ -75,7 +75,7 @@ line two'''
                 * GraphModule
                 * Metric
                 * (
-                    $input void
+                    $input nil
                 )
                 * (
                     $input 9.0
@@ -102,7 +102,7 @@ line two'''
         )
 
 Batch8 :=
-    $data void
+    $data nil
 
 Guarded9 :=
     $lines int

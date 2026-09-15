@@ -26,7 +26,7 @@ line two'''
                         <- $meta.id ()
                 )
                 <- (
-                    $cfg void
+                    $cfg nil
                 )
                 <- (
                     8.22
@@ -34,7 +34,7 @@ line two'''
                 ),
             Result[
                 ...
-                    <- void
+                    <- nil
                     <- '''line one
 line two''',
                 (

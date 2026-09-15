@@ -52,7 +52,7 @@ c'''
             (
                 $res Metric,
                 $meta.id ()
-                    | void
+                    | nil
                     | 749,
                 'auto'
                     | false,
@@ -79,7 +79,7 @@ List5[K] :=
 Handler8[U] :=
     (
         Input
-            | void
+            | nil
     )
         * (
             $idx Config

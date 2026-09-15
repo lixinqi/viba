@@ -1,2 +1,2 @@
-List[T] := $head T * $tail List[T] | void
+List[T] := $head T * $tail List[T] | nil
 X := List[int]

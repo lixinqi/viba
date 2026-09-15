@@ -5,13 +5,13 @@ Plan1[U, Out] :=
     (
         (
             {x + 1},
-            void,
+            nil,
             9.22,
-            void
+            nil
         )
     )
         | (
-            Option[void, {fn(fn(x + 1))}]
+            Option[nil, {fn(fn(x + 1))}]
         )
 
 Tensor2 :=

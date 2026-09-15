@@ -39,8 +39,8 @@ Handler1[U, Out] :=
                 <- (
                     (
                         true
-                            * void,
-                        void
+                            * nil,
+                        nil
                             * {x + 1}
                             * 376,
                         5.9
@@ -80,7 +80,7 @@ State2[E, In] :=
 
 Map3[T, In] :=
     (
-        void
+        nil
             | 'auto'
             | Omega
     )
@@ -90,7 +90,7 @@ Handler4[S] :=
         Result[200]
     )
         | $env.scope ()
-        | void
+        | nil
         | (
             'fast'
                 * 'slow strict'

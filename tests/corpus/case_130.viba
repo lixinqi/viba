@@ -63,7 +63,7 @@ line two'''
   indent'''
         )
         | (
-            void
+            nil
                 * Metric
         )
         | (
@@ -95,8 +95,8 @@ c'''
         )
         | (
             Output
-                <- void
-                <- void
+                <- nil
+                <- nil
                 <- $res.val ()
         )
         | (

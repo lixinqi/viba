@@ -55,7 +55,7 @@ Graph3[V, K] :=
         (
             $next (
                 Sigma
-                    <- void
+                    <- nil
                     <- Sigma
             )
         )
@@ -66,7 +66,7 @@ Graph3[V, K] :=
                     )
                 )
                     | (
-                        void
+                        nil
                             * State
                             * false
                             * true
@@ -102,7 +102,7 @@ Graph6[E] :=
     (
         Alpha
             * 54
-            * void
+            * nil
             * true,
         (
             'auto'
@@ -110,4 +110,4 @@ Graph6[E] :=
     )
 
 Task9[V] :=
-    List[void]
+    List[nil]

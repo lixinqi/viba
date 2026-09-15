@@ -48,7 +48,7 @@ from viba.type import (
     StrLiteralType,
     StrType,
     Type,
-    UnitType,
+    NilType,
     module_get_type,
 )
 
@@ -108,7 +108,7 @@ class _Checker:
     def _check_uncached(self, sub: Type, sup: Type) -> bool:
         if isinstance(sub, NeverType):
             return True
-        if isinstance(sup, (NeverType, UnitType)):
+        if isinstance(sup, (NeverType, NilType)):
             return type(sub) is type(sup)
         verdict = self._probe_leaves(sub, sup)
         if verdict is not None:
@@ -203,7 +203,7 @@ class _Checker:
             return True
         if isinstance(sn, viba_ast.Never):
             return True  # bottom fits anywhere
-        if isinstance(sp, (viba_ast.Void, viba_ast.Never)):
+        if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
             return type(sn) is type(sp)  # never branch admits only never
         lifted = self._walk_lifted(sn, s_mod, sp, p_mod)
         if lifted is not None:
@@ -394,11 +394,11 @@ def _is_poison_ref(node) -> bool:
 
 
 def _lift(node, module: ModuleType):
-    """Lift a Constant, TypeRef, Void or Never to a Type; else None."""
+    """Lift a Constant, TypeRef, Nil or Never to a Type; else None."""
     if isinstance(node, viba_ast.Constant):
         return _literal_type(node.value)
-    if isinstance(node, viba_ast.Void):
-        return UnitType()
+    if isinstance(node, viba_ast.Nil):
+        return NilType()
     if isinstance(node, viba_ast.Never):
         return NeverType()
     if isinstance(node, viba_ast.TypeRef):

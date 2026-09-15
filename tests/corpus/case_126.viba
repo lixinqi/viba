@@ -15,7 +15,7 @@ Pair1 :=
             <- (
                 fx.Graph
                     * false
-                    * void
+                    * nil
                     * '''line one
 line two'''
             )

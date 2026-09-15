@@ -57,7 +57,7 @@ c''']
                 )
                 <- (
                     never
-                        <- void
+                        <- nil
                         <- $env.scope ()
                         <- fx.Graph
                 )
@@ -98,7 +98,7 @@ Stream7[V] :=
         )
     )
         | (
-            Option[true, void]
+            Option[true, nil]
         )
 
 Guarded8 :=

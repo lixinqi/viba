@@ -6,7 +6,7 @@ Rule1 :=
         Omega
             | {fn(x + 1)}
             | GraphModule
-            | void,
+            | nil,
         $res (
             $res.val ()
         ),
@@ -19,7 +19,7 @@ Stream3[Out] :=
     (
         Option[
             never
-                * void
+                * nil
         ]
     )
         | (
@@ -49,9 +49,9 @@ State4[Out] :=
                 | 'strict'
                 | never
                 | Error,
-            void
+            nil
                 * Output
-                * void
+                * nil
         ]
     )
 
@@ -87,11 +87,11 @@ Rule8[U, T] :=
             * (
                 '''line one
 line two'''
-                    | void
+                    | nil
             )
             * {fn(x + 1)}
             * 'auto viba strict'
-            * void
+            * nil
     )
         | (
             (

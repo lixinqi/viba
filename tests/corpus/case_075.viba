@@ -6,7 +6,7 @@ Node1[In, U] :=
         $input Metric
     )
         <- (
-            $value void
+            $value nil
         )
         <- (
             List[fx.Graph, 516, 160]
@@ -46,9 +46,9 @@ Check4[E, T] :=
         * (
             (
                 Gamma
-                    * void
+                    * nil
                     * Beta
-                    * void
+                    * nil
             )
                 | (
                     3.658
@@ -106,7 +106,7 @@ Check5 :=
             $res 458
         )
         | (
-            void
+            nil
                 * 432
                 * $cfg.mode ()
                 * 463

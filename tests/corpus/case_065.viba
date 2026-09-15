@@ -28,13 +28,13 @@ Check2[S, U] :=
             )
                 | (
                     'strict auto'
-                        * void
+                        * nil
                         * true
                         * 'lazy auto slow'
                 )
                 | (
-                    void
-                        <- void
+                    nil
+                        <- nil
                         <- Beta
                         <- Context
                 )

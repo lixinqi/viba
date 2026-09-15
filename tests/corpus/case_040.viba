@@ -7,7 +7,7 @@ Result1 :=
             Map['auto slow strict']
         )
             | (
-                Box[void, '''line one
+                Box[nil, '''line one
 line two''', 2.679]
             )
     )
@@ -21,7 +21,7 @@ Node2[S, In] :=
         )
             | MatchResult
             | Metric
-            | void
+            | nil
             | 'fast lazy'
             | (
                 (

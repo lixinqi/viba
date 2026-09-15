@@ -5,13 +5,13 @@ State1 :=
     (
         (
             (
-                List[void]
+                List[nil]
             )
                 * (
                     Context
                         | 3.569
                         | never
-                        | void
+                        | nil
                 )
                 * (
                     (
@@ -30,7 +30,7 @@ State1 :=
         | ...
         | 5.34
         | (
-            Map[void, never, 'viba']
+            Map[nil, never, 'viba']
         )
         | (
             MatchResult

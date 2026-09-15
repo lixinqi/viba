@@ -1,5 +1,6 @@
 # The Type universe consumed by is_sub_type (see viba/type.py).
-# Oneof is never (sum identity); Object is void (product identity).
+# Oneof is never (sum identity); Object is nil (product identity;
+# void and None are accepted aliases, canonicalized at parse).
 # Everything structural stays at the ast.Ast layer and reaches the
 # checker through $ast_node_type; this universe models leaves,
 # references and the module machinery behind them.
@@ -7,7 +8,7 @@
 Type :=
   Oneof
   | $never_type ()
-  | $unit_type ()
+  | $nil_type ()
   | $bool_type ()
   | $int_type ()
   | $float_type ()

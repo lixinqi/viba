@@ -108,7 +108,7 @@ Check7[T, U] :=
         )
         <- (
             (
-                void
+                nil
             )
         )
 

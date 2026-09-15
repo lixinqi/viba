@@ -31,7 +31,7 @@ Report2[E, Out] :=
             | ...
             | 'strict fast auto'
             | Gamma
-            | void
+            | nil
             | 9.8
             | fx.Graph
             | 9.74

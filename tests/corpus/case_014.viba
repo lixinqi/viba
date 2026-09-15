@@ -67,7 +67,7 @@ Rule4[V] :=
             fx.Graph
                 <- '''line one
 line two'''
-                <- void
+                <- nil
                 <- $res.val ()
         )
 

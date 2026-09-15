@@ -8,7 +8,7 @@ Rule1[In] :=
 b
 c'''
             <- Sigma,
-        void
+        nil
             | '''a
 b
 c'''
@@ -58,7 +58,7 @@ Report4[U, In] :=
                 )
                 <- (
                     {fn(x + 1)}
-                        * void
+                        * nil
                         * Context
                 )
         )

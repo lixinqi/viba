@@ -51,7 +51,7 @@ Tensor1[U, In] :=
                 <- (
                     (
                         $next 690,
-                        $kind void
+                        $kind nil
                     )
                 )
         )
@@ -101,7 +101,7 @@ c'''
                     $kind false
                 )
                     * (
-                        void
+                        nil
                             <- Omega
                     )
             )

@@ -7,7 +7,7 @@ Edge1[U] :=
             | 'lazy'
             | Handler
             | Sigma
-            | void
+            | nil
             | MatchResult
             | Delta
             | (
@@ -63,7 +63,7 @@ c'''
             <- (
                 (
                     true
-                        * void
+                        * nil
                         * MatchResult
                         * false
                 )

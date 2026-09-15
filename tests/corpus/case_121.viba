@@ -22,7 +22,7 @@ Node2 :=
 line two'''
             * Alpha
             * 711
-            * void
+            * nil
             * Context
             * {x + 1},
         (
@@ -56,7 +56,7 @@ Option3[T, S] :=
                     * true
                     * 242
             )
-                | void
+                | nil
                 | 'auto lazy strict'
                 | (
                     $res.val ()

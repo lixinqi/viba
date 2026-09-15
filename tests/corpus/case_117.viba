@@ -17,7 +17,7 @@ Node2[Out] :=
             )
         )
             * (
-                void
+                nil
                     | MatchResult
             )
             * (
@@ -55,7 +55,7 @@ line two'''
             )
             * (
                 Gamma
-                    | void
+                    | nil
             ),
         (
             $name 531,

@@ -90,10 +90,10 @@ Graph5[Out, S] :=
         | '''keep
   indent'''
         | (
-            $input void
+            $input nil
         )
         | (
-            void
+            nil
                 * 915
                 * GraphModule
         )

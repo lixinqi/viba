@@ -19,6 +19,7 @@ from viba.ast.nodes import (
     Tagged,
     TypeApp,
     Tuple,
+    Nil,
     SumChain,
     ProductChain,
     ExponentChain,
@@ -133,7 +134,7 @@ def _reconstruct_sum(chain: SumChain) -> AST:
 
 def _reconstruct_product(chain: ProductChain) -> AST:
     if not chain.elements:
-        return Void()
+        return Nil()
 
     result = chain.elements[0]
     for elem in chain.elements[1:]:

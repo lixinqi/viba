@@ -34,7 +34,7 @@ line two''',
             | (
                 (
                     Sigma
-                        <- void
+                        <- nil
                         <- '''line one
 line two'''
                 )
@@ -49,7 +49,7 @@ line two'''
             Result[
                 (
                     (
-                        void
+                        nil
                     )
                 )
                     | (
@@ -58,7 +58,7 @@ line two'''
                     )
                     | (
                         (
-                            void,
+                            nil,
                             {fn(x + 1)},
                             Metric,
                             true

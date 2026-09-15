@@ -25,7 +25,7 @@ def viba_type_match(
     Tuple: Callable[[Any], Any] = None,
     TypeRef: Callable[[Any], Any] = None,
     Constant: Callable[[Any], Any] = None,
-    Void: Callable[[Any], Any] = None,
+    Nil: Callable[[Any], Any] = None,
     Never: Callable[[Any], Any] = None,
     Ellipsis: Callable[[Any], Any] = None,
     CodeBlock: Callable[[Any], Any] = None,

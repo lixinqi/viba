@@ -27,15 +27,15 @@ c'''
         )
         * (
             Metric
-                | void
+                | nil
                 | never
                 | true
                 | (
-                    void
+                    nil
                         * 252
                         * '''keep
   indent'''
-                        * void
+                        * nil
                 )
                 | (
                     never
@@ -71,7 +71,7 @@ Pair3[E] :=
                 $dst true,
                 Context
                     | 703
-                    | void
+                    | nil
             ]
         )
         * (

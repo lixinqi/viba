@@ -7,7 +7,7 @@ Composite nodes:
     Module, TypeDefinition, GenericDefinition, Sum, Product, Exponent,
     Tagged, TypeApp, Tuple
 Atomic nodes:
-    TypeRef, Constant, Void, Never, Ellipsis, CodeBlock
+    TypeRef, Constant, Nil, Never, Ellipsis, CodeBlock
 Canonical (chain-style) nodes, produced by convert_to_chain_style:
     SumChain, ProductChain, ExponentChain
 """
@@ -106,8 +106,9 @@ class Constant(AST):
     _fields = ("value",)
 
 
-class Void(AST):
-    """void — the product identity. () parses to this as well."""
+class Nil(AST):
+    """nil — the product identity. () parses to this as well.
+    `void` and `None` are accepted aliases, canonicalized at parse."""
 
     _fields = ()
 

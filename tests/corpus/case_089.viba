@@ -14,7 +14,7 @@ c'''
             | (
                 (
                     (
-                        void
+                        nil
                     )
                 )
                     * (
@@ -59,7 +59,7 @@ c'''
                         | Metric
                 )
                     * never
-                    * void
+                    * nil
                     * Input
                     * MatchResult
                     * (
@@ -101,7 +101,7 @@ Report2 :=
                     $data 575
                 ),
             $meta (
-                $src void
+                $src nil
             ),
             $err (
                 MatchResult

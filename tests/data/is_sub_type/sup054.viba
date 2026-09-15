@@ -1,1 +1,1 @@
-Tree := $val int * $left Tree * $right Tree | void
+Tree := $val int * $left Tree * $right Tree | nil

@@ -42,12 +42,12 @@ State1[Out] :=
             )
                 * 152
                 * 'strict'
-                * void
+                * nil
                 * (
                     List[State, Handler]
                 )
                 * (
-                    void
+                    nil
                         <- 912
                         <- ...
                         <- ...

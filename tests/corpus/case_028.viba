@@ -20,7 +20,7 @@ Rule1[K] :=
     )
         <- (
             $value (
-                void
+                nil
                     <- $env.scope ()
                     <- 73
             )
@@ -83,7 +83,7 @@ Batch3[V, K] :=
                     (
                         'auto',
                         872,
-                        void
+                        nil
                     )
                 )
                     | (
@@ -92,7 +92,7 @@ Batch3[V, K] :=
                     | (
                         Option['auto lazy slow', GraphModule]
                     )
-                    | void
+                    | nil
                     | Error
                     | 274
                     | 535

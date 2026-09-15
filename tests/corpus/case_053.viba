@@ -63,7 +63,7 @@ c'''
             <- (
                 (
                     (
-                        void
+                        nil
                     )
                 )
                     * (
@@ -90,13 +90,13 @@ c'''
                         * Sigma
                         * 16
                         * 'viba strict',
-                    $data void
+                    $data nil
                 )
             )
                 * (
                     (
                         never
-                            | void
+                            | nil
                             | Context
                             | 446
                     )

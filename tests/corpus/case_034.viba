@@ -13,7 +13,7 @@ Check1 :=
                     * Metric
             )
             | ...
-            | void
+            | nil
             | (
                 (
                     941,
@@ -59,12 +59,12 @@ List2[U, In] :=
                 | (
                     Result[Alpha, Output]
                 )
-                | void
+                | nil
                 | Delta
         )
         * (
             List[
-                void
+                nil
                     | '''line one
 line two''',
                 340

@@ -40,7 +40,7 @@ Plan3 :=
                     'lazy'
                         <- fx.Graph
                         <- never
-                        <- void
+                        <- nil
                 )
                 * (
                     Omega
@@ -53,14 +53,14 @@ Plan3 :=
                     | {x + 1}
                     | 2.467
             )
-                * void
+                * nil
                 * $env.scope ()
                 * 559
-                * void
+                * nil
         ),
         $src (
             (
-                void
+                nil
                     <- ...
                     <- false
                     <- $a.b.c.d ()
@@ -83,7 +83,7 @@ Batch4[U, T] :=
                     <- 1.829
                     <- Input
                     <- false,
-                void
+                nil
                     <- Alpha
                     <- Error
             ]

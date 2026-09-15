@@ -67,7 +67,7 @@ Result2[U, K] :=
         )
             * (
                 (
-                    Map[Error, void]
+                    Map[Error, nil]
                 )
                     | true
                     | 'strict'
@@ -87,7 +87,7 @@ Result2[U, K] :=
                             * Omega
                     )
                     <- (
-                        Result[void, 525, true]
+                        Result[nil, 525, true]
                     )
             )
             * (

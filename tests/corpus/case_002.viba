@@ -9,7 +9,7 @@ line two'''
 b
 c'''
             * 96
-            * void
+            * nil
     )
         <- (
             (
@@ -23,7 +23,7 @@ c'''
             (
                 476,
                 Context,
-                void,
+                nil,
                 Error
             )
         )
@@ -64,7 +64,7 @@ Stream3[S, In] :=
     (
         Result[
             $kind 924,
-            $data void,
+            $data nil,
             Map[Output]
         ]
     )
@@ -72,7 +72,7 @@ Stream3[S, In] :=
             $res (
                 Output
                     | 4.593
-                    | void
+                    | nil
             )
         )
         <- (

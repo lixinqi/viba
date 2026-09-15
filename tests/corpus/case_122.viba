@@ -6,7 +6,7 @@ import fx.graph
 Stream1[E] :=
     (
         List[
-            void
+            nil
                 <- Metric
                 <- never
                 <- Metric,

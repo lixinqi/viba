@@ -19,14 +19,14 @@ Task1[E, K] :=
             )
             * (
                 $output (
-                    void
+                    nil
                         | 3.2
                         | Config
                 )
             )
             * (
                 'strict'
-                    | void
+                    | nil
             )
             * (
                 Config
@@ -35,7 +35,7 @@ Task1[E, K] :=
             )
             * (
                 GraphModule
-                    <- void
+                    <- nil
                     <- Omega
                     <- true
             )

@@ -44,7 +44,7 @@ b
 c'''
         )
         <- (
-            $next void
+            $next nil
         )
 
 Rule4[S, In] :=
@@ -92,7 +92,7 @@ line two'''
         | Handler
         | 186
         | MatchResult
-        | void
+        | nil
         | Alpha
         | (
             never
@@ -111,5 +111,5 @@ Edge9 :=
     (
         'fast'
             <- Config
-            <- void
+            <- nil
     )

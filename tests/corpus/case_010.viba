@@ -16,7 +16,7 @@ Report1[T, Out] :=
             (
                 (
                     never
-                        | void
+                        | nil
                 )
                     <- (
                         (
@@ -25,7 +25,7 @@ Report1[T, Out] :=
                     )
                     <- (
                         (
-                            void,
+                            nil,
                             Handler
                         )
                     )
@@ -83,7 +83,7 @@ Plan4[V] :=
     (
         (
             $cfg.mode ()
-                * void
+                * nil
         )
             | $res.val ()
             | 9.568,

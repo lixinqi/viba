@@ -83,10 +83,10 @@ Option4 :=
             <- Beta
     )
         | {fn(x + 1)}
-        | void
+        | nil
         | 3.37
         | 8.27
-        | void
+        | nil
         | 7.1
         | 'lazy'
 

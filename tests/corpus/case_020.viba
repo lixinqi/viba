@@ -4,7 +4,7 @@
 Edge1[S] :=
     (
         (
-            void
+            nil
         ),
         $a.b.c.d ()
             <- '''a
@@ -17,7 +17,7 @@ Pair2[Out] :=
     Box[
         (
             (
-                void
+                nil
             )
         )
             | (
@@ -79,7 +79,7 @@ Graph7[U] :=
     $name (
         false
             * Config
-            * void
+            * nil
             * torch.Tensor
     )
 

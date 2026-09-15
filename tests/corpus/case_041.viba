@@ -17,7 +17,7 @@ c''']
                 * (
                     Sigma
                         <- ...
-                        <- void
+                        <- nil
                         <- false
                 )
                 * (
@@ -69,12 +69,12 @@ Slice2 :=
         (
             'auto fast',
             2.6,
-            void,
+            nil,
             'slow fast viba'
         )
     )
         * 'viba'
-        * void
+        * nil
         * 419
         * $a.b.c.d ()
         * (

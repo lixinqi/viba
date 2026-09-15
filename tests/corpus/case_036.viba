@@ -10,7 +10,7 @@ b
 c'''
                     * {fn(x + 1)}
                     * Beta
-                    * void,
+                    * nil,
                 Error
                     | 6.22
                     | true
@@ -99,7 +99,7 @@ Rule2[E, Out] :=
             $res (
                 24
                     | Config
-                    | void
+                    | nil
                     | ...
             )
         )

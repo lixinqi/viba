@@ -32,7 +32,7 @@ c'''
         | (
             Result[
                 (
-                    void
+                    nil
                 ),
                 (
                     ...

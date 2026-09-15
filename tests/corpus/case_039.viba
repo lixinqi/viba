@@ -50,7 +50,7 @@ c'''
                 | $cfg.mode ()
                 | 'slow lazy'
                 | (
-                    void
+                    nil
                         <- 2.941
                         <- never
                         <- State
@@ -72,9 +72,9 @@ c'''
         | (
             $kind (
                 (
-                    void
+                    nil
                         <- 489
-                        <- void
+                        <- nil
                 )
             )
         )
@@ -96,7 +96,7 @@ c'''
                     )
                     * (
                         (
-                            void
+                            nil
                         )
                     )
             )

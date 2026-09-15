@@ -18,7 +18,7 @@ line two'''
             $kind Alpha
         )
             <- (
-                $next void
+                $next nil
             ),
         Map[
             'auto viba'
@@ -32,7 +32,7 @@ line two'''
             | '''keep
   indent'''
             | (
-                Box[void, Context]
+                Box[nil, Context]
             )
             | (
                 MatchResult
@@ -101,10 +101,10 @@ Handler6 :=
                 * {fn(fn(x + 1))}
         )
         | (
-            void
+            nil
                 * Alpha
                 * Context
-                * void
+                * nil
         )
 
 Rule9[K] :=

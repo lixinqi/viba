@@ -21,7 +21,7 @@ c'''
                     * 778
                     * true
                     * {fn(fn(x + 1))},
-                void
+                nil
                     * never,
                 never
                     | torch.Tensor
@@ -56,7 +56,7 @@ line two''',
         * (
             Map[
                 {fn(fn(x + 1))}
-                    <- void
+                    <- nil
                     <- MatchResult,
                 Box[true, 'fast']
             ]

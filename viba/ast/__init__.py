@@ -29,7 +29,7 @@ from viba.ast.nodes import (
     Tuple,
     TypeRef,
     Constant,
-    Void,
+    Nil,
     Never,
     Ellipsis,
     CodeBlock,
@@ -43,7 +43,7 @@ from viba.ast.unparse import unparse_module
 __all__ = [
     "AST", "Module", "TypeDefinition", "GenericDefinition", "Import",
     "Sum", "Product", "Exponent", "Tagged",
-    "TypeApp", "Tuple", "TypeRef", "Constant", "Void", "Never", "Ellipsis",
+    "TypeApp", "Tuple", "TypeRef", "Constant", "Nil", "Never", "Ellipsis",
     "CodeBlock", "SumChain", "ProductChain", "ExponentChain",
     "parse", "unparse", "canonical", "dump",
     "convert_to_chain_style", "convert_from_chain_style",

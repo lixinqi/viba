@@ -7,13 +7,13 @@ Plan1[S, Out] :=
             | '''line one
 line two'''
             | 163
-            | void
+            | nil
     )
 
 Node2 :=
     (
         Map[
-            $input void,
+            $input nil,
             (
                 938
             )
@@ -69,7 +69,7 @@ Map3[E, U] :=
                 <- (
                     352
                         * 830
-                        * void
+                        * nil
                         * '''keep
   indent'''
                 )

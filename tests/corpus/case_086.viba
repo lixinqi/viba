@@ -64,8 +64,8 @@ b
 c'''
                     )
                     * (
-                        void
-                            <- void
+                        nil
+                            <- nil
                             <- fx.Graph
                             <- MatchResult
                     )
@@ -88,7 +88,7 @@ c'''
                             <- '''a
 b
 c'''
-                            <- void
+                            <- nil
                             <- GraphModule
                     ),
                 List[

@@ -23,7 +23,7 @@ Stream2 :=
                 '''a
 b
 c'''
-                    <- void
+                    <- nil
                     <- '''keep
   indent'''
             )
@@ -90,10 +90,10 @@ Handler4[V, In] :=
     )
         <- (
             (
-                Map[Config, void, 'lazy auto viba'],
+                Map[Config, nil, 'lazy auto viba'],
                 (
                     never,
-                    void,
+                    nil,
                     Config
                 ),
                 Handler

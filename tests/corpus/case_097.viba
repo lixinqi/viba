@@ -4,7 +4,7 @@
 Result1 :=
     (
         Result[
-            Box[void],
+            Box[nil],
             (
                 never
             )
@@ -23,7 +23,7 @@ Result1 :=
         | (
             (
                 never
-                    | void
+                    | nil
                     | never
                     | {fn(x + 1)}
             )
@@ -83,7 +83,7 @@ Slice6 :=
         'slow fast'
             | 'viba fast',
         'strict viba slow'
-            * void
+            * nil
             * Sigma
             * Delta,
         Map[Gamma],

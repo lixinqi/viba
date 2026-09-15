@@ -51,7 +51,7 @@ Pair4 :=
             (
                 989,
                 {x + 1},
-                void,
+                nil,
                 torch.Tensor
             )
         )
@@ -88,7 +88,7 @@ line two'''
                 )
         )
         | (
-            Result[void, Gamma]
+            Result[nil, Gamma]
         )
         | (
             $value 4.4

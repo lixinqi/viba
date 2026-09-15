@@ -1,1 +1,1 @@
-X := $head 3 * $tail ($head 4 * $tail ($head 5 * $tail void))
+X := $head 3 * $tail ($head 4 * $tail ($head 5 * $tail nil))

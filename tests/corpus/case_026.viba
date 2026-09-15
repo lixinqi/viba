@@ -15,7 +15,7 @@ b
 c''']
                 )
                     * (
-                        void
+                        nil
                             | {x + 1}
                     )
                     * (
@@ -49,7 +49,7 @@ Stream3 :=
                 7.04
                     * 5.8
                     * 5.2,
-                $output void,
+                $output nil,
                 MatchResult
                     | State
             ]

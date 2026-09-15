@@ -87,7 +87,7 @@ Slice2 :=
         )
             <- (
                 (
-                    void
+                    nil
                         * false
                         * 905
                 )

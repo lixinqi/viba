@@ -20,7 +20,7 @@ Result1 :=
                         7.7
                             * Omega
                     )
-                    | void
+                    | nil
                     | 842
                     | never
                     | 'fast viba slow'
@@ -106,7 +106,7 @@ c'''
                     )
                     | (
                         'fast'
-                            <- void
+                            <- nil
                     )
             )
         )

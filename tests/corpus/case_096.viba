@@ -15,10 +15,10 @@ Task1 :=
         )
         <- (
             (
-                void,
+                nil,
                 '''line one
 line two''',
-                void,
+                nil,
                 'fast lazy auto'
             )
         )
@@ -35,7 +35,7 @@ c'''
             * (
                 Sigma
                     | 302
-                    | void
+                    | nil
                     | Alpha
             )
             * (
@@ -96,7 +96,7 @@ Map6 :=
             never
         )
     )
-        * void
+        * nil
         * true
         * (
             State

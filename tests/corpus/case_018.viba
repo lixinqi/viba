@@ -46,7 +46,7 @@ State2[Out, S] :=
             <- (
                 Error
                     <- 'auto strict'
-                    <- void
+                    <- nil
                     <- never
             )
             <- (

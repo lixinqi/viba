@@ -47,7 +47,7 @@ Batch2[In] :=
             )
             | (
                 Alpha
-                    * void
+                    * nil
                     * 580
             )
     )
@@ -83,8 +83,8 @@ Option4 :=
     (
         32
             <- 699
-            <- void
-            <- void
+            <- nil
+            <- nil
     )
         <- (
             never
@@ -105,7 +105,7 @@ c'''
 
 Graph9 :=
     (
-        void
+        nil
     )
 
 Rule11[Out, In] :=

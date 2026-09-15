@@ -32,7 +32,7 @@ Graph2[V] :=
                 'viba fast',
                 {fn(fn(x + 1))},
                 Alpha,
-                void
+                nil
             )
         )
     )
@@ -92,7 +92,7 @@ Graph3[In] :=
                     | 'strict fast'
             ),
         (
-            $data void
+            $data nil
         )
             * (
                 Box[771]
@@ -102,7 +102,7 @@ Graph3[In] :=
                     <- 'strict'
             )
             * 'strict fast viba'
-            * void
+            * nil
     ]
 
 Config5 :=

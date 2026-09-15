@@ -29,8 +29,8 @@ c'''
         * (
             List[
                 $cfg.mode ()
-                    <- void,
-                $dst void
+                    <- nil,
+                $dst nil
             ]
         )
         * (
@@ -44,12 +44,12 @@ c'''
         )
         * (
             (
-                $idx void
+                $idx nil
             )
                 | (
                     Omega
                         <- Input
-                        <- void
+                        <- nil
                         <- $env.scope ()
                 )
                 | (
@@ -95,13 +95,13 @@ Plan4 :=
         )
         * (
             (
-                void
+                nil
                     | false
-                    | void
+                    | nil
                     | MatchResult
             )
                 <- (
-                    $kind void
+                    $kind nil
                 )
         )
 

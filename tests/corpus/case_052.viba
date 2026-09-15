@@ -27,7 +27,7 @@ Plan3[T, In] :=
             | never
     )
         <- (
-            $cfg void
+            $cfg nil
         )
         <- (
             (
@@ -52,7 +52,7 @@ Node4[In, E] :=
                 {x + 1}
                     * Omega
                     * 3.2
-                    * void
+                    * nil
             ]
         ),
         $err (
@@ -75,7 +75,7 @@ Config5[K, U] :=
     Map[
         $data (
             (
-                void
+                nil
             )
         )
     ]
@@ -95,7 +95,7 @@ line two'''
                 7.9
                     * '''keep
   indent'''
-                    * void,
+                    * nil,
                 $input fx.Graph
             )
         )
