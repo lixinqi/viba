@@ -13,13 +13,13 @@ Name[T, U, ...] := body
 | Operator | Syntax | Meaning |
 |----------|--------|---------|
 | Assign | `Name := body` | Type definition |
-| Sum | `A | B` | Either A or B |
+| Sum | `A \| B` | Either A or B |
 | Product | `A * B` | Both A and B |
 | Exponent | `B <- A` | Function from A to B |
 | Generic | `Name[T]` | Parameterized type |
 | Tag | `$label T` | Named field / variant |
 | Void | `void` | Product identity (`A * void = A`) |
-| Never | `never` | Sum identity (`A | never = A`) |
+| Never | `never` | Sum identity (`A \| never = A`) |
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
 | Code block | `{ ... }` | Arbitrary text, supports nesting |
