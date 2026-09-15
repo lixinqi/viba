@@ -73,14 +73,14 @@ for src in CASES:
     check(roundtrip(src), a, True, f"parse(unparse(A)) <: A   [{src}]")
     check(roundtrip(src), roundtrip(src), True, f"roundtrip reflexive   [{src}]")
 
-# Nominal: a differently-NAMED module (different module object) holding
-# the same structure is a different type.
+# Nominal: only GenericDefinitions are nominal. Plain TypeDefinitions
+# are transparent and compare structurally.
 m1 = custom_module("Holder := $x int")
 m2 = custom_module("Holder := $x int")
 t1 = entry_type("Holder", m1)
 t2 = entry_type("Holder", m2)
 check(t1, t1, True, "same module object, same name")
-check(t1, t2, False, "different module object, same name -> nominal false")
+check(t1, t2, True, "plain TypeDefinition is transparent: structural across modules")
 
 # ----------------------------------------------------------------------
 # Literals vs base types
@@ -146,8 +146,8 @@ check(entry_type("List[int]", mod), entry_type("List[float]", mod), False,
       "List[int] /<: List[float] (nominal args)")
 check(entry_type("MyList[int]", mod), entry_type("List[int]", mod), False,
       "structural clone is NOT List (nominal)")
-check(entry_type("IntList", mod), entry_type("List[int]", mod), False,
-      "alias name is not the generic's name (nominal)")
+check(entry_type("IntList", mod), entry_type("List[int]", mod), True,
+      "transparent alias: IntList := List[int] IS List[int]")
 check(entry_type("List", BUILTIN_MODULE), entry_type("List", BUILTIN_MODULE), True,
       "builtin List constructor nominal self-check")
 
@@ -228,18 +228,24 @@ chain_exp = entry_type(canon_exp.split(":=")[1].strip())
 check(chain_exp, entry_type("int <- X <- str"), True,
       "canonical ExponentChain == raw nested Exponent")
 
-# A resolved named definition is not its own expansion (nominal).
+# A resolved plain TypeDefinition is transparent: it IS its body.
 shapes = custom_module("Shape := $w int * $h int")
-check(entry_type("Shape", shapes), entry_type("$w int * $h int", shapes), False,
-      "named definition is NOT structurally its body")
+check(entry_type("Shape", shapes), entry_type("$w int * $h int", shapes), True,
+      "plain TypeDefinition unfolds to its body")
 check(entry_type("Shape", shapes), entry_type("Shape", shapes), True,
-      "named definition reflexive")
+      "plain TypeDefinition reflexive")
 
-# Same name resolved through different module objects -> nominal False.
+# Same name resolved through different module objects: plain defs are
+# structural (true when bodies match); generics stay nominal (false).
 env_target = custom_module("Widget := $w int")
 env_a = custom_module("", environment=lambda name: Ok(env_target))
-check(entry_type("Widget", env_a), entry_type("Widget", other), False,
-      "same name via env vs local: different module objects -> False")
+check(entry_type("Widget", env_a), entry_type("Widget", other), True,
+      "plain def via env vs local: structural, bodies match")
+g_target = custom_module("G[T] := $v T")
+g_source = custom_module("", environment=lambda name: Ok(g_target))
+g_local = custom_module("G[T] := $v T")
+check(entry_type("G[int]", g_source), entry_type("G[int]", g_local), False,
+      "generic via env vs local: nominal, different modules -> False")
 
 # OpaqueType atoms are free variables: identity is the name alone.
 opaque_mod = custom_module("")
@@ -275,6 +281,35 @@ check(entry_type("Box[int]", box_a), entry_type("Box[int]", box_b), False,
 # Tuple vs product stay distinct at the judgment layer.
 check(entry_type("(int, str)"), entry_type("$a int * $b str"), False,
       "tuple is not a tagged product")
+
+# Plain TypeDefinitions are transparent: the width case.
+transparent = custom_module("""
+A := $nice int * $good str
+B := A * $find bool
+C := $nice int
+D := $nice str * $good int
+""")
+check(entry_type("B", transparent), entry_type("A", transparent), True,
+      "B := A * $find bool <: A (width through a transparent ref)")
+check(entry_type("A", transparent), entry_type("B", transparent), False,
+      "A /<: B (missing $find)")
+check(entry_type("C", transparent), entry_type("A", transparent), False,
+      "C missing $good")
+check(entry_type("D", transparent), entry_type("A", transparent), False,
+      "same tags, swapped types -> False")
+
+# Recursive plain TypeDefinitions: the coinductive assumption table.
+recursive = custom_module("""
+Chain := $head int * $tail Chain | void
+Chain2 := $head int * $tail Chain2 | void
+Broken := $head str * $tail Broken | void
+""")
+check(entry_type("Chain", recursive), entry_type("Chain", recursive), True,
+      "recursive plain def reflexive (no infinite unfold)")
+check(entry_type("Chain2", recursive), entry_type("Chain", recursive), True,
+      "structural clones of recursive defs are equal")
+check(entry_type("Broken", recursive), entry_type("Chain", recursive), False,
+      "different leaf type breaks the recursion")
 
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

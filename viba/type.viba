@@ -45,7 +45,8 @@ IsSubType :=
   <- $sup Type
   <- Hint[{
     内部会用到 ModuleGetType：TypeRef 经它解析为 $ast_node_type
-    （Definition 节点 + 所在模块）；解析不了的 TypeRef 按
-    (container_module, name) 当 nominal 原子，自由泛型参数即如此。
-    递归定义按需展开，判定器维护 (sub, sup) 假设表，重复命中即假设成立。
+    （Definition 节点 + 所在模块）；解析不了的 TypeRef 按名字当
+    nominal 原子，自由泛型参数即如此。
+    GenericDefinition 名义判定（同模块同名才相等，永不展开）；
+    TypeDefinition 透明展开、结构比较，递归对由假设表共归纳兜底。
   }]

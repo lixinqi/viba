@@ -3,14 +3,16 @@
 Contract: consumes Type values only (viba.type). Nothing here knows
 about rules, results or compliance semantics.
 
-Semantics (nominal, per design):
+Semantics (per design):
+- GenericDefinition references are nominal: same container module
+  (object identity) and same name -> equal; bodies never unfold.
+- TypeDefinition references are transparent: they unfold to their
+  bodies and compare structurally (B := A * $find bool <: A).
+  Recursive plain definitions are guarded by the coinductive
+  assumption table: a (sub, sup) pair already in flight is true.
 - Leaves compare by family: literal(v) <: base iff same family;
   literal <: literal iff equal values; never <: T; T <: never iff
   T is never (a Rule's never branch forbids any other resident).
-- AstNodeType wrapping a *definition* is nominal: same container
-  module (object identity) and same definition name -> equal;
-  anything else -> not a subtype. Bodies of differently-named
-  definitions are never unfolded.
 - AstNodeType wrapping inline structure (sums, products, tuples,
   exponents, type applications) is compared structurally, recursing
   at the Type level whenever a side lifts to a Type (TypeRef
@@ -84,6 +86,8 @@ def _assert_no_poison(sup: Type):
 class _Checker:
     def __init__(self):
         self.memo: dict = {}
+        self._walk_memo: dict = {}
+        self._walking: set = set()
 
     # ------------------------------------------------------------------
     # Type-level dispatch
@@ -144,22 +148,51 @@ class _Checker:
     # ------------------------------------------------------------------
 
     def _check_ast_pair(self, sub: AstNodeType, sup: AstNodeType) -> bool:
-        sub_def = _as_definition(sub.ast_node)
-        sup_def = _as_definition(sup.ast_node)
-        if sub_def is not None and sup_def is not None:
-            return self._same_definition(sub, sup, sub_def, sup_def)
-        sn, sp = sub.ast_node, sup.ast_node
-        return self._walk(sn, sub.container_module, sp, sup.container_module)
+        sn, s_mod = _unwrap_definition(sub)
+        sp, p_mod = _unwrap_definition(sup)
+        both_generic = isinstance(sn, viba_ast.GenericDefinition)
+        if both_generic and isinstance(sp, viba_ast.GenericDefinition):
+            return self._same_generic(sn, s_mod, sp, p_mod)
+        return self._walk(sn, s_mod, sp, p_mod)
 
-    def _same_definition(self, sub, sup, sub_def, sup_def) -> bool:
+    def _same_generic(self, sn, s_mod, sp, p_mod) -> bool:
         """Nominal: same module object and same name; never unfolded."""
-        return sub.container_module is sup.container_module and sub_def.name == sup_def.name
+        return s_mod is p_mod and sn.name == sp.name
 
     # ------------------------------------------------------------------
     # Structural walk over viba.ast nodes
     # ------------------------------------------------------------------
 
     def _walk(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
+        sn, s_mod = self._unfold_ref(sn, s_mod)
+        sp, p_mod = self._unfold_ref(sp, p_mod)
+        key = (id(sn), id(sp), id(s_mod), id(p_mod))
+        if key in self._walking:
+            return True  # coinductive assumption (design: 假设表)
+        if key in self._walk_memo:
+            return self._walk_memo[key]
+        self._walking.add(key)
+        result = self._walk_inner(sn, s_mod, sp, p_mod)
+        self._walking.discard(key)
+        self._walk_memo[key] = result
+        return result
+
+    def _unfold_ref(self, node, module: ModuleType):
+        """A TypeRef to a plain TypeDefinition is transparent: unfold
+        to its body, whose own TypeRefs resolve in its home module."""
+        if not isinstance(node, viba_ast.TypeRef):
+            return node, module
+        resolved = module_get_type(module, node.name)
+        if isinstance(resolved, Err):
+            return node, module
+        target = resolved.value
+        if not isinstance(target, AstNodeType):
+            return node, module
+        if not isinstance(target.ast_node, viba_ast.TypeDefinition):
+            return node, module
+        return target.ast_node.body, target.container_module
+
+    def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
         # Poison beats even the ellipsis wildcard: AssertionViolated
         # fails against ANY sup, and must never appear on the sup side.
         if _is_poison_ref(sn):
@@ -172,20 +205,10 @@ class _Checker:
             return True  # bottom fits anywhere
         if isinstance(sp, (viba_ast.Void, viba_ast.Never)):
             return type(sn) is type(sp)  # never branch admits only never
-        if self._both_refs(sn, sp, s_mod, p_mod):
-            return sn.name == sp.name
         lifted = self._walk_lifted(sn, s_mod, sp, p_mod)
         if lifted is not None:
             return lifted
         return self._walk_structural(sn, s_mod, sp, p_mod)
-
-    def _both_refs(self, sn, sp, s_mod, p_mod) -> bool:
-        """TypeRef vs TypeRef in the same module: nominal by name."""
-        if not isinstance(sn, viba_ast.TypeRef):
-            return False
-        if not isinstance(sp, viba_ast.TypeRef):
-            return False
-        return s_mod is p_mod
 
     def _walk_lifted(self, sn, s_mod, sp, p_mod):
         """Handle sides that lift to the Type level (Constants, TypeRefs)."""
@@ -249,7 +272,7 @@ class _Checker:
 
     def _walk_tagged(self, sn, s_mod, sp, p_mod) -> bool:
         if isinstance(sn, _PROD_NODES):
-            tagged, _ = _split_product(sn)
+            tagged, _ = self._split_product(sn, s_mod)
             return sp.tag in tagged and self._walk(tagged[sp.tag], s_mod, sp.type, p_mod)
         if not isinstance(sn, viba_ast.Tagged):
             return self._walk(sn, s_mod, sp.type, p_mod)
@@ -257,15 +280,35 @@ class _Checker:
 
     def _walk_products(self, sn, s_mod, sp, p_mod) -> bool:
         """Tagged products match by tag (commutative); sup's tags must
-        all be present in sub (width). Untagged elements pair in order."""
-        sub_tagged, sub_bare = _split_product(sn)
-        sup_tagged, sup_bare = _split_product(sp)
+        all be present in sub (width). Untagged elements pair in order.
+        Bare TypeRefs to plain TypeDefinitions unfold so their tags
+        participate (B := A * $find bool carries A's tags)."""
+        sub_tagged, sub_bare = self._split_product(sn, s_mod)
+        sup_tagged, sup_bare = self._split_product(sp, p_mod)
         if not self._tags_covered(sub_tagged, s_mod, sup_tagged, p_mod):
             return False
         if len(sub_bare) != len(sup_bare):
             return False
         pairs = zip(sub_bare, sup_bare)
         return all(self._walk(a, s_mod, b, p_mod) for a, b in pairs)
+
+    def _split_product(self, node, module):
+        """Flatten a Product/ProductChain into ({tag: body}, [bare]),
+        unfolding transparent TypeDefinitions along the way."""
+        tagged, bare = {}, []
+        for elem in _product_elements(node):
+            t, b = self._split_element(elem, module)
+            tagged.update(t)
+            bare.extend(b)
+        return tagged, bare
+
+    def _split_element(self, elem, module):
+        elem, elem_mod = self._unfold_ref(elem, module)
+        if isinstance(elem, _PROD_NODES):
+            return self._split_product(elem, elem_mod)
+        if isinstance(elem, viba_ast.Tagged):
+            return {elem.tag: elem.type}, []
+        return {}, [elem]
 
     def _tags_covered(self, sub_tagged, s_mod, sup_tagged, p_mod) -> bool:
         items = sup_tagged.items()
@@ -337,6 +380,15 @@ def _as_definition(node):
     return node if isinstance(node, kinds) else None
 
 
+def _unwrap_definition(entry: AstNodeType):
+    """Plain TypeDefinitions are transparent: compare their bodies.
+    GenericDefinitions stay wrapped (they are nominal)."""
+    node = entry.ast_node
+    if isinstance(node, viba_ast.TypeDefinition):
+        return node.body, entry.container_module
+    return node, entry.container_module
+
+
 def _is_poison_ref(node) -> bool:
     return isinstance(node, viba_ast.TypeRef) and node.name == "AssertionViolated"
 
@@ -370,18 +422,6 @@ def _literal_type(value) -> Type:
     if isinstance(value, str):
         return StrLiteralType(value)
     raise TypeError(f"unsupported literal: {value!r}")
-
-
-def _split_product(node):
-    """Flatten a Product or ProductChain into ({tag: body}, [bare])."""
-    tagged: dict = {}
-    bare = []
-    for elem in _product_elements(node):
-        if isinstance(elem, viba_ast.Tagged):
-            tagged[elem.tag] = elem.type
-        else:
-            bare.append(elem)
-    return tagged, bare
 
 
 def _product_elements(node):
