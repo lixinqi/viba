@@ -1,0 +1,67 @@
+CodeLength := int
+CyclomaticComplexity := int
+CoverageRatio := float
+BudgetSplit := $spent float * $cap float
+ModuleName := str
+Imports := list[str]
+IsPublic := bool
+
+Rule13 :=
+  Object
+  * $code_length Metric[CodeLength]
+  * $cyclomatic_complexity Metric[CyclomaticComplexity]
+  * $coverage_ratio Metric[CoverageRatio]
+  * $budget_split Metric[BudgetSplit]
+  * $module_name Metric[ModuleName]
+  * $imports Metric[Imports]
+  * $is_public Metric[IsPublic]
+  * $assert_00_code_length_at_most_24
+      Assert[{code_length at most 24}, $python_code {
+def handler(self):
+    return self.code_length.value <= 24
+}]
+  * $assert_01_code_length_under_100
+      Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+  * $assert_02_cyclomatic_complexity_at_most_24
+      Assert[{cyclomatic_complexity at most 24}, $python_code {
+def handler(self):
+    return self.cyclomatic_complexity.value <= 24
+}]
+  * $assert_03_cyclomatic_complexity_under_100
+      Assert[{cyclomatic_complexity under 100}, $python_code {
+def handler(self):
+    return self.cyclomatic_complexity.value < 100
+}]
+  * $assert_04_code_length_not_above_cyclomatic_complexity
+      Assert[{code_length not above cyclomatic_complexity}, $python_code {
+def handler(self):
+    return self.code_length.value <= self.cyclomatic_complexity.value
+}]
+  * $assert_05_coverage_ratio_within_50_5
+      Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+  * $assert_06_coverage_ratio_non_negative
+      Assert[{coverage_ratio non-negative}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value >= 0.0
+}]
+  * $assert_07_is_public_required
+      Assert[{is_public required}, $python_code {
+def handler(self):
+    return self.is_public.value
+}]
+  * $assert_08_is_public_forbidden
+      Assert[{is_public forbidden}, $python_code {
+def handler(self):
+    return not self.is_public.value
+}]
+  * $assert_09_module_name_short
+      Assert[{module_name short}, $python_code {
+def handler(self):
+    return len(self.module_name.value) <= 8
+}]

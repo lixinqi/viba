@@ -1,0 +1,71 @@
+CodeLength := int
+MaxLines := int
+LoopCount := int
+TimeBudget := float
+HasTests := bool
+DocCoverage := $documented_lines int * $total_lines int
+Imports := list[str]
+Scores := dict[str, int]
+TraceLevel := $quiet () | $verbose ()
+
+Rule17 :=
+  Object
+  * $code_length Metric[CodeLength]
+  * $max_lines Metric[MaxLines]
+  * $loop_count Metric[LoopCount]
+  * $time_budget Metric[TimeBudget]
+  * $has_tests Metric[HasTests]
+  * $doc_coverage Metric[DocCoverage]
+  * $imports Metric[Imports]
+  * $scores Metric[Scores]
+  * $trace_level Metric[TraceLevel]
+  * $assert_00_code_length_at_most_24
+      Assert[{code_length at most 24}, $python_code {
+def handler(self):
+    return self.code_length.value <= 24
+}]
+  * $assert_01_code_length_under_100
+      Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+  * $assert_02_max_lines_at_most_24
+      Assert[{max_lines at most 24}, $python_code {
+def handler(self):
+    return self.max_lines.value <= 24
+}]
+  * $assert_03_max_lines_under_100
+      Assert[{max_lines under 100}, $python_code {
+def handler(self):
+    return self.max_lines.value < 100
+}]
+  * $assert_04_loop_count_at_most_24
+      Assert[{loop_count at most 24}, $python_code {
+def handler(self):
+    return self.loop_count.value <= 24
+}]
+  * $assert_05_loop_count_under_100
+      Assert[{loop_count under 100}, $python_code {
+def handler(self):
+    return self.loop_count.value < 100
+}]
+  * $assert_06_code_length_not_above_max_lines
+      Assert[{code_length not above max_lines}, $python_code {
+def handler(self):
+    return self.code_length.value <= self.max_lines.value
+}]
+  * $assert_07_time_budget_within_50_5
+      Assert[{time_budget within 50.5}, $python_code {
+def handler(self):
+    return self.time_budget.value <= 50.5
+}]
+  * $assert_08_time_budget_non_negative
+      Assert[{time_budget non-negative}, $python_code {
+def handler(self):
+    return self.time_budget.value >= 0.0
+}]
+  * $assert_09_has_tests_required
+      Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]

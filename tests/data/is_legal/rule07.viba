@@ -1,0 +1,65 @@
+MaxLines := int
+CoverageRatio := float
+IsPublic := bool
+ModuleName := str
+Imports := list[str]
+Tags := set[str]
+
+Rule07 :=
+  Object
+  * $max_lines Metric[MaxLines]
+  * $coverage_ratio Metric[CoverageRatio]
+  * $is_public Metric[IsPublic]
+  * $module_name Metric[ModuleName]
+  * $imports Metric[Imports]
+  * $tags Metric[Tags]
+  * $assert_00_max_lines_at_most_24
+      Assert[{max_lines at most 24}, $python_code {
+def handler(self):
+    return self.max_lines.value <= 24
+}]
+  * $assert_01_max_lines_under_100
+      Assert[{max_lines under 100}, $python_code {
+def handler(self):
+    return self.max_lines.value < 100
+}]
+  * $assert_02_coverage_ratio_within_50_5
+      Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+  * $assert_03_coverage_ratio_non_negative
+      Assert[{coverage_ratio non-negative}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value >= 0.0
+}]
+  * $assert_04_is_public_required
+      Assert[{is_public required}, $python_code {
+def handler(self):
+    return self.is_public.value
+}]
+  * $assert_05_is_public_forbidden
+      Assert[{is_public forbidden}, $python_code {
+def handler(self):
+    return not self.is_public.value
+}]
+  * $assert_06_module_name_short
+      Assert[{module_name short}, $python_code {
+def handler(self):
+    return len(self.module_name.value) <= 8
+}]
+  * $assert_07_module_name_not_empty
+      Assert[{module_name not empty}, $python_code {
+def handler(self):
+    return len(self.module_name.value) >= 1
+}]
+  * $assert_08_imports_non_empty
+      Assert[{imports non-empty}, $python_code {
+def handler(self):
+    return len(self.imports.value) >= 1
+}]
+  * $assert_09_imports_bounded
+      Assert[{imports bounded}, $python_code {
+def handler(self):
+    return len(self.imports.value) <= 4
+}]

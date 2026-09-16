@@ -1,0 +1,69 @@
+CodeLength := int
+LoopCount := int
+ParamCount := int
+CoverageRatio := float
+HasTests := bool
+ModuleName := str
+Scores := dict[str, int]
+Imports := list[str]
+
+Rule15 :=
+  Object
+  * $code_length Metric[CodeLength]
+  * $loop_count Metric[LoopCount]
+  * $param_count Metric[ParamCount]
+  * $coverage_ratio Metric[CoverageRatio]
+  * $has_tests Metric[HasTests]
+  * $module_name Metric[ModuleName]
+  * $scores Metric[Scores]
+  * $imports Metric[Imports]
+  * $assert_00_code_length_at_most_24
+      Assert[{code_length at most 24}, $python_code {
+def handler(self):
+    return self.code_length.value <= 24
+}]
+  * $assert_01_code_length_under_100
+      Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+  * $assert_02_loop_count_at_most_24
+      Assert[{loop_count at most 24}, $python_code {
+def handler(self):
+    return self.loop_count.value <= 24
+}]
+  * $assert_03_loop_count_under_100
+      Assert[{loop_count under 100}, $python_code {
+def handler(self):
+    return self.loop_count.value < 100
+}]
+  * $assert_04_param_count_at_most_24
+      Assert[{param_count at most 24}, $python_code {
+def handler(self):
+    return self.param_count.value <= 24
+}]
+  * $assert_05_param_count_under_100
+      Assert[{param_count under 100}, $python_code {
+def handler(self):
+    return self.param_count.value < 100
+}]
+  * $assert_06_code_length_not_above_loop_count
+      Assert[{code_length not above loop_count}, $python_code {
+def handler(self):
+    return self.code_length.value <= self.loop_count.value
+}]
+  * $assert_07_coverage_ratio_within_50_5
+      Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+  * $assert_08_coverage_ratio_non_negative
+      Assert[{coverage_ratio non-negative}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value >= 0.0
+}]
+  * $assert_09_has_tests_required
+      Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
