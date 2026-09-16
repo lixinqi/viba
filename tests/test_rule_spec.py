@@ -3,6 +3,9 @@
 The spec is a program: its ```viba block must parse, round-trip, and
 its demo judgments must hold — DemoResultPass seats in
 DemoRuleStripped, DemoResultFail does not, poisoned sup errs.
+The stripped/pass/fail companions live in
+tests/data/rule_check/spec_demo.viba; sum-rule coverage lives in
+sum_rule.viba (driven by test_rule_check.py).
 """
 
 import sys
@@ -14,48 +17,13 @@ from viba import ast as viba_ast
 from viba.type import AstNodeType, Err, Ok, custom_module
 from viba.is_sub_type import is_sub_type
 
-SPEC = Path(__file__).resolve().parent.parent / "rule.md"
+ROOT = Path(__file__).resolve().parent.parent
+DATA = ROOT / "tests" / "data" / "rule_check"
 
 
 def _spec_source():
-    block = SPEC.read_text().split("```viba\n", 1)[1]
+    block = (ROOT / "rule.md").read_text().split("```viba\n", 1)[1]
     return block.split("\n```", 1)[0]
-
-
-# 剥离与取证的产物不在 Rule 规范内，由测试自带：
-# pass 写 nil 对位，fail 同 tag 写 AssertionFailed（永不入围）。
-DEMO = """
-DemoRuleStripped :=
-  Object
-  * $code_length Metric[CodeLength]
-  * $assert_code_len_le_24 nil
-
-DemoResultFail :=
-  Object
-  * $code_length 30
-  * $assert_code_len_le_24 AssertionFailed[int, str]
-
-DemoResultPass :=
-  Object
-  * $code_length 20
-  * $assert_code_len_le_24 nil
-
-DemoSmallRule :=
-  RuleObject
-  * $x int
-
-DemoBigRule :=
-  RuleObject
-  * $y str
-
-DemoSumRule :=
-  OneofRule
-  | $small DemoSmallRule
-  | $big DemoBigRule
-
-DemoSumWitness :=
-  $small (RuleObject * $x 5)
-"""
 
 
 def _round_trip(text: str):
@@ -77,15 +45,15 @@ def _judgment(module, sub_name: str, sup_name: str):
 
 def main():
     _round_trip(_spec_source())
-    module = custom_module(_spec_source() + DEMO)
+    demo = (DATA / "spec_demo.viba").read_text()
+    module = custom_module(_spec_source() + demo)
     assert _judgment(module, "DemoResultPass", "DemoRuleStripped") is True
     assert _judgment(module, "DemoResultFail", "DemoRuleStripped") is False
     poison_sup = is_sub_type(_entry(module, "DemoResultPass"), _entry(module, "DemoResultFail"))
     assert isinstance(poison_sup, Err), f"poison on sup side must be Err: {poison_sup!r}"
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
-    assert names == ["DemoRule", "DemoSmallRule", "DemoBigRule", "DemoSumRule"], f"rule markers: {names}"
-    assert _judgment(module, "DemoSumWitness", "DemoSumRule") is True
-    print("rule spec: round-trip + 4 judgment checks + marker scan passed")
+    assert names == ["DemoRule"], f"rule markers: {names}"
+    print("rule spec: round-trip + 3 judgment checks + marker scan passed")
 
 
 main()
