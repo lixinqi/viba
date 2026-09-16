@@ -9,7 +9,7 @@ Tags := set[str]
 Scores := dict[str, int]
 
 Rule22 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $max_lines Metric[MaxLines]
   * $coverage_ratio Metric[CoverageRatio]

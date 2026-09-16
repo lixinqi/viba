@@ -1,6 +1,6 @@
 ```viba
 Instance22 :=
-    Object
+    RuleObject
     * $code_length 17
     * $max_lines 31
     * $coverage_ratio 2.36
