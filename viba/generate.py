@@ -2,10 +2,10 @@
 
 Given a rule (viba.type.AstNodeType), produce instances structurally
 parallel to it: every Metric[Name] field is replaced by a random
-literal of Name's data shape, and every Assert field is witnessed
-by nil (the predicator itself is out of scope here). On a legal
-rule no instance can trigger a judgment error — running instances
-through is_compliant yields Ok(True) or Ok(false) only.
+literal of Name's data shape; everything else — including Assert
+fields — is kept as-is. On a legal rule no instance can trigger a
+judgment error — running instances through is_compliant yields
+Ok(True) or Ok(false) only.
 """
 
 import random
@@ -66,8 +66,6 @@ def _gen_node(node, module: ModuleType, rng):
 def _gen_typeapp(node, module: ModuleType, rng):
     if node.constructor == "Metric":
         return _metric_literal(node.args[0], module, rng)
-    if node.constructor == "Assert":
-        return viba_ast.Nil()
     resolved = module_get_type(module, node.constructor)
     if isinstance(resolved, Ok) and isinstance(resolved.value, BuiltinGenericType):
         return _container_literal(node, resolved.value, module, rng)
