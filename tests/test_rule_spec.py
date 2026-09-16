@@ -40,13 +40,21 @@ DemoResultPass :=
   * $code_length 20
   * $assert_code_len_le_24 nil
 
+DemoSmallRule :=
+  RuleObject
+  * $x int
+
+DemoBigRule :=
+  RuleObject
+  * $y str
+
 DemoSumRule :=
   OneofRule
-  | $small int
-  | $big str
+  | $small DemoSmallRule
+  | $big DemoBigRule
 
-DemoSumFive :=
-  $small 5
+DemoSumWitness :=
+  $small ($x 5)
 """
 
 
@@ -75,8 +83,8 @@ def main():
     poison_sup = is_sub_type(_entry(module, "DemoResultPass"), _entry(module, "DemoResultFail"))
     assert isinstance(poison_sup, Err), f"poison on sup side must be Err: {poison_sup!r}"
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
-    assert names == ["DemoRule", "DemoSumRule"], f"rule markers: {names}"
-    assert _judgment(module, "DemoSumFive", "DemoSumRule") is True
+    assert names == ["DemoRule", "DemoSmallRule", "DemoBigRule", "DemoSumRule"], f"rule markers: {names}"
+    assert _judgment(module, "DemoSumWitness", "DemoSumRule") is True
     print("rule spec: round-trip + 4 judgment checks + marker scan passed")
 
 
