@@ -1,6 +1,6 @@
 """is_compliant / is_determinate over generated instances.
 
-Data-driven over tests/data/rule_check/: ruleNN.viba (see build.py)
+Data-driven over tests/data/rule_check/rules/ruleNN.viba (see build.py)
 each contribute a marked rule whose generated instances must judge
 against the rule itself without Err and whose is_determinate must
 certify it; demo.viba, sum_rule.viba and broken_rules.viba cover the
@@ -24,8 +24,8 @@ DATA = Path(__file__).resolve().parent / "data" / "rule_check"
 INSTANCES_PER_RULE = 20
 
 
-def _load(name: str):
-    module = custom_module((DATA / name).read_text())
+def _load(path: Path):
+    module = custom_module(path.read_text())
     return module, {n.name: n for n in module.module.body}
 
 
@@ -35,7 +35,7 @@ def _entry(defs, module, name: str) -> AstNodeType:
 
 def _check_rule_file(path: Path) -> int:
     number = path.stem[len("rule"):]
-    module, defs = _load(path.name)
+    module, defs = _load(path)
     rule = _entry(defs, module, f"Rule{number}")
     found = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert found == [f"Rule{number}"], f"{path.name}: marker scan {found}"
@@ -50,7 +50,7 @@ def _check_rule_file(path: Path) -> int:
 
 
 def _check_demo() -> None:
-    module, defs = _load("demo.viba")
+    module, defs = _load(DATA / "demo.viba")
     rule = _entry(defs, module, "DemoRule")
     verdicts = {True: 0, False: 0}
     for instance in generate(rule, 50, seed=7):
@@ -62,7 +62,7 @@ def _check_demo() -> None:
 
 
 def _check_sum_rule() -> None:
-    module, defs = _load("sum_rule.viba")
+    module, defs = _load(DATA / "sum_rule.viba")
     rule = _entry(defs, module, "SumRule")
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert names == ["SmallRule", "BigRule", "SumRule"], f"markers: {names}"
@@ -81,14 +81,14 @@ def _check_sum_rule() -> None:
 
 
 def _check_broken_rules() -> None:
-    module, defs = _load("broken_rules.viba")
+    module, defs = _load(DATA / "broken_rules.viba")
     for name in ("BadRule", "BadRef"):
         rule = _entry(defs, module, name)
         assert isinstance(is_determinate(rule, 5, seed=1), Err), name
 
 
 def main():
-    paths = sorted(DATA.glob("rule*.viba"))
+    paths = sorted((DATA / "rules").glob("rule*.viba"))
     total = 0
     for path in paths:
         total += _check_rule_file(path)

@@ -1,4 +1,4 @@
-"""Build the rule_check rule corpus: tests/data/rule_check/ruleNN.viba.
+"""Build the rule_check rule corpus: tests/data/rule_check/rules/ruleNN.viba.
 
 Each rule file defines helper Metric types plus one rule whose body
 is a product of Metric fields and at least ten Assert fields carrying
@@ -11,7 +11,7 @@ Usage: python3 tests/data/rule_check/build.py
 import sys
 from pathlib import Path
 
-DATA = Path(__file__).resolve().parent
+DATA = Path(__file__).resolve().parent / "rules"
 
 # (metric name, type expr, kind, field tag)
 POOL = [
