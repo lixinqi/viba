@@ -1,0 +1,2 @@
+P := int
+S_fun_mixed := never <- ($a P | int)

@@ -1,0 +1,2 @@
+P := int
+S_neverB := $a (never <- P) * $b never

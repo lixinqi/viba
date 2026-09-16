@@ -1,0 +1,4 @@
+P := int
+Q := str
+R := bool
+Not3 := not[$a P | $b Q | $c R]

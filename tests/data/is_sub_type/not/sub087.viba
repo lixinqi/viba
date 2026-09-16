@@ -1,0 +1,2 @@
+Ref := int
+N19 := not[Ref]

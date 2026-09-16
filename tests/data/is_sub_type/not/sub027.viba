@@ -1,0 +1,2 @@
+P := int
+S_noton := not[$a P]

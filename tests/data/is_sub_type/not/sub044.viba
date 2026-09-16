@@ -1,0 +1,3 @@
+P := int
+Q := str
+S_nested_ok := $outer ($a (never <- P) * $b (never <- Q))

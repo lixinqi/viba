@@ -1,0 +1,2 @@
+P := int
+S_mixed_ok := $a (never <- P)

@@ -1,0 +1,2 @@
+P := int
+S_extra := $a (never <- P) * $z int

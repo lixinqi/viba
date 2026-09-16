@@ -1,0 +1,2 @@
+P := int
+NotNot := not[not[$a P]]

@@ -1,0 +1,2 @@
+Q := str
+S_inline := $a (never <- int) * $b (never <- Q)

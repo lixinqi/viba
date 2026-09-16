@@ -1,0 +1,3 @@
+P := int
+Q := str
+S_wrongtag := $a (never <- P) * $c (never <- Q)

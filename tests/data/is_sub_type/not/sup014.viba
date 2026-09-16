@@ -1,0 +1,3 @@
+P := int
+Q := str
+Not2 := not[$a P | $b Q]

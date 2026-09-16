@@ -1,0 +1,4 @@
+P := int
+Q := str
+Crimes := $a P | $b Q
+NotNamed := not[Crimes]

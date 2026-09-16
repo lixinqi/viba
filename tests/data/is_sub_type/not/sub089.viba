@@ -1,0 +1,2 @@
+NamedSum := $a int | $b str
+N20 := not[NamedSum]

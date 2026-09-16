@@ -1,0 +1,2 @@
+P := int
+NotMixed := not[$a P | int]

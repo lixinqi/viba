@@ -1,0 +1,2 @@
+P := int
+S_nested_miss := $outer ($a (never <- P))

@@ -1,0 +1,2 @@
+P := int
+S_notnot := $a (never <- P)

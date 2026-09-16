@@ -1,0 +1,3 @@
+P := int
+Q := str
+S_posB := $a (never <- P) * $b Q

@@ -1,0 +1,2 @@
+P := int
+S_other := $b (never <- P)

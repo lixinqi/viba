@@ -1,0 +1,4 @@
+P := int
+Q := str
+HalfEv := $a (never <- P)
+S_halfnamed := HalfEv * $b (never <- Q)

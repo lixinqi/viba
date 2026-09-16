@@ -1,0 +1,3 @@
+P := int
+Q := str
+S_miss3 := $a (never <- P) * $b (never <- Q)

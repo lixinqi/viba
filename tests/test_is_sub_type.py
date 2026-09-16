@@ -82,11 +82,6 @@ def load_entry_as(text: str, module):
     return AstNodeType(_entry_node(text), module)
 
 
-def has_ref(entry, name: str) -> bool:
-    refs = viba_ast.walk(entry.ast_node)
-    return any(isinstance(n, viba_ast.TypeRef) and n.name == name for n in refs)
-
-
 def parse_want(text: str):
     text = text.strip()
     if text.startswith("true"):
@@ -108,7 +103,7 @@ def run_data_cases():
         sub_e = load_entry((DATA / f"sub{num}.viba").read_text())
         sup_e = load_entry(sup_path.read_text())
         check_result(is_sub_type(sub_e, sup_e), want, f"case {num}")
-        if want == "error" or has_ref(sub_e, "PredicationFailed"):
+        if want == "error":
             continue  # reflexive checks are for clean judgments only
         check_result(is_sub_type(sub_e, sub_e), True, f"case {num} sub reflexive")
         check_result(is_sub_type(sup_e, sup_e), True, f"case {num} sup reflexive")
@@ -123,12 +118,6 @@ def run_data_cases():
 def run_py_side_cases():
     """What data files cannot express: lint verdicts, env behavior."""
     check_result(is_sub_type(entry_type("42"), entry_type("int")), True, "42 <: int")
-    poisoned_sup = is_sub_type(entry_type("42"), entry_type("PredicationFailed"))
-    check_result(poisoned_sup, "error", "poison on sup side -> Err")
-    nested = is_sub_type(entry_type("$a 1"), entry_type("$a int | $b PredicationFailed"))
-    check_result(nested, "error", "poison nested in sup sum -> Err")
-    poison_sub = is_sub_type(entry_type("PredicationFailed"), entry_type("int"))
-    check_result(poison_sub, False, "poison on sub side -> Ok(False)")
     sup_ellipsis = is_sub_type(entry_type("42"), entry_type("..."))
     check_result(sup_ellipsis, "error", "ellipsis on sup side -> Err")
     sub_ellipsis = is_sub_type(entry_type("..."), entry_type("int"))
@@ -228,20 +217,29 @@ def run_applied_generic_cases():
     free = entry_with_env("Box[T]", _type_serving(IntType(), "T"), box_mod)
     res = is_sub_type(entry_type("$v 3"), free)
     check_result(res, True, "free actual resolves through env_get at unfold")
-    poison = entry_type("PredicationFailed[int, str]")
-    witness = entry_type(
-        "$__assertion_failed_original_data 3"
-        " * $__assertion_failed_error_msg 'x'",
-    )
-    check_result(
-        is_sub_type(poison, witness),
-        False,
-        "PredicationFailed never unfolds: poison stays nominal",
-    )
+    pair_mod = custom_module("Pair[T] := $left T * $right T")
+    pair = entry_type("Pair[int]", pair_mod)
+    res = is_sub_type(entry_type("$left 3 * $right 4"), pair)
+    check_result(res, True, "generic product body unfolds against a product witness")
     loop_mod = custom_module("Loop[T] := $l Loop[int]")
     looping = entry_type("Loop[int]", loop_mod)
     res = is_sub_type(looping, entry_type("$l 'x'"))
     check_result(res, True, "self-referencing application terminates")
+
+
+def run_not_cases():
+    """50 not[...] cases, one sub/sup .viba pair each (data/not)."""
+    base = DATA / "not"
+    expected = {}
+    for line in (base / "expected.txt").read_text().splitlines():
+        num, _, want = line.partition(" ")
+        if num:
+            expected[num] = parse_want(want)
+    for sup_path in sorted(base.glob("sup*.viba")):
+        num = sup_path.stem[3:]
+        sub_e = load_entry((base / f"sub{num}.viba").read_text())
+        sup_e = load_entry(sup_path.read_text())
+        check_result(is_sub_type(sub_e, sup_e), expected[num], f"not case {num}")
 
 
 def _is_test_cases_assign(node) -> bool:
@@ -289,6 +287,7 @@ run_env_cases()
 run_env_get_cases()
 run_env_get_scope_cases()
 run_applied_generic_cases()
+run_not_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

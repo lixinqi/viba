@@ -1,0 +1,3 @@
+P := int
+RefP := never <- P
+S_named := $a RefP

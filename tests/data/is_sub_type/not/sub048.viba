@@ -1,0 +1,4 @@
+P := int
+Q := str
+R := bool
+S_two_half := $x ($a (never <- P) * $b (never <- Q)) * $y ($d (never <- R))

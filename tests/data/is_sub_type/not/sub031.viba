@@ -1,0 +1,4 @@
+P := int
+Q := str
+R := bool
+S_pos3 := $a (never <- P) * $b (never <- Q) * $c R

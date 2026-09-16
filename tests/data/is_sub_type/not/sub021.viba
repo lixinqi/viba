@@ -1,0 +1,2 @@
+Q := str
+S_neverA := $a never * $b (never <- Q)

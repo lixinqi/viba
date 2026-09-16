@@ -1,13 +1,11 @@
 """Subtype judgment over the Type model: is_sub_type(sub, sup) -> Result[bool].
 
-Contract: consumes Type values only (viba.type). Nothing here knows
-about rules, results or compliance semantics.
+Consumes Type values only (viba.type); nothing above the type level is
+visible here.
 
-Ok(True/False) is the judgment. Err is a lint error, never a verdict:
-- ellipsis (...) anywhere on either side -> Err (an open type is a
-  contract-authoring mistake, not something to judge);
-- PredicationFailed on the sup side -> Err; on the sub side it is a
-  normal negative witness, Ok(False).
+Ok(True/False) is the judgment. Err reports malformed input, never a
+judgment: ellipsis (...) anywhere on either side -> Err (an open type
+has no judgment).
 
 Semantics (per design):
 - GenericDefinition references are nominal: same container module
@@ -18,7 +16,7 @@ Semantics (per design):
   assumption table: a (sub, sup) pair already in flight is true.
 - Leaves compare by family: literal(v) <: base iff same family;
   literal <: literal iff equal values; never <: T; T <: never iff
-  T is never (a Rule's never branch forbids any other resident).
+  T is never (only never fits a never branch).
 - AstNodeType wrapping inline structure (sums, products, tuples,
   exponents, type applications) is compared structurally, recursing
   at the Type level whenever a side lifts to a Type (TypeRef
@@ -28,14 +26,14 @@ Semantics (per design):
   the side's AstNodeType stack are consulted, innermost first (this
   is how free names — e.g. generic parameters — get their meanings).
   A TypeRef the judgment actually reaches and cannot resolve by
-  either channel is a contract authoring mistake: the check aborts
-  with Err (UnresolvedTypeError caught at the boundary). Generic
-  definition bodies never trigger this — they are nominal and never
-  unfold.
-- PredicationFailed is not special here: it is a plain nominal
-  generic from the builtin library (viba/builtin.viba). On the sub
-  side it simply never seats (Ok(False)); on the sup side it is a
-  lint error, detected by name.
+  either channel is malformed: the check aborts with Err
+  (UnresolvedTypeError caught at the boundary). Generic definition
+  bodies never trigger this — they are nominal and never unfold.
+- not[A] is never <- A: a sub that reads as a function (not[B], or
+  never <- B) compares by the exponent case — never <- B <: never <- A
+  iff A <: B, so not[A] <: not[A]; a sub written as a tagged product
+  is read through never <- (A | B) = (never <- A) * (never <- B), so
+  the slot at every branch tag must fit never <- that branch.
 - Applied generics (TypeApp): both sides applied stays nominal —
   same constructor and pairwise actuals. Exactly one side applied
   unfolds structurally: the generic's body is compared with formal
@@ -43,8 +41,6 @@ Semantics (per design):
   resolves eagerly in its lexical scope). Unfoldings are cached and
   guarded by a coinductive assumption table keyed on the node and
   its resolved actuals, so recursive generics terminate.
-  PredicationFailed is excluded from unfolding: poison stays nominal
-  and a sub-side witness never seats.
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
   SetLiteral likewise; DictLiteral[(k, v), ...] of
@@ -92,8 +88,8 @@ _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 
 def is_sub_type(sub: Type, sup: Type) -> Result:
-    """Ok(True/False) is the judgment; Err is a lint/resolution error."""
-    err = _lint_error(sub, sup)
+    """Ok(True/False) is the judgment; Err reports malformed input."""
+    err = _input_error(sub, sup)
     if err is not None:
         return Err(err)
     try:
@@ -102,23 +98,15 @@ def is_sub_type(sub: Type, sup: Type) -> Result:
         return Err(str(exc))
 
 
-def _lint_error(sub: Type, sup: Type):
-    """Ellipsis anywhere, or PredicationFailed on the sup side."""
+def _input_error(sub: Type, sup: Type):
+    """Ellipsis anywhere is malformed input, not a judgment."""
     for label, side in (("sub", sub), ("sup", sup)):
         if not isinstance(side, AstNodeType):
             continue
         nodes = viba_ast.walk(side.ast_node)
         if any(isinstance(n, viba_ast.Ellipsis) for n in nodes):
             return f"ellipsis is not allowed on the {label} side"
-    return _poison_error(sup)
-
-
-def _poison_error(sup: Type):
-    """Name-based lint: a Rule must not require its own violation."""
-    if not isinstance(sup, AstNodeType):
-        return None
-    poisoned = [n for n in viba_ast.walk(sup.ast_node) if _is_poison_ref(n)]
-    return "PredicationFailed on the sup side" if poisoned else None
+    return None
 
 
 class _Checker:
@@ -181,7 +169,7 @@ class _Checker:
 
     def _lift(self, node, module: ModuleType, side: str):
         """Lift a Constant, TypeRef, Nil or Never to a Type; else None.
-        An unresolvable TypeRef is a contract authoring mistake."""
+        An unresolvable TypeRef is malformed."""
         if isinstance(node, viba_ast.Constant):
             return _literal_type(node.value)
         if isinstance(node, viba_ast.Nil):
@@ -203,17 +191,17 @@ class _Checker:
             return True
         if isinstance(sup, (NeverType, NilType)):
             return type(sub) is type(sup)
-        verdict = self._probe_leaves(sub, sup)
-        if verdict is not None:
-            return verdict
+        result = self._probe_leaves(sub, sup)
+        if result is not None:
+            return result
         if isinstance(sup, AstNodeType) and isinstance(sub, AstNodeType):
             return self._check_ast_pair(sub, sup)
         return False
 
     def _probe_leaves(self, sub: Type, sup: Type):
         probes = (self._check_base, self._check_literal, self._check_nominal)
-        verdicts = (probe(sub, sup) for probe in probes)
-        return next((v for v in verdicts if v is not None), None)
+        results = (probe(sub, sup) for probe in probes)
+        return next((r for r in results if r is not None), None)
 
     def _check_base(self, sub: Type, sup: Type):
         if type(sup) not in _BASE_TYPES:
@@ -266,8 +254,10 @@ class _Checker:
         return result
 
     def _unfold_ref(self, node, module: ModuleType, side: str):
-        """A TypeRef to a plain TypeDefinition is transparent: unfold
-        to its body, whose own TypeRefs resolve in its home module."""
+        """A TypeRef is transparent unless it names a generic: it unfolds
+        to the bound body, whose own TypeRefs resolve in its home module.
+        A generic parameter bound to inline structure (sum, product,
+        exponent, tag, tuple) unfolds to that structure."""
         if not isinstance(node, viba_ast.TypeRef):
             return node, module
         resolved = self._resolve_name(node.name, module, side)
@@ -276,9 +266,12 @@ class _Checker:
         target = resolved.value
         if not isinstance(target, AstNodeType):
             return node, module
-        if not isinstance(target.ast_node, viba_ast.TypeDefinition):
+        body = target.ast_node
+        if isinstance(body, viba_ast.GenericDefinition):
             return node, module
-        return target.ast_node.body, target.container_module
+        if isinstance(body, viba_ast.TypeDefinition):
+            body = body.body
+        return body, target.container_module
 
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
         if isinstance(sn, viba_ast.Never):
@@ -286,7 +279,7 @@ class _Checker:
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
             return type(sn) is type(sp)  # never branch admits only never
         if isinstance(sp, viba_ast.TypeApp) and sp.constructor == "not":
-            return self._walk_not(sn, sp)
+            return self._walk_not(sn, s_mod, sp, p_mod)
         mixed = self._walk_mixed_typeapp(sn, s_mod, sp, p_mod)
         if mixed is not None:
             return mixed
@@ -296,22 +289,109 @@ class _Checker:
         return self._walk_structural(sn, s_mod, sp, p_mod)
 
     # ------------------------------------------------------------------
-    # not[A] (i.e. never <- A): prohibited predicates, judged natively.
-    # No unfolding: every branch must be refuted, in structure, by a
-    # same-tag PredicationFailed field. A branch can never positively
-    # hold, so partial refutation is not compliance.
+    # not[A] is never <- A, judged as the exponential is:
+    # - a sub that reads as a function (not[B], or never <- B) compares
+    #   by the exponent case: never <- B <: never <- A iff A <: B, so
+    #   not[A] <: not[A];
+    # - a sub written as a tagged product is the same type by
+    #   never <- (A | B) = (never <- A) * (never <- B): the slot at each
+    #   branch tag must fit never <- that branch, and a partial product
+    #   does not.
+    # No other shape holds.
     # ------------------------------------------------------------------
 
-    def _walk_not(self, sn, sp) -> bool:
-        fields = _tagged_fields(sn)
-        branches = _sum_branches(sp.args[0])
-        return all(self._branch_refuted(b, fields) for b in branches)
+    def _walk_not(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
+        if len(sp.args) != 1:
+            return False
+        sup_arg = sp.args[0]
+        if self._not_function(sn, s_mod, sup_arg, p_mod):
+            return True
+        return self._not_product(sn, s_mod, sup_arg, p_mod)
 
-    def _branch_refuted(self, branch, fields) -> bool:
-        if not isinstance(branch, viba_ast.Tagged):
-            return False  # untagged not-branch: no structural refutation
-        field = fields.get(branch.tag)
-        return field is not None and _is_predication_failed(field)
+    def _not_function(self, sn, s_mod, sup_arg, p_mod) -> bool:
+        meaning = self._function_argument(sn, s_mod)
+        if meaning is None:
+            return False
+        sub_arg, sub_mod = meaning
+        self._swap_envs()
+        try:
+            return self._walk(sup_arg, p_mod, sub_arg, sub_mod)
+        finally:
+            self._swap_envs()
+
+    def _not_product(self, sn, s_mod, sup_arg, p_mod) -> bool:
+        branches = self._sum_branches(sup_arg, p_mod)
+        if branches is None:
+            return False
+        fields = self._tagged_fields(sn, s_mod)
+        return all(self._fits_never_arrow(fields.get(tag), b_type, b_mod)
+                   for tag, b_type, b_mod in branches)
+
+    def _fits_never_arrow(self, field, branch_type, branch_mod) -> bool:
+        if field is None:
+            return False
+        node, module = field
+        node, module = self._unfold_ref(node, module, "sub")
+        if isinstance(node, viba_ast.Never):
+            return True
+        meaning = self._function_argument(node, module)
+        if meaning is None:
+            return False
+        sub_arg, sub_mod = meaning
+        self._swap_envs()
+        try:
+            return self._walk(branch_type, branch_mod, sub_arg, sub_mod)
+        finally:
+            self._swap_envs()
+
+    def _function_argument(self, node, module):
+        """(argument, module) when node reads as never <- argument: a
+        not[X] application, or an exponent whose result is never."""
+        node, module = self._unfold_ref(node, module, "sub")
+        if (isinstance(node, viba_ast.TypeApp)
+                and node.constructor == "not" and len(node.args) == 1):
+            return node.args[0], module
+        if isinstance(node, _EXP_NODES):
+            result, args = _exponent_parts(node)
+            if isinstance(result, viba_ast.Never) and len(args) == 1:
+                return args[0], module
+        return None
+
+    def _sum_branches(self, node, module):
+        """[(tag, body, module)] for a not argument; None when a branch
+        is not tagged, since only a tag can hold a never-arrow."""
+        out = []
+        stack = [(node, module)]
+        while stack:
+            current, current_mod = stack.pop()
+            current, current_mod = self._unfold_ref(current, current_mod, "sup")
+            if isinstance(current, viba_ast.Sum):
+                stack.append((current.right, current_mod))
+                stack.append((current.left, current_mod))
+            elif isinstance(current, viba_ast.SumChain):
+                stack.extend((e, current_mod) for e in reversed(current.elements))
+            elif isinstance(current, viba_ast.Tagged):
+                out.append((current.tag, current.type, current_mod))
+            else:
+                return None
+        return out
+
+    def _tagged_fields(self, node, module):
+        """{tag: (body, module)} over a product of tags, unfolding named
+        definitions and named products along the way."""
+        node, module = self._unfold_ref(node, module, "sub")
+        if isinstance(node, viba_ast.Tagged):
+            return {node.tag: (node.type, module)}
+        if isinstance(node, viba_ast.Product):
+            fields = self._tagged_fields(node.left, module)
+            fields.update(self._tagged_fields(node.right, module))
+            return fields
+        if isinstance(node, viba_ast.ProductChain):
+            fields = {}
+            for element in node.elements:
+                fields.update(self._tagged_fields(element, module))
+            return fields
+        return {}
 
     # ------------------------------------------------------------------
     # Applied generics: unfold one side, params bound via env_get
@@ -382,8 +462,6 @@ class _Checker:
         return entry
 
     def _constructor_target(self, node, module, side):
-        if node.constructor == "PredicationFailed":
-            return None  # poison stays nominal: a sub witness never seats
         resolved = self._resolve_name(node.constructor, module, side)
         if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable constructor {node.constructor!r}")
@@ -575,8 +653,8 @@ class _Checker:
 
     def _unequal_typeapps(self, sn, s_mod, sp, p_mod) -> bool:
         """Constructors differ: only transparent generics (identity
-        bodies, e.g. Metric[T] := T) unfold. User generics stay
-        nominal — same shape from different origins is not a match."""
+        bodies, e.g. Id[T] := T) unfold. Other generics stay nominal —
+        same shape from different origins is not a match."""
         if self._is_transparent(sn, s_mod, "sub"):
             return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
         if self._is_transparent(sp, p_mod, "sup"):
@@ -584,7 +662,7 @@ class _Checker:
         return False
 
     def _is_transparent(self, node, module, side) -> bool:
-        """An identity generic: Metric[T] := T. Substitution lives in
+        """An identity generic: Id[T] := T. Substitution lives in
         env_get; the body carries no structure of its own."""
         resolved = self._resolve_name(node.constructor, module, side)
         if not isinstance(resolved, Ok):
@@ -654,33 +732,6 @@ class _Checker:
 # ----------------------------------------------------------------------
 
 
-def _sum_branches(node) -> list:
-    """Flatten a sum (chain) into its branch nodes."""
-    if isinstance(node, viba_ast.SumChain):
-        return list(node.elements)
-    if isinstance(node, viba_ast.Sum):
-        return _sum_branches(node.left) + _sum_branches(node.right)
-    return [node]
-
-
-def _tagged_fields(node) -> dict:
-    """Collect {tag: field type} from a product (chain) of tagged fields."""
-    if isinstance(node, viba_ast.Tagged):
-        return {node.tag: node.type}
-    if isinstance(node, viba_ast.ProductChain):
-        tagged = [e for e in node.elements if isinstance(e, viba_ast.Tagged)]
-        return {e.tag: e.type for e in tagged}
-    if isinstance(node, viba_ast.Product):
-        fields = _tagged_fields(node.left)
-        fields.update(_tagged_fields(node.right))
-        return fields
-    return {}
-
-
-def _is_predication_failed(node) -> bool:
-    return isinstance(node, viba_ast.TypeApp) and node.constructor == "PredicationFailed"
-
-
 def _as_definition(node):
     kinds = (viba_ast.TypeDefinition, viba_ast.GenericDefinition)
     return node if isinstance(node, kinds) else None
@@ -708,13 +759,6 @@ def _unwrap_definition(entry: AstNodeType):
     if isinstance(node, viba_ast.TypeDefinition):
         return node.body, entry.container_module
     return node, entry.container_module
-
-
-def _is_poison_ref(node) -> bool:
-    if isinstance(node, viba_ast.TypeRef):
-        return node.name == "PredicationFailed"
-    ctor = getattr(node, "constructor", None)
-    return ctor == "PredicationFailed"
 
 
 def _literal_type(value) -> Type:

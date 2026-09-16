@@ -1,0 +1,1 @@
+F25 := never <- ($a int * ($b str | $c bool))

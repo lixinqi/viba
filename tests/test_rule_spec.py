@@ -2,7 +2,7 @@
 
 The spec is a program: its ```viba block must parse, round-trip, and
 its demo judgments must hold — DemoWitnessPass seats in
-DemoRuleStripped, DemoWitnessFail does not, poisoned sup errs.
+DemoRuleStripped, DemoWitnessFail does not.
 The stripped/pass/fail companions live in
 tests/data/rule_check/spec_demo.viba; sum-rule coverage lives in
 sum_rule.viba (driven by test_rule_check.py).
@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba import ast as viba_ast
-from viba.type import AstNodeType, Err, Ok, custom_module
+from viba.type import AstNodeType, Ok, custom_module
 from viba.is_sub_type import is_sub_type
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -49,11 +49,9 @@ def main():
     module = custom_module(_spec_source() + demo)
     assert _judgment(module, "DemoWitnessPass", "DemoRuleStripped") is True
     assert _judgment(module, "DemoWitnessFail", "DemoRuleStripped") is False
-    poison_sup = is_sub_type(_entry(module, "DemoWitnessPass"), _entry(module, "DemoWitnessFail"))
-    assert isinstance(poison_sup, Err), f"poison on sup side must be Err: {poison_sup!r}"
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert names == ["DemoRule"], f"rule markers: {names}"
-    print("rule spec: round-trip + 3 judgment checks + marker scan passed")
+    print("rule spec: round-trip + 2 judgment checks + marker scan passed")
 
 
 main()

@@ -1,0 +1,3 @@
+P := int
+Q := str
+S_sumfield := $a ((never <- P) | int) * $b (never <- Q)

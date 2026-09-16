@@ -1,0 +1,4 @@
+P := int
+Q := str
+A := $a P
+NotNamedBranch := not[A | $b Q]
