@@ -78,15 +78,74 @@ def _check_broken_rules() -> None:
     assert isinstance(is_determinate(missing, 5, seed=1), Err)
 
 
+SUM_DEMO = """
+XLen := int
+YLen := int
+
+SmallRule :=
+  RuleObject
+  * $x Metric[XLen]
+  * $assert_x_le_24
+      Assert[{x at most 24}, $python_code {
+def handler(self):
+    return self.x.value <= 24
+}]
+
+BigRule :=
+  RuleObject
+  * $y Metric[YLen]
+  * $assert_y_ge_10
+      Assert[{y at least 10}, $python_code {
+def handler(self):
+    return self.y.value >= 10
+}]
+
+SumRule :=
+  OneofRule
+  | $small SmallRule
+  | $big BigRule
+
+SumWitnessPass :=
+  $small (RuleObject * $x 20 * $assert_x_le_24 Assert[{x at most 24}, $python_code {
+def handler(self):
+    return self.x.value <= 24
+}])
+
+SumWitnessFail :=
+  $small (RuleObject * $x 30 * $assert_x_le_24 AssertionFailed[nil, str])
+"""
+
+
+def _check_sum_rule() -> None:
+    module = custom_module(SUM_DEMO)
+    defs = {n.name: n for n in module.module.body}
+    rule = AstNodeType(defs["SumRule"].body, module)
+    names = [d.name for d in viba_ast.rule_definitions(module.module)]
+    assert names == ["SmallRule", "BigRule", "SumRule"], f"markers: {names}"
+    verdicts = set()
+    for instance in generate(rule, 40, seed=3):
+        judged = is_compliant(instance, rule)
+        assert isinstance(judged, Ok), f"sum judge errored: {judged!r}"
+        verdicts.add(judged.value)
+    assert verdicts == {True, False}, f"sum verdicts: {verdicts}"
+    determined = is_determinate(rule, 40, seed=3)
+    assert isinstance(determined, Ok) and determined.value is True
+    for witness, want in (("SumWitnessPass", True), ("SumWitnessFail", False)):
+        sub = AstNodeType(defs[witness].body, module)
+        got = is_compliant(sub, rule)
+        assert isinstance(got, Ok) and got.value is want, f"{witness}: {got!r}"
+
+
 def main():
     paths = sorted(DATA.glob("rule*.viba"))
     total = 0
     for path in paths:
         total += _check_rule_file(path)
     _check_demo()
+    _check_sum_rule()
     _check_broken_rules()
     print(f"rule_check: {len(paths)} data rules x {INSTANCES_PER_RULE} instances"
-          f" ({total} judged) + demo + 2 broken rules rejected")
+          f" ({total} judged) + sum-rule + demo + 2 broken rules rejected")
 
 
 main()
