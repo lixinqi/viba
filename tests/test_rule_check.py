@@ -1,6 +1,6 @@
 """is_compliant / is_determinate over generated instances.
 
-Data-driven over tests/data/is_legal/ruleNN.viba (see build.py):
+Data-driven over tests/data/rule_check/ruleNN.viba (see build.py):
 every rule is judged in three ways — its generated instances must
 all be structural subtypes of the Assert-stripped rule, judging
 against the rule itself must never Err, and is_determinate must
@@ -43,7 +43,7 @@ DemoRuleStripped :=
   * $assert_code_len_le_24 nil
 """
 
-DATA = Path(__file__).resolve().parent / "data" / "is_legal"
+DATA = Path(__file__).resolve().parent / "data" / "rule_check"
 INSTANCES_PER_RULE = 20
 
 
@@ -111,7 +111,7 @@ def main():
         total += _check_rule_file(path)
     _check_demo()
     _check_broken_rules()
-    print(f"is_legal: {len(paths)} data rules x {INSTANCES_PER_RULE} instances"
+    print(f"rule_check: {len(paths)} data rules x {INSTANCES_PER_RULE} instances"
           f" ({total} judged) + demo + 2 broken rules rejected")
 
 

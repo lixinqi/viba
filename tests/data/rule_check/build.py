@@ -1,11 +1,11 @@
-"""Build the is_legal rule corpus: tests/data/is_legal/ruleNN.viba.
+"""Build the rule_check rule corpus: tests/data/rule_check/ruleNN.viba.
 
 Each rule file defines helper Metric types plus one rule whose body
 is a product of Metric fields and at least ten Assert fields carrying
 $python_code predicators. Existing files are never overwritten —
 extend by adding new specs, never by rewriting old ones.
 
-Usage: python3 tests/data/is_legal/build.py
+Usage: python3 tests/data/rule_check/build.py
 """
 
 import sys
