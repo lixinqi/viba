@@ -54,7 +54,7 @@ DemoSumRule :=
   | $big DemoBigRule
 
 DemoSumWitness :=
-  $small ($x 5)
+  $small (RuleObject * $x 5)
 """
 
 
