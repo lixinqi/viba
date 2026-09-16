@@ -1,10 +1,12 @@
 """is_compliant / is_determinate over generated instances.
 
-Data-driven over tests/data/rule_check/ruleNN.viba (see build.py):
-for every rule, each generated instance is judged against the rule
-itself and must not Err, and is_determinate must certify the rule.
-Inline cases cover the original DEMO plus two broken rules that
-determinacy must reject.
+Data-driven over tests/data/rule_check/: ruleNN.viba (see build.py)
+each contribute a marked rule whose generated instances must judge
+against the rule itself without Err and whose is_determinate must
+certify it; demo.viba, sum_rule.viba and broken_rules.viba cover the
+original DEMO, an OneofRule over Assert-carrying branch rules, and
+two broken rules determinacy must reject. All Viba source lives in
+data files — this file is pure checking logic.
 """
 
 import sys
@@ -18,37 +20,24 @@ from viba.is_compliant import is_compliant
 from viba.is_determinate import is_determinate
 from viba.type import AstNodeType, Err, Ok, custom_module
 
-DEMO = """
-CodeLength := int
-DocCoverage := $documented_lines int * $total_lines int
-Keywords := list[str]
-
-DemoRule :=
-  Object
-  * $code_length Metric[CodeLength]
-  * $coverage Metric[DocCoverage]
-  * $keywords Metric[Keywords]
-  * $assert_code_len_le_24
-      Assert[{code length <= 24}, $python_code {
-def handler(self):
-    return self.code_length.value <= 24
-}]
-"""
-
 DATA = Path(__file__).resolve().parent / "data" / "rule_check"
 INSTANCES_PER_RULE = 20
 
 
-def _entry(text: str, name: str) -> AstNodeType:
-    module = custom_module(text)
-    defs = {n.name: n for n in module.module.body}
+def _load(name: str):
+    module = custom_module((DATA / name).read_text())
+    return module, {n.name: n for n in module.module.body}
+
+
+def _entry(defs, module, name: str) -> AstNodeType:
     return AstNodeType(defs[name].body, module)
 
 
 def _check_rule_file(path: Path) -> int:
     number = path.stem[len("rule"):]
-    rule = _entry(path.read_text(), f"Rule{number}")
-    found = [d.name for d in viba_ast.rule_definitions(rule.container_module.module)]
+    module, defs = _load(path.name)
+    rule = _entry(defs, module, f"Rule{number}")
+    found = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert found == [f"Rule{number}"], f"{path.name}: marker scan {found}"
     checked = 0
     for instance in generate(rule, INSTANCES_PER_RULE, seed=int(number)):
@@ -61,7 +50,8 @@ def _check_rule_file(path: Path) -> int:
 
 
 def _check_demo() -> None:
-    rule = _entry(DEMO, "DemoRule")
+    module, defs = _load("demo.viba")
+    rule = _entry(defs, module, "DemoRule")
     verdicts = {True: 0, False: 0}
     for instance in generate(rule, 50, seed=7):
         given = is_compliant(instance, rule)
@@ -71,55 +61,9 @@ def _check_demo() -> None:
     assert isinstance(determined, Ok) and determined.value is True
 
 
-def _check_broken_rules() -> None:
-    ellipsis = _entry("BadRule :=\n  Object\n  * $x ...\n", "BadRule")
-    assert isinstance(is_determinate(ellipsis, 5, seed=1), Err)
-    missing = _entry("BadRef :=\n  Object\n  * $x Missing\n", "BadRef")
-    assert isinstance(is_determinate(missing, 5, seed=1), Err)
-
-
-SUM_DEMO = """
-XLen := int
-YLen := int
-
-SmallRule :=
-  RuleObject
-  * $x Metric[XLen]
-  * $assert_x_le_24
-      Assert[{x at most 24}, $python_code {
-def handler(self):
-    return self.x.value <= 24
-}]
-
-BigRule :=
-  RuleObject
-  * $y Metric[YLen]
-  * $assert_y_ge_10
-      Assert[{y at least 10}, $python_code {
-def handler(self):
-    return self.y.value >= 10
-}]
-
-SumRule :=
-  OneofRule
-  | $small SmallRule
-  | $big BigRule
-
-SumWitnessPass :=
-  $small (RuleObject * $x 20 * $assert_x_le_24 Assert[{x at most 24}, $python_code {
-def handler(self):
-    return self.x.value <= 24
-}])
-
-SumWitnessFail :=
-  $small (RuleObject * $x 30 * $assert_x_le_24 AssertionFailed[nil, str])
-"""
-
-
 def _check_sum_rule() -> None:
-    module = custom_module(SUM_DEMO)
-    defs = {n.name: n for n in module.module.body}
-    rule = AstNodeType(defs["SumRule"].body, module)
+    module, defs = _load("sum_rule.viba")
+    rule = _entry(defs, module, "SumRule")
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert names == ["SmallRule", "BigRule", "SumRule"], f"markers: {names}"
     verdicts = set()
@@ -131,9 +75,16 @@ def _check_sum_rule() -> None:
     determined = is_determinate(rule, 40, seed=3)
     assert isinstance(determined, Ok) and determined.value is True
     for witness, want in (("SumWitnessPass", True), ("SumWitnessFail", False)):
-        sub = AstNodeType(defs[witness].body, module)
+        sub = _entry(defs, module, witness)
         got = is_compliant(sub, rule)
         assert isinstance(got, Ok) and got.value is want, f"{witness}: {got!r}"
+
+
+def _check_broken_rules() -> None:
+    module, defs = _load("broken_rules.viba")
+    for name in ("BadRule", "BadRef"):
+        rule = _entry(defs, module, name)
+        assert isinstance(is_determinate(rule, 5, seed=1), Err), name
 
 
 def main():
@@ -145,7 +96,7 @@ def main():
     _check_sum_rule()
     _check_broken_rules()
     print(f"rule_check: {len(paths)} data rules x {INSTANCES_PER_RULE} instances"
-          f" ({total} judged) + sum-rule + demo + 2 broken rules rejected")
+          f" ({total} judged) + demo + sum-rule + 2 broken rules rejected")
 
 
 main()

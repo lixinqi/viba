@@ -1,0 +1,7 @@
+BadRule :=
+  RuleObject
+  * $x ...
+
+BadRef :=
+  RuleObject
+  * $x Missing

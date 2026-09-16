@@ -1,0 +1,14 @@
+CodeLength := int
+DocCoverage := $documented_lines int * $total_lines int
+Keywords := list[str]
+
+DemoRule :=
+  RuleObject
+  * $code_length Metric[CodeLength]
+  * $coverage Metric[DocCoverage]
+  * $keywords Metric[Keywords]
+  * $assert_code_len_le_24
+      Assert[{code length <= 24}, $python_code {
+def handler(self):
+    return self.code_length.value <= 24
+}]
