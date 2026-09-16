@@ -285,6 +285,8 @@ class _Checker:
             return True  # bottom fits anywhere
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
             return type(sn) is type(sp)  # never branch admits only never
+        if isinstance(sp, viba_ast.TypeApp) and sp.constructor == "not":
+            return self._walk_not(sn, sp)
         mixed = self._walk_mixed_typeapp(sn, s_mod, sp, p_mod)
         if mixed is not None:
             return mixed
@@ -292,6 +294,24 @@ class _Checker:
         if lifted is not None:
             return lifted
         return self._walk_structural(sn, s_mod, sp, p_mod)
+
+    # ------------------------------------------------------------------
+    # not[A] (i.e. never <- A): prohibited predicates, judged natively.
+    # No unfolding: every branch must be refuted, in structure, by a
+    # same-tag AssertionFailed field. A branch can never positively
+    # hold, so partial refutation is not compliance.
+    # ------------------------------------------------------------------
+
+    def _walk_not(self, sn, sp) -> bool:
+        fields = _tagged_fields(sn)
+        branches = _sum_branches(sp.args[0])
+        return all(self._branch_refuted(b, fields) for b in branches)
+
+    def _branch_refuted(self, branch, fields) -> bool:
+        if not isinstance(branch, viba_ast.Tagged):
+            return False  # untagged not-branch: no structural refutation
+        field = fields.get(branch.tag)
+        return field is not None and _is_assertion_failed(field)
 
     # ------------------------------------------------------------------
     # Applied generics: unfold one side, params bound via env_get
@@ -632,6 +652,33 @@ class _Checker:
 # ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------
+
+
+def _sum_branches(node) -> list:
+    """Flatten a sum (chain) into its branch nodes."""
+    if isinstance(node, viba_ast.SumChain):
+        return list(node.elements)
+    if isinstance(node, viba_ast.Sum):
+        return _sum_branches(node.left) + _sum_branches(node.right)
+    return [node]
+
+
+def _tagged_fields(node) -> dict:
+    """Collect {tag: field type} from a product (chain) of tagged fields."""
+    if isinstance(node, viba_ast.Tagged):
+        return {node.tag: node.type}
+    if isinstance(node, viba_ast.ProductChain):
+        tagged = [e for e in node.elements if isinstance(e, viba_ast.Tagged)]
+        return {e.tag: e.type for e in tagged}
+    if isinstance(node, viba_ast.Product):
+        fields = _tagged_fields(node.left)
+        fields.update(_tagged_fields(node.right))
+        return fields
+    return {}
+
+
+def _is_assertion_failed(node) -> bool:
+    return isinstance(node, viba_ast.TypeApp) and node.constructor == "AssertionFailed"
 
 
 def _as_definition(node):
