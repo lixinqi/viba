@@ -28,7 +28,7 @@ from viba.type import (
 _WORDS = ("alpha", "beta", "gamma", "delta")
 
 
-def generate(rule: AstNodeType, count: int, seed=None, fail_prob: float = 0.3) -> list:
+def generate(rule: AstNodeType, count: int, seed=None, fail_prob: float = 0.1) -> list:
     """`count` random instances of `rule` (deterministic via seed).
 
     Each Assert field passes unchanged with probability 1-fail_prob
