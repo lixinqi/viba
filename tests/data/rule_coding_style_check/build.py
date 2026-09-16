@@ -51,7 +51,6 @@ POOL = [
 BANK = {
     "int": [
         ("{t} at most 24", "return self.{t}.value <= 24"),
-        ("{t} under 100", "return self.{t}.value < 100"),
     ],
     "cross_int": [
         ("{t1} not above {t2}", "return self.{t1}.value <= self.{t2}.value"),
@@ -62,7 +61,6 @@ BANK = {
     ],
     "bool": [
         ("{t} required", "return self.{t}.value"),
-        ("{t} forbidden", "return not self.{t}.value"),
     ],
     "str": [
         ("{t} short", "return len(self.{t}.value) <= 8"),

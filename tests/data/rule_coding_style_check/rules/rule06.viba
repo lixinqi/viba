@@ -20,48 +20,43 @@ Rule06 :=
 def predicate(self):
     return self.code_length.value <= 24
 }]
-  * $assert_01_code_length_under_100
-      Predicate[{code_length under 100}, $python_code {
-def predicate(self):
-    return self.code_length.value < 100
-}]
-  * $assert_02_has_tests_required
+  * $assert_01_has_tests_required
       Predicate[{has_tests required}, $python_code {
 def predicate(self):
     return self.has_tests.value
 }]
-  * $assert_03_has_tests_forbidden
-      Predicate[{has_tests forbidden}, $python_code {
-def predicate(self):
-    return not self.has_tests.value
-}]
-  * $assert_04_author_name_short
+  * $assert_02_author_name_short
       Predicate[{author_name short}, $python_code {
 def predicate(self):
     return len(self.author_name.value) <= 8
 }]
-  * $assert_05_author_name_not_empty
+  * $assert_03_author_name_not_empty
       Predicate[{author_name not empty}, $python_code {
 def predicate(self):
     return len(self.author_name.value) >= 1
 }]
-  * $assert_06_keywords_non_empty
+  * $assert_04_keywords_non_empty
       Predicate[{keywords non-empty}, $python_code {
 def predicate(self):
     return len(self.keywords.value) >= 1
 }]
-  * $assert_07_keywords_bounded
+  * $assert_05_keywords_bounded
       Predicate[{keywords bounded}, $python_code {
 def predicate(self):
     return len(self.keywords.value) <= 4
 }]
-  * $assert_08_indent_width_non_negative
+  * $assert_06_indent_width_non_negative
       Predicate[{indent_width non-negative}, $python_code {
 def predicate(self):
     return self.indent_width.spaces >= 0
 }]
-  * $assert_09_doc_coverage_documented_within_total
+  * $assert_07_doc_coverage_documented_within_total
       Predicate[{doc_coverage documented within total}, $python_code {
 def predicate(self):
     return self.doc_coverage.documented_lines <= self.doc_coverage.total_lines
+}]
+  * $assert_08_budget_split_spent_within_cap
+      Predicate[{budget_split spent within cap}, $python_code {
+def predicate(self):
+    return self.budget_split.spent <= self.budget_split.cap
 }]

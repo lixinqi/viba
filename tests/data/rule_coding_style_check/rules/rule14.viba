@@ -20,45 +20,45 @@ Rule14 :=
 def predicate(self):
     return self.max_lines.value <= 24
 }]
-  * $assert_01_max_lines_under_100
-      Predicate[{max_lines under 100}, $python_code {
-def predicate(self):
-    return self.max_lines.value < 100
-}]
-  * $assert_02_time_budget_within_50_5
+  * $assert_01_time_budget_within_50_5
       Predicate[{time_budget within 50.5}, $python_code {
 def predicate(self):
     return self.time_budget.value <= 50.5
 }]
-  * $assert_03_time_budget_non_negative
+  * $assert_02_time_budget_non_negative
       Predicate[{time_budget non-negative}, $python_code {
 def predicate(self):
     return self.time_budget.value >= 0.0
 }]
-  * $assert_04_author_name_short
+  * $assert_03_author_name_short
       Predicate[{author_name short}, $python_code {
 def predicate(self):
     return len(self.author_name.value) <= 8
 }]
-  * $assert_05_author_name_not_empty
+  * $assert_04_author_name_not_empty
       Predicate[{author_name not empty}, $python_code {
 def predicate(self):
     return len(self.author_name.value) >= 1
 }]
-  * $assert_06_keywords_non_empty
+  * $assert_05_keywords_non_empty
       Predicate[{keywords non-empty}, $python_code {
 def predicate(self):
     return len(self.keywords.value) >= 1
 }]
-  * $assert_07_keywords_bounded
+  * $assert_06_keywords_bounded
       Predicate[{keywords bounded}, $python_code {
 def predicate(self):
     return len(self.keywords.value) <= 4
 }]
-  * $assert_08_tags_bounded
+  * $assert_07_tags_bounded
       Predicate[{tags bounded}, $python_code {
 def predicate(self):
     return len(self.tags.value) <= 3
+}]
+  * $assert_08_tags_non_empty
+      Predicate[{tags non-empty}, $python_code {
+def predicate(self):
+    return len(self.tags.value) >= 1
 }]
   * $assert_09_doc_coverage_documented_within_total
       Predicate[{doc_coverage documented within total}, $python_code {

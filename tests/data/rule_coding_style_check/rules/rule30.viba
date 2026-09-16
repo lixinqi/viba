@@ -28,93 +28,88 @@ Rule30 :=
 def predicate(self):
     return self.code_length.value <= 24
 }]
-  * $assert_01_code_length_under_100
-      Predicate[{code_length under 100}, $python_code {
-def predicate(self):
-    return self.code_length.value < 100
-}]
-  * $assert_02_max_lines_at_most_24
+  * $assert_01_max_lines_at_most_24
       Predicate[{max_lines at most 24}, $python_code {
 def predicate(self):
     return self.max_lines.value <= 24
 }]
-  * $assert_03_max_lines_under_100
-      Predicate[{max_lines under 100}, $python_code {
-def predicate(self):
-    return self.max_lines.value < 100
-}]
-  * $assert_04_loop_count_at_most_24
+  * $assert_02_loop_count_at_most_24
       Predicate[{loop_count at most 24}, $python_code {
 def predicate(self):
     return self.loop_count.value <= 24
 }]
-  * $assert_05_loop_count_under_100
-      Predicate[{loop_count under 100}, $python_code {
-def predicate(self):
-    return self.loop_count.value < 100
-}]
-  * $assert_06_code_length_not_above_max_lines
+  * $assert_03_code_length_not_above_max_lines
       Predicate[{code_length not above max_lines}, $python_code {
 def predicate(self):
     return self.code_length.value <= self.max_lines.value
 }]
-  * $assert_07_coverage_ratio_within_50_5
+  * $assert_04_coverage_ratio_within_50_5
       Predicate[{coverage_ratio within 50.5}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value <= 50.5
 }]
-  * $assert_08_coverage_ratio_non_negative
+  * $assert_05_coverage_ratio_non_negative
       Predicate[{coverage_ratio non-negative}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value >= 0.0
 }]
-  * $assert_09_has_tests_required
+  * $assert_06_has_tests_required
       Predicate[{has_tests required}, $python_code {
 def predicate(self):
     return self.has_tests.value
 }]
-  * $assert_10_has_tests_forbidden
-      Predicate[{has_tests forbidden}, $python_code {
-def predicate(self):
-    return not self.has_tests.value
-}]
-  * $assert_11_author_name_short
+  * $assert_07_author_name_short
       Predicate[{author_name short}, $python_code {
 def predicate(self):
     return len(self.author_name.value) <= 8
 }]
-  * $assert_12_author_name_not_empty
+  * $assert_08_author_name_not_empty
       Predicate[{author_name not empty}, $python_code {
 def predicate(self):
     return len(self.author_name.value) >= 1
 }]
-  * $assert_13_keywords_non_empty
+  * $assert_09_keywords_non_empty
       Predicate[{keywords non-empty}, $python_code {
 def predicate(self):
     return len(self.keywords.value) >= 1
 }]
-  * $assert_14_keywords_bounded
+  * $assert_10_keywords_bounded
       Predicate[{keywords bounded}, $python_code {
 def predicate(self):
     return len(self.keywords.value) <= 4
 }]
-  * $assert_15_tags_bounded
+  * $assert_11_tags_bounded
       Predicate[{tags bounded}, $python_code {
 def predicate(self):
     return len(self.tags.value) <= 3
 }]
-  * $assert_16_tags_non_empty
+  * $assert_12_tags_non_empty
       Predicate[{tags non-empty}, $python_code {
 def predicate(self):
     return len(self.tags.value) >= 1
 }]
-  * $assert_17_lookup_non_empty
+  * $assert_13_lookup_non_empty
       Predicate[{lookup non-empty}, $python_code {
 def predicate(self):
     return len(self.lookup.value) >= 1
 }]
-  * $assert_18_lookup_bounded
+  * $assert_14_lookup_bounded
       Predicate[{lookup bounded}, $python_code {
 def predicate(self):
     return len(self.lookup.value) <= 4
+}]
+  * $assert_15_int_pair_ordered
+      Predicate[{int_pair ordered}, $python_code {
+def predicate(self):
+    return self.int_pair.a <= self.int_pair.b
+}]
+  * $assert_16_int_pair_sum_bounded
+      Predicate[{int_pair sum bounded}, $python_code {
+def predicate(self):
+    return self.int_pair.a + self.int_pair.b <= 100
+}]
+  * $assert_17_triplet_x_plus_y_within_z
+      Predicate[{triplet x plus y within z}, $python_code {
+def predicate(self):
+    return self.triplet.x + self.triplet.y <= self.triplet.z
 }]

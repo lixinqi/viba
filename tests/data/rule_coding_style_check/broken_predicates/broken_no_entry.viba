@@ -1,0 +1,9 @@
+Len := int
+
+BrokenRule :=
+  RuleObject
+  * $len Metric[Len]
+  * $check Predicate[{broken}, $python_code {
+def check(self):
+    return True
+}]

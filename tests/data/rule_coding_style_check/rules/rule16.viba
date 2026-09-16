@@ -22,48 +22,48 @@ Rule16 :=
 def predicate(self):
     return self.cyclomatic_complexity.value <= 24
 }]
-  * $assert_01_cyclomatic_complexity_under_100
-      Predicate[{cyclomatic_complexity under 100}, $python_code {
-def predicate(self):
-    return self.cyclomatic_complexity.value < 100
-}]
-  * $assert_02_coverage_ratio_within_50_5
+  * $assert_01_coverage_ratio_within_50_5
       Predicate[{coverage_ratio within 50.5}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value <= 50.5
 }]
-  * $assert_03_coverage_ratio_non_negative
+  * $assert_02_coverage_ratio_non_negative
       Predicate[{coverage_ratio non-negative}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value >= 0.0
 }]
-  * $assert_04_is_public_required
+  * $assert_03_is_public_required
       Predicate[{is_public required}, $python_code {
 def predicate(self):
     return self.is_public.value
 }]
-  * $assert_05_is_public_forbidden
-      Predicate[{is_public forbidden}, $python_code {
-def predicate(self):
-    return not self.is_public.value
-}]
-  * $assert_06_author_name_short
+  * $assert_04_author_name_short
       Predicate[{author_name short}, $python_code {
 def predicate(self):
     return len(self.author_name.value) <= 8
 }]
-  * $assert_07_author_name_not_empty
+  * $assert_05_author_name_not_empty
       Predicate[{author_name not empty}, $python_code {
 def predicate(self):
     return len(self.author_name.value) >= 1
 }]
-  * $assert_08_keywords_non_empty
+  * $assert_06_keywords_non_empty
       Predicate[{keywords non-empty}, $python_code {
 def predicate(self):
     return len(self.keywords.value) >= 1
 }]
-  * $assert_09_keywords_bounded
+  * $assert_07_keywords_bounded
       Predicate[{keywords bounded}, $python_code {
 def predicate(self):
     return len(self.keywords.value) <= 4
+}]
+  * $assert_08_tags_bounded
+      Predicate[{tags bounded}, $python_code {
+def predicate(self):
+    return len(self.tags.value) <= 3
+}]
+  * $assert_09_tags_non_empty
+      Predicate[{tags non-empty}, $python_code {
+def predicate(self):
+    return len(self.tags.value) >= 1
 }]

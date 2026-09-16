@@ -1,0 +1,9 @@
+Len := int
+
+PredicateBoundRule :=
+  RuleObject
+  * $len Metric[Len]
+  * $check Predicate[{len under 50}, $python_code {
+def predicate(self):
+    return self.len.value < 50
+}]

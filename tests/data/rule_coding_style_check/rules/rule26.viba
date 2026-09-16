@@ -18,57 +18,47 @@ Rule26 :=
 def predicate(self):
     return self.code_length.value <= 24
 }]
-  * $assert_01_code_length_under_100
-      Predicate[{code_length under 100}, $python_code {
-def predicate(self):
-    return self.code_length.value < 100
-}]
-  * $assert_02_coverage_ratio_within_50_5
+  * $assert_01_coverage_ratio_within_50_5
       Predicate[{coverage_ratio within 50.5}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value <= 50.5
 }]
-  * $assert_03_coverage_ratio_non_negative
+  * $assert_02_coverage_ratio_non_negative
       Predicate[{coverage_ratio non-negative}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value >= 0.0
 }]
-  * $assert_04_has_tests_required
+  * $assert_03_has_tests_required
       Predicate[{has_tests required}, $python_code {
 def predicate(self):
     return self.has_tests.value
 }]
-  * $assert_05_has_tests_forbidden
-      Predicate[{has_tests forbidden}, $python_code {
-def predicate(self):
-    return not self.has_tests.value
-}]
-  * $assert_06_module_name_short
+  * $assert_04_module_name_short
       Predicate[{module_name short}, $python_code {
 def predicate(self):
     return len(self.module_name.value) <= 8
 }]
-  * $assert_07_module_name_not_empty
+  * $assert_05_module_name_not_empty
       Predicate[{module_name not empty}, $python_code {
 def predicate(self):
     return len(self.module_name.value) >= 1
 }]
-  * $assert_08_keywords_non_empty
+  * $assert_06_keywords_non_empty
       Predicate[{keywords non-empty}, $python_code {
 def predicate(self):
     return len(self.keywords.value) >= 1
 }]
-  * $assert_09_keywords_bounded
+  * $assert_07_keywords_bounded
       Predicate[{keywords bounded}, $python_code {
 def predicate(self):
     return len(self.keywords.value) <= 4
 }]
-  * $assert_10_int_pair_ordered
+  * $assert_08_int_pair_ordered
       Predicate[{int_pair ordered}, $python_code {
 def predicate(self):
     return self.int_pair.a <= self.int_pair.b
 }]
-  * $assert_11_int_pair_sum_bounded
+  * $assert_09_int_pair_sum_bounded
       Predicate[{int_pair sum bounded}, $python_code {
 def predicate(self):
     return self.int_pair.a + self.int_pair.b <= 100

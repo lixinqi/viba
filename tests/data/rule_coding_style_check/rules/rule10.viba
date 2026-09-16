@@ -18,47 +18,37 @@ Rule10 :=
 def predicate(self):
     return self.cyclomatic_complexity.value <= 24
 }]
-  * $assert_01_cyclomatic_complexity_under_100
-      Predicate[{cyclomatic_complexity under 100}, $python_code {
-def predicate(self):
-    return self.cyclomatic_complexity.value < 100
-}]
-  * $assert_02_coverage_ratio_within_50_5
+  * $assert_01_coverage_ratio_within_50_5
       Predicate[{coverage_ratio within 50.5}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value <= 50.5
 }]
-  * $assert_03_coverage_ratio_non_negative
+  * $assert_02_coverage_ratio_non_negative
       Predicate[{coverage_ratio non-negative}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value >= 0.0
 }]
-  * $assert_04_has_tests_required
+  * $assert_03_has_tests_required
       Predicate[{has_tests required}, $python_code {
 def predicate(self):
     return self.has_tests.value
 }]
-  * $assert_05_has_tests_forbidden
-      Predicate[{has_tests forbidden}, $python_code {
-def predicate(self):
-    return not self.has_tests.value
-}]
-  * $assert_06_module_name_short
+  * $assert_04_module_name_short
       Predicate[{module_name short}, $python_code {
 def predicate(self):
     return len(self.module_name.value) <= 8
 }]
-  * $assert_07_module_name_not_empty
+  * $assert_05_module_name_not_empty
       Predicate[{module_name not empty}, $python_code {
 def predicate(self):
     return len(self.module_name.value) >= 1
 }]
-  * $assert_08_imports_non_empty
+  * $assert_06_imports_non_empty
       Predicate[{imports non-empty}, $python_code {
 def predicate(self):
     return len(self.imports.value) >= 1
 }]
-  * $assert_09_imports_bounded
+  * $assert_07_imports_bounded
       Predicate[{imports bounded}, $python_code {
 def predicate(self):
     return len(self.imports.value) <= 4

@@ -1,4 +1,4 @@
-"""is_compliant / is_determinate over generated witnesses.
+"""is_compliant / check_determinate over generated witnesses.
 
 Data-driven over tests/data/rule_coding_style_check/rules/ruleNN.viba and
 not_rules/not_ruleNN.viba (see build.py): the 40 Metric/Predicate
@@ -9,7 +9,7 @@ every witness must be compliant (True), with fail_prob 1 every flip
 fails and every witness must be rejected (False), and with the default
 fail_prob the True share must match (1 - fail_prob) ** flip_sites,
 where a flip site is a positive Predicate field or a tagged not branch.
-is_determinate must certify each rule. demo.viba, sum_rule.viba, not_rule.viba and
+check_determinate must certify each rule. demo.viba, sum_rule.viba, not_rule.viba and
 broken_rules.viba cover the original DEMO, an OneofRule over
 Predicate-carrying branch rules, a prohibitive not[...] rule with
 per-branch refutation witnesses, and two broken rules determinacy must
@@ -25,7 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba import ast as viba_ast
 from viba.generate import flip_sites, generate
 from viba.is_compliant import is_compliant
-from viba.is_determinate import is_determinate
+from viba.check_determinate import check_determinate
+from viba.reset_predication_by_python_code import reset_predication_by_python_code
 from viba.rule_coding_style_check import rule_coding_style_check
 from viba.type import AstNodeType, Err, Ok, custom_module
 
@@ -33,6 +34,7 @@ DATA = Path(__file__).resolve().parent / "data" / "rule_coding_style_check"
 NOT_DATA = DATA / "not_rules"
 WITNESSES_PER_RULE = 20
 MIXED_WITNESSES = 200
+PREDICATE_WITNESSES = 50
 FAIL_PROB = 0.1
 
 
@@ -93,8 +95,8 @@ def _check_generated_rule(path: Path, name: str, seed: int) -> int:
     assert abs(counts[True] - expected) <= spread, (
         f"{path.name}: True {counts[True]}/{MIXED_WITNESSES}, model {expected:.1f}±{spread:.1f} (sites={sites})")
     checked += MIXED_WITNESSES
-    determined = is_determinate(rule, WITNESSES_PER_RULE, seed=1)
-    assert isinstance(determined, Ok) and determined.value is True, f"{path.name}: {determined!r}"
+    determined = check_determinate(rule, WITNESSES_PER_RULE, seed=1)
+    assert isinstance(determined, Ok) and determined.value is None, f"{path.name}: {determined!r}"
     return checked
 
 
@@ -115,8 +117,8 @@ def _check_demo() -> None:
     rule = _entry(defs, module, "DemoRule")
     verdicts = _judge(rule, generate(rule, 50, seed=7), path)
     assert verdicts == {True, False}, f"demo verdicts: {verdicts}"
-    determined = is_determinate(rule, 50, seed=1)
-    assert isinstance(determined, Ok) and determined.value is True
+    determined = check_determinate(rule, 50, seed=1)
+    assert isinstance(determined, Ok) and determined.value is None
 
 
 def _check_sum_rule() -> None:
@@ -133,8 +135,8 @@ def _check_sum_rule() -> None:
         assert isinstance(judged, Ok), f"sum judge errored: {judged!r}"
         verdicts.add(judged.value)
     assert verdicts == {True, False}, f"sum verdicts: {verdicts}"
-    determined = is_determinate(rule, 40, seed=3)
-    assert isinstance(determined, Ok) and determined.value is True
+    determined = check_determinate(rule, 40, seed=3)
+    assert isinstance(determined, Ok) and determined.value is None
     for witness, want in (("SumWitnessPass", True), ("SumWitnessFail", False)):
         sub = _entry(defs, module, witness)
         got = is_compliant(sub, rule)
@@ -145,7 +147,7 @@ def _check_broken_rules() -> None:
     module, defs = _load(DATA / "broken_rules.viba")
     for name in ("BadRule", "BadRef"):
         rule = _entry(defs, module, name)
-        assert isinstance(is_determinate(rule, 5, seed=1), Err), name
+        assert isinstance(check_determinate(rule, 5, seed=1), Err), name
 
 
 def _check_not_rule() -> None:
@@ -167,8 +169,77 @@ def _check_not_rule() -> None:
         assert isinstance(judged, Ok), f"not judge errored: {judged!r}"
         verdicts.add(judged.value)
     assert verdicts == {True, False}, f"not verdicts: {verdicts}"
-    determined = is_determinate(rule, 40, seed=3)
-    assert isinstance(determined, Ok) and determined.value is True
+    determined = check_determinate(rule, 40, seed=3)
+    assert isinstance(determined, Ok) and determined.value is None
+
+
+def _check_predicate_reset():
+    """One int metric, a predicate requiring value < 50, and 100
+    witnesses whose metric runs 0..99: before running the code every
+    witness is compliant, after reset_predication_by_python_code only
+    the 50 below 50 are."""
+    module, defs = _load(DATA / "predicate_bound.viba")
+    _spec(defs, module, "PredicateBoundRule")
+    rule = _entry(defs, module, "PredicateBoundRule")
+    check = _predicate_node(rule.ast_node)
+    witnesses = [_bound_witness(module, value, check) for value in range(100)]
+    before = sum(is_compliant(w, rule).value for w in witnesses)
+    after = sum(is_compliant(reset_predication_by_python_code(w), rule).value for w in witnesses)
+    assert before == 100, f"before reset: compliant {before}/100"
+    assert after == 50, f"after reset: compliant {after}/100"
+    print(f"predicate reset: {before}/100 -> {after}/100")
+
+
+def _predicate_node(body):
+    for node in viba_ast.walk(body):
+        if isinstance(node, viba_ast.TypeApp) and node.constructor == "Predicate":
+            return node
+    raise AssertionError("the rule has no Predicate field")
+
+
+def _bound_witness(module, value, check):
+    body = viba_ast.Product(
+        viba_ast.TypeRef("Object"),
+        viba_ast.Product(
+            viba_ast.Tagged("$len", viba_ast.Constant(value)),
+            viba_ast.Tagged("$check", check),
+        ),
+    )
+    return AstNodeType(body, module)
+
+
+def _check_broken_predicates():
+    """$python_code that cannot run — syntax error, raise, missing
+    attribute, wrong signature, undefined name, no predicate entry —
+    must make the rule non-determinate."""
+    broken = sorted((DATA / "broken_predicates").glob("*.viba"))
+    assert broken, "no broken predicate samples"
+    for path in broken:
+        module, defs = _load(path)
+        rule = _entry(defs, module, "BrokenRule")
+        given = check_determinate(rule, 3, seed=1)
+        assert isinstance(given, Err), f"{path.name}: {given!r}"
+    print(f"broken predicate code: {len(broken)} samples rejected")
+
+
+def _check_predicate_code():
+    """generate(fail_prob=0) leaves every Predicate in place; then each
+    compiled $python_code runs and a false predication becomes the
+    poison. The compliant share is therefore a measured value between 0
+    and 1, not 100%."""
+    total = compliant = 0
+    for path in sorted((DATA / "rules").glob("rule*.viba")):
+        number = path.stem[len("rule"):]
+        module, defs = _load(path)
+        rule = _entry(defs, module, f"Rule{number}")
+        witnesses = generate(rule, PREDICATE_WITNESSES, seed=int(number), fail_prob=0.0)
+        for witness in witnesses:
+            given = is_compliant(reset_predication_by_python_code(witness), rule)
+            assert isinstance(given, Ok), f"{path.name}: judge errored: {given!r}"
+            compliant += given.value
+            total += 1
+    assert 0 < compliant < total, f"predicate code: compliant {compliant}/{total}"
+    print(f"predicate code: compliant {compliant}/{total} = {compliant / total:.1%}")
 
 
 def main():
@@ -184,9 +255,13 @@ def main():
     _check_sum_rule()
     _check_not_rule()
     _check_broken_rules()
+    _check_broken_predicates()
+    _check_predicate_reset()
+    _check_predicate_code()
     print(f"rule_coding_style_check: {len(paths)} rules + {len(not_paths)} not-rules"
           f" ({total} verdict witnesses + {determinacy} determinacy witnesses)"
-          f" + demo + sum-rule + not-rule + 2 broken rules rejected")
+          f" + demo + sum-rule + not-rule + 2 broken rules rejected"
+          f" + broken predicates rejected + predicate reset + predicate code")
 
 
 main()

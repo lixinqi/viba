@@ -16,52 +16,37 @@ Rule20 :=
 def predicate(self):
     return self.code_length.value <= 24
 }]
-  * $assert_01_code_length_under_100
-      Predicate[{code_length under 100}, $python_code {
-def predicate(self):
-    return self.code_length.value < 100
-}]
-  * $assert_02_max_lines_at_most_24
+  * $assert_01_max_lines_at_most_24
       Predicate[{max_lines at most 24}, $python_code {
 def predicate(self):
     return self.max_lines.value <= 24
 }]
-  * $assert_03_max_lines_under_100
-      Predicate[{max_lines under 100}, $python_code {
-def predicate(self):
-    return self.max_lines.value < 100
-}]
-  * $assert_04_code_length_not_above_max_lines
+  * $assert_02_code_length_not_above_max_lines
       Predicate[{code_length not above max_lines}, $python_code {
 def predicate(self):
     return self.code_length.value <= self.max_lines.value
 }]
-  * $assert_05_coverage_ratio_within_50_5
+  * $assert_03_coverage_ratio_within_50_5
       Predicate[{coverage_ratio within 50.5}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value <= 50.5
 }]
-  * $assert_06_coverage_ratio_non_negative
+  * $assert_04_coverage_ratio_non_negative
       Predicate[{coverage_ratio non-negative}, $python_code {
 def predicate(self):
     return self.coverage_ratio.value >= 0.0
 }]
-  * $assert_07_has_tests_required
+  * $assert_05_has_tests_required
       Predicate[{has_tests required}, $python_code {
 def predicate(self):
     return self.has_tests.value
 }]
-  * $assert_08_has_tests_forbidden
-      Predicate[{has_tests forbidden}, $python_code {
-def predicate(self):
-    return not self.has_tests.value
-}]
-  * $assert_09_module_name_short
+  * $assert_06_module_name_short
       Predicate[{module_name short}, $python_code {
 def predicate(self):
     return len(self.module_name.value) <= 8
 }]
-  * $assert_10_module_name_not_empty
+  * $assert_07_module_name_not_empty
       Predicate[{module_name not empty}, $python_code {
 def predicate(self):
     return len(self.module_name.value) >= 1
