@@ -11,8 +11,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.is_legal import is_compliant, is_determinate
-from viba.instance_generator import generate
+from viba.generate import generate
+from viba.is_compliant import is_compliant
+from viba.is_determinate import is_determinate
 from viba.type import AstNodeType, Err, Ok, custom_module
 
 DEMO = """
