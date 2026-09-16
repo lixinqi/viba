@@ -23,12 +23,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba import ast as viba_ast
-from viba.generate import flip_sites, generate
-from viba.is_compliant import is_compliant
-from viba.check_determinate import check_determinate
-from viba.reset_predication_by_python_code import reset_predication_by_python_code
-from viba.rule_coding_style_check import rule_coding_style_check
-from viba.type import AstNodeType, Err, Ok, custom_module
+from viba.rule import (
+    check_determinate,
+    generate_witnesses,
+    is_compliant,
+    reset_predication_by_python_code,
+    check_rule_coding_style,
+)
+from viba.type import AstNodeType, Err, Ok, custom_module, module_get_type
 
 DATA = Path(__file__).resolve().parent / "data" / "rule_coding_style_check"
 NOT_DATA = DATA / "not_rules"
@@ -48,8 +50,69 @@ def _entry(defs, module, name: str) -> AstNodeType:
 
 
 def _spec(defs, module, name: str) -> None:
-    given = rule_coding_style_check(_entry(defs, module, name))
-    assert isinstance(given, Ok) and given.value is True, f"{name}: style {given!r}"
+    given = check_rule_coding_style(_entry(defs, module, name))
+    assert isinstance(given, Ok) and given.value is None, f"{name}: style {given!r}"
+
+
+def _flip_sites(rule) -> int:
+    """Independent flips generate_witnesses makes for a rule: one per positive
+    Predicate field, one per tagged not branch. A witness passes only
+    when none of them flips, so the True share is (1 - p) ** sites.
+    Test-side model of generate_witnesses, kept here because it is not API."""
+    return _count_flips(rule.ast_node, rule.container_module)
+
+
+def _count_flips(node, module) -> int:
+    if isinstance(node, viba_ast.Tagged):
+        return _count_flips(node.type, module)
+    if isinstance(node, viba_ast.Product):
+        return _count_flips(node.left, module) + _count_flips(node.right, module)
+    if isinstance(node, viba_ast.ProductChain):
+        return sum(_count_flips(e, module) for e in node.elements)
+    if isinstance(node, viba_ast.Tuple):
+        return sum(_count_flips(e, module) for e in node.elements)
+    if isinstance(node, viba_ast.TypeApp):
+        if node.constructor == "Predicate":
+            return 1
+        if node.constructor == "not":
+            branches = _not_branches(node.args[0], module)
+            return 0 if branches is None else len(branches)
+        return 0
+    if isinstance(node, viba_ast.TypeRef):
+        body, home = _unfold_ref(node, module)
+        return 0 if body is node else _count_flips(body, home)
+    return 0
+
+
+def _not_branches(node, module):
+    """The tagged branches of a not argument; None if one is untagged."""
+    node, module = _unfold_ref(node, module)
+    if isinstance(node, viba_ast.Sum):
+        left = _not_branches(node.left, module)
+        right = _not_branches(node.right, module)
+        return None if left is None or right is None else left + right
+    if isinstance(node, viba_ast.SumChain):
+        out = []
+        for element in node.elements:
+            part = _not_branches(element, module)
+            if part is None:
+                return None
+            out += part
+        return out
+    return [node] if isinstance(node, viba_ast.Tagged) else None
+
+
+def _unfold_ref(node, module):
+    """A TypeRef to a plain TypeDefinition unfolds to its body."""
+    if not isinstance(node, viba_ast.TypeRef):
+        return node, module
+    resolved = module_get_type(module, node.name)
+    if not isinstance(resolved, Ok) or not isinstance(resolved.value, AstNodeType):
+        return node, module
+    target = resolved.value
+    if not isinstance(target.ast_node, viba_ast.TypeDefinition):
+        return node, module
+    return target.ast_node.body, target.container_module
 
 
 def _judge(rule, witnesses, path: Path):
@@ -78,16 +141,16 @@ def _check_generated_rule(path: Path, name: str, seed: int) -> int:
     _spec(defs, module, name)
     checked = 0
     for fail_prob, want in ((0.0, True), (1.0, False)):
-        witnesses = generate(rule, WITNESSES_PER_RULE, seed=seed, fail_prob=fail_prob)
+        witnesses = generate_witnesses(rule, WITNESSES_PER_RULE, seed=seed, fail_prob=fail_prob)
         verdicts = _judge(rule, witnesses, path)
         assert verdicts == {want}, f"{path.name}: fail_prob={fail_prob} gave {verdicts}"
         checked += len(witnesses)
-    # A witness passes only when none of generate's flips lands, so the
+    # A witness passes only when none of generate_witnesses' flips lands, so the
     # True share is (1 - fail_prob) ** flip_sites; the sample must sit
     # inside a 4-sigma band of that.
-    sites = flip_sites(rule)
+    sites = _flip_sites(rule)
     passes = (1 - FAIL_PROB) ** sites
-    witnesses = generate(rule, MIXED_WITNESSES, seed=seed, fail_prob=FAIL_PROB)
+    witnesses = generate_witnesses(rule, MIXED_WITNESSES, seed=seed, fail_prob=FAIL_PROB)
     counts = _judge_counts(rule, witnesses, path)
     assert counts[True] > 0 and counts[False] > 0, f"{path.name}: mixed {counts}"
     expected = MIXED_WITNESSES * passes
@@ -115,7 +178,7 @@ def _check_demo() -> None:
     module, defs = _load(path)
     _spec(defs, module, "DemoRule")
     rule = _entry(defs, module, "DemoRule")
-    verdicts = _judge(rule, generate(rule, 50, seed=7), path)
+    verdicts = _judge(rule, generate_witnesses(rule, 50, seed=7), path)
     assert verdicts == {True, False}, f"demo verdicts: {verdicts}"
     determined = check_determinate(rule, 50, seed=1)
     assert isinstance(determined, Ok) and determined.value is None
@@ -130,7 +193,7 @@ def _check_sum_rule() -> None:
     for name in names:
         _spec(defs, module, name)
     verdicts = set()
-    for witness in generate(rule, 40, seed=3):
+    for witness in generate_witnesses(rule, 40, seed=3):
         judged = is_compliant(witness, rule)
         assert isinstance(judged, Ok), f"sum judge errored: {judged!r}"
         verdicts.add(judged.value)
@@ -164,7 +227,7 @@ def _check_not_rule() -> None:
         got = is_compliant(sub, rule)
         assert isinstance(got, Ok) and got.value is want, f"{witness}: {got!r}"
     verdicts = set()
-    for witness in generate(rule, 40, seed=3):
+    for witness in generate_witnesses(rule, 40, seed=3):
         judged = is_compliant(witness, rule)
         assert isinstance(judged, Ok), f"not judge errored: {judged!r}"
         verdicts.add(judged.value)
@@ -223,7 +286,7 @@ def _check_broken_predicates():
 
 
 def _check_predicate_code():
-    """generate(fail_prob=0) leaves every Predicate in place; then each
+    """generate_witnesses(fail_prob=0) leaves every Predicate in place; then each
     compiled $python_code runs and a false predication becomes the
     poison. The compliant share is therefore a measured value between 0
     and 1, not 100%."""
@@ -232,7 +295,7 @@ def _check_predicate_code():
         number = path.stem[len("rule"):]
         module, defs = _load(path)
         rule = _entry(defs, module, f"Rule{number}")
-        witnesses = generate(rule, PREDICATE_WITNESSES, seed=int(number), fail_prob=0.0)
+        witnesses = generate_witnesses(rule, PREDICATE_WITNESSES, seed=int(number), fail_prob=0.0)
         for witness in witnesses:
             given = is_compliant(reset_predication_by_python_code(witness), rule)
             assert isinstance(given, Ok), f"{path.name}: judge errored: {given!r}"

@@ -30,7 +30,7 @@ from viba.type import (
 _WORDS = ("alpha", "beta", "gamma", "delta")
 
 
-def generate(rule: AstNodeType, count: int, seed=None, fail_prob: float = 0.1) -> list:
+def generate_witnesses(rule: AstNodeType, count: int, seed=None, fail_prob: float = 0.1) -> list:
     """`count` random witnesses of `rule` (deterministic via seed).
 
     Each Predicate field passes unchanged with probability 1-fail_prob
@@ -104,36 +104,6 @@ def _oneof(nodes):
     for node in nodes[1:]:
         out = viba_ast.Sum(out, node)
     return out
-
-
-def flip_sites(rule: AstNodeType) -> int:
-    """Independent flips generate makes for this rule: one per positive
-    Predicate field, one per tagged not branch. A witness passes only
-    when none of them flips, so its True share is
-    (1 - fail_prob) ** flip_sites."""
-    return _flip_sites(rule.ast_node, rule.container_module)
-
-
-def _flip_sites(node, module: ModuleType) -> int:
-    if isinstance(node, viba_ast.Tagged):
-        return _flip_sites(node.type, module)
-    if isinstance(node, viba_ast.Product):
-        return _flip_sites(node.left, module) + _flip_sites(node.right, module)
-    if isinstance(node, viba_ast.ProductChain):
-        return sum(_flip_sites(e, module) for e in node.elements)
-    if isinstance(node, viba_ast.Tuple):
-        return sum(_flip_sites(e, module) for e in node.elements)
-    if isinstance(node, viba_ast.TypeApp):
-        if node.constructor == "Predicate":
-            return 1
-        if node.constructor == "not":
-            branches = _sum_branches(node.args[0], module)
-            return 0 if branches is None else len(branches)
-        return 0
-    if isinstance(node, viba_ast.TypeRef):
-        body, home = _unfold(node, module)
-        return 0 if body is node else _flip_sites(body, home)
-    return 0
 
 
 def _sum_branches(node, module: ModuleType):

@@ -85,6 +85,24 @@ intermediate representation.
 | `ast/_match.py` | Keyword-argument pattern matching over node classes |
 | `ast/__init__.py` | Public API: `parse`, `unparse`, `canonical`, `dump`, `walk`, visitors |
 
+`viba/rule/` is the rule layer — a Viba application built on the core.
+The rule vocabulary (`RuleObject` / `OneofRule`, `Predicate`, `Metric`,
+`PredicationFailed`, `not`) lives in `builtin.viba`; these modules carry
+the accumulated API:
+
+| Module | Summary |
+|--------|---------|
+| `rule/generate_witnesses.py` | Random witnesses of a rule |
+| `rule/reset_predication_by_python_code.py` | Runs each `Predicate`'s `$python_code`; a false predication becomes the poison |
+| `rule/is_compliant.py` | `witness <: rule` |
+| `rule/check_rule_coding_style.py` | Checks a rule against `viba-rule.md` |
+| `rule/check_determinate.py` | Well-formed, predicate code runs, every witness judges without error |
+| `is_sub_type.py`, `type.py`, `parser.py`, `ast/` | Core: subtype judgment, Type model, syntax |
+
+```python
+from viba.rule import check_determinate, generate_witnesses, is_compliant
+```
+
 ## Usage
 
 ```python

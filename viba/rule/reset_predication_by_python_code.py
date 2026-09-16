@@ -3,7 +3,7 @@ poison.
 
 reset_predication_by_python_code(witness) -> witness. Every Predicate
 node in the witness gets its compiled $python_code executed against a
-`self` built from the witness's tagged fields (rule.md section 4: tag
+`self` built from the witness's tagged fields (viba-rule.md section 4: tag
 minus $ becomes the attribute, a metric's measured value is its .value,
 a nested product keeps expanding as attributes, a tuple by index). A
 predicate that returns false is replaced by PredicationFailed[nil, str].

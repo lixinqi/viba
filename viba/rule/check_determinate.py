@@ -2,30 +2,30 @@
 generated witness be judged?
 
 Result[None]: Ok(None) when the rule is determinate, Err(reason)
-otherwise. First rule_coding_style_check(rule) (rule.md): a rule that
+otherwise. First check_rule_coding_style(rule) (viba-rule.md): a rule that
 violates the writing conventions is not determinate. Then quantify over
-generate(rule, count, seed, fail_prob=0): no Predicate is flipped by the
+generate_witnesses(rule, count, seed, fail_prob=0): no Predicate is flipped by the
 generator, every witness runs its compiled $python_code through
 reset_predication_by_python_code, and is_compliant judges the result.
 An Err — an unresolvable name, an ellipsis, or a predicate that raises —
 makes the rule not determinate.
 """
 
-from viba.generate import generate
-from viba.is_compliant import is_compliant
-from viba.reset_predication_by_python_code import reset_predication_by_python_code
-from viba.rule_coding_style_check import rule_coding_style_check
+from viba.rule.generate_witnesses import generate_witnesses
+from viba.rule.is_compliant import is_compliant
+from viba.rule.reset_predication_by_python_code import reset_predication_by_python_code
+from viba.rule.check_rule_coding_style import check_rule_coding_style
 from viba.type import Err, Ok
 
 
 def check_determinate(rule, count: int, seed=None):
-    """Result[None]: Ok(None) when the rule follows rule.md, its
+    """Result[None]: Ok(None) when the rule follows viba-rule.md, its
     predicate code runs, and every generated witness judges without
     error; Err(reason) otherwise."""
-    style = rule_coding_style_check(rule)
+    style = check_rule_coding_style(rule)
     if isinstance(style, Err):
         return style
-    witnesses = generate(rule, count, seed, fail_prob=0.0)
+    witnesses = generate_witnesses(rule, count, seed, fail_prob=0.0)
     for index, witness in enumerate(witnesses):
         try:
             witness = reset_predication_by_python_code(witness)

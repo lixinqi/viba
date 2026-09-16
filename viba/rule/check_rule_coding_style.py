@@ -1,9 +1,9 @@
-"""Rule coding-style check: does a rule follow rule.md?
+"""Rule coding-style check: does a rule follow viba-rule.md?
 
-rule_coding_style_check(rule) -> Result[bool]. Ok(True) when the rule
+check_rule_coding_style(rule) -> Result[None]. Ok(None) when the rule
 follows the writing conventions; Err names the first violation.
 
-Checked (rule.md section in parentheses):
+Checked (viba-rule.md section in parentheses):
 - the chain head is RuleObject or OneofRule (2);
 - a RuleObject body is a product, a OneofRule body is a sum (2);
 - a OneofRule branch names another rule (2);
@@ -12,7 +12,7 @@ Checked (rule.md section in parentheses):
   arguments, and Code defines `predicate` (4);
 - Metric[Name] carries exactly one argument (5);
 - Predicate and not are tagged product fields, never sum branches (6);
-- not[A] carries exactly one argument (8).
+- not[A] carries exactly one argument (7).
 """
 
 from viba.ast import nodes as ast_nodes
@@ -24,7 +24,7 @@ class _Violation(Exception):
     pass
 
 
-def rule_coding_style_check(rule: AstNodeType) -> Result:
+def check_rule_coding_style(rule: AstNodeType) -> Result:
     body = getattr(rule.ast_node, "body", rule.ast_node)
     module = rule.container_module
     marker = body_marker(body)
@@ -37,7 +37,7 @@ def rule_coding_style_check(rule: AstNodeType) -> Result:
             _check_oneof(body, module)
     except _Violation as exc:
         return Err(str(exc))
-    return Ok(True)
+    return Ok(None)
 
 
 def _product_elements(node):

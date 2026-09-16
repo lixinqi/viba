@@ -1,11 +1,12 @@
-"""Executable checks for the Rule spec (rule.md).
+"""Executable checks for the rule coding style (viba-rule.md).
 
-The spec is a program: its ```viba block must parse, round-trip, and
-its demo judgments must hold — DemoWitnessPass seats in
-DemoRuleStripped, DemoWitnessFail does not.
+The style document is a program: its DemoRule ```viba block must parse,
+round-trip, satisfy check_rule_coding_style, and its demo judgments must
+hold — DemoWitnessPass seats in DemoRuleStripped, DemoWitnessFail does
+not.
 The stripped/pass/fail companions live in
-tests/data/rule_coding_style_check/spec_demo.viba; sum-rule coverage lives in
-sum_rule.viba (driven by test_rule_coding_style_check.py).
+tests/data/rule_coding_style_check/spec_demo.viba; the corpus coverage
+lives in test_rule_coding_style_check.py.
 """
 
 import sys
@@ -16,15 +17,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba import ast as viba_ast
 from viba.type import AstNodeType, Ok, custom_module
 from viba.is_sub_type import is_sub_type
-from viba.rule_coding_style_check import rule_coding_style_check
+from viba.rule import check_rule_coding_style
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "tests" / "data" / "rule_coding_style_check"
 
 
 def _spec_source():
-    block = (ROOT / "rule.md").read_text().split("```viba\n", 1)[1]
-    return block.split("\n```", 1)[0]
+    """The DemoRule block of viba-rule.md, wherever it sits."""
+    text = (ROOT / "viba-rule.md").read_text()
+    for chunk in text.split("```viba\n")[1:]:
+        source = chunk.split("\n```", 1)[0]
+        if "DemoRule" in source:
+            return source
+    raise AssertionError("viba-rule.md has no DemoRule ```viba block")
 
 
 def _round_trip(text: str):
@@ -52,9 +58,9 @@ def main():
     assert _judgment(module, "DemoWitnessFail", "DemoRuleStripped") is False
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert names == ["DemoRule"], f"rule markers: {names}"
-    spec = rule_coding_style_check(_entry(module, "DemoRule"))
-    assert isinstance(spec, Ok) and spec.value is True, f"rule style check: {spec!r}"
-    print("rule spec: round-trip + style check + 2 judgment checks + marker scan passed")
+    spec = check_rule_coding_style(_entry(module, "DemoRule"))
+    assert isinstance(spec, Ok) and spec.value is None, f"rule style check: {spec!r}"
+    print("rule coding style: round-trip + style check + 2 judgment checks + marker scan passed")
 
 
 main()
