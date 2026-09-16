@@ -4,7 +4,7 @@
 
 本规范定义 Rule 的书写形式。Rule 是以 Metric 与字面量为叶子的 Viba 类型描述，声明材料必须满足的结构与断言。
 
-Rule 中可以携带断言（Assert）。携带断言时，断言必须满足第 4 节规定的书写形式。
+Rule 中可以携带谓词（Predicate）。携带断言时，断言必须满足第 4 节规定的书写形式。
 
 ## 2. 规则标记
 
@@ -21,20 +21,20 @@ Rule 中可以携带断言（Assert）。携带断言时，断言必须满足第
 
 带标签的字段按名字对位，与书写顺序无关；不带标签的字段按位置对位。将不带标签的字段集中在前面，保证按位置对位的段落有稳定的顺序，不受带标签字段增删的影响。
 
-## 4. Assert 的书写形式
+## 4. Predicate 的书写形式
 
-`Assert` 是内建泛型（定义见 `viba/builtin.viba`），节点必须携带两个参数：
+`Predicate` 是内建泛型（定义见 `viba/builtin.viba`），节点必须携带两个参数：
 
 - 第一个参数 `{...}`：条件的自然语言描述（CodeBlock），不参与执行；
 - 第二个参数 `$python_code {...}`：可执行的判定器代码。
 
 `$python_code` 代码块内的花括号必须成对出现（CodeBlock 词法约束）。
 
-判定器代码必须定义名为 `handler` 的函数作为入口。`handler` 恰好接受一个参数，参数名约定为 `self`：`self` 的属性与 Rule 中带标签的字段按名字对应（标签去掉 `$` 前缀），度量字段的实测值取其 `.value` 属性，嵌套的积字段按属性继续展开，元组字段按下标访问。`handler` 返回布尔值：返回真值表示断言成立，返回假值表示断言不成立。
+判定器代码必须定义名为 `predicate` 的函数作为入口。`predicate` 恰好接受一个参数，参数名约定为 `self`：`self` 的属性与 Rule 中带标签的字段按名字对应（标签去掉 `$` 前缀），度量字段的实测值取其 `.value` 属性，嵌套的积字段按属性继续展开，元组字段按下标访问。`predicate` 返回布尔值：返回真值表示断言成立，返回假值表示断言不成立。
 
 ## 5. Metric 的书写形式
 
-度量写作 `Metric[Name]`。`Metric[Name]` 是内建透传泛型（定义见 `viba/builtin.viba`）：度量的语义完全由 `Name` 承载。在判定中，`Metric` 只考虑纯数据类型：基类型（`bool` / `int` / `float` / `str`）及其容器（`list[T]`、`set[T]`、`dict[K, V]`）、单个带标签字段（如 `$tag T`）与积类型。函数、`Assert` 等其他语义在判定中完全被忽视。
+度量写作 `Metric[Name]`。`Metric[Name]` 是内建透传泛型（定义见 `viba/builtin.viba`）：度量的语义完全由 `Name` 承载。在判定中，`Metric` 只考虑纯数据类型：基类型（`bool` / `int` / `float` / `str`）及其容器（`list[T]`、`set[T]`、`dict[K, V]`）、单个带标签字段（如 `$tag T`）与积类型。函数、`Predicate` 等其他语义在判定中完全被忽视。
 
 ## 6. 断言与合取的书写形式
 
@@ -57,8 +57,8 @@ DemoRule :=
   RuleObject
   * $code_length Metric[CodeLength]
   * $assert_code_len_le_24
-      Assert[{code length <= 24}, $python_code {
-def handler(self):
+      Predicate[{code length <= 24}, $python_code {
+def predicate(self):
     return self.code_length.value <= 24
 }]
 ```

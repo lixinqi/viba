@@ -4,7 +4,7 @@ Data-driven over tests/data/rule_check/rules/ruleNN.viba (see build.py)
 each contribute a marked rule whose generated witnesses must judge
 against the rule itself without Err and whose is_determinate must
 certify it; demo.viba, sum_rule.viba and broken_rules.viba cover the
-original DEMO, an OneofRule over Assert-carrying branch rules, and
+original DEMO, an OneofRule over Predicate-carrying branch rules, and
 two broken rules determinacy must reject. All Viba source lives in
 data files — this file is pure checking logic.
 """

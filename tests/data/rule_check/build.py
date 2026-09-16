@@ -1,7 +1,7 @@
 """Build the rule_check rule corpus: tests/data/rule_check/rules/ruleNN.viba.
 
 Each rule file defines helper Metric types plus one rule whose body
-is a product of Metric fields and at least ten Assert fields carrying
+is a product of Metric fields and at least ten Predicate fields carrying
 $python_code predicators. Existing files are never overwritten —
 extend by adding new specs, never by rewriting old ones.
 
@@ -140,7 +140,7 @@ COMBOS = [
     ["CodeLength", "MaxLines", "CoverageRatio", "TimeBudget", "HasTests", "ModuleName", "Keywords", "Tags", "Scores", "Lookup", "IntPair", "NameSize", "Triplet", "IndentWidth", "BudgetSplit"],
 ]
 
-# Assert-count targets for rules 20-39 (rules 0-19 keep 10).
+# Predicate-count targets for rules 20-39 (rules 0-19 keep 10).
 ASSERT_TARGETS = [
     11, 13, 17, 21, 22, 24, 12, 14, 16, 18,
     19, 20, 23, 15, 10, 12, 14, 16, 18, 20,
@@ -179,8 +179,8 @@ def _assert_field(index, desc, body):
     slug = "_".join(filter(None, slug.split()))
     lines = [
         f"  * $assert_{index:02d}_{slug}",
-        f"      Assert[{{{desc}}}, $python_code {{",
-        "def handler(self):",
+        f"      Predicate[{{{desc}}}, $python_code {{",
+        "def predicate(self):",
         f"    {body}",
         "}]",
     ]

@@ -2,7 +2,7 @@
 
 Given a rule (viba.type.AstNodeType), produce witnesses structurally
 parallel to it: every Metric[Name] field is replaced by a random
-literal of Name's data shape; everything else — including Assert
+literal of Name's data shape; everything else — including Predicate
 fields — is kept as-is. On a legal rule no witness can trigger a
 judgment error — running witnesses through is_compliant yields
 Ok(True) or Ok(false) only.
@@ -31,8 +31,8 @@ _WORDS = ("alpha", "beta", "gamma", "delta")
 def generate(rule: AstNodeType, count: int, seed=None, fail_prob: float = 0.1) -> list:
     """`count` random witnesses of `rule` (deterministic via seed).
 
-    Each Assert field passes unchanged with probability 1-fail_prob
-    and is witnessed by AssertionFailed with probability fail_prob.
+    Each Predicate field passes unchanged with probability 1-fail_prob
+    and is witnessed by PredicationFailed with probability fail_prob.
     """
     rng = random.Random(seed)
     return [_witness_of(rule, rng, fail_prob) for _ in range(count)]
@@ -70,17 +70,28 @@ def _gen_node(node, module: ModuleType, rng, fail_prob):
 def _gen_typeapp(node, module: ModuleType, rng, fail_prob: float):
     if node.constructor == "Metric":
         return _metric_literal(node.args[0], module, rng, fail_prob)
-    if node.constructor == "Assert" and rng.random() < fail_prob:
-        return _failed_assert()
+    if node.constructor == "Predicate" and rng.random() < fail_prob:
+        return _failed_predication()
+    if node.constructor == "not":
+        return _not_witness(node, rng, fail_prob)
     resolved = module_get_type(module, node.constructor)
     if isinstance(resolved, Ok) and isinstance(resolved.value, BuiltinGenericType):
         return _container_literal(node, resolved.value, module, rng, fail_prob)
     return node
 
 
-def _failed_assert():
-    """A failed assertion: poison in place of the Assert field."""
-    return viba_ast.TypeApp("AssertionFailed", [viba_ast.Nil(), viba_ast.TypeRef("str")])
+def _not_witness(node, rng, fail_prob: float):
+    """A not[A] (i.e. never <- A) field: refuted by a failed
+    predication; with fail_prob the prohibition is violated and
+    the refutation is absent."""
+    if rng.random() < fail_prob:
+        return node
+    return _failed_predication()
+
+
+def _failed_predication():
+    """A failed predication: poison in place of the Predicate field."""
+    return viba_ast.TypeApp("PredicationFailed", [viba_ast.Nil(), viba_ast.TypeRef("str")])
 
 
 def _container_literal(node, builtin, module: ModuleType, rng, fail_prob):

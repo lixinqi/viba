@@ -8,7 +8,7 @@ DemoRule :=
   * $coverage Metric[DocCoverage]
   * $keywords Metric[Keywords]
   * $assert_code_len_le_24
-      Assert[{code length <= 24}, $python_code {
-def handler(self):
+      Predicate[{code length <= 24}, $python_code {
+def predicate(self):
     return self.code_length.value <= 24
 }]

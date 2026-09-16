@@ -1,10 +1,10 @@
 # Builtin library — visible from every module, lowest precedence:
 # a custom module's own definitions and environment win.
 #
-# AssertionFailed marks a failed assertion in a witness. It is a
+# PredicationFailed marks a failed assertion in a witness. It is a
 # plain nominal generic: it never seats in any Rule type, so a witness
 # carrying it judges False against everything — no special machinery.
-AssertionFailed[T, MsgStr] :=
+PredicationFailed[T, MsgStr] :=
   $__assertion_failed_original_data T
   * $__assertion_failed_error_msg MsgStr
 
@@ -13,8 +13,8 @@ AssertionFailed[T, MsgStr] :=
 # type, a single tagged field, or a product).
 Metric[T] := T
 
-# Assert carries a natural-language condition (not executed) and an
+# Predicate carries a natural-language condition (not executed) and an
 # executable predicator under $python_code. It is stripped before
 # judgment and never reaches is_sub_type.
-Assert[Cond, PythonCode] :=
+Predicate[Cond, PythonCode] :=
   $assert_cond Cond * $assert_python_code PythonCode

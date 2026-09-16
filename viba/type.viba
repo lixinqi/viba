@@ -52,7 +52,7 @@ IsSubType :=
     Err（UnresolvedTypeError 在边界转为 Err）。
     指数参数交换模块时 env 随之交换：自由名永远经自己语法一侧的
     env_get 解析。
-    AssertionFailed 不是特殊节点：它是内建库（viba/builtin.viba）
+    PredicationFailed 不是特殊节点：它是内建库（viba/builtin.viba）
     里的普通名义泛型，sub 侧自然不入围（Ok(false)）；sup 侧按名字
     lint 出 Err。
     GenericDefinition 名义判定（同模块同名才相等）；TypeApp 两侧
@@ -60,12 +60,12 @@ IsSubType :=
     结构展开：泛型体以 env_get 绑定形参-实参后参与比较（TypeRef
     实参在词法作用域即刻解析；常量/单位元实参直接绑为字面量
     类型）。展开按（节点, 实参语义）缓存，进行中的同键展开按共
-    归纳假设为真，故递归泛型终止。AssertionFailed 不参与展开。
+    归纳假设为真，故递归泛型终止。PredicationFailed 不参与展开。
     TypeDefinition 透明展开、结构比较，递归对由假设表共归纳兜底。
     内建 list/set/dict 与其字面量构造器 ListLiteral/SetLiteral/
     DictLiteral 之间是居民关系而非名义相等：ListLiteral[a, b, c]
     是 list[a | b | c] 的居民（每个元素入席元素的并）；DictLiteral
     的 (k, v) 对分别入席键的并与值的并。反向与跨家族均为假。
     Ok(true/false) 是判定；Err 是 lint 错误：任何一侧出现
-    ellipsis，或 AssertionFailed 出现在 sup 侧。
+    ellipsis，或 PredicationFailed 出现在 sup 侧。
   }]

@@ -5,8 +5,8 @@ SmallRule :=
   RuleObject
   * $x Metric[XLen]
   * $assert_x_le_24
-      Assert[{x at most 24}, $python_code {
-def handler(self):
+      Predicate[{x at most 24}, $python_code {
+def predicate(self):
     return self.x.value <= 24
 }]
 
@@ -14,8 +14,8 @@ BigRule :=
   RuleObject
   * $y Metric[YLen]
   * $assert_y_ge_10
-      Assert[{y at least 10}, $python_code {
-def handler(self):
+      Predicate[{y at least 10}, $python_code {
+def predicate(self):
     return self.y.value >= 10
 }]
 
@@ -25,10 +25,10 @@ SumRule :=
   | $big BigRule
 
 SumWitnessPass :=
-  $small (RuleObject * $x 20 * $assert_x_le_24 Assert[{x at most 24}, $python_code {
-def handler(self):
+  $small (RuleObject * $x 20 * $assert_x_le_24 Predicate[{x at most 24}, $python_code {
+def predicate(self):
     return self.x.value <= 24
 }])
 
 SumWitnessFail :=
-  $small (RuleObject * $x 30 * $assert_x_le_24 AssertionFailed[nil, str])
+  $small (RuleObject * $x 30 * $assert_x_le_24 PredicationFailed[nil, str])

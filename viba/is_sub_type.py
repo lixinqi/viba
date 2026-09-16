@@ -6,7 +6,7 @@ about rules, results or compliance semantics.
 Ok(True/False) is the judgment. Err is a lint error, never a verdict:
 - ellipsis (...) anywhere on either side -> Err (an open type is a
   contract-authoring mistake, not something to judge);
-- AssertionFailed on the sup side -> Err; on the sub side it is a
+- PredicationFailed on the sup side -> Err; on the sub side it is a
   normal negative witness, Ok(False).
 
 Semantics (per design):
@@ -32,7 +32,7 @@ Semantics (per design):
   with Err (UnresolvedTypeError caught at the boundary). Generic
   definition bodies never trigger this — they are nominal and never
   unfold.
-- AssertionFailed is not special here: it is a plain nominal
+- PredicationFailed is not special here: it is a plain nominal
   generic from the builtin library (viba/builtin.viba). On the sub
   side it simply never seats (Ok(False)); on the sup side it is a
   lint error, detected by name.
@@ -43,7 +43,7 @@ Semantics (per design):
   resolves eagerly in its lexical scope). Unfoldings are cached and
   guarded by a coinductive assumption table keyed on the node and
   its resolved actuals, so recursive generics terminate.
-  AssertionFailed is excluded from unfolding: poison stays nominal
+  PredicationFailed is excluded from unfolding: poison stays nominal
   and a sub-side witness never seats.
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
@@ -103,7 +103,7 @@ def is_sub_type(sub: Type, sup: Type) -> Result:
 
 
 def _lint_error(sub: Type, sup: Type):
-    """Ellipsis anywhere, or AssertionFailed on the sup side."""
+    """Ellipsis anywhere, or PredicationFailed on the sup side."""
     for label, side in (("sub", sub), ("sup", sup)):
         if not isinstance(side, AstNodeType):
             continue
@@ -118,7 +118,7 @@ def _poison_error(sup: Type):
     if not isinstance(sup, AstNodeType):
         return None
     poisoned = [n for n in viba_ast.walk(sup.ast_node) if _is_poison_ref(n)]
-    return "AssertionFailed on the sup side" if poisoned else None
+    return "PredicationFailed on the sup side" if poisoned else None
 
 
 class _Checker:
@@ -298,7 +298,7 @@ class _Checker:
     # ------------------------------------------------------------------
     # not[A] (i.e. never <- A): prohibited predicates, judged natively.
     # No unfolding: every branch must be refuted, in structure, by a
-    # same-tag AssertionFailed field. A branch can never positively
+    # same-tag PredicationFailed field. A branch can never positively
     # hold, so partial refutation is not compliance.
     # ------------------------------------------------------------------
 
@@ -311,7 +311,7 @@ class _Checker:
         if not isinstance(branch, viba_ast.Tagged):
             return False  # untagged not-branch: no structural refutation
         field = fields.get(branch.tag)
-        return field is not None and _is_assertion_failed(field)
+        return field is not None and _is_predication_failed(field)
 
     # ------------------------------------------------------------------
     # Applied generics: unfold one side, params bound via env_get
@@ -382,7 +382,7 @@ class _Checker:
         return entry
 
     def _constructor_target(self, node, module, side):
-        if node.constructor == "AssertionFailed":
+        if node.constructor == "PredicationFailed":
             return None  # poison stays nominal: a sub witness never seats
         resolved = self._resolve_name(node.constructor, module, side)
         if isinstance(resolved, Err):
@@ -677,8 +677,8 @@ def _tagged_fields(node) -> dict:
     return {}
 
 
-def _is_assertion_failed(node) -> bool:
-    return isinstance(node, viba_ast.TypeApp) and node.constructor == "AssertionFailed"
+def _is_predication_failed(node) -> bool:
+    return isinstance(node, viba_ast.TypeApp) and node.constructor == "PredicationFailed"
 
 
 def _as_definition(node):
@@ -712,9 +712,9 @@ def _unwrap_definition(entry: AstNodeType):
 
 def _is_poison_ref(node) -> bool:
     if isinstance(node, viba_ast.TypeRef):
-        return node.name == "AssertionFailed"
+        return node.name == "PredicationFailed"
     ctor = getattr(node, "constructor", None)
-    return ctor == "AssertionFailed"
+    return ctor == "PredicationFailed"
 
 
 def _literal_type(value) -> Type:

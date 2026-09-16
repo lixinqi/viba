@@ -23,86 +23,86 @@ Instance32 :=
       * $total_lines 57)
     * $budget_split(    $spent 8.15
       * $cap 12.08)
-    * $assert_00_code_length_at_most_24 Assert[{code_length at most 24}, $python_code {
-def handler(self):
+    * $assert_00_code_length_at_most_24 Predicate[{code_length at most 24}, $python_code {
+def predicate(self):
     return self.code_length.value <= 24
 }]
-    * $assert_01_code_length_under_100 Assert[{code_length under 100}, $python_code {
-def handler(self):
+    * $assert_01_code_length_under_100 Predicate[{code_length under 100}, $python_code {
+def predicate(self):
     return self.code_length.value < 100
 }]
-    * $assert_02_max_lines_at_most_24 Assert[{max_lines at most 24}, $python_code {
-def handler(self):
+    * $assert_02_max_lines_at_most_24 Predicate[{max_lines at most 24}, $python_code {
+def predicate(self):
     return self.max_lines.value <= 24
 }]
-    * $assert_03_max_lines_under_100 AssertionFailed[nil, str]
-    * $assert_04_code_length_not_above_max_lines AssertionFailed[nil, str]
-    * $assert_05_coverage_ratio_within_50_5 AssertionFailed[nil, str]
-    * $assert_06_coverage_ratio_non_negative Assert[{coverage_ratio non-negative}, $python_code {
-def handler(self):
+    * $assert_03_max_lines_under_100 PredicationFailed[nil, str]
+    * $assert_04_code_length_not_above_max_lines PredicationFailed[nil, str]
+    * $assert_05_coverage_ratio_within_50_5 PredicationFailed[nil, str]
+    * $assert_06_coverage_ratio_non_negative Predicate[{coverage_ratio non-negative}, $python_code {
+def predicate(self):
     return self.coverage_ratio.value >= 0.0
 }]
-    * $assert_07_time_budget_within_50_5 Assert[{time_budget within 50.5}, $python_code {
-def handler(self):
+    * $assert_07_time_budget_within_50_5 Predicate[{time_budget within 50.5}, $python_code {
+def predicate(self):
     return self.time_budget.value <= 50.5
 }]
-    * $assert_08_time_budget_non_negative Assert[{time_budget non-negative}, $python_code {
-def handler(self):
+    * $assert_08_time_budget_non_negative Predicate[{time_budget non-negative}, $python_code {
+def predicate(self):
     return self.time_budget.value >= 0.0
 }]
-    * $assert_09_has_tests_required Assert[{has_tests required}, $python_code {
-def handler(self):
+    * $assert_09_has_tests_required Predicate[{has_tests required}, $python_code {
+def predicate(self):
     return self.has_tests.value
 }]
-    * $assert_10_has_tests_forbidden Assert[{has_tests forbidden}, $python_code {
-def handler(self):
+    * $assert_10_has_tests_forbidden Predicate[{has_tests forbidden}, $python_code {
+def predicate(self):
     return not self.has_tests.value
 }]
-    * $assert_11_module_name_short Assert[{module_name short}, $python_code {
-def handler(self):
+    * $assert_11_module_name_short Predicate[{module_name short}, $python_code {
+def predicate(self):
     return len(self.module_name.value) <= 8
 }]
-    * $assert_12_module_name_not_empty Assert[{module_name not empty}, $python_code {
-def handler(self):
+    * $assert_12_module_name_not_empty Predicate[{module_name not empty}, $python_code {
+def predicate(self):
     return len(self.module_name.value) >= 1
 }]
-    * $assert_13_keywords_non_empty Assert[{keywords non-empty}, $python_code {
-def handler(self):
+    * $assert_13_keywords_non_empty Predicate[{keywords non-empty}, $python_code {
+def predicate(self):
     return len(self.keywords.value) >= 1
 }]
-    * $assert_14_keywords_bounded Assert[{keywords bounded}, $python_code {
-def handler(self):
+    * $assert_14_keywords_bounded Predicate[{keywords bounded}, $python_code {
+def predicate(self):
     return len(self.keywords.value) <= 4
 }]
-    * $assert_15_tags_bounded Assert[{tags bounded}, $python_code {
-def handler(self):
+    * $assert_15_tags_bounded Predicate[{tags bounded}, $python_code {
+def predicate(self):
     return len(self.tags.value) <= 3
 }]
-    * $assert_16_tags_non_empty Assert[{tags non-empty}, $python_code {
-def handler(self):
+    * $assert_16_tags_non_empty Predicate[{tags non-empty}, $python_code {
+def predicate(self):
     return len(self.tags.value) >= 1
 }]
-    * $assert_17_scores_non_empty Assert[{scores non-empty}, $python_code {
-def handler(self):
+    * $assert_17_scores_non_empty Predicate[{scores non-empty}, $python_code {
+def predicate(self):
     return len(self.scores.value) >= 1
 }]
-    * $assert_18_scores_bounded Assert[{scores bounded}, $python_code {
-def handler(self):
+    * $assert_18_scores_bounded Predicate[{scores bounded}, $python_code {
+def predicate(self):
     return len(self.scores.value) <= 4
 }]
-    * $assert_19_doc_coverage_documented_within_total Assert[{doc_coverage documented within total}, $python_code {
-def handler(self):
+    * $assert_19_doc_coverage_documented_within_total Predicate[{doc_coverage documented within total}, $python_code {
+def predicate(self):
     return self.doc_coverage.documented_lines <= self.doc_coverage.total_lines
 }]
-    * $assert_20_budget_split_spent_within_cap Assert[{budget_split spent within cap}, $python_code {
-def handler(self):
+    * $assert_20_budget_split_spent_within_cap Predicate[{budget_split spent within cap}, $python_code {
+def predicate(self):
     return self.budget_split.spent <= self.budget_split.cap
 }]
-    * $assert_21_lookup_non_empty Assert[{lookup non-empty}, $python_code {
-def handler(self):
+    * $assert_21_lookup_non_empty Predicate[{lookup non-empty}, $python_code {
+def predicate(self):
     return len(self.lookup.value) >= 1
 }]
-    * $assert_22_lookup_bounded Assert[{lookup bounded}, $python_code {
-def handler(self):
+    * $assert_22_lookup_bounded Predicate[{lookup bounded}, $python_code {
+def predicate(self):
     return len(self.lookup.value) <= 4
 }]

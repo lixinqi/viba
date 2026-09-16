@@ -1,5 +1,5 @@
 # rule.md 第 7 节示例的判定配套：pass 写 nil 对位，
-# fail 同 tag 写 AssertionFailed（永不入围）。
+# fail 同 tag 写 PredicationFailed（永不入围）。
 DemoRuleStripped :=
   Object
   * $code_length Metric[CodeLength]
@@ -8,7 +8,7 @@ DemoRuleStripped :=
 DemoWitnessFail :=
   Object
   * $code_length 30
-  * $assert_code_len_le_24 AssertionFailed[int, str]
+  * $assert_code_len_le_24 PredicationFailed[int, str]
 
 DemoWitnessPass :=
   Object

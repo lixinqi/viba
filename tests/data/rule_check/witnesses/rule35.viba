@@ -9,39 +9,39 @@ Instance35 :=
     * $imports ListLiteral
     * $lookup DictLiteral[("delta", "gamma")]
     * $indent_width($spaces 72)
-    * $assert_00_cyclomatic_complexity_at_most_24 AssertionFailed[nil, str]
-    * $assert_01_cyclomatic_complexity_under_100 Assert[{cyclomatic_complexity under 100}, $python_code {
-def handler(self):
+    * $assert_00_cyclomatic_complexity_at_most_24 PredicationFailed[nil, str]
+    * $assert_01_cyclomatic_complexity_under_100 Predicate[{cyclomatic_complexity under 100}, $python_code {
+def predicate(self):
     return self.cyclomatic_complexity.value < 100
 }]
-    * $assert_02_param_count_at_most_24 Assert[{param_count at most 24}, $python_code {
-def handler(self):
+    * $assert_02_param_count_at_most_24 Predicate[{param_count at most 24}, $python_code {
+def predicate(self):
     return self.param_count.value <= 24
 }]
-    * $assert_03_param_count_under_100 Assert[{param_count under 100}, $python_code {
-def handler(self):
+    * $assert_03_param_count_under_100 Predicate[{param_count under 100}, $python_code {
+def predicate(self):
     return self.param_count.value < 100
 }]
-    * $assert_04_cyclomatic_complexity_not_above_param_count Assert[{cyclomatic_complexity not above param_count}, $python_code {
-def handler(self):
+    * $assert_04_cyclomatic_complexity_not_above_param_count Predicate[{cyclomatic_complexity not above param_count}, $python_code {
+def predicate(self):
     return self.cyclomatic_complexity.value <= self.param_count.value
 }]
-    * $assert_05_coverage_ratio_within_50_5 Assert[{coverage_ratio within 50.5}, $python_code {
-def handler(self):
+    * $assert_05_coverage_ratio_within_50_5 Predicate[{coverage_ratio within 50.5}, $python_code {
+def predicate(self):
     return self.coverage_ratio.value <= 50.5
 }]
-    * $assert_06_coverage_ratio_non_negative Assert[{coverage_ratio non-negative}, $python_code {
-def handler(self):
+    * $assert_06_coverage_ratio_non_negative Predicate[{coverage_ratio non-negative}, $python_code {
+def predicate(self):
     return self.coverage_ratio.value >= 0.0
 }]
-    * $assert_07_module_name_short Assert[{module_name short}, $python_code {
-def handler(self):
+    * $assert_07_module_name_short Predicate[{module_name short}, $python_code {
+def predicate(self):
     return len(self.module_name.value) <= 8
 }]
-    * $assert_08_module_name_not_empty AssertionFailed[nil, str]
-    * $assert_09_imports_non_empty AssertionFailed[nil, str]
-    * $assert_10_imports_bounded Assert[{imports bounded}, $python_code {
-def handler(self):
+    * $assert_08_module_name_not_empty PredicationFailed[nil, str]
+    * $assert_09_imports_non_empty PredicationFailed[nil, str]
+    * $assert_10_imports_bounded Predicate[{imports bounded}, $python_code {
+def predicate(self):
     return len(self.imports.value) <= 4
 }]
-    * $assert_11_indent_width_non_negative AssertionFailed[nil, str]
+    * $assert_11_indent_width_non_negative PredicationFailed[nil, str]

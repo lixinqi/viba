@@ -10,53 +10,53 @@ Instance27 :=
     * $scores DictLiteral
     * $doc_coverage(    $documented_lines 8
       * $total_lines 32)
-    * $assert_00_code_length_at_most_24 Assert[{code_length at most 24}, $python_code {
-def handler(self):
+    * $assert_00_code_length_at_most_24 Predicate[{code_length at most 24}, $python_code {
+def predicate(self):
     return self.code_length.value <= 24
 }]
-    * $assert_01_code_length_under_100 Assert[{code_length under 100}, $python_code {
-def handler(self):
+    * $assert_01_code_length_under_100 Predicate[{code_length under 100}, $python_code {
+def predicate(self):
     return self.code_length.value < 100
 }]
-    * $assert_02_max_lines_at_most_24 Assert[{max_lines at most 24}, $python_code {
-def handler(self):
+    * $assert_02_max_lines_at_most_24 Predicate[{max_lines at most 24}, $python_code {
+def predicate(self):
     return self.max_lines.value <= 24
 }]
-    * $assert_03_max_lines_under_100 Assert[{max_lines under 100}, $python_code {
-def handler(self):
+    * $assert_03_max_lines_under_100 Predicate[{max_lines under 100}, $python_code {
+def predicate(self):
     return self.max_lines.value < 100
 }]
-    * $assert_04_code_length_not_above_max_lines Assert[{code_length not above max_lines}, $python_code {
-def handler(self):
+    * $assert_04_code_length_not_above_max_lines Predicate[{code_length not above max_lines}, $python_code {
+def predicate(self):
     return self.code_length.value <= self.max_lines.value
 }]
-    * $assert_05_time_budget_within_50_5 Assert[{time_budget within 50.5}, $python_code {
-def handler(self):
+    * $assert_05_time_budget_within_50_5 Predicate[{time_budget within 50.5}, $python_code {
+def predicate(self):
     return self.time_budget.value <= 50.5
 }]
-    * $assert_06_time_budget_non_negative Assert[{time_budget non-negative}, $python_code {
-def handler(self):
+    * $assert_06_time_budget_non_negative Predicate[{time_budget non-negative}, $python_code {
+def predicate(self):
     return self.time_budget.value >= 0.0
 }]
-    * $assert_07_author_name_short AssertionFailed[nil, str]
-    * $assert_08_author_name_not_empty Assert[{author_name not empty}, $python_code {
-def handler(self):
+    * $assert_07_author_name_short PredicationFailed[nil, str]
+    * $assert_08_author_name_not_empty Predicate[{author_name not empty}, $python_code {
+def predicate(self):
     return len(self.author_name.value) >= 1
 }]
-    * $assert_09_tags_bounded Assert[{tags bounded}, $python_code {
-def handler(self):
+    * $assert_09_tags_bounded Predicate[{tags bounded}, $python_code {
+def predicate(self):
     return len(self.tags.value) <= 3
 }]
-    * $assert_10_tags_non_empty AssertionFailed[nil, str]
-    * $assert_11_scores_non_empty Assert[{scores non-empty}, $python_code {
-def handler(self):
+    * $assert_10_tags_non_empty PredicationFailed[nil, str]
+    * $assert_11_scores_non_empty Predicate[{scores non-empty}, $python_code {
+def predicate(self):
     return len(self.scores.value) >= 1
 }]
-    * $assert_12_scores_bounded Assert[{scores bounded}, $python_code {
-def handler(self):
+    * $assert_12_scores_bounded Predicate[{scores bounded}, $python_code {
+def predicate(self):
     return len(self.scores.value) <= 4
 }]
-    * $assert_13_doc_coverage_documented_within_total Assert[{doc_coverage documented within total}, $python_code {
-def handler(self):
+    * $assert_13_doc_coverage_documented_within_total Predicate[{doc_coverage documented within total}, $python_code {
+def predicate(self):
     return self.doc_coverage.documented_lines <= self.doc_coverage.total_lines
 }]
