@@ -1,0 +1,2 @@
+Tree[T] := $leaf T | $node (Tree[T], Tree[T])
+Sup := Tree[int]

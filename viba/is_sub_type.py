@@ -36,6 +36,15 @@ Semantics (per design):
   generic from the builtin library (viba/builtin.viba). On the sub
   side it simply never seats (Ok(False)); on the sup side it is a
   lint error, detected by name.
+- Applied generics (TypeApp): both sides applied stays nominal —
+  same constructor and pairwise actuals. Exactly one side applied
+  unfolds structurally: the generic's body is compared with formal
+  parameters bound to the actuals through env_get (a TypeRef actual
+  resolves eagerly in its lexical scope). Unfoldings are cached and
+  guarded by a coinductive assumption table keyed on the node and
+  its resolved actuals, so recursive generics terminate.
+  AssertionViolated is excluded from unfolding: poison stays nominal
+  and a sub-side witness never seats.
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
   SetLiteral likewise; DictLiteral[(k, v), ...] of
@@ -118,6 +127,8 @@ class _Checker:
         self._walk_memo: dict = {}
         self._walking: set = set()
         self._env_stacks = {"sub": [], "sup": []}
+        self._unfolding: set = set()
+        self._unfolded: dict = {}
 
     # ------------------------------------------------------------------
     # Type-level dispatch
@@ -274,10 +285,100 @@ class _Checker:
             return True  # bottom fits anywhere
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
             return type(sn) is type(sp)  # never branch admits only never
+        mixed = self._walk_mixed_typeapp(sn, s_mod, sp, p_mod)
+        if mixed is not None:
+            return mixed
         lifted = self._walk_lifted(sn, s_mod, sp, p_mod)
         if lifted is not None:
             return lifted
         return self._walk_structural(sn, s_mod, sp, p_mod)
+
+    # ------------------------------------------------------------------
+    # Applied generics: unfold one side, params bound via env_get
+    # ------------------------------------------------------------------
+
+    def _walk_mixed_typeapp(self, sn, s_mod, sp, p_mod):
+        """Exactly one side is a TypeApp: unfold it structurally.
+        Both sides applied stays nominal (see _walk_typeapps)."""
+        sn_app = isinstance(sn, viba_ast.TypeApp)
+        if sn_app == isinstance(sp, viba_ast.TypeApp):
+            return None
+        if sn_app:
+            return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
+        return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
+
+    def _unfold_typeapp(self, node, module, side, other, other_mod) -> bool:
+        app_key = self._app_key(node, module, side)
+        if app_key in self._unfolding:
+            return True  # coinductive assumption (递归展开兜底)
+        entry = self._applied_meaning(app_key, node, module, side)
+        if entry is None:
+            return False
+        self._unfolding.add(app_key)
+        self._env_stacks[side].append(entry.env_get)
+        try:
+            return self._walk_unfolded(entry, side, other, other_mod)
+        finally:
+            self._env_stacks[side].pop()
+            self._unfolding.discard(app_key)
+
+    def _walk_unfolded(self, entry, side, other, other_mod) -> bool:
+        """The generic's body takes the TypeApp's side in the walk."""
+        body, home = entry.ast_node, entry.container_module
+        if side == "sub":
+            return self._walk(body, home, other, other_mod)
+        return self._walk(other, other_mod, body, home)
+
+    def _applied_meaning(self, app_key, node, module, side):
+        """TypeApp -> the generic's body as an AstNodeType whose
+        env_get binds formal parameters to the actual arguments."""
+        if app_key in self._unfolded:
+            return self._unfolded[app_key]
+        target = self._constructor_target(node, module, side)
+        if not isinstance(target, AstNodeType):
+            return None
+        defn = target.ast_node
+        params = getattr(defn, "generic_params", None)
+        if not params or len(params) != len(node.args):
+            return None
+        env_get = self._binder(params, node.args, module, side)
+        entry = AstNodeType(defn.body, target.container_module, env_get)
+        self._unfolded[app_key] = entry
+        return entry
+
+    def _constructor_target(self, node, module, side):
+        if node.constructor == "AssertionViolated":
+            return None  # poison stays nominal: a sub witness never seats
+        resolved = self._resolve_name(node.constructor, module, side)
+        if isinstance(resolved, Err):
+            raise UnresolvedTypeError(f"unresolvable constructor {node.constructor!r}")
+        return resolved.value
+
+    def _binder(self, params, args, module, side):
+        meanings = {}
+        for name, arg in zip(params, args):
+            meanings[name] = self._meaning(arg, module, side)
+        def env_get(name):
+            return meanings.get(name, Err(f"unbound parameter {name!r}"))
+        return env_get
+
+    def _meaning(self, arg, module, side) -> Result:
+        """Eager meaning of an actual argument. A TypeRef actual is
+        resolved now (lexical scope); a leaf (constant/nil/never)
+        becomes its literal Type; anything else stays structural."""
+        if isinstance(arg, viba_ast.TypeRef):
+            return self._resolve_name(arg.name, module, side)
+        return Ok(_as_leaf(AstNodeType(arg, module)))
+
+    def _app_key(self, node, module, side):
+        """Stable identity for an unfolding: same node, same resolved
+        actuals -> same entry, so recursion hits the assumption table."""
+        parts = []
+        for arg in node.args:
+            meaning = self._meaning(arg, module, side)
+            part = _type_key(meaning.value) if isinstance(meaning, Ok) else ("err",)
+            parts.append(part)
+        return (id(node), side, id(module), tuple(parts))
 
     def _walk_lifted(self, sn, s_mod, sp, p_mod):
         """Handle sides that lift to the Type level (Constants, TypeRefs)."""
@@ -494,6 +595,21 @@ class _Checker:
 def _as_definition(node):
     kinds = (viba_ast.TypeDefinition, viba_ast.GenericDefinition)
     return node if isinstance(node, kinds) else None
+
+
+def _as_leaf(t: Type) -> Type:
+    """An AstNodeType wrapping a leaf node IS that leaf: constants,
+    nil and never carry no references, so the wrapper adds nothing."""
+    if not isinstance(t, AstNodeType):
+        return t
+    node = t.ast_node
+    if isinstance(node, viba_ast.Nil):
+        return NilType()
+    if isinstance(node, viba_ast.Never):
+        return NeverType()
+    if isinstance(node, viba_ast.Constant):
+        return _literal_type(node.value)
+    return t
 
 
 def _unwrap_definition(entry: AstNodeType):

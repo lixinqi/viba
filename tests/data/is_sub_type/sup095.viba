@@ -1,0 +1,2 @@
+Box[T] := $v T
+Sup := Box[int]

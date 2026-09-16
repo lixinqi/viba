@@ -93,3 +93,11 @@
 092 false
 093 true
 094 true
+095 true
+096 false
+097 true
+098 false
+099 true
+100 false
+101 true
+102 true

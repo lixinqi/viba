@@ -1,0 +1,1 @@
+Sub := $head 3 * $tail ($head 's' * $tail nil)

@@ -222,6 +222,28 @@ def run_env_get_scope_cases():
     check_result(res, True, "exponent contravariance keeps the sup env")
 
 
+def run_applied_generic_cases():
+    """The driver: one-side TypeApp unfolds, params bound via env_get."""
+    box_mod = custom_module("Box[T] := $v T")
+    free = entry_with_env("Box[T]", _type_serving(IntType(), "T"), box_mod)
+    res = is_sub_type(entry_type("$v 3"), free)
+    check_result(res, True, "free actual resolves through env_get at unfold")
+    poison = entry_type("AssertionViolated[int, str]")
+    witness = entry_type(
+        "$__assertion_violated_original_data 3"
+        " * $__assertion_violated_error_msg 'x'",
+    )
+    check_result(
+        is_sub_type(poison, witness),
+        False,
+        "AssertionViolated never unfolds: poison stays nominal",
+    )
+    loop_mod = custom_module("Loop[T] := $l Loop[int]")
+    looping = entry_type("Loop[int]", loop_mod)
+    res = is_sub_type(looping, entry_type("$l 'x'"))
+    check_result(res, True, "self-referencing application terminates")
+
+
 def _is_test_cases_assign(node) -> bool:
     if not isinstance(node, py_ast.Assign):
         return False
@@ -266,6 +288,7 @@ run_py_side_cases()
 run_env_cases()
 run_env_get_cases()
 run_env_get_scope_cases()
+run_applied_generic_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)
