@@ -3,7 +3,7 @@
 003 false  # slot holds the plain type
 004 true  # refutation argument is a supertype
 005 false  # slot holds an unrelated type
-006 true  # sub is the same not[...]: reflexive
+006 false  # sub is the same not[...]: the shell is not evidence
 007 true  # refutation behind a name
 008 true  # slot is never
 009 true  # sub is never
@@ -17,7 +17,7 @@
 017 true  # both carried plus an extra tag
 018 true  # first argument is a supertype
 019 false  # a tag the sup never names
-020 true  # sub is the two-branch not[...]: reflexive
+020 false  # sub is the two-branch not[...]: the shell is not evidence
 021 true  # first slot is never
 022 true  # second slot is never
 023 false  # slot holds a sum
@@ -40,7 +40,7 @@
 040 false  # not with a second argument
 041 true  # the not[...] itself behind a name
 042 false  # not[int | str] vs not[int]
-043 true  # not[int] vs not[int | str]: argument contravariance
+043 false  # not[int] vs not[int | str]: a not sub is the shell, not the exponent
 044 true  # not nested one tag deep
 045 false  # not nested one tag deep, branch missing
 046 true  # not nested two tags deep
@@ -76,8 +76,8 @@
 076 true  # equivalence 2/2: never <- A <: not[A], A = never
 077 true  # equivalence 1/2: not[A] <: never <- A, A = nil
 078 true  # equivalence 2/2: never <- A <: not[A], A = nil
-079 true  # equivalence 1/2: not[A] <: never <- A, A = not[int]
-080 true  # equivalence 2/2: never <- A <: not[A], A = not[int]
+079 true  # equivalence 1/2: not[A] <: never <- A, A = int <- str
+080 true  # equivalence 2/2: never <- A <: not[A], A = int <- str
 081 true  # equivalence 1/2: not[A] <: never <- A, A = never <- int
 082 true  # equivalence 2/2: never <- A <: not[A], A = never <- int
 083 true  # equivalence 1/2: not[A] <: never <- A, A = 'lit'

@@ -1,17 +1,23 @@
-"""Build the rule_check rule corpus: tests/data/rule_check/rules/ruleNN.viba.
+"""Build the rule corpus: tests/data/rule_coding_style_check/rules/ruleNN.viba.
 
 Each rule file defines helper Metric types plus one rule whose body
 is a product of Metric fields and at least ten Predicate fields carrying
 $python_code predicators. Existing files are never overwritten —
 extend by adding new specs, never by rewriting old ones.
 
-Usage: python3 tests/data/rule_check/build.py
+It also builds tests/data/rule_coding_style_check/not_rules/not_ruleNN.viba:
+twenty rules whose prohibition fields cover the classic not[...] shapes
+(single/two/three branches, named sum, named branch, nesting, two not
+fields, inline Predicate branch, mixed with Metric and Predicate).
+
+Usage: python3 tests/data/rule_coding_style_check/build.py
 """
 
 import sys
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parent / "rules"
+NOT_DATA = Path(__file__).resolve().parent / "not_rules"
 
 # (metric name, type expr, kind, field tag)
 POOL = [
@@ -203,6 +209,61 @@ def _render(number):
     return f"{defs}\n\n{body}\n"
 
 
+# --- not rules: classic prohibition shapes -------------------------------
+
+NOT_HELPERS = """Len := int
+
+NoKill := Predicate[{no killing}, $python_code {
+def predicate(self):
+    return True
+}]
+
+NoArson := Predicate[{no arson}, $python_code {
+def predicate(self):
+    return True
+}]
+
+NoRobbery := Predicate[{no robbery}, $python_code {
+def predicate(self):
+    return True
+}]
+
+Crimes := $homicide NoKill | $arson NoArson | $robbery NoRobbery
+One := $homicide NoKill
+Check := Predicate[{length within bound}, $python_code {
+def predicate(self):
+    return True
+}]"""
+
+NOT_SPECS = [
+    "  * $not_crimes not[$homicide NoKill]",
+    "  * $not_crimes not[$homicide NoKill | $arson NoArson]",
+    "  * $not_crimes not[$homicide NoKill | $arson NoArson | $robbery NoRobbery]",
+    "  * $not_crimes not[Crimes]",
+    "  * $not_crimes not[One | $arson NoArson]",
+    "  * $outer ($not_crimes not[$homicide NoKill | $arson NoArson])",
+    "  * $x ($outer ($not_crimes not[$homicide NoKill | $arson NoArson]))",
+    "  * $not_crimes not[$homicide NoKill | $arson NoArson]\n  * $not_theft not[$robbery NoRobbery]",
+    "  * $not_crimes not[$homicide NoKill]\n  * $not_theft not[$robbery NoRobbery]",
+    "  * $not_crimes not[$homicide NoKill | $arson NoArson]\n  * $len Metric[Len]",
+    "  * $not_crimes not[$homicide NoKill | $arson NoArson]\n  * $check Check",
+    "  * $not_crimes not[$homicide NoKill | $arson NoArson]\n  * $len Metric[Len]\n  * $check Check",
+    "  * $not_crimes not[$homicide Predicate[{no killing}, $python_code {\ndef predicate(self):\n    return True\n}] | $arson NoArson]",
+    "  * $not_crimes not[$homicide NoKill | $arson NoArson | $robbery NoRobbery]\n  * $len Metric[Len]",
+    "  * $not_crimes not[$homicide NoKill | $arson NoArson | $robbery NoRobbery]\n  * $len Metric[Len]\n  * $check Check",
+    "  * $not_crimes not[Crimes]\n  * $len Metric[Len]",
+    "  * $not_crimes not[One | $arson NoArson | $robbery NoRobbery]\n  * $check Check",
+    "  * $not_crimes not[$homicide NoKill | $arson NoKill]",
+    "  * $outer ($not_crimes not[$homicide NoKill])\n  * $len Metric[Len]",
+    "  * $x not[$homicide NoKill | $arson NoArson]\n  * $check Check",
+]
+
+
+def _render_not(number):
+    body = "\n".join([f"NotRule{number:02d} :=", "  RuleObject", NOT_SPECS[number]])
+    return f"{NOT_HELPERS}\n\n{body}\n"
+
+
 def main():
     written = []
     for number in range(len(COMBOS)):
@@ -214,7 +275,19 @@ def main():
     (DATA / "expected.txt").write_text(
         "".join(f"{n:02d} ok\n" for n in range(len(COMBOS)))
     )
+    not_written = []
+    NOT_DATA.mkdir(exist_ok=True)
+    for number in range(len(NOT_SPECS)):
+        path = NOT_DATA / f"not_rule{number:02d}.viba"
+        if path.exists():
+            continue
+        path.write_text(_render_not(number))
+        not_written.append(path.name)
+    (NOT_DATA / "expected.txt").write_text(
+        "".join(f"{n:02d} ok\n" for n in range(len(NOT_SPECS)))
+    )
     print(f"built {len(written)} rule files: {', '.join(written) or 'none (all present)'}")
+    print(f"built {len(not_written)} not-rule files: {', '.join(not_written) or 'none (all present)'}")
     return 0
 
 

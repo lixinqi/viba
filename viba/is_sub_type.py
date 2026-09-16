@@ -29,11 +29,13 @@ Semantics (per design):
   either channel is malformed: the check aborts with Err
   (UnresolvedTypeError caught at the boundary). Generic definition
   bodies never trigger this — they are nominal and never unfold.
-- not[A] is never <- A: a sub that reads as a function (not[B], or
-  never <- B) compares by the exponent case — never <- B <: never <- A
-  iff A <: B, so not[A] <: not[A]; a sub written as a tagged product
-  is read through never <- (A | B) = (never <- A) * (never <- B), so
-  the slot at every branch tag must carry a refutation: the poison
+- not[A] is never <- A. A sub not[B] with the same branch tags and the
+  poison PredicationFailed at every branch is the refutation: the
+  not[oneof] shell is preserved, only the leaves are swapped. A sub
+  written as an exponent (never <- B) compares by the exponent case —
+  never <- B <: never <- A iff A <: B. A sub written as a tagged
+  product is read through never <- (A | B) = (never <- A) * (never <- B),
+  so the slot at every branch tag must carry a refutation: the poison
   PredicationFailed, or a type that fits never <- that branch.
 - Applied generics (TypeApp): both sides applied stays nominal —
   same constructor and pairwise actuals. Exactly one side applied
@@ -290,11 +292,13 @@ class _Checker:
         return self._walk_structural(sn, s_mod, sp, p_mod)
 
     # ------------------------------------------------------------------
-    # not[A] is never <- A, judged as the exponential is:
-    # - a sub that reads as a function (not[B], or never <- B) compares
-    #   by the exponent case: never <- B <: never <- A iff A <: B, so
-    #   not[A] <: not[A];
-    # - a sub written as a tagged product is the same type by
+    # not[A] is never <- A.
+    # - A witness keeps the not[oneof] shell: a sub not[B] with the same
+    #   branch tags, each branch the poison PredicationFailed, is the
+    #   refutation. Same tags, only the leaves swapped.
+    # - A sub written as never <- B (an exponent) compares by the
+    #   exponent case: never <- B <: never <- A iff A <: B.
+    # - A sub written as a tagged product is the same type by
     #   never <- (A | B) = (never <- A) * (never <- B): the slot at each
     #   branch tag must carry a refutation — the poison
     #   PredicationFailed, or a type that fits never <- that branch —
@@ -306,12 +310,34 @@ class _Checker:
         if len(sp.args) != 1:
             return False
         sup_arg = sp.args[0]
+        if self._not_shell(sn, s_mod, sup_arg, p_mod):
+            return True
         if self._not_function(sn, s_mod, sup_arg, p_mod):
             return True
         return self._not_product(sn, s_mod, sup_arg, p_mod)
 
+    def _not_shell(self, sn, s_mod, sup_arg, p_mod) -> bool:
+        """A sub not[...] mirrors the sup not[...]: same branch tags and
+        every branch is the poison. The shell is preserved."""
+        node, module = self._unfold_ref(sn, s_mod, "sub")
+        if not (isinstance(node, viba_ast.TypeApp)
+                and node.constructor == "not" and len(node.args) == 1):
+            return False
+        sup_branches = self._sum_branches(sup_arg, p_mod)
+        sub_branches = self._sum_branches(node.args[0], module)
+        if sup_branches is None or sub_branches is None:
+            return False
+        sup_tags = sorted(tag for tag, _, _ in sup_branches)
+        sub_tags = sorted(tag for tag, _, _ in sub_branches)
+        if sup_tags != sub_tags:
+            return False
+        return all(_is_predication_failed(branch) for _, branch, _ in sub_branches)
+
     def _not_function(self, sn, s_mod, sup_arg, p_mod) -> bool:
-        meaning = self._function_argument(sn, s_mod)
+        node, module = self._unfold_ref(sn, s_mod, "sub")
+        if isinstance(node, viba_ast.TypeApp):
+            return False  # a not[...] sub is the shell, not the exponent reading
+        meaning = self._function_argument(node, module)
         if meaning is None:
             return False
         sub_arg, sub_mod = meaning

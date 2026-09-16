@@ -26,7 +26,11 @@ SUM_MARKER = "OneofRule"
 
 def rule_marker(defn) -> Optional[str]:
     """PRODUCT_MARKER | SUM_MARKER if defn is a rule, else None."""
-    body = getattr(defn, "body", None)
+    return body_marker(getattr(defn, "body", None))
+
+
+def body_marker(body) -> Optional[str]:
+    """PRODUCT_MARKER | SUM_MARKER if a definition body is a rule body."""
     head = _chain_head(body)
     if isinstance(head, TypeRef) and head.name in (PRODUCT_MARKER, SUM_MARKER):
         return head.name

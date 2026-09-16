@@ -1,1 +1,1 @@
-N15 := not[not[int]]
+N15 := not[int <- str]

@@ -1,0 +1,28 @@
+Len := int
+
+NoKill := Predicate[{no killing}, $python_code {
+def predicate(self):
+    return True
+}]
+
+NoArson := Predicate[{no arson}, $python_code {
+def predicate(self):
+    return True
+}]
+
+NoRobbery := Predicate[{no robbery}, $python_code {
+def predicate(self):
+    return True
+}]
+
+Crimes := $homicide NoKill | $arson NoArson | $robbery NoRobbery
+One := $homicide NoKill
+Check := Predicate[{length within bound}, $python_code {
+def predicate(self):
+    return True
+}]
+
+NotRule10 :=
+  RuleObject
+  * $not_crimes not[$homicide NoKill | $arson NoArson]
+  * $check Check

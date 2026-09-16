@@ -18,9 +18,9 @@ def predicate(self):
     return False
 }]
 
-DeathPenaltyRule :=
+NoDeathPenaltyRule :=
   RuleObject
-  * $crimes
+  * $not_crimes
       not[
         $homicide Homicide
         | $arson Arson
@@ -29,20 +29,26 @@ DeathPenaltyRule :=
 
 LawAbidingWitness :=
   Object
-  * $crimes
-      ($homicide PredicationFailed[nil, str]
-       * $arson PredicationFailed[nil, str]
-       * $robbery PredicationFailed[nil, str])
+  * $not_crimes
+      not[
+        $homicide PredicationFailed[nil, str]
+        | $arson PredicationFailed[nil, str]
+        | $robbery PredicationFailed[nil, str]
+      ]
 
 ViolatingWitness :=
   Object
-  * $crimes
-      ($homicide Homicide
-       * $arson PredicationFailed[nil, str]
-       * $robbery PredicationFailed[nil, str])
+  * $not_crimes
+      not[
+        $homicide Homicide
+        | $arson PredicationFailed[nil, str]
+        | $robbery PredicationFailed[nil, str]
+      ]
 
 PartialWitness :=
   Object
-  * $crimes
-      ($homicide PredicationFailed[nil, str]
-       * $arson PredicationFailed[nil, str])
+  * $not_crimes
+      not[
+        $homicide PredicationFailed[nil, str]
+        | $arson PredicationFailed[nil, str]
+      ]

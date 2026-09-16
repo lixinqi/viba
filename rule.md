@@ -72,9 +72,9 @@ def predicate(self):
 禁止性约束写成带标签字段的 `not[...]`：
 
 ```viba
-DeathPenaltyRule :=
+NoDeathPenaltyRule :=
   RuleObject
-  * $crimes
+  * $not_crimes
       not[
         $homicide Homicide
         | $arson Arson
@@ -82,20 +82,24 @@ DeathPenaltyRule :=
       ]
 ```
 
-`not[A]` 就是 `never <- A`（定义见 `viba/builtin.viba`）。类型层上 `not[A] <: not[A]` 成立，`not[A]` 与 `not[B]` 之间按指数类型比（参数逆变）。上面每个分支的 `Homicide` / `Arson` / `Robbery` 是 Predicate 字段类型。
+`not[A]` 就是 `never <- A`（定义见 `viba/builtin.viba`）。上面每个分支的 `Homicide` / `Arson` / `Robbery` 是 Predicate 字段类型。
 
-witness 在同一个 tag 上必须逐分支给出否证：每个分支 tag 的字段写成 `PredicationFailed[...]`（检验失败的证据）。少一个分支、或某个分支写成正向的 `Homicide`，该字段都不入席，判 `False`。
+witness 不改形状：`not[oneof]` 的外壳照写，只把每个分支的叶子换成 `PredicationFailed[...]`（检验失败的证据）。少一个分支、或某个分支留成正向的 `Homicide`，都判 `False`。
 
 witness 是材料不是规则，所以用 `Object` 而不是 `RuleObject`（带标记会被当作规则枚举）：
 
 ```viba
 LawAbidingWitness :=
   Object
-  * $crimes
-      ($homicide PredicationFailed[nil, str]
-       * $arson PredicationFailed[nil, str]
-       * $robbery PredicationFailed[nil, str])
+  * $not_crimes
+      not[
+        $homicide PredicationFailed[nil, str]
+        | $arson PredicationFailed[nil, str]
+        | $robbery PredicationFailed[nil, str]
+      ]
 ```
+
+判定层对应三条：外壳（同 tag、全 `PredicationFailed`）成立；写成 `never <- B` 的按指数类型比（`never <- B <: never <- A` 当且仅当 `A <: B`）；写成带 tag 的积的按 `never <- (A | B) = (never <- A) * (never <- B)` 逐分支要求否证。
 
 `PredicationFailed` 是毒剂：正向位置永不入席（正向 Predicate 字段写它就表示断言不成立）；只有禁止性分支要求它。
 
