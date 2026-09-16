@@ -1,0 +1,59 @@
+# rule22 的一个实例：seed=22, fail_prob=0.3
+# 判定：Ok(False)
+Instance22 :=
+    RuleObject
+    * $code_length 17
+    * $max_lines 31
+    * $coverage_ratio 2.36
+    * $time_budget 99.86
+    * $has_tests true
+    * $module_name "alpha"
+    * $tags SetLiteral["gamma", "alpha"]
+    * $scores DictLiteral
+    * $assert_00_code_length_at_most_24 AssertionFailed[nil, str]
+    * $assert_01_code_length_under_100 AssertionFailed[nil, str]
+    * $assert_02_max_lines_at_most_24 Assert[{max_lines at most 24}, $python_code {
+def handler(self):
+    return self.max_lines.value <= 24
+}]
+    * $assert_03_max_lines_under_100 AssertionFailed[nil, str]
+    * $assert_04_code_length_not_above_max_lines Assert[{code_length not above max_lines}, $python_code {
+def handler(self):
+    return self.code_length.value <= self.max_lines.value
+}]
+    * $assert_05_coverage_ratio_within_50_5 Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+    * $assert_06_coverage_ratio_non_negative Assert[{coverage_ratio non-negative}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value >= 0.0
+}]
+    * $assert_07_time_budget_within_50_5 Assert[{time_budget within 50.5}, $python_code {
+def handler(self):
+    return self.time_budget.value <= 50.5
+}]
+    * $assert_08_time_budget_non_negative Assert[{time_budget non-negative}, $python_code {
+def handler(self):
+    return self.time_budget.value >= 0.0
+}]
+    * $assert_09_has_tests_required AssertionFailed[nil, str]
+    * $assert_10_has_tests_forbidden AssertionFailed[nil, str]
+    * $assert_11_module_name_short Assert[{module_name short}, $python_code {
+def handler(self):
+    return len(self.module_name.value) <= 8
+}]
+    * $assert_12_module_name_not_empty AssertionFailed[nil, str]
+    * $assert_13_tags_bounded AssertionFailed[nil, str]
+    * $assert_14_tags_non_empty Assert[{tags non-empty}, $python_code {
+def handler(self):
+    return len(self.tags.value) >= 1
+}]
+    * $assert_15_scores_non_empty Assert[{scores non-empty}, $python_code {
+def handler(self):
+    return len(self.scores.value) >= 1
+}]
+    * $assert_16_scores_bounded Assert[{scores bounded}, $python_code {
+def handler(self):
+    return len(self.scores.value) <= 4
+}]
