@@ -23,7 +23,7 @@ def _spec_source():
 
 
 # 剥离与取证的产物不在 Rule 规范内，由测试自带：
-# pass 写 nil 对位，fail 同 tag 写 AssertionViolated（永不入围）。
+# pass 写 nil 对位，fail 同 tag 写 AssertionFailed（永不入围）。
 DEMO = """
 DemoRuleStripped :=
   Object
@@ -33,7 +33,7 @@ DemoRuleStripped :=
 DemoResultFail :=
   Object
   * $code_length 30
-  * $assert_code_len_le_24 AssertionViolated[int, str]
+  * $assert_code_len_le_24 AssertionFailed[int, str]
 
 DemoResultPass :=
   Object

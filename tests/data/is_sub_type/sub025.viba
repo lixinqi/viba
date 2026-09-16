@@ -1,1 +1,1 @@
-X := AssertionViolated
+X := AssertionFailed

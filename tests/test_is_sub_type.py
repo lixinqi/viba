@@ -108,7 +108,7 @@ def run_data_cases():
         sub_e = load_entry((DATA / f"sub{num}.viba").read_text())
         sup_e = load_entry(sup_path.read_text())
         check_result(is_sub_type(sub_e, sup_e), want, f"case {num}")
-        if want == "error" or has_ref(sub_e, "AssertionViolated"):
+        if want == "error" or has_ref(sub_e, "AssertionFailed"):
             continue  # reflexive checks are for clean judgments only
         check_result(is_sub_type(sub_e, sub_e), True, f"case {num} sub reflexive")
         check_result(is_sub_type(sup_e, sup_e), True, f"case {num} sup reflexive")
@@ -123,11 +123,11 @@ def run_data_cases():
 def run_py_side_cases():
     """What data files cannot express: lint verdicts, env behavior."""
     check_result(is_sub_type(entry_type("42"), entry_type("int")), True, "42 <: int")
-    poisoned_sup = is_sub_type(entry_type("42"), entry_type("AssertionViolated"))
+    poisoned_sup = is_sub_type(entry_type("42"), entry_type("AssertionFailed"))
     check_result(poisoned_sup, "error", "poison on sup side -> Err")
-    nested = is_sub_type(entry_type("$a 1"), entry_type("$a int | $b AssertionViolated"))
+    nested = is_sub_type(entry_type("$a 1"), entry_type("$a int | $b AssertionFailed"))
     check_result(nested, "error", "poison nested in sup sum -> Err")
-    poison_sub = is_sub_type(entry_type("AssertionViolated"), entry_type("int"))
+    poison_sub = is_sub_type(entry_type("AssertionFailed"), entry_type("int"))
     check_result(poison_sub, False, "poison on sub side -> Ok(False)")
     sup_ellipsis = is_sub_type(entry_type("42"), entry_type("..."))
     check_result(sup_ellipsis, "error", "ellipsis on sup side -> Err")
@@ -228,15 +228,15 @@ def run_applied_generic_cases():
     free = entry_with_env("Box[T]", _type_serving(IntType(), "T"), box_mod)
     res = is_sub_type(entry_type("$v 3"), free)
     check_result(res, True, "free actual resolves through env_get at unfold")
-    poison = entry_type("AssertionViolated[int, str]")
+    poison = entry_type("AssertionFailed[int, str]")
     witness = entry_type(
-        "$__assertion_violated_original_data 3"
-        " * $__assertion_violated_error_msg 'x'",
+        "$__assertion_failed_original_data 3"
+        " * $__assertion_failed_error_msg 'x'",
     )
     check_result(
         is_sub_type(poison, witness),
         False,
-        "AssertionViolated never unfolds: poison stays nominal",
+        "AssertionFailed never unfolds: poison stays nominal",
     )
     loop_mod = custom_module("Loop[T] := $l Loop[int]")
     looping = entry_type("Loop[int]", loop_mod)

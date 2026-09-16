@@ -3,7 +3,7 @@
 Thin wrapper over is_sub_type — an instance is compliant iff it is
 a structural subtype of the rule. On a legal rule the verdict is
 always Ok(True) or Ok(False); Err reports judgment errors
-(unresolvable references, ellipsis, AssertionViolated on the
+(unresolvable references, ellipsis, AssertionFailed on the
 rule side).
 """
 

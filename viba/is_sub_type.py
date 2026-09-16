@@ -6,7 +6,7 @@ about rules, results or compliance semantics.
 Ok(True/False) is the judgment. Err is a lint error, never a verdict:
 - ellipsis (...) anywhere on either side -> Err (an open type is a
   contract-authoring mistake, not something to judge);
-- AssertionViolated on the sup side -> Err; on the sub side it is a
+- AssertionFailed on the sup side -> Err; on the sub side it is a
   normal negative witness, Ok(False).
 
 Semantics (per design):
@@ -32,7 +32,7 @@ Semantics (per design):
   with Err (UnresolvedTypeError caught at the boundary). Generic
   definition bodies never trigger this — they are nominal and never
   unfold.
-- AssertionViolated is not special here: it is a plain nominal
+- AssertionFailed is not special here: it is a plain nominal
   generic from the builtin library (viba/builtin.viba). On the sub
   side it simply never seats (Ok(False)); on the sup side it is a
   lint error, detected by name.
@@ -43,7 +43,7 @@ Semantics (per design):
   resolves eagerly in its lexical scope). Unfoldings are cached and
   guarded by a coinductive assumption table keyed on the node and
   its resolved actuals, so recursive generics terminate.
-  AssertionViolated is excluded from unfolding: poison stays nominal
+  AssertionFailed is excluded from unfolding: poison stays nominal
   and a sub-side witness never seats.
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
@@ -103,7 +103,7 @@ def is_sub_type(sub: Type, sup: Type) -> Result:
 
 
 def _lint_error(sub: Type, sup: Type):
-    """Ellipsis anywhere, or AssertionViolated on the sup side."""
+    """Ellipsis anywhere, or AssertionFailed on the sup side."""
     for label, side in (("sub", sub), ("sup", sup)):
         if not isinstance(side, AstNodeType):
             continue
@@ -118,7 +118,7 @@ def _poison_error(sup: Type):
     if not isinstance(sup, AstNodeType):
         return None
     poisoned = [n for n in viba_ast.walk(sup.ast_node) if _is_poison_ref(n)]
-    return "AssertionViolated on the sup side" if poisoned else None
+    return "AssertionFailed on the sup side" if poisoned else None
 
 
 class _Checker:
@@ -362,7 +362,7 @@ class _Checker:
         return entry
 
     def _constructor_target(self, node, module, side):
-        if node.constructor == "AssertionViolated":
+        if node.constructor == "AssertionFailed":
             return None  # poison stays nominal: a sub witness never seats
         resolved = self._resolve_name(node.constructor, module, side)
         if isinstance(resolved, Err):
@@ -665,9 +665,9 @@ def _unwrap_definition(entry: AstNodeType):
 
 def _is_poison_ref(node) -> bool:
     if isinstance(node, viba_ast.TypeRef):
-        return node.name == "AssertionViolated"
+        return node.name == "AssertionFailed"
     ctor = getattr(node, "constructor", None)
-    return ctor == "AssertionViolated"
+    return ctor == "AssertionFailed"
 
 
 def _literal_type(value) -> Type:

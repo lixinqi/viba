@@ -32,7 +32,7 @@ def generate(rule: AstNodeType, count: int, seed=None, fail_prob: float = 0.1) -
     """`count` random instances of `rule` (deterministic via seed).
 
     Each Assert field passes unchanged with probability 1-fail_prob
-    and is witnessed by AssertionViolated with probability fail_prob.
+    and is witnessed by AssertionFailed with probability fail_prob.
     """
     rng = random.Random(seed)
     return [_instance_of(rule, rng, fail_prob) for _ in range(count)]
@@ -80,7 +80,7 @@ def _gen_typeapp(node, module: ModuleType, rng, fail_prob: float):
 
 def _failed_assert():
     """A failed assertion: poison in place of the Assert field."""
-    return viba_ast.TypeApp("AssertionViolated", [viba_ast.Nil(), viba_ast.TypeRef("str")])
+    return viba_ast.TypeApp("AssertionFailed", [viba_ast.Nil(), viba_ast.TypeRef("str")])
 
 
 def _container_literal(node, builtin, module: ModuleType, rng, fail_prob):
