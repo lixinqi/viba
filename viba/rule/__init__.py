@@ -9,6 +9,7 @@ modules carry the accumulated rule-level API:
 - reset_predication_by_python_code: run each Predicate's $python_code
   and swap a false predication for the poison;
 - is_compliant: witness <: rule;
+- is_shape_compatible: the witness shape alone, predication leaves erased;
 - check_rule_coding_style: the viba-rule.md writing conventions;
 - check_determinate: well-formed, predicate code runs, every witness
   judges without error.
@@ -17,6 +18,7 @@ modules carry the accumulated rule-level API:
 from viba.rule.check_determinate import check_determinate
 from viba.rule.generate_witnesses import generate_witnesses
 from viba.rule.is_compliant import is_compliant
+from viba.rule.is_shape_compatible import is_shape_compatible
 from viba.rule.reset_predication_by_python_code import reset_predication_by_python_code
 from viba.rule.check_rule_coding_style import check_rule_coding_style
 
@@ -24,6 +26,7 @@ __all__ = [
     "generate_witnesses",
     "reset_predication_by_python_code",
     "is_compliant",
+    "is_shape_compatible",
     "check_rule_coding_style",
     "check_determinate",
 ]

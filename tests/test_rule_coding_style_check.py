@@ -25,10 +25,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba import ast as viba_ast
 from viba.rule import (
     check_determinate,
+    check_rule_coding_style,
     generate_witnesses,
     is_compliant,
+    is_shape_compatible,
     reset_predication_by_python_code,
-    check_rule_coding_style,
 )
 from viba.type import AstNodeType, Err, Ok, custom_module, module_get_type
 
@@ -285,6 +286,99 @@ def _check_broken_predicates():
     print(f"broken predicate code: {len(broken)} samples rejected")
 
 
+def _check_shape_compatible():
+    """Every generated witness must fit its rule's shape, with
+    Predicate and PredicationFailed erased to the same leaf. A witness
+    that drops a field, renames a tag, or loses the marker does not."""
+    checked = 0
+    for path in sorted((DATA / "rules").glob("rule*.viba")):
+        number = path.stem[len("rule"):]
+        module, defs = _load(path)
+        rule = _entry(defs, module, f"Rule{number}")
+        checked += _shape_compatible_samples(path, rule, int(number))
+    for path in sorted(NOT_DATA.glob("not_rule*.viba")):
+        number = path.stem[len("not_rule"):]
+        module, defs = _load(path)
+        rule = _entry(defs, module, f"NotRule{number}")
+        checked += _shape_compatible_samples(path, rule, int(number))
+    module, defs = _load(DATA / "predicate_bound.viba")
+    rule = _entry(defs, module, "PredicateBoundRule")
+    check = _predicate_node(rule.ast_node)
+    cases = {
+        "ready": viba_ast.Product(
+            viba_ast.TypeRef("Object"),
+            viba_ast.Product(
+                viba_ast.Tagged("$len", viba_ast.Constant(7)),
+                viba_ast.Tagged("$check", check),
+            ),
+        ),
+        "missing field": viba_ast.Product(
+            viba_ast.TypeRef("Object"),
+            viba_ast.Tagged("$len", viba_ast.Constant(7)),
+        ),
+        "wrong tag": viba_ast.Product(
+            viba_ast.TypeRef("Object"),
+            viba_ast.Product(
+                viba_ast.Tagged("$len", viba_ast.Constant(7)),
+                viba_ast.Tagged("$other", check),
+            ),
+        ),
+        "no marker": viba_ast.Product(
+            viba_ast.Tagged("$len", viba_ast.Constant(7)),
+            viba_ast.Tagged("$check", check),
+        ),
+        # Predicate and PredicationFailed are whole leaves: their insides
+        # (condition text, $python_code, T / MsgStr) do not matter.
+        "other predicate body": viba_ast.Product(
+            viba_ast.TypeRef("Object"),
+            viba_ast.Product(
+                viba_ast.Tagged("$len", viba_ast.Constant(7)),
+                viba_ast.Tagged("$check", _predicate(
+                    "something else", "def predicate(self):\n    return 1 / 0")),
+            ),
+        ),
+        "other poison args": viba_ast.Product(
+            viba_ast.TypeRef("Object"),
+            viba_ast.Product(
+                viba_ast.Tagged("$len", viba_ast.Constant(7)),
+                viba_ast.Tagged("$check", viba_ast.TypeApp(
+                    "PredicationFailed", [viba_ast.TypeRef("int"), viba_ast.TypeRef("float")])),
+            ),
+        ),
+        # the metrics are not erased: a wrong data type is still wrong
+        "wrong metric type": viba_ast.Product(
+            viba_ast.TypeRef("Object"),
+            viba_ast.Product(
+                viba_ast.Tagged("$len", viba_ast.Constant("seven")),
+                viba_ast.Tagged("$check", check),
+            ),
+        ),
+    }
+    rejected = ("missing field", "wrong tag", "no marker", "wrong metric type")
+    for label, body in cases.items():
+        given = is_shape_compatible(AstNodeType(body, module), rule)
+        want = label not in rejected
+        assert isinstance(given, Ok) and given.value is want, f"{label}: {given!r}"
+    print(f"shape compatible: {checked} generated witnesses fit")
+
+
+def _predicate(condition: str, code: str):
+    return viba_ast.TypeApp("Predicate", [
+        viba_ast.CodeBlock(condition),
+        viba_ast.Tagged("$python_code", viba_ast.CodeBlock(code)),
+    ])
+
+
+def _shape_compatible_samples(path, rule, seed) -> int:
+    count = 0
+    for fail_prob in (0.0, 1.0):
+        for witness in generate_witnesses(rule, 3, seed=seed, fail_prob=fail_prob):
+            given = is_shape_compatible(witness, rule)
+            assert isinstance(given, Ok) and given.value is True, f"{path.name}: {given!r}"
+            count += 1
+    return count
+
+
 def _check_predicate_code():
     """generate_witnesses(fail_prob=0) leaves every Predicate in place; then each
     compiled $python_code runs and a false predication becomes the
@@ -320,11 +414,13 @@ def main():
     _check_broken_rules()
     _check_broken_predicates()
     _check_predicate_reset()
+    _check_shape_compatible()
     _check_predicate_code()
     print(f"rule_coding_style_check: {len(paths)} rules + {len(not_paths)} not-rules"
           f" ({total} verdict witnesses + {determinacy} determinacy witnesses)"
           f" + demo + sum-rule + not-rule + 2 broken rules rejected"
-          f" + broken predicates rejected + predicate reset + predicate code")
+          f" + broken predicates rejected + predicate reset + shape compatible"
+          f" + predicate code")
 
 
 main()

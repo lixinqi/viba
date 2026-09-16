@@ -73,7 +73,7 @@ Witness 与 Rule 结构平行：带 tag 的字段按 tag 一一对位，只有�
 - **Metric 字段**：Rule 写 `$len Metric[Len]`，Witness 填实测值，例如 `$len 42`；容器与带 tag 的积同理。
 - **Predicate 字段**：断言成立就照写 `Predicate[...]`；断言不成立就写 `PredicationFailed[...]`。
 - **禁止性字段**：保持 `not[oneof]` 外壳，只把每个分支的叶子换成 `PredicationFailed[...]`（见第 7 节）。
-- **判定**：`is_compliant(witness, rule)`，True 是材料满足规则，False 是不满足。
+- **判定**：`is_compliant(witness, rule)`，True 是材料满足规则，False 是不满足。只想看形状（断言成没成先不管）就用 `is_shape_compatible`：它把两边的 `Predicate[...]` 与 `PredicationFailed[...]` 都当叶子擦掉，再比 `witness <: rule`，见第 10 节。
 
 一句话：Rule 说“要什么”，Witness 说“实际是什么”，两者之间只有子类型关系。
 
@@ -132,6 +132,7 @@ from viba.rule import (
     generate_witnesses,
     reset_predication_by_python_code,
     is_compliant,
+    is_shape_compatible,
     check_rule_coding_style,
     check_determinate,
 )
@@ -140,6 +141,7 @@ from viba.rule import (
 - `generate_witnesses(rule, count, seed=None, fail_prob=0.1)` — 按规则生成 `count` 份随机 Witness。`fail_prob` 是每个 `Predicate` 字段（以及每个 `not` 分支）被翻成违规形态的概率。
 - `reset_predication_by_python_code(witness)` — 执行 Witness 里每个 `Predicate` 的 `$python_code`，返回假的换成 `PredicationFailed[...]`。配合 `fail_prob=0` 使用，就是让代码而不是随机数决定哪些断言不成立。
 - `is_compliant(witness, rule)` — 判定 `witness <: rule`，返回 `Ok(True)` 或 `Ok(False)`。
+- `is_shape_compatible(witness, rule)` — 只把谓词叶子擦掉：两边的 `Predicate[...]` 与 `PredicationFailed[...]`（包括藏在类型名后面的）都换成同一个毒剂叶子，其余原样，再要求 `witness <: rule`。用来判断“形状是否准备好”：断言成没成不影响，但字段不能缺、tag 不能错、度量的数据类型也要对。
 - `check_rule_coding_style(rule)` — 检查规则是否符合本文档的书写规范，合规返回 `Ok(None)`，否则 `Err(第一条违规)`。
 - `check_determinate(rule, count, seed=None)` — 先做书写规范检查，再以 `fail_prob=0` 生成 Witness、逐份执行 predicate 代码并判定；全部跑通返回 `Ok(None)`，任一份报错或 predicate 抛异常则返回 `Err`。
 
