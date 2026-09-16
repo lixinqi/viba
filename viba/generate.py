@@ -2,10 +2,12 @@
 
 Given a rule (viba.type.AstNodeType), produce witnesses structurally
 parallel to it: every Metric[Name] field is replaced by a random
-literal of Name's data shape; everything else — including Predicate
-fields — is kept as-is. On a legal rule no witness can trigger a
-judgment error — running witnesses through is_compliant yields
-Ok(True) or Ok(false) only.
+literal of Name's data shape; everything else is kept as-is, except
+Predicate fields (replaced by PredicationFailed with probability
+fail_prob) and not[...] fields (each branch refuted by a same-tag
+PredicationFailed). On a legal rule no witness can trigger a judgment
+error — running witnesses through is_compliant yields Ok(True) or
+Ok(false) only.
 """
 
 import random
@@ -81,16 +83,54 @@ def _gen_typeapp(node, module: ModuleType, rng, fail_prob: float):
 
 
 def _not_witness(node, rng, fail_prob: float):
-    """A not[A] (i.e. never <- A) field: refuted by a failed
-    predication; with fail_prob the prohibition is violated and
-    the refutation is absent."""
-    if rng.random() < fail_prob:
+    """A not[A] field: every branch is refuted independently by a
+    same-tag PredicationFailed, folded into a product. With probability
+    fail_prob a branch stays positive (its own Predicate type), so the
+    field carries no refutation for that branch and the witness judges
+    False."""
+    branches = _sum_branches(node.args[0])
+    if branches is None:
         return node
-    return _failed_predication()
+    fields = []
+    for tag, branch in branches:
+        if rng.random() < fail_prob:
+            fields.append(viba_ast.Tagged(tag, branch))
+        else:
+            fields.append(viba_ast.Tagged(tag, _failed_predication()))
+    return _product_of(fields)
+
+
+def _sum_branches(node):
+    """Flatten a not-argument sum into [(tag, type), ...]; None if any
+    branch is untagged (tag discipline violated — cannot refute)."""
+    if isinstance(node, viba_ast.Sum):
+        left = _sum_branches(node.left)
+        right = _sum_branches(node.right)
+        return None if left is None or right is None else left + right
+    if isinstance(node, viba_ast.SumChain):
+        out = []
+        for e in node.elements:
+            part = _sum_branches(e)
+            if part is None:
+                return None
+            out += part
+        return out
+    if isinstance(node, viba_ast.Tagged):
+        return [(node.tag, node.type)]
+    return None
+
+
+def _product_of(nodes):
+    out = nodes[0]
+    for n in nodes[1:]:
+        out = viba_ast.Product(out, n)
+    return out
 
 
 def _failed_predication():
-    """A failed predication: poison in place of the Predicate field."""
+    """A failed predication: the failure marker for a positive
+    Predicate field. It never seats in a Predicate slot, so a witness
+    carrying it judges False."""
     return viba_ast.TypeApp("PredicationFailed", [viba_ast.Nil(), viba_ast.TypeRef("str")])
 
 

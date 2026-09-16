@@ -1,0 +1,48 @@
+# Prohibitive rule: not[A] is never <- A. is_sub_type knows only the
+# exponential, so a compliant witness refutes every branch with a
+# same-tag never <- Branch field. A branch left positive, or missing,
+# is no refutation and judges False.
+
+Homicide := Predicate[{homicide prohibited}, $python_code {
+def predicate(self):
+    return False
+}]
+
+Arson := Predicate[{arson prohibited}, $python_code {
+def predicate(self):
+    return False
+}]
+
+Robbery := Predicate[{robbery prohibited}, $python_code {
+def predicate(self):
+    return False
+}]
+
+DeathPenaltyRule :=
+  RuleObject
+  * $crimes
+      not[
+        $homicide Homicide
+        | $arson Arson
+        | $robbery Robbery
+      ]
+
+LawAbidingWitness :=
+  Object
+  * $crimes
+      ($homicide PredicationFailed[nil, str]
+       * $arson PredicationFailed[nil, str]
+       * $robbery PredicationFailed[nil, str])
+
+ViolatingWitness :=
+  Object
+  * $crimes
+      ($homicide Homicide
+       * $arson PredicationFailed[nil, str]
+       * $robbery PredicationFailed[nil, str])
+
+PartialWitness :=
+  Object
+  * $crimes
+      ($homicide PredicationFailed[nil, str]
+       * $arson PredicationFailed[nil, str])

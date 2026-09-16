@@ -4,7 +4,9 @@
 
 本规范定义 Rule 的书写形式。Rule 是以 Metric 与字面量为叶子的 Viba 类型描述，声明材料必须满足的结构与断言。
 
-Rule 中可以携带谓词（Predicate）。携带断言时，断言必须满足第 4 节规定的书写形式。
+Rule 中可以携带谓词（Predicate）与禁止性字段（`not`）。携带断言时，断言必须满足第 4 节规定的书写形式；携带禁止性字段时，必须满足第 8 节规定的书写形式。
+
+Rule 不是 Viba 的新机制，它只是 Viba 类型的一个应用：判定完全走 `is_sub_type`，规则层的一切（`RuleObject` / `OneofRule` 标记、`Predicate` / `Metric` / `not`）都是 Viba 类型写法，子类型判定不认识任何规则概念。
 
 ## 2. 规则标记
 
@@ -14,6 +16,8 @@ Rule 中可以携带谓词（Predicate）。携带断言时，断言必须满足
 - `OneofRule` 与 `Oneof` 完全同义：和类型单位元，基数为 0。规则体为和类型时使用；其分支必须是其他规则的引用。
 
 标记只是名字层面的声明：判定语义上 `RuleObject` 就是 `Object`，`OneofRule` 就是 `Oneof`。它唯一的额外含义是：一个 module 中，只有带标记的定义才会被认为是规则；其余定义（Metric 名字、辅助类型）不参与规则枚举。
+
+witness（呈证材料）不是规则，字段类型用 `Object` / `Oneof` 起头，不要带标记，否则会被当作规则枚举。
 
 ## 3. 字段顺序纪律
 
@@ -63,6 +67,38 @@ def predicate(self):
 }]
 ```
 
-## 8. 验证
+## 8. 禁止性字段：`not`
+
+禁止性约束写成带标签字段的 `not[...]`：
+
+```viba
+DeathPenaltyRule :=
+  RuleObject
+  * $crimes
+      not[
+        $homicide Homicide
+        | $arson Arson
+        | $robbery Robbery
+      ]
+```
+
+`not[A]` 就是 `never <- A`（定义见 `viba/builtin.viba`）。类型层上 `not[A] <: not[A]` 成立，`not[A]` 与 `not[B]` 之间按指数类型比（参数逆变）。上面每个分支的 `Homicide` / `Arson` / `Robbery` 是 Predicate 字段类型。
+
+witness 在同一个 tag 上必须逐分支给出否证：每个分支 tag 的字段写成 `PredicationFailed[...]`（检验失败的证据）。少一个分支、或某个分支写成正向的 `Homicide`，该字段都不入席，判 `False`。
+
+witness 是材料不是规则，所以用 `Object` 而不是 `RuleObject`（带标记会被当作规则枚举）：
+
+```viba
+LawAbidingWitness :=
+  Object
+  * $crimes
+      ($homicide PredicationFailed[nil, str]
+       * $arson PredicationFailed[nil, str]
+       * $robbery PredicationFailed[nil, str])
+```
+
+`PredicationFailed` 是毒剂：正向位置永不入席（正向 Predicate 字段写它就表示断言不成立）；只有禁止性分支要求它。
+
+## 9. 验证
 
 第 7 节的代码块由 `tests/test_rule_spec.py` 提取并执行验证，验证内容包括解析、反解析回环与子类型判定。

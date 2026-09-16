@@ -33,7 +33,8 @@ Semantics (per design):
   never <- B) compares by the exponent case — never <- B <: never <- A
   iff A <: B, so not[A] <: not[A]; a sub written as a tagged product
   is read through never <- (A | B) = (never <- A) * (never <- B), so
-  the slot at every branch tag must fit never <- that branch.
+  the slot at every branch tag must carry a refutation: the poison
+  PredicationFailed, or a type that fits never <- that branch.
 - Applied generics (TypeApp): both sides applied stays nominal —
   same constructor and pairwise actuals. Exactly one side applied
   unfolds structurally: the generic's body is compared with formal
@@ -295,8 +296,9 @@ class _Checker:
     #   not[A] <: not[A];
     # - a sub written as a tagged product is the same type by
     #   never <- (A | B) = (never <- A) * (never <- B): the slot at each
-    #   branch tag must fit never <- that branch, and a partial product
-    #   does not.
+    #   branch tag must carry a refutation — the poison
+    #   PredicationFailed, or a type that fits never <- that branch —
+    #   and a partial product does not.
     # No other shape holds.
     # ------------------------------------------------------------------
 
@@ -324,14 +326,18 @@ class _Checker:
         if branches is None:
             return False
         fields = self._tagged_fields(sn, s_mod)
-        return all(self._fits_never_arrow(fields.get(tag), b_type, b_mod)
+        return all(self._branch_evidence(fields.get(tag), b_type, b_mod)
                    for tag, b_type, b_mod in branches)
 
-    def _fits_never_arrow(self, field, branch_type, branch_mod) -> bool:
+    def _branch_evidence(self, field, branch_type, branch_mod) -> bool:
+        """A branch is refuted by the poison PredicationFailed, or by a
+        field that reads as never <- that branch."""
         if field is None:
             return False
         node, module = field
         node, module = self._unfold_ref(node, module, "sub")
+        if _is_predication_failed(node):
+            return True
         if isinstance(node, viba_ast.Never):
             return True
         meaning = self._function_argument(node, module)
@@ -730,6 +736,12 @@ class _Checker:
 # ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------
+
+
+def _is_predication_failed(node) -> bool:
+    """The poison: a failed predication, named by its constructor. It
+    is the required refutation evidence at a not branch."""
+    return isinstance(node, viba_ast.TypeApp) and node.constructor == "PredicationFailed"
 
 
 def _as_definition(node):
