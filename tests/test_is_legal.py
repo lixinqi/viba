@@ -105,12 +105,13 @@ def _check_broken_rules() -> None:
 
 
 def main():
+    paths = sorted(DATA.glob("rule*.viba"))
     total = 0
-    for path in sorted(DATA.glob("rule*.viba")):
+    for path in paths:
         total += _check_rule_file(path)
     _check_demo()
     _check_broken_rules()
-    print(f"is_legal: 20 data rules x {INSTANCES_PER_RULE} instances"
+    print(f"is_legal: {len(paths)} data rules x {INSTANCES_PER_RULE} instances"
           f" ({total} judged) + demo + 2 broken rules rejected")
 
 

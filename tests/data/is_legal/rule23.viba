@@ -1,0 +1,130 @@
+CodeLength := int
+MaxLines := int
+LoopCount := int
+CoverageRatio := float
+HasTests := bool
+ModuleName := str
+Keywords := list[str]
+IntList := list[int]
+Scores := dict[str, int]
+Lookup := dict[str, str]
+IntPair := $a int * $b int
+
+Rule23 :=
+  Object
+  * $code_length Metric[CodeLength]
+  * $max_lines Metric[MaxLines]
+  * $loop_count Metric[LoopCount]
+  * $coverage_ratio Metric[CoverageRatio]
+  * $has_tests Metric[HasTests]
+  * $module_name Metric[ModuleName]
+  * $keywords Metric[Keywords]
+  * $int_list Metric[IntList]
+  * $scores Metric[Scores]
+  * $lookup Metric[Lookup]
+  * $int_pair Metric[IntPair]
+  * $assert_00_code_length_at_most_24
+      Assert[{code_length at most 24}, $python_code {
+def handler(self):
+    return self.code_length.value <= 24
+}]
+  * $assert_01_code_length_under_100
+      Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+  * $assert_02_max_lines_at_most_24
+      Assert[{max_lines at most 24}, $python_code {
+def handler(self):
+    return self.max_lines.value <= 24
+}]
+  * $assert_03_max_lines_under_100
+      Assert[{max_lines under 100}, $python_code {
+def handler(self):
+    return self.max_lines.value < 100
+}]
+  * $assert_04_loop_count_at_most_24
+      Assert[{loop_count at most 24}, $python_code {
+def handler(self):
+    return self.loop_count.value <= 24
+}]
+  * $assert_05_loop_count_under_100
+      Assert[{loop_count under 100}, $python_code {
+def handler(self):
+    return self.loop_count.value < 100
+}]
+  * $assert_06_code_length_not_above_max_lines
+      Assert[{code_length not above max_lines}, $python_code {
+def handler(self):
+    return self.code_length.value <= self.max_lines.value
+}]
+  * $assert_07_coverage_ratio_within_50_5
+      Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+  * $assert_08_coverage_ratio_non_negative
+      Assert[{coverage_ratio non-negative}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value >= 0.0
+}]
+  * $assert_09_has_tests_required
+      Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
+  * $assert_10_has_tests_forbidden
+      Assert[{has_tests forbidden}, $python_code {
+def handler(self):
+    return not self.has_tests.value
+}]
+  * $assert_11_module_name_short
+      Assert[{module_name short}, $python_code {
+def handler(self):
+    return len(self.module_name.value) <= 8
+}]
+  * $assert_12_module_name_not_empty
+      Assert[{module_name not empty}, $python_code {
+def handler(self):
+    return len(self.module_name.value) >= 1
+}]
+  * $assert_13_keywords_non_empty
+      Assert[{keywords non-empty}, $python_code {
+def handler(self):
+    return len(self.keywords.value) >= 1
+}]
+  * $assert_14_keywords_bounded
+      Assert[{keywords bounded}, $python_code {
+def handler(self):
+    return len(self.keywords.value) <= 4
+}]
+  * $assert_15_scores_non_empty
+      Assert[{scores non-empty}, $python_code {
+def handler(self):
+    return len(self.scores.value) >= 1
+}]
+  * $assert_16_scores_bounded
+      Assert[{scores bounded}, $python_code {
+def handler(self):
+    return len(self.scores.value) <= 4
+}]
+  * $assert_17_int_list_non_empty
+      Assert[{int_list non-empty}, $python_code {
+def handler(self):
+    return len(self.int_list.value) >= 1
+}]
+  * $assert_18_int_list_bounded
+      Assert[{int_list bounded}, $python_code {
+def handler(self):
+    return len(self.int_list.value) <= 4
+}]
+  * $assert_19_lookup_non_empty
+      Assert[{lookup non-empty}, $python_code {
+def handler(self):
+    return len(self.lookup.value) >= 1
+}]
+  * $assert_20_lookup_bounded
+      Assert[{lookup bounded}, $python_code {
+def handler(self):
+    return len(self.lookup.value) <= 4
+}]

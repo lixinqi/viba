@@ -1,0 +1,99 @@
+CodeLength := int
+MaxLines := int
+CoverageRatio := float
+HasTests := bool
+ModuleName := str
+Keywords := list[str]
+Tags := set[str]
+IntPair := $a int * $b int
+
+Rule28 :=
+  Object
+  * $code_length Metric[CodeLength]
+  * $max_lines Metric[MaxLines]
+  * $coverage_ratio Metric[CoverageRatio]
+  * $has_tests Metric[HasTests]
+  * $module_name Metric[ModuleName]
+  * $keywords Metric[Keywords]
+  * $tags Metric[Tags]
+  * $int_pair Metric[IntPair]
+  * $assert_00_code_length_at_most_24
+      Assert[{code_length at most 24}, $python_code {
+def handler(self):
+    return self.code_length.value <= 24
+}]
+  * $assert_01_code_length_under_100
+      Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+  * $assert_02_max_lines_at_most_24
+      Assert[{max_lines at most 24}, $python_code {
+def handler(self):
+    return self.max_lines.value <= 24
+}]
+  * $assert_03_max_lines_under_100
+      Assert[{max_lines under 100}, $python_code {
+def handler(self):
+    return self.max_lines.value < 100
+}]
+  * $assert_04_code_length_not_above_max_lines
+      Assert[{code_length not above max_lines}, $python_code {
+def handler(self):
+    return self.code_length.value <= self.max_lines.value
+}]
+  * $assert_05_coverage_ratio_within_50_5
+      Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+  * $assert_06_coverage_ratio_non_negative
+      Assert[{coverage_ratio non-negative}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value >= 0.0
+}]
+  * $assert_07_has_tests_required
+      Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
+  * $assert_08_has_tests_forbidden
+      Assert[{has_tests forbidden}, $python_code {
+def handler(self):
+    return not self.has_tests.value
+}]
+  * $assert_09_module_name_short
+      Assert[{module_name short}, $python_code {
+def handler(self):
+    return len(self.module_name.value) <= 8
+}]
+  * $assert_10_module_name_not_empty
+      Assert[{module_name not empty}, $python_code {
+def handler(self):
+    return len(self.module_name.value) >= 1
+}]
+  * $assert_11_keywords_non_empty
+      Assert[{keywords non-empty}, $python_code {
+def handler(self):
+    return len(self.keywords.value) >= 1
+}]
+  * $assert_12_keywords_bounded
+      Assert[{keywords bounded}, $python_code {
+def handler(self):
+    return len(self.keywords.value) <= 4
+}]
+  * $assert_13_tags_bounded
+      Assert[{tags bounded}, $python_code {
+def handler(self):
+    return len(self.tags.value) <= 3
+}]
+  * $assert_14_tags_non_empty
+      Assert[{tags non-empty}, $python_code {
+def handler(self):
+    return len(self.tags.value) >= 1
+}]
+  * $assert_15_int_pair_ordered
+      Assert[{int_pair ordered}, $python_code {
+def handler(self):
+    return self.int_pair.a <= self.int_pair.b
+}]

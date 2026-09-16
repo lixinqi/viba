@@ -34,6 +34,11 @@ POOL = [
     ("Tags", "set[str]", "set", "tags"),
     ("Scores", "dict[str, int]", "dict", "scores"),
     ("TraceLevel", "$quiet () | $verbose ()", "sum", "trace_level"),
+    ("IntPair", "$a int * $b int", "prod_ab", "int_pair"),
+    ("NameSize", "$name str * $size int", "prod_ns", "name_size"),
+    ("Triplet", "$x int * $y int * $z int", "prod_xyz", "triplet"),
+    ("IntList", "list[int]", "intlist", "int_list"),
+    ("Lookup", "dict[str, str]", "dictss", "lookup"),
 ]
 
 # kind -> list of (description, predicate body); {t} is the field tag
@@ -61,13 +66,33 @@ BANK = {
         ("{t} non-empty", "return len(self.{t}.value) >= 1"),
         ("{t} bounded", "return len(self.{t}.value) <= 4"),
     ],
-    "set": [("{t} bounded", "return len(self.{t}.value) <= 3")],
-    "dict": [("{t} non-empty", "return len(self.{t}.value) >= 1")],
+    "set": [
+        ("{t} bounded", "return len(self.{t}.value) <= 3"),
+        ("{t} non-empty", "return len(self.{t}.value) >= 1"),
+    ],
+    "dict": [
+        ("{t} non-empty", "return len(self.{t}.value) >= 1"),
+        ("{t} bounded", "return len(self.{t}.value) <= 4"),
+    ],
     "prod1": [("{t} non-negative", "return self.{t}.spaces >= 0")],
     "prod2": [
         ("{t} documented within total", "return self.{t}.documented_lines <= self.{t}.total_lines"),
     ],
     "prod3": [("{t} spent within cap", "return self.{t}.spent <= self.{t}.cap")],
+    "intlist": [
+        ("{t} non-empty", "return len(self.{t}.value) >= 1"),
+        ("{t} bounded", "return len(self.{t}.value) <= 4"),
+    ],
+    "dictss": [
+        ("{t} non-empty", "return len(self.{t}.value) >= 1"),
+        ("{t} bounded", "return len(self.{t}.value) <= 4"),
+    ],
+    "prod_ab": [
+        ("{t} ordered", "return self.{t}.a <= self.{t}.b"),
+        ("{t} sum bounded", "return self.{t}.a + self.{t}.b <= 100"),
+    ],
+    "prod_ns": [("{t} name fits size", "return len(self.{t}.name) <= self.{t}.size")],
+    "prod_xyz": [("{t} x plus y within z", "return self.{t}.x + self.{t}.y <= self.{t}.z")],
 }
 
 # 20 field combinations; "sum"-kind fields exercise generator branch choice
@@ -92,6 +117,33 @@ COMBOS = [
     ["CodeLength", "MaxLines", "LoopCount", "TimeBudget", "HasTests", "DocCoverage", "Imports", "Scores", "TraceLevel"],
     ["ParamCount", "CyclomaticComplexity", "CoverageRatio", "IndentWidth", "IsPublic", "ModuleName", "Keywords", "BudgetSplit", "AuthorName"],
     ["CodeLength", "MaxLines", "LoopCount", "ParamCount", "CoverageRatio", "TimeBudget", "HasTests", "IsPublic", "ModuleName", "AuthorName"],
+    # --- rules 20-39: wider variance, assert counts from ASSERT_TARGETS ---
+    ["CodeLength", "MaxLines", "CoverageRatio", "HasTests", "ModuleName"],
+    ["CodeLength", "LoopCount", "ParamCount", "TimeBudget", "AuthorName", "Keywords"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "TimeBudget", "HasTests", "ModuleName", "Tags", "Scores"],
+    ["CodeLength", "MaxLines", "LoopCount", "CoverageRatio", "HasTests", "ModuleName", "Keywords", "IntList", "Scores", "Lookup", "IntPair"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "TimeBudget", "HasTests", "ModuleName", "Keywords", "Tags", "Scores", "NameSize", "Triplet", "IntPair"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "TimeBudget", "HasTests", "ModuleName", "Keywords", "Tags", "Scores", "Lookup", "IntPair", "NameSize", "Triplet", "DocCoverage"],
+    ["CodeLength", "CoverageRatio", "HasTests", "Keywords", "IntPair", "ModuleName"],
+    ["CodeLength", "MaxLines", "TimeBudget", "AuthorName", "Tags", "Scores", "DocCoverage"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "HasTests", "ModuleName", "Keywords", "Tags", "IntPair"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "TimeBudget", "ModuleName", "Keywords", "Tags", "Scores", "NameSize"],
+    ["CodeLength", "MaxLines", "LoopCount", "CoverageRatio", "HasTests", "AuthorName", "Keywords", "Tags", "Lookup", "IntPair", "Triplet"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "HasTests", "ModuleName", "Keywords", "IntList", "Scores", "NameSize", "Triplet", "DocCoverage"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "TimeBudget", "HasTests", "ModuleName", "Keywords", "Tags", "Scores", "Lookup", "IntPair", "NameSize", "Triplet", "DocCoverage", "BudgetSplit"],
+    ["CodeLength", "LoopCount", "CoverageRatio", "HasTests", "Keywords", "Scores", "IntPair"],
+    ["MaxLines", "TimeBudget", "IsPublic", "AuthorName", "IntList", "Tags"],
+    ["CyclomaticComplexity", "ParamCount", "CoverageRatio", "ModuleName", "Imports", "Lookup", "IndentWidth"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "HasTests", "IsPublic", "ModuleName", "Keywords", "IntPair", "Triplet"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "HasTests", "ModuleName", "Keywords", "Tags", "Scores", "NameSize", "Triplet"],
+    ["CodeLength", "MaxLines", "LoopCount", "CoverageRatio", "TimeBudget", "HasTests", "AuthorName", "Keywords", "IntList", "IntPair", "DocCoverage"],
+    ["CodeLength", "MaxLines", "CoverageRatio", "TimeBudget", "HasTests", "ModuleName", "Keywords", "Tags", "Scores", "Lookup", "IntPair", "NameSize", "Triplet", "IndentWidth", "BudgetSplit"],
+]
+
+# Assert-count targets for rules 20-39 (rules 0-19 keep 10).
+ASSERT_TARGETS = [
+    11, 13, 17, 21, 22, 24, 12, 14, 16, 18,
+    19, 20, 23, 15, 10, 12, 14, 16, 18, 20,
 ]
 
 
@@ -105,8 +157,8 @@ def _kind_preds(by_kind):
     return out
 
 
-def _predicates(fields):
-    """Assemble >= 10 (description, body) pairs for the given fields."""
+def _predicates(fields, limit=10):
+    """Assemble up to `limit` (description, body) pairs for the fields."""
     by_kind = {}
     for _, _, kind, tag in fields:
         by_kind.setdefault(kind, []).append(tag)
@@ -119,7 +171,7 @@ def _predicates(fields):
         desc, body = BANK["cross_int"][0]
         out.append((desc.format(t1=ints[0], t2=ints[1]), body.format(t1=ints[0], t2=ints[1])))
     out.extend(_kind_preds(by_kind))
-    return out[:10]
+    return out[:limit]
 
 
 def _assert_field(index, desc, body):
@@ -135,13 +187,18 @@ def _assert_field(index, desc, body):
     return "\n".join(lines)
 
 
+def _assert_target(number):
+    return ASSERT_TARGETS[number - 20] if number >= 20 else 10
+
+
 def _render(number):
     names = COMBOS[number]
     lookup = {name: spec for spec in POOL for name in [spec[0]]}
     fields = [lookup[name] for name in names]
     defs = "\n".join(f"{name} := {expr}" for name, expr, _, _ in fields)
     metrics = "\n".join(f"  * ${tag} Metric[{name}]" for name, _, _, tag in fields)
-    asserts = [_assert_field(i, d, b) for i, (d, b) in enumerate(_predicates(fields))]
+    preds = _predicates(fields, _assert_target(number))
+    asserts = [_assert_field(i, d, b) for i, (d, b) in enumerate(preds)]
     body = "\n".join([f"Rule{number:02d} :=", "  Object", metrics, *asserts])
     return f"{defs}\n\n{body}\n"
 
