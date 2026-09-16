@@ -128,8 +128,10 @@ class BuiltinModuleType(ModuleType):
         "void": NilType,  # accepted alias
         "None": NilType,  # accepted alias
         "Object": NilType,  # accepted alias (product identity)
+        "RuleObject": NilType,  # accepted alias (product identity, rule marker)
         "never": NeverType,
         "Oneof": NeverType,  # accepted alias (sum identity)
+        "OneofRule": NeverType,  # accepted alias (sum identity, rule marker)
     }
     _GENERIC_NAMES = {
         "List", "list", "set", "dict",

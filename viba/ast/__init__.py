@@ -39,6 +39,12 @@ from viba.ast.nodes import (
 )
 from viba.ast.chain import convert_to_chain_style, convert_from_chain_style
 from viba.ast.unparse import unparse_module
+from viba.ast.rules import (
+    PRODUCT_MARKER,
+    SUM_MARKER,
+    rule_definitions,
+    rule_marker,
+)
 
 __all__ = [
     "AST", "Module", "TypeDefinition", "GenericDefinition", "Import",
@@ -48,6 +54,7 @@ __all__ = [
     "parse", "unparse", "canonical", "dump",
     "convert_to_chain_style", "convert_from_chain_style",
     "iter_child_nodes", "walk", "NodeVisitor", "NodeTransformer",
+    "PRODUCT_MARKER", "SUM_MARKER", "rule_definitions", "rule_marker",
 ]
 
 
