@@ -6,7 +6,7 @@ HasTests := bool
 TraceLevel := $quiet () | $verbose ()
 
 Rule10 :=
-  Object
+  RuleObject
   * $cyclomatic_complexity Metric[CyclomaticComplexity]
   * $coverage_ratio Metric[CoverageRatio]
   * $module_name Metric[ModuleName]

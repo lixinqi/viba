@@ -199,7 +199,7 @@ def _render(number):
     metrics = "\n".join(f"  * ${tag} Metric[{name}]" for name, _, _, tag in fields)
     preds = _predicates(fields, _assert_target(number))
     asserts = [_assert_field(i, d, b) for i, (d, b) in enumerate(preds)]
-    body = "\n".join([f"Rule{number:02d} :=", "  Object", metrics, *asserts])
+    body = "\n".join([f"Rule{number:02d} :=", "  RuleObject", metrics, *asserts])
     return f"{defs}\n\n{body}\n"
 
 

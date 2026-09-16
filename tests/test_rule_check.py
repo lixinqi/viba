@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from viba import ast as viba_ast
 from viba.generate import generate
 from viba.is_compliant import is_compliant
 from viba.is_determinate import is_determinate
@@ -47,6 +48,8 @@ def _entry(text: str, name: str) -> AstNodeType:
 def _check_rule_file(path: Path) -> int:
     number = path.stem[len("rule"):]
     rule = _entry(path.read_text(), f"Rule{number}")
+    found = [d.name for d in viba_ast.rule_definitions(rule.container_module.module)]
+    assert found == [f"Rule{number}"], f"{path.name}: marker scan {found}"
     checked = 0
     for instance in generate(rule, INSTANCES_PER_RULE, seed=int(number)):
         given = is_compliant(instance, rule)

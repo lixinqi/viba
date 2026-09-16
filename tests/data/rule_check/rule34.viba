@@ -6,7 +6,7 @@ IntList := list[int]
 Tags := set[str]
 
 Rule34 :=
-  Object
+  RuleObject
   * $max_lines Metric[MaxLines]
   * $time_budget Metric[TimeBudget]
   * $is_public Metric[IsPublic]

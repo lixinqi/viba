@@ -15,7 +15,7 @@ IndentWidth := $spaces int
 BudgetSplit := $spent float * $cap float
 
 Rule39 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $max_lines Metric[MaxLines]
   * $coverage_ratio Metric[CoverageRatio]

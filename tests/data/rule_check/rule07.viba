@@ -6,7 +6,7 @@ Imports := list[str]
 Tags := set[str]
 
 Rule07 :=
-  Object
+  RuleObject
   * $max_lines Metric[MaxLines]
   * $coverage_ratio Metric[CoverageRatio]
   * $is_public Metric[IsPublic]

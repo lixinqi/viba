@@ -6,7 +6,7 @@ AuthorName := str
 Keywords := list[str]
 
 Rule21 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $loop_count Metric[LoopCount]
   * $param_count Metric[ParamCount]

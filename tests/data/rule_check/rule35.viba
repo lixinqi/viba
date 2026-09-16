@@ -7,7 +7,7 @@ Lookup := dict[str, str]
 IndentWidth := $spaces int
 
 Rule35 :=
-  Object
+  RuleObject
   * $cyclomatic_complexity Metric[CyclomaticComplexity]
   * $param_count Metric[ParamCount]
   * $coverage_ratio Metric[CoverageRatio]

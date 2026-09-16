@@ -5,7 +5,7 @@ IsPublic := bool
 Imports := list[str]
 
 Rule02 :=
-  Object
+  RuleObject
   * $max_lines Metric[MaxLines]
   * $param_count Metric[ParamCount]
   * $coverage_ratio Metric[CoverageRatio]

@@ -7,7 +7,7 @@ Imports := list[str]
 IsPublic := bool
 
 Rule13 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $cyclomatic_complexity Metric[CyclomaticComplexity]
   * $coverage_ratio Metric[CoverageRatio]

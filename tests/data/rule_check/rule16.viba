@@ -8,7 +8,7 @@ Keywords := list[str]
 Tags := set[str]
 
 Rule16 :=
-  Object
+  RuleObject
   * $cyclomatic_complexity Metric[CyclomaticComplexity]
   * $indent_width Metric[IndentWidth]
   * $budget_split Metric[BudgetSplit]

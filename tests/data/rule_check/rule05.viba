@@ -5,7 +5,7 @@ AuthorName := str
 Keywords := list[str]
 
 Rule05 :=
-  Object
+  RuleObject
   * $cyclomatic_complexity Metric[CyclomaticComplexity]
   * $param_count Metric[ParamCount]
   * $coverage_ratio Metric[CoverageRatio]

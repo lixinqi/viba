@@ -6,7 +6,7 @@ IntPair := $a int * $b int
 ModuleName := str
 
 Rule26 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $coverage_ratio Metric[CoverageRatio]
   * $has_tests Metric[HasTests]

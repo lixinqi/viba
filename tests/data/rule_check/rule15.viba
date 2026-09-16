@@ -8,7 +8,7 @@ Scores := dict[str, int]
 Imports := list[str]
 
 Rule15 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $loop_count Metric[LoopCount]
   * $param_count Metric[ParamCount]

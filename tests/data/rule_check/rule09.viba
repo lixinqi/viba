@@ -6,7 +6,7 @@ DocCoverage := $documented_lines int * $total_lines int
 IsPublic := bool
 
 Rule09 :=
-  Object
+  RuleObject
   * $param_count Metric[ParamCount]
   * $time_budget Metric[TimeBudget]
   * $author_name Metric[AuthorName]

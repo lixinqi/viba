@@ -7,7 +7,7 @@ Tags := set[str]
 TraceLevel := $quiet () | $verbose ()
 
 Rule14 :=
-  Object
+  RuleObject
   * $max_lines Metric[MaxLines]
   * $time_budget Metric[TimeBudget]
   * $author_name Metric[AuthorName]

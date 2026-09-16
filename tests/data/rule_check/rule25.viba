@@ -14,7 +14,7 @@ Triplet := $x int * $y int * $z int
 DocCoverage := $documented_lines int * $total_lines int
 
 Rule25 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $max_lines Metric[MaxLines]
   * $coverage_ratio Metric[CoverageRatio]

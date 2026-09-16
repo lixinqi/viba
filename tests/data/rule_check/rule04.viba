@@ -5,7 +5,7 @@ HasTests := bool
 Scores := dict[str, int]
 
 Rule04 :=
-  Object
+  RuleObject
   * $loop_count Metric[LoopCount]
   * $max_lines Metric[MaxLines]
   * $time_budget Metric[TimeBudget]

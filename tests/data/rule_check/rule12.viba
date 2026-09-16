@@ -7,7 +7,7 @@ Scores := dict[str, int]
 Tags := set[str]
 
 Rule12 :=
-  Object
+  RuleObject
   * $loop_count Metric[LoopCount]
   * $param_count Metric[ParamCount]
   * $indent_width Metric[IndentWidth]

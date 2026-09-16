@@ -7,7 +7,7 @@ Keywords := list[str]
 AuthorName := str
 
 Rule11 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $max_lines Metric[MaxLines]
   * $coverage_ratio Metric[CoverageRatio]

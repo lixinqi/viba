@@ -5,7 +5,7 @@ TimeBudget := float
 AuthorName := str
 
 Rule01 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $loop_count Metric[LoopCount]
   * $cyclomatic_complexity Metric[CyclomaticComplexity]

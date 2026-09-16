@@ -6,7 +6,7 @@ Scores := dict[str, int]
 TraceLevel := $quiet () | $verbose ()
 
 Rule08 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $loop_count Metric[LoopCount]
   * $has_tests Metric[HasTests]

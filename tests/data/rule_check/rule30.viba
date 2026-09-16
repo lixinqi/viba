@@ -11,7 +11,7 @@ IntPair := $a int * $b int
 Triplet := $x int * $y int * $z int
 
 Rule30 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $max_lines Metric[MaxLines]
   * $loop_count Metric[LoopCount]

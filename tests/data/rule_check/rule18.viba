@@ -9,7 +9,7 @@ BudgetSplit := $spent float * $cap float
 AuthorName := str
 
 Rule18 :=
-  Object
+  RuleObject
   * $param_count Metric[ParamCount]
   * $cyclomatic_complexity Metric[CyclomaticComplexity]
   * $coverage_ratio Metric[CoverageRatio]

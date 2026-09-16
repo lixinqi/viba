@@ -10,7 +10,7 @@ ModuleName := str
 AuthorName := str
 
 Rule19 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $max_lines Metric[MaxLines]
   * $loop_count Metric[LoopCount]

@@ -12,7 +12,7 @@ Triplet := $x int * $y int * $z int
 IntPair := $a int * $b int
 
 Rule24 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $max_lines Metric[MaxLines]
   * $coverage_ratio Metric[CoverageRatio]

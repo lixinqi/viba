@@ -6,7 +6,7 @@ DocCoverage := $documented_lines int * $total_lines int
 HasTests := bool
 
 Rule03 :=
-  Object
+  RuleObject
   * $code_length Metric[CodeLength]
   * $coverage_ratio Metric[CoverageRatio]
   * $module_name Metric[ModuleName]
