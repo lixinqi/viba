@@ -11,7 +11,7 @@ Rule 中可以携带断言（Assert）。携带断言时，断言必须满足第
 规则以标记开头：`RuleObject` 或 `OneofRule`。
 
 - `RuleObject` 与 `Object` 完全同义：积类型单位元，基数为 1。规则体为积类型时使用。
-- `OneofRule` 与 `Oneof` 完全同义：和类型单位元，基数为 0。规则体为和类型时使用。
+- `OneofRule` 与 `Oneof` 完全同义：和类型单位元，基数为 0。规则体为和类型时使用；其分支必须是其他规则的引用。
 
 标记只是名字层面的声明：判定语义上 `RuleObject` 就是 `Object`，`OneofRule` 就是 `Oneof`。它唯一的额外含义是：一个 module 中，只有带标记的定义才会被认为是规则；其余定义（Metric 名字、辅助类型）不参与规则枚举。
 
