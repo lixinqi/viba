@@ -7,3 +7,14 @@
 AssertionViolated[T, MsgStr] :=
   $__assertion_violated_original_data T
   * $__assertion_violated_error_msg MsgStr
+
+# Metric[Name] is a transparent generic: the metric semantics live
+# entirely in Name, a nominal type defined by the rule author (a base
+# type, a single tagged field, or a product).
+Metric[T] := T
+
+# Assert carries a natural-language condition (not executed) and an
+# executable predicator under $python_code. It is stripped before
+# judgment and never reaches is_sub_type.
+Assert[Cond, PythonCode] :=
+  $assert_cond Cond * $assert_python_code PythonCode

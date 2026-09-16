@@ -622,7 +622,10 @@ def _unwrap_definition(entry: AstNodeType):
 
 
 def _is_poison_ref(node) -> bool:
-    return isinstance(node, viba_ast.TypeRef) and node.name == "AssertionViolated"
+    if isinstance(node, viba_ast.TypeRef):
+        return node.name == "AssertionViolated"
+    ctor = getattr(node, "constructor", None)
+    return ctor == "AssertionViolated"
 
 
 def _literal_type(value) -> Type:
