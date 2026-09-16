@@ -1,0 +1,47 @@
+# rule08.viba 的一个实例：seed=08, fail_prob=0.1
+# 判定：Ok(False)
+Instance08 :=
+    RuleObject
+    * $code_length 29
+    * $loop_count 47
+    * $has_tests false
+    * $keywords ListLiteral
+    * $scores DictLiteral
+    * $trace_level($quiet ())
+    * $assert_00_code_length_at_most_24 AssertionFailed[nil, str]
+    * $assert_01_code_length_under_100 Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+    * $assert_02_loop_count_at_most_24 Assert[{loop_count at most 24}, $python_code {
+def handler(self):
+    return self.loop_count.value <= 24
+}]
+    * $assert_03_loop_count_under_100 Assert[{loop_count under 100}, $python_code {
+def handler(self):
+    return self.loop_count.value < 100
+}]
+    * $assert_04_code_length_not_above_loop_count Assert[{code_length not above loop_count}, $python_code {
+def handler(self):
+    return self.code_length.value <= self.loop_count.value
+}]
+    * $assert_05_has_tests_required Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
+    * $assert_06_has_tests_forbidden Assert[{has_tests forbidden}, $python_code {
+def handler(self):
+    return not self.has_tests.value
+}]
+    * $assert_07_keywords_non_empty Assert[{keywords non-empty}, $python_code {
+def handler(self):
+    return len(self.keywords.value) >= 1
+}]
+    * $assert_08_keywords_bounded Assert[{keywords bounded}, $python_code {
+def handler(self):
+    return len(self.keywords.value) <= 4
+}]
+    * $assert_09_scores_non_empty Assert[{scores non-empty}, $python_code {
+def handler(self):
+    return len(self.scores.value) >= 1
+}]

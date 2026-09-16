@@ -1,0 +1,69 @@
+# rule33.viba 的一个实例：seed=33, fail_prob=0.1
+# 判定：Ok(False)
+Instance33 :=
+    RuleObject
+    * $code_length 73
+    * $loop_count 21
+    * $coverage_ratio 63.22
+    * $has_tests false
+    * $keywords ListLiteral["delta"]
+    * $scores DictLiteral[("beta", 83), ("gamma", 87)]
+    * $int_pair(    $a 67
+      * $b 61)
+    * $assert_00_code_length_at_most_24 Assert[{code_length at most 24}, $python_code {
+def handler(self):
+    return self.code_length.value <= 24
+}]
+    * $assert_01_code_length_under_100 Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+    * $assert_02_loop_count_at_most_24 Assert[{loop_count at most 24}, $python_code {
+def handler(self):
+    return self.loop_count.value <= 24
+}]
+    * $assert_03_loop_count_under_100 Assert[{loop_count under 100}, $python_code {
+def handler(self):
+    return self.loop_count.value < 100
+}]
+    * $assert_04_code_length_not_above_loop_count Assert[{code_length not above loop_count}, $python_code {
+def handler(self):
+    return self.code_length.value <= self.loop_count.value
+}]
+    * $assert_05_coverage_ratio_within_50_5 Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+    * $assert_06_coverage_ratio_non_negative AssertionFailed[nil, str]
+    * $assert_07_has_tests_required Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
+    * $assert_08_has_tests_forbidden Assert[{has_tests forbidden}, $python_code {
+def handler(self):
+    return not self.has_tests.value
+}]
+    * $assert_09_keywords_non_empty Assert[{keywords non-empty}, $python_code {
+def handler(self):
+    return len(self.keywords.value) >= 1
+}]
+    * $assert_10_keywords_bounded Assert[{keywords bounded}, $python_code {
+def handler(self):
+    return len(self.keywords.value) <= 4
+}]
+    * $assert_11_scores_non_empty Assert[{scores non-empty}, $python_code {
+def handler(self):
+    return len(self.scores.value) >= 1
+}]
+    * $assert_12_scores_bounded Assert[{scores bounded}, $python_code {
+def handler(self):
+    return len(self.scores.value) <= 4
+}]
+    * $assert_13_int_pair_ordered Assert[{int_pair ordered}, $python_code {
+def handler(self):
+    return self.int_pair.a <= self.int_pair.b
+}]
+    * $assert_14_int_pair_sum_bounded Assert[{int_pair sum bounded}, $python_code {
+def handler(self):
+    return self.int_pair.a + self.int_pair.b <= 100
+}]

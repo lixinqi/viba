@@ -1,20 +1,32 @@
-# rule22.viba 的一个实例：seed=22, fail_prob=0.1
+# rule39.viba 的一个实例：seed=39, fail_prob=0.1
 # 判定：Ok(False)
-Instance22 :=
+Instance39 :=
     RuleObject
-    * $code_length 17
-    * $max_lines 31
-    * $coverage_ratio 2.36
-    * $time_budget 99.86
+    * $code_length 26
+    * $max_lines 33
+    * $coverage_ratio 38.54
+    * $time_budget 19.51
     * $has_tests true
     * $module_name "alpha"
-    * $tags SetLiteral["gamma", "alpha"]
-    * $scores DictLiteral
-    * $assert_00_code_length_at_most_24 Assert[{code_length at most 24}, $python_code {
+    * $keywords ListLiteral["gamma", "gamma"]
+    * $tags SetLiteral["beta", "alpha"]
+    * $scores DictLiteral[("alpha", 46)]
+    * $lookup DictLiteral
+    * $int_pair(    $a 13
+      * $b 54)
+    * $name_size(    $name "gamma"
+      * $size 54)
+    * $triplet(    $x 96
+      * $y 12
+      * $z 50)
+    * $indent_width($spaces 65)
+    * $budget_split(    $spent 58.05
+      * $cap 26.7)
+    * $assert_00_code_length_at_most_24 AssertionFailed[nil, str]
+    * $assert_01_code_length_under_100 Assert[{code_length under 100}, $python_code {
 def handler(self):
-    return self.code_length.value <= 24
+    return self.code_length.value < 100
 }]
-    * $assert_01_code_length_under_100 AssertionFailed[nil, str]
     * $assert_02_max_lines_at_most_24 Assert[{max_lines at most 24}, $python_code {
 def handler(self):
     return self.max_lines.value <= 24
@@ -43,7 +55,10 @@ def handler(self):
 def handler(self):
     return self.time_budget.value >= 0.0
 }]
-    * $assert_09_has_tests_required AssertionFailed[nil, str]
+    * $assert_09_has_tests_required Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
     * $assert_10_has_tests_forbidden Assert[{has_tests forbidden}, $python_code {
 def handler(self):
     return not self.has_tests.value
@@ -56,19 +71,28 @@ def handler(self):
 def handler(self):
     return len(self.module_name.value) >= 1
 }]
-    * $assert_13_tags_bounded Assert[{tags bounded}, $python_code {
+    * $assert_13_keywords_non_empty Assert[{keywords non-empty}, $python_code {
+def handler(self):
+    return len(self.keywords.value) >= 1
+}]
+    * $assert_14_keywords_bounded Assert[{keywords bounded}, $python_code {
+def handler(self):
+    return len(self.keywords.value) <= 4
+}]
+    * $assert_15_tags_bounded Assert[{tags bounded}, $python_code {
 def handler(self):
     return len(self.tags.value) <= 3
 }]
-    * $assert_14_tags_non_empty Assert[{tags non-empty}, $python_code {
+    * $assert_16_tags_non_empty Assert[{tags non-empty}, $python_code {
 def handler(self):
     return len(self.tags.value) >= 1
 }]
-    * $assert_15_scores_non_empty Assert[{scores non-empty}, $python_code {
+    * $assert_17_scores_non_empty Assert[{scores non-empty}, $python_code {
 def handler(self):
     return len(self.scores.value) >= 1
 }]
-    * $assert_16_scores_bounded Assert[{scores bounded}, $python_code {
+    * $assert_18_scores_bounded AssertionFailed[nil, str]
+    * $assert_19_indent_width_non_negative Assert[{indent_width non-negative}, $python_code {
 def handler(self):
-    return len(self.scores.value) <= 4
+    return self.indent_width.spaces >= 0
 }]

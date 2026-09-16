@@ -1,0 +1,93 @@
+# rule31.viba 的一个实例：seed=31, fail_prob=0.1
+# 判定：Ok(False)
+Instance31 :=
+    RuleObject
+    * $code_length 1
+    * $max_lines 60
+    * $coverage_ratio 11.24
+    * $has_tests true
+    * $module_name "alpha"
+    * $keywords ListLiteral
+    * $int_list ListLiteral
+    * $scores DictLiteral[("beta", 91), ("beta", 18)]
+    * $name_size(    $name "alpha"
+      * $size 84)
+    * $triplet(    $x 7
+      * $y 17
+      * $z 29)
+    * $doc_coverage(    $documented_lines 68
+      * $total_lines 93)
+    * $assert_00_code_length_at_most_24 Assert[{code_length at most 24}, $python_code {
+def handler(self):
+    return self.code_length.value <= 24
+}]
+    * $assert_01_code_length_under_100 Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+    * $assert_02_max_lines_at_most_24 Assert[{max_lines at most 24}, $python_code {
+def handler(self):
+    return self.max_lines.value <= 24
+}]
+    * $assert_03_max_lines_under_100 AssertionFailed[nil, str]
+    * $assert_04_code_length_not_above_max_lines AssertionFailed[nil, str]
+    * $assert_05_coverage_ratio_within_50_5 Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+    * $assert_06_coverage_ratio_non_negative Assert[{coverage_ratio non-negative}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value >= 0.0
+}]
+    * $assert_07_has_tests_required Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
+    * $assert_08_has_tests_forbidden Assert[{has_tests forbidden}, $python_code {
+def handler(self):
+    return not self.has_tests.value
+}]
+    * $assert_09_module_name_short Assert[{module_name short}, $python_code {
+def handler(self):
+    return len(self.module_name.value) <= 8
+}]
+    * $assert_10_module_name_not_empty Assert[{module_name not empty}, $python_code {
+def handler(self):
+    return len(self.module_name.value) >= 1
+}]
+    * $assert_11_keywords_non_empty Assert[{keywords non-empty}, $python_code {
+def handler(self):
+    return len(self.keywords.value) >= 1
+}]
+    * $assert_12_keywords_bounded Assert[{keywords bounded}, $python_code {
+def handler(self):
+    return len(self.keywords.value) <= 4
+}]
+    * $assert_13_scores_non_empty Assert[{scores non-empty}, $python_code {
+def handler(self):
+    return len(self.scores.value) >= 1
+}]
+    * $assert_14_scores_bounded Assert[{scores bounded}, $python_code {
+def handler(self):
+    return len(self.scores.value) <= 4
+}]
+    * $assert_15_doc_coverage_documented_within_total Assert[{doc_coverage documented within total}, $python_code {
+def handler(self):
+    return self.doc_coverage.documented_lines <= self.doc_coverage.total_lines
+}]
+    * $assert_16_int_list_non_empty Assert[{int_list non-empty}, $python_code {
+def handler(self):
+    return len(self.int_list.value) >= 1
+}]
+    * $assert_17_int_list_bounded Assert[{int_list bounded}, $python_code {
+def handler(self):
+    return len(self.int_list.value) <= 4
+}]
+    * $assert_18_name_size_name_fits_size Assert[{name_size name fits size}, $python_code {
+def handler(self):
+    return len(self.name_size.name) <= self.name_size.size
+}]
+    * $assert_19_triplet_x_plus_y_within_z Assert[{triplet x plus y within z}, $python_code {
+def handler(self):
+    return self.triplet.x + self.triplet.y <= self.triplet.z
+}]
