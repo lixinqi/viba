@@ -298,14 +298,29 @@ class _Checker:
     # ------------------------------------------------------------------
 
     def _walk_mixed_typeapp(self, sn, s_mod, sp, p_mod):
-        """Exactly one side is a TypeApp: unfold it structurally.
-        Both sides applied stays nominal (see _walk_typeapps)."""
+        """Exactly one side is a TypeApp. Generic definitions unfold
+        structurally; everything else (builtin generics, literal
+        containers) falls through to lifting. Both sides applied
+        stays nominal (see _walk_typeapps)."""
         sn_app = isinstance(sn, viba_ast.TypeApp)
         if sn_app == isinstance(sp, viba_ast.TypeApp):
             return None
-        if sn_app:
-            return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
-        return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
+        node, module, side, other, other_mod = (
+            (sn, s_mod, "sub", sp, p_mod) if sn_app
+            else (sp, p_mod, "sup", sn, s_mod))
+        if not self._is_generic_application(node, module, side):
+            return None
+        return self._unfold_typeapp(node, module, side, other, other_mod)
+
+    def _is_generic_application(self, node, module, side) -> bool:
+        """True only when the constructor is a GenericDefinition:
+        builtin generics and literal containers lift instead."""
+        resolved = self._resolve_name(node.constructor, module, side)
+        if isinstance(resolved, Err):
+            raise UnresolvedTypeError(f"unresolvable constructor {node.constructor!r}")
+        target = resolved.value
+        return isinstance(target, AstNodeType) and isinstance(
+            target.ast_node, viba_ast.GenericDefinition)
 
     def _unfold_typeapp(self, node, module, side, other, other_mod) -> bool:
         app_key = self._app_key(node, module, side)
@@ -531,12 +546,39 @@ class _Checker:
         sup_c = self._resolve_constructor(sp.constructor, p_mod, "sup")
         if self._literal_resident(sn, s_mod, sub_c, sp, p_mod, sup_c):
             return True
-        if len(sn.args) != len(sp.args):
-            return False
         if not self._generic_equal(sub_c, sup_c):
+            return self._unequal_typeapps(sn, s_mod, sp, p_mod)
+        if len(sn.args) != len(sp.args):
             return False
         pairs = zip(sn.args, sp.args)
         return all(self._walk(a, s_mod, b, p_mod) for a, b in pairs)
+
+    def _unequal_typeapps(self, sn, s_mod, sp, p_mod) -> bool:
+        """Constructors differ: only transparent generics (identity
+        bodies, e.g. Metric[T] := T) unfold. User generics stay
+        nominal — same shape from different origins is not a match."""
+        if self._is_transparent(sn, s_mod, "sub"):
+            return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
+        if self._is_transparent(sp, p_mod, "sup"):
+            return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
+        return False
+
+    def _is_transparent(self, node, module, side) -> bool:
+        """An identity generic: Metric[T] := T. Substitution lives in
+        env_get; the body carries no structure of its own."""
+        resolved = self._resolve_name(node.constructor, module, side)
+        if not isinstance(resolved, Ok):
+            return False
+        target = resolved.value
+        if not isinstance(target, AstNodeType):
+            return False
+        defn = target.ast_node
+        if not isinstance(defn, viba_ast.GenericDefinition):
+            return False
+        params = defn.generic_params or []
+        body = defn.body
+        identity = isinstance(body, viba_ast.TypeRef) and body.name
+        return len(params) == 1 and identity == params[0]
 
     def _literal_resident(self, sn, s_mod, sub_c, sp, p_mod, sup_c) -> bool:
         """A *Literal constructor against its container: every literal
