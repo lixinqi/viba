@@ -1,0 +1,53 @@
+# rule26.viba 的一份 witness：seed=26, fail_prob=0.1
+# verdict：Ok(False)
+Instance26 :=
+    RuleObject
+    * $code_length 95
+    * $coverage_ratio 90.67
+    * $has_tests false
+    * $keywords ListLiteral["alpha"]
+    * $int_pair(    $a 16
+      * $b 99)
+    * $module_name "delta"
+    * $assert_00_code_length_at_most_24 AssertionFailed[nil, str]
+    * $assert_01_code_length_under_100 Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+    * $assert_02_coverage_ratio_within_50_5 Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+    * $assert_03_coverage_ratio_non_negative Assert[{coverage_ratio non-negative}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value >= 0.0
+}]
+    * $assert_04_has_tests_required Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
+    * $assert_05_has_tests_forbidden Assert[{has_tests forbidden}, $python_code {
+def handler(self):
+    return not self.has_tests.value
+}]
+    * $assert_06_module_name_short Assert[{module_name short}, $python_code {
+def handler(self):
+    return len(self.module_name.value) <= 8
+}]
+    * $assert_07_module_name_not_empty Assert[{module_name not empty}, $python_code {
+def handler(self):
+    return len(self.module_name.value) >= 1
+}]
+    * $assert_08_keywords_non_empty Assert[{keywords non-empty}, $python_code {
+def handler(self):
+    return len(self.keywords.value) >= 1
+}]
+    * $assert_09_keywords_bounded Assert[{keywords bounded}, $python_code {
+def handler(self):
+    return len(self.keywords.value) <= 4
+}]
+    * $assert_10_int_pair_ordered AssertionFailed[nil, str]
+    * $assert_11_int_pair_sum_bounded Assert[{int_pair sum bounded}, $python_code {
+def handler(self):
+    return self.int_pair.a + self.int_pair.b <= 100
+}]

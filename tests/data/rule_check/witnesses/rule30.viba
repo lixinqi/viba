@@ -1,0 +1,91 @@
+# rule30.viba 的一份 witness：seed=30, fail_prob=0.1
+# verdict：Ok(False)
+Instance30 :=
+    RuleObject
+    * $code_length 69
+    * $max_lines 37
+    * $loop_count 78
+    * $coverage_ratio 3.0
+    * $has_tests false
+    * $author_name "beta"
+    * $keywords ListLiteral["alpha"]
+    * $tags SetLiteral["delta"]
+    * $lookup DictLiteral[("beta", "alpha"), ("delta", "alpha")]
+    * $int_pair(    $a 66
+      * $b 31)
+    * $triplet(    $x 3
+      * $y 9
+      * $z 20)
+    * $assert_00_code_length_at_most_24 Assert[{code_length at most 24}, $python_code {
+def handler(self):
+    return self.code_length.value <= 24
+}]
+    * $assert_01_code_length_under_100 Assert[{code_length under 100}, $python_code {
+def handler(self):
+    return self.code_length.value < 100
+}]
+    * $assert_02_max_lines_at_most_24 Assert[{max_lines at most 24}, $python_code {
+def handler(self):
+    return self.max_lines.value <= 24
+}]
+    * $assert_03_max_lines_under_100 Assert[{max_lines under 100}, $python_code {
+def handler(self):
+    return self.max_lines.value < 100
+}]
+    * $assert_04_loop_count_at_most_24 Assert[{loop_count at most 24}, $python_code {
+def handler(self):
+    return self.loop_count.value <= 24
+}]
+    * $assert_05_loop_count_under_100 Assert[{loop_count under 100}, $python_code {
+def handler(self):
+    return self.loop_count.value < 100
+}]
+    * $assert_06_code_length_not_above_max_lines Assert[{code_length not above max_lines}, $python_code {
+def handler(self):
+    return self.code_length.value <= self.max_lines.value
+}]
+    * $assert_07_coverage_ratio_within_50_5 Assert[{coverage_ratio within 50.5}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value <= 50.5
+}]
+    * $assert_08_coverage_ratio_non_negative Assert[{coverage_ratio non-negative}, $python_code {
+def handler(self):
+    return self.coverage_ratio.value >= 0.0
+}]
+    * $assert_09_has_tests_required Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
+    * $assert_10_has_tests_forbidden Assert[{has_tests forbidden}, $python_code {
+def handler(self):
+    return not self.has_tests.value
+}]
+    * $assert_11_author_name_short Assert[{author_name short}, $python_code {
+def handler(self):
+    return len(self.author_name.value) <= 8
+}]
+    * $assert_12_author_name_not_empty AssertionFailed[nil, str]
+    * $assert_13_keywords_non_empty Assert[{keywords non-empty}, $python_code {
+def handler(self):
+    return len(self.keywords.value) >= 1
+}]
+    * $assert_14_keywords_bounded Assert[{keywords bounded}, $python_code {
+def handler(self):
+    return len(self.keywords.value) <= 4
+}]
+    * $assert_15_tags_bounded Assert[{tags bounded}, $python_code {
+def handler(self):
+    return len(self.tags.value) <= 3
+}]
+    * $assert_16_tags_non_empty Assert[{tags non-empty}, $python_code {
+def handler(self):
+    return len(self.tags.value) >= 1
+}]
+    * $assert_17_lookup_non_empty Assert[{lookup non-empty}, $python_code {
+def handler(self):
+    return len(self.lookup.value) >= 1
+}]
+    * $assert_18_lookup_bounded Assert[{lookup bounded}, $python_code {
+def handler(self):
+    return len(self.lookup.value) <= 4
+}]

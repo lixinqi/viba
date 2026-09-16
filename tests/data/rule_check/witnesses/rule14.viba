@@ -1,0 +1,52 @@
+# rule14.viba 的一份 witness：seed=14, fail_prob=0.1
+# verdict：Ok(True)
+Instance14 :=
+    RuleObject
+    * $max_lines 13
+    * $time_budget 61.59
+    * $author_name "beta"
+    * $keywords ListLiteral["gamma"]
+    * $doc_coverage(    $documented_lines 37
+      * $total_lines 93)
+    * $tags SetLiteral
+    * $trace_level($verbose ())
+    * $assert_00_max_lines_at_most_24 Assert[{max_lines at most 24}, $python_code {
+def handler(self):
+    return self.max_lines.value <= 24
+}]
+    * $assert_01_max_lines_under_100 Assert[{max_lines under 100}, $python_code {
+def handler(self):
+    return self.max_lines.value < 100
+}]
+    * $assert_02_time_budget_within_50_5 Assert[{time_budget within 50.5}, $python_code {
+def handler(self):
+    return self.time_budget.value <= 50.5
+}]
+    * $assert_03_time_budget_non_negative Assert[{time_budget non-negative}, $python_code {
+def handler(self):
+    return self.time_budget.value >= 0.0
+}]
+    * $assert_04_author_name_short Assert[{author_name short}, $python_code {
+def handler(self):
+    return len(self.author_name.value) <= 8
+}]
+    * $assert_05_author_name_not_empty Assert[{author_name not empty}, $python_code {
+def handler(self):
+    return len(self.author_name.value) >= 1
+}]
+    * $assert_06_keywords_non_empty Assert[{keywords non-empty}, $python_code {
+def handler(self):
+    return len(self.keywords.value) >= 1
+}]
+    * $assert_07_keywords_bounded Assert[{keywords bounded}, $python_code {
+def handler(self):
+    return len(self.keywords.value) <= 4
+}]
+    * $assert_08_tags_bounded Assert[{tags bounded}, $python_code {
+def handler(self):
+    return len(self.tags.value) <= 3
+}]
+    * $assert_09_doc_coverage_documented_within_total Assert[{doc_coverage documented within total}, $python_code {
+def handler(self):
+    return self.doc_coverage.documented_lines <= self.doc_coverage.total_lines
+}]

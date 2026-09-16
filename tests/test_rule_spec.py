@@ -1,8 +1,8 @@
 """Executable checks for the Rule spec (rule.md).
 
 The spec is a program: its ```viba block must parse, round-trip, and
-its demo judgments must hold — DemoResultPass seats in
-DemoRuleStripped, DemoResultFail does not, poisoned sup errs.
+its demo judgments must hold — DemoWitnessPass seats in
+DemoRuleStripped, DemoWitnessFail does not, poisoned sup errs.
 The stripped/pass/fail companions live in
 tests/data/rule_check/spec_demo.viba; sum-rule coverage lives in
 sum_rule.viba (driven by test_rule_check.py).
@@ -47,9 +47,9 @@ def main():
     _round_trip(_spec_source())
     demo = (DATA / "spec_demo.viba").read_text()
     module = custom_module(_spec_source() + demo)
-    assert _judgment(module, "DemoResultPass", "DemoRuleStripped") is True
-    assert _judgment(module, "DemoResultFail", "DemoRuleStripped") is False
-    poison_sup = is_sub_type(_entry(module, "DemoResultPass"), _entry(module, "DemoResultFail"))
+    assert _judgment(module, "DemoWitnessPass", "DemoRuleStripped") is True
+    assert _judgment(module, "DemoWitnessFail", "DemoRuleStripped") is False
+    poison_sup = is_sub_type(_entry(module, "DemoWitnessPass"), _entry(module, "DemoWitnessFail"))
     assert isinstance(poison_sup, Err), f"poison on sup side must be Err: {poison_sup!r}"
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert names == ["DemoRule"], f"rule markers: {names}"

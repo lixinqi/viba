@@ -1,10 +1,10 @@
-"""Random instance generator: Metric leaves become random literals.
+"""Random witness generator: Metric leaves become random literals.
 
-Given a rule (viba.type.AstNodeType), produce instances structurally
+Given a rule (viba.type.AstNodeType), produce witnesses structurally
 parallel to it: every Metric[Name] field is replaced by a random
 literal of Name's data shape; everything else — including Assert
-fields — is kept as-is. On a legal rule no instance can trigger a
-judgment error — running instances through is_compliant yields
+fields — is kept as-is. On a legal rule no witness can trigger a
+judgment error — running witnesses through is_compliant yields
 Ok(True) or Ok(false) only.
 """
 
@@ -29,16 +29,16 @@ _WORDS = ("alpha", "beta", "gamma", "delta")
 
 
 def generate(rule: AstNodeType, count: int, seed=None, fail_prob: float = 0.1) -> list:
-    """`count` random instances of `rule` (deterministic via seed).
+    """`count` random witnesses of `rule` (deterministic via seed).
 
     Each Assert field passes unchanged with probability 1-fail_prob
     and is witnessed by AssertionFailed with probability fail_prob.
     """
     rng = random.Random(seed)
-    return [_instance_of(rule, rng, fail_prob) for _ in range(count)]
+    return [_witness_of(rule, rng, fail_prob) for _ in range(count)]
 
 
-def _instance_of(rule: AstNodeType, rng, fail_prob: float) -> AstNodeType:
+def _witness_of(rule: AstNodeType, rng, fail_prob: float) -> AstNodeType:
     node = _gen_node(rule.ast_node, rule.container_module, rng, fail_prob)
     return AstNodeType(node, rule.container_module)
 

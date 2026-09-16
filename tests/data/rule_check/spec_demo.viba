@@ -5,12 +5,12 @@ DemoRuleStripped :=
   * $code_length Metric[CodeLength]
   * $assert_code_len_le_24 nil
 
-DemoResultFail :=
+DemoWitnessFail :=
   Object
   * $code_length 30
   * $assert_code_len_le_24 AssertionFailed[int, str]
 
-DemoResultPass :=
+DemoWitnessPass :=
   Object
   * $code_length 20
   * $assert_code_len_le_24 nil

@@ -1,0 +1,49 @@
+# rule12.viba 的一份 witness：seed=12, fail_prob=0.1
+# verdict：Ok(False)
+Instance12 :=
+    RuleObject
+    * $loop_count 60
+    * $param_count 34
+    * $indent_width($spaces 84)
+    * $doc_coverage(    $documented_lines 67
+      * $total_lines 85)
+    * $has_tests true
+    * $scores DictLiteral[("alpha", 47)]
+    * $tags SetLiteral["gamma"]
+    * $assert_00_loop_count_at_most_24 Assert[{loop_count at most 24}, $python_code {
+def handler(self):
+    return self.loop_count.value <= 24
+}]
+    * $assert_01_loop_count_under_100 Assert[{loop_count under 100}, $python_code {
+def handler(self):
+    return self.loop_count.value < 100
+}]
+    * $assert_02_param_count_at_most_24 Assert[{param_count at most 24}, $python_code {
+def handler(self):
+    return self.param_count.value <= 24
+}]
+    * $assert_03_param_count_under_100 Assert[{param_count under 100}, $python_code {
+def handler(self):
+    return self.param_count.value < 100
+}]
+    * $assert_04_loop_count_not_above_param_count AssertionFailed[nil, str]
+    * $assert_05_has_tests_required Assert[{has_tests required}, $python_code {
+def handler(self):
+    return self.has_tests.value
+}]
+    * $assert_06_has_tests_forbidden Assert[{has_tests forbidden}, $python_code {
+def handler(self):
+    return not self.has_tests.value
+}]
+    * $assert_07_tags_bounded Assert[{tags bounded}, $python_code {
+def handler(self):
+    return len(self.tags.value) <= 3
+}]
+    * $assert_08_scores_non_empty Assert[{scores non-empty}, $python_code {
+def handler(self):
+    return len(self.scores.value) >= 1
+}]
+    * $assert_09_indent_width_non_negative Assert[{indent_width non-negative}, $python_code {
+def handler(self):
+    return self.indent_width.spaces >= 0
+}]

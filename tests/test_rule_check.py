@@ -1,7 +1,7 @@
-"""is_compliant / is_determinate over generated instances.
+"""is_compliant / is_determinate over generated witnesses.
 
 Data-driven over tests/data/rule_check/rules/ruleNN.viba (see build.py)
-each contribute a marked rule whose generated instances must judge
+each contribute a marked rule whose generated witnesses must judge
 against the rule itself without Err and whose is_determinate must
 certify it; demo.viba, sum_rule.viba and broken_rules.viba cover the
 original DEMO, an OneofRule over Assert-carrying branch rules, and
@@ -21,7 +21,7 @@ from viba.is_determinate import is_determinate
 from viba.type import AstNodeType, Err, Ok, custom_module
 
 DATA = Path(__file__).resolve().parent / "data" / "rule_check"
-INSTANCES_PER_RULE = 20
+WITNESSES_PER_RULE = 20
 
 
 def _load(path: Path):
@@ -40,11 +40,11 @@ def _check_rule_file(path: Path) -> int:
     found = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert found == [f"Rule{number}"], f"{path.name}: marker scan {found}"
     checked = 0
-    for instance in generate(rule, INSTANCES_PER_RULE, seed=int(number)):
-        given = is_compliant(instance, rule)
+    for witness in generate(rule, WITNESSES_PER_RULE, seed=int(number)):
+        given = is_compliant(witness, rule)
         assert isinstance(given, Ok), f"{path.name}: judge errored: {given!r}"
         checked += 1
-    determined = is_determinate(rule, INSTANCES_PER_RULE, seed=1)
+    determined = is_determinate(rule, WITNESSES_PER_RULE, seed=1)
     assert isinstance(determined, Ok) and determined.value is True, f"{path.name}: {determined!r}"
     return checked
 
@@ -53,8 +53,8 @@ def _check_demo() -> None:
     module, defs = _load(DATA / "demo.viba")
     rule = _entry(defs, module, "DemoRule")
     verdicts = {True: 0, False: 0}
-    for instance in generate(rule, 50, seed=7):
-        given = is_compliant(instance, rule)
+    for witness in generate(rule, 50, seed=7):
+        given = is_compliant(witness, rule)
         assert isinstance(given, Ok), f"judge errored: {given!r}"
         verdicts[given.value] += 1
     determined = is_determinate(rule, 50, seed=1)
@@ -67,8 +67,8 @@ def _check_sum_rule() -> None:
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert names == ["SmallRule", "BigRule", "SumRule"], f"markers: {names}"
     verdicts = set()
-    for instance in generate(rule, 40, seed=3):
-        judged = is_compliant(instance, rule)
+    for witness in generate(rule, 40, seed=3):
+        judged = is_compliant(witness, rule)
         assert isinstance(judged, Ok), f"sum judge errored: {judged!r}"
         verdicts.add(judged.value)
     assert verdicts == {True, False}, f"sum verdicts: {verdicts}"
@@ -95,8 +95,8 @@ def main():
     _check_demo()
     _check_sum_rule()
     _check_broken_rules()
-    print(f"rule_check: {len(paths)} data rules x {INSTANCES_PER_RULE} instances"
-          f" ({total} judged) + demo + sum-rule + 2 broken rules rejected")
+    print(f"rule_check: {len(paths)} data rules x {WITNESSES_PER_RULE} witnesses"
+          f" ({total} witnesses judged) + demo + sum-rule + 2 broken rules rejected")
 
 
 main()
