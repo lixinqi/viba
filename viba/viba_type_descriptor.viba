@@ -1,0 +1,360 @@
+# VibaTypeDescriptor：描述一份 .viba 源码的结构。
+#
+# 每个描述符都是一段活的引用，不是孤立的数据：
+#   - 所有描述符都持有 $pool，所以拿到任何一个描述符都够它自己往下问；
+#   - 类型表达式的每一支还持有它对应的可解析 Type（$resolvable_type），
+#     那一段究竟是什么，从它取。$nil / $never / $ellipsis 三支没有可解析的
+#     东西，因此还是单位元。
+# 于是给定任何一个 Descriptor，细节都能就地取出来，调用方不必再从外面递上下文。
+#
+# 积与和地位相同：定义体是积，成员就是字段；定义体是和，成员就是分支。
+# 两者都是"tag 加一段类型"，所以只有一个 VibaMemberDescriptor，
+# 不照 protobuf 那样把 message 的字段与 enum 的值分成两个类。
+#
+# 依赖：只依赖 type.viba 的接口（Type、ModuleType、ModuleGetType），
+# 不引用它的实现。
+#
+# 注释：同行 # 只写一句短的；成段的信息进定义末尾的 Comments[{...}] 节点。
+# 积体写 * Comments，指数体写 <- Comments；和体挂不上，只写同行短注。
+
+import viba.type
+
+# ---------------------------------------------------------------- #
+# 1. 文件与定义
+# ---------------------------------------------------------------- #
+
+VibaFileDescriptor :=
+    Object
+  * $pool VibaPool                              # 自己属于哪个池子
+  * $file_name str                              # 文件标识（路径）
+  * $file_hash str                              # 源码原文的哈希，标识这是哪一版设计
+  * $module_name str                            # 由调用方给：.viba 没有 package 声明
+  * $imports list[VibaImportDescriptor]
+  * $definitions list[VibaDefinitionDescriptor]  # 书写顺序
+  * Comments[{
+      protobuf: FileDescriptorProto
+        name       -> $file_name
+        package    -> $module_name
+        dependency -> $imports
+        message_type / enum_type / service -> $definitions
+      $file_hash 的算法：先把换行统一为 \n，再对源码的 UTF-8 字节算 SHA-256，
+      取小写十六进制。记的是解析前的原文，所以任何一次重写都会换哈希。
+    }]
+
+VibaImportDescriptor :=
+    Object
+  * $pool VibaPool
+  * $module_name str            # import a.b as c -> 'a.b'
+  * $local_name str             # import a.b as c -> 'c'；import a.b -> 'b'
+  * Comments[{
+      引用写成 c.Name 时，$local_name 是前半段。
+      protobuf 没有对应物：它只用全名。
+    }]
+
+VibaDefinitionDescriptor :=
+    Object
+  * $pool VibaPool
+  * $def_name str
+  * $module_name str
+  * $file_name str
+  * $file_hash str                              # 与所属文件的 $file_hash 相同
+  * $full_name str                              # $module_name + '.' + $def_name
+  * $generic_params list[str]                   # Name[T, U] 的形参名，按书写顺序
+  * $body VibaTypeDescriptor
+  * $members list[VibaMemberDescriptor]         # 积的字段，或者和的分支
+  * Comments[{
+      定义体是积，成员就是字段；是和，成员就是分支。两者同一件事。
+      protobuf: DescriptorProto 把字段与枚举值分成两个类；这里只有一个成员类。
+      $generic_params 是 Viba 多出来的：protobuf 没有参数化类型。
+      $file_hash 是所属文件那一份的副本，好让起点不查池子就能核版本。
+    }]
+
+# ---------------------------------------------------------------- #
+# 2. 成员：字段与分支是同一件事
+# ---------------------------------------------------------------- #
+
+VibaMemberDescriptor :=
+    Object
+  * $pool VibaPool
+  * $member_index int           # 在 $members 里的位置，从 0 起
+  * $tag (str | nil)            # 带标签的写出来是什么就记什么（含 $）；位置成员是 nil
+  * $member_type VibaTypeDescriptor
+  * $containing_full_name str
+  * Comments[{
+      protobuf: FieldDescriptorProto 与 EnumValueDescriptorProto 合成一个
+        number           -> $member_index（没有显式编号，位置就是编号）
+        name             -> $tag（那边字段与枚举值都有名字；位置成员没有名字）
+        type / type_name -> $member_type（成员类型本身就是一段表达式，还能内联）
+        containing_type  -> $containing_full_name
+      protobuf 的 label（repeated / optional）在 Viba 里是类型形状，
+      不是成员上的另一栏，所以没有对应物；问形状用 TypeIsRepeated / TypeIsOptional。
+    }]
+
+# ---------------------------------------------------------------- #
+# 3. 类型表达式
+# ---------------------------------------------------------------- #
+
+VibaTypeDescriptor :=            # protobuf: FieldDescriptorProto.type 那一栏
+    Oneof
+  | $type_ref VibaTypeRefDescriptor
+  | $type_app VibaTypeAppDescriptor
+  | $tuple VibaTupleDescriptor
+  | $tagged VibaTaggedDescriptor
+  | $sum VibaChainDescriptor             # 规范化后的和链
+  | $product VibaChainDescriptor         # 规范化后的积链
+  | $exponent VibaExponentDescriptor
+  | $literal VibaLiteralDescriptor
+  | $nil ()                              # 单位元：没有可解析的东西
+  | $never ()                            # 零元：同上
+  | $ellipsis ()                         # ...：同上
+  | $code_block VibaCodeBlockDescriptor
+
+VibaTypeRefDescriptor :=
+    Object
+  * $pool VibaPool
+  * $resolvable_type type.Type
+  * $type_name str               # 写出来的名字，不在这里换成别的东西
+  * Comments[{
+      可以是限定名（fx.Graph），也可以是自由名（泛型形参）。
+      protobuf: FieldDescriptorProto.type_name。
+    }]
+
+VibaTypeAppDescriptor :=
+    Object
+  * $pool VibaPool
+  * $resolvable_type type.Type
+  * $constructor_name str
+  * $args list[VibaTypeDescriptor]
+  * Comments[{
+      Constructor[Arg, ...]。
+      内建的 list / set / dict 与它们的 ListLiteral / SetLiteral / DictLiteral 也走这里。
+    }]
+
+VibaTupleDescriptor :=
+    Object
+  * $pool VibaPool
+  * $resolvable_type type.Type
+  * $elements list[VibaTypeDescriptor]
+  * Comments[{
+      (A, B, C)：按位置对位的积，与带标签的 * 不是一回事。
+      () 也走这里，$elements 为空。protobuf 没有对应物。
+    }]
+
+VibaTaggedDescriptor :=
+    Object
+  * $pool VibaPool
+  * $resolvable_type type.Type
+  * $tag str
+  * $tagged_type VibaTypeDescriptor
+  * Comments[{
+      $tag Type。链里的带标签元素就是它。
+    }]
+
+VibaChainDescriptor :=
+    Object
+  * $pool VibaPool
+  * $resolvable_type type.Type
+  * $elements list[VibaTypeDescriptor]
+  * Comments[{
+      规范化后的和链与积链：$elements 就是写出来的那一串，没有 left / right。
+      和链的元素是分支，积链的元素是字段，元素本身同一种东西。
+    }]
+
+VibaExponentDescriptor :=
+    Object
+  * $pool VibaPool
+  * $resolvable_type type.Type
+  * $result VibaTypeDescriptor
+  * $args list[VibaTypeDescriptor]
+  * Comments[{
+      规范化后的指数链。$args 是应用顺序，$args[0] 先喂进去；
+      源码里最右边的参数最先被吃，所以两者是反的。
+    }]
+
+VibaCodeBlockDescriptor :=
+    Object
+  * $pool VibaPool
+  * $resolvable_type type.Type
+  * $code str                    # {...} 原样保留，含换行与缩进
+
+# ---------------------------------------------------------------- #
+# 4. 字面量
+# ---------------------------------------------------------------- #
+
+VibaLiteralDescriptor :=
+    Object
+  * $pool VibaPool
+  * $resolvable_type type.Type
+  * $value VibaConstantValue      # 字面量本身
+
+VibaConstantValue :=             # 叶子只有这五种，跟设计侧的字面量种类对齐
+    Oneof
+  | $bool_value bool
+  | $int_value int
+  | $float_value float
+  | $str_value str
+  | $nil_value nil
+
+# ---------------------------------------------------------------- #
+# 5. 池子
+# ---------------------------------------------------------------- #
+
+VibaPool :=
+    Object
+  * $files list[VibaFileDescriptor]
+  * $file_name2file dict[str, VibaFileDescriptor]
+  * $full_name2definition dict[str, VibaDefinitionDescriptor]
+  * $full_name2member dict[str, VibaMemberDescriptor]
+  * $module_environment (Result[type.ModuleType] <- $module_name str)
+  * Comments[{
+      池子只是索引，不做名字解析。protobuf: DescriptorPool。
+      三张名字表的口径：
+        文件名 -> $file_name 原文
+        定义   -> 模块名.定义名
+        成员   -> 模块名.定义名.$tag
+      不带标签的成员没有名字，不进表，只能按位置查。
+      $module_environment 是模块名换模块，与 CustomModuleType 的同名字段是
+      一个东西：池子把它交给需要跨模块解析的查询，自己不去问它怎么实现。
+      池子与它建出来的描述符互相指着（描述符持有 $pool，池子持有描述符表），
+      和 protobuf 的 DescriptorPool 与 FileDescriptor 一样。
+    }]
+
+# ---------------------------------------------------------------- #
+# 6. 查询
+# ---------------------------------------------------------------- #
+
+ParseVibaFile :=
+    Result[VibaFileDescriptor]
+  <- $pool VibaPool
+  <- $source str
+  <- $module_name str
+  <- Comments[{
+      一份 .viba 源码编进这个池子，产出文件描述符。protobuf: protoc / BuildFile。
+      $module_name 由调用方给：.viba 没有 package 声明。
+      语法错就是 Err；产出是规范化（链式）形式，并按源码记账 $file_hash。
+    }]
+
+PoolAddFile :=
+    Result[VibaPool]
+  <- $pool VibaPool
+  <- $file VibaFileDescriptor
+  <- Comments[{
+      得到一份多了一个文件的池子（没有可变状态，不是往里塞）。
+      $file 必须是这个池子建出来的（$file.$pool 就是它），否则 Err。
+      文件重名（哈希不同也算重名）或全名撞车就是 Err。
+      protobuf: DescriptorPool::BuildFile。
+    }]
+
+PoolFindFile :=
+    Result[VibaFileDescriptor]
+  <- $pool VibaPool
+  <- $file_name str
+  <- Comments[{
+      protobuf: DescriptorPool::FindFileByName。
+    }]
+
+PoolFindDefinition :=
+    Result[VibaDefinitionDescriptor]
+  <- $pool VibaPool
+  <- $full_name str
+  <- Comments[{
+      $full_name 是 '模块名.定义名'。protobuf: FindMessageTypeByName。
+    }]
+
+PoolFindMember :=
+    Result[VibaMemberDescriptor]
+  <- $pool VibaPool
+  <- $full_name str
+  <- Comments[{
+      $full_name 是 '模块名.定义名.$tag'。字段与分支共用一个名字表。
+      不带标签的成员没有名字，不在表里，只能按位置找。
+      protobuf: FindFieldByName / FindEnumValueByName 合成一个。
+    }]
+
+FileFindImportByLocalName :=
+    Result[VibaImportDescriptor]
+  <- $file VibaFileDescriptor
+  <- $local_name str
+  <- Comments[{
+      'c.Name' 里的 c 指哪个模块。protobuf 没有对应物。
+    }]
+
+DefinitionMembers :=
+    Result[list[VibaMemberDescriptor]]
+  <- $definition VibaDefinitionDescriptor
+  <- Comments[{
+      按 $member_index 升序，就是书写顺序；定义体既不是积也不是和时返回空表。
+      protobuf: Descriptor::field(i) 与 enum_type() 合成一个。
+    }]
+
+DefinitionFindMemberByTag :=
+    Result[VibaMemberDescriptor]
+  <- $definition VibaDefinitionDescriptor
+  <- $tag str
+  <- Comments[{
+      带标签的成员按 tag 对位。protobuf: Descriptor::FindFieldByName。
+    }]
+
+DefinitionFindMemberByIndex :=
+    Result[VibaMemberDescriptor]
+  <- $definition VibaDefinitionDescriptor
+  <- $member_index int
+  <- Comments[{
+      不带标签的成员按位置对位，越界 Err。protobuf: Descriptor::FindFieldByNumber。
+    }]
+
+DefinitionFile :=
+    Result[VibaFileDescriptor]
+  <- $definition VibaDefinitionDescriptor
+  <- Comments[{
+      顺着 $file_name 在 $pool 里回查。protobuf: Descriptor::file()。
+    }]
+
+MemberTypeName :=
+    Result[str]
+  <- $member VibaMemberDescriptor
+  <- Comments[{
+      只在成员类型写成一个名字时有值（int、fx.Graph、T）；
+      类型是内联结构（(int | str)、$t int、list[int]）时 Err。
+      protobuf: FieldDescriptor::type_name()（那边 int32 这类也是空的）。
+    }]
+
+MemberResolvedDefinition :=
+    Result[VibaDefinitionDescriptor]
+  <- $member VibaMemberDescriptor
+  <- Comments[{
+      把 MemberTypeName 的名字落到定义。先切前缀：
+        前缀是某条 import 的 $local_name -> 用 $pool.$module_environment 取那个模块
+        没有前缀                        -> 本模块
+      再在那个模块里交给 type.ModuleGetType 查（内建那一跳由它兜）；
+      解析出来的东西对应一个定义，就返回它的描述符，否则 Err。
+      Err 三种：类型不是引用、池子里没有这个定义、名字指向的不是定义。
+      protobuf: message_type() / enum_type()。
+    }]
+
+MemberContainingDefinition :=
+    Result[VibaDefinitionDescriptor]
+  <- $member VibaMemberDescriptor
+  <- Comments[{
+      顺着 $containing_full_name 在 $pool 里回查。
+      protobuf: FieldDescriptor::containing_type()。
+    }]
+
+TypeIsRepeated :=
+    Result[bool]
+  <- $type VibaTypeDescriptor
+  <- Comments[{
+      类型形状是不是 list[T] / set[T]。只看写出来的形状：
+      成员写 $xs Names 而 Names := list[str] 时这里答 False，
+      想刨到底就顺着 MemberResolvedDefinition 一层层问。
+      protobuf 把 repeated 挂在字段上（FieldDescriptor::is_repeated()）；
+      Viba 里它是类型自己的形状，所以问类型。
+    }]
+
+TypeIsOptional :=
+    Result[bool]
+  <- $type VibaTypeDescriptor
+  <- Comments[{
+      类型是不是 T | nil（和里有 nil 分支）。
+      protobuf: FieldDescriptor::is_optional()，同上，这里问类型。
+    }]
