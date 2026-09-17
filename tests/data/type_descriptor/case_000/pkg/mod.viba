@@ -1,0 +1,13 @@
+import util as lib
+
+Shape0[T] :=
+  $v T
+
+Plan1 :=
+  Object
+  * $peer lib.Report0
+
+Node2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

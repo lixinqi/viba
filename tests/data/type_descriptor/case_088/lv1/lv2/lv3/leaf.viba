@@ -1,0 +1,15 @@
+import pkg.sub.sub2.deepest
+
+Config0 :=
+  Object
+  * $count int
+  * $label str
+
+Report1[T] :=
+  $v T
+
+Shape2 :=
+  Object
+  * $peer deepest.Config0
+
+Shape3 := str * (int | nil)

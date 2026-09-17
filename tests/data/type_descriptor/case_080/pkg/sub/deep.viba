@@ -1,0 +1,12 @@
+import top as base
+
+Plan0[T] :=
+  $v T
+
+Plan1 := $only int
+
+Rule2 :=
+  Object
+  * $peer base.Config0
+
+Node3 := str * (int | nil)

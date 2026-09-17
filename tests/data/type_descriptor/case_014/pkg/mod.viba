@@ -1,0 +1,9 @@
+Plan0 := int * str * bool
+
+Report1[T] :=
+  $v T
+
+Rule2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

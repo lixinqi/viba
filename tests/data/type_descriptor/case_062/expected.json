@@ -1,0 +1,131 @@
+{
+  "case": 62,
+  "modules": [
+    {
+      "module": "top",
+      "file": "top.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Node0",
+          "full_name": "top.Node0",
+          "generic_params": [
+            "T"
+          ],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$v",
+              "type_name": "T",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "util",
+      "file": "util.viba",
+      "imports": [
+        {
+          "module": "util",
+          "local": "up"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "util.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$ghost",
+              "type_name": "Missing",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$mix",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "lv1.lv2.lv3.leaf",
+      "file": "lv1/lv2/lv3/leaf.viba",
+      "imports": [
+        {
+          "module": "util",
+          "local": "base"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Shape0",
+          "full_name": "lv1.lv2.lv3.leaf.Shape0",
+          "generic_params": [
+            "T"
+          ],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$v",
+              "type_name": "T",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Node1",
+          "full_name": "lv1.lv2.lv3.leaf.Node1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$left",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$right",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Config2",
+          "full_name": "lv1.lv2.lv3.leaf.Config2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "base.Rule0",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "util.Rule0"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

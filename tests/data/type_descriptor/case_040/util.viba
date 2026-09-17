@@ -1,0 +1,16 @@
+import top
+
+Shape0 :=
+  Object
+  * $peer top.Shape0
+
+Node1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Shape2 := str * (int | nil)
+
+Rule3 := $only int

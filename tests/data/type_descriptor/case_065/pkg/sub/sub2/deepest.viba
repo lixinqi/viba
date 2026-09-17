@@ -1,0 +1,12 @@
+import top as lib
+
+Report0 :=
+  Object
+  * $peer lib.Report1
+
+Shape1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

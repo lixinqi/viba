@@ -1,0 +1,8 @@
+import top as lib
+
+Node0 :=
+  Object
+  * $peer lib.Node1
+
+Report1[T] :=
+  $v T

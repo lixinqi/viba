@@ -1,0 +1,3 @@
+import pkg.mod as up
+
+Shape0 := $only int

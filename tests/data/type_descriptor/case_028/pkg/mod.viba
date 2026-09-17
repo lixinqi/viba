@@ -1,0 +1,10 @@
+import pkg.sub.sub2.deepest
+
+Rule0 :=
+  Object
+  * $peer deepest.Shape0
+
+Config1 :=
+  Oneof
+  | $left int
+  | $right str

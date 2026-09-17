@@ -1,0 +1,9 @@
+Shape0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Plan1 :=
+  Object
+  * $count int
+  * $label str

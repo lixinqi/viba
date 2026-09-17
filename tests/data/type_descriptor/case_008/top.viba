@@ -1,0 +1,7 @@
+import util as m
+
+Report0 :=
+  Object
+  * $peer m.Shape2
+
+Report1 := int * str * bool

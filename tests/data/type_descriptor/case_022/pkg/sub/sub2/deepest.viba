@@ -1,0 +1,6 @@
+Shape0 := $only int
+
+Config1 :=
+  Oneof
+  | $left int
+  | $right str

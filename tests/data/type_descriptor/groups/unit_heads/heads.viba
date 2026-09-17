@@ -1,0 +1,13 @@
+Rule :=
+  Object
+  * $a int
+  * str
+
+Color :=
+  Oneof
+  | $red int
+  | $blue str
+
+Bare := $only int
+
+Alias := int

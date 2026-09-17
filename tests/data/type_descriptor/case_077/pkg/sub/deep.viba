@@ -1,0 +1,7 @@
+import pkg.sub.deep as m
+
+Shape0 := $only int
+
+Node1 :=
+  Object
+  * $peer m.Shape0

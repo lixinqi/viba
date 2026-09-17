@@ -1,0 +1,20 @@
+import pkg.mod as m
+
+Report0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Node1[T] :=
+  $v T
+
+Config2 :=
+  Object
+  * $peer m.Rule1
+
+Rule3 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

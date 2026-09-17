@@ -1,0 +1,362 @@
+{
+  "case": 74,
+  "modules": [
+    {
+      "module": "util",
+      "file": "util.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Plan0",
+          "full_name": "util.Plan0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$items",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$seen",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 2,
+              "tag": "$table",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 3,
+              "tag": "$maybe",
+              "type_name": null,
+              "kind": "sum",
+              "optional": true,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "top",
+      "file": "top.viba",
+      "imports": [
+        {
+          "module": "util",
+          "local": "util"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Node0",
+          "full_name": "top.Node0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "util.Plan0",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "util.Plan0"
+            }
+          ]
+        },
+        {
+          "name": "Node1",
+          "full_name": "top.Node1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$items",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$seen",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 2,
+              "tag": "$table",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 3,
+              "tag": "$maybe",
+              "type_name": null,
+              "kind": "sum",
+              "optional": true,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "lv1.lv2.lv3.leaf",
+      "file": "lv1/lv2/lv3/leaf.viba",
+      "imports": [
+        {
+          "module": "top",
+          "local": "lib"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "lv1.lv2.lv3.leaf.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "lib.Node1",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "top.Node1"
+            }
+          ]
+        },
+        {
+          "name": "Shape1",
+          "full_name": "lv1.lv2.lv3.leaf.Shape1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$items",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$seen",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 2,
+              "tag": "$table",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 3,
+              "tag": "$maybe",
+              "type_name": null,
+              "kind": "sum",
+              "optional": true,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Node2",
+          "full_name": "lv1.lv2.lv3.leaf.Node2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.sub.sub2.deepest",
+      "file": "pkg/sub/sub2/deepest.viba",
+      "imports": [
+        {
+          "module": "lv1.lv2.lv3.leaf",
+          "local": "leaf"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Node0",
+          "full_name": "pkg.sub.sub2.deepest.Node0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": null,
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": null,
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 2,
+              "tag": null,
+              "type_name": "bool",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Report1",
+          "full_name": "pkg.sub.sub2.deepest.Report1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Shape2",
+          "full_name": "pkg.sub.sub2.deepest.Shape2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$items",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$seen",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 2,
+              "tag": "$table",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 3,
+              "tag": "$maybe",
+              "type_name": null,
+              "kind": "sum",
+              "optional": true,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Rule3",
+          "full_name": "pkg.sub.sub2.deepest.Rule3",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "leaf.Shape1",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "lv1.lv2.lv3.leaf.Shape1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.mod",
+      "file": "pkg/mod.viba",
+      "imports": [
+        {
+          "module": "pkg.sub.sub2.deepest",
+          "local": "lib"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Config0",
+          "full_name": "pkg.mod.Config0",
+          "generic_params": [
+            "T"
+          ],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$v",
+              "type_name": "T",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Node1",
+          "full_name": "pkg.mod.Node1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "lib.Report1",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "pkg.sub.sub2.deepest.Report1"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

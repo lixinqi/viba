@@ -1,0 +1,175 @@
+{
+  "case": 19,
+  "modules": [
+    {
+      "module": "util",
+      "file": "util.viba",
+      "imports": [
+        {
+          "module": "util",
+          "local": "up"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Node0",
+          "full_name": "util.Node0",
+          "generic_params": [
+            "T"
+          ],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$v",
+              "type_name": "T",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Shape1",
+          "full_name": "util.Shape1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": null,
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": null,
+              "type_name": null,
+              "kind": "sum",
+              "optional": true,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Report2",
+          "full_name": "util.Report2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "top",
+      "file": "top.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Shape0",
+          "full_name": "top.Shape0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": null,
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": null,
+              "type_name": null,
+              "kind": "sum",
+              "optional": true,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.sub.sub2.deepest",
+      "file": "pkg/sub/sub2/deepest.viba",
+      "imports": [
+        {
+          "module": "pkg.sub.sub2.deepest",
+          "local": "up"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "pkg.sub.sub2.deepest.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$ghost",
+              "type_name": "Missing",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$mix",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Plan1",
+          "full_name": "pkg.sub.sub2.deepest.Plan1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Node2",
+          "full_name": "pkg.sub.sub2.deepest.Node2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "up.Rule0",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "pkg.sub.sub2.deepest.Rule0"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

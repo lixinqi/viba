@@ -1,0 +1,215 @@
+{
+  "case": 85,
+  "modules": [
+    {
+      "module": "util",
+      "file": "util.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Config0",
+          "full_name": "util.Config0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "top",
+      "file": "top.viba",
+      "imports": [
+        {
+          "module": "util",
+          "local": "base"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Report0",
+          "full_name": "top.Report0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Report1",
+          "full_name": "top.Report1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "base.Config0",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "util.Config0"
+            }
+          ]
+        },
+        {
+          "name": "Rule2",
+          "full_name": "top.Rule2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$items",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$seen",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 2,
+              "tag": "$table",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 3,
+              "tag": "$maybe",
+              "type_name": null,
+              "kind": "sum",
+              "optional": true,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.sub.sub2.deepest",
+      "file": "pkg/sub/sub2/deepest.viba",
+      "imports": [
+        {
+          "module": "top",
+          "local": "dep"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "pkg.sub.sub2.deepest.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.mod",
+      "file": "pkg/mod.viba",
+      "imports": [
+        {
+          "module": "top",
+          "local": "lib"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Plan0",
+          "full_name": "pkg.mod.Plan0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "lib.Report0",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "top.Report0"
+            }
+          ]
+        },
+        {
+          "name": "Config1",
+          "full_name": "pkg.mod.Config1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "lv1.lv2.lv3.leaf",
+      "file": "lv1/lv2/lv3/leaf.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "lv1.lv2.lv3.leaf.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

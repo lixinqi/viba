@@ -1,0 +1,17 @@
+import util as base
+
+Shape0[T] :=
+  $v T
+
+Report1 := $left int | $right str
+
+Config2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Node3 :=
+  Object
+  * $peer base.Config2

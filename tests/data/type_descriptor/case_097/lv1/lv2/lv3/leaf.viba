@@ -1,0 +1,10 @@
+import top as m
+
+Shape0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Plan1 :=
+  Object
+  * $peer m.Report2

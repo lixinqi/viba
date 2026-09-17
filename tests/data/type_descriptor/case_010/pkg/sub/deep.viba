@@ -1,0 +1,19 @@
+import pkg.sub.sub2.deepest
+
+Config0 := int * str
+
+Config1 :=
+  Object
+  * $peer deepest.Report2
+
+Rule2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Config3 :=
+  Object
+  * $count int
+  * $label str

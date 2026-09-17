@@ -1,0 +1,12 @@
+import util as lib
+
+Config0 := int * str
+
+Report1 :=
+  Object
+  * $peer lib.Report0
+
+Report2 :=
+  Object
+  * $count int
+  * $label str

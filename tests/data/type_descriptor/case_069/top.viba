@@ -1,0 +1,6 @@
+import top as up
+
+Rule0 :=
+  Object
+  * $count int
+  * $label str

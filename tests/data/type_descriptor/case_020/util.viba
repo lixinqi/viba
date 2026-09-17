@@ -1,0 +1,8 @@
+import util as m
+
+Report0 := $only int
+
+Config1 := $left int | $right str
+
+Node2[T] :=
+  $v T

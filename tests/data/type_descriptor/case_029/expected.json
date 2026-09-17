@@ -1,0 +1,350 @@
+{
+  "case": 29,
+  "modules": [
+    {
+      "module": "util",
+      "file": "util.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Shape0",
+          "full_name": "util.Shape0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$left",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$right",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Plan1",
+          "full_name": "util.Plan1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "lv1.lv2.lv3.leaf",
+      "file": "lv1/lv2/lv3/leaf.viba",
+      "imports": [
+        {
+          "module": "util",
+          "local": "m"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Node0",
+          "full_name": "lv1.lv2.lv3.leaf.Node0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$items",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$seen",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 2,
+              "tag": "$table",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 3,
+              "tag": "$maybe",
+              "type_name": null,
+              "kind": "sum",
+              "optional": true,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Report1",
+          "full_name": "lv1.lv2.lv3.leaf.Report1",
+          "generic_params": [
+            "T"
+          ],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$v",
+              "type_name": "T",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.mod",
+      "file": "pkg/mod.viba",
+      "imports": [
+        {
+          "module": "util",
+          "local": "lib"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "pkg.mod.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Shape1",
+          "full_name": "pkg.mod.Shape1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "lib.Plan1",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "util.Plan1"
+            }
+          ]
+        },
+        {
+          "name": "Shape2",
+          "full_name": "pkg.mod.Shape2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": null,
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": null,
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 2,
+              "tag": null,
+              "type_name": "bool",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Shape3",
+          "full_name": "pkg.mod.Shape3",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$left",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$right",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.sub.deep",
+      "file": "pkg/sub/deep.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Shape0",
+          "full_name": "pkg.sub.deep.Shape0",
+          "generic_params": [
+            "T"
+          ],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$v",
+              "type_name": "T",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Config1",
+          "full_name": "pkg.sub.deep.Config1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$ghost",
+              "type_name": "Missing",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$mix",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Config2",
+          "full_name": "pkg.sub.deep.Config2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.sub.sub2.deepest",
+      "file": "pkg/sub/sub2/deepest.viba",
+      "imports": [
+        {
+          "module": "pkg.mod",
+          "local": "lib"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Report0",
+          "full_name": "pkg.sub.sub2.deepest.Report0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "lib.Shape1",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "pkg.mod.Shape1"
+            }
+          ]
+        },
+        {
+          "name": "Plan1",
+          "full_name": "pkg.sub.sub2.deepest.Plan1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

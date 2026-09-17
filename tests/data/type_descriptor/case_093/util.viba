@@ -1,0 +1,14 @@
+Rule0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Config1 :=
+  Object
+  * $count int
+  * $label str
+
+Plan2[T] :=
+  $v T

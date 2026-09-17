@@ -1,0 +1,11 @@
+import pkg.sub.sub2.deepest as base
+
+Shape0 := $only int
+
+Plan1[T] :=
+  $v T
+
+Rule2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

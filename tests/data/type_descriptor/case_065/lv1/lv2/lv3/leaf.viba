@@ -1,0 +1,15 @@
+import pkg.mod as lib
+
+Shape0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Report1 :=
+  Object
+  * $count int
+  * $label str
+
+Plan2 :=
+  Object
+  * $peer lib.Node2

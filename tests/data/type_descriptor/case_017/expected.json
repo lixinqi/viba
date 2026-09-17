@@ -1,0 +1,186 @@
+{
+  "case": 17,
+  "modules": [
+    {
+      "module": "util",
+      "file": "util.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Shape0",
+          "full_name": "util.Shape0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$left",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$right",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "top",
+      "file": "top.viba",
+      "imports": [
+        {
+          "module": "top",
+          "local": "top"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "top.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Plan1",
+          "full_name": "top.Plan1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "top.Rule0",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "top.Rule0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.sub.sub2.deepest",
+      "file": "pkg/sub/sub2/deepest.viba",
+      "imports": [
+        {
+          "module": "top",
+          "local": "up"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Config0",
+          "full_name": "pkg.sub.sub2.deepest.Config0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "up.Plan1",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "top.Plan1"
+            }
+          ]
+        },
+        {
+          "name": "Report1",
+          "full_name": "pkg.sub.sub2.deepest.Report1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Rule2",
+          "full_name": "pkg.sub.sub2.deepest.Rule2",
+          "generic_params": [
+            "T"
+          ],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$v",
+              "type_name": "T",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.sub.deep",
+      "file": "pkg/sub/deep.viba",
+      "imports": [
+        {
+          "module": "top",
+          "local": "up"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Report0",
+          "full_name": "pkg.sub.deep.Report0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": null,
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": null,
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Report1",
+          "full_name": "pkg.sub.deep.Report1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "up.Rule0",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "top.Rule0"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

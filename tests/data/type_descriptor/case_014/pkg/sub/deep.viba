@@ -1,0 +1,15 @@
+import util
+
+Node0 := int * str
+
+Node1 :=
+  Object
+  * $peer util.Rule0
+
+Config2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Config3[T] :=
+  $v T

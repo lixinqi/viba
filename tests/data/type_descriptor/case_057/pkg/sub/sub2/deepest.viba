@@ -1,0 +1,14 @@
+import util as lib
+
+Rule0 :=
+  Object
+  * $peer lib.Shape0
+
+Rule1 :=
+  Object
+  * $count int
+  * $label str
+
+Config2 := $only int
+
+Report3 := str * (int | nil)

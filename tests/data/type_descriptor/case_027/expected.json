@@ -1,0 +1,145 @@
+{
+  "case": 27,
+  "modules": [
+    {
+      "module": "top",
+      "file": "top.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "top.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "lv1.lv2.lv3.leaf",
+      "file": "lv1/lv2/lv3/leaf.viba",
+      "imports": [
+        {
+          "module": "lv1.lv2.lv3.leaf",
+          "local": "base"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Plan0",
+          "full_name": "lv1.lv2.lv3.leaf.Plan0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Rule1",
+          "full_name": "lv1.lv2.lv3.leaf.Rule1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "base.Plan0",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "lv1.lv2.lv3.leaf.Plan0"
+            }
+          ]
+        },
+        {
+          "name": "Node2",
+          "full_name": "lv1.lv2.lv3.leaf.Node2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$ghost",
+              "type_name": "Missing",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$mix",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pkg.sub.deep",
+      "file": "pkg/sub/deep.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "pkg.sub.deep.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Config1",
+          "full_name": "pkg.sub.deep.Config1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

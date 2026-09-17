@@ -1,0 +1,20 @@
+import pkg.sub.deep as base
+
+Plan0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Plan1 :=
+  Object
+  * $peer base.Plan0
+
+Config2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Plan3 :=
+  Object
+  * $count int
+  * $label str

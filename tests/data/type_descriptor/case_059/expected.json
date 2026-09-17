@@ -1,0 +1,166 @@
+{
+  "case": 59,
+  "modules": [
+    {
+      "module": "top",
+      "file": "top.viba",
+      "imports": [],
+      "definitions": [
+        {
+          "name": "Plan0",
+          "full_name": "top.Plan0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$items",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$seen",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 2,
+              "tag": "$table",
+              "type_name": null,
+              "kind": "type_app",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 3,
+              "tag": "$maybe",
+              "type_name": null,
+              "kind": "sum",
+              "optional": true,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "util",
+      "file": "util.viba",
+      "imports": [
+        {
+          "module": "top",
+          "local": "up"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Rule0",
+          "full_name": "util.Rule0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$only",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Rule1",
+          "full_name": "util.Rule1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "up.Plan0",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "top.Plan0"
+            }
+          ]
+        },
+        {
+          "name": "Plan2",
+          "full_name": "util.Plan2",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "lv1.lv2.lv3.leaf",
+      "file": "lv1/lv2/lv3/leaf.viba",
+      "imports": [
+        {
+          "module": "util",
+          "local": "util"
+        }
+      ],
+      "definitions": [
+        {
+          "name": "Node0",
+          "full_name": "lv1.lv2.lv3.leaf.Node0",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$count",
+              "type_name": "int",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            },
+            {
+              "index": 1,
+              "tag": "$label",
+              "type_name": "str",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": null
+            }
+          ]
+        },
+        {
+          "name": "Shape1",
+          "full_name": "lv1.lv2.lv3.leaf.Shape1",
+          "generic_params": [],
+          "members": [
+            {
+              "index": 0,
+              "tag": "$peer",
+              "type_name": "util.Plan2",
+              "kind": "type_ref",
+              "optional": false,
+              "resolved": "util.Plan2"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

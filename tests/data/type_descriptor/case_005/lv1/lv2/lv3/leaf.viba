@@ -1,0 +1,15 @@
+import util
+
+Rule0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Shape1 :=
+  Object
+  * $peer util.Config1
+
+Config2[T] :=
+  $v T

@@ -1,0 +1,12 @@
+import pkg.sub.deep as base
+
+Config0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Node1 :=
+  Object
+  * $peer base.Report1

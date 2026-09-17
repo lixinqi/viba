@@ -1,0 +1,17 @@
+import util
+
+Config0 :=
+  Object
+  * $peer util.Config0
+
+Report1 :=
+  Object
+  * $count int
+  * $label str
+
+Plan2 := $only int
+
+Node3 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

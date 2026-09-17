@@ -1,0 +1,12 @@
+Node0[T] :=
+  $v T
+
+Node1 :=
+  Object
+  * $count int
+  * $label str
+
+Rule2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

@@ -1,0 +1,19 @@
+import pkg.sub.sub2.deepest as base
+
+Node0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Plan1 :=
+  Object
+  * $peer base.Node0
+
+Plan2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Rule3 := $only int

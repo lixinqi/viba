@@ -1,0 +1,10 @@
+import pkg.mod
+
+Config0 :=
+  Object
+  * $peer mod.Rule1
+
+Config1 :=
+  Object
+  * $count int
+  * $label str

@@ -1,0 +1,18 @@
+import top as base
+
+Rule0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Rule1[T] :=
+  $v T
+
+Report2 :=
+  Object
+  * $count int
+  * $label str
+
+Plan3 :=
+  Object
+  * $peer base.Config1

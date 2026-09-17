@@ -1,0 +1,13 @@
+import pkg.mod as up
+
+Config0[T] :=
+  $v T
+
+Config1 :=
+  Oneof
+  | $left int
+  | $right str
+
+Rule2 :=
+  Object
+  * $peer up.Config1

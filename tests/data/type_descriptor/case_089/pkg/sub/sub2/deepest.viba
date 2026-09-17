@@ -1,0 +1,17 @@
+import util
+
+Report0 :=
+  Object
+  * $count int
+  * $label str
+
+Node1 := int * str
+
+Rule2 :=
+  Object
+  * $peer util.Config0
+
+Plan3 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

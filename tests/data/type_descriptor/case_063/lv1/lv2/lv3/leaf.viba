@@ -1,0 +1,19 @@
+import lv1.lv2.lv3.leaf
+
+Node0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Node1 :=
+  Oneof
+  | $left int
+  | $right str
+
+Plan2 :=
+  Object
+  * $peer leaf.Node0
+
+Report3 := $only int

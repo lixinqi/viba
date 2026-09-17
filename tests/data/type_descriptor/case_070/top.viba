@@ -1,0 +1,8 @@
+import top as up
+
+Shape0 :=
+  Object
+  * $count int
+  * $label str
+
+Rule1 := str * (int | nil)

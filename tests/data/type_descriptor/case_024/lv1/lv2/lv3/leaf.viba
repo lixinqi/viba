@@ -1,0 +1,17 @@
+import pkg.sub.sub2.deepest
+
+Plan0 := $only int
+
+Shape1 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Config2 :=
+  Object
+  * $peer deepest.Config1
+
+Report3 :=
+  Object
+  * $count int
+  * $label str

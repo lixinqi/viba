@@ -1,0 +1,17 @@
+import pkg.sub.sub2.deepest
+
+Shape0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Rule1 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Config2 :=
+  Object
+  * $peer deepest.Rule1

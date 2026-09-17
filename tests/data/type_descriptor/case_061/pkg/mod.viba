@@ -1,0 +1,14 @@
+import lv1.lv2.lv3.leaf
+
+Config0 := int * str
+
+Config1 :=
+  Object
+  * $peer leaf.Rule0
+
+Node2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

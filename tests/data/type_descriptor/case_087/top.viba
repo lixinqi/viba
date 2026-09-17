@@ -1,0 +1,8 @@
+import top as up
+
+Report0 := str * (int | nil)
+
+Node1 :=
+  Object
+  * $count int
+  * $label str

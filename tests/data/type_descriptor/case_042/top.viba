@@ -1,0 +1,11 @@
+Node0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Shape1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

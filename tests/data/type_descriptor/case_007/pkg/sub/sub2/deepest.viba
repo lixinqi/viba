@@ -1,0 +1,16 @@
+import lv1.lv2.lv3.leaf
+
+Config0 :=
+  Object
+  * $peer leaf.Report1
+
+Config1 := $only int
+
+Rule2 := $left int | $right str
+
+Config3 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

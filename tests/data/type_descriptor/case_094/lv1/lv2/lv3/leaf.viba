@@ -1,0 +1,17 @@
+import pkg.sub.sub2.deepest as dep
+
+Shape0[T] :=
+  $v T
+
+Node1 := $only int
+
+Rule2 :=
+  Object
+  * $peer dep.Config1
+
+Node3 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

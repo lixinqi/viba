@@ -1,0 +1,13 @@
+import pkg.sub.deep as base
+
+Report0 :=
+  Object
+  * $peer base.Shape3
+
+Report1 :=
+  Oneof
+  | $left int
+  | $right str
+
+Shape2[T] :=
+  $v T

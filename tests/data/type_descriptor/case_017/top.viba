@@ -1,0 +1,7 @@
+import top
+
+Rule0 := $only int
+
+Plan1 :=
+  Object
+  * $peer top.Rule0

@@ -1,0 +1,14 @@
+import pkg.mod
+
+Config0 :=
+  Object
+  * $peer mod.Config1
+
+Shape1 := $left int | $right str
+
+Plan2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

@@ -1,0 +1,15 @@
+import pkg.sub.sub2.deepest as m
+
+Shape0[T] :=
+  $v T
+
+Node1 :=
+  Oneof
+  | $left int
+  | $right str
+
+Plan2 :=
+  Object
+  * $peer m.Config1
+
+Plan3 := $only int

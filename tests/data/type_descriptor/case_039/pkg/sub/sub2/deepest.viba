@@ -1,0 +1,14 @@
+import pkg.sub.deep
+
+Plan0 := $only int
+
+Report1 :=
+  Object
+  * $peer deep.Plan3
+
+Shape2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Node3 := $left int | $right str

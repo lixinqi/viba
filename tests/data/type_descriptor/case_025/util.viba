@@ -1,0 +1,10 @@
+import top
+
+Plan0[T] :=
+  $v T
+
+Config1 := $only int
+
+Config2 :=
+  Object
+  * $peer top.Node0

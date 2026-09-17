@@ -1,0 +1,14 @@
+import util as base
+
+Report0 := $only int
+
+Report1 :=
+  Object
+  * $peer base.Config0
+
+Rule2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

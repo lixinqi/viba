@@ -1,0 +1,15 @@
+import top as base
+
+Rule0 :=
+  Object
+  * $count int
+  * $label str
+
+Report1[T] :=
+  $v T
+
+Node2 := $left int | $right str
+
+Config3 :=
+  Object
+  * $peer base.Report1

@@ -1,0 +1,19 @@
+import lv1.lv2.lv3.leaf as base
+
+Shape0 := $only int
+
+Shape1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Plan2 :=
+  Object
+  * $peer base.Node3
+
+Shape3 :=
+  Object
+  * $count int
+  * $label str

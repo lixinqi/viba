@@ -1,0 +1,15 @@
+import util as base
+
+Rule0 := $only int
+
+Node1 :=
+  Object
+  * $peer base.Config1
+
+Rule2[T] :=
+  $v T
+
+Shape3 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

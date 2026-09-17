@@ -1,0 +1,7 @@
+import util as up
+
+Shape0 :=
+  Object
+  * $peer up.Shape0
+
+Node1 := $left int | $right str

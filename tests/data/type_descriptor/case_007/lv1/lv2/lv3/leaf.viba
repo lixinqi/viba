@@ -1,0 +1,20 @@
+import top as m
+
+Report0[T] :=
+  $v T
+
+Report1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Plan2 :=
+  Object
+  * $peer m.Rule0
+
+Shape3 :=
+  Object
+  * $count int
+  * $label str

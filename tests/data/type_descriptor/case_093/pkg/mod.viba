@@ -1,0 +1,7 @@
+import pkg.sub.sub2.deepest
+
+Report0 := $only int
+
+Shape1 :=
+  Object
+  * $peer deepest.Shape0

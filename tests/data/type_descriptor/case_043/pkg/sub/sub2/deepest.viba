@@ -1,0 +1,17 @@
+import lv1.lv2.lv3.leaf as lib
+
+Shape0 :=
+  Object
+  * $peer lib.Config1
+
+Node1 := $only int
+
+Plan2[T] :=
+  $v T
+
+Report3 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

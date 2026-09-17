@@ -1,0 +1,7 @@
+import top
+
+Report0 := int * str
+
+Report1 :=
+  Object
+  * $peer top.Plan0

@@ -1,0 +1,12 @@
+import top as base
+
+Shape0 := $only int
+
+Report1 := str * (int | nil)
+
+Config2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

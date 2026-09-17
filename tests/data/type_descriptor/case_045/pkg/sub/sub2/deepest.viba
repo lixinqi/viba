@@ -1,0 +1,9 @@
+import lv1.lv2.lv3.leaf
+
+Shape0 :=
+  Object
+  * $peer leaf.Report0
+
+Config1 := str * (int | nil)
+
+Node2 := $left int | $right str

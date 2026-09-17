@@ -1,0 +1,17 @@
+import top as m
+
+Rule0 :=
+  Object
+  * $count int
+  * $label str
+
+Node1 :=
+  Object
+  * $peer m.Rule1
+
+Rule2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

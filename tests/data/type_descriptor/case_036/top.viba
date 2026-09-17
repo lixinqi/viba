@@ -1,0 +1,6 @@
+Shape0 := int * str
+
+Config1 :=
+  Object
+  * $count int
+  * $label str

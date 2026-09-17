@@ -1,0 +1,11 @@
+Config0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Node1 :=
+  Object
+  * $count int
+  * $label str

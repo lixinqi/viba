@@ -1,0 +1,10 @@
+import top
+
+Rule0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Report1 :=
+  Object
+  * $peer top.Rule0

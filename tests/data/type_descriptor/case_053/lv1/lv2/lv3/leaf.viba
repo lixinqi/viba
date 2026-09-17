@@ -1,0 +1,7 @@
+import lv1.lv2.lv3.leaf as base
+
+Shape0 := int * str * bool
+
+Report1 :=
+  Object
+  * $peer base.Shape0

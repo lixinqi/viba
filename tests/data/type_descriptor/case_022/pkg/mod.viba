@@ -1,0 +1,15 @@
+import pkg.mod as up
+
+Shape0 :=
+  Object
+  * $count int
+  * $label str
+
+Shape1 := int * str
+
+Plan2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

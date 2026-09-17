@@ -1,0 +1,4 @@
+Report0[T] :=
+  $v T
+
+Rule1 := $left int | $right str

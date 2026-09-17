@@ -1,0 +1,12 @@
+import util as lib
+
+Config0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Report1 :=
+  Object
+  * $peer lib.Shape2

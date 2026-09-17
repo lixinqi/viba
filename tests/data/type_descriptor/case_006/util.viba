@@ -1,0 +1,22 @@
+import top as base
+
+Plan0 :=
+  Object
+  * $peer base.Rule0
+
+Config1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Config2 :=
+  Object
+  * $count int
+  * $label str
+
+Rule3 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

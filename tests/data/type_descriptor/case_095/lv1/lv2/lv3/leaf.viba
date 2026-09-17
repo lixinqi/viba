@@ -1,0 +1,17 @@
+import lv1.lv2.lv3.leaf
+
+Rule0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Shape1 :=
+  Object
+  * $peer leaf.Rule0
+
+Node2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

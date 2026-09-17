@@ -1,0 +1,9 @@
+Report0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Config1 := str * (int | nil)
+
+Rule2[T] :=
+  $v T

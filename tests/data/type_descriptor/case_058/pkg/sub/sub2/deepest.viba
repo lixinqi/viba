@@ -1,0 +1,8 @@
+import util
+
+Rule0[T] :=
+  $v T
+
+Report1 :=
+  Object
+  * $peer util.Node0

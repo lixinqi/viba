@@ -52,9 +52,9 @@
 - **编译与池子**：`ParseVibaFile`、`PoolAddFile`、`PoolFindFile`、`PoolFindDefinition`、`PoolFindMember`、`FileFindImportByLocalName`。
 - **定义上**：`DefinitionMembers`、`DefinitionFindMemberByTag`、`DefinitionFindMemberByIndex`、`DefinitionFile`。
 - **成员上**：`MemberTypeName`、`MemberResolvedDefinition`、`MemberContainingDefinition`。
-- **类型上**：`TypeIsRepeated`、`TypeIsOptional`。重复与可选本来就是类型的形状（`list[T]`、`T | nil`），所以问类型，不问成员。
+- **类型上**：`TypeIsOptional`。可选就是 `T | nil` 这个和形状，所以问类型，不问成员。
 
-有一条口径在这里点出，它跟第 7 节直接相关：**形态查询只看写出来的形状**。`TypeIsRepeated`、`TypeIsOptional` 都是这样——成员写 `$xs Names` 而 `Names := list[str]` 时，它答"不是列表"；想刨到底，得顺着 `MemberResolvedDefinition` 一层层问。
+有一条口径在这里点出，它跟第 7 节直接相关：**形态查询只看写出来的形状**。`TypeIsOptional` 就是这样——成员写 `$xs Names` 而 `Names := A | nil` 时，它答"不是可选"；想刨到底，得顺着 `MemberResolvedDefinition` 一层层问。
 
 ## 6. 寻址
 
@@ -223,7 +223,7 @@ root.by_tag('counter').at_key('value').leaf()
 
 **容器**：`list` / `set` / `dict` 是内建的三种容器，各有形态识别与取值。
 
-- `is_list` / `is_set` / `is_dict` 只看**写出来的形状**：描述符的链头写着 `list[...]` 才是 `list`；如果这一段写的是一个名字（`$xs Names`），形态识别不算，要刨到底就顺着 `MemberResolvedDefinition` 一层层问。这条口径与第 5 节的 `TypeIsRepeated` 一致。
+- `is_list` / `is_set` / `is_dict` 只看**写出来的形状**：描述符的链头写着 `list[...]` 才是 `list`；如果这一段写的是一个名字（`$xs Names`），形态识别不算，要刨到底就顺着 `MemberResolvedDefinition` 一层层问。这条口径与第 5 节的 `TypeIsOptional` 一致。
 - `len` 对三种容器都成立：`list` / `set` / tuple 给元素个数，`dict` 给键数；不是容器就是 `Err`。
 - `keys` 只对 `dict` 成立，给键，顺序由实现定；不是 `dict` 就是 `Err`。
 - 枚举一个序列是 `len` 加 `at_index` 走一遍（`set` 没有固定顺序，从头到尾的顺序由实现定）；读 `dict` 的值是 `keys` 加 `at_key` 走一遍。

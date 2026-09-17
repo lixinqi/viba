@@ -1,0 +1,15 @@
+import top as dep
+
+Shape0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Report1 :=
+  Object
+  * $peer dep.Report2
+
+Plan2 := int * str
+
+Config3[T] :=
+  $v T

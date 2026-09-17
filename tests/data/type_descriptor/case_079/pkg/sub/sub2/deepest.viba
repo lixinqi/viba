@@ -1,0 +1,7 @@
+import top
+
+Shape0 :=
+  Object
+  * $peer top.Plan1
+
+Plan1 := int * str * bool

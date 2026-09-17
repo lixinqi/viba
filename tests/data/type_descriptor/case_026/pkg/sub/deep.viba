@@ -1,0 +1,12 @@
+import util as base
+
+Node0 :=
+  Object
+  * $peer base.Rule2
+
+Report1 := str * (int | nil)
+
+Report2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

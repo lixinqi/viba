@@ -1,0 +1,6 @@
+Report0 := $only int
+
+Report1 :=
+  Oneof
+  | $left int
+  | $right str

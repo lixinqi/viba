@@ -1,0 +1,10 @@
+import top as dep
+
+Config0 :=
+  Object
+  * $peer dep.Rule0
+
+Node1 := str * (int | nil)
+
+Report2[T] :=
+  $v T

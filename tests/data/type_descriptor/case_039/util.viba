@@ -1,0 +1,15 @@
+import util as m
+
+Plan0[T] :=
+  $v T
+
+Node1 :=
+  Object
+  * $count int
+  * $label str
+
+Config2 :=
+  Object
+  * $peer m.Node1
+
+Report3 := $only int

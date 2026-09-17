@@ -1,0 +1,10 @@
+import lv1.lv2.lv3.leaf as m
+
+Plan0 := $only int
+
+Shape1 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Config2 := int * str

@@ -1,0 +1,22 @@
+import pkg.sub.deep as base
+
+Config0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Report1 :=
+  Object
+  * $peer base.Plan1
+
+Rule2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Report3 :=
+  Object
+  * $count int
+  * $label str

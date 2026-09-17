@@ -1,0 +1,8 @@
+import util as lib
+
+Rule0[T] :=
+  $v T
+
+Report1 :=
+  Object
+  * $peer lib.Node2

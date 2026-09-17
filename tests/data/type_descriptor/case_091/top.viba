@@ -1,0 +1,9 @@
+Shape0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Rule1[T] :=
+  $v T
+
+Rule2 := int * str

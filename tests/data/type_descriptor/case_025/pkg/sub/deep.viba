@@ -1,0 +1,10 @@
+import top
+
+Plan0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Plan1 :=
+  Object
+  * $peer top.Shape1

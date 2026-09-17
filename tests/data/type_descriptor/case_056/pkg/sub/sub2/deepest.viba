@@ -1,0 +1,12 @@
+import pkg.sub.sub2.deepest as m
+
+Node0 := $only int
+
+Plan1 :=
+  Object
+  * $count int
+  * $label str
+
+Node2 :=
+  Object
+  * $peer m.Plan1

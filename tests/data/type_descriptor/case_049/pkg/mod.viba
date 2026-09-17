@@ -1,0 +1,12 @@
+import pkg.mod as up
+
+Config0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Config1 := $only int
+
+Report2 :=
+  Object
+  * $peer up.Config1

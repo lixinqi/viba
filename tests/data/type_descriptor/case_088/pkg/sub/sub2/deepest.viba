@@ -1,0 +1,5 @@
+Config0 := $only int
+
+Report1 := $left int | $right str
+
+Plan2 := str * (int | nil)

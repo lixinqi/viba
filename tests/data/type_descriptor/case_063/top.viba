@@ -1,0 +1,9 @@
+Rule0[T] :=
+  $v T
+
+Shape1 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Node2 := $only int

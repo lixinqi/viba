@@ -1,0 +1,14 @@
+import pkg.sub.sub2.deepest as up
+
+Node0 := $only int
+
+Config1 :=
+  Object
+  * $peer up.Node0
+
+Node2 := $left int | $right str
+
+Shape3 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

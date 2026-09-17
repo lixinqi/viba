@@ -1,0 +1,10 @@
+import top
+
+Rule0[T] :=
+  $v T
+
+Node1 := $only int
+
+Report2 :=
+  Object
+  * $peer top.Rule0

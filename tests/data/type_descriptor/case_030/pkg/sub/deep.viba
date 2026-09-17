@@ -1,0 +1,15 @@
+import util as base
+
+Config0 :=
+  Object
+  * $count int
+  * $label str
+
+Rule1 :=
+  Object
+  * $peer base.Rule0
+
+Shape2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

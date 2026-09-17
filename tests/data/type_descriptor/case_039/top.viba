@@ -1,0 +1,3 @@
+import top as base
+
+Report0 := int * str * bool

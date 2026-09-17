@@ -1,0 +1,7 @@
+import top as dep
+
+Shape0 :=
+  Object
+  * $peer dep.Node0
+
+Config1 := int * str * bool

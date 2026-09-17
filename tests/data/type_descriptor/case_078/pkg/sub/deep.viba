@@ -1,0 +1,12 @@
+import util
+
+Shape0 :=
+  Object
+  * $count int
+  * $label str
+
+Shape1 :=
+  Object
+  * $peer util.Shape1
+
+Plan2 := int * str

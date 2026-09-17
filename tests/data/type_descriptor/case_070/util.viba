@@ -1,0 +1,8 @@
+import util as m
+
+Rule0 := $only int
+
+Config1 := int * str
+
+Node2[T] :=
+  $v T

@@ -1,0 +1,3 @@
+Node0 := $left int | $right str
+
+Node1 := $only int

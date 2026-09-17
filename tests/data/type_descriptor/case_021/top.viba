@@ -1,0 +1,16 @@
+Shape0 :=
+  Object
+  * $count int
+  * $label str
+
+Report1 :=
+  Oneof
+  | $left int
+  | $right str
+
+Plan2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

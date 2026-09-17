@@ -1,0 +1,10 @@
+import pkg.sub.deep
+
+Shape0 :=
+  Object
+  * $count int
+  * $label str
+
+Config1 :=
+  Object
+  * $peer deep.Node1

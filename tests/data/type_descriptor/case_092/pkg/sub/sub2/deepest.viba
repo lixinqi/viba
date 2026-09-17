@@ -1,0 +1,13 @@
+import top as lib
+
+Rule0 := $only int
+
+Shape1 :=
+  Oneof
+  | $left int
+  | $right str
+
+Config2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

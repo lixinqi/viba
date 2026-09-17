@@ -65,6 +65,9 @@ VibaDefinitionDescriptor :=
   * Comments[{
       定义体是积，成员就是字段；是和，成员就是分支。两者同一件事。
       protobuf: DescriptorProto 把字段与枚举值分成两个类；这里只有一个成员类。
+      积链与和链链头的单位元不算成员；体写成一整个带标签类型时
+      （Box[T] := $v T），它是一个成员的积；体既不是积也不是和时
+      （A := int），$members 为空——那是别名，不是错误。
       $generic_params 是 Viba 多出来的：protobuf 没有参数化类型。
       $file_hash 是所属文件那一份的副本，好让起点不查池子就能核版本。
     }]
@@ -86,8 +89,8 @@ VibaMemberDescriptor :=
         name             -> $tag（那边字段与枚举值都有名字；位置成员没有名字）
         type / type_name -> $member_type（成员类型本身就是一段表达式，还能内联）
         containing_type  -> $containing_full_name
-      protobuf 的 label（repeated / optional）在 Viba 里是类型形状，
-      不是成员上的另一栏，所以没有对应物；问形状用 TypeIsRepeated / TypeIsOptional。
+      protobuf 的 label 在 Viba 里没有对应物：我们没有 repeated 这个概念，
+      list[T] 就是一个类型。可选是 T | nil 这个和形状，问形状用 TypeIsOptional。
     }]
 
 # ---------------------------------------------------------------- #
@@ -193,7 +196,7 @@ VibaConstantValue :=             # 叶子只有这五种，跟设计侧的字面
   | $int_value int
   | $float_value float
   | $str_value str
-  | $nil_value nil
+  | $nil_value nil               # 语法里走不到：写 nil 走 $nil 那一支，这一支留给访问侧取叶子
 
 # ---------------------------------------------------------------- #
 # 5. 池子
@@ -227,10 +230,12 @@ ParseVibaFile :=
     Result[VibaFileDescriptor]
   <- $pool VibaPool
   <- $source str
+  <- $file_name str
   <- $module_name str
   <- Comments[{
       一份 .viba 源码编进这个池子，产出文件描述符。protobuf: protoc / BuildFile。
-      $module_name 由调用方给：.viba 没有 package 声明。
+      $file_name 与 $module_name 都由调用方给：文件是哪一个、它算哪个模块。
+      .viba 里没有 package 声明，两者不必同名。
       语法错就是 Err；产出是规范化（链式）形式，并按源码记账 $file_hash。
     }]
 
@@ -283,7 +288,8 @@ DefinitionMembers :=
     Result[list[VibaMemberDescriptor]]
   <- $definition VibaDefinitionDescriptor
   <- Comments[{
-      按 $member_index 升序，就是书写顺序；定义体既不是积也不是和时返回空表。
+      按 $member_index 升序，就是书写顺序；定义体既不是积也不是和时返回空表，
+      那是别名（A := int），不是错误。
       protobuf: Descriptor::field(i) 与 enum_type() 合成一个。
     }]
 
@@ -340,21 +346,10 @@ MemberContainingDefinition :=
       protobuf: FieldDescriptor::containing_type()。
     }]
 
-TypeIsRepeated :=
-    Result[bool]
-  <- $type VibaTypeDescriptor
-  <- Comments[{
-      类型形状是不是 list[T] / set[T]。只看写出来的形状：
-      成员写 $xs Names 而 Names := list[str] 时这里答 False，
-      想刨到底就顺着 MemberResolvedDefinition 一层层问。
-      protobuf 把 repeated 挂在字段上（FieldDescriptor::is_repeated()）；
-      Viba 里它是类型自己的形状，所以问类型。
-    }]
-
 TypeIsOptional :=
     Result[bool]
   <- $type VibaTypeDescriptor
   <- Comments[{
       类型是不是 T | nil（和里有 nil 分支）。
-      protobuf: FieldDescriptor::is_optional()，同上，这里问类型。
+      protobuf 把它做成 label，Viba 里就是 A | nil 这个和形状，所以问类型。
     }]

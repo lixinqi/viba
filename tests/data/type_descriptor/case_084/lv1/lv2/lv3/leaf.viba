@@ -1,0 +1,20 @@
+import top
+
+Node0[T] :=
+  $v T
+
+Shape1 :=
+  Object
+  * $peer top.Shape0
+
+Config2 :=
+  Object
+  * $count int
+  * $label str
+
+Report3 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

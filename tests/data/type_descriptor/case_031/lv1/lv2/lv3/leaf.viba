@@ -1,0 +1,7 @@
+import pkg.sub.deep as dep
+
+Plan0 := int * str
+
+Rule1 :=
+  Object
+  * $peer dep.Rule1

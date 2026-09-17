@@ -1,0 +1,8 @@
+import top as lib
+
+Rule0 := $only int
+
+Report1 :=
+  Object
+  * $count int
+  * $label str

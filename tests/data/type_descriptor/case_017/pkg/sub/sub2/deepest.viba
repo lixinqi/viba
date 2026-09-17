@@ -1,0 +1,10 @@
+import top as up
+
+Config0 :=
+  Object
+  * $peer up.Plan1
+
+Report1 := $only int
+
+Rule2[T] :=
+  $v T

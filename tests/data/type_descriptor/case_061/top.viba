@@ -1,0 +1,17 @@
+import top
+
+Node0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Rule1 :=
+  Object
+  * $peer top.Node0
+
+Config2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

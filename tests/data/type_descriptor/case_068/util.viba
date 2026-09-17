@@ -1,0 +1,10 @@
+import util as m
+
+Shape0 :=
+  Object
+  * $count int
+  * $label str
+
+Config1 := str * (int | nil)
+
+Config2 := $left int | $right str

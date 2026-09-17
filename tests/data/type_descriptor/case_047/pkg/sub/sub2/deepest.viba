@@ -1,0 +1,17 @@
+import top as lib
+
+Config0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Rule1 := $only int
+
+Shape2 :=
+  Oneof
+  | $left int
+  | $right str
+
+Rule3 :=
+  Object
+  * $peer lib.Rule0

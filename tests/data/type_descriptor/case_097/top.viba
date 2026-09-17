@@ -1,0 +1,13 @@
+import top as base
+
+Node0[T] :=
+  $v T
+
+Node1 := int * str * bool
+
+Report2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

@@ -1,0 +1,10 @@
+import top as base
+
+Report0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Rule1 :=
+  Object
+  * $peer base.Config1

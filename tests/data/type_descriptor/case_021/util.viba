@@ -1,0 +1,20 @@
+import util as m
+
+Config0 :=
+  Object
+  * $count int
+  * $label str
+
+Report1 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Shape2 :=
+  Oneof
+  | $left int
+  | $right str
+
+Node3 :=
+  Object
+  * $peer m.Config0

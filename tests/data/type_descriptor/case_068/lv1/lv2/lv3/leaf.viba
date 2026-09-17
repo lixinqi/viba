@@ -1,0 +1,16 @@
+import util
+
+Plan0 := $only int
+
+Config1 := $left int | $right str
+
+Shape2 :=
+  Object
+  * $peer util.Config1
+
+Rule3 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

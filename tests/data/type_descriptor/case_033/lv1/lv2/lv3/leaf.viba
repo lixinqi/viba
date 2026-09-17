@@ -1,0 +1,12 @@
+import top as m
+
+Config0 :=
+  Object
+  * $peer m.Node0
+
+Rule1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

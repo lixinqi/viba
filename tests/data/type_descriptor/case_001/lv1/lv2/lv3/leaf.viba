@@ -1,0 +1,8 @@
+import top
+
+Config0 :=
+  Object
+  * $peer top.Plan0
+
+Node1[T] :=
+  $v T

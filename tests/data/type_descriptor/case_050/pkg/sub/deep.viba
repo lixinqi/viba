@@ -1,0 +1,10 @@
+import top as base
+
+Shape0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Report1 :=
+  Object
+  * $peer base.Node1

@@ -1,0 +1,7 @@
+import pkg.sub.deep as dep
+
+Config0 :=
+  Object
+  * $peer dep.Shape1
+
+Config1 := $only int

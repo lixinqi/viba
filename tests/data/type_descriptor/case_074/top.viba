@@ -1,0 +1,12 @@
+import util
+
+Node0 :=
+  Object
+  * $peer util.Plan0
+
+Node1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

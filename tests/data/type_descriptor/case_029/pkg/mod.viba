@@ -1,0 +1,17 @@
+import util as lib
+
+Rule0 :=
+  Object
+  * $count int
+  * $label str
+
+Shape1 :=
+  Object
+  * $peer lib.Plan1
+
+Shape2 := int * str * bool
+
+Shape3 :=
+  Oneof
+  | $left int
+  | $right str

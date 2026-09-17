@@ -1,0 +1,12 @@
+import lv1.lv2.lv3.leaf as up
+
+Plan0 := str * (int | nil)
+
+Plan1 := $only int
+
+Node2[T] :=
+  $v T
+
+Shape3 :=
+  Object
+  * $peer up.Shape3

@@ -1,0 +1,20 @@
+import util
+
+Rule0 :=
+  Object
+  * $count int
+  * $label str
+
+Rule1 :=
+  Object
+  * $peer util.Rule0
+
+Report2[T] :=
+  $v T
+
+Shape3 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

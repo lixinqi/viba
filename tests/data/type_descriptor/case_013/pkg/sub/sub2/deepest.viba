@@ -1,0 +1,8 @@
+import util as up
+
+Config0 := $only int
+
+Plan1 :=
+  Oneof
+  | $left int
+  | $right str

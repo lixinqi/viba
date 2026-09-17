@@ -1,0 +1,17 @@
+import util
+
+Plan0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Plan1 := $only int
+
+Rule2 :=
+  Object
+  * $count int
+  * $label str
+
+Report3 :=
+  Object
+  * $peer util.Report2

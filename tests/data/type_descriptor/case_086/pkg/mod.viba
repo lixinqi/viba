@@ -1,0 +1,9 @@
+import pkg.sub.sub2.deepest
+
+Rule0 :=
+  Object
+  * $peer deepest.Report1
+
+Node1 := $only int
+
+Report2 := str * (int | nil)

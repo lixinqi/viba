@@ -1,0 +1,10 @@
+import pkg.sub.sub2.deepest
+
+Shape0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Config1 :=
+  Object
+  * $peer deepest.Rule1

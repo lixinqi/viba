@@ -1,0 +1,16 @@
+import top as dep
+
+Plan0 := $only int
+
+Report1 :=
+  Object
+  * $peer dep.Rule1
+
+Config2 := int * str
+
+Config3 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

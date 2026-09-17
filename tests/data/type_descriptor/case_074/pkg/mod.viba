@@ -1,0 +1,8 @@
+import pkg.sub.sub2.deepest as lib
+
+Config0[T] :=
+  $v T
+
+Node1 :=
+  Object
+  * $peer lib.Report1

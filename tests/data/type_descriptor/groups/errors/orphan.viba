@@ -1,0 +1,3 @@
+import gone.mod as g
+
+Orphan := Object * $p g.Thing

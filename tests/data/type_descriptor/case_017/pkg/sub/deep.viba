@@ -1,0 +1,7 @@
+import top as up
+
+Report0 := int * str
+
+Report1 :=
+  Object
+  * $peer up.Rule0

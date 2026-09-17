@@ -1,0 +1,10 @@
+import util
+
+Shape0[T] :=
+  $v T
+
+Shape1 := $only int
+
+Rule2 :=
+  Object
+  * $peer util.Shape1

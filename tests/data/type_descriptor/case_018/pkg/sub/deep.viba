@@ -1,0 +1,12 @@
+import pkg.sub.deep as up
+
+Plan0 :=
+  Object
+  * $count int
+  * $label str
+
+Report1 := int * str * bool
+
+Config2 :=
+  Object
+  * $peer up.Plan0

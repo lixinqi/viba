@@ -1,0 +1,9 @@
+Plan0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Rule1 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

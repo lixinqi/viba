@@ -1,0 +1,17 @@
+import top
+
+Node0 :=
+  Object
+  * $peer top.Plan1
+
+Report1 :=
+  Object
+  * $count int
+  * $label str
+
+Rule2 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

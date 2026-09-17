@@ -1,0 +1,8 @@
+import util as up
+
+Node0[T] :=
+  $v T
+
+Shape1 := str * (int | nil)
+
+Report2 := $only int

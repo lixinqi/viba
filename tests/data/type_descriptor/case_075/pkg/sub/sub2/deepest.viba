@@ -1,0 +1,9 @@
+import pkg.sub.sub2.deepest as base
+
+Report0 := $only int
+
+Config1 :=
+  Object
+  * $peer base.Report0
+
+Plan2 := $left int | $right str

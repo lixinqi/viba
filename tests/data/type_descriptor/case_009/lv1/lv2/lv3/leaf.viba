@@ -1,0 +1,15 @@
+import util as dep
+
+Config0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Report1 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Node2 := str * (int | nil)

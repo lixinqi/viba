@@ -1,0 +1,3 @@
+Report0 := $left int | $right str
+
+Config1 := int * str * bool

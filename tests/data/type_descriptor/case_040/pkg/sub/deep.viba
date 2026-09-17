@@ -1,0 +1,7 @@
+import util
+
+Node0 := int * str
+
+Node1 :=
+  Object
+  * $peer util.Rule3

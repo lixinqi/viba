@@ -1,0 +1,10 @@
+import pkg.sub.sub2.deepest
+
+Rule0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Report1 :=
+  Object
+  * $peer deepest.Plan3

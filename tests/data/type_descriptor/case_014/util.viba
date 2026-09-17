@@ -1,0 +1,4 @@
+Rule0 :=
+  Object
+  * $count int
+  * $label str

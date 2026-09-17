@@ -1,0 +1,7 @@
+import util as m
+
+Report0 := $only int
+
+Node1 :=
+  Object
+  * $peer m.Rule0

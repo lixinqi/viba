@@ -1,0 +1,13 @@
+import pkg.sub.sub2.deepest as up
+
+Config0[T] :=
+  $v T
+
+Node1 :=
+  Object
+  * $peer up.Node0
+
+Config2 :=
+  Object
+  * $count int
+  * $label str

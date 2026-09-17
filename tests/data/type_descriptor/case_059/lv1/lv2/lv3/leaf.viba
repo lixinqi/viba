@@ -1,0 +1,10 @@
+import util
+
+Node0 :=
+  Object
+  * $count int
+  * $label str
+
+Shape1 :=
+  Object
+  * $peer util.Plan2

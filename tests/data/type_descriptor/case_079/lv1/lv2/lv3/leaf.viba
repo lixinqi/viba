@@ -1,0 +1,10 @@
+import top
+
+Rule0 :=
+  Object
+  * $peer top.Plan1
+
+Plan1 := int * str
+
+Plan2[T] :=
+  $v T

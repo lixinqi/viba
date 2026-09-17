@@ -1,0 +1,14 @@
+import util
+
+Node0 :=
+  Object
+  * $peer util.Node0
+
+Report1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)
+
+Report2 := $left int | $right str

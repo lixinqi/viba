@@ -1,0 +1,14 @@
+import top
+
+Report0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Report1 := $only int
+
+Plan2 := str * (int | nil)
+
+Node3 :=
+  Object
+  * $peer top.Config1

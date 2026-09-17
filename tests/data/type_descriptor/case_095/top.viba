@@ -1,0 +1,6 @@
+import top as base
+
+Rule0[T] :=
+  $v T
+
+Rule1 := str * (int | nil)

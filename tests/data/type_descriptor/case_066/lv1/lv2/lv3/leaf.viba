@@ -1,0 +1,10 @@
+import util as m
+
+Shape0 :=
+  Object
+  * $peer m.Shape1
+
+Config1 :=
+  Object
+  * $count int
+  * $label str

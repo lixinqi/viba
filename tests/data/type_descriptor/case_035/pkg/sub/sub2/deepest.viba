@@ -1,0 +1,6 @@
+import pkg.mod as base
+
+Shape0 :=
+  Object
+  * $count int
+  * $label str

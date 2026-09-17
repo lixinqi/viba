@@ -1,0 +1,10 @@
+import top as base
+
+Plan0 := $left int | $right str
+
+Node1 :=
+  Object
+  * $peer base.Plan0
+
+Shape2[T] :=
+  $v T

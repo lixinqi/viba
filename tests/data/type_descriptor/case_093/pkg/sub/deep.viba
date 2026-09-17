@@ -1,0 +1,15 @@
+import pkg.sub.deep as base
+
+Plan0 := $only int
+
+Shape1 :=
+  Object
+  * $peer base.Plan0
+
+Shape2 :=
+  Oneof
+  | $left int
+  | $right str
+
+Rule3[T] :=
+  $v T

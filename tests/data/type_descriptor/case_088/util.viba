@@ -1,0 +1,7 @@
+Shape0 :=
+  Oneof
+  | $left int
+  | $right str
+
+Report1[T] :=
+  $v T

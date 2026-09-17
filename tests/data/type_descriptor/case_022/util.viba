@@ -1,0 +1,6 @@
+import util as base
+
+Plan0 := $only int
+
+Shape1[T] :=
+  $v T

@@ -1,0 +1,14 @@
+import top as m
+
+Plan0 :=
+  Object
+  * $count int
+  * $label str
+
+Report1 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Shape2[T] :=
+  $v T

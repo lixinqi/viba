@@ -1,0 +1,17 @@
+import top as m
+
+Shape0 := $only int
+
+Config1 :=
+  Object
+  * $peer m.Node0
+
+Plan2 :=
+  Oneof
+  | $left int
+  | $right str
+
+Plan3 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

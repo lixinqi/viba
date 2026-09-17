@@ -1,0 +1,8 @@
+import top
+import pkg.mod as mod
+
+Deep :=
+  Object
+  * $m mod.Mid
+  * $root top.Base
+  * $bad pkg.mod.Mid

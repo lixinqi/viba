@@ -1,0 +1,10 @@
+import util as base
+
+Plan0[T] :=
+  $v T
+
+Config1 := int * str
+
+Plan2 :=
+  Object
+  * $peer base.Report1

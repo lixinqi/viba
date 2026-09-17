@@ -1,0 +1,11 @@
+import top as m
+
+Report0 := $only int
+
+Rule1 := $left int | $right str
+
+Shape2 := int * str * bool
+
+Report3 :=
+  Object
+  * $peer m.Shape0

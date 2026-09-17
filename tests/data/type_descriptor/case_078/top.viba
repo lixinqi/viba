@@ -1,0 +1,8 @@
+Node0 := $only int
+
+Plan1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

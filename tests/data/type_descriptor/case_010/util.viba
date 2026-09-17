@@ -1,0 +1,10 @@
+import top as lib
+
+Shape0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Rule1 :=
+  Object
+  * $peer lib.Plan0

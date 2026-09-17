@@ -1,0 +1,9 @@
+Config0[T] :=
+  $v T
+
+Config1 := str * (int | nil)
+
+Report2 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]

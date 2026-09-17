@@ -1,0 +1,10 @@
+import util
+
+Rule0 := $only int
+
+Node1[T] :=
+  $v T
+
+Plan2 :=
+  Object
+  * $peer util.Shape0

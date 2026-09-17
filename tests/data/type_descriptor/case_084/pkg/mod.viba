@@ -1,0 +1,8 @@
+Shape0 := $left int | $right str
+
+Report1 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

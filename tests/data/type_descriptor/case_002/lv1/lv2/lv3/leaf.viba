@@ -1,0 +1,7 @@
+import pkg.sub.deep as dep
+
+Rule0 :=
+  Object
+  * $peer dep.Rule0
+
+Config1 := int * str * bool

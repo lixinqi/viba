@@ -1,0 +1,8 @@
+import pkg.sub.sub2.deepest as lib
+
+Shape0 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

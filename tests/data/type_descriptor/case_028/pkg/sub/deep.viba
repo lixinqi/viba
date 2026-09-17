@@ -1,0 +1,19 @@
+import pkg.mod as m
+
+Rule0 := int * str * bool
+
+Node1 :=
+  Object
+  * $count int
+  * $label str
+
+Config2 :=
+  Object
+  * $peer m.Config1
+
+Plan3 :=
+  Object
+  * $items list[int]
+  * $seen set[str]
+  * $table dict[str, int]
+  * $maybe (int | nil)

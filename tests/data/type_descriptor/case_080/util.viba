@@ -1,0 +1,9 @@
+Report0 :=
+  Object
+  * $ghost Missing
+  * $mix list[Missing]
+
+Report1 :=
+  Oneof
+  | $left int
+  | $right str
