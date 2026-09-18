@@ -1,1 +1,1 @@
-F10 := never <- ($a int * $b str)
+F10 := never <- $operand ($a int * $b str)

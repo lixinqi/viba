@@ -12,7 +12,7 @@ yields Ok(True) or Ok(false) only.
 
 import random
 
-from viba import ast as viba_ast
+from viba import viba_ast
 from viba.type import (
     AstNodeType,
     BoolType,
@@ -171,11 +171,27 @@ def _typed_literal(node, module: ModuleType, rng, fail_prob):
 
 
 def _metric_literal(name_node, module: ModuleType, rng, fail_prob):
+    """A metric's measured value goes wherever the Metric definition puts
+    it: with Metric[T] := $value T the witness is that tag carrying the
+    literal, not the bare literal."""
     if isinstance(name_node, viba_ast.TypeRef):
         resolved = module_get_type(module, name_node.name)
         if isinstance(resolved, Ok):
-            return _literal_of_type(resolved.value, rng, fail_prob)
-    return viba_ast.Nil()
+            literal = _literal_of_type(resolved.value, rng, fail_prob)
+            return _under_metric_slot(module, literal)
+    return _under_metric_slot(module, viba_ast.Nil())
+
+
+def _under_metric_slot(module: ModuleType, literal):
+    """The tag the Metric definition body puts the measured value under;
+    a body that is not one tagged layer takes the literal as is."""
+    resolved = module_get_type(module, "Metric")
+    if isinstance(resolved, Ok) and isinstance(resolved.value, AstNodeType):
+        body = resolved.value.ast_node
+        if isinstance(body, viba_ast.GenericDefinition):
+            if isinstance(body.body, viba_ast.Tagged):
+                return viba_ast.Tagged(body.body.tag, literal)
+    return literal
 
 
 def _literal_of_type(t, rng, fail_prob):

@@ -1,7 +1,7 @@
 import ply.lex as lex
 import ply.yacc as yacc
 
-from viba.ast.nodes import (
+from viba.viba_ast.nodes import (
     TypeDefinition,
     GenericDefinition,
     Import,

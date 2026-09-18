@@ -20,7 +20,7 @@ Two notes on the shape of this:
   legitimate shape but not equal to the sum.
 """
 
-from viba.ast import nodes as ast_nodes
+from viba.viba_ast import nodes as ast_nodes
 from viba.type import AstNodeType, Err, Ok, Result, module_get_type
 from viba.is_sub_type import is_sub_type
 
@@ -58,8 +58,7 @@ def _erase(node, module):
     if isinstance(node, ast_nodes.Exponent):
         return ast_nodes.Exponent(_erase(node.result, module), _erase(node.argument, module))
     if isinstance(node, ast_nodes.ExponentChain):
-        return ast_nodes.ExponentChain(
-            _erase(node.result, module), [_erase(a, module) for a in node.args])
+        return ast_nodes.ExponentChain([_erase(e, module) for e in node.elements])
     if isinstance(node, ast_nodes.TypeRef):
         body, home = _unfold(node, module)
         return _erase(body, home) if body is not node else node

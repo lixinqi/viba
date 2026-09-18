@@ -1,8 +1,8 @@
-"""Self-test for viba.ast: python -m viba.ast"""
+"""Self-test for viba.viba_ast: python -m viba.viba_ast"""
 
 import ast as _py_ast
 
-from viba.ast import (
+from viba.viba_ast import (
     parse,
     unparse,
     dump,
@@ -14,7 +14,7 @@ from viba.ast import (
     Product,
 )
 
-# 1. Parse every case in the parser test suite through viba.ast
+# 1. Parse every case in the parser test suite through viba.viba_ast
 count = 0
 tree_src = _py_ast.parse(open("viba/parser.py").read())
 for node in _py_ast.walk(tree_src):

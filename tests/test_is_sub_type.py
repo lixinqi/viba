@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import ast as py_ast
 
-from viba import ast as viba_ast
+from viba import viba_ast
 from viba.type import (
     BUILTIN_MODULE,
     AstNodeType,
@@ -242,6 +242,44 @@ def run_not_cases():
         check_result(is_sub_type(sub_e, sup_e), expected[num], f"not case {num}")
 
 
+def run_canonical_chain_cases():
+    """主链压成链、支链留成分组：规范化只并一路 $left / $result。
+
+    支链（$right 那侧的嵌套）原样算主链里的一个元素，它自己也递归成链，
+    所以 A * (B * C) 与 A * B * C 不同形——指数的分组更是不能丢。
+    """
+    def canon(text: str) -> str:
+        module = custom_module(f"__entry__ := {text}")
+        body = {d.name: d for d in module.module.body}["__entry__"].body
+        tree = viba_ast.Module([viba_ast.TypeDefinition(
+            "x", viba_ast.convert_to_chain_style(body))])
+        return viba_ast.unparse_module(tree)
+
+    def judge(sub: str, sup: str):
+        return is_sub_type(entry_type(sub), entry_type(sup))
+
+    check(canon("int | str | bool") == canon("(int | str) | bool"), True,
+          "canonical: 主链一路 $left，压成同一条")
+    check(canon("int | str | bool") == canon("int | (str | bool)"), False,
+          "canonical: 和类型的支链保留分组")
+    check(canon("int * str * bool") == canon("int * (str * bool)"), False,
+          "canonical: 积类型的支链保留分组")
+    check(canon("int * (str * (bool * int))") == canon("int * str * bool * int"), False,
+          "canonical: 支链的支链递归成深层链")
+    check(canon("int <- str <- bool") == canon("(int <- str) <- bool"), True,
+          "canonical: 指数的主链（$result 那侧）压成一条")
+    check(canon("int <- str <- bool") == canon("int <- (str <- bool)"), False,
+          "canonical: 指数的支链（$argument）不被并进主链")
+    check_result(judge("int <- str <- bool", "(int <- str) <- bool"), True,
+                 "judgment: 左嵌套的指数同一条主链")
+    check_result(judge("int <- str <- bool", "int <- (str <- bool)"), False,
+                 "judgment: 右嵌套的指数不是同一回事")
+    check_result(judge("int * str * bool", "int * (str * bool)"), True,
+                 "judgment: 积的结合律仍然成立（分组不同形，判定不受影响）")
+    check_result(judge("int | str | bool", "int | (str | bool)"), True,
+                 "judgment: 和的结合律仍然成立")
+
+
 def _is_test_cases_assign(node) -> bool:
     if not isinstance(node, py_ast.Assign):
         return False
@@ -288,6 +326,7 @@ run_env_get_cases()
 run_env_get_scope_cases()
 run_applied_generic_cases()
 run_not_cases()
+run_canonical_chain_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

@@ -155,31 +155,6 @@ def render_atom(node):
     raise AssertionError(node)
 
 
-def _strip_parens(node):
-    while node[0] == "paren":
-        node = node[1]
-    return node
-
-
-def flatten_children(kind, children):
-    """Splice same-operator children (and parens around them) inline.
-
-    Chain-style canonical form is flat and left-associative, so a
-    right-nested same-op group like `A | (B | C)` cannot survive
-    unparse -> reparse with an identical AST. Flattening at render time
-    keeps every generated file AST-stable under the corpus check.
-    Parentheses are stripped to any depth before the operator check.
-    """
-    out = []
-    for ch in children:
-        core = _strip_parens(ch)
-        if core[0] == kind:
-            out.extend(flatten_children(kind, core[1]))
-        else:
-            out.append(ch)
-    return out
-
-
 def render(node, level):
     """Render node as source lines with `level` indentation levels.
 
@@ -208,7 +183,7 @@ def render(node, level):
 
     if kind in ("sum", "prod"):
         op = "|" if kind == "sum" else "*"
-        children = flatten_children(kind, node[1])
+        children = node[1]
         lines = render_operand(children[0], level)
         for child in children[1:]:
             sub = render_operand(child, level + 1)
@@ -434,7 +409,7 @@ def main():
 
     if "--check" in sys.argv:
         sys.path.insert(0, str(OUT_DIR.parent.parent))
-        from viba import ast as viba_ast
+        from viba import viba_ast
 
         bad = []
         line_counts = []

@@ -1,4 +1,4 @@
-"""viba.ast — python-ast-style interface over Viba source.
+"""viba.viba_ast — python-ast-style interface over Viba source.
 
 Public API (cf. the standard-library ast module):
     parse(source)   -> Module
@@ -9,13 +9,13 @@ Public API (cf. the standard-library ast module):
     NodeVisitor / NodeTransformer
 
 The parser is imported lazily inside parse() to avoid a package cycle
-(viba.parser builds viba.ast.nodes objects in its grammar actions).
+(viba.parser builds viba.viba_ast.nodes objects in its grammar actions).
 """
 
 from collections import deque
 from typing import Any, Iterator, List, Optional
 
-from viba.ast.nodes import (
+from viba.viba_ast.nodes import (
     AST,
     Module,
     TypeDefinition,
@@ -37,9 +37,9 @@ from viba.ast.nodes import (
     ProductChain,
     ExponentChain,
 )
-from viba.ast.chain import convert_to_chain_style, convert_from_chain_style
-from viba.ast.unparse import unparse_module
-from viba.ast.rules import (
+from viba.viba_ast.chain import convert_to_chain_style, convert_from_chain_style
+from viba.viba_ast.unparse import unparse_module
+from viba.viba_ast.rules import (
     PRODUCT_MARKER,
     SUM_MARKER,
     rule_definitions,

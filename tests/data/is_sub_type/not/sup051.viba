@@ -1,1 +1,1 @@
-F1 := never <- (int)
+F1 := never <- $operand (int)

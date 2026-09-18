@@ -7,10 +7,10 @@ DemoRuleStripped :=
 
 DemoWitnessFail :=
   Object
-  * $code_length 30
+  * $code_length ($value 30)
   * $assert_code_len_le_24 PredicationFailed[int, str]
 
 DemoWitnessPass :=
   Object
-  * $code_length 20
+  * $code_length ($value 20)
   * $assert_code_len_le_24 nil

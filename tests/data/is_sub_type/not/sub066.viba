@@ -1,1 +1,1 @@
-F8 := never <- ($a int | $b str | $c bool)
+F8 := never <- $operand ($a int | $b str | $c bool)

@@ -1,18 +1,18 @@
 """The Type model consumed by is_sub_type.
 
 This is the metalanguage layer: Viba types being compared are reified
-as values of the `Type` classes below. Structure stays at the viba.ast
+as values of the `Type` classes below. Structure stays at the viba.viba_ast
 layer (wrapped in AstNodeType); this module models leaves, references
 and the module machinery they need for nominal resolution.
 
 Decoupling contract: this layer knows how to build Type values from
-viba.ast nodes, but nothing about rules, results or compliance.
+viba.viba_ast nodes, but nothing about rules, results or compliance.
 """
 
 from pathlib import Path
 from typing import Callable, Union
 
-from viba import ast as viba_ast
+from viba import viba_ast
 
 
 # ----------------------------------------------------------------------
@@ -201,7 +201,7 @@ def _is_definition(node) -> bool:
 
 
 class AstNodeType(Type):
-    """Any structural viba.ast node + the module its TypeRefs resolve in.
+    """Any structural viba.viba_ast node + the module its TypeRefs resolve in.
 
     `env_get` models the optional third field of the spec's AstNodeType:
     a fallback resolver for free type names (e.g. generic parameters

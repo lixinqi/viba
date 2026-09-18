@@ -1,15 +1,19 @@
 """Chain-style canonicalization of AST nodes.
 
-convert_to_chain_style flattens left-nested Sum/Product/Exponent trees
-into flat SumChain/ProductChain/ExponentChain nodes; tuples, tags and
-type applications are traversed element-wise. convert_from_chain_style
-rebuilds the left-nested binary form.
+`|` / `*` / `<-` 都左结合，所以写出来的一串里，主链就是一路 `$left`
+（指数是一路 `$result`）的嵌套，压成 SumChain / ProductChain /
+ExponentChain；`$right`（指数的 `$argument`）那侧的嵌套是支链，原样
+算主链里的一个元素，它自己也照同样的规矩递归处理（支链的主链压成
+次级链，支链的支链再往深一层）。分组因此不丢：`A * (B * C)` 是
+``ProductChain([A, ProductChain([B, C])])``，与 `A * B * C` 不同形。
+元组、标签、类型应用照元素遍历。convert_from_chain_style 反向重建
+左嵌套的二元形式。
 """
 
 from typing import List
 
-from viba.ast._match import viba_type_match
-from viba.ast.nodes import (
+from viba.viba_ast._match import viba_type_match
+from viba.viba_ast.nodes import (
     AST,
     TypeDefinition,
     GenericDefinition,
@@ -50,51 +54,40 @@ def convert_to_chain_style(node: AST) -> AST:
 
 
 def _flatten_sum(sum_type: Sum) -> SumChain:
-    elements = []
-
-    def collect(t: AST):
-        t2 = convert_to_chain_style(t)
-        if isinstance(t2, SumChain):
-            elements.extend(t2.elements)
-        else:
-            elements.append(t2)
-
-    collect(sum_type.left)
-    collect(sum_type.right)
-
+    """主链（一路 $left）并进这一条，支链（$right）留成一个元素。"""
+    elements = _main_chain_elements(sum_type.left, SumChain)
+    elements.append(convert_to_chain_style(sum_type.right))
     return SumChain(elements)
 
 
 def _flatten_product(product_type: Product) -> ProductChain:
-    elements = []
-
-    def collect(t: AST):
-        t2 = convert_to_chain_style(t)
-        if isinstance(t2, ProductChain):
-            elements.extend(t2.elements)
-        else:
-            elements.append(t2)
-
-    collect(product_type.left)
-    collect(product_type.right)
-
+    elements = _main_chain_elements(product_type.left, ProductChain)
+    elements.append(convert_to_chain_style(product_type.right))
     return ProductChain(elements)
 
 
+def _main_chain_elements(node: AST, chain_kind) -> List[AST]:
+    """把已经规范化过的 left 那一段摊成主链元素表。"""
+    converted = convert_to_chain_style(node)
+    if isinstance(converted, chain_kind):
+        return list(converted.elements)
+    return [converted]
+
+
 def _flatten_exponent(exponent_type: Exponent) -> ExponentChain:
-    def collect(e: Exponent, args_so_far: List[AST]) -> "tuple[List[AST], AST]":
+    """主链（一路 $result）并成一条指数链，元素按书写顺序；支链留成一个元素。
+
+    与和/积同形：``A <- B <- C`` 是 ``ExponentChain([A, B, C])``，
+    ``A <- (B <- C)`` 是 ``ExponentChain([A, ExponentChain([B, C])])``。
+    """
+    def collect(e: Exponent, tail: List[AST]) -> List[AST]:
         arg = convert_to_chain_style(e.argument)
         res = convert_to_chain_style(e.result)
+        if isinstance(res, ExponentChain):
+            return list(res.elements) + [arg] + tail
+        return [res, arg] + tail
 
-        if isinstance(res, Exponent):
-            return collect(res, args_so_far + [arg])
-        elif isinstance(res, ExponentChain):
-            return (args_so_far + [arg] + res.args, res.result)
-        else:
-            return (args_so_far + [arg], res)
-
-    args, result = collect(exponent_type, [])
-    return ExponentChain(result, args)
+    return ExponentChain(collect(exponent_type, []))
 
 
 # ----------------------------------------------------------------------
@@ -126,9 +119,9 @@ def _reconstruct_sum(chain: SumChain) -> AST:
     if not chain.elements:
         return Never()
 
-    result = chain.elements[0]
+    result = convert_from_chain_style(chain.elements[0])
     for elem in chain.elements[1:]:
-        result = Sum(result, elem)
+        result = Sum(result, convert_from_chain_style(elem))
     return result
 
 
@@ -136,16 +129,16 @@ def _reconstruct_product(chain: ProductChain) -> AST:
     if not chain.elements:
         return Nil()
 
-    result = chain.elements[0]
+    result = convert_from_chain_style(chain.elements[0])
     for elem in chain.elements[1:]:
-        result = Product(result, elem)
+        result = Product(result, convert_from_chain_style(elem))
     return result
 
 
 def _reconstruct_exponent(chain: ExponentChain) -> AST:
-    result = chain.result
-    for arg in reversed(chain.args):
-        result = Exponent(result, arg)
+    result = convert_from_chain_style(chain.elements[0])
+    for arg in chain.elements[1:]:
+        result = Exponent(result, convert_from_chain_style(arg))
     return result
 
 

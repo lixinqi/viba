@@ -25,8 +25,8 @@ from __future__ import annotations
 import hashlib
 from typing import Callable, Dict, List, Optional
 
-from viba import ast as viba_ast
-from viba.ast import nodes as ast_nodes
+from viba import viba_ast
+from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
     AstNodeType,
     CustomModuleType,
@@ -53,6 +53,7 @@ CODE_BLOCK = "code_block"
 
 PRODUCT_UNIT = ("Object", "nil")  # 积链链头的单位元
 SUM_UNIT = ("Oneof", "never")  # 和链链头的单位元
+EXPONENT_UNIT = ("never",)  # 指数链链头（结果那一元）的单位元
 
 
 # ----------------------------------------------------------------------
@@ -160,18 +161,6 @@ class VibaChainDescriptor:
         self.pool = pool
         self.resolvable_type = resolvable_type
         self.elements = elements
-
-
-class VibaExponentDescriptor:
-    """Canonical exponent chain."""
-
-    __slots__ = ("pool", "resolvable_type", "result", "args")
-
-    def __init__(self, pool, resolvable_type, result: VibaTypeDescriptor, args: List[VibaTypeDescriptor]):
-        self.pool = pool
-        self.resolvable_type = resolvable_type
-        self.result = result
-        self.args = args
 
 
 class VibaLiteralDescriptor:
@@ -355,15 +344,51 @@ def _build_definition(pool, module, stmt, module_name, file_name, file_hash) -> 
     )
 
 
+def _left_elements(node, kind, chain_kind) -> List:
+    """写成一串的积/和读成元素表（书写顺序）：沿 $left 那条脊柱收 $right。"""
+    if isinstance(node, chain_kind):
+        return list(node.elements)
+    elements = []
+    while isinstance(node, kind):
+        elements.append(node.right)
+        node = node.left
+    elements.append(node)
+    elements.reverse()
+    return elements
+
+
+def _exponent_elements(node) -> List:
+    """写成一串的指数读成元素表（书写顺序）：沿 $result 那条脊柱收 $argument。"""
+    if isinstance(node, ast_nodes.ExponentChain):
+        return list(node.elements)
+    elements = []
+    while isinstance(node, ast_nodes.Exponent):
+        elements.append(node.argument)
+        node = node.result
+    elements.append(node)
+    elements.reverse()
+    return elements
+
+
+def _body_elements(body):
+    """定义体是写成一串的积/和/指数时，给出 (元素表, 链头单位元)。
+
+    三种链一个规矩：成员就是那一串的元素，链头的单位元不算。
+    """
+    if isinstance(body, (ast_nodes.Product, ast_nodes.ProductChain)):
+        return _left_elements(body, ast_nodes.Product, ast_nodes.ProductChain), PRODUCT_UNIT
+    if isinstance(body, (ast_nodes.Sum, ast_nodes.SumChain)):
+        return _left_elements(body, ast_nodes.Sum, ast_nodes.SumChain), SUM_UNIT
+    if isinstance(body, (ast_nodes.Exponent, ast_nodes.ExponentChain)):
+        return _exponent_elements(body), EXPONENT_UNIT
+    return None, None
+
+
 def _build_members(pool, module, body, full_name: str) -> List[VibaMemberDescriptor]:
-    """积链的字段或者和链的分支；链头的单位元不算成员。"""
-    if isinstance(body, ast_nodes.ProductChain) and body.elements:
-        elements, unit = list(body.elements), PRODUCT_UNIT
-        if _is_unit(elements[0], unit):
-            elements = elements[1:]
-    elif isinstance(body, ast_nodes.SumChain) and body.elements:
-        elements, unit = list(body.elements), SUM_UNIT
-        if _is_unit(elements[0], unit):
+    """写成一串的积/和/指数的元素就是成员；链头的单位元不算。"""
+    elements, unit = _body_elements(body)
+    if elements is not None:
+        if elements and _is_unit(elements[0], unit):
             elements = elements[1:]
     elif isinstance(body, ast_nodes.Tagged):
         elements = [body]  # 体就是一整个带标签的类型：一个成员的积
@@ -391,17 +416,18 @@ def _is_unit(node, names) -> bool:
 
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
     resolvable = AstNodeType(node, module)
-    if isinstance(node, ast_nodes.ProductChain):
+    if isinstance(node, (ast_nodes.Product, ast_nodes.ProductChain)):
         return VibaTypeDescriptor(PRODUCT, VibaChainDescriptor(
-            pool, resolvable, [_build_type(pool, module, e) for e in node.elements]))
-    if isinstance(node, ast_nodes.SumChain):
+            pool, resolvable, [_build_type(pool, module, e) for e in
+                               _left_elements(node, ast_nodes.Product, ast_nodes.ProductChain)]))
+    if isinstance(node, (ast_nodes.Sum, ast_nodes.SumChain)):
         return VibaTypeDescriptor(SUM, VibaChainDescriptor(
-            pool, resolvable, [_build_type(pool, module, e) for e in node.elements]))
-    if isinstance(node, ast_nodes.ExponentChain):
-        return VibaTypeDescriptor(EXPONENT, VibaExponentDescriptor(
+            pool, resolvable, [_build_type(pool, module, e) for e in
+                               _left_elements(node, ast_nodes.Sum, ast_nodes.SumChain)]))
+    if isinstance(node, (ast_nodes.Exponent, ast_nodes.ExponentChain)):
+        return VibaTypeDescriptor(EXPONENT, VibaChainDescriptor(
             pool, resolvable,
-            _build_type(pool, module, node.result),
-            [_build_type(pool, module, a) for a in node.args]))
+            [_build_type(pool, module, e) for e in _exponent_elements(node)]))
     if isinstance(node, ast_nodes.TypeApp):
         return VibaTypeDescriptor(TYPE_APP, VibaTypeAppDescriptor(
             pool, resolvable, node.constructor,
@@ -606,7 +632,7 @@ __all__ = [
     "VibaConstantValue",
     "VibaTypeDescriptor",
     "VibaTypeRefDescriptor", "VibaTypeAppDescriptor", "VibaTupleDescriptor",
-    "VibaTaggedDescriptor", "VibaChainDescriptor", "VibaExponentDescriptor",
+    "VibaTaggedDescriptor", "VibaChainDescriptor",
     "VibaLiteralDescriptor", "VibaCodeBlockDescriptor",
     "VibaMemberDescriptor", "VibaDefinitionDescriptor",
     "VibaImportDescriptor", "VibaFileDescriptor", "VibaPool",

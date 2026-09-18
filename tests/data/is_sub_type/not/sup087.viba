@@ -1,2 +1,2 @@
 Ref := int
-F19 := never <- (Ref)
+F19 := never <- $operand (Ref)

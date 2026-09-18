@@ -97,5 +97,5 @@ def predicate(self):
   * $assert_15_name_size_name_fits_size
       Predicate[{name_size name fits size}, $python_code {
 def predicate(self):
-    return len(self.name_size.name) <= self.name_size.size
+    return len(self.name_size.value.name) <= self.name_size.value.size
 }]

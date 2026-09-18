@@ -86,7 +86,7 @@ def predicate(self):
   * $assert_12_doc_coverage_documented_within_total
       Predicate[{doc_coverage documented within total}, $python_code {
 def predicate(self):
-    return self.doc_coverage.documented_lines <= self.doc_coverage.total_lines
+    return self.doc_coverage.value.documented_lines <= self.doc_coverage.value.total_lines
 }]
   * $assert_13_int_list_non_empty
       Predicate[{int_list non-empty}, $python_code {
@@ -101,10 +101,10 @@ def predicate(self):
   * $assert_15_name_size_name_fits_size
       Predicate[{name_size name fits size}, $python_code {
 def predicate(self):
-    return len(self.name_size.name) <= self.name_size.size
+    return len(self.name_size.value.name) <= self.name_size.value.size
 }]
   * $assert_16_triplet_x_plus_y_within_z
       Predicate[{triplet x plus y within z}, $python_code {
 def predicate(self):
-    return self.triplet.x + self.triplet.y <= self.triplet.z
+    return self.triplet.value.x + self.triplet.value.y <= self.triplet.value.z
 }]

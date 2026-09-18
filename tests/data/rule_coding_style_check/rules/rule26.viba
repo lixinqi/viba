@@ -56,10 +56,10 @@ def predicate(self):
   * $assert_08_int_pair_ordered
       Predicate[{int_pair ordered}, $python_code {
 def predicate(self):
-    return self.int_pair.a <= self.int_pair.b
+    return self.int_pair.value.a <= self.int_pair.value.b
 }]
   * $assert_09_int_pair_sum_bounded
       Predicate[{int_pair sum bounded}, $python_code {
 def predicate(self):
-    return self.int_pair.a + self.int_pair.b <= 100
+    return self.int_pair.value.a + self.int_pair.value.b <= 100
 }]

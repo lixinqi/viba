@@ -1,2 +1,2 @@
 NamedSum := $a int | $b str
-F20 := never <- (NamedSum)
+F20 := never <- $operand (NamedSum)

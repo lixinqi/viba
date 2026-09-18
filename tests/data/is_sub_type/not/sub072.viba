@@ -1,1 +1,1 @@
-F11 := never <- (list[int])
+F11 := never <- $operand (list[int])

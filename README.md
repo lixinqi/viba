@@ -73,12 +73,12 @@ Handler := {def forward(self, x): return x}
 ## Modules
 
 `viba/` contains only the parser and the `ast` package — the parser's
-grammar actions build `viba.ast.nodes` objects directly; there is no
+grammar actions build `viba.viba_ast.nodes` objects directly; there is no
 intermediate representation.
 
 | Module | Summary |
 |--------|---------|
-| `parser.py` | Lexer + parser (PLY) — .viba source straight to `viba.ast` nodes |
+| `parser.py` | Lexer + parser (PLY) — .viba source straight to `viba.viba_ast` nodes |
 | `ast/nodes.py` | AST node classes (cf. `ast.AST`) |
 | `ast/chain.py` | Flattens nested binary trees into Sum/Product/Exponent chains and back |
 | `ast/unparse.py` | Code generator — nodes back to canonical .viba source |
@@ -97,7 +97,7 @@ the accumulated API:
 | `rule/is_compliant.py` | `witness <: rule` |
 | `rule/check_rule_coding_style.py` | Checks a rule against `viba-rule.md` |
 | `rule/check_determinate.py` | Well-formed, predicate code runs, every witness judges without error |
-| `is_sub_type.py`, `type.py`, `parser.py`, `ast/` | Core: subtype judgment, Type model, syntax |
+| `is_sub_type.py`, `type.py`, `parser.py`, `viba_ast/` | Core: subtype judgment, Type model, syntax |
 
 ```python
 from viba.rule import check_determinate, generate_witnesses, is_compliant
@@ -106,11 +106,11 @@ from viba.rule import check_determinate, generate_witnesses, is_compliant
 ## Usage
 
 ```python
-from viba import ast
+from viba import viba_ast
 
-tree = ast.parse("Option[T] := $some T | nil")
-print(ast.dump(tree))
-print(ast.unparse(tree))   # canonical chain-style source
+tree = viba_ast.parse("Option[T] := $some T | nil")
+print(viba_ast.dump(tree))
+print(viba_ast.unparse(tree))   # canonical chain-style source
 ```
 
 ## Installation
@@ -118,7 +118,7 @@ print(ast.unparse(tree))   # canonical chain-style source
 ```bash
 pip install ply
 python -m viba.parser                    # parser test suite
-python -m viba.ast                       # ast round-trip checks
+python -m viba.viba_ast                  # ast round-trip checks
 python tests/corpus/generate_corpus.py --check   # 130-file corpus round-trip
 ```
 

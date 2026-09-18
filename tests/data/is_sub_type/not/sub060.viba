@@ -1,1 +1,1 @@
-F5 := never <- (int | str | bool)
+F5 := never <- $operand (int | str | bool)

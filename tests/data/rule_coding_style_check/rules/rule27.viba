@@ -73,5 +73,5 @@ def predicate(self):
   * $assert_11_doc_coverage_documented_within_total
       Predicate[{doc_coverage documented within total}, $python_code {
 def predicate(self):
-    return self.doc_coverage.documented_lines <= self.doc_coverage.total_lines
+    return self.doc_coverage.value.documented_lines <= self.doc_coverage.value.total_lines
 }]

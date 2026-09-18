@@ -9,7 +9,7 @@ module can declare which of its definitions are rules.
 
 from typing import List, Optional
 
-from viba.ast.nodes import (
+from viba.viba_ast.nodes import (
     GenericDefinition,
     Module,
     Product,

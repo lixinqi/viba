@@ -63,7 +63,7 @@ def predicate(self):
   * $assert_09_indent_width_non_negative
       Predicate[{indent_width non-negative}, $python_code {
 def predicate(self):
-    return self.indent_width.spaces >= 0
+    return self.indent_width.value.spaces >= 0
 }]
   * $assert_10_lookup_non_empty
       Predicate[{lookup non-empty}, $python_code {

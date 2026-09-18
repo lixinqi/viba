@@ -32,11 +32,11 @@ Rule 里可以带谓词（Predicate）与禁止性字段（`not`），书写形�
 
 `$python_code` 代码块内的花括号必须成对出现（CodeBlock 词法约束）。
 
-判定器代码必须定义名为 `predicate` 的函数作为入口。`predicate` 恰好接受一个参数，参数名约定为 `self`：`self` 的属性与 Rule 中带标签的字段按名字对应（标签去掉 `$` 前缀），度量字段的实测值取其 `.value` 属性，嵌套的积字段按属性继续展开，元组字段按下标访问。`predicate` 返回布尔值：返回真值表示断言成立，返回假值表示断言不成立。
+判定器代码必须定义名为 `predicate` 的函数作为入口。`predicate` 恰好接受一个参数，参数名约定为 `self`：`self` 的属性与 Rule 中带标签的字段按名字对应（标签去掉 `$` 前缀），度量字段的实测值取其 `.value` 属性（也就是 `Metric` 定义体上 `$value` 那一层），嵌套的积字段按属性继续展开，元组字段按下标访问。`predicate` 返回布尔值：返回真值表示断言成立，返回假值表示断言不成立。
 
 ## 5. Metric 的书写形式
 
-度量写作 `Metric[Name]`。`Metric[Name]` 是内建透传泛型（定义见 `viba/builtin.viba`）：度量的语义完全由 `Name` 承载。在判定中，`Metric` 只考虑纯数据类型：基类型（`bool` / `int` / `float` / `str`）及其容器（`list[T]`、`set[T]`、`dict[K, V]`）、单个带标签字段（如 `$tag T`）与积类型。函数、`Predicate` 等其他语义在判定中完全被忽视。
+度量写作 `Metric[Name]`。`Metric[Name]` 是内建泛型（定义见 `viba/builtin.viba`），体是 `$value Name`：量出来的值就挂在 `$value` 这一层，Name 承载度量的全部数据形状。在判定中，`Metric` 只考虑纯数据类型：基类型（`bool` / `int` / `float` / `str`）及其容器（`list[T]`、`set[T]`、`dict[K, V]`）、单个带标签字段（如 `$tag T`）与积类型。函数、`Predicate` 等其他语义在判定中完全被忽视。
 
 ## 6. 断言与合取的书写形式
 
@@ -59,9 +59,11 @@ NoDeathPenaltyRule :=
       ]
 ```
 
-`not[A]` 就是 `never <- A`（定义见 `viba/builtin.viba`）。上面每个分支的 `Homicide` / `Arson` / `Robbery` 是 Predicate 字段类型。
+`not[A]` 就是 `never <- $operand A`（定义见 `viba/builtin.viba`）：`$operand` 是定义给被禁止的那个操作数起的标签，数据里没有这一层。上面每个分支的 `Homicide` / `Arson` / `Robbery` 是 Predicate 字段类型。
 
-判定层对应三条：外壳（同 tag、全 `PredicationFailed`）成立；写成 `never <- B` 的按指数类型比（`never <- B <: never <- A` 当且仅当 `A <: B`）；写成带 tag 的积的按 `never <- (A | B) = (never <- A) * (never <- B)` 逐分支要求否证。
+判定层对应三条：外壳（同 tag、全 `PredicationFailed`）成立；写成 `never <- B` 的按指数类型比（`never <- B <: not[A]` 当且仅当 `$operand A <: B`）；写成带 tag 的积的按 `never <- (A | B) = (never <- A) * (never <- B)` 逐分支要求否证。
+
+反射（`viba.rule.reflect`）读禁止性字段时也照这个来：`not[A]` 展开到 `never <- $operand A`，它是一个坐标（和积/和的字段一样），`get_operand()` 取到的就是被禁止的那个操作数 `A`，再往下才是各分支。
 
 `PredicationFailed` 只在禁止性分支被要求；正向 Predicate 字段写它则表示断言不成立。
 
@@ -70,7 +72,7 @@ NoDeathPenaltyRule :=
 Witness 与 Rule 结构平行：带 tag 的字段按 tag 一一对位，只有叶子按规则要求换掉。
 
 - **标记**：Rule 用 `RuleObject` / `OneofRule` 起头；Witness 用同义的 `Object` / `Oneof` 起头，不带标记（带了会被当成规则枚举）。
-- **Metric 字段**：Rule 写 `$len Metric[Len]`，Witness 填实测值，例如 `$len 42`；容器与带 tag 的积同理。
+- **Metric 字段**：Rule 写 `$len Metric[Len]`，Witness 把实测值填进 `$value`，例如 `$len ($value 42)`；容器与带 tag 的积同理（`Metric[Name]` 的体就是 `$value Name`）。
 - **Predicate 字段**：断言成立就照写 `Predicate[...]`；断言不成立就写 `PredicationFailed[...]`。
 - **禁止性字段**：保持 `not[oneof]` 外壳，只把每个分支的叶子换成 `PredicationFailed[...]`（见第 7 节）。
 - **判定**：`is_compliant(witness, rule)`，True 是材料满足规则，False 是不满足。只想看形状（断言成没成先不管）就用 `is_shape_compatible`：它把两边的 `Predicate[...]` 与 `PredicationFailed[...]` 都当叶子擦掉，再比 `witness <: rule`，见第 10 节。
@@ -79,8 +81,8 @@ Witness 与 Rule 结构平行：带 tag 的字段按 tag 一一对位，只有�
 
 ```text
 Rule        := RuleObject * $len Metric[Len] * $check Predicate[{...}, $python_code {...}]
-Witness     := Object     * $len 42          * $check Predicate[{...}, $python_code {...}]   # 断言成立
-FailWitness := Object     * $len 42          * $check PredicationFailed[nil, str]            # 断言不成立
+Witness     := Object     * $len ($value 42) * $check Predicate[{...}, $python_code {...}]   # 断言成立
+FailWitness := Object     * $len ($value 42) * $check PredicationFailed[nil, str]            # 断言不成立
 ```
 
 `PredicationFailed` 是毒剂：它在正向位置永不入席，所以一个字段从 `Predicate[...]` 变成 `PredicationFailed[...]`，整份材料就不满足这条规则。
@@ -169,4 +171,4 @@ for witness in generate_witnesses(rule, 20, seed=1, fail_prob=0.0):
     print(is_compliant(witness, rule))                    # Ok(True) / Ok(False)
 ```
 
-语料与更完整的回归在 `tests/test_rule_coding_style_check.py`：40 条 Metric/Predicate 规则、20 条 `not` 规则、坏 predicate 样例，以及生成 → 执行 → 判定的比例断言。
+语料与更完整的回归在 `tests/test_rule_coding_style_check.py`：41 条 Metric/Predicate 规则、20 条 `not` 规则、坏 predicate 样例，以及生成 → 执行 → 判定的比例断言。

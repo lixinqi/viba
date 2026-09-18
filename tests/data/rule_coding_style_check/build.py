@@ -45,7 +45,14 @@ POOL = [
     ("Triplet", "$x int * $y int * $z int", "prod_xyz", "triplet"),
     ("IntList", "list[int]", "intlist", "int_list"),
     ("Lookup", "dict[str, str]", "dictss", "lookup"),
+    # 三层 TypeRef：GroupSpec -> Bucket -> Slot（给反射的展开链留材料）
+    ("GroupSpec", "$bucket Bucket", "prod_bucket", "group_spec"),
 ]
+
+# 某些 metric 还要带上额外的定义行（POOL 的 expr 只写得下一行）
+HELPERS = {
+    "GroupSpec": ["Bucket := list[Slot]", "Slot := $name str"],
+}
 
 # kind -> list of (description, predicate body); {t} is the field tag
 BANK = {
@@ -78,11 +85,11 @@ BANK = {
         ("{t} non-empty", "return len(self.{t}.value) >= 1"),
         ("{t} bounded", "return len(self.{t}.value) <= 4"),
     ],
-    "prod1": [("{t} non-negative", "return self.{t}.spaces >= 0")],
+    "prod1": [("{t} non-negative", "return self.{t}.value.spaces >= 0")],
     "prod2": [
-        ("{t} documented within total", "return self.{t}.documented_lines <= self.{t}.total_lines"),
+        ("{t} documented within total", "return self.{t}.value.documented_lines <= self.{t}.value.total_lines"),
     ],
-    "prod3": [("{t} spent within cap", "return self.{t}.spent <= self.{t}.cap")],
+    "prod3": [("{t} spent within cap", "return self.{t}.value.spent <= self.{t}.value.cap")],
     "intlist": [
         ("{t} non-empty", "return len(self.{t}.value) >= 1"),
         ("{t} bounded", "return len(self.{t}.value) <= 4"),
@@ -92,11 +99,15 @@ BANK = {
         ("{t} bounded", "return len(self.{t}.value) <= 4"),
     ],
     "prod_ab": [
-        ("{t} ordered", "return self.{t}.a <= self.{t}.b"),
-        ("{t} sum bounded", "return self.{t}.a + self.{t}.b <= 100"),
+        ("{t} ordered", "return self.{t}.value.a <= self.{t}.value.b"),
+        ("{t} sum bounded", "return self.{t}.value.a + self.{t}.value.b <= 100"),
     ],
-    "prod_ns": [("{t} name fits size", "return len(self.{t}.name) <= self.{t}.size")],
-    "prod_xyz": [("{t} x plus y within z", "return self.{t}.x + self.{t}.y <= self.{t}.z")],
+    "prod_ns": [("{t} name fits size", "return len(self.{t}.value.name) <= self.{t}.value.size")],
+    "prod_xyz": [("{t} x plus y within z", "return self.{t}.value.x + self.{t}.value.y <= self.{t}.value.z")],
+    "prod_bucket": [
+        ("{t} slots named short",
+         "return all(len(slot.name) <= 8 for slot in self.{t}.value.bucket)"),
+    ],
 }
 
 # 20 field combinations; "sum"-kind fields exercise generator branch choice
@@ -142,12 +153,15 @@ COMBOS = [
     ["CodeLength", "MaxLines", "CoverageRatio", "HasTests", "ModuleName", "Keywords", "Tags", "Scores", "NameSize", "Triplet"],
     ["CodeLength", "MaxLines", "LoopCount", "CoverageRatio", "TimeBudget", "HasTests", "AuthorName", "Keywords", "IntList", "IntPair", "DocCoverage"],
     ["CodeLength", "MaxLines", "CoverageRatio", "TimeBudget", "HasTests", "ModuleName", "Keywords", "Tags", "Scores", "Lookup", "IntPair", "NameSize", "Triplet", "IndentWidth", "BudgetSplit"],
+    # 第 41 条：GroupSpec 的三层 TypeRef 链
+    ["CodeLength", "MaxLines", "CoverageRatio", "HasTests", "GroupSpec", "Keywords", "Tags", "Scores"],
 ]
 
 # Predicate-count targets for rules 20-39 (rules 0-19 keep 10).
 ASSERT_TARGETS = [
     11, 13, 17, 21, 22, 24, 12, 14, 16, 18,
     19, 20, 23, 15, 10, 12, 14, 16, 18, 20,
+    13,
 ]
 
 
@@ -199,7 +213,10 @@ def _render(number):
     names = COMBOS[number]
     lookup = {name: spec for spec in POOL for name in [spec[0]]}
     fields = [lookup[name] for name in names]
-    defs = "\n".join(f"{name} := {expr}" for name, expr, _, _ in fields)
+    definitions = [f"{name} := {expr}" for name, expr, _, _ in fields]
+    for name, _, _, _ in fields:
+        definitions += HELPERS.get(name, [])
+    defs = "\n".join(definitions)
     metrics = "\n".join(f"  * ${tag} Metric[{name}]" for name, _, _, tag in fields)
     preds = _predicates(fields, _assert_target(number))
     asserts = [_assert_field(i, d, b) for i, (d, b) in enumerate(preds)]

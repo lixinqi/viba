@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba import ast as viba_ast
+from viba import viba_ast
 from viba.type import AstNodeType, Ok, custom_module
 from viba.is_sub_type import is_sub_type
 from viba.rule import check_rule_coding_style

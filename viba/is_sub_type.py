@@ -54,7 +54,7 @@ Semantics (per design):
   it is a pure memoization / shared-subgraph guard.
 """
 
-from viba import ast as viba_ast
+from viba import viba_ast
 from viba.type import (
     AstNodeType,
     BoolLiteralType,
@@ -238,7 +238,7 @@ class _Checker:
         return s_mod is p_mod and sn.name == sp.name
 
     # ------------------------------------------------------------------
-    # Structural walk over viba.ast nodes
+    # Structural walk over viba.viba_ast nodes
     # ------------------------------------------------------------------
 
     def _walk(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
@@ -280,9 +280,15 @@ class _Checker:
         if isinstance(sn, viba_ast.Never):
             return True  # bottom fits anywhere
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
-            return type(sn) is type(sp)  # never branch admits only never
-        if isinstance(sp, viba_ast.TypeApp) and sp.constructor == "not":
-            return self._walk_not(sn, s_mod, sp, p_mod)
+            # 叶子对叶子：写名字（含泛型形参）也要认出来，名字是透明的。
+            sub_leaf = self._lift(sn, s_mod, "sub")
+            sup_leaf = self._lift(sp, p_mod, "sup")
+            if sub_leaf is not None and sup_leaf is not None:
+                return type(sub_leaf) is type(sup_leaf)
+            return type(sn) is type(sp)
+        operand = self._prohibition_operand(sp, p_mod)
+        if operand is not None:
+            return self._walk_prohibition(sn, s_mod, sp, p_mod, operand)
         mixed = self._walk_mixed_typeapp(sn, s_mod, sp, p_mod)
         if mixed is not None:
             return mixed
@@ -292,63 +298,103 @@ class _Checker:
         return self._walk_structural(sn, s_mod, sp, p_mod)
 
     # ------------------------------------------------------------------
-    # not[A] is never <- A.
-    # - A witness keeps the not[oneof] shell: a sub not[B] with the same
-    #   branch tags, each branch the poison PredicationFailed, is the
-    #   refutation. Same tags, only the leaves swapped.
-    # - A sub written as never <- B (an exponent) compares by the
-    #   exponent case: never <- B <: never <- A iff A <: B.
-    # - A sub written as a tagged product is the same type by
-    #   never <- (A | B) = (never <- A) * (never <- B): the slot at each
-    #   branch tag must carry a refutation — the poison
-    #   PredicationFailed, or a type that fits never <- that branch —
-    #   and a partial product does not.
-    # No other shape holds.
+    # 禁止 = never 头的指数链（`not[A]` 的定义体就是它，`never <- …` 是
+    # 直接写出来）。判据是形状，不是名字：三种链一个读法，指向定义时先
+    # 看定义体的形状。
+    # - 外壳：两边都是禁止，分支 tag 对得上，且 sub 的每个分支都是毒剂
+    #   PredicationFailed。
+    # - 逐分支否证：sub 写成带 tag 的积时，按
+    #   never <- (A | B) = (never <- A) * (never <- B)，每个分支 tag 都要
+    #   带上自己的否证（毒剂，或者一个能入席 never <- 那一支的类型），
+    #   缺一支就不算。
+    # - 其余落到普通的指数规则：never <- B <: never <- A 当且仅当 A <: B。
     # ------------------------------------------------------------------
 
-    def _walk_not(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
-        if len(sp.args) != 1:
-            return False
-        sup_arg = sp.args[0]
-        if self._not_shell(sn, s_mod, sup_arg, p_mod):
+    def _walk_prohibition(self, sn, s_mod, sp, p_mod, operand) -> bool:
+        sub_operand = self._prohibition_operand(sn, s_mod)
+        if sub_operand is not None and self._prohibition_shell(sub_operand, operand):
             return True
-        if self._not_function(sn, s_mod, sup_arg, p_mod):
+        if self._prohibition_evidence(sn, s_mod, operand):
             return True
-        return self._not_product(sn, s_mod, sup_arg, p_mod)
+        node, _ = self._unfold_ref(sn, s_mod, "sub")
+        if isinstance(sp, viba_ast.TypeApp):
+            if isinstance(node, viba_ast.TypeApp):
+                # 两边都写成应用（外壳）：只认全毒剂的外壳，不是指数读法。
+                return False
+            # 应用形式：展开到定义体（形参代实参）再按指数规则比。
+            return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
+        mixed = self._walk_mixed_typeapp(sn, s_mod, sp, p_mod)
+        if mixed is not None:
+            return mixed
+        return self._walk_exponent(sn, s_mod, sp, p_mod)
 
-    def _not_shell(self, sn, s_mod, sup_arg, p_mod) -> bool:
-        """A sub not[...] mirrors the sup not[...]: same branch tags and
-        every branch is the poison. The shell is preserved."""
-        node, module = self._unfold_ref(sn, s_mod, "sub")
-        if not (isinstance(node, viba_ast.TypeApp)
-                and node.constructor == "not" and len(node.args) == 1):
-            return False
-        sup_branches = self._sum_branches(sup_arg, p_mod)
-        sub_branches = self._sum_branches(node.args[0], module)
+    def _prohibition_operand(self, node, module):
+        """(操作数节点, 模块) when this段写成禁止，否则 None。
+
+        应用形式看构造子的定义体（体是 never 头的指数链，操作数是某个形参）；
+        指数形式看链本身：首元 never、第二元是操作数。
+        """
+        operand = self._application_operand(node, module)
+        if operand is not None:
+            return operand
+        return self._exponent_operand(node, module)
+
+    def _application_operand(self, node, module):
+        if not isinstance(node, viba_ast.TypeApp):
+            return None
+        resolved = self._resolve_name(node.constructor, module, "sup")
+        if isinstance(resolved, Err):
+            return None
+        target = resolved.value
+        if not (isinstance(target, AstNodeType)
+                and isinstance(target.ast_node, viba_ast.GenericDefinition)):
+            return None
+        definition = target.ast_node
+        params = list(definition.generic_params or [])
+        if len(params) != len(node.args):
+            return None
+        body = viba_ast.convert_to_chain_style(definition.body)
+        if not isinstance(body, _EXP_NODES):
+            return None
+        elements = _exponent_elements(body)
+        if len(elements) != 2 or not isinstance(elements[0], viba_ast.Never):
+            return None
+        index = _param_index(elements[1], params)
+        if index is None:
+            return None
+        return node.args[index], module
+
+    def _exponent_operand(self, node, module):
+        if not isinstance(node, _EXP_NODES):
+            return None
+        elements = _exponent_elements(node)
+        if len(elements) != 2 or not isinstance(elements[0], viba_ast.Never):
+            return None
+        operand = elements[1]
+        return (operand.type if isinstance(operand, viba_ast.Tagged) else operand), module
+
+    def _prohibition_shell(self, sub_operand, sup_operand) -> bool:
+        """两边都是禁止：分支 tag 对得上，且 sub 的每个分支都是毒剂。"""
+        sub_node, sub_mod = sub_operand
+        sup_node, sup_mod = sup_operand
+        sup_branches = self._sum_branches(sup_node, sup_mod)
+        sub_branches = self._sum_branches(sub_node, sub_mod)
         if sup_branches is None or sub_branches is None:
             return False
         sup_tags = sorted(tag for tag, _, _ in sup_branches)
         sub_tags = sorted(tag for tag, _, _ in sub_branches)
         if sup_tags != sub_tags:
             return False
-        return all(_is_predication_failed(branch) for _, branch, _ in sub_branches)
+        return all(self._is_poison(branch, mod) for _, branch, mod in sub_branches)
 
-    def _not_function(self, sn, s_mod, sup_arg, p_mod) -> bool:
-        node, module = self._unfold_ref(sn, s_mod, "sub")
-        if isinstance(node, viba_ast.TypeApp):
-            return False  # a not[...] sub is the shell, not the exponent reading
-        meaning = self._function_argument(node, module)
-        if meaning is None:
-            return False
-        sub_arg, sub_mod = meaning
-        self._swap_envs()
-        try:
-            return self._walk(sup_arg, p_mod, sub_arg, sub_mod)
-        finally:
-            self._swap_envs()
+    def _is_poison(self, node, module) -> bool:
+        node, module = self._unfold_ref(node, module, "sub")
+        if _is_predication_failed(node):
+            return True
+        return isinstance(node, viba_ast.Never)
 
-    def _not_product(self, sn, s_mod, sup_arg, p_mod) -> bool:
-        branches = self._sum_branches(sup_arg, p_mod)
+    def _prohibition_evidence(self, sn, s_mod, sup_operand) -> bool:
+        branches = self._sum_branches(sup_operand[0], sup_operand[1])
         if branches is None:
             return False
         fields = self._tagged_fields(sn, s_mod)
@@ -362,9 +408,7 @@ class _Checker:
             return False
         node, module = field
         node, module = self._unfold_ref(node, module, "sub")
-        if _is_predication_failed(node):
-            return True
-        if isinstance(node, viba_ast.Never):
+        if self._is_poison(node, module):
             return True
         meaning = self._function_argument(node, module)
         if meaning is None:
@@ -378,16 +422,9 @@ class _Checker:
 
     def _function_argument(self, node, module):
         """(argument, module) when node reads as never <- argument: a
-        not[X] application, or an exponent whose result is never."""
+        prohibition application, or an exponent whose result is never."""
         node, module = self._unfold_ref(node, module, "sub")
-        if (isinstance(node, viba_ast.TypeApp)
-                and node.constructor == "not" and len(node.args) == 1):
-            return node.args[0], module
-        if isinstance(node, _EXP_NODES):
-            result, args = _exponent_parts(node)
-            if isinstance(result, viba_ast.Never) and len(args) == 1:
-                return args[0], module
-        return None
+        return self._prohibition_operand(node, module)
 
     def _sum_branches(self, node, module):
         """[(tag, body, module)] for a not argument; None when a branch
@@ -829,18 +866,37 @@ def _flatten_sum(node):
     return [node]
 
 
-def _exponent_parts(node):
-    """Normalize an Exponent or ExponentChain to (result, args-in-
-    application-order); nested binary Exponents flatten fully so raw
-    parses and canonical chains line up."""
+def _param_index(node, params) -> "Optional[int]":
+    """禁止的操作数写着哪个形参（可能带一层标签）；没有就 None。"""
+    if isinstance(node, viba_ast.Tagged):
+        node = node.type
+    if isinstance(node, viba_ast.TypeRef) and node.name in params:
+        return list(params).index(node.name)
+    return None
+
+
+def _exponent_elements(node):
+    """指数的元素表（书写顺序）：首元是结果，其余是参数。
+
+    链与二元写法一样：``A <- B <- C`` 与 ``(A <- B) <- C`` 都是 [A, B, C]；
+    ``A <- (B <- C)`` 是 [A, [B, C]]，支链算一个元素。
+    """
     if isinstance(node, viba_ast.ExponentChain):
-        return node.result, list(node.args)
-    if not isinstance(node, viba_ast.Exponent):
+        return list(node.elements)
+    if isinstance(node, viba_ast.Exponent):
+        return _exponent_elements(node.result) + [node.argument]
+    return [node]
+
+
+def _exponent_parts(node):
+    """指数读成 (结果, 参数表)：结果在前，参数按应用顺序（最右边的先喂）。
+
+    ``A <- B <- C`` 读成 (A, [B, C])——先喂 B 再喂 C。
+    """
+    elements = _exponent_elements(node)
+    if not isinstance(node, _EXP_NODES):
         raise TypeError(f"not an exponent: {node!r}")
-    head = node.result
-    base = head if not isinstance(head, _EXP_NODES) else None
-    res, args = (base, []) if base is not None else _exponent_parts(head)
-    return res, [node.argument] + args
+    return elements[0], list(reversed(elements[1:]))
 
 
 def _type_key(t: Type, env: tuple = ()):

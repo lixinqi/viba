@@ -77,15 +77,15 @@ def predicate(self):
   * $assert_11_int_pair_ordered
       Predicate[{int_pair ordered}, $python_code {
 def predicate(self):
-    return self.int_pair.a <= self.int_pair.b
+    return self.int_pair.value.a <= self.int_pair.value.b
 }]
   * $assert_12_int_pair_sum_bounded
       Predicate[{int_pair sum bounded}, $python_code {
 def predicate(self):
-    return self.int_pair.a + self.int_pair.b <= 100
+    return self.int_pair.value.a + self.int_pair.value.b <= 100
 }]
   * $assert_13_triplet_x_plus_y_within_z
       Predicate[{triplet x plus y within z}, $python_code {
 def predicate(self):
-    return self.triplet.x + self.triplet.y <= self.triplet.z
+    return self.triplet.value.x + self.triplet.value.y <= self.triplet.value.z
 }]

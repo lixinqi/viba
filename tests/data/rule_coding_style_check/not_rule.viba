@@ -1,7 +1,8 @@
-# Prohibitive rule: not[A] is never <- A. is_sub_type knows only the
+# Prohibitive rule: not[A] is never <- $operand A. is_sub_type knows the
 # exponential, so a compliant witness refutes every branch with a
-# same-tag never <- Branch field. A branch left positive, or missing,
-# is no refutation and judges False.
+# same-tag never <- Branch field (the $operand tag is the definition's
+# label for the operand, not a level in the data). A branch left
+# positive, or missing, is no refutation and judges False.
 
 Homicide := Predicate[{homicide prohibited}, $python_code {
 def predicate(self):

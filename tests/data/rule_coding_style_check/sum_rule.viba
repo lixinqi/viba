@@ -25,10 +25,10 @@ SumRule :=
   | $big BigRule
 
 SumWitnessPass :=
-  $small (RuleObject * $x 20 * $assert_x_le_24 Predicate[{x at most 24}, $python_code {
+  $small (RuleObject * $x ($value 20) * $assert_x_le_24 Predicate[{x at most 24}, $python_code {
 def predicate(self):
     return self.x.value <= 24
 }])
 
 SumWitnessFail :=
-  $small (RuleObject * $x 30 * $assert_x_le_24 PredicationFailed[nil, str])
+  $small (RuleObject * $x ($value 30) * $assert_x_le_24 PredicationFailed[nil, str])

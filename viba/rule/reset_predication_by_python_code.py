@@ -4,24 +4,16 @@ poison.
 reset_predication_by_python_code(witness) -> witness. Every Predicate
 node in the witness gets its compiled $python_code executed against a
 `self` built from the witness's tagged fields (viba-rule.md section 4: tag
-minus $ becomes the attribute, a metric's measured value is its .value,
-a nested product keeps expanding as attributes, a tuple by index). A
-predicate that returns false is replaced by PredicationFailed[nil, str].
+minus $ becomes the attribute, so the metric definition's own $value slot
+is what the predicate reads as .value, a nested product keeps expanding as
+attributes, a tuple by index). A predicate that returns false is replaced
+by PredicationFailed[nil, str].
 """
 
 import types
 
-from viba.ast import nodes as ast_nodes
+from viba.viba_ast import nodes as ast_nodes
 from viba.type import AstNodeType
-
-
-class _Leaf:
-    """A measured metric value: the predicate reads `.value`."""
-
-    __slots__ = ("value",)
-
-    def __init__(self, value):
-        self.value = value
 
 
 def reset_predication_by_python_code(witness: AstNodeType) -> AstNodeType:
@@ -63,7 +55,7 @@ def _self_object(node):
     fields = {}
     for tag, body in _product_tags(node):
         if not _is_predicate(body):
-            fields[tag[1:]] = _value(body, top=True)
+            fields[tag[1:]] = _value(body)
     return types.SimpleNamespace(**fields)
 
 
@@ -80,19 +72,18 @@ def _product_tags(node):
     return []
 
 
-def _value(node, top):
+def _value(node):
     if isinstance(node, ast_nodes.Constant):
-        return _Leaf(node.value) if top else node.value
+        return node.value
     if isinstance(node, ast_nodes.Tagged):
-        return types.SimpleNamespace(**{node.tag[1:]: _value(node.type, top=False)})
+        return types.SimpleNamespace(**{node.tag[1:]: _value(node.type)})
     if isinstance(node, (ast_nodes.Product, ast_nodes.ProductChain)):
-        fields = {tag[1:]: _value(body, top=False) for tag, body in _product_tags(node)}
+        fields = {tag[1:]: _value(body) for tag, body in _product_tags(node)}
         return types.SimpleNamespace(**fields)
     if isinstance(node, ast_nodes.Tuple):
-        return tuple(_value(e, top=False) for e in node.elements)
+        return tuple(_value(e) for e in node.elements)
     if isinstance(node, ast_nodes.TypeApp) and node.constructor in _CONTAINERS:
-        value = _container(node)
-        return _Leaf(value) if top else value
+        return _container(node)
     return None
 
 
@@ -101,13 +92,13 @@ _CONTAINERS = ("ListLiteral", "SetLiteral", "DictLiteral")
 
 def _container(node):
     if node.constructor == "ListLiteral":
-        return [_value(a, top=False) for a in node.args]
+        return [_value(a) for a in node.args]
     if node.constructor == "SetLiteral":
-        return set(_value(a, top=False) for a in node.args)
+        return set(_value(a) for a in node.args)
     pairs = []
     for pair in node.args:
         key, value = pair.elements
-        pairs.append((_value(key, top=False), _value(value, top=False)))
+        pairs.append((_value(key), _value(value)))
     return dict(pairs)
 
 

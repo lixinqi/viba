@@ -8,7 +8,7 @@ Handlers are passed by class name, e.g.:
 
 from typing import Any, Callable
 
-from viba.ast.nodes import AST
+from viba.viba_ast.nodes import AST
 
 
 def viba_type_match(

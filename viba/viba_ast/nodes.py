@@ -139,22 +139,33 @@ class Import(AST):
 
 
 class SumChain(AST):
-    """Canonical flat form of a sum: elements joined by |."""
+    """Canonical main chain of a sum: the left-nested run of |.
+
+    An element may itself be a SumChain — that is a branch, kept whole
+    (`A | (B | C)` is `SumChain([A, SumChain([B, C])])`).
+    """
 
     _fields = ("elements",)
 
 
 class ProductChain(AST):
-    """Canonical flat form of a product: elements joined by *."""
+    """Canonical main chain of a product: the left-nested run of *.
+
+    An element may itself be a ProductChain: a branch keeps its grouping
+    (`A * (B * C)` is `ProductChain([A, ProductChain([B, C])])`).
+    """
 
     _fields = ("elements",)
 
 
 class ExponentChain(AST):
-    """Canonical flat form of an exponent chain.
+    """Canonical main chain of an exponent, in written order.
 
-    `args` is application order: args[0] is fed first. The Viba chain
-    syntax lists arguments right-to-left.
+    Same shape as SumChain / ProductChain: `elements[0]` is the result
+    (the leftmost thing written), the rest are the arguments in the order
+    they are written. An element may itself be an ExponentChain — that is
+    a branch: `A <- (B <- C)` is
+    `ExponentChain([A, ExponentChain([B, C])])`.
     """
 
-    _fields = ("result", "args")
+    _fields = ("elements",)

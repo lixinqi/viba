@@ -1,11 +1,11 @@
-"""Five hand-written groups for the descriptor side.
+"""Descriptor-side API checks.
 
-The 100 generated cases are the regression; these five are the readable
-ones: each group is a small directory of .viba files plus the exact
-assertions it is there to make.  Read them together with the warts list
-in viba/viba_type_descriptor.py.
+The 100 generated cases in data/type_descriptor/case_* are the regression;
+these five checks are the readable ones: each is a small directory of
+hand-written .viba files under data/type_descriptor/api plus the exact
+assertions it is there to make.
 
-    python tests/test_type_descriptor_groups.py
+    python tests/test_type_descriptor_api.py
 """
 
 import sys
@@ -32,14 +32,14 @@ from viba.viba_type_descriptor import (
     type_is_optional,
 )
 
-GROUPS = Path(__file__).resolve().parent / "data" / "type_descriptor" / "groups"
+MATERIAL = Path(__file__).resolve().parent / "data" / "type_descriptor" / "api"
 
 
-def load(group, modules):
+def load(check, modules):
     """modules: [(相对路径, 模块名), ...] 依次编进一个池子。"""
     pool = empty_pool()
     for rel_path, module_name in modules:
-        source = (GROUPS / group / rel_path).read_text()
+        source = (MATERIAL / check / rel_path).read_text()
         parsed = parse_viba_file(pool, source, rel_path, module_name)
         assert isinstance(parsed, Ok), (rel_path, parsed)
         added = pool_add_file(pool, parsed.value)
@@ -53,7 +53,7 @@ def _member(pool, definition_full_name, tag):
     return definition_find_member_by_tag(definition, tag).value
 
 
-def group_alias_and_depth():
+def _check_alias_and_depth():
     """深浅目录 + 两种 import 写法 + 前缀必须是 import 的本地名。"""
     pool = load("alias_and_depth", [
         ("top.viba", "top"),
@@ -74,10 +74,9 @@ def group_alias_and_depth():
     # 写成 pkg.mod.Mid：pkg 不是 import 的本地名，解析不了
     assert isinstance(member_resolved_definition(_member(pool, deep.full_name, "$bad")), Err)
     assert isinstance(file_find_import_by_local_name(file, "nope"), Err)
-    return "深浅目录 + 别名/无别名 import + 前缀规则  4 项"
 
 
-def group_shapes():
+def _check_shapes():
     """成员的类型形状：容器、可选、元组、内联、字面量、代码块、指数。"""
     pool = load("shapes", [("shapes.viba", "shapes")])
     definition = pool_find_definition(pool, "shapes.Shapes").value
@@ -95,10 +94,9 @@ def group_shapes():
     assert member_containing_definition(members[0]).value.full_name == "shapes.Shapes"
     # 内建构造器不是定义，解析不了
     assert isinstance(member_resolved_definition(members[0]), Err)
-    return "形状：容器/可选/元组/内联/字面量/代码块/指数  9 个成员"
 
 
-def group_generics():
+def _check_generics():
     """泛型形参：形参名进 $generic_params，形参不是定义；单个带标签的体算一个成员。"""
     pool = load("generics", [("generics.viba", "generics")])
     box = pool_find_definition(pool, "generics.Box").value
@@ -112,10 +110,9 @@ def group_generics():
     assert isinstance(member_resolved_definition(_member(pool, use.full_name, "$param")), Err)
     assert isinstance(member_resolved_definition(_member(pool, use.full_name, "$unknown")), Err)
     assert _member(pool, use.full_name, "$box").member_type.kind == "type_app"
-    return "泛型形参 + 单成员体 + 未知名  6 项"
 
 
-def group_unit_heads():
+def _check_unit_heads():
     """积/和链头的单位元不算成员；别名体没有成员。"""
     pool = load("unit_heads", [("heads.viba", "unit_heads")])
     rule = pool_find_definition(pool, "unit_heads.Rule").value
@@ -129,10 +126,9 @@ def group_unit_heads():
     assert [m.tag for m in bare.members] == ["$only"]      # 体是一整个带标签类型
     assert alias.members == []                              # 体是别名，没有成员
     assert isinstance(definition_find_member_by_index(rule, 2), Err)
-    return "单位元链头 + 单标签体 + 别名体  5 项"
 
 
-def group_errors():
+def _check_errors():
     """反例：重名文件、重名全名、模块名撞车、import 指向的模块不在池子里。"""
     pool = load("errors", [("amb_a.viba", "err.amb"), ("amb_b.viba", "err.amb")])
     # 同一个模块名由两份文件供着：环境答不了
@@ -140,7 +136,7 @@ def group_errors():
     assert isinstance(pool.module_environment("err.missing"), Err)
 
     dup_pool = load("errors", [("dup1.viba", "err.dup")])
-    parsed = parse_viba_file(dup_pool, (GROUPS / "errors" / "dup2.viba").read_text(),
+    parsed = parse_viba_file(dup_pool, (MATERIAL / "errors" / "dup2.viba").read_text(),
                              "dup2.viba", "err.dup")
     assert isinstance(parsed, Ok)
     assert isinstance(pool_add_file(dup_pool, parsed.value), Err)      # 全名撞车
@@ -154,15 +150,15 @@ def group_errors():
     assert member_type_name(member).value == "g.Thing"
     assert isinstance(member_resolved_definition(member), Err)          # gone.mod 不在池子里
     assert isinstance(pool_find_member(orphan_pool, "err.orphan.Orphan.$nope"), Err)
-    return "反例：全名撞车/文件重名/模块名撞车/模块缺失  8 项"
 
 
 def run():
-    groups = [group_alias_and_depth, group_shapes, group_generics,
-              group_unit_heads, group_errors]
-    for group in groups:
-        print(f"{group.__name__}: {group()}")
-    print(f"type_descriptor_groups: {len(groups)} groups passed")
+    checks = [_check_alias_and_depth, _check_shapes, _check_generics,
+              _check_unit_heads, _check_errors]
+    for check in checks:
+        check()
+    print(f"type_descriptor_api: {len(checks)} checks passed "
+          f"(imports and prefixes, member shapes, generics, unit chain heads, negatives)")
     return 0
 
 

@@ -114,12 +114,12 @@ def predicate(self):
   * $assert_16_indent_width_non_negative
       Predicate[{indent_width non-negative}, $python_code {
 def predicate(self):
-    return self.indent_width.spaces >= 0
+    return self.indent_width.value.spaces >= 0
 }]
   * $assert_17_budget_split_spent_within_cap
       Predicate[{budget_split spent within cap}, $python_code {
 def predicate(self):
-    return self.budget_split.spent <= self.budget_split.cap
+    return self.budget_split.value.spent <= self.budget_split.value.cap
 }]
   * $assert_18_lookup_non_empty
       Predicate[{lookup non-empty}, $python_code {

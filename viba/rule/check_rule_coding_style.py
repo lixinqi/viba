@@ -15,8 +15,8 @@ Checked (viba-rule.md section in parentheses):
 - not[A] carries exactly one argument (7).
 """
 
-from viba.ast import nodes as ast_nodes
-from viba.ast.rules import PRODUCT_MARKER, SUM_MARKER, body_marker
+from viba.viba_ast import nodes as ast_nodes
+from viba.viba_ast.rules import PRODUCT_MARKER, SUM_MARKER, body_marker
 from viba.type import AstNodeType, Err, Ok, Result, module_get_type
 
 

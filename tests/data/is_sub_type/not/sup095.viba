@@ -1,1 +1,1 @@
-F23 := never <- ($a (int | str))
+F23 := never <- $operand ($a (int | str))

@@ -22,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba import ast as viba_ast
+from viba import viba_ast
 from viba.rule import (
     check_determinate,
     check_rule_coding_style,
@@ -262,10 +262,12 @@ def _predicate_node(body):
 
 
 def _bound_witness(module, value, check):
+    """Metric[Len] := $value Len, so the field is the tag carrying the
+    literal the predicate reads as .value."""
     body = viba_ast.Product(
         viba_ast.TypeRef("Object"),
         viba_ast.Product(
-            viba_ast.Tagged("$len", viba_ast.Constant(value)),
+            viba_ast.Tagged("$len", viba_ast.Tagged("$value", viba_ast.Constant(value))),
             viba_ast.Tagged("$check", check),
         ),
     )

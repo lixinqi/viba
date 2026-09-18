@@ -2,8 +2,8 @@
 
 from typing import List, Union
 
-from viba.ast._match import viba_type_match
-from viba.ast.nodes import (
+from viba.viba_ast._match import viba_type_match
+from viba.viba_ast.nodes import (
     AST,
     Module,
     TypeDefinition,
@@ -162,6 +162,9 @@ def _unparse_sumchain(chain: SumChain, indent: int, depth: int) -> str:
     lines = []
     for i, elem in enumerate(chain.elements):
         elem_str = _unparse_type(elem, indent, depth + 1)
+        # 同种运算的支链要留着括号：平着写会被重新解析回主链里去。
+        if isinstance(elem, SumChain):
+            elem_str = f"({elem_str})"
         if i == 0:
             lines.append(f"{base_indent}{elem_str}")
         else:
@@ -183,7 +186,10 @@ def _unparse_productchain(chain: ProductChain, indent: int, depth: int) -> str:
         elem_str = _unparse_type(elem, indent, depth + 1)
         # `*` binds tighter than `|`, so a bare sum element would split the
         # product on reparse: `(A | B) * C` must keep its parentheses.
-        if isinstance(elem, SumChain):
+        # A same-kind branch chain (`A * (B * C)`) needs them for the same
+        # reason: without them the branch would reparse as part of the main
+        # chain.
+        if isinstance(elem, (SumChain, ProductChain)):
             elem_str = f"({elem_str})"
         if i == 0:
             lines.append(f"{base_indent}{elem_str}")
@@ -194,9 +200,9 @@ def _unparse_productchain(chain: ProductChain, indent: int, depth: int) -> str:
 
 
 def _unparse_exponentchain(chain: ExponentChain, indent: int, depth: int) -> str:
-    """Unparse an ExponentChain."""
-    if not chain.args:
-        return _unparse_type(chain.result, indent, depth)
+    """Unparse an ExponentChain (elements in written order)."""
+    if not chain.elements:
+        return "never"
 
     base_indent = " " * (indent * depth)
     arg_indent = " " * (indent * (depth + 1))
@@ -210,13 +216,11 @@ def _unparse_exponentchain(chain: ExponentChain, indent: int, depth: int) -> str
 
     lines = []
     result_str = _parenthesize(
-        chain.result, _unparse_type(chain.result, indent, depth)
+        chain.elements[0], _unparse_type(chain.elements[0], indent, depth)
     )
     lines.append(f"{base_indent}{result_str}")
 
-    # chain.args is application order (args[0] is fed first); the Viba
-    # chain syntax lists arguments right-to-left, so emit in reverse.
-    for arg in reversed(chain.args):
+    for arg in chain.elements[1:]:
         arg_str = _parenthesize(arg, _unparse_type(arg, indent, depth + 1))
         lines.append(f"{arg_indent}<- {arg_str}")
 

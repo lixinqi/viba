@@ -8,10 +8,12 @@ PredicationFailed[T, MsgStr] :=
   $__assertion_failed_original_data T
   * $__assertion_failed_error_msg MsgStr
 
-# Metric[Name] is a transparent generic: the metric semantics live
-# entirely in Name, a nominal type defined by the rule author (a base
-# type, a single tagged field, or a product).
-Metric[T] := T
+# Metric[T] is the metric wrapper: the measured value sits under $value,
+# so a witness writes `$len ($value 42)`. What the metric means — its
+# data shape — lives entirely in T, a nominal type defined by the rule
+# author.
+Metric[T] :=
+  $value T
 
 # Predicate carries a natural-language condition (not executed) and an
 # executable predicator under $python_code. It is stripped before
@@ -19,7 +21,7 @@ Metric[T] := T
 Predicate[Cond, PythonCode] :=
   $assert_cond Cond * $assert_python_code PythonCode
 
-# not[A] is never <- A: a prohibition. A witness keeps the not[oneof]
-# shell and swaps every branch leaf for the poison PredicationFailed;
-# a branch left positive, or missing, judges False.
-not[A] := never <- A
+# not[A] is never <- $operand A: a prohibition. A witness keeps the
+# not[oneof] shell and swaps every branch leaf for the poison
+# PredicationFailed; a branch left positive, or missing, judges False.
+not[A] := never <- $operand A

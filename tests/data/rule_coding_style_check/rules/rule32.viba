@@ -114,12 +114,12 @@ def predicate(self):
   * $assert_16_doc_coverage_documented_within_total
       Predicate[{doc_coverage documented within total}, $python_code {
 def predicate(self):
-    return self.doc_coverage.documented_lines <= self.doc_coverage.total_lines
+    return self.doc_coverage.value.documented_lines <= self.doc_coverage.value.total_lines
 }]
   * $assert_17_budget_split_spent_within_cap
       Predicate[{budget_split spent within cap}, $python_code {
 def predicate(self):
-    return self.budget_split.spent <= self.budget_split.cap
+    return self.budget_split.value.spent <= self.budget_split.value.cap
 }]
   * $assert_18_lookup_non_empty
       Predicate[{lookup non-empty}, $python_code {
@@ -134,15 +134,15 @@ def predicate(self):
   * $assert_20_int_pair_ordered
       Predicate[{int_pair ordered}, $python_code {
 def predicate(self):
-    return self.int_pair.a <= self.int_pair.b
+    return self.int_pair.value.a <= self.int_pair.value.b
 }]
   * $assert_21_int_pair_sum_bounded
       Predicate[{int_pair sum bounded}, $python_code {
 def predicate(self):
-    return self.int_pair.a + self.int_pair.b <= 100
+    return self.int_pair.value.a + self.int_pair.value.b <= 100
 }]
   * $assert_22_name_size_name_fits_size
       Predicate[{name_size name fits size}, $python_code {
 def predicate(self):
-    return len(self.name_size.name) <= self.name_size.size
+    return len(self.name_size.value.name) <= self.name_size.value.size
 }]

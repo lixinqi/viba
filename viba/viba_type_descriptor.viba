@@ -61,13 +61,14 @@ VibaDefinitionDescriptor :=
   * $full_name str                              # $module_name + '.' + $def_name
   * $generic_params list[str]                   # Name[T, U] 的形参名，按书写顺序
   * $body VibaTypeDescriptor
-  * $members list[VibaMemberDescriptor]         # 积的字段，或者和的分支
+  * $members list[VibaMemberDescriptor]         # 定义体那一串的元素，去掉链头单位元
   * Comments[{
-      定义体是积，成员就是字段；是和，成员就是分支。两者同一件事。
+      定义体是写成一串的积/和/指数时，成员就是那一串的元素，链头的单位元不算；
+      三种链一个规矩，元素本身同一种东西。
       protobuf: DescriptorProto 把字段与枚举值分成两个类；这里只有一个成员类。
-      积链与和链链头的单位元不算成员；体写成一整个带标签类型时
-      （Box[T] := $v T），它是一个成员的积；体既不是积也不是和时
-      （A := int），$members 为空——那是别名，不是错误。
+      体写成一整个带标签类型时（Box[T] := $v T），它是一个元素的积；
+      体既不是积也不是和也不是指数时（A := int），$members 为空——那是别名，
+      不是错误。
       $generic_params 是 Viba 多出来的：protobuf 没有参数化类型。
       $file_hash 是所属文件那一份的副本，好让起点不查池子就能核版本。
     }]
@@ -105,7 +106,7 @@ VibaTypeDescriptor :=            # protobuf: FieldDescriptorProto.type 那一栏
   | $tagged VibaTaggedDescriptor
   | $sum VibaChainDescriptor             # 规范化后的和链
   | $product VibaChainDescriptor         # 规范化后的积链
-  | $exponent VibaExponentDescriptor
+  | $exponent VibaChainDescriptor           # 写出来的指数：result <- arg <- ...
   | $literal VibaLiteralDescriptor
   | $nil ()                              # 单位元：没有可解析的东西
   | $never ()                            # 零元：同上
@@ -159,19 +160,12 @@ VibaChainDescriptor :=
   * $resolvable_type type.Type
   * $elements list[VibaTypeDescriptor]
   * Comments[{
-      规范化后的和链与积链：$elements 就是写出来的那一串，没有 left / right。
-      和链的元素是分支，积链的元素是字段，元素本身同一种东西。
-    }]
-
-VibaExponentDescriptor :=
-    Object
-  * $pool VibaPool
-  * $resolvable_type type.Type
-  * $result VibaTypeDescriptor
-  * $args list[VibaTypeDescriptor]
-  * Comments[{
-      规范化后的指数链。$args 是应用顺序，$args[0] 先喂进去；
-      源码里最右边的参数最先被吃，所以两者是反的。
+      和链、积链、指数链一个形状：$elements 是主链，按书写顺序。
+      和/积的主链是一路 $left 嵌套下来的那一串（元素是分支 / 字段），
+      指数的主链是一路 $result 嵌套下来的那一串（$elements[0] 是结果，
+      其余是参数）。$right / $argument 那侧的嵌套是支链，原样算主链里的
+      一个元素，它自己也照同样的规矩递归成链：A * (B * C) 是 [A, [B, C]]，
+      A <- (B <- C) 是 [A, [B, C]]，与 A * B * C / A <- B <- C 都不同形。
     }]
 
 VibaCodeBlockDescriptor :=
