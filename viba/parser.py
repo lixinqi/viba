@@ -1,3 +1,11 @@
+import os
+import sys
+
+if __name__ == "__main__" and __package__ is None:
+    # `python3 viba/parser.py` puts viba/ (not the checkout root) on
+    # sys.path, so `import viba` would fail; add the root first.
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import ply.lex as lex
 import ply.yacc as yacc
 
