@@ -230,6 +230,8 @@ root.by_tag('counter').at_key('value').leaf()
 
 **`Err` 直接抛异常**：第 7.1 节的接口返回 `Result[...]`，链式写法里每一步都判一次 `Ok` 太啰嗦。便捷函数只在 `Ok(v)` 时给出 `v`；一旦拿到的不是 `Ok(.)`（也就是 `Err`），直接抛异常，把 `Err` 的那句话带出去。所以链上不会出现 `Result`——`Err` 会打断整条链，这也是链式写法的代价。要自己处理失败，就用第 7.1 节的接口逐层判。
 
+会抛的只有"取值"那一类：`by_tag` / `by_field_index` / `at_index` / `at_key` / `leaf` / `len` / `keys`。**问"有没有"和"试着取"的那一类不抛**，见下面 Python 侧那一段。
+
 **落到 Python 对象上**：`Data` 本身就是一个 Python 对象时，节点在 Python 侧用魔术方法合成接口，链式写法就是原生 Python 写法：
 
 | 便捷函数 | Python 侧 |
@@ -242,14 +244,25 @@ root.by_tag('counter').at_key('value').leaf()
 | `len` | `len(node)`：`__len__` |
 | 序列枚举 | `for x in node:`：`__iter__`，内部就是 `len` 加 `at_index` |
 | `dict` 的键 / 值 / 键值对 | `node.keys()` / `node.values()` / `node.items()` |
+| 有没有 `by_tag name` | `node.has_{name}()`：等价 `VibaHas(node, $by_tag name)`，返回 `bool`，**永不抛** |
+| 有没有 `by_field_index i` | `node.has_field_{i}()`：同上，按位置 |
+| 有没有（同一件事） | `'name' in node`：`__contains__`；对容器节点就是"有没有这个下标 / 键" |
+| 试着取 | `node.try_get_{name}()` / `node.try_get_field_{i}()`：返回 `Result`，**不抛** |
+| 看得到合成出来的名字 | `node.__dir__`：把 `get_{...}` / `has_{...}` 列出来，`dir()` 和补全才看得见 |
+
+问"有没有"的一类**永远不抛**：设计里有、数据里没有就是 `False`（这正是"实现没做到"的证据），实现自己坏了也是 `False`——对问话的人来说两者一样是"这里没有可用的东西"。要区分这两种，用 `try_get_{name}()`：它返回 `Result`，`Ok(node)` 是取到了，`Ok(nil)` 是没有，`Err` 才是问不出来。它对应规格里的 `Result[VibaNode[Data] | nil]`。
+
+名字由 `__getattr__` 兜底合成（Python 没有 `__hasattr__` 这种协议；`hasattr(x, n)` 就是 `getattr(x, n)` 加上吃掉 `AttributeError`），`__contains__` 与 `__dir__` 是真的魔术方法。
 
 `set` 在 Python 里可以迭代，但没有下标，`node[i]` 对它是 `Err`（抛异常）。
 
 ```python
 root.get_len().value
 root.get_counter()['value'].value
-for item in root.get_items():
-    print(item.get_name().value)
+if 'items' in root:
+    for item in root.get_items():
+        print(item.get_name().value)
+print(root.try_get_missing())     # Ok(None)：这份数据里没有这一段
 ```
 
 便捷函数由框架按第 7.1 节的接口补上，不是实现方的额外义务：实现方只承诺 `VibaAccess` 那七格。
