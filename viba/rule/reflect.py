@@ -1,7 +1,7 @@
-"""viba.rule.reflect — 把一条 Rule 当图，去 witness 里按图索骥。
+"""viba.rule.reflect — 把一份设计当图，去材料里按图索骥。
 
 这是 ``viba-reflect.md`` 的访问侧，落在 viba.rule 上：地图（描述符）由描述符侧
-从 Rule 给出，数据（Data）是一份 witness 的类型表达式，访问就是按地图上的坐标
+从设计给出，数据（Data）是一份 witness 的类型表达式，访问就是按地图上的坐标
 一步一步在 witness 里取。名字照 ``viba_type_descriptor.py`` 对
 ``viba_type_descriptor.viba`` 的老规矩来：协议里的类名原样保留，协议里的函数
 落 snake_case，本层自己的辅助加下划线。
@@ -17,16 +17,16 @@
     VibaLeaf / VibaLength / VibaKeys
     VibaFileHashes                    VibaAccess.root / has / get / leaf /
                                       length / keys / file_hashes
-    VibaResolve / VibaRead
+    VibaResolve / VibaGetByPath
     VibaListFields
-    VibaVersionMatches                viba_resolve / viba_read /
+    VibaVersionMatches                viba_resolve / viba_get_by_path /
                                       viba_list_fields / viba_version_matches
 
 协议里没有名字的，是本层对它的绑定与辅助，不算协议概念：
 
     Data 这个形参         -> Witness：一份呈证材料（viba-rule.md 的 Witness）
                              加上它声明的设计版本
-    第 5.4 节"直接抛异常"  -> RuleReflectError
+    第 5.4 节"直接抛异常"  -> VibaReflectError
     读图与遍历            -> VibaAccess 上的下划线方法、以及本模块的下划线函数
 
 两条协议里的规矩：
@@ -85,7 +85,7 @@ CONTAINERS = ("list", "set", "dict")
 LITERAL_CTORS = ("ListLiteral", "SetLiteral", "DictLiteral")
 
 
-class RuleReflectError(Exception):
+class VibaReflectError(Exception):
     """取值那一路失败时抛的异常，带的是协议那句 ``Err`` 的话。
 
     第 5.4 节只说"直接抛异常"，没给异常起名字，这个名字是本层的。
@@ -294,7 +294,7 @@ class VibaNode:
 
 
 class VibaAccess:
-    """绑好一条 Rule 的访问器：第 5.2 节的七格，加本层的读图辅助。"""
+    """绑好一份设计的访问器：第 5.2 节的七格，加本层的读图辅助。"""
 
     def __init__(self, definition: VibaDefinitionDescriptor):
         self.definition = definition
@@ -364,9 +364,9 @@ class VibaAccess:
 
     def _unwrap(self, given: Result):
         if isinstance(given, Err):
-            raise RuleReflectError(given.message)
+            raise VibaReflectError(given.message)
         if given.value is None:
-            raise RuleReflectError("这一段没有值")
+            raise VibaReflectError("这一段没有值")
         return given.value
 
     # ---- 私有：地图（把描述符读成可寻址的形状） ----
@@ -658,8 +658,8 @@ def viba_resolve(node: VibaNode, path: Sequence[VibaStep]) -> Result:
     return Ok(current)
 
 
-def viba_read(node: VibaNode, path: Sequence[VibaStep]) -> Result:
-    """VibaRead：先 VibaResolve 再 VibaLeaf。"""
+def viba_get_by_path(node: VibaNode, path: Sequence[VibaStep]) -> Result:
+    """VibaGetByPath：先 VibaResolve 再 VibaLeaf。"""
     resolved = viba_resolve(node, path)
     if isinstance(resolved, Err):
         return resolved
@@ -704,13 +704,13 @@ def viba_version_matches(pool: VibaPool, data: Witness) -> Result:
 # ----------------------------------------------------------------------
 
 
-def access(rule: VibaDefinitionDescriptor) -> VibaAccess:
-    """把一条 Rule（定义描述符）当图，返回访问器。
+def access(definition: VibaDefinitionDescriptor) -> VibaAccess:
+    """把一个定义（描述符）当图，返回访问器。
 
-    协议里 VibaAccess[Data] 是实现方交付的那个类型；绑哪一条 Rule 由调用方给，
-    地图就是描述符侧按这条 Rule 建出来的那个定义描述符。
+    协议里 VibaAccess[Data] 是实现方交付的那个类型；绑哪个定义由调用方给，
+    地图就是描述符侧按这个定义建出来的那个定义描述符。
     """
-    return VibaAccess(rule)
+    return VibaAccess(definition)
 
 
 # ----------------------------------------------------------------------
@@ -841,9 +841,9 @@ __all__ = [
     "access",
     "VibaAccess", "VibaNode", "VibaStep", "VibaPath",
     "by_tag", "by_field_index", "at_index", "at_key",
-    "viba_resolve", "viba_read", "viba_list_fields", "viba_version_matches",
+    "viba_resolve", "viba_get_by_path", "viba_list_fields", "viba_version_matches",
 ]
 
 # 本层绑定的，按名字直接 import 用，不算协议概念：
 #   Witness          协议里的 Data 形参在这里绑成什么
-#   RuleReflectError 第 5.4 节"取值直接抛异常"的那个异常
+#   VibaReflectError 第 5.4 节"取值直接抛异常"的那个异常

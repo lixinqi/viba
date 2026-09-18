@@ -34,7 +34,7 @@ from viba.viba_type_descriptor import (
     pool_find_definition,
 )
 from viba.rule.reflect import (
-    RuleReflectError,
+    VibaReflectError,
     Witness,
     access,
     at_index,
@@ -42,7 +42,7 @@ from viba.rule.reflect import (
     by_field_index,
     by_tag,
     viba_list_fields,
-    viba_read,
+    viba_get_by_path,
     viba_resolve,
     viba_version_matches,
 )
@@ -535,7 +535,7 @@ def test_api_node_by_tag_case_002():
     try:
         m.demo_node.by_tag("nope")
         raise AssertionError("本该抛")
-    except RuleReflectError:
+    except VibaReflectError:
         pass
 
 
@@ -552,7 +552,7 @@ def test_api_node_by_field_index_case_002():
     try:
         m.shape_node.by_field_index(9)
         raise AssertionError("本该抛")
-    except RuleReflectError:
+    except VibaReflectError:
         pass
 
 
@@ -574,7 +574,7 @@ def test_api_node_at_index_case_003():
     try:
         m.node1_node.by_tag("items").at_index(9)
         raise AssertionError("本该抛")
-    except RuleReflectError:
+    except VibaReflectError:
         pass
 
 
@@ -590,7 +590,7 @@ def test_api_node_at_key_case_002():
     try:
         m.node1_node.by_tag("table").at_key("nope")
         raise AssertionError("本该抛")
-    except RuleReflectError:
+    except VibaReflectError:
         pass
 
 
@@ -608,7 +608,7 @@ def test_api_node_leaf_case_002():
         try:
             node.leaf
             raise AssertionError("本该抛")
-        except RuleReflectError:
+        except VibaReflectError:
             pass
 
 
@@ -766,7 +766,7 @@ def test_api_node_len_case_002():
     try:
         len(m.demo_node.get_code_length())
         raise AssertionError("本该抛")
-    except RuleReflectError:
+    except VibaReflectError:
         pass
 
 
@@ -849,13 +849,13 @@ def test_api_chain_case_005():
 
 
 def test_api_chain_case_006():
-    """同一条三层链走 VibaRead；走到容器元素上还不是叶子。"""
+    """同一条三层链走 VibaGetByPath；走到容器元素上还不是叶子。"""
     m = _materials()
     path = [by_tag("$group_spec"), by_tag("$value"), by_tag("$bucket"),
             at_index(0), by_tag("$name")]
-    assert viba_read(m.rule40_node, path).value.value == "slot0"
+    assert viba_get_by_path(m.rule40_node, path).value.value == "slot0"
     assert isinstance(viba_resolve(m.rule40_node, path[:-1]), Ok)
-    assert isinstance(viba_read(m.rule40_node, path[:-1]), Err)
+    assert isinstance(viba_get_by_path(m.rule40_node, path[:-1]), Err)
 
 
 def test_api_chain_case_004():
@@ -864,17 +864,17 @@ def test_api_chain_case_004():
     try:
         m.node1_node.get_table()["nope"]
         raise AssertionError("本该抛")
-    except RuleReflectError:
+    except VibaReflectError:
         pass
     try:
         m.demo_node.get_coverage().get_missing()
         raise AssertionError("本该抛")
-    except RuleReflectError:
+    except VibaReflectError:
         pass
 
 
 # ----------------------------------------------------------------------
-# VibaResolve / VibaRead
+# VibaResolve / VibaGetByPath
 # ----------------------------------------------------------------------
 
 
@@ -909,34 +909,34 @@ def test_api_resolve_case_004():
     assert isinstance(given, Ok) and given.value is None
 
 
-def test_api_read_case_001():
+def test_api_get_by_path_case_001():
     """先 resolve 再 leaf：一条路径直接读出值。"""
     m = _materials()
-    assert viba_read(m.demo_node, [by_tag("$code_length"), by_tag("$value")]).value.value == 7
-    assert viba_read(m.demo_node,
+    assert viba_get_by_path(m.demo_node, [by_tag("$code_length"), by_tag("$value")]).value.value == 7
+    assert viba_get_by_path(m.demo_node,
                      [by_tag("$keywords"), by_tag("$value"), at_index(1)]).value.value == "b"
-    assert viba_read(m.node1_node, [by_tag("$table"), at_key("k")]).value.value == 1
+    assert viba_get_by_path(m.node1_node, [by_tag("$table"), at_key("k")]).value.value == 1
 
 
-def test_api_read_case_002():
+def test_api_get_by_path_case_002():
     """路径断了：Err。"""
     m = _materials()
-    assert isinstance(viba_read(m.demo_node,
+    assert isinstance(viba_get_by_path(m.demo_node,
                                 [by_tag("$keywords"), by_tag("$value"), at_index(9)]), Err)
 
 
-def test_api_read_case_003():
+def test_api_get_by_path_case_003():
     """中途没有值：Err。"""
     m = _materials()
     sparse = m._without(m.demo_node, "$keywords")
-    assert isinstance(viba_read(sparse, [by_tag("$keywords")]), Err)
+    assert isinstance(viba_get_by_path(sparse, [by_tag("$keywords")]), Err)
 
 
-def test_api_read_case_004():
+def test_api_get_by_path_case_004():
     """尽头不是叶子：Err（resolve 到得了，leaf 读不出）。"""
     m = _materials()
     assert isinstance(viba_resolve(m.demo_node, [by_tag("$coverage")]), Ok)
-    assert isinstance(viba_read(m.demo_node, [by_tag("$coverage")]), Err)
+    assert isinstance(viba_get_by_path(m.demo_node, [by_tag("$coverage")]), Err)
 
 
 # ----------------------------------------------------------------------

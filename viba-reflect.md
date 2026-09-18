@@ -187,7 +187,7 @@ VibaResolve[Data] :=
   <- $node VibaNode[Data]
   <- $path VibaPath
 
-VibaRead[Data] :=
+VibaGetByPath[Data] :=
     Result[VibaConstantValue]
   <- $node VibaNode[Data]
   <- $path VibaPath
@@ -204,7 +204,7 @@ VibaVersionMatches[Data] :=
 ```
 
 - `VibaResolve`：逐个 step 走 `VibaGet`。
-- `VibaRead`：先 `VibaResolve` 再 `VibaLeaf`，一条路径直接读出细节。
+- `VibaGetByPath`：先 `VibaResolve` 再 `VibaLeaf`，一条路径直接读出细节。
 - `VibaListFields`：按 `DefinitionMembers` 逐个 `VibaGet`，取到的收进表；缺的字段不进表。
 - `VibaVersionMatches`：把设计里所有文件的 `$file_hash` 收成一个集合，看数据的 `VibaFileHashes` 是否都在里面。都在就是 `true`；有找不到的，说明数据是基于已被改写或已删除的设计做的，需要重建。反方向不管：设计里多出来的文件不影响判断——材料可能只用到设计里的部分文件。
 
@@ -239,7 +239,7 @@ root.by_tag('counter').at_key('value').leaf()
 - `keys` 只对 `dict` 成立，给键，顺序由实现定；不是 `dict` 就是 `Err`。
 - 枚举一个序列是 `len` 加 `at_index` 走一遍（`set` 没有固定顺序，从头到尾的顺序由实现定）；读 `dict` 的值是 `keys` 加 `at_key` 走一遍。
 
-**`Err` 直接抛异常**：第 5.1 节的接口返回 `Result[...]`，链式写法里每一步都判一次 `Ok` 太啰嗦。便捷函数只在 `Ok(v)` 时给出 `v`；一旦拿到的不是 `Ok(.)`（也就是 `Err`），直接抛异常，把 `Err` 的那句话带出去。所以链上不会出现 `Result`——`Err` 会打断整条链，这也是链式写法的代价。要自己处理失败，就用第 5.1 节的接口逐层判。
+**`Err` 直接抛异常**：第 5.1 节的接口返回 `Result[...]`，链式写法里每一步都判一次 `Ok` 太啰嗦。便捷函数只在 `Ok(v)` 时给出 `v`；一旦拿到的不是 `Ok(.)`（也就是 `Err`），直接抛异常，把 `Err` 的那句话带出去。所以链上不会出现 `Result`——异常会打断整条链，这也是链式写法的代价。要自己处理失败，就用第 5.1 节的接口逐层判。
 
 会抛的只有"取值"那一类：`by_tag` / `by_field_index` / `at_index` / `at_key` / `leaf` / `len` / `keys`。**问"有没有"和"试着取"的那一类不抛**，见下面 Python 侧那一段。
 
@@ -260,6 +260,8 @@ root.by_tag('counter').at_key('value').leaf()
 | 有没有（同一件事） | `'name' in node`：`__contains__`；对容器节点就是"有没有这个下标 / 键" |
 | 试着取 | `node.try_get_{name}()` / `node.try_get_field_{i}()`：返回 `Result`，**不抛** |
 | 看得到合成出来的名字 | `node.__dir__`：把 `get_{...}` / `has_{...}` 列出来，`dir()` 和补全才看得见 |
+
+**取值失败抛 `VibaReflectError`**：上面会抛的那一类，抛出来的异常都叫 `VibaReflectError`，`Err` 的那句话原样在异常信息里；catch 它就能接住反射一路上所有取不出来的情况。
 
 问"有没有"的一类**永远不抛**：设计里有、数据里没有就是 `False`（这正是"实现没做到"的证据），实现自己坏了也是 `False`——对问话的人来说两者一样是"这里没有可用的东西"。要区分这两种，用 `try_get_{name}()`：它返回 `Result`，`Ok(node)` 是取到了，`Ok(nil)` 是没有，`Err` 才是问不出来。它对应规格里的 `Result[VibaNode[Data] | nil]`。
 
@@ -313,7 +315,7 @@ print(root.try_get_missing())     # Ok(None)：这份数据里没有这一段
 
 **契约**：实现必须覆盖设计。设计里列得出的每一条地址，在数据里都要走得通，并落得到叶子。
 
-- 走得通时，`VibaRead` 直接给出细节。
+- 走得通时，`VibaGetByPath` 直接给出细节。
 - 走不通时，`VibaHas` 答 `false`。这是"实现未覆盖设计"的事实记录。
 - 实现中的数据可以多于设计。超出设计的部分不在本协议范围内：地址只能来自描述符，没有走到它的路径。
 - 版本由上层核：数据声明的每个 `$file_hash` 是不是都能在当前设计里找到，问 `VibaVersionMatches`。找不到，说明数据依据的是已被改写或已删除的设计。
