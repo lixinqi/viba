@@ -1,1 +1,1 @@
-F18 := never <- $operand (42)
+F18 := never <- $not_operand (42)

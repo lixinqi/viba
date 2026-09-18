@@ -1,1 +1,1 @@
-F24 := never <- $operand (list[$a int])
+F24 := never <- $not_operand (list[$a int])

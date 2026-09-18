@@ -1,1 +1,1 @@
-F16 := never <- $operand (never <- int)
+F16 := never <- $not_operand (never <- int)

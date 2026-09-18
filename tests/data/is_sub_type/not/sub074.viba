@@ -1,1 +1,1 @@
-F12 := never <- $operand (dict[str, int])
+F12 := never <- $not_operand (dict[str, int])

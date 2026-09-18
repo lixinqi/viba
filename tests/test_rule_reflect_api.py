@@ -10,7 +10,7 @@
     data/rule_coding_style_check/not_rule.viba        not[...] 外壳（分支写在里面）
     data/rule_coding_style_check/sum_rule.viba        和类型
     data/rule_coding_style_check/not_rules/not_rule03.viba  禁止的操作数写成名字（not[Crimes]）
-    data/is_sub_type/not/sup061.viba                  禁止直接写成 never <- $operand A
+    data/is_sub_type/not/sup061.viba                  禁止直接写成 never <- $not_operand A
     data/type_descriptor/case_000/top.viba            Shape0：位置成员；Node1：list / set / dict / 可选
 
 witness 都在这里手搓（跟 test_rule_coding_style_check.py 的 _bound_witness
@@ -149,10 +149,10 @@ def _named_operand_body():
 
 
 def _written_operand_body():
-    """设计直接写 never <- $operand A：材料照写，$a 量出 3。"""
+    """设计直接写 never <- $not_operand A：材料照写，$a 量出 3。"""
     return viba_ast.Exponent(
         viba_ast.Never(),
-        viba_ast.Tagged("$operand", viba_ast.Tagged("$a", viba_ast.Constant(3))))
+        viba_ast.Tagged("$not_operand", viba_ast.Tagged("$a", viba_ast.Constant(3))))
 
 
 class _Materials:
@@ -320,12 +320,12 @@ def test_api_has_case_004():
 
 
 def test_api_has_case_005():
-    """not[A]：$operand 是一个坐标（和积/和一样），分支在它下面。"""
+    """not[A]：$not_operand 是一个坐标（和积/和一样），分支在它下面。"""
     m = _materials()
     shell = m.law_abiding.by_tag("not_crimes")
-    assert m.not_access.has(shell, by_tag("$operand")).value is True
+    assert m.not_access.has(shell, by_tag("$not_operand")).value is True
     assert m.not_access.has(shell, by_tag("$homicide")).value is False
-    operand = shell.get_operand()
+    operand = shell.get_not_operand()
     for branch in ("$homicide", "$arson", "$robbery"):
         assert m.not_access.has(operand, by_tag(branch)).value is True
 
@@ -345,8 +345,8 @@ def test_api_has_case_007():
     """同一份定义在两边都展开：设计和材料的成员对得上。"""
     m = _materials()
     shell = m.law_abiding.by_tag("not_crimes")
-    operand = shell.get_operand()
-    assert m.not_access.has(operand, by_tag("$operand")).value is False
+    operand = shell.get_not_operand()
+    assert m.not_access.has(operand, by_tag("$not_operand")).value is False
     assert operand.descriptor.kind == "sum"
 
 
@@ -361,7 +361,7 @@ def test_api_has_case_008():
     assert m.sum_access.has(m.sum_pass, by_tag("$small")).value is True
     # 指数：操作数是成员，链头的 never 不是
     shell = m.law_abiding.by_tag("not_crimes")
-    assert m.not_access.has(shell, by_tag("$operand")).value is True
+    assert m.not_access.has(shell, by_tag("$not_operand")).value is True
     assert m.not_access.has(shell, by_tag("$never")).value is False
     assert "get_never" not in dir(shell)
 
@@ -370,8 +370,8 @@ def test_api_has_case_009():
     """禁止的操作数在材料里写成名字（not[Crimes]）时，也展开成定义体。"""
     m = _materials()
     shell = m.named_not_node.by_tag("not_crimes")
-    assert m.named_not_access.has(shell, by_tag("$operand")).value is True
-    operand = shell.get_operand()
+    assert m.named_not_access.has(shell, by_tag("$not_operand")).value is True
+    operand = shell.get_not_operand()
     for branch in ("$homicide", "$arson", "$robbery"):
         assert m.named_not_access.has(operand, by_tag(branch)).value is True
 
@@ -667,11 +667,11 @@ def test_api_node_get_case_002():
 
 
 def test_api_node_get_case_003():
-    """设计直接写 never <- $operand A 时也一样：get_operand() 取到 A，再往下取叶子。"""
+    """设计直接写 never <- $not_operand A 时也一样：get_not_operand() 取到 A，再往下取叶子。"""
     m = _materials()
     node = m.written_not_node
-    assert m.written_not_access.has(node, by_tag("$operand")).value is True
-    operand = node.get_operand()
+    assert m.written_not_access.has(node, by_tag("$not_operand")).value is True
+    operand = node.get_not_operand()
     assert operand.by_tag("a").leaf.value == 3
     assert operand.get_a().value.value == 3
 

@@ -214,8 +214,8 @@ def check_not_rule() -> int:
         Witness(under.witness_definition("LawAbidingWitness").ast_node,
                 {under.definition.file_hash})).value
     shell = node.by_tag("not_crimes")
-    assert under.accessor.has(shell, by_tag("operand")).value is True
-    operand = shell.get_operand()
+    assert under.accessor.has(shell, by_tag("not_operand")).value is True
+    operand = shell.get_not_operand()
     for branch in ("$homicide", "$arson", "$robbery"):
         assert under.accessor.has(operand, by_tag(branch)).value is True
     return pairs

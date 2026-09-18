@@ -1,1 +1,1 @@
-F21 := never <- $operand (set[bool])
+F21 := never <- $not_operand (set[bool])

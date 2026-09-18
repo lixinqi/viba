@@ -1,1 +1,1 @@
-F22 := never <- $operand (int | never)
+F22 := never <- $not_operand (int | never)

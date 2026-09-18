@@ -1,1 +1,1 @@
-F6 := never <- $operand ($a int)
+F6 := never <- $not_operand ($a int)

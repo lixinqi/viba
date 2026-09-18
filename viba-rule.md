@@ -59,11 +59,11 @@ NoDeathPenaltyRule :=
       ]
 ```
 
-`not[A]` 就是 `never <- $operand A`（定义见 `viba/builtin.viba`）：`$operand` 是定义给被禁止的那个操作数起的标签，数据里没有这一层。上面每个分支的 `Homicide` / `Arson` / `Robbery` 是 Predicate 字段类型。
+`not[A]` 就是 `never <- $not_operand A`（定义见 `viba/builtin.viba`）：`$not_operand` 是定义给被禁止的那个操作数起的标签，数据里没有这一层。上面每个分支的 `Homicide` / `Arson` / `Robbery` 是 Predicate 字段类型。
 
-判定层对应三条：外壳（同 tag、全 `PredicationFailed`）成立；写成 `never <- B` 的按指数类型比（`never <- B <: not[A]` 当且仅当 `$operand A <: B`）；写成带 tag 的积的按 `never <- (A | B) = (never <- A) * (never <- B)` 逐分支要求否证。
+判定层对应三条：外壳（同 tag、全 `PredicationFailed`）成立；写成 `never <- B` 的按指数类型比（`never <- B <: not[A]` 当且仅当 `$not_operand A <: B`）；写成带 tag 的积的按 `never <- (A | B) = (never <- A) * (never <- B)` 逐分支要求否证。
 
-反射（`viba.rule.reflect`）读禁止性字段时也照这个来：`not[A]` 展开到 `never <- $operand A`，它是一个坐标（和积/和的字段一样），`get_operand()` 取到的就是被禁止的那个操作数 `A`，再往下才是各分支。
+反射（`viba.rule.reflect`）读禁止性字段时也照这个来：`not[A]` 展开到 `never <- $not_operand A`，它是一个坐标（和积/和的字段一样），`get_not_operand()` 取到的就是被禁止的那个操作数 `A`，再往下才是各分支。
 
 `PredicationFailed` 只在禁止性分支被要求；正向 Predicate 字段写它则表示断言不成立。
 

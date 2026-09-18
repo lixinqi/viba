@@ -1,1 +1,1 @@
-F4 := never <- $operand (int | str)
+F4 := never <- $not_operand (int | str)

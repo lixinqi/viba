@@ -21,7 +21,7 @@ Metric[T] :=
 Predicate[Cond, PythonCode] :=
   $assert_cond Cond * $assert_python_code PythonCode
 
-# not[A] is never <- $operand A: a prohibition. A witness keeps the
+# not[A] is never <- $not_operand A: a prohibition. A witness keeps the
 # not[oneof] shell and swaps every branch leaf for the poison
 # PredicationFailed; a branch left positive, or missing, judges False.
-not[A] := never <- $operand A
+not[A] := never <- $not_operand A

@@ -52,7 +52,7 @@ IsSubType :=
     Err（UnresolvedTypeError 在边界转为 Err）。
     指数参数交换模块时 env 随之交换：自由名永远经自己语法一侧的
     env_get 解析。
-    禁止（never 头的指数链，not[A] 与 never <- $operand A 是同一件事，
+    禁止（never 头的指数链，not[A] 与 never <- $not_operand A 是同一件事，
     判据是形状不是名字）三条读法：两边都写成应用形式（外壳）时，
     分支 tag 要对得上且 sub 的每个分支都是毒剂 PredicationFailed；
     sub 写成带 tag 的积时按 never <- (A | B) = (never <- A) * (never <- B)

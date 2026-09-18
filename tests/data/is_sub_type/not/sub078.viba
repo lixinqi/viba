@@ -1,1 +1,1 @@
-F14 := never <- $operand (nil)
+F14 := never <- $not_operand (nil)

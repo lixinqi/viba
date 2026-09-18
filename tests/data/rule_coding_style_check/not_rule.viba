@@ -1,6 +1,6 @@
-# Prohibitive rule: not[A] is never <- $operand A. is_sub_type knows the
+# Prohibitive rule: not[A] is never <- $not_operand A. is_sub_type knows the
 # exponential, so a compliant witness refutes every branch with a
-# same-tag never <- Branch field (the $operand tag is the definition's
+# same-tag never <- Branch field (the $not_operand tag is the definition's
 # label for the operand, not a level in the data). A branch left
 # positive, or missing, is no refutation and judges False.
 

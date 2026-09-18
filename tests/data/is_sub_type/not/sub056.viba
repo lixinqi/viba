@@ -1,1 +1,1 @@
-F3 := never <- $operand (bool)
+F3 := never <- $not_operand (bool)
