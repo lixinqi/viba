@@ -44,7 +44,6 @@ from viba.rule.reflect import (
     viba_list_fields,
     viba_get_by_path,
     viba_resolve,
-    viba_version_matches,
 )
 
 _RULES = Path(__file__).resolve().parent / "data" / "rule_coding_style_check"
@@ -162,58 +161,54 @@ class _Materials:
         demo = _load(_RULES / "demo.viba", "demo")
         self.demo = _definition_of(demo, "demo.DemoRule")
         self.demo_access = access(self.demo)
-        self.demo_witness = Witness(_demo_body(), {self.demo.file_hash})
+        self.demo_witness = Witness(_demo_body())
         self.demo_node = self.demo_access.root(self.demo_witness).value
 
         top = _load(_CASES / "top.viba", "top")
         self.shape = _definition_of(top, "top.Shape0")
         self.shape_access = access(self.shape)
         self.shape_node = self.shape_access.root(Witness(
-            viba_ast.Product(viba_ast.Constant(1), viba_ast.Constant("two")),
-            {self.shape.file_hash})).value
+            viba_ast.Product(viba_ast.Constant(1), viba_ast.Constant("two")))).value
         self.node1 = _definition_of(top, "top.Node1")
         self.node1_access = access(self.node1)
         self.node1_node = self.node1_access.root(
-            Witness(_node1_body(), {self.node1.file_hash})).value
+            Witness(_node1_body())).value
 
         not_rule = _load(_RULES / "not_rule.viba", "not_rule")
         self.not_rule = _definition_of(not_rule, "not_rule.NoDeathPenaltyRule")
         self.not_access = access(self.not_rule)
         self.law_abiding = self.not_access.root(
-            Witness(_body_of(_RULES / "not_rule.viba", "LawAbidingWitness"),
-                    {self.not_rule.file_hash})).value
+            Witness(_body_of(_RULES / "not_rule.viba", "LawAbidingWitness"))).value
 
         named = _load(_NOT_RULES / "not_rule03.viba", "not_rule03")
         self.named_not = _definition_of(named, "not_rule03.NotRule03")
         self.named_not_access = access(self.named_not)
         self.named_not_node = self.named_not_access.root(
-            Witness(_named_operand_body(), {self.named_not.file_hash})).value
+            Witness(_named_operand_body())).value
 
         written = _load(_NOT_CASES / "sup061.viba", "sup061")
         self.written_not = _definition_of(written, "sup061.F6")
         self.written_not_access = access(self.written_not)
         self.written_not_node = self.written_not_access.root(
-            Witness(_written_operand_body(), {self.written_not.file_hash})).value
+            Witness(_written_operand_body())).value
 
         rule40 = _load(_RULES / "rules" / "rule40.viba", "rule40")
         self.rule40 = _definition_of(rule40, "rule40.Rule40")
         self.rule40_access = access(self.rule40)
         self.rule40_node = self.rule40_access.root(
-            Witness(rule40_body(), {self.rule40.file_hash})).value
+            Witness(rule40_body())).value
 
         sum_rule = _load(_RULES / "sum_rule.viba", "sum_rule")
         self.sum_rule = _definition_of(sum_rule, "sum_rule.SumRule")
         self.sum_access = access(self.sum_rule)
         self.sum_pass = self.sum_access.root(
-            Witness(_body_of(_RULES / "sum_rule.viba", "SumWitnessPass"),
-                    {self.sum_rule.file_hash})).value
+            Witness(_body_of(_RULES / "sum_rule.viba", "SumWitnessPass"))).value
 
     def _without(self, node, tag):
         """把某个 tag 摘掉的那份材料（造"数据里没有"用）。"""
         kept = [e for e in viba_ast.convert_to_chain_style(node.data).elements
                 if not (isinstance(e, viba_ast.Tagged) and e.tag == tag)]
-        return node._access.root(Witness(viba_ast.ProductChain(kept),
-                                         {node._access.definition.file_hash})).value
+        return node._access.root(Witness(viba_ast.ProductChain(kept))).value
 
 
 _MATERIALS = None
@@ -240,184 +235,10 @@ def test_api_root_case_001():
 
 
 def test_api_root_case_002():
-    """起点不核版本：数据没声明版本照样给节点，核不核是上层的事。"""
+    """起点只把 (描述符, 数据) 配成对：节点给出来，data 就是那份材料；版本协议不管。"""
     m = _materials()
-    rooted = m.demo_access.root(Witness(m.demo_witness.node, set()))
+    rooted = m.demo_access.root(Witness(m.demo_witness.node))
     assert isinstance(rooted, Ok) and rooted.value.data is m.demo_witness.node
-
-
-def test_api_root_case_003():
-    """版本对不上也给节点；要拦就上层拿 file_hashes / viba_version_matches 自己拦。"""
-    m = _materials()
-    rooted = m.demo_access.root(Witness(m.demo_witness.node, {"deadbeef"}))
-    assert isinstance(rooted, Ok)
-    assert m.demo_access.file_hashes(Witness(m.demo_witness.node, {"deadbeef"})).value == {"deadbeef"}
-    assert viba_version_matches(m.demo.pool, Witness(m.demo_witness.node, {"deadbeef"})).value is False
-
-
-def test_api_root_case_004():
-    """声明里多带一个哈希不算错。"""
-    m = _materials()
-    rooted = m.demo_access.root(Witness(m.demo_witness.node, {m.demo.file_hash, "x"}))
-    assert isinstance(rooted, Ok)
-
-
-# ----------------------------------------------------------------------
-# VibaFileHashes
-# ----------------------------------------------------------------------
-
-
-def test_api_file_hashes_case_001():
-    """原样给出数据声明的集合。"""
-    m = _materials()
-    data = Witness(m.demo_witness.node, {m.demo.file_hash, "other"})
-    assert m.demo_access.file_hashes(data).value == {m.demo.file_hash, "other"}
-
-
-# ----------------------------------------------------------------------
-# VibaVersionMatches
-# ----------------------------------------------------------------------
-
-
-def test_api_version_matches_case_001():
-    """数据声明的都在池子里：真。"""
-    m = _materials()
-    assert viba_version_matches(m.demo.pool, m.demo_witness).value is True
-
-
-def test_api_version_matches_case_002():
-    """有一个找不到：假。"""
-    m = _materials()
-    data = Witness(m.demo_witness.node, {m.demo.file_hash, "nope"})
-    assert viba_version_matches(m.demo.pool, data).value is False
-
-
-# ----------------------------------------------------------------------
-# VibaHas
-# ----------------------------------------------------------------------
-
-
-def test_api_has_case_001():
-    """数据里有这一段：真。"""
-    m = _materials()
-    assert m.demo_access.has(m.demo_node, by_tag("$code_length")).value is True
-
-
-def test_api_has_case_002():
-    """图上没这个坐标：假（不是 Err）。"""
-    m = _materials()
-    assert m.demo_access.has(m.demo_node, by_tag("$missing")).value is False
-
-
-def test_api_has_case_003():
-    """数据里没这一段：假。"""
-    m = _materials()
-    sparse = m._without(m.demo_node, "$code_length")
-    assert m.demo_access.has(sparse, by_tag("$code_length")).value is False
-
-
-def test_api_has_case_004():
-    """和类型：只有选中的那一支是真的。"""
-    m = _materials()
-    assert m.sum_access.has(m.sum_pass, by_tag("$small")).value is True
-    assert m.sum_access.has(m.sum_pass, by_tag("$big")).value is False
-
-
-def test_api_has_case_005():
-    """not[A]：$not_operand 是一个坐标（和积/和一样），分支在它下面。"""
-    m = _materials()
-    shell = m.law_abiding.by_tag("not_crimes")
-    assert m.not_access.has(shell, by_tag("$not_operand")).value is True
-    assert m.not_access.has(shell, by_tag("$homicide")).value is False
-    operand = shell.get_not_operand()
-    for branch in ("$homicide", "$arson", "$robbery"):
-        assert m.not_access.has(operand, by_tag(branch)).value is True
-
-
-def test_api_has_case_006():
-    """三种链一个规矩：$elements 就是成员，链头的单位元不算。"""
-    m = _materials()
-    metric = m.demo_node.by_tag("code_length")
-    assert m.demo_access.has(metric, by_tag("$value")).value is True
-    check = m.demo_node.by_tag("assert_code_len_le_24")
-    assert m.demo_access.has(check, by_tag("$assert_cond")).value is True
-    assert m.demo_access.has(check, by_tag("$assert_python_code")).value is True
-    assert m.demo_access.has(check, by_tag("$never_there")).value is False
-
-
-def test_api_has_case_007():
-    """同一份定义在两边都展开：设计和材料的成员对得上。"""
-    m = _materials()
-    shell = m.law_abiding.by_tag("not_crimes")
-    operand = shell.get_not_operand()
-    assert m.not_access.has(operand, by_tag("$not_operand")).value is False
-    assert operand.descriptor.kind == "sum"
-
-
-def test_api_has_case_008():
-    """积 / 和 / 指数三种链的成员读法一致：$elements 是成员，链头单位元不算。"""
-    m = _materials()
-    # 积：字段是成员，链头的 RuleObject 不是
-    assert m.demo_node.has_code_length() is True
-    assert m.demo_access.has(m.demo_node, by_tag("$RuleObject")).value is False
-    assert "get_ruleobject" not in dir(m.demo_node)
-    # 和：分支是成员
-    assert m.sum_access.has(m.sum_pass, by_tag("$small")).value is True
-    # 指数：操作数是成员，链头的 never 不是
-    shell = m.law_abiding.by_tag("not_crimes")
-    assert m.not_access.has(shell, by_tag("$not_operand")).value is True
-    assert m.not_access.has(shell, by_tag("$never")).value is False
-    assert "get_never" not in dir(shell)
-
-
-def test_api_has_case_009():
-    """禁止的操作数在材料里写成名字（not[Crimes]）时，也展开成定义体。"""
-    m = _materials()
-    shell = m.named_not_node.by_tag("not_crimes")
-    assert m.named_not_access.has(shell, by_tag("$not_operand")).value is True
-    operand = shell.get_not_operand()
-    for branch in ("$homicide", "$arson", "$robbery"):
-        assert m.named_not_access.has(operand, by_tag(branch)).value is True
-
-
-# ----------------------------------------------------------------------
-# VibaGet
-# ----------------------------------------------------------------------
-
-
-def test_api_get_case_001():
-    """走一步：回来的是新节点，描述符与数据都换到那一段。
-
-    量出来的值在 $value 那一层，所以坐标是 $code_length → $value。
-    """
-    m = _materials()
-    given = m.demo_access.get(m.demo_node, by_tag("$code_length"))
-    assert isinstance(given, Ok)
-    assert isinstance(given.value.data, viba_ast.Tagged)
-    inside = m.demo_access.get(given.value, by_tag("$value"))
-    assert isinstance(inside, Ok) and inside.value.data.value == 7
-    assert given.value.descriptor is not m.demo_node.descriptor
-
-
-def test_api_get_case_002():
-    """数据里没有这一段：Ok(nil)。"""
-    m = _materials()
-    sparse = m._without(m.demo_node, "$keywords")
-    given = m.demo_access.get(sparse, by_tag("$keywords"))
-    assert isinstance(given, Ok) and given.value is None
-
-
-def test_api_get_case_003():
-    """图上压根没这个坐标：Err。"""
-    m = _materials()
-    assert isinstance(m.demo_access.get(m.demo_node, by_tag("$missing")), Err)
-
-
-def test_api_get_case_004():
-    """和类型取没选中的那一支：Ok(nil)。"""
-    m = _materials()
-    given = m.sum_access.get(m.sum_pass, by_tag("$big"))
-    assert isinstance(given, Ok) and given.value is None
 
 
 # ----------------------------------------------------------------------
@@ -442,7 +263,7 @@ def test_api_leaf_case_002():
         viba_ast.Tagged("$table", viba_ast.Constant("x")),
         viba_ast.Tagged("$maybe", viba_ast.Constant(3)),
     ])
-    node = m.node1_access.root(Witness(body, {m.node1.file_hash})).value
+    node = m.node1_access.root(Witness(body)).value
     assert m.node1_access.leaf(node.by_tag("items")).value.value == 1.5
     assert m.node1_access.leaf(node.by_tag("seen")).value.value is True
     assert m.node1_access.leaf(node.by_tag("table")).value.value == "x"
@@ -460,7 +281,7 @@ def test_api_leaf_case_003():
         viba_ast.Tagged("$table", viba_ast.TypeApp("DictLiteral", [])),
         viba_ast.Tagged("$maybe", viba_ast.Nil()),
     ])
-    node = m.node1_access.root(Witness(body, {m.node1.file_hash})).value
+    node = m.node1_access.root(Witness(body)).value
     leaf = m.node1_access.leaf(node.by_tag("maybe"))
     assert isinstance(leaf, Ok) and leaf.value.kind == "nil"
 
@@ -1026,16 +847,9 @@ def test_api_step_case_003():
 
 
 def test_api_witness_case_001():
-    """版本声明存成集合。"""
-    m = _materials()
-    assert Witness(m.demo_witness.node, [m.demo.file_hash]).hashes == {m.demo.file_hash}
-
-
-def test_api_witness_case_002():
     """也收 AstNodeType：拆出它的 ast 节点。"""
     m = _materials()
-    typed = Witness(AstNodeType(m.demo_witness.node, custom_module("")),
-                    {m.demo.file_hash})
+    typed = Witness(AstNodeType(m.demo_witness.node, custom_module("")))
     assert typed.node is m.demo_witness.node
 
 

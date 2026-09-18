@@ -13,26 +13,21 @@
     VibaPath                          VibaPath（= list[VibaStep]）
     VibaNode[Data]                    VibaNode
     VibaAccess[Data]                  VibaAccess
-    VibaRoot / VibaHas / VibaGet
-    VibaLeaf / VibaLength / VibaKeys
-    VibaFileHashes                    VibaAccess.root / has / get / leaf /
-                                      length / keys / file_hashes
-    VibaResolve / VibaGetByPath
-    VibaListFields
-    VibaVersionMatches                viba_resolve / viba_get_by_path /
-                                      viba_list_fields / viba_version_matches
+    VibaRoot / VibaHas / VibaGet      VibaAccess.root / has / get / leaf /
+    VibaLeaf / VibaLength / VibaKeys  length / keys
+    VibaResolve / VibaGetByPath       viba_resolve / viba_get_by_path /
+    VibaListFields                    viba_list_fields
 
 协议里没有名字的，是本层对它的绑定与辅助，不算协议概念：
 
     Data 这个形参         -> Witness：一份呈证材料（viba-rule.md 的 Witness）
-                             加上它声明的设计版本
     第 5.4 节"直接抛异常"  -> VibaReflectError
     读图与遍历            -> VibaAccess 上的下划线方法、以及本模块的下划线函数
 
 两条协议里的规矩：
 
-* ``root`` 只把 (描述符, 数据) 配成对，不核版本：数据声明的哈希用
-  ``file_hashes`` 问得到，要不要核、怎么核是上层的事。
+* ``root`` 只把 (描述符, 数据) 配成对。版本协议不管：一份材料对着哪一版设计
+  做的，是上层自己的事。
 * ``has`` 只答真假——设计里没这个坐标、数据里没这一段，都是 ``False``。
   ``get`` 里"数据里没有"是 ``Ok(nil)``，只有"图上压根没这个坐标"才是 ``Err``；
   ``leaf`` / ``length`` / ``keys`` 取不到就是 ``Err``。
@@ -146,19 +141,18 @@ def _tag_of(name: str) -> str:
 
 
 class Witness:
-    """本层对协议里 Data 形参的绑定：一份呈证材料的类型表达式 + 它声明的设计版本。
+    """本层对协议里 Data 形参的绑定：一份呈证材料的类型表达式。
 
     协议没规定 Data 长什么样——它是实现方绑的。viba.rule 这边，"材料"就是
-    viba-rule.md 说的呈证材料，再加一份"我是对着哪一版设计做的"声明。
+    viba-rule.md 说的呈证材料；版本之类的信息由上层自己带，协议不管。
     """
 
-    __slots__ = ("node", "hashes")
+    __slots__ = ("node",)
 
-    def __init__(self, node, hashes: Iterable[str] = ()):
+    def __init__(self, node):
         if isinstance(node, AstNodeType):
             node = node.ast_node
         self.node = node
-        self.hashes = set(hashes)
 
 
 # ----------------------------------------------------------------------
@@ -294,7 +288,7 @@ class VibaNode:
 
 
 class VibaAccess:
-    """绑好一份设计的访问器：第 5.2 节的七格，加本层的读图辅助。"""
+    """绑好一份设计的访问器：第 5.2 节的六格，加本层的读图辅助。"""
 
     def __init__(self, definition: VibaDefinitionDescriptor):
         self.definition = definition
@@ -303,17 +297,10 @@ class VibaAccess:
     def __repr__(self):
         return f"VibaAccess({self.definition.full_name!r})"
 
-    # ---- 协议七格 ----
-
-    def file_hashes(self, data: Witness) -> Result:
-        return Ok(set(data.hashes))
+    # ---- 协议六格 ----
 
     def root(self, data: Witness) -> Result:
-        """起点：给出 (描述符, 数据) 这一对。
-
-        版本不在这里核：数据声明的哈希由 ``file_hashes`` 给出，上层想核就用
-        ``viba_version_matches``（或自己比），核不核、怎么核是上层的事。
-        """
+        """起点：给出 (描述符, 数据) 这一对。"""
         return Ok(VibaNode(self, self.definition.body, data.node))
 
     def has(self, node: VibaNode, step: VibaStep) -> Result:
@@ -693,17 +680,6 @@ def viba_list_fields(node: VibaNode, definition: VibaDefinitionDescriptor) -> Re
     return Ok(out)
 
 
-def viba_version_matches(pool: VibaPool, data: Witness) -> Result:
-    """VibaVersionMatches：数据声明的每个哈希都要能在池子里找到。"""
-    known = {f.file_hash for f in pool.files}
-    return Ok(not (set(data.hashes) - known))
-
-
-# ----------------------------------------------------------------------
-# 入口
-# ----------------------------------------------------------------------
-
-
 def access(definition: VibaDefinitionDescriptor) -> VibaAccess:
     """把一个定义（描述符）当图，返回访问器。
 
@@ -841,7 +817,7 @@ __all__ = [
     "access",
     "VibaAccess", "VibaNode", "VibaStep", "VibaPath",
     "by_tag", "by_field_index", "at_index", "at_key",
-    "viba_resolve", "viba_get_by_path", "viba_list_fields", "viba_version_matches",
+    "viba_resolve", "viba_get_by_path", "viba_list_fields",
 ]
 
 # 本层绑定的，按名字直接 import 用，不算协议概念：
