@@ -26,7 +26,7 @@
 
     Data 这个形参         -> Witness：一份呈证材料（viba-rule.md 的 Witness）
                              加上它声明的设计版本
-    第 7.4 节"直接抛异常"  -> RuleReflectError
+    第 5.4 节"直接抛异常"  -> RuleReflectError
     读图与遍历            -> VibaAccess 上的下划线方法、以及本模块的下划线函数
 
 两条协议里的规矩：
@@ -37,7 +37,7 @@
   ``get`` 里"数据里没有"是 ``Ok(nil)``，只有"图上压根没这个坐标"才是 ``Err``；
   ``leaf`` / ``length`` / ``keys`` 取不到就是 ``Err``。
 
-第 7.4 节的 Python 落点在 VibaNode 上：``get_{name}()`` / ``has_{name}()`` /
+第 5.4 节的 Python 落点在 VibaNode 上：``get_{name}()`` / ``has_{name}()`` /
 ``in`` / ``try_get_{name}()`` / ``node[i]`` / ``node.value`` / ``len(node)`` /
 迭代 / ``keys()`` / ``values()`` / ``items()``。取值的那一类抛异常，问有没有的
 那一类永不抛。
@@ -88,7 +88,7 @@ LITERAL_CTORS = ("ListLiteral", "SetLiteral", "DictLiteral")
 class RuleReflectError(Exception):
     """取值那一路失败时抛的异常，带的是协议那句 ``Err`` 的话。
 
-    第 7.4 节只说"直接抛异常"，没给异常起名字，这个名字是本层的。
+    第 5.4 节只说"直接抛异常"，没给异常起名字，这个名字是本层的。
     """
 
 
@@ -186,7 +186,7 @@ class VibaNode:
         where = ".".join(repr(step) for step in self.path) or "root"
         return f"VibaNode({where})"
 
-    # ---- 第 7.4 节的节点访问器：取值那一路抛异常 ----
+    # ---- 第 5.4 节的节点访问器：取值那一路抛异常 ----
 
     def by_tag(self, name: str) -> "VibaNode":
         return self._access._unwrap(self._access.get(self, by_tag(name)))
@@ -206,7 +206,7 @@ class VibaNode:
 
     @property
     def value(self) -> VibaConstantValue:
-        """第 7.4 节的 Python 落点：``leaf`` 落到 ``node.value``。"""
+        """第 5.4 节的 Python 落点：``leaf`` 落到 ``node.value``。"""
         return self.leaf
 
     # ---- 形状：只看写出来的链头，不展开名字 ----
@@ -294,7 +294,7 @@ class VibaNode:
 
 
 class VibaAccess:
-    """绑好一条 Rule 的访问器：第 7.2 节的七格，加本层的读图辅助。"""
+    """绑好一条 Rule 的访问器：第 5.2 节的七格，加本层的读图辅助。"""
 
     def __init__(self, definition: VibaDefinitionDescriptor):
         self.definition = definition
@@ -648,7 +648,7 @@ class VibaAccess:
 
 
 # ----------------------------------------------------------------------
-# 第 7.3 节的便利函数
+# 第 5.3 节的便利函数
 # ----------------------------------------------------------------------
 
 
@@ -841,7 +841,7 @@ def _constant_value(value) -> VibaConstantValue:
     raise TypeError(f"no constant kind for {value!r}")
 
 
-# 协议里的名字（viba-reflect.md 第 6、7 节），只列这些。
+# 协议里的名字（viba-reflect.md 第 4、5 节），只列这些。
 __all__ = [
     "access",
     "VibaAccess", "VibaNode", "VibaStep", "VibaPath",
@@ -851,4 +851,4 @@ __all__ = [
 
 # 本层绑定的，按名字直接 import 用，不算协议概念：
 #   Witness          协议里的 Data 形参在这里绑成什么
-#   RuleReflectError 第 7.4 节"取值直接抛异常"的那个异常
+#   RuleReflectError 第 5.4 节"取值直接抛异常"的那个异常

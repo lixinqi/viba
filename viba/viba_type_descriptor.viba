@@ -25,7 +25,7 @@ import viba.type
 
 VibaFileDescriptor :=
     Object
-  * $pool VibaPool                              # 自己属于哪个池子
+  * $pool VibaPool                              # 自己属于哪个描述符池
   * $file_name str                              # 文件标识（路径）
   * $file_hash str                              # 源码原文的哈希，标识这是哪一版设计
   * $module_name str                            # 由调用方给：.viba 没有 package 声明
@@ -70,7 +70,7 @@ VibaDefinitionDescriptor :=
       体既不是积也不是和也不是指数时（A := int），$members 为空——那是别名，
       不是错误。
       $generic_params 是 Viba 多出来的：protobuf 没有参数化类型。
-      $file_hash 是所属文件那一份的副本，好让起点不查池子就能核版本。
+      $file_hash 是所属文件那一份的副本，好让起点不查描述符池就能核版本。
     }]
 
 # ---------------------------------------------------------------- #
@@ -193,7 +193,7 @@ VibaConstantValue :=             # 叶子只有这五种，跟设计侧的字面
   | $nil_value nil               # 语法里走不到：写 nil 走 $nil 那一支，这一支留给访问侧取叶子
 
 # ---------------------------------------------------------------- #
-# 5. 池子
+# 5. 描述符池
 # ---------------------------------------------------------------- #
 
 VibaPool :=
@@ -204,15 +204,15 @@ VibaPool :=
   * $full_name2member dict[str, VibaMemberDescriptor]
   * $module_environment (Result[type.ModuleType] <- $module_name str)
   * Comments[{
-      池子只是索引，不做名字解析。protobuf: DescriptorPool。
-      三张名字表的口径：
+      描述符池只是索引，不做名字解析。protobuf: DescriptorPool。
+      三张名字表的约定：
         文件名 -> $file_name 原文
         定义   -> 模块名.定义名
         成员   -> 模块名.定义名.$tag
       不带标签的成员没有名字，不进表，只能按位置查。
       $module_environment 是模块名换模块，与 CustomModuleType 的同名字段是
-      一个东西：池子把它交给需要跨模块解析的查询，自己不去问它怎么实现。
-      池子与它建出来的描述符互相指着（描述符持有 $pool，池子持有描述符表），
+      一个东西：描述符池把它交给需要跨模块解析的查询，自己不去问它怎么实现。
+      描述符池与它建出来的描述符互相指着（描述符持有 $pool，描述符池持有描述符表），
       和 protobuf 的 DescriptorPool 与 FileDescriptor 一样。
     }]
 
@@ -227,7 +227,7 @@ ParseVibaFile :=
   <- $file_name str
   <- $module_name str
   <- Comments[{
-      一份 .viba 源码编进这个池子，产出文件描述符。protobuf: protoc / BuildFile。
+      一份 .viba 源码编进这个描述符池，产出文件描述符。protobuf: protoc / BuildFile。
       $file_name 与 $module_name 都由调用方给：文件是哪一个、它算哪个模块。
       .viba 里没有 package 声明，两者不必同名。
       语法错就是 Err；产出是规范化（链式）形式，并按源码记账 $file_hash。
@@ -238,8 +238,8 @@ PoolAddFile :=
   <- $pool VibaPool
   <- $file VibaFileDescriptor
   <- Comments[{
-      得到一份多了一个文件的池子（没有可变状态，不是往里塞）。
-      $file 必须是这个池子建出来的（$file.$pool 就是它），否则 Err。
+      得到一份多了一个文件的描述符池（没有可变状态，不是往里塞）。
+      $file 必须是这个描述符池建出来的（$file.$pool 就是它），否则 Err。
       文件重名（哈希不同也算重名）或全名撞车就是 Err。
       protobuf: DescriptorPool::BuildFile。
     }]
@@ -328,7 +328,7 @@ MemberResolvedDefinition :=
         没有前缀                        -> 本模块
       再在那个模块里交给 type.ModuleGetType 查（内建那一跳由它兜）；
       解析出来的东西对应一个定义，就返回它的描述符，否则 Err。
-      Err 三种：类型不是引用、池子里没有这个定义、名字指向的不是定义。
+      Err 三种：类型不是引用、描述符池里没有这个定义、名字指向的不是定义。
       protobuf: message_type() / enum_type()。
     }]
 
