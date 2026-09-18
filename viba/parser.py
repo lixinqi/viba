@@ -396,10 +396,11 @@ def p_epsilon(p):
 
 
 def p_error(p):
+    """Raise on a syntax error: callers must be able to tell that this
+    source does not compile."""
     if p:
-        print(f"Viba Parse Error: Unexpected '{p.value}' at line {p.lineno}")
-    else:
-        print("Viba Parse Error: Unexpected EOF")
+        raise SyntaxError(f"Viba parse error: unexpected {p.value!r} at line {p.lineno}")
+    raise SyntaxError("Viba parse error: unexpected EOF")
 
 
 parser = yacc.yacc()

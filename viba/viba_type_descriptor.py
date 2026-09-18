@@ -309,7 +309,7 @@ def parse_viba_file(pool: VibaPool, source: str, file_name: str, module_name: st
     text = _normalize_source(source)
     try:
         tree = viba_ast.canonical(viba_ast.parse(text))
-    except Exception as exc:  # pragma: no cover - the parser prints, never raises
+    except Exception as exc:  # syntax error: the parser raises, turn it into Err
         return Err(f"cannot parse: {exc!r}")
     file_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
     return Ok(_build_file(pool, tree, file_name, module_name, file_hash))
