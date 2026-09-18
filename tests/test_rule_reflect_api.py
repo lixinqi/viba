@@ -240,15 +240,19 @@ def test_api_root_case_001():
 
 
 def test_api_root_case_002():
-    """数据没声明版本：Err。"""
+    """起点不核版本：数据没声明版本照样给节点，核不核是上层的事。"""
     m = _materials()
-    assert isinstance(m.demo_access.root(Witness(m.demo_witness.node, set())), Err)
+    rooted = m.demo_access.root(Witness(m.demo_witness.node, set()))
+    assert isinstance(rooted, Ok) and rooted.value.data is m.demo_witness.node
 
 
 def test_api_root_case_003():
-    """版本对不上：Err。"""
+    """版本对不上也给节点；要拦就上层拿 file_hashes / viba_version_matches 自己拦。"""
     m = _materials()
-    assert isinstance(m.demo_access.root(Witness(m.demo_witness.node, {"deadbeef"})), Err)
+    rooted = m.demo_access.root(Witness(m.demo_witness.node, {"deadbeef"}))
+    assert isinstance(rooted, Ok)
+    assert m.demo_access.file_hashes(Witness(m.demo_witness.node, {"deadbeef"})).value == {"deadbeef"}
+    assert viba_version_matches(m.demo.pool, Witness(m.demo_witness.node, {"deadbeef"})).value is False
 
 
 def test_api_root_case_004():

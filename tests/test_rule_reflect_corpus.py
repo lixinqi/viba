@@ -29,7 +29,8 @@ from viba.viba_type_descriptor import (
     pool_find_definition,
 )
 from viba.rule.generate_witnesses import generate_witnesses
-from viba.rule.reflect import access, at_index, at_key, by_field_index, by_tag, Witness
+from viba.rule.reflect import (access, at_index, at_key, by_field_index, by_tag,
+                               viba_version_matches, Witness)
 from viba.rule.reset_predication_by_python_code import reset_predication_by_python_code
 
 DATA = Path(__file__).resolve().parent / "data" / "rule_coding_style_check"
@@ -302,11 +303,13 @@ def main() -> int:
     pairs += check_broken_rules()
     pairs += check_predicate_reset()
     pairs += check_predicate_code()
-    # 版本不对、或者数据没声明版本：起点必须拒绝
+    # 起点不核版本；要核就用便利函数，版本对不上在这里看得出来
     under = UnderTest(DATA / "demo.viba", "DemoRule")
     witness = generate_witnesses(under.rule, 1, seed=1)[0]
-    assert not isinstance(under.accessor.root(Witness(witness.ast_node, set())), Ok)
-    assert not isinstance(under.accessor.root(Witness(witness.ast_node, {"deadbeef"})), Ok)
+    assert isinstance(under.accessor.root(Witness(witness.ast_node, set())), Ok)
+    assert isinstance(under.accessor.root(Witness(witness.ast_node, {"deadbeef"})), Ok)
+    assert viba_version_matches(under.definition.pool,
+                                Witness(witness.ast_node, {"deadbeef"})).value is False
 
     # 份数跟着语料算：60 条生成规则 × (20+20+200+20) + 几组固定的
     generated = (len(rule_paths) + len(not_paths)) * (WITNESSES_PER_RULE * 3 + MIXED_WITNESSES)

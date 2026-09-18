@@ -31,8 +31,8 @@
 
 两条协议里的规矩：
 
-* ``root`` 内部先核版本：拿数据的 ``file_hashes``，看规则的 ``$file_hash``
-  在不在里面；不在（或者数据压根没声明版本）就 ``Err``，不给节点。
+* ``root`` 只把 (描述符, 数据) 配成对，不核版本：数据声明的哈希用
+  ``file_hashes`` 问得到，要不要核、怎么核是上层的事。
 * ``has`` 只答真假——设计里没这个坐标、数据里没这一段，都是 ``False``。
   ``get`` 里"数据里没有"是 ``Ok(nil)``，只有"图上压根没这个坐标"才是 ``Err``；
   ``leaf`` / ``length`` / ``keys`` 取不到就是 ``Err``。
@@ -309,16 +309,11 @@ class VibaAccess:
         return Ok(set(data.hashes))
 
     def root(self, data: Witness) -> Result:
-        """起点：先核版本，再给出 (描述符, 数据) 这一对。"""
-        hashes = self.file_hashes(data)
-        if isinstance(hashes, Err):
-            return hashes
-        if not hashes.value:
-            return Err("数据没有声明版本，拒绝给起点")
-        if self.definition.file_hash not in hashes.value:
-            return Err(
-                f"版本对不上：规则是 {self.definition.file_hash[:12]}，"
-                f"数据声明的是 {sorted(h[:12] for h in hashes.value)}")
+        """起点：给出 (描述符, 数据) 这一对。
+
+        版本不在这里核：数据声明的哈希由 ``file_hashes`` 给出，上层想核就用
+        ``viba_version_matches``（或自己比），核不核、怎么核是上层的事。
+        """
         return Ok(VibaNode(self, self.definition.body, data.node))
 
     def has(self, node: VibaNode, step: VibaStep) -> Result:
