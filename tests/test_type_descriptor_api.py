@@ -29,7 +29,6 @@ from viba.viba_type_descriptor import (
     pool_find_definition,
     pool_find_file,
     pool_find_member,
-    type_is_optional,
 )
 
 MATERIAL = Path(__file__).resolve().parent / "data" / "type_descriptor" / "api"
@@ -86,8 +85,6 @@ def _check_shapes():
     assert [m.member_type.kind for m in members] == ["type_app", "type_app", "type_app",
                                                      "sum", "tuple", "sum",
                                                      "literal", "code_block", "exponent"]
-    assert [type_is_optional(m.member_type).value for m in members] == \
-        [False, False, False, True, False, False, False, False, False]
     # 只有写成名字的成员才有 type_name；内联结构没有
     assert isinstance(member_type_name(members[0]), Err)
     assert isinstance(member_type_name(members[5]), Err)

@@ -91,7 +91,7 @@ VibaMemberDescriptor :=
         type / type_name -> $member_type（成员类型本身就是一段表达式，还能内联）
         containing_type  -> $containing_full_name
       protobuf 的 label 在 Viba 里没有对应物：我们没有 repeated 这个概念，
-      list[T] 就是一个类型。可选是 T | nil 这个和形状，问形状用 TypeIsOptional。
+      list[T] 就是一个类型；可选也没有 label，它就是 T | nil 这个和形状。
     }]
 
 # ---------------------------------------------------------------- #
@@ -338,12 +338,4 @@ MemberContainingDefinition :=
   <- Comments[{
       顺着 $containing_full_name 在 $pool 里回查。
       protobuf: FieldDescriptor::containing_type()。
-    }]
-
-TypeIsOptional :=
-    Result[bool]
-  <- $type VibaTypeDescriptor
-  <- Comments[{
-      类型是不是 T | nil（和里有 nil 分支）。
-      protobuf 把它做成 label，Viba 里就是 A | nil 这个和形状，所以问类型。
     }]

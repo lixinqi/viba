@@ -30,7 +30,6 @@ from viba.viba_type_descriptor import (
     pool_find_definition,
     pool_find_file,
     pool_find_member,
-    type_is_optional,
 )
 
 CASES = Path(__file__).resolve().parent / "data" / "type_descriptor"
@@ -90,7 +89,6 @@ def check_case(case_dir: Path):
                 assert member.pool is pool
                 assert member.member_type.kind == truth["kind"], (case_dir, truth)
                 assert member_containing_definition(member).value.full_name == wanted["full_name"]
-                assert type_is_optional(member.member_type).value is truth["optional"], (case_dir, truth)
 
                 written = member_type_name(member)
                 if truth["type_name"] is None:

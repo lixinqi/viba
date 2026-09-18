@@ -617,17 +617,6 @@ def member_containing_definition(member: VibaMemberDescriptor) -> Result:
     return pool_find_definition(member.pool, member.containing_full_name)
 
 
-# ----------------------------------------------------------------------
-# 类型上的查询
-# ----------------------------------------------------------------------
-
-
-def type_is_optional(type_descriptor: VibaTypeDescriptor) -> Result:
-    if type_descriptor.kind != SUM:
-        return Ok(False)
-    return Ok(any(e.kind == NIL for e in type_descriptor.payload.elements))
-
-
 __all__ = [
     "VibaConstantValue",
     "VibaTypeDescriptor",
@@ -644,5 +633,4 @@ __all__ = [
     "definition_find_member_by_index", "definition_file",
     "member_type_name", "member_resolved_definition",
     "member_containing_definition",
-    "type_is_optional",
 ]

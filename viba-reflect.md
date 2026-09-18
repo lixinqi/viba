@@ -239,7 +239,7 @@ root.by_tag('counter').at_key('value').leaf()
 
 **容器**：`list` / `set` / `dict` 是内建的三种容器，各有形态识别与取值。
 
-- `is_list` / `is_set` / `is_dict` 只看**写出来的形状**：描述符的链头写着 `list[...]` 才是 `list`；如果这一段写的是一个名字（`$xs Names`），形态识别不算，要刨到底就顺着 `MemberResolvedDefinition` 一层层问。这条约定与第 8 节的 `TypeIsOptional` 一致。
+- `is_list` / `is_set` / `is_dict` 只看**写出来的形状**：描述符的链头写着 `list[...]` 才是 `list`；如果这一段写的是一个名字（`$xs Names`），形态识别不算，要刨到底就顺着 `MemberResolvedDefinition` 一层层问。
 - `len` 对三种容器都成立：`list` / `set` / tuple 给元素个数，`dict` 给键数；不是容器就是 `Err`。
 - `keys` 只对 `dict` 成立，给键，顺序由实现定；不是 `dict` 就是 `Err`。
 - 枚举一个序列是 `len` 加 `at_index` 走一遍（`set` 没有固定顺序，从头到尾的顺序由实现定）；读 `dict` 的值是 `keys` 加 `at_key` 走一遍。
@@ -306,14 +306,13 @@ print(root.try_get_missing())     # Ok(None)：这份数据里没有这一段
 
 ## 8. 描述侧查询
 
-查询清单在 `viba/viba_type_descriptor.viba`。它们有一个共同点：签名里没有 `Data`，全是拿描述符换描述符；查不到或形状不符一律 `Err`，不返回空值。按用途分四组：
+查询清单在 `viba/viba_type_descriptor.viba`。它们有一个共同点：签名里没有 `Data`，全是拿描述符换描述符；查不到或形状不符一律 `Err`，不返回空值。按用途分三组：
 
 - **编译与索引**：`ParseVibaFile`、`PoolAddFile`、`PoolFindFile`、`PoolFindDefinition`、`PoolFindMember`、`FileFindImportByLocalName`。
 - **定义上**：`DefinitionMembers`、`DefinitionFindMemberByTag`、`DefinitionFindMemberByIndex`、`DefinitionFile`。
 - **成员上**：`MemberTypeName`、`MemberResolvedDefinition`、`MemberContainingDefinition`。
-- **类型上**：`TypeIsOptional`。可选就是 `T | nil` 这个和形状，所以问类型，不问成员。
 
-有一条约定在这里点出，它跟第 5.4 节直接相关：**形态查询只看写出来的形状**。`TypeIsOptional` 就是这样——成员写 `$xs Names` 而 `Names := A | nil` 时，它答"不是可选"；想刨到底，得顺着 `MemberResolvedDefinition` 一层层问。
+有一条约定在这里点出，它跟第 5.4 节直接相关：**形态查询只看写出来的形状**。成员写的是一个名字（`$xs Names`）时，形态识别不算；想刨到底，得顺着 `MemberResolvedDefinition` 一层层问。
 
 ## 9. 契约与约定
 
