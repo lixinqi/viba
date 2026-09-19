@@ -839,7 +839,8 @@ class VibaAccess:
 
     def _is_unit_descriptor(self, descriptor) -> bool:
         """A unit chain head: nil / never by kind, or a name the config calls
-        one."""
+        one — the name it lands on, a name being an alias of its body."""
+        descriptor = self.unfold(descriptor)
         if descriptor.kind in (NIL, NEVER):
             return True
         return (descriptor.kind == TYPE_REF
@@ -847,7 +848,10 @@ class VibaAccess:
 
     def _is_unit_member(self, member: VibaMemberDescriptor) -> bool:
         written = member_type_name(member)
-        return isinstance(written, Ok) and self.config.is_unit_name(written.ok_value)
+        if isinstance(written, Ok) and self.config.is_unit_name(written.ok_value):
+            return True
+        member_type = getattr(member, "member_type", None)
+        return member_type is not None and self._is_unit_descriptor(member_type)
 
     def _is_unit_data(self, node) -> bool:
         """The same on the material side: a unit written as a form or a name."""

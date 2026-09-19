@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba import viba_ast
 from viba.type import AstNodeType, Err, Ok, custom_module
 from viba.viba_type_descriptor import (
+    NEVER,
     empty_pool,
     parse_viba_file,
     pool_add_file,
@@ -222,6 +223,40 @@ def _materials():
 # ----------------------------------------------------------------------
 # VibaRoot
 # ----------------------------------------------------------------------
+
+
+def _inline(source: str, name: str):
+    """现搓一份定义：inline 模块里的 name。"""
+    pool = empty_pool()
+    parsed = parse_viba_file(pool, source, "inline.viba", "inline")
+    assert isinstance(parsed, Ok), parsed
+    return _definition_of(pool_add_file(pool, parsed.ok_value).ok_value,
+                          f"inline.{name}")
+
+
+def test_api_members_unit_behind_a_name():
+    """名字是透明的：`H := Object` 的 H 当产品头就不占一格，`U := Object`
+    的成员是单位成员，`N := never` 的成员照旧没有居民。"""
+    access = reflect.access
+    headed = _inline("H := Object\nBox := H * $a int\n", "Box")
+    node = access.root(headed, Witness(viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$a", viba_ast.Constant(1))]))).ok_value
+    assert [tag for tag, _, _ in access.member_steps(node)] == ["$a"]
+
+    member = _inline("U := Object\nBox := Object * $u U * $a int\n", "Box")
+    node2 = access.root(member, Witness(viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"), viba_ast.Tagged("$u", viba_ast.Nil()),
+        viba_ast.Tagged("$a", viba_ast.Constant(1))]))).ok_value
+    units = [(tag, access._is_unit_descriptor(descriptor))
+             for tag, _, descriptor in access.member_steps(node2)]
+    assert units == [("$u", True), ("$a", False)], units
+
+    never = _inline("N := never\nBox := Object * $n N\n", "Box")
+    node3 = access.root(never, Witness(viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$n", viba_ast.Constant(1))]))).ok_value
+    assert access.unfold(access.member_steps(node3)[0][2]).kind == NEVER
 
 
 def test_api_root_case_001():

@@ -76,6 +76,10 @@ def _round_trip(label, definition, access, node, design_source, design_name,
     check(isinstance(twice, Ok) and twice.ok_value == source,
           f"{label}: written again it is the same source ({twice})")
 
+    canonical = viba_ast.unparse(viba_ast.parse(source)).rstrip("\n")
+    check(canonical == source.rstrip("\n"),
+          f"{label}: the source is already canonical viba ({canonical!r})")
+
     if not resident:
         return
     module = custom_module(f"{design_source}\n{source}\n")
@@ -464,12 +468,447 @@ def run_gap_cases():
     check(isinstance(written2, Err), f"gap: an exponent is an Err ({written2})")
 
 
+# ---------------------------------------------------------------------------
+# 成批的边角：叶子逐个过、形状两两套、和式每一支、标签、链长、深浅、压力。
+# ---------------------------------------------------------------------------
+
+# 字符串这一列挑的是"引号、转义、空、换行、看起来像语言关键字"这些点：
+# 每一种都得挑出一个装得下它的字面量，读回来还得一个字不差。
+_STRINGS = [
+    "", "a", "0", " ", "\n", "a\nb", "\r\n", "line\n", "\t", "\\", "a\\b",
+    '"', '""', "'", "''", 'a"b', "a'b", 'a"b\'c', "中文", "🙂", "a b",
+    "-1", "0.5", "nil", "never", "true", "Object", "$a", "$a.b", "a:b",
+    "(A, B)", "}", "{", "#", "|", "*", "<-", ":=", "a'''b", "'''",
+    "ab'\ncd", "ab'\n", "a''\nb", "x" * 200, "中\n文",
+]
+_INTS = [0, 1, 7, 42, 10 ** 9, 2 ** 63, 10 ** 40, 123456789012345678901234567890]
+_FLOATS = [0.0, 0.5, 1.0, 2.0, 0.1, 0.0001, 3.141592653589793, 100.0, 1e15,
+           123456.789, 1e-3]
+# 语言里没有写法的：没有负号，也没有指数；nan / inf 更不是数。
+_UNSPELLABLE_NUMBERS = [-1, -(10 ** 20), -0.5, -0.0, 1e30, 1e16, 1e-5,
+                        float("inf"), float("-inf"), float("nan")]
+# 三种引号都占上了的文本（跨行的还带上 '''），没有一个字面量装得下。
+_UNSPELLABLE_STRINGS = ["a'''b\nc", "'''\n'''", "a'''b\"c'd"]
+
+
+def run_leaf_matrix():
+    """叶子逐个过：写得出、读回来一模一样、还是那个类型的居民。"""
+    for index, text in enumerate(_STRINGS):
+        _corner(f"leaf str[{index}]", "Box := Object * $s str\n", "Box",
+                _product(_tagged("$s", viba_ast.Constant(text))))
+    for value in _INTS:
+        _corner(f"leaf int {value}", "Box := Object * $n int\n", "Box",
+                _product(_tagged("$n", viba_ast.Constant(value))),
+                expect=f"* $n {value}")
+    for value in _FLOATS:
+        _corner(f"leaf float {value}", "Box := Object * $f float\n", "Box",
+                _product(_tagged("$f", viba_ast.Constant(value))),
+                expect=f"* $f {value}")
+    for value in (True, False):
+        _corner(f"leaf bool {value}", "Box := Object * $b bool\n", "Box",
+                _product(_tagged("$b", viba_ast.Constant(value))),
+                expect=f"* $b {str(value).lower()}")
+
+
+def run_number_and_string_gaps():
+    """写不出来的数字与文本：Err，不是"写成别的"。"""
+    for value in _UNSPELLABLE_NUMBERS:
+        _gap(f"gap number {value}", "Box := Object * $f float\n", "Box",
+             _product(_tagged("$f", viba_ast.Constant(value))),
+             "no literal for this number")
+    for index, text in enumerate(_UNSPELLABLE_STRINGS):
+        _gap(f"gap string[{index}]", "Box := Object * $s str\n", "Box",
+             _product(_tagged("$s", viba_ast.Constant(text))),
+             "no viba string literal holds this text")
+
+
+def run_tag_matrix():
+    """标签名：普通、带数字、下划线、点分路径。"""
+    for tag in ("$a", "$ab", "$a_b", "$a1", "$a_1_b", "$agent_name2", "$A",
+                "$aB_c1", "$x.y", "$x.y.z", "$meta.id.hash", "$a.b.c.d.e"):
+        _corner(f"tag {tag}", f"Box := Object * {tag} int\n", "Box",
+                _product(_tagged(tag, viba_ast.Constant(1))),
+                expect=f"* {tag} 1")
+
+
+def run_depth_and_width_ladders():
+    """深浅两级台阶：1..7 层容器，1..8 个成员。"""
+    for depth in range(1, 8):
+        type_text, body = "int", viba_ast.Constant(1)
+        for _ in range(depth):
+            type_text = f"list[{type_text}]"
+            body = viba_ast.TypeApp("ListLiteral", [body])
+        _corner(f"depth {depth}", f"Box := Object * $a {type_text}\n", "Box",
+                _product(_tagged("$a", body)),
+                expect="ListLiteral[" * min(depth, 2))
+    for width in range(1, 9):
+        source = ("Box := Object * "
+                  + " * ".join(f"$f{i} int" for i in range(width)) + "\n")
+        _corner(f"width {width}", source, "Box",
+                _product(*[_tagged(f"$f{i}", viba_ast.Constant(i))
+                           for i in range(width)]),
+                expect=f"* $f{width - 1} {width - 1}")
+
+
+def run_absent_member_positions():
+    """nil 收得下的成员缺在头、中、尾三处，都写 nil。"""
+    for position in range(3):
+        members = ["$a int", "$b int", "$c int"]
+        members[position] = members[position].split()[0] + " (int | nil)"
+        present = [i for i in range(3) if i != position]
+        _corner(f"absent member at {position}",
+                "Box := Object * " + " * ".join(members) + "\n", "Box",
+                _product(*[_tagged(f"${'abc'[i]}", viba_ast.Constant(i))
+                           for i in present]),
+                expect=f"* ${'abc'[position]} nil")
+
+
+def run_alias_ladders():
+    """别名链一路走到头：一层到五层。"""
+    for length in range(1, 6):
+        lines = ["A0 := int"]
+        for step in range(1, length + 1):
+            lines.append(f"A{step} := A{step - 1}")
+        source = "\n".join(lines) + f"\nBox := Object * $a A{length}\n"
+        _corner(f"alias chain {length}", source, "Box",
+                _product(_tagged("$a", viba_ast.Constant(7))), expect="* $a 7")
+
+
+def run_sum_ladders():
+    """和式的每一支都挑一遍：支数 2..6，挑中的位置 0..n-1。"""
+    branches = [("int", viba_ast.Constant(3)),
+                ("$b str", _tagged("$b", viba_ast.Constant("x"))),
+                ("$c bool", _tagged("$c", viba_ast.Constant(True))),
+                ("$d float", _tagged("$d", viba_ast.Constant(0.5))),
+                ("$e Object", _tagged("$e", viba_ast.Nil())),
+                ("$f list[int]", _tagged("$f", viba_ast.TypeApp(
+                    "ListLiteral", [viba_ast.Constant(1)])))]
+    for count in range(2, len(branches) + 1):
+        source = ("S := " + " | ".join(text for text, _ in branches[:count])
+                  + "\nBox := Object * $s S\n")
+        for chosen in range(count):
+            _corner(f"sum {count} branches, branch {chosen}", source, "Box",
+                    _product(_tagged("$s", viba_ast.SumChain(
+                        [branches[chosen][1]]))),
+                    strict=chosen != 0)
+    # 第一支就带标签：支数 1..4
+    tagged = [("$a int", _tagged("$a", viba_ast.Constant(1))),
+              ("$b str", _tagged("$b", viba_ast.Constant("x"))),
+              ("$c bool", _tagged("$c", viba_ast.Constant(True))),
+              ("$d float", _tagged("$d", viba_ast.Constant(0.5)))]
+    for count in range(1, len(tagged) + 1):
+        source = ("S := " + " | ".join(text for text, _ in tagged[:count])
+                  + "\nBox := Object * $s S\n")
+        for chosen in range(count):
+            _corner(f"tagged sum {count}, branch {chosen}", source, "Box",
+                    _product(_tagged("$s", viba_ast.SumChain(
+                        [tagged[chosen][1]]))))
+
+
+_CONTEXT = ("Inner := Object * $x int\n"
+            "A := int\n"
+            "S2 := $k int | $j str\n"
+            "W[V] := Object * $v V\n")
+# 里面那一层：单位、字面量、产品、元组、别名、和式、容器、代码块、泛型应用。
+_INNER_SHAPES = [
+    ("unit", "Object", viba_ast.Nil()),
+    ("literal", "int", viba_ast.Constant(1)),
+    ("product", "Inner", _product(_tagged("$x", viba_ast.Constant(2)))),
+    ("tuple", "(int, str)", viba_ast.Tuple([viba_ast.Constant(3),
+                                            viba_ast.Constant("t")])),
+    ("alias", "A", viba_ast.Constant(4)),
+    ("sum", "S2", viba_ast.SumChain([_tagged("$k", viba_ast.Constant(5))])),
+    ("container", "list[int]", viba_ast.TypeApp("ListLiteral",
+                                                [viba_ast.Constant(6)])),
+    ("code block", "{x}", viba_ast.CodeBlock("x")),
+    ("generic", "W[int]", _product(_tagged("$v", viba_ast.Constant(7)))),
+]
+# 外面那一层：成员位、容器元素、元组位、和式的两支。
+_OUTER_SHAPES = [
+    ("member", lambda t: f"$m {t}", lambda m: _tagged("$m", m)),
+    ("list", lambda t: f"$m list[{t}]",
+     lambda m: _tagged("$m", viba_ast.TypeApp("ListLiteral", [m]))),
+    ("set", lambda t: f"$m set[{t}]",
+     lambda m: _tagged("$m", viba_ast.TypeApp("SetLiteral", [m]))),
+    ("dict", lambda t: f"$m dict[str, {t}]",
+     lambda m: _tagged("$m", viba_ast.TypeApp("DictLiteral", [
+         viba_ast.Tuple([viba_ast.Constant("key"), m])]))),
+    ("tuple", lambda t: f"$m ({t}, int)",
+     lambda m: _tagged("$m", viba_ast.Tuple([m, viba_ast.Constant(9)]))),
+    ("sum first", lambda t: f"$m ($w {t} | int)",
+     lambda m: _tagged("$m", viba_ast.SumChain([_tagged("$w", m)]))),
+    ("sum second", lambda t: f"$m (int | $w {t})",
+     lambda m: _tagged("$m", viba_ast.SumChain([_tagged("$w", m)]))),
+]
+
+
+def run_shape_matrix():
+    """形状两两套：9 种里层 × 7 种外层 = 63 个格子。"""
+    for outer_name, outer_type, outer_body in _OUTER_SHAPES:
+        for inner_name, inner_type, inner_body in _INNER_SHAPES:
+            _corner(f"{outer_name} of {inner_name}",
+                    _CONTEXT + "Box := Object * " + outer_type(inner_type) + "\n",
+                    "Box", _product(outer_body(inner_body)))
+
+
+def run_container_fills():
+    """容器填满：12 个元素、40 个键、30 个集合成员，顺序照材料。"""
+    twelve = [viba_ast.Constant(i) for i in range(12)]
+    _corner("list of 12", "Box := Object * $a list[int]\n", "Box",
+            _product(_tagged("$a", viba_ast.TypeApp("ListLiteral", twelve))),
+            expect="ListLiteral[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]")
+    _corner("set of 12, back to front",
+            "Box := Object * $a set[int]\n", "Box",
+            _product(_tagged("$a", viba_ast.TypeApp("SetLiteral",
+                                                    list(reversed(twelve))))),
+            expect="SetLiteral[11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]")
+    keys = [f"k{i}" for i in range(40)]
+    pairs = [viba_ast.Tuple([viba_ast.Constant(key), viba_ast.Constant(i)])
+             for i, key in enumerate(keys)]
+    _corner("dict of 40", "Box := Object * $a dict[str, int]\n", "Box",
+            _product(_tagged("$a", viba_ast.TypeApp("DictLiteral", pairs))),
+            expect='("k0", 0), ("k1", 1)')
+    _corner("string of 4000", "Box := Object * $a str\n", "Box",
+            _product(_tagged("$a", viba_ast.Constant("中" * 2000))))
+    _corner("a product of 40 members",
+            "Box := Object * " + " * ".join(f"$f{i} int" for i in range(40)) + "\n",
+            "Box",
+            _product(*[_tagged(f"$f{i}", viba_ast.Constant(i))
+                       for i in range(40)]),
+            expect="* $f39 39")
+
+
+def run_never_positions():
+    """never 出现在哪里都是 Err：容器里、元组里、别名背后。"""
+    _gap("gap never in list", "Box := Object * $a list[never]\n", "Box",
+         _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
+                                                 [viba_ast.Never()]))),
+         "nothing resides in never")
+    _gap("gap never in set", "Box := Object * $a set[never]\n", "Box",
+         _product(_tagged("$a", viba_ast.TypeApp("SetLiteral",
+                                                 [viba_ast.Never()]))),
+         "nothing resides in never")
+    _gap("gap never in a dict value", "Box := Object * $a dict[str, never]\n", "Box",
+         _product(_tagged("$a", viba_ast.TypeApp("DictLiteral", [
+             viba_ast.Tuple([viba_ast.Constant("k"), viba_ast.Never()])]))),
+         "nothing resides in never")
+    _gap("gap never in a tuple", "Box := Object * $a (int, never)\n", "Box",
+         _product(_tagged("$a", viba_ast.Tuple([viba_ast.Constant(1),
+                                                viba_ast.Never()]))),
+         "nothing resides in never")
+    _gap("gap never behind an alias", "N := never\nBox := Object * $a list[N]\n", "Box",
+         _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
+                                                 [viba_ast.Never()]))),
+         "nothing resides in never")
+    _gap("gap never in a sum branch", "Box := Object * $a ($w never | int)\n", "Box",
+         _product(_tagged("$a", viba_ast.SumChain([_tagged("$w", viba_ast.Never())]))),
+         "nothing resides in never")
+
+
+def run_dict_key_gaps():
+    """键不是 str 的 dict：int / float / bool / 容器键都没有写法。"""
+    for key_type in ("int", "float", "bool", "list[int]"):
+        _gap(f"gap dict keyed by {key_type}",
+             f"Box := Object * $a dict[{key_type}, str]\n", "Box",
+             _product(_tagged("$a", viba_ast.TypeApp("DictLiteral", [
+                 viba_ast.Tuple([viba_ast.Constant("k"), viba_ast.Constant("v")])]))),
+             "the protocol hands dict keys over as strings")
+
+
+def run_positional_gaps():
+    """材料缺了成员：头、中、尾，都不硬编。"""
+    for position in range(3):
+        members = ["$a int", "$b int", "$c int"]
+        present = [i for i in range(3) if i != position]
+        _gap(f"gap absent member at {position}",
+             "Box := Object * " + " * ".join(members) + "\n", "Box",
+             _product(*[_tagged(f"${'abc'[i]}", viba_ast.Constant(i))
+                        for i in present]),
+             f"no value here: ${'abc'[position]}")
+    _gap("gap a wrong tag", "Box := Object * $a int\n", "Box",
+         _product(_tagged("$z", viba_ast.Constant(9))), "no value here: $a")
+    _gap("gap an empty product material", "Box := Object * $a int\n", "Box",
+         viba_ast.ProductChain([]), "no value here: $a")
+    _gap("gap never as the whole material", "Box := Object * $a int\n", "Box",
+         viba_ast.Never(), "no value here: $a")
+    _gap("gap a name where a container element goes",
+         "Box := Object * $a list[int]\n", "Box",
+         _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
+                                                 [viba_ast.TypeRef("int")]))),
+         "cannot write this piece out")
+
+
+def run_unit_member_shapes():
+    """单位成员：带标签、不带标签、在产品头后面。"""
+    _corner("a unit member with no tag", "Box := Object * Object * $a int\n", "Box",
+            _product(viba_ast.Nil(), _tagged("$a", viba_ast.Constant(1))),
+            expect="* nil")
+    _corner("two unit members, one tagged",
+            "Box := Object * Object * $u Object * $a int\n", "Box",
+            _product(viba_ast.Nil(), _tagged("$u", viba_ast.Nil()),
+                     _tagged("$a", viba_ast.Constant(1))),
+            expect="* $u nil")
+    _corner("a unit member behind an alias",
+            "U := Object\nBox := Object * $u U\n", "Box",
+            _product(_tagged("$u", viba_ast.Nil())), expect="* $u nil")
+
+
+def run_code_block_positions():
+    """代码块的每一处：成员位、容器元素、元组位、和式支、产品头。"""
+    block = viba_ast.CodeBlock("x + 1")
+    _corner("code block as a member", "Box := Object * $c {x}\n", "Box",
+            _product(_tagged("$c", block)), expect="* $c nil")
+    _corner("code block in a set", "Box := Object * $c set[{x}]\n", "Box",
+            _product(_tagged("$c", viba_ast.TypeApp("SetLiteral", [block]))),
+            expect="SetLiteral[nil]")
+    _corner("code block in a dict value", "Box := Object * $c dict[str, {x}]\n", "Box",
+            _product(_tagged("$c", viba_ast.TypeApp("DictLiteral", [
+                viba_ast.Tuple([viba_ast.Constant("k"), block])]))),
+            expect='("k", nil)')
+    _corner("code block in a tuple", "Box := Object * $c ({x}, int)\n", "Box",
+            _product(_tagged("$c", viba_ast.Tuple([block, viba_ast.Constant(1)]))),
+            expect="(nil, 1)")
+    _corner("code block as a sum branch", "Box := Object * $c ({x} | int)\n", "Box",
+            _product(_tagged("$c", viba_ast.SumChain([block]))))
+    _corner("code block behind an alias", "K := {x}\nBox := Object * $c list[K]\n",
+            "Box",
+            _product(_tagged("$c", viba_ast.TypeApp("ListLiteral", [block]))),
+            expect="ListLiteral[nil]")
+
+
+def run_exponent_batteries():
+    """指数链成批：结果位、实参位、嵌在容器与元组里、参数带标签。"""
+    chain = lambda *elements: viba_ast.ExponentChain(list(elements))
+    _corner("exponent: three arguments",
+            "G := Object * $g (never <- $a int <- $b int <- $c int)\n", "G",
+            _product(_tagged("$g", chain(viba_ast.Never(),
+                                         _tagged("$a", viba_ast.Constant(1)),
+                                         _tagged("$b", viba_ast.Constant(2)),
+                                         _tagged("$c", viba_ast.Constant(3))))),
+            expect="<- $a 1\n    <- $b 2\n    <- $c 3", resident=False)
+    _corner("exponent: an untagged argument",
+            "G := Object * $g (never <- int)\n", "G",
+            _product(_tagged("$g", chain(viba_ast.Never(), viba_ast.Constant(4)))),
+            expect="<- 4", resident=False)
+    _corner("exponent: nested behind a tagged argument",
+            "G := Object * $g (never <- $b (never <- $a int))\n", "G",
+            _product(_tagged("$g", chain(viba_ast.Never(), _tagged("$b", chain(
+                viba_ast.Never(), _tagged("$a", viba_ast.Constant(5))))))),
+            expect="<- $b(never", resident=False)
+    _corner("exponent: inside a tuple",
+            "G := Object * $g ((never <- $a int), int)\n", "G",
+            _product(_tagged("$g", viba_ast.Tuple([
+                chain(viba_ast.Never(), _tagged("$a", viba_ast.Constant(6))),
+                viba_ast.Constant(7)]))),
+            expect="<- $a 6", resident=False)
+    _corner("exponent: inside a dict value",
+            "G := Object * $g dict[str, (never <- $a int)]\n", "G",
+            _product(_tagged("$g", viba_ast.TypeApp("DictLiteral", [
+                viba_ast.Tuple([viba_ast.Constant("k"),
+                                chain(viba_ast.Never(),
+                                      _tagged("$a", viba_ast.Constant(8)))])]))),
+            expect="<- $a 8", resident=False)
+    _corner("exponent: behind an alias",
+            "X := never <- $a int\nG := Object * $g X\n", "G",
+            _product(_tagged("$g", chain(viba_ast.Never(),
+                                         _tagged("$a", viba_ast.Constant(9))))),
+            expect="* $g(never", resident=False)
+
+
+def run_name_alias_shapes():
+    """名字背后的形状：单位、nil、以及各种别名当成员类型。"""
+    _corner("a unit behind an alias as the head",
+            "H := Object\nBox := H * $a int\n", "Box",
+            _product(_tagged("$a", viba_ast.Constant(1))),
+            expect="entry :=\n  Object\n  * $a 1\n")
+    _corner("a unit behind an alias as a member",
+            "U := Object\nBox := Object * $u U * $a int\n", "Box",
+            _product(_tagged("$u", viba_ast.Nil()),
+                     _tagged("$a", viba_ast.Constant(1))),
+            expect="* $u nil")
+    _corner("a unit behind two names", "U := Object\nV := U\nBox := Object * $u V\n",
+            "Box", _product(_tagged("$u", viba_ast.Nil())), expect="* $u nil")
+    _corner("a generic landing on a unit",
+            "U[V] := Object\nBox := Object * $u U[int]\n", "Box",
+            _product(_tagged("$u", viba_ast.Nil())), expect="* $u nil")
+    _corner("nil behind a name", "Z := nil\nBox := Object * $z Z\n", "Box",
+            _product(_tagged("$z", viba_ast.Nil())), expect="* $z nil")
+    _corner("a never head behind a name",
+            "N := never\nG := Object * $g (N <- $a int)\n", "G",
+            _product(_tagged("$g", viba_ast.ExponentChain([
+                viba_ast.Never(), _tagged("$a", viba_ast.Constant(1))]))),
+            expect="* $g(never", resident=False)
+
+    _corner("an alias to a product", "P := Object * $x int\nBox := Object * $p P\n", "Box",
+            _product(_tagged("$p", _product(_tagged("$x", viba_ast.Constant(1))))),
+            expect="* $p(Object")
+    _corner("an alias to a tuple", "T := (int, str)\nBox := Object * $t T\n", "Box",
+            _product(_tagged("$t", viba_ast.Tuple([viba_ast.Constant(1),
+                                                   viba_ast.Constant("s")]))),
+            expect='* $t (1, "s")')
+    _corner("an alias to a sum", "S := $k int | $j str\nBox := Object * $s S\n", "Box",
+            _product(_tagged("$s", viba_ast.SumChain([
+                _tagged("$k", viba_ast.Constant(1))]))),
+            expect="* $s($k 1)")
+    _corner("an alias to a list", "L := list[int]\nBox := Object * $l L\n", "Box",
+            _product(_tagged("$l", viba_ast.TypeApp("ListLiteral",
+                                                     [viba_ast.Constant(1)]))),
+            expect="* $l ListLiteral[1]")
+    _corner("a generic landing on a list",
+            "G[V] := list[V]\nBox := Object * $g G[int]\n", "Box",
+            _product(_tagged("$g", viba_ast.TypeApp("ListLiteral",
+                                                     [viba_ast.Constant(1)]))),
+            expect="* $g ListLiteral[1]")
+    _corner("an alias to a code block", "K := {x}\nBox := Object * $k K\n", "Box",
+            _product(_tagged("$k", viba_ast.CodeBlock("x"))), expect="* $k nil")
+
+
+def run_name_gaps():
+    """名字背后的 never：材料里放什么都是 Err。"""
+    for label, material in (("a value", viba_ast.Constant(1)),
+                            ("never", viba_ast.Never())):
+        _gap(f"gap never behind a name, material {label}",
+             "N := never\nBox := Object * $n N\n", "Box",
+             _product(_tagged("$n", material)), "nothing resides in never")
+    _gap("gap never behind two names", "M := never\nN := M\nBox := Object * $n N\n", "Box",
+         _product(_tagged("$n", viba_ast.Constant(1))), "nothing resides in never")
+    _gap("gap never behind a name in a container",
+         "N := never\nBox := Object * $n list[N]\n", "Box",
+         _product(_tagged("$n", viba_ast.TypeApp("ListLiteral",
+                                                  [viba_ast.Constant(1)]))),
+         "nothing resides in never")
+
+
+def run_more_gap_corners():
+    """剩下的边角：和式的 nil 支、省略号、字面量容器当设计类型。"""
+    _gap("gap a nil branch spelled as an element",
+         "S := nil | $a int\nBox := Object * $s S\n", "Box",
+         _product(_tagged("$s", viba_ast.SumChain([viba_ast.Nil()]))),
+         "no branch of this sum carries a value")
+    _gap("gap an ellipsis material", "Box := Object * $a int\n", "Box",
+         _product(_tagged("$a", viba_ast.Ellipsis())), "no value here: $a")
+    _gap("gap an ellipsis design", "Box := Object * $a ...\n", "Box",
+         _product(_tagged("$a", viba_ast.Ellipsis())), "no value here: $a")
+    _gap("gap a literal container as the design type",
+         "Box := Object * $a ListLiteral[int]\n", "Box",
+         _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
+                                                  [viba_ast.Constant(1)]))),
+         "cannot write this piece out")
+
+
 def run():
     for case in (run_fixture_cases, run_empty_container_cases, run_nil_slot_cases,
                  run_set_order_cases, run_exponent_cases, run_code_block_cases,
                  run_shape_corner_cases, run_sum_corner_cases,
                  run_leaf_corner_cases, run_exponent_corner_cases,
-                 run_more_gap_cases, run_never_and_key_cases, run_gap_cases):
+                 run_more_gap_cases, run_never_and_key_cases, run_gap_cases,
+                 run_leaf_matrix, run_number_and_string_gaps, run_tag_matrix,
+                 run_depth_and_width_ladders, run_absent_member_positions,
+                 run_alias_ladders, run_sum_ladders, run_shape_matrix,
+                 run_container_fills, run_never_positions, run_dict_key_gaps,
+                 run_positional_gaps, run_unit_member_shapes,
+                 run_code_block_positions, run_exponent_batteries,
+                 run_name_alias_shapes, run_name_gaps, run_more_gap_corners):
         case()
     print(f"serialize: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

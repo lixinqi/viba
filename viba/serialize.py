@@ -66,11 +66,17 @@ def _emit(access: VibaAccess, node: VibaNode):
     The value side is asked with the protocol's own cells, never by looking at
     what the binding put in the node: VibaLeaf answers "the value is itself this
     piece" (a literal, a unit) and the rest is walked one step at a time.
+
+    The written type is asked first, for one thing only: a piece the design
+    calls `never` — however many names that takes — has no resident, so a
+    material that carries something there is not a material of this design.
     """
+    shape = access.unfold(node.descriptor)
+    if shape.kind == NEVER:
+        raise SerializeGap("nothing resides in never")
     given = access.leaf(node)
     if isinstance(given, Ok):
         return _emit_leaf(given.ok_value)
-    shape = access.unfold(node.descriptor)
     if shape.kind == SUM:
         return _emit_sum(access, node)
     if shape.kind == PRODUCT:
@@ -88,8 +94,6 @@ def _emit(access: VibaAccess, node: VibaNode):
         return _emit_code_block(shape)
     if shape.kind == NIL:
         return None
-    if shape.kind == NEVER:
-        raise SerializeGap("nothing resides in never")
     raise SerializeGap(f"cannot write this piece out: {shape.kind}")
 
 
@@ -130,8 +134,11 @@ def _emit_product(access: VibaAccess, node: VibaNode, shape):
     if elements and access._is_unit_descriptor(elements[0]):
         written.append(_unit_expression(elements[0]))
     for tag, step, descriptor in access.member_steps(node):
-        if access._is_unit_descriptor(descriptor) and descriptor.kind != NEVER:
-            unit = None                         # the design itself writes a unit
+        # The design itself writes a unit here — unless the name it writes
+        # lands on `never`, which has no resident for a material to hold.
+        if (access._is_unit_descriptor(descriptor)
+                and access.unfold(descriptor).kind != NEVER):
+            unit = None
             written.append(unit if tag is None else _tag(tag)(unit))
             continue
         given = access.get(node, step)
@@ -182,7 +189,8 @@ def _emit_exponent(access: VibaAccess, node: VibaNode, shape):
     head = elements[0]
     steps = access.member_steps(node)
     if access._is_unit_descriptor(head):
-        chain = _NAMES.never if head.kind == NEVER else _NAMES.nil
+        chain = (_NAMES.never if access.unfold(head).kind == NEVER
+                 else _NAMES.nil)
     else:
         if not steps:
             raise SerializeGap(f"no value for the result of {shape.kind}")
@@ -197,8 +205,18 @@ def _emit_exponent(access: VibaAccess, node: VibaNode, shape):
             inner = None
         else:
             raise SerializeGap(f"no value here: {tag or step}")
-        chain = chain ** (inner if tag is None else _tag(tag)(inner))
+        chain = chain ** _argument(inner, tag)
     return chain
+
+
+def _argument(inner, tag):
+    """One argument of a chain: under its tag when the design gave it one.
+
+    `**` takes a tagged field or a group, so an argument the design left
+    untagged goes out as the group keeping it whole: `<result> <- body`, which
+    is what the group writes — it is not a node, only the operand as it is.
+    """
+    return builder.tag(inner) if tag is None else _tag(tag)(inner)
 
 
 def _may_be_nil(access: VibaAccess, step, node) -> bool:

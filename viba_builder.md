@@ -75,7 +75,7 @@ latest_file[Ctx] :=
 | `vb.Name[()]` | `Name[]` |
 | `A \| B` | `A \| B`（和） |
 | `A * B` | `A * B`（积） |
-| `A ** B` | `A <- B`（指数；`B` 必须是 tag） |
+| `A ** B` | `A <- B`（指数；`B` 必须是 tag 或分组） |
 | `tag.name(body)` | `$name body` |
 | `tag(body)` | 一个分组（跟括号等价；`**` 右边要嵌套时只能用这个） |
 | `None` | `nil`（`vb.nil`、`vb.void` 同义） |
