@@ -85,7 +85,7 @@ latest_file[Ctx] :=
 | `42` / `1.5` / `"x"` | `42` / `1.5` / `"x"` |
 | `str` / `int` / `float` / `bool` / `list` / `set` / `dict` | 同名类型 |
 | `int \| str` | `int \| str`（Python 自己会先算成联合类型，照样认） |
-| `list[vb.A]` / `dict[str, int]` | `list[A]` / `dict[str, int]` |
+| `list[vb.A]` / `set[vb.A]` / `dict[str, int]` | `list[A]` / `set[A]` / `dict[str, int]` |
 | `list[int] \| None` | `list[int] \| nil` |
 | `[a, b]` / `[]` | `ListLiteral[a, b]` / `ListLiteral[]` |
 | `{a, b}` | `SetLiteral[a, b]` |
@@ -157,6 +157,7 @@ Python 自己那套下标类型也认，落成语言里的写法：
 
 ```python
 vb.ListA = list[vb.A]              # list[A]
+vb.SetA  = set[vb.A]               # set[A]
 vb.Map   = dict[str, int]          # dict[str, int]
 vb.Maybe = list[int] | None        # list[int] | nil
 vb.Typed = typing.List[vb.A]       # list[A]（typing 那套也落成 list）

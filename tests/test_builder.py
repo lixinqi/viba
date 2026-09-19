@@ -463,8 +463,12 @@ def test_builder_applied_case_001():
 
 
 def test_builder_applied_case_002():
-    """多个实参：`dict[str, int]`。"""
-    assert _writes(dict[str, int]) == "X :=\n  dict[str, int]"
+    """三种容器都认：`set[vb.A]` / `list[vb.A]` / `dict[str, int]`。"""
+    vb = builder.Builder()
+    vb.S = set[vb.A]
+    vb.L = list[vb.A]
+    vb.D = dict[str, int]
+    assert _text(vb) == "S :=\n  set[A]\n\nL :=\n  list[A]\n\nD :=\n  dict[str, int]"
 
 
 def test_builder_applied_case_003():
