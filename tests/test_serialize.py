@@ -895,6 +895,23 @@ def run_name_gaps():
          "nothing resides in never")
 
 
+class _HostileString(str):
+    """一个把 __format__ 改掉的 str：写它等于让它往源码里塞东西。"""
+
+    def __format__(self, spec):
+        return 'x" * $b 1 * "y'
+
+
+def run_subclass_leaf_cases():
+    """叶子就是那四个内建类型本身，子类不是：写不出 Err，不会被带出去。"""
+    _gap("gap a str subclass that formats elsewhere", "Box := Object * $s str\n",
+         "Box", _product(_tagged("$s", viba_ast.Constant(_HostileString("plain")))),
+         "no literal for")
+    _gap("gap a plain str subclass", "Box := Object * $s str\n", "Box",
+         _product(_tagged("$s", viba_ast.Constant(type("S", (str,), {})("plain")))),
+         "no literal for")
+
+
 def run_more_gap_corners():
     """剩下的边角：和式的 nil 支、省略号、字面量容器当设计类型。"""
     _gap("gap a nil branch spelled as an element",
@@ -1195,6 +1212,7 @@ def run():
                  run_alias_ladders, run_sum_ladders, run_shape_matrix,
                  run_container_fills, run_never_positions, run_dict_key_gaps,
                  run_positional_gaps, run_unit_member_shapes,
+                 run_subclass_leaf_cases,
                  run_code_block_positions, run_exponent_batteries,
                  run_name_alias_shapes, run_name_gaps, run_more_gap_corners,
                  run_dict_key_aliases, run_cross_module_cases, run_cycle_cases,

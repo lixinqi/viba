@@ -163,18 +163,22 @@ def literal_spelling(value) -> str:
     the round trip untranslated (viba reads no escapes back). A number must be
     spelled the way the lexer reads numbers: viba has no negative literal and
     Python writes large and small floats with an exponent, so those raise
-    ValueError rather than being written as something else.
+    ValueError rather than being written as something else. Only the four
+    builtin literal types themselves are literals; a subclass is not one.
     """
-    if isinstance(value, bool):
+    # The exact types, not subclasses: writing goes through the value's own
+    # spelling, and a subclass can spell itself as anything at all — including
+    # source that breaks out of the literal.
+    if type(value) is bool:
         return "true" if value else "false"
-    if isinstance(value, str):
+    if type(value) is str:
         return _quote_string(value)
-    if isinstance(value, int):
+    if type(value) is int:
         spelling = str(value)
         if not _INT_SPELLING.match(spelling):
             raise ValueError(f"viba has no literal for this number: {spelling}")
         return spelling
-    if isinstance(value, float):
+    if type(value) is float:
         spelling = str(value)
         if not _FLOAT_SPELLING.match(spelling):
             raise ValueError(f"viba has no literal for this number: {spelling}")
