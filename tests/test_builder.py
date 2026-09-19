@@ -391,6 +391,21 @@ def test_builder_literal_case_005():
     assert _text(vb) == "X :=\n  int\n  * float\n  * bool\n  * list\n  * set\n  * dict"
 
 
+def test_builder_literal_case_008():
+    """最左边是个普通 Python 值时，用 `builder.literal` 起头。"""
+    vb = builder.Builder()
+    vb.X = builder.literal("a") | 1
+    assert _text(vb) == 'X :=\n  "a"\n  | 1'
+
+
+def test_builder_literal_case_009():
+    """`literal` 起头的积、以及 nil 起头。"""
+    vb = builder.Builder()
+    vb.X = builder.literal(1) * "x"
+    vb.Y = builder.literal(None) | vb.A
+    assert _text(vb) == 'X :=\n  1\n  * "x"\n\nY :=\n  nil\n  | A'
+
+
 def test_builder_literal_case_007():
     """Python 自己的 `int | str` 也是和（NoneType 就是 nil）。"""
     vb = builder.Builder()

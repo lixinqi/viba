@@ -51,6 +51,7 @@ in sorted order, a set has none of its own) and `{a: 0}` is
 The helpers stand outside the builder, so that every `vb.<name>` is a
 definition and never a method:
 
+    viba.builder.literal(value)                a plain Python value, to start with
     viba.builder.code(text)                    { text }
     viba.builder.add_import(vb, module, alias) import module as alias
     viba.builder.comment(vb, text)             # text
@@ -88,7 +89,8 @@ from typing import List, Optional, Union
 
 from viba import viba_ast
 
-__all__ = ["Builder", "tag", "code", "add_import", "comment", "check"]
+__all__ = ["Builder", "tag", "literal", "code", "add_import", "comment",
+           "check"]
 
 
 class _Expr:
@@ -320,6 +322,15 @@ class _Name(_Expr):
         if self.path in _SLIPS:
             raise TypeError(f"write {_SLIPS[self.path]}, not vb.{self.path}")
         return viba_ast.TypeRef(self.path)
+
+
+def literal(value) -> _Expr:
+    """A plain Python value as the left end of an expression.
+
+    `"a" | 1` is Python's to refuse — neither side knows the builder — so the
+    left end is spelled `literal("a") | 1`.
+    """
+    return _wrap(value)
 
 
 def code(text: str) -> _Code:

@@ -91,6 +91,7 @@ latest_file[Ctx] :=
 | `{a, b}` | `SetLiteral[a, b]` |
 | `{k: v}` | `DictLiteral[(k, v)]` |
 | `(A, B)` / `(A,)` / `()` | `(A, B)` / `(A,)` / `()` |
+| `builder.literal(value)` | 把普通 Python 值当表达式的开头（见第 12 节） |
 | `builder.code(text)` | `{ text }` |
 | `builder.comment(vb, text)` | `# text` |
 | `builder.add_import(vb, m, a)` | `import m as a` |
@@ -272,7 +273,12 @@ Path("store.viba").write_text(str(vb))
 ## 12. 边界
 
 - **Python 没有空下标**：零实参应用写 `vb.F[()]`（写成 `vb.F[]` 是 Python 语法错）。
-- **最左边那个操作数得是 builder 出来的**：`vb.A | 1` 可以，`1 | vb.A` 也可以（走 `__ror__`），但 `"a" | 1` 跟 builder 无关，是 Python 自己不让。
+- **最左边那个操作数得是 builder 出来的**：`vb.A | 1` 可以，`1 | vb.A` 也可以（走 `__ror__`），但 `"a" | 1` 两边都不认识 builder，Python 直接不让。要这么起头就用 `builder.literal`：
+
+  ```python
+  vb.X = builder.literal("a") | 1        # "a" | 1
+  vb.Y = builder.literal(1) * "x"        # 1 * "x"
+  ```
 - **注释只在你写的位置**：起点里原有注释原样保留；新注释用 `builder.comment`，落在调用它的位置。
 - **不重排**：builder 只往后面接，既有文件哪怕写法不"规范"也照原样留着——要统一格式，自己拿 `viba_ast.unparse(viba_ast.parse(text))` 走一遍。
 - **不管语义**：`vb.X = vb.Y * vb.Y` 这种重复、未定义的名字、单位元的用法，builder 不查，那是判断层（`viba.is_sub_type`）的事。
@@ -283,11 +289,11 @@ Path("store.viba").write_text(str(vb))
 PYTHONPATH=/tmp/viba-deps python3 tests/test_builder.py
 ```
 
-`tests/test_builder.py` 里有 108 个用例，一个细节一个：
+`tests/test_builder.py` 里有 110 个用例，一个细节一个：
 
 - **上层写法** 11：整份文件逐字、起点、定义名与顺序、普通/带形参定义、`|`/`*` 到树、应用、点名、平链、能被解析器读回来；
 - **算子** 16：和、积、指数的各种结合与分组；
-- **单位元与字面量** 14：`None` / `vb.nil` / `vb.void` / `vb.never` / `...` / 布尔 / 数值 / 字符串 / 类型名 / Python 联合 / 字面量进和；
+- **单位元与字面量** 16：`None` / `vb.nil` / `vb.void` / `vb.never` / `...` / 布尔 / 数值 / 字符串 / 类型名 / Python 联合 / 字面量进和；
 - **名字、应用、定义** 15（含 Python 的下标类型与 typing 那套）；
 - **容器** 11：list / set / dict / 嵌套 / 空；
 - **元组与代码块** 5；
