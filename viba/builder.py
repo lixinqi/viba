@@ -345,7 +345,8 @@ def comment(vb: "Builder", text: str) -> "Builder":
 
 
 def check(vb: "Builder") -> "viba_ast.Module":
-    """Read `str(vb)` back; raises when what was written is not Viba source."""
+    """Parse `str(vb)` back into a Module; raises ValueError when the source
+    that was written is not Viba source."""
     try:
         return viba_ast.parse(str(vb))
     except SyntaxError as error:

@@ -94,7 +94,7 @@ latest_file[Ctx] :=
 | `builder.code(text)` | `{ text }` |
 | `builder.comment(vb, text)` | `# text` |
 | `builder.add_import(vb, m, a)` | `import m as a` |
-| `builder.check(vb)` | 把 `str(vb)` 读回来（读不通就抛） |
+| `builder.check(vb)` | 让解析器把写出来的源码读一遍：返回解析出来的 Module，读不过去就抛 ValueError |
 
 ## 4. 定义
 
@@ -211,7 +211,7 @@ vb.Answer = 42
 
 viba.builder.add_import(vb, "store_core", "sc")   # 排在最前，哪怕定义先写
 viba.builder.comment(vb, "先放一条注释")             # 写在它站的位置
-module = viba.builder.check(vb)                     # 读回来，读不通就抛 ValueError
+module = viba.builder.check(vb)                     # 让解析器读一遍 str(vb)
 print(str(vb))
 ```
 
@@ -223,6 +223,8 @@ Answer :=
 
 # 先放一条注释
 ```
+
+`check(vb)` 做的事就一件：把 `str(vb)` 交给 `viba_ast.parse`。写出来的是合法 Viba 就返回那棵 Module（AST），不是就抛 `ValueError`——等于落盘前先自己读一遍。
 
 这几个都是模块函数，不是 `Builder` 的方法——`Builder` 上没有任何公开方法，所以 `vb.<名字>` 永远只可能是定义。
 
