@@ -399,6 +399,15 @@ def test_api_node_at_index_case_003():
         pass
 
 
+def test_api_node_at_index_case_004():
+    """dict 不按下标：$at_index 只给 list / set / tuple，dict 走 keys + at_key。"""
+    m = _materials()
+    table = m.node1_node.by_tag("table")
+    assert m.node1_access.has(table, at_index(0)).value is False
+    assert isinstance(m.node1_access.get(table, at_index(0)), Err)
+    assert len(table) == 2  # 数得出来，只是不按下标取
+
+
 def test_api_node_at_key_case_001():
     """dict 按键取。"""
     m = _materials()
@@ -723,11 +732,20 @@ def test_api_resolve_case_003():
 
 
 def test_api_resolve_case_004():
-    """中途没有值：Ok(nil)。"""
+    """走到尽头就是"没有值"：路径到此为止给 Ok(nil)。"""
     m = _materials()
     sparse = m._without(m.demo_node, "$keywords")
     given = viba_resolve(sparse, [by_tag("$keywords")])
     assert isinstance(given, Ok) and given.value is None
+
+
+def test_api_resolve_case_005():
+    """没有值那一段后面还有 step：Err("这一步没有值")，不能再拿 None 往下走。"""
+    m = _materials()
+    sparse = m._without(m.demo_node, "$keywords")
+    given = viba_resolve(sparse, [by_tag("$keywords"), at_index(0)])
+    assert isinstance(given, Err) and given.message == "这一步没有值"
+    assert isinstance(viba_get_by_path(sparse, [by_tag("$keywords"), at_index(0)]), Err)
 
 
 def test_api_get_by_path_case_001():
