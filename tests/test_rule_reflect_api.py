@@ -739,6 +739,59 @@ def test_api_resolve_case_004():
     assert isinstance(given, Ok) and given.value is None
 
 
+def _bare_sum_material(source: str, outer: str, witness: str):
+    """A design built from an inline source: an untagged sum a material skips."""
+    pool = empty_pool()
+    parsed = parse_viba_file(pool, source, "bare_sum.viba", "bare_sum")
+    assert isinstance(parsed, Ok), parsed
+    pool = pool_add_file(pool, parsed.value).value
+    definition = _definition_of(pool, f"bare_sum.{outer}")
+    body = {d.name: d for d in viba_ast.parse(source).body}[witness].body
+    return access(definition), access(definition).root(Witness(body)).value
+
+
+def test_api_resolve_case_006():
+    """An untagged sum with one inner node may be skipped by the material."""
+    source = """Inner := Oneof | $a int | $b str
+Outer := Object * $x (Inner | nil)
+BareWitness := Object * $x ($a 1)
+"""
+    accessor, node = _bare_sum_material(source, "Outer", "BareWitness")
+    x = node.by_tag("$x")
+    assert accessor.has(x, by_field_index(0)).value is True
+    assert viba_get_by_path(node, [by_tag("$x"), by_field_index(0), by_tag("$a")]).value.value == 1
+    assert viba_get_by_path(node, [by_tag("$x"), by_tag("$a")]).value.value == 1
+    assert accessor.has(x, by_field_index(1)).value is False  # the nil branch is not taken
+    assert isinstance(viba_get_by_path(node, [by_tag("$x"), by_field_index(1)]), Err)
+
+
+def test_api_resolve_case_007():
+    """Leaf branches are told apart by the value; two inner nodes keep the layer."""
+    leafy = """Leafy := Object * $x (int | str)
+LeafyWitness := Object * $x 7
+Optional := Object * $x (int | nil)
+NilWitness := Object * $x nil
+"""
+    accessor, node = _bare_sum_material(leafy, "Leafy", "LeafyWitness")
+    x = node.by_tag("$x")
+    assert accessor.has(x, by_field_index(0)).value is True
+    assert viba_get_by_path(node, [by_tag("$x"), by_field_index(0)]).value.value == 7
+    assert accessor.has(x, by_field_index(1)).value is False
+
+    accessor, node = _bare_sum_material(leafy, "Optional", "NilWitness")
+    x = node.by_tag("$x")
+    assert accessor.has(x, by_field_index(0)).value is False
+    assert viba_get_by_path(node, [by_tag("$x"), by_field_index(1)]).value.value is None
+
+    two = """A := Object * $a int
+B := Object * $b str
+Two := Object * $x (A | B)
+TwoWitness := Object * $x ($a 1)
+"""
+    accessor, node = _bare_sum_material(two, "Two", "TwoWitness")
+    assert accessor.has(node.by_tag("$x"), by_field_index(0)).value is False
+
+
 def test_api_resolve_case_005():
     """A missing piece with steps left: Err, never a None walked on."""
     m = _materials()
