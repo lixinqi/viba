@@ -235,6 +235,7 @@ ReadOnlyList[T] := list[T]
 AppendOnlyDict[K, V] := dict[K, V]
 MaybeList[T] := list[T] | nil
 Layer[T] := AppendOnlyList[T]
+Box[T] := $v T
 Loop[T] := Loop[T]
 """)
 
@@ -259,6 +260,52 @@ Loop[T] := Loop[T]
                  "an alias and its body are the same type")
     check_result(judge("ReadOnlyList[str]", "AppendOnlyList[str]"), True,
                  "two aliases of one body are each other's subtype")
+    check_result(judge("ListLiteral[ListLiteral[1]]", "AppendOnlyList[list[int]]"), True,
+                 "a literal container of literal containers, through an alias")
+    check_result(judge("ListLiteral[1]", "MaybeList[int]"), True,
+                 "the alias body is a sum: the container branch is enough")
+    check_result(judge("ListLiteral[1]", "Box[int]"), False,
+                 "an alias of something that is not a container seats no literal")
+    check_result(judge("ListLiteral[1]", "ListLiteral[int]"), True,
+                 "a literal against a literal: element by element")
+    check_result(judge("ListLiteral[1]", "ListLiteral[str]"), False,
+                 "the same, element that does not fit")
+    check_result(judge('DictLiteral[("k", 1)]', "AppendOnlyList[str]"), False,
+                 "container families do not mix")
+    check_result(judge("SetLiteral[]", "SetLiteral[]"), True,
+                 "an empty literal against itself")
+
+
+def run_recursive_generic_cases():
+    """Equi-recursive: a definition is its own unfolding, coinductively."""
+    module = custom_module("""
+Tree[T] := $leaf T * $kids list[Tree[T]]
+Other[T] := $leaf T * $kids list[Other[T]]
+MyList[T] := $head T * $tail MyList[T] | nil
+List[T] := $head T * $tail List[T] | nil
+A[T] := B[T]
+B[T] := A[T]
+Loop[T] := Loop[T]
+Box[T] := $v T
+""")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    check_result(judge("Tree[int]", "Tree[int]"), True,
+                 "a recursive generic is its own subtype (the assumption holds)")
+    check_result(judge("Tree[int]", "Tree[str]"), False,
+                 "the leaf still has to fit")
+    check_result(judge("MyList[int]", "List[int]"), True,
+                 "two names that unfold into one another are the same type")
+    check_result(judge("A[int]", "B[int]"), True,
+                 "mutual recursion is assumed true while it is in flight")
+    check_result(judge("Loop[int]", "Loop[str]"), True,
+                 "a definition that only reaches itself is the largest type")
+    check_result(judge("Loop[int]", "Box[int]"), True,
+                 "which is why it fits anything it is compared with")
+    check_result(judge("Box[int]", "Loop[int]"), True,
+                 "and anything fits it")
 
 
 def run_structural_generic_cases():
@@ -266,10 +313,17 @@ def run_structural_generic_cases():
     module = custom_module("""
 Num := int | float
 Handler[T] := str <- $in T
+DeepHandler[T] := Handler[T]
 Putter[T] := $out T
 Pair[K, V] := $key K * $value V
 Alpha[T] := $v T
 Beta[T] := $v T
+Box[T] := $v T
+AliasOfBox[T] := Box[T]
+MissingAlias[T] := Missing
+Metric[T] := $value T
+Predicate[Cond, Code] := $assert_cond Cond * $assert_python_code Code
+PredicationFailed[T, Msg] := $__assertion_failed_original_data T * $__assertion_failed_error_msg Msg
 """)
 
     def judge(sub, sup):
@@ -289,6 +343,34 @@ Beta[T] := $v T
                  "actuals that do not fit the parameters: no body, so name and args")
     check_result(judge("Pair[int]", "Pair[str]"), False,
                  "the same fallback still compares the actuals")
+    check_result(judge("Pair[int, str]", "Pair[int]"), False,
+                 "the fallback also compares how many actuals there are")
+    check_result(judge("list[int]", "list[int, str]"), False,
+                 "a builtin compares its actuals the same way")
+    check_result(judge("Handler[Num]", "DeepHandler[int]"), True,
+                 "variance survives an alias chain")
+    check_result(judge("Handler[int]", "DeepHandler[Num]"), False,
+                 "and the wrong direction is still False")
+    check_result(judge("Box[int]", "AliasOfBox[int]"), True,
+                 "an alias of an alias")
+    check_result(judge("AliasOfBox[int]", "Box[int]"), True,
+                 "the same, the other way round")
+    check_result(judge("AliasOfBox[int]", "Box[str]"), False,
+                 "and the actuals still count")
+    check_result(judge("Box", "Box"), True,
+                 "two bare generic names: nothing to unfold, the name matches")
+    check_result(judge("Box", "AliasOfBox"), False,
+                 "two bare names that differ do not")
+    check_result(judge("Box[int]", "MissingAlias[int]"), "error",
+                 "unfolding an alias whose body names nothing is an Err")
+    check_result(judge("Box[int]", "Missing"), "error",
+                 "the same when the missing name is the whole body")
+    check_result(judge("Metric[int]", "Metric[Num]"), True,
+                 "a rule-layer shaped generic is covariant in its parameter")
+    check_result(judge("Metric[Num]", "Metric[int]"), False,
+                 "and False the other way")
+    check_result(judge("PredicationFailed[nil, str]", "Predicate[int, str]"), False,
+                 "the poison seats in no Predicate: their tags differ")
 
 
 def run_not_cases():
@@ -391,6 +473,7 @@ run_env_get_scope_cases()
 run_applied_generic_cases()
 run_literal_alias_cases()
 run_structural_generic_cases()
+run_recursive_generic_cases()
 run_not_cases()
 run_canonical_chain_cases()
 run_suite_reflexivity()

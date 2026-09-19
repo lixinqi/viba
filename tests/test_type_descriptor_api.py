@@ -162,8 +162,29 @@ def _check_errors():
                 "X[K, set] := K\n",
                 "X[dict, K] := K\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "literal.viba", "literal"), Err), bad
-    assert isinstance(parse_viba_file(empty_pool(), "X[T] := T\nY := ListLiteral[1]\n",
-                                      "ok.viba", "ok"), Ok)
+    # 差一点的名字照旧能编：只认完全同名的六个
+    for good in ("List := int\n",
+                 "lists[T] := T\n",
+                 "list2 := int\n",
+                 "ListLiteral2 := int\n",
+                 "mylist := int\n",
+                 "Set := int\n",
+                 "dicts[T] := T\n",
+                 "X[List] := int\n",
+                 "X[list2] := int\n",
+                 "X[list_literal] := int\n",
+                 "X[SetLiteral2] := int\n"):
+        assert isinstance(parse_viba_file(empty_pool(), good, "near.viba", "near"), Ok), good
+    # 出现在后面的定义里、或者第三个形参上，一样拦住
+    for bad in ("A := int\nlist := int\n",
+                "A := int\nX[B, C, set] := B\n",
+                "X[dict] := int\n"):
+        assert isinstance(parse_viba_file(empty_pool(), bad, "later.viba", "later"), Err), bad
+    # 只在类型表达式里用的写法不受影响
+    for good in ("Y := ListLiteral[1]\n",
+                 "Y := set[dict[str, int]]\n",
+                 "Y := $items list[int] * $more set[str]\n"):
+        assert isinstance(parse_viba_file(empty_pool(), good, "uses.viba", "uses"), Ok), good
 
 
 def run():

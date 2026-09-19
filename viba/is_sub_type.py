@@ -14,10 +14,15 @@ alias of what it is written as, and judgment is structural throughout.
   shape of list[int]). A definition reference that cannot be unfolded
   — a bare generic name, whose parameters have no actuals — compares
   by name, which is all that is left of it.
-- Cycles are read coinductively (equi-recursive types): a (sub, sup)
-  pair already in flight is true. `Tree[T] := $leaf T * $kids
-  list[Tree[T]]` is therefore its own unfolding, and `Loop[T] :=
-  Loop[T]` is true against anything it reaches itself through.
+- Cycles are read coinductively (equi-recursive types), and the
+  assumption is the greatest fixed point: a (sub, sup) pair already in
+  flight is true. `Tree[T] := $leaf T * $kids list[Tree[T]]` is
+  therefore its own unfolding, `MyList[T] := $head T * $tail MyList[T]
+  | nil` and the same shape under another name are each other's
+  subtype, and a definition that reaches only itself (`Loop[T] :=
+  Loop[T]`) is the largest type: it is both a subtype and a supertype
+  of anything it is compared with. A rule author who writes such a
+  definition gives the rule layer a type everything fits.
 - Leaves compare by family: literal(v) <: base iff same family;
   literal <: literal iff equal values; never <: T; T <: never iff
   T is never (only never fits a never branch).

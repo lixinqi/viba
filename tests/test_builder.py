@@ -890,6 +890,15 @@ def test_builder_guard_case_014():
     _raises(TypeError, lambda: vb.X.__setitem__((vb.K, vb.dict), vb.A))
 
 
+def test_builder_guard_case_015():
+    """差一点的名字照旧能当定义名与形参。"""
+    vb = builder.Builder()
+    vb.List = 1
+    vb.list2 = 2
+    vb.X[vb.list2] = vb.A
+    assert _text(vb) == "List :=\n  1\n\nlist2 :=\n  2\n\nX[list2] :=\n  A"
+
+
 def test_builder_guard_case_012():
     """`add_import` 的返回值是 builder，不是表达式，套进定义里也会拦。"""
     vb = builder.Builder()
