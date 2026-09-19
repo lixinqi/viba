@@ -287,7 +287,7 @@ def test_api_leaf_case_003():
 
 
 def test_api_leaf_case_004():
-    """这一段不是叶子：Err。"""
+    """Not a leaf: Err."""
     m = _materials()
     assert isinstance(m.demo_access.leaf(m.demo_node.by_tag("coverage")), Err)
 
@@ -744,7 +744,7 @@ def test_api_resolve_case_005():
     m = _materials()
     sparse = m._without(m.demo_node, "$keywords")
     given = viba_resolve(sparse, [by_tag("$keywords"), at_index(0)])
-    assert isinstance(given, Err) and given.message == "这一步没有值"
+    assert isinstance(given, Err) and given.message == "this step has no value"
     assert isinstance(viba_get_by_path(sparse, [by_tag("$keywords"), at_index(0)]), Err)
 
 
