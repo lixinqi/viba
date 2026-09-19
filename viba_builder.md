@@ -16,7 +16,7 @@
 ```python
 import viba.builder
 
-vb = viba.builder.Builder("import meeting_core as mc")
+vb = viba.builder.Builder("import store_core as sc")
 tag = viba.builder.tag
 
 vb.UserName = str
@@ -30,16 +30,16 @@ vb.List[vb.T] = (
 )
 
 vb.latest_file[vb.Ctx] = (
-    vb.mc.Result[vb.mc.FileState]
+    vb.sc.Result[vb.sc.FileState]
     ** tag.ctx(vb.Ctx)
-    ** tag.file(vb.mc.FileId)
+    ** tag.file(vb.sc.FileId)
 )
 
 print(str(vb))
 ```
 
 ```viba
-import meeting_core as mc
+import store_core as sc
 
 UserName :=
   str
@@ -56,9 +56,9 @@ List[T] :=
   | nil
 
 latest_file[Ctx] :=
-  mc.Result[mc.FileState]
+  sc.Result[sc.FileState]
   <- $ctx Ctx
-  <- $file mc.FileId
+  <- $file sc.FileId
 ```
 
 `Builder(…)` 里那串是**文件的起点**：只有 import 时它就是个头；给一整份既有文件时，后面的定义追加在它后面（第 10 节）。
@@ -194,14 +194,14 @@ vb.Code   = builder.code("return 1") # {return 1}
 vb = viba.builder.Builder()
 vb.Answer = 42
 
-viba.builder.add_import(vb, "meeting_core", "mc")   # 排在最前，哪怕定义先写
+viba.builder.add_import(vb, "store_core", "sc")   # 排在最前，哪怕定义先写
 viba.builder.comment(vb, "先放一条注释")             # 写在它站的位置
 module = viba.builder.check(vb)                     # 读回来，读不通就抛 ValueError
 print(str(vb))
 ```
 
 ```viba
-import meeting_core as mc
+import store_core as sc
 
 Answer :=
   42
@@ -218,12 +218,12 @@ Answer :=
 `Builder(…)` 的参数是文件的起点，所以续写就是把它交进去：
 
 ```python
-vb = viba.builder.Builder(Path("meeting.viba").read_text())
+vb = viba.builder.Builder(Path("store.viba").read_text())
 
 viba.builder.comment(vb, "加上一条")
 vb.Added = vb.Object * tag.x(vb.T)
 
-Path("meeting.viba").write_text(str(vb))
+Path("store.viba").write_text(str(vb))
 ```
 
 **只能追加新定义**，三道拦截：

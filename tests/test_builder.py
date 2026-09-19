@@ -26,15 +26,15 @@ _DEMO = (Path(__file__).resolve().parent
 
 def _sketch():
     """上层那种写法：带 import、泛型参数、tagged 字段与指数字段。"""
-    vb = builder.Builder("import meeting_core as mc")
+    vb = builder.Builder("import store_core as sc")
     vb.UserName = str
     vb.Optional[vb.T] = vb.T | None
     vb.List[vb.T] = (vb.Oneof
                      | vb.Object * tag.head(vb.T) * tag.tail(vb.List[vb.T])
                      | None)
-    vb.latest_file[vb.Ctx] = (vb.mc.Result[vb.mc.FileState]
+    vb.latest_file[vb.Ctx] = (vb.sc.Result[vb.sc.FileState]
                               ** tag.ctx(vb.Ctx)
-                              ** tag.file(vb.mc.FileId))
+                              ** tag.file(vb.sc.FileId))
     return vb
 
 
@@ -79,7 +79,7 @@ def _raises(kind, body) -> None:
 
 def test_builder_sketch_case_001():
     """整份文件逐字。"""
-    assert str(_sketch()) == """import meeting_core as mc
+    assert str(_sketch()) == """import store_core as sc
 
 UserName :=
   str
@@ -96,16 +96,16 @@ List[T] :=
   | nil
 
 latest_file[Ctx] :=
-  mc.Result[mc.FileState]
+  sc.Result[sc.FileState]
   <- $ctx Ctx
-  <- $file mc.FileId
+  <- $file sc.FileId
 """
 
 
 def test_builder_sketch_case_002():
     """header 原样在最前，收尾只有一个换行。"""
     source = str(_sketch())
-    assert source.startswith("import meeting_core as mc\n\n")
+    assert source.startswith("import store_core as sc\n\n")
     assert source.endswith("\n") and not source.endswith("\n\n")
 
 
@@ -155,10 +155,10 @@ def test_builder_sketch_case_008():
 
 
 def test_builder_sketch_case_009():
-    """点分名字：`vb.mc.Result[vb.mc.FileState]`。"""
+    """点分名字：`vb.sc.Result[vb.sc.FileState]`。"""
     result = _one(_sketch(), "latest_file").body.elements[0]
-    assert _shape(result) == "TypeApp" and result.constructor == "mc.Result"
-    assert result.args[0].name == "mc.FileState"
+    assert _shape(result) == "TypeApp" and result.constructor == "sc.Result"
+    assert result.args[0].name == "sc.FileState"
 
 
 def test_builder_sketch_case_010():
@@ -174,7 +174,7 @@ def test_builder_sketch_case_011():
     module = viba_ast.parse(str(_sketch()))
     assert len(module.body) == 5
     assert isinstance(module.body[0], Import)
-    assert module.body[0].module == "meeting_core" and module.body[0].alias == "mc"
+    assert module.body[0].module == "store_core" and module.body[0].alias == "sc"
 
 
 # ----------------------------------------------------------------------
@@ -582,8 +582,8 @@ def test_builder_import_case_001():
     """`add_import` 写在最前，哪怕定义先写。"""
     vb = builder.Builder()
     vb.X = vb.A
-    builder.add_import(vb, "meeting_core", "mc")
-    assert _text(vb) == "import meeting_core as mc\n\nX :=\n  A"
+    builder.add_import(vb, "store_core", "sc")
+    assert _text(vb) == "import store_core as sc\n\nX :=\n  A"
 
 
 def test_builder_import_case_002():

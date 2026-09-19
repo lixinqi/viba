@@ -2,7 +2,7 @@
 
     import viba.builder
 
-    vb = viba.builder.Builder("import meeting_core as mc")
+    vb = viba.builder.Builder("import store_core as sc")
     tag = viba.builder.tag
 
     vb.UserName = str
@@ -16,9 +16,9 @@
     )
 
     vb.latest_file[vb.Ctx] = (
-        vb.mc.Result[vb.mc.FileState]
+        vb.sc.Result[vb.sc.FileState]
         ** tag.ctx(vb.Ctx)
-        ** tag.file(vb.mc.FileId)
+        ** tag.file(vb.sc.FileId)
     )
 
     print(str(vb))
@@ -58,9 +58,9 @@ definition and never a method:
 
 Starting from a file that is already there appends to it:
 
-    vb = viba.builder.Builder(Path("meeting.viba").read_text())
+    vb = viba.builder.Builder(Path("store.viba").read_text())
     vb.Added = vb.Object * tag.x(vb.T)     # a new definition, after the old ones
-    Path("meeting.viba").write_text(str(vb))
+    Path("store.viba").write_text(str(vb))
 
 An exponent's right side is a tagged field and nothing else, so a slip shows up
 right away: `A ** tag.count(vb.T)` is `A <- $count T`, `A ** tag(B ** tag.p(C))`
