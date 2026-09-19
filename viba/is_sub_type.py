@@ -38,18 +38,19 @@ alias of what it is written as, and judgment is structural throughout.
   either channel is malformed: the check aborts with Err
   (UnresolvedTypeError caught at the boundary). Unfolding a definition
   body can reach such a name; that is then an Err, not a False.
-- not[A] is never <- A. A sub not[B] with the same branch tags and the
-  poison PredicationFailed at every branch is the refutation: the
-  not[oneof] shell is preserved, only the leaves are swapped. A sub
-  written as an exponent (never <- B) compares by the exponent case —
-  never <- B <: never <- A iff A <: B. A sub written as a tagged
-  product is read through never <- (A | B) = (never <- A) * (never <- B),
-  so the slot at every branch tag must carry a refutation: the poison
-  PredicationFailed, or a type that fits never <- that branch. A sub
-  written as a prohibition application is read as the shell and
-  nothing else — being a copy of the prohibition is not evidence, so
-  not[int] <: not[int] is False. A sub written as an exponent
-  (never <- B) is read by the exponent case instead.
+- not[A] is never <- $not_operand A, so its operand sits in a
+  contravariant position: never <- B <: never <- A iff A <: B. Written
+  as an exponent, that is the whole rule. What a *witness* writes is
+  evidence rather than a copy: through never <- (A | B) = (never <- A)
+  * (never <- B), the slot at every branch tag must carry a refutation
+  — the poison PredicationFailed, or a field reading as never <- that
+  branch, whose argument is then compared contravariantly (a supertype
+  of the rule's branch is a refutation, which is the same variance as
+  above). A sub that is merely a copy of the prohibition — the same
+  not[...] shell with positive branches — is not evidence, so
+  not[int] <: not[int] is False; the rule layer relies on that: a
+  witness whose assertions failed writes the positive branch back and
+  must not be compliant.
 - Applied generics (TypeApp): a builtin container is its name and its
   arguments — list / set / dict and the *Literal containers have no
   body to unfold, so they compare by name and pairwise actuals.
