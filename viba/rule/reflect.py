@@ -451,9 +451,10 @@ class VibaAccess:
         return None
 
     def _has_elements_by_index(self, descriptor: VibaTypeDescriptor) -> bool:
-        """能按下标数、按下标取的：list / set / tuple。
+        """Shapes that can be counted and taken by index: list / set / tuple.
 
-        dict 不算：它的元素要靠 keys + at_key 取，按下标问就是图上没这个坐标。
+        A dict is not one of them: its elements are read through keys and
+        at_key, so asking a dict by index is an address the design lacks.
         """
         return self._container_kind(descriptor) in ("list", "set") or descriptor.kind == TUPLE
 
@@ -638,10 +639,11 @@ class VibaAccess:
 
 
 def viba_resolve(node: VibaNode, path: Sequence[VibaStep]) -> Result:
-    """VibaResolve：逐个 step 走 VibaGet。
+    """VibaResolve: walk the path with VibaGet, one step at a time.
 
-    走到"数据里没有这一段"（``Ok(nil)``）就到此为止：后面还有 step 就是
-    ``Err("这一步没有值")``，没有 step 了就把 ``Ok(nil)`` 交出去。
+    Walking onto "the material has no such piece" (``Ok(nil)``) is as far as
+    it goes: with steps left that is an Err; with no steps left, the
+    ``Ok(nil)`` is handed out.
     """
     current = node
     for step in path:

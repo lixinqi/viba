@@ -400,7 +400,7 @@ def test_api_node_at_index_case_003():
 
 
 def test_api_node_at_index_case_004():
-    """dict 不按下标：$at_index 只给 list / set / tuple，dict 走 keys + at_key。"""
+    """A dict is not index-addressable: $at_index is for list / set / tuple."""
     m = _materials()
     table = m.node1_node.by_tag("table")
     assert m.node1_access.has(table, at_index(0)).value is False
@@ -732,7 +732,7 @@ def test_api_resolve_case_003():
 
 
 def test_api_resolve_case_004():
-    """走到尽头就是"没有值"：路径到此为止给 Ok(nil)。"""
+    """Ending on a missing piece: the path stops there with Ok(nil)."""
     m = _materials()
     sparse = m._without(m.demo_node, "$keywords")
     given = viba_resolve(sparse, [by_tag("$keywords")])
@@ -740,7 +740,7 @@ def test_api_resolve_case_004():
 
 
 def test_api_resolve_case_005():
-    """没有值那一段后面还有 step：Err("这一步没有值")，不能再拿 None 往下走。"""
+    """A missing piece with steps left: Err, never a None walked on."""
     m = _materials()
     sparse = m._without(m.demo_node, "$keywords")
     given = viba_resolve(sparse, [by_tag("$keywords"), at_index(0)])
