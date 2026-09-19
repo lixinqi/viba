@@ -287,6 +287,9 @@ A[T] := B[T]
 B[T] := A[T]
 Loop[T] := Loop[T]
 Box[T] := $v T
+H[T] := str <- $in H[T]
+H2[T] := str <- $in H2[list[T]]
+SumRec[T] := $a T | $b SumRec[T]
 """)
 
     def judge(sub, sup):
@@ -306,6 +309,16 @@ Box[T] := $v T
                  "which is why it fits anything it is compared with")
     check_result(judge("Box[int]", "Loop[int]"), True,
                  "and anything fits it")
+    check_result(judge("H[int]", "H[int]"), True,
+                 "recursion through an exponent terminates")
+    check_result(judge("H[int]", "H[str]"), True,
+                 "and such a definition is likewise the largest type")
+    check_result(judge("SumRec[int]", "SumRec[int]"), True,
+                 "recursion through a sum branch terminates")
+    check_result(judge("SumRec[int]", "SumRec[str]"), False,
+                 "the branch that is not recursive still has to fit")
+    check_result(judge("H2[int]", "H2[int]"), True,
+                 "an actual that grows every turn still converges")
 
 
 def run_structural_generic_cases():
@@ -371,6 +384,68 @@ PredicationFailed[T, Msg] := $__assertion_failed_original_data T * $__assertion_
                  "and False the other way")
     check_result(judge("PredicationFailed[nil, str]", "Predicate[int, str]"), False,
                  "the poison seats in no Predicate: their tags differ")
+
+
+def run_unit_alias_cases():
+    """An alias of nil or never is that unit: the sub unfolds first."""
+    module = custom_module("""
+MyNil[T] := nil
+MyNever[T] := never
+Nil2 := nil
+Never2 := never
+Box[T] := $v T
+Pair[K, V] := $key K * $value V
+""")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    check_result(judge("MyNil[int]", "nil"), True,
+                 "X[T] := nil against nil")
+    check_result(judge("MyNil[int]", "Nil2"), True,
+                 "the same against a plain alias of nil")
+    check_result(judge("nil", "MyNil[int]"), True,
+                 "and the other way round (the sup unfolds)")
+    check_result(judge("MyNil[int]", "MyNil[str]"), True,
+                 "two applications of it: the body has no parameter")
+    check_result(judge("MyNil[int]", "Box[int]"), False,
+                 "nil is not a product")
+    check_result(judge("Box[int]", "MyNil[int]"), False,
+                 "and a product is not nil")
+    check_result(judge("MyNever[int]", "never"), True,
+                 "X[T] := never against never")
+    check_result(judge("MyNever[int]", "Never2"), True,
+                 "the same against a plain alias of never")
+    check_result(judge("never", "MyNever[int]"), True,
+                 "never fits anything, alias or not")
+    check_result(judge("list[int]", "nil"), False,
+                 "a builtin container is not nil")
+    check_result(judge("Pair[int]", "nil"), False,
+                 "an application with no body to unfold is not nil either")
+
+
+def run_prohibition_shape_cases():
+    """A prohibition application is the shell, not the exponent."""
+    module = custom_module("""
+not[A] := never <- $not_operand A
+Num := int | float
+""")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    check_result(judge("not[int]", "not[int]"), False,
+                 "a copy of the prohibition is not evidence")
+    check_result(judge("not[int]", "not[int | str]"), False,
+                 "nor is a wider one")
+    check_result(judge("not[int | str]", "not[int]"), False,
+                 "nor a narrower one")
+    check_result(judge("not[Num]", "not[int]"), False,
+                 "nor one whose operand is an alias")
+    check_result(judge("never <- $not_operand int", "never <- $not_operand int"), True,
+                 "written as an exponent, the exponent case reads it")
+    check_result(judge("not[int]", "never <- $not_operand int"), True,
+                 "an application sub against an exponent sup is the same shape")
 
 
 def run_not_cases():
@@ -474,6 +549,8 @@ run_applied_generic_cases()
 run_literal_alias_cases()
 run_structural_generic_cases()
 run_recursive_generic_cases()
+run_unit_alias_cases()
+run_prohibition_shape_cases()
 run_not_cases()
 run_canonical_chain_cases()
 run_suite_reflexivity()

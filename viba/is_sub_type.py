@@ -45,7 +45,11 @@ alias of what it is written as, and judgment is structural throughout.
   never <- B <: never <- A iff A <: B. A sub written as a tagged
   product is read through never <- (A | B) = (never <- A) * (never <- B),
   so the slot at every branch tag must carry a refutation: the poison
-  PredicationFailed, or a type that fits never <- that branch.
+  PredicationFailed, or a type that fits never <- that branch. A sub
+  written as a prohibition application is read as the shell and
+  nothing else — being a copy of the prohibition is not evidence, so
+  not[int] <: not[int] is False. A sub written as an exponent
+  (never <- B) is read by the exponent case instead.
 - Applied generics (TypeApp): a builtin container is its name and its
   arguments — list / set / dict and the *Literal containers have no
   body to unfold, so they compare by name and pairwise actuals.
@@ -309,6 +313,9 @@ class _Checker:
             sup_leaf = self._lift(sp, p_mod, "sup")
             if sub_leaf is not None and sup_leaf is not None:
                 return type(sub_leaf) is type(sup_leaf)
+            if isinstance(sn, viba_ast.TypeApp):
+                # 应用形的 sub 一样要展开：X[T] := nil 的居民就是 nil。
+                return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
             return type(sn) is type(sp)
         operand = self._prohibition_operand(sp, p_mod)
         if operand is not None:
@@ -344,6 +351,7 @@ class _Checker:
         if isinstance(sp, viba_ast.TypeApp):
             if isinstance(node, viba_ast.TypeApp):
                 # 两边都写成应用（外壳）：只认全毒剂的外壳，不是指数读法。
+                # 于是 not[A] <: not[A] 是 False——自己是禁止，不构成否证。
                 return False
             # 应用形式：展开到定义体（形参代实参）再按指数规则比。
             return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)

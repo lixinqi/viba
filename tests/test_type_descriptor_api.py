@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.type import Err, Ok
+from viba.type import Err, Ok, custom_module, module_get_type
 from viba.viba_type_descriptor import (
     definition_file,
     definition_find_member_by_index,
@@ -183,8 +183,23 @@ def _check_errors():
     # 只在类型表达式里用的写法不受影响
     for good in ("Y := ListLiteral[1]\n",
                  "Y := set[dict[str, int]]\n",
-                 "Y := $items list[int] * $more set[str]\n"):
+                 "Y := $items list[int] * $more set[str]\n",
+                 "Y := list\n",
+                 "Y := list[]\n",
+                 "import list\nY := int\n",          # 模块名可以叫 list
+                 "X := Object * $list list[int]\n"):  # tag 可以叫 $list
         assert isinstance(parse_viba_file(empty_pool(), good, "uses.viba", "uses"), Ok), good
+    # 空白的写法不影响判定
+    for bad in ("list [ T ] := T\n",
+                "list\n:= int\n",
+                "list := int  # note\n",
+                "X[ list ] := int\n"):
+        assert isinstance(parse_viba_file(empty_pool(), bad, "space.viba", "space"), Err), bad
+    # import 一个叫 list 的模块不会把内建容器顶掉
+    shadow = custom_module("import list\nZ := int\n")
+    assert isinstance(module_get_type(shadow, "list"), Ok), "list still resolves"
+    # 已知的分歧：点分定义名现在能编（builder 那边 `vb.a.b = …` 是拦的）
+    assert isinstance(parse_viba_file(empty_pool(), "a.b := int\n", "dotted.viba", "dotted"), Ok)
 
 
 def run():
