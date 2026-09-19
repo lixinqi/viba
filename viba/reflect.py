@@ -15,6 +15,7 @@ underscore.
     VibaPath                          VibaPath (= list[VibaStep])
     VibaNode[Data]                    VibaNode
     VibaReflectConfig                 Config
+    Result[T]                         Ok / Err (viba.type)
     VibaAccess[Data]                  VibaAccess, built with a Config
     VibaRoot / VibaHas / VibaGet      VibaAccess.root / has / get / leaf /
     VibaLeaf / VibaLength / VibaKeys  length / keys
@@ -248,9 +249,10 @@ class VibaNode:
         return self._access._unwrap(self._access.leaf(self))
 
     @property
-    def value(self) -> VibaConstantValue:
-        """The section 5.4 Python landing: ``leaf`` lands on ``node.value``."""
-        return self.leaf
+    def value(self):
+        """The section 5.4 Python landing: ``leaf`` lands on ``node.value``, the
+        value the literal record carries (bool / int / float / str / None)."""
+        return self.leaf.value
 
     # ---- shapes: the written chain head only, no unfolding ----
 

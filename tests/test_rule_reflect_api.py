@@ -344,8 +344,8 @@ def test_api_keys_case_002():
 def test_api_node_by_tag_case_001():
     """按 tag 取子节点；名字带不带 $ 都认。"""
     m = _materials()
-    assert m.demo_node.by_tag("code_length").by_tag("value").value.value == 7
-    assert m.demo_node.by_tag("$code_length").by_tag("$value").value.value == 7
+    assert m.demo_node.by_tag("code_length").by_tag("value").value == 7
+    assert m.demo_node.by_tag("$code_length").by_tag("$value").value == 7
 
 
 def test_api_node_by_tag_case_002():
@@ -361,8 +361,8 @@ def test_api_node_by_tag_case_002():
 def test_api_node_by_field_index_case_001():
     """位置成员按位置取。"""
     m = _materials()
-    assert m.shape_node.by_field_index(0).value.value == 1
-    assert m.shape_node.by_field_index(1).value.value == "two"
+    assert m.shape_node.by_field_index(0).value == 1
+    assert m.shape_node.by_field_index(1).value == "two"
 
 
 def test_api_node_by_field_index_case_002():
@@ -378,13 +378,13 @@ def test_api_node_by_field_index_case_002():
 def test_api_node_at_index_case_001():
     """list 按下标取。"""
     m = _materials()
-    assert m.node1_node.by_tag("items").at_index(1).value.value == 2
+    assert m.node1_node.by_tag("items").at_index(1).value == 2
 
 
 def test_api_node_at_index_case_002():
     """set 也按下标取（顺序由实现定）。"""
     m = _materials()
-    assert m.node1_node.by_tag("seen").at_index(0).value.value == "x"
+    assert m.node1_node.by_tag("seen").at_index(0).value == "x"
 
 
 def test_api_node_at_index_case_003():
@@ -409,7 +409,7 @@ def test_api_node_at_index_case_004():
 def test_api_node_at_key_case_001():
     """dict 按键取。"""
     m = _materials()
-    assert m.node1_node.by_tag("table").at_key("m").value.value == 2
+    assert m.node1_node.by_tag("table").at_key("m").value == 2
 
 
 def test_api_node_at_key_case_002():
@@ -423,10 +423,10 @@ def test_api_node_at_key_case_002():
 
 
 def test_api_node_leaf_case_001():
-    """leaf 与 Python 落点 value 是同一个东西。"""
+    """leaf 给常量记录，Python 落点 value 给裸值。"""
     m = _materials()
     node = m.demo_node.by_tag("code_length").by_tag("value")
-    assert node.leaf.value == 7 and node.value.value == 7
+    assert node.leaf.value == 7 and node.value == 7
 
 
 def test_api_node_leaf_case_002():
@@ -487,15 +487,15 @@ def test_api_node_is_dict_case_002():
 def test_api_node_get_case_001():
     """get_{name}() 取值；能一路点下去（量出来的值先进 $value）。"""
     m = _materials()
-    assert m.demo_node.get_code_length().get_value().value.value == 7
-    assert m.demo_node.get_coverage().get_value().get_documented_lines().value.value == 5
+    assert m.demo_node.get_code_length().get_value().value == 7
+    assert m.demo_node.get_coverage().get_value().get_documented_lines().value == 5
 
 
 def test_api_node_get_case_002():
     """get_field_{i}() 按位置取值。"""
     m = _materials()
-    assert m.shape_node.get_field_0().value.value == 1
-    assert m.shape_node.get_field_1().value.value == "two"
+    assert m.shape_node.get_field_0().value == 1
+    assert m.shape_node.get_field_1().value == "two"
 
 
 def test_api_node_get_case_003():
@@ -505,7 +505,7 @@ def test_api_node_get_case_003():
     assert m.written_not_access.has(node, by_tag("$not_operand")).value is True
     operand = node.get_not_operand()
     assert operand.by_tag("a").leaf.value == 3
-    assert operand.get_a().value.value == 3
+    assert operand.get_a().value == 3
 
 
 def test_api_node_has_case_001():
@@ -577,8 +577,8 @@ def test_api_node_dir_case_001():
 def test_api_node_getitem_case_001():
     """node[i] 是 at_index，node[key] 是 at_key。"""
     m = _materials()
-    assert m.node1_node.get_items()[0].value.value == 1
-    assert m.node1_node.get_table()["m"].value.value == 2
+    assert m.node1_node.get_items()[0].value == 1
+    assert m.node1_node.get_table()["m"].value == 2
 
 
 def test_api_node_len_case_001():
@@ -601,7 +601,7 @@ def test_api_node_len_case_002():
 def test_api_node_iter_case_001():
     """迭代就是 len 加 at_index 走一遍。"""
     m = _materials()
-    assert [item.value.value for item in m.node1_node.get_items()] == [1, 2]
+    assert [item.value for item in m.node1_node.get_items()] == [1, 2]
 
 
 def test_api_node_keys_case_001():
@@ -609,8 +609,8 @@ def test_api_node_keys_case_001():
     m = _materials()
     table = m.node1_node.get_table()
     assert table.keys() == ["k", "m"]
-    assert [v.value.value for v in table.values()] == [1, 2]
-    assert [(k, v.value.value) for k, v in table.items()] == [("k", 1), ("m", 2)]
+    assert [v.value for v in table.values()] == [1, 2]
+    assert [(k, v.value) for k, v in table.items()] == [("k", 1), ("m", 2)]
 
 
 # ----------------------------------------------------------------------
@@ -653,9 +653,9 @@ def test_api_chain_case_001():
 def test_api_chain_case_002():
     """Python 落点：get_ → get_ → .value；get_ → [] → .value。"""
     m = _materials()
-    assert m.demo_node.get_coverage().get_value().get_total_lines().value.value == 11
-    assert m.demo_node.get_keywords().get_value()[1].value.value == "b"
-    assert m.node1_node.get_table()["m"].value.value == 2
+    assert m.demo_node.get_coverage().get_value().get_total_lines().value == 11
+    assert m.demo_node.get_keywords().get_value()[1].value == "b"
+    assert m.node1_node.get_table()["m"].value == 2
 
 
 def test_api_chain_case_003():
@@ -664,7 +664,7 @@ def test_api_chain_case_003():
     seen = []
     if "keywords" in m.demo_node:
         for item in m.demo_node.get_keywords().get_value():
-            seen.append(item.value.value)
+            seen.append(item.value)
     assert seen == ["a", "b"]
 
 
@@ -713,14 +713,14 @@ def test_api_resolve_case_001():
     resolved = reflect.access.resolve(m.demo_node, path)
     assert isinstance(resolved, Ok)
     assert resolved.value.path == tuple(path)
-    assert resolved.value.value.value == 5
+    assert resolved.value.value == 5
 
 
 def test_api_resolve_case_002():
     """容器路径：at_index / at_key。"""
     m = _materials()
-    assert reflect.access.resolve(m.node1_node, [by_tag("$items"), at_index(1)]).value.value.value == 2
-    assert reflect.access.resolve(m.node1_node, [by_tag("$table"), at_key("k")]).value.value.value == 1
+    assert reflect.access.resolve(m.node1_node, [by_tag("$items"), at_index(1)]).value.value == 2
+    assert reflect.access.resolve(m.node1_node, [by_tag("$table"), at_key("k")]).value.value == 1
 
 
 def test_api_resolve_case_003():
