@@ -70,6 +70,15 @@ Config := "fast" * 42 * 3.14
 Handler := {def forward(self, x): return x}
 ```
 
+## Docs
+
+| Document | Subject |
+|----------|---------|
+| `viba-reflect.md` | The reflection protocol: addressing a design, reading a material |
+| `viba-rule.md` | The rule layer: rules, witnesses, judgment |
+| `viba_builder.md` | Writing .viba source from Python expressions |
+| `contract-enough.md` | What "the implementation is enough" means |
+
 ## Modules
 
 `viba/` contains only the parser and the `ast` package — the parser's
@@ -84,6 +93,7 @@ intermediate representation.
 | `ast/unparse.py` | Code generator — nodes back to canonical .viba source |
 | `ast/_match.py` | Keyword-argument pattern matching over node classes |
 | `ast/__init__.py` | Public API: `parse`, `unparse`, `canonical`, `dump`, `walk`, visitors |
+| `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
 
 `viba/rule/` is the rule layer — a Viba application built on the core.
 The rule vocabulary (`RuleObject` / `OneofRule`, `Predicate`, `Metric`,
