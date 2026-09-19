@@ -706,6 +706,21 @@ def run_never_positions():
          "nothing resides in never")
 
 
+def run_dict_key_aliases():
+    """键类型是 str 的别名或泛型：还是 str，照样写得出来。"""
+    for label, source in (("an alias of str", "S := str\nBox := Object * $d dict[S, int]\n"),
+                          ("a generic landing on str",
+                           "G[V] := str\nBox := Object * $d dict[G[int], int]\n"),
+                          ("a chain of aliases",
+                           "S := str\nT := S\nBox := Object * $d dict[T, int]\n")):
+        pool = _pool(("m.viba", "m", source))
+        material = _product(_tagged("$d", viba_ast.TypeApp("DictLiteral", [
+            viba_ast.Tuple([viba_ast.Constant("k"), viba_ast.Constant(1)])])))
+        _corner_in(f"dict keyed by {label}", pool, "m.Box", material,
+                   expect='("k", 1)',
+                   resident_source="Box := Object * $d dict[str, int]\n")
+
+
 def run_dict_key_gaps():
     """键不是 str 的 dict：int / float / bool / 容器键都没有写法。"""
     for key_type in ("int", "float", "bool", "list[int]"):
@@ -1182,7 +1197,7 @@ def run():
                  run_positional_gaps, run_unit_member_shapes,
                  run_code_block_positions, run_exponent_batteries,
                  run_name_alias_shapes, run_name_gaps, run_more_gap_corners,
-                 run_cross_module_cases, run_cycle_cases,
+                 run_dict_key_aliases, run_cross_module_cases, run_cycle_cases,
                  run_material_root_cases, run_definition_name_cases,
                  run_alias_of_definition_cases, run_sums_in_containers,
                  run_exponent_argument_shapes, run_deep_stress,

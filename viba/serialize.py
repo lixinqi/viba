@@ -234,7 +234,10 @@ def _emit_container(access: VibaAccess, node: VibaNode, container: str, shape):
     """
     if container == "dict":
         keys = access.keys(node)
-        key_type = shape.payload.args[0] if shape.payload.args else None
+        # The written key type, through however many names: `S := str` and
+        # `G[V] := str` are the str the protocol hands keys over as.
+        key_type = (access.unfold(shape.payload.args[0])
+                    if shape.payload.args else None)
         if not (key_type is not None and key_type.kind == TYPE_REF
                 and key_type.payload.type_name == "str"):
             raise SerializeGap("the protocol hands dict keys over as strings; "
