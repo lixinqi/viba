@@ -454,6 +454,40 @@ def test_builder_name_case_006():
     assert _text(vb) == "X :=\n  F[a.b, G[C], 1, $p D]"
 
 
+def test_builder_applied_case_001():
+    """Python 的下标类型 `list[vb.A]` 就是 `list[A]`。"""
+    vb = builder.Builder()
+    vb.X = list[vb.A]
+    assert _text(vb) == "X :=\n  list[A]"
+    assert _one(vb, "X").body.constructor == "list"
+
+
+def test_builder_applied_case_002():
+    """多个实参：`dict[str, int]`。"""
+    assert _writes(dict[str, int]) == "X :=\n  dict[str, int]"
+
+
+def test_builder_applied_case_003():
+    """下标类型也能进和：`list[int] | None`。"""
+    vb = builder.Builder()
+    vb.X = list[int] | None
+    assert _text(vb) == "X :=\n  list[int]\n  | nil"
+
+
+def test_builder_applied_case_004():
+    """`typing.List[vb.A]` 落到语言的写法 `list[A]`。"""
+    import typing
+
+    assert _writes(typing.List[int]) == "X :=\n  list[int]"
+
+
+def test_builder_applied_case_005():
+    """`typing.Optional[vb.A]` 是和：`A | nil`。"""
+    import typing
+
+    assert _writes(typing.Optional[int]) == "X :=\n  int\n  | nil"
+
+
 def test_builder_definition_case_001():
     """`vb.Name = body` 是普通定义。"""
     vb = builder.Builder()

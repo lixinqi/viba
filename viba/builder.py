@@ -84,7 +84,7 @@ chains, so `str(vb)` is stable — parse it and unparse it and nothing moves.
 from __future__ import annotations
 
 import types
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from viba import viba_ast
 
@@ -373,6 +373,28 @@ def _existing_names(source: str) -> frozenset:
                                           viba_ast.GenericDefinition)))
 
 
+def _applied(value) -> Optional[_Expr]:
+    """Python's own applied types: `list[int]` (PEP 585), `typing.List[int]`,
+    `typing.Optional[int]` — an application, or a sum for a union."""
+    origin = getattr(value, "__origin__", None)
+    args = getattr(value, "__args__", None)
+    if origin is None or args is None:
+        return None
+    if origin is Union:
+        return _Sum([_wrap(arg) for arg in args])
+    return _Apply(_origin_name(origin), args)
+
+
+def _origin_name(origin) -> str:
+    """The name a Python generic hangs off."""
+    if origin in _BUILTIN_NAMES:
+        return _BUILTIN_NAMES[origin]
+    name = getattr(origin, "__name__", None)
+    if isinstance(name, str):
+        return name
+    raise TypeError(f"{origin!r} has no name to write")
+
+
 def _definition_name(name: str) -> str:
     """A definition's name: one plain name, and not a keyword."""
     if isinstance(name, str) and name.isidentifier() and name not in _RESERVED:
@@ -396,6 +418,9 @@ def _wrap(value) -> _Expr:
     if isinstance(value, types.UnionType):
         # What Python's own `int | str` gives: a sum, branches and all.
         return _Sum([_wrap(arg) for arg in value.__args__])
+    applied = _applied(value)
+    if applied is not None:
+        return applied
     if value is Ellipsis:
         return _Ellipsis()
     if isinstance(value, type) and value in _BUILTIN_NAMES:
