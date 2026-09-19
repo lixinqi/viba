@@ -273,24 +273,33 @@ class _Checker:
         return result
 
     def _unfold_ref(self, node, module: ModuleType, side: str):
-        """A TypeRef is transparent unless it names a generic: it unfolds
-        to the bound body, whose own TypeRefs resolve in its home module.
-        A generic parameter bound to inline structure (sum, product,
-        exponent, tag, tuple) unfolds to that structure."""
-        if not isinstance(node, viba_ast.TypeRef):
-            return node, module
-        resolved = self._resolve_name(node.name, module, side)
-        if isinstance(resolved, Err):
-            return node, module
-        target = resolved.ok_value
-        if not isinstance(target, AstNodeType):
-            return node, module
-        body = target.ast_node
-        if isinstance(body, viba_ast.GenericDefinition):
-            return node, module
-        if isinstance(body, viba_ast.TypeDefinition):
-            body = body.body
-        return body, target.container_module
+        """A TypeRef is transparent unless it names a generic: it unfolds,
+        name after name, to the bound body, whose own TypeRefs resolve in its
+        home module. A generic parameter bound to inline structure (sum,
+        product, exponent, tag, tuple) unfolds to that structure.
+
+        A name whose body is another name is still an alias of that name's
+        body (`A := B` with `B := int` makes A int), so the unfolding runs to
+        the end of the chain. Names already visited pin the walk down, which
+        leaves a cycle (`A := B` with `B := A`) standing as the name it is."""
+        seen = set()
+        while isinstance(node, viba_ast.TypeRef):
+            if node.name in seen:
+                return node, module
+            seen.add(node.name)
+            resolved = self._resolve_name(node.name, module, side)
+            if isinstance(resolved, Err):
+                return node, module
+            target = resolved.ok_value
+            if not isinstance(target, AstNodeType):
+                return node, module
+            body = target.ast_node
+            if isinstance(body, viba_ast.GenericDefinition):
+                return node, module
+            if isinstance(body, viba_ast.TypeDefinition):
+                body = body.body
+            node, module = body, target.container_module
+        return node, module
 
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
         if isinstance(sn, viba_ast.Never):

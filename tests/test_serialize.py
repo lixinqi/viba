@@ -48,7 +48,7 @@ def _leaves(access, node):
 
 
 def _round_trip(label, definition, access, node, design_source, design_name,
-                resident=True):
+                resident=True, strict=True):
     written = serialize.serialize("entry", access, node)
     check(isinstance(written, Ok), f"{label}: writes ({written})")
     if not isinstance(written, Ok):
@@ -63,9 +63,18 @@ def _round_trip(label, definition, access, node, design_source, design_name,
     if not isinstance(again, Ok):
         return
     before, after = _leaves(access, node), _leaves(access, again.ok_value)
-    missing = {address: value for address, value in before.items()
-               if after.get(address, "<missing>") != value}
-    check(not missing, f"{label}: every address reads the same leaf ({missing})")
+    if strict:
+        missing = {address: value for address, value in before.items()
+                   if after.get(address, "<missing>") != value}
+        check(not missing, f"{label}: every address reads the same leaf ({missing})")
+    else:
+        # 材料把和式那一支写全了，写出来只剩值：地址少一跳，叶子还是那些。
+        check(sorted(map(repr, before.values())) == sorted(map(repr, after.values())),
+              f"{label}: the same leaves under either spelling ({before} vs {after})")
+
+    twice = serialize.serialize("entry", access, again.ok_value)
+    check(isinstance(twice, Ok) and twice.ok_value == source,
+          f"{label}: written again it is the same source ({twice})")
 
     if not resident:
         return
@@ -201,6 +210,222 @@ def run_code_block_cases():
         check("* $code nil" in written.ok_value, "code block: written as nil")
 
 
+def _product(*items):
+    """Object * item * ... : the product chain a material is."""
+    return viba_ast.ProductChain([viba_ast.TypeRef("Object"), *items])
+
+
+def _tagged(tag, body):
+    return viba_ast.Tagged(tag, body)
+
+
+def _corner(label, source, name, body, expect=None, resident=True, strict=True):
+    """同一个设计写一份材料：文本里有 expect，读得回来，还是居民。"""
+    from viba.reflect import access
+    pool, definition = _design(source, name)
+    rooted = access.root(definition, VibaData(body))
+    check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
+    if not isinstance(rooted, Ok):
+        return
+    written = serialize.serialize("entry", access, rooted.ok_value)
+    check(isinstance(written, Ok), f"{label}: writes ({written})")
+    if not isinstance(written, Ok):
+        return
+    if expect is not None:
+        check(expect in written.ok_value,
+              f"{label}: {expect!r} is in\n{written.ok_value}")
+    _round_trip(label, definition, access, rooted.ok_value, source, name,
+                resident=resident, strict=strict)
+
+
+def _gap(label, source, name, body, needle):
+    """写不出来：Err，且说的是那件事。"""
+    from viba.reflect import access
+    pool, definition = _design(source, name)
+    rooted = access.root(definition, VibaData(body))
+    check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
+    if not isinstance(rooted, Ok):
+        return
+    written = serialize.serialize("entry", access, rooted.ok_value)
+    check(isinstance(written, Err) and needle in written.err_msg,
+          f"{label}: an Err saying {needle!r} ({written})")
+
+
+def run_shape_corner_cases():
+    """形状的边角：深、宽、套、元组、别名、泛型、递归、无成员。"""
+    depth_type, depth_body = "int", viba_ast.Constant(1)
+    for _ in range(6):
+        depth_type, depth_body = (f"list[{depth_type}]",
+                                  viba_ast.TypeApp("ListLiteral", [depth_body]))
+    _corner("depth 6", f"Box := Object * $a {depth_type}\n", "Box",
+            _product(_tagged("$a", depth_body)), expect="ListLiteral[ListLiteral[")
+
+    wide_source = ("Box := Object * "
+                   + " * ".join(f"$f{i} int" for i in range(20)) + "\n")
+    _corner("width 20", wide_source, "Box",
+            _product(*[_tagged(f"$f{i}", viba_ast.Constant(i)) for i in range(20)]),
+            expect="* $f19 19")
+
+    _corner("list of products",
+            "Box := Object * $a list[Inner]\nInner := Object * $x int\n", "Box",
+            _product(_tagged("$a", viba_ast.TypeApp("ListLiteral", [
+                _product(_tagged("$x", viba_ast.Constant(1))),
+                _product(_tagged("$x", viba_ast.Constant(2)))]))),
+            expect="ListLiteral[Object")
+    _corner("nested product",
+            "Outer := Object * $inner Inner\nInner := Object * $a int\n", "Outer",
+            _product(_tagged("$inner", _product(_tagged("$a", viba_ast.Constant(1))))),
+            expect="* $inner(Object")
+    _corner("product member beside a unit",
+            "Box := Object * $u Object * $a int\n", "Box",
+            _product(_tagged("$u", viba_ast.Nil()), _tagged("$a", viba_ast.Constant(1))),
+            expect="* $u nil")
+
+    _corner("tuple of none", "T := Object * $t ()\n", "T",
+            _product(_tagged("$t", viba_ast.Tuple([]))), expect="* $t ()")
+    _corner("tuple of one", "T := Object * $t (int,)\n", "T",
+            _product(_tagged("$t", viba_ast.Tuple([viba_ast.Constant(1)]))),
+            expect="* $t (1,)")
+    _corner("tuple nested", "T := Object * $t (int, (str, int))\n", "T",
+            _product(_tagged("$t", viba_ast.Tuple([
+                viba_ast.Constant(1),
+                viba_ast.Tuple([viba_ast.Constant("x"), viba_ast.Constant(3)])]))),
+            expect='* $t (1, ("x", 3))')
+
+    _corner("aliases to the end", "A := B\nB := int\nBox := Object * $a A\n", "Box",
+            _product(_tagged("$a", viba_ast.Constant(7))), expect="* $a 7")
+    _corner("generic pair",
+            "Pair[K, V] := Object * $fst K * $snd V\nBox := Object * $p Pair[int, str]\n",
+            "Box",
+            _product(_tagged("$p", _product(_tagged("$fst", viba_ast.Constant(1)),
+                                            _tagged("$snd", viba_ast.Constant("x"))))),
+            expect="* $fst 1")
+    _corner("positional members beside tagged ones",
+            "Box := Object * int * $a int * str\n", "Box",
+            viba_ast.ProductChain([viba_ast.TypeRef("Object"), viba_ast.Constant(1),
+                                   _tagged("$a", viba_ast.Constant(2)),
+                                   viba_ast.Constant("three")]),
+            expect='* 1\n  * $a 2\n  * "three"')
+
+    _corner("zero-member product", "Only := Object\n", "Only", viba_ast.Nil(),
+            expect="entry :=\n  nil\n")
+    _corner("the head the material left out", "Box := Object * $a int\n", "Box",
+            viba_ast.ProductChain([_tagged("$a", viba_ast.Constant(1))]),
+            expect="entry :=\n  Object\n  * $a 1\n")
+    _corner("a member the design has no address for", "Box := Object * $a int\n", "Box",
+            _product(_tagged("$a", viba_ast.Constant(1)),
+                     _tagged("$b", viba_ast.Constant(2))),
+            expect="* $a 1\n")
+    _corner("recursive product", "Loop := Object * $next (Loop | nil)\n", "Loop",
+            _product(_tagged("$next", viba_ast.SumChain([
+                _product(_tagged("$next", viba_ast.Nil()))]))),
+            expect="* $next(Object")
+
+
+def run_sum_corner_cases():
+    """和式的边角：挑中的那一支、带标签的支、名字里的和、nil 支。"""
+    _corner("sum: the int branch", "S := int | $a str\nBox := Object * $s S\n", "Box",
+            _product(_tagged("$s", viba_ast.SumChain([viba_ast.Constant(3)]))),
+            expect="* $s 3", strict=False)
+    _corner("sum: the tagged branch", "S := int | $a str\nBox := Object * $s S\n", "Box",
+            _product(_tagged("$s", viba_ast.SumChain([
+                _tagged("$a", viba_ast.Constant("x"))]))),
+            expect='* $s($a "x")')
+    _corner("sum: reached through a name",
+            "X := int | str\nS := X | $a bool\nBox := Object * $s S\n", "Box",
+            _product(_tagged("$s", viba_ast.Constant("deep"))),
+            expect='* $s "deep"')
+    _corner("sum: the nil branch", "S := nil | int\nBox := Object * $s S\n", "Box",
+            _product(_tagged("$s", viba_ast.Nil())), expect="* $s nil")
+    _corner("sum: nil written last", "S := int | nil\nBox := Object * $s S\n", "Box",
+            _product(_tagged("$s", viba_ast.Nil())), expect="* $s nil")
+
+
+def run_leaf_corner_cases():
+    """叶子的边角：转义、unicode、真假、小数、大整数、集合与字典的顺序。"""
+    _corner("leaf: unicode string", "Box := Object * $s str\n", "Box",
+            _product(_tagged("$s", viba_ast.Constant("中文🙂"))), expect='"中文🙂"')
+    _corner("leaf: a string with a double quote", "Box := Object * $s str\n", "Box",
+            _product(_tagged("$s", viba_ast.Constant('say "hi" now'))),
+            expect="'say \"hi\" now'")
+    _corner("leaf: a string with a newline and both quotes",
+            "Box := Object * $s str\n", "Box",
+            _product(_tagged("$s", viba_ast.Constant("a'b\"c\nd"))),
+            expect="'''a'b\"c\nd'''")
+    _corner("leaf: a string ending in a backslash", "Box := Object * $s str\n", "Box",
+            _product(_tagged("$s", viba_ast.Constant("trail\\"))),
+            expect="'''trail\\'''")
+    _corner("leaf: false", "Box := Object * $b bool\n", "Box",
+            _product(_tagged("$b", viba_ast.Constant(False))), expect="* $b false")
+    _corner("leaf: a plain float", "Box := Object * $f float\n", "Box",
+            _product(_tagged("$f", viba_ast.Constant(0.5))), expect="* $f 0.5")
+    _corner("leaf: a big int", "Box := Object * $n int\n", "Box",
+            _product(_tagged("$n", viba_ast.Constant(10 ** 30))),
+            expect=f"* $n {10 ** 30}")
+
+    _corner("set: the material's order, repeats and all",
+            "Box := Object * $seen set[str]\n", "Box",
+            _product(_tagged("$seen", viba_ast.TypeApp("SetLiteral", [
+                viba_ast.Constant("b"), viba_ast.Constant("a"),
+                viba_ast.Constant("b")]))),
+            expect='SetLiteral["b", "a", "b"]')
+    _corner("dict: odd keys, in the material's order",
+            "Box := Object * $d dict[str, int]\n", "Box",
+            _product(_tagged("$d", viba_ast.TypeApp("DictLiteral", [
+                viba_ast.Tuple([viba_ast.Constant(""), viba_ast.Constant(1)]),
+                viba_ast.Tuple([viba_ast.Constant('q"uote'), viba_ast.Constant(2)]),
+                viba_ast.Tuple([viba_ast.Constant("中文"), viba_ast.Constant(3)])]))),
+            expect="""("", 1), ('q"uote', 2), ("中文", 3)""")
+    _corner("code block: nil where its text cannot be read",
+            "Box := Object * $g list[{x}]\n", "Box",
+            _product(_tagged("$g", viba_ast.TypeApp("ListLiteral", [
+                viba_ast.CodeBlock("x")]))),
+            expect="ListLiteral[nil]")
+
+
+def run_exponent_corner_cases():
+    """指数链的边角：多个实参、nil 头、非单位头、装在容器里。"""
+    _corner("exponent: two arguments",
+            "G := Object * $g (never <- $a int <- $b Bad)\nBad := $k int\n", "G",
+            _product(_tagged("$g", viba_ast.ExponentChain([
+                viba_ast.Never(), _tagged("$a", viba_ast.Constant(1)),
+                _tagged("$b", viba_ast.SumChain([_tagged("$k", viba_ast.Constant(2))]))]))),
+            expect="<- $a 1\n    <- $b($k 2)", resident=False)
+    _corner("exponent: nil head", "G := Object * $g (nil <- $a int)\n", "G",
+            _product(_tagged("$g", viba_ast.ExponentChain([
+                viba_ast.Nil(), _tagged("$a", viba_ast.Constant(1))]))),
+            expect="* $g(nil", resident=False)
+    _corner("exponent: a value in the result", "G := Object * $g (int <- $a int)\n", "G",
+            _product(_tagged("$g", viba_ast.ExponentChain([
+                viba_ast.Constant(5), _tagged("$a", viba_ast.Constant(1))]))),
+            expect="* $g(5", resident=False)
+    _corner("exponent: inside a container",
+            "G := Object * $g list[never <- $a int]\n", "G",
+            _product(_tagged("$g", viba_ast.TypeApp("ListLiteral", [
+                viba_ast.ExponentChain([viba_ast.Never(),
+                                        _tagged("$a", viba_ast.Constant(1))])]))),
+            expect="ListLiteral[never", resident=False)
+
+
+def run_more_gap_cases():
+    """更多写不出来的边角：数字、字符串、never、名字当值。"""
+    _gap("gap: never inside a container", "Box := Object * $a list[never]\n", "Box",
+         _product(_tagged("$a", viba_ast.TypeApp("ListLiteral", [viba_ast.Never()]))),
+         "nothing resides in never")
+    _gap("gap: a negative int", "Box := Object * $i int\n", "Box",
+         _product(_tagged("$i", viba_ast.Constant(-1))), "no literal for this number")
+    _gap("gap: a float with an exponent", "Box := Object * $f float\n", "Box",
+         _product(_tagged("$f", viba_ast.Constant(1e30))), "no literal for this number")
+    _gap("gap: a float that is not a number", "Box := Object * $f float\n", "Box",
+         _product(_tagged("$f", viba_ast.Constant(float("nan")))),
+         "no literal for this number")
+    _gap("gap: a string no literal holds", "Box := Object * $s str\n", "Box",
+         _product(_tagged("$s", viba_ast.Constant("a'''b\nd"))),
+         "no viba string literal holds this text")
+    _gap("gap: a name where a value goes", "Only := Object\n", "Only",
+         viba_ast.TypeRef("Object"), "cannot write this piece out")
+
+
 def run_never_and_key_cases():
     """never 没有居民；键不是 str 的 dict 没有写法。"""
     from viba.reflect import access
@@ -242,7 +467,9 @@ def run_gap_cases():
 def run():
     for case in (run_fixture_cases, run_empty_container_cases, run_nil_slot_cases,
                  run_set_order_cases, run_exponent_cases, run_code_block_cases,
-                 run_never_and_key_cases, run_gap_cases):
+                 run_shape_corner_cases, run_sum_corner_cases,
+                 run_leaf_corner_cases, run_exponent_corner_cases,
+                 run_more_gap_cases, run_never_and_key_cases, run_gap_cases):
         case()
     print(f"serialize: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

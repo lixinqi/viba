@@ -119,10 +119,11 @@ def _unit_expression(descriptor):
 def _emit_product(access: VibaAccess, node: VibaNode, shape):
     """Product: the leading unit, then every member in order.
 
-    A member the design writes as a unit is written as the unit; a member with
-    a value is written from it (tagged members under their tag); a member with
-    no value is written `nil` when its written type admits nil, and is a gap
-    otherwise. Positional members are addressed by position, tagged ones by tag.
+    A member the design writes as a unit is written as the unit — under its
+    tag when the design gave it one; a member with a value is written from it
+    (tagged members under their tag); a member with no value is written `nil`
+    when its written type admits nil, and is a gap otherwise. Positional
+    members are addressed by position, tagged ones by tag.
     """
     written = []
     elements = list(shape.payload.elements)
@@ -130,7 +131,8 @@ def _emit_product(access: VibaAccess, node: VibaNode, shape):
         written.append(_unit_expression(elements[0]))
     for tag, step, descriptor in access.member_steps(node):
         if access._is_unit_descriptor(descriptor) and descriptor.kind != NEVER:
-            written.append(None)                # the design itself writes a unit
+            unit = None                         # the design itself writes a unit
+            written.append(unit if tag is None else _tag(tag)(unit))
             continue
         given = access.get(node, step)
         if isinstance(given, Ok) and given.ok_value is not None:

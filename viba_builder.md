@@ -281,4 +281,5 @@ Path("store.viba").write_text(str(vb))
   ```
 - **注释只在你写的位置**：起点里原有注释原样保留；新注释用 `builder.comment`，落在调用它的位置。
 - **不重排**：builder 只往后面接，既有文件哪怕写法不"规范"也照原样留着——要统一格式，自己拿 `viba_ast.unparse(viba_ast.parse(text))` 走一遍。
+- **字面量得是语言读得回来的**：Viba 的字面量没有负号、也没有指数，所以 `-3`、`1e30`、`nan` 这类 Python 数字写出来会被读成另一个值——builder 不写，`str(vb)` / `builder.check` 直接抛 `ValueError`。字符串按内容挑引号（能用双引号就双引号，含 `"` 就用单引号，跨行用三引号），三种引号都在文本里的，语言里没有装得下它的字面量，同样抛 `ValueError`。
 - **不管语义**：`vb.X = vb.Y * vb.Y` 这种重复、未定义的名字、单位元的用法，builder 不查，那是判断层（`viba.is_sub_type`）的事。

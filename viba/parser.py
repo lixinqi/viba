@@ -458,6 +458,12 @@ if __name__ == "__main__":
         ("ConfigBool := true * false", "Boolean literals in product"),
         ('ConfigStr := "viba_v1" * 1.0', "Mixed string and float"),
         ("ComplexLiteral := 0.5 * nil | never", "Mixed literals and identities"),
+        # 10a-10e: String literals the unparser has to spell back out
+        ("""QuotedStr := 'say "hi" now'""", "Single-quoted string with a double quote"),
+        ('ApostropheStr := "it\'s fine"', "Double-quoted string with an apostrophe"),
+        ('UnicodeStr := "中文🙂"', "Unicode string literal"),
+        ("MultilineStr := '''one\ntwo'''", "Triple-quoted string spanning lines"),
+        ("TrailingSlashStr := '''trail\\'''", "Triple-quoted string ending in a backslash"),
         # 11-15: Semantic Paths & Tagging
         ("SimpleTag := $target Output", "Basic tagged type"),
         ("NestedPath := $meta.id.hash STRING", "Nested semantic path ($a.b.c)"),

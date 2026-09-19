@@ -1,5 +1,6 @@
 """Unparse AST nodes back to Viba source."""
 
+import re
 from typing import List, Union
 
 from viba.viba_ast._match import viba_type_match
@@ -145,16 +146,59 @@ def _unparse_tuple(tuple_node: Tuple, indent: int, depth: int) -> str:
 
 def _unparse_constant(const_node: Constant) -> str:
     """Unparse a Constant literal."""
-    value = const_node.value
+    return literal_spelling(const_node.value)
+
+
+# The lexer's own spelling of a number: `\d+` for an int, and a plain decimal
+# for a float. No sign, no exponent — a viba literal is a non-negative number.
+_INT_SPELLING = re.compile(r"^\d+$")
+_FLOAT_SPELLING = re.compile(r"^(\d+\.\d*|\.\d+)$")
+
+
+def literal_spelling(value) -> str:
+    """The literal that reads back as this Python value.
+
+    A string gets a delimiter that does not occur in it — double quotes,
+    single quotes, or triple quotes when it spans lines — so the text survives
+    the round trip untranslated (viba reads no escapes back). A number must be
+    spelled the way the lexer reads numbers: viba has no negative literal and
+    Python writes large and small floats with an exponent, so those raise
+    ValueError rather than being written as something else.
+    """
     if isinstance(value, bool):
-        return str(value).lower()
+        return "true" if value else "false"
     if isinstance(value, str):
-        # Double-quoted strings cannot contain raw newlines (lexer rule);
-        # fall back to triple quotes for multi-line content.
-        if "\n" in value:
-            return f"'''{value}'''"
-        return f'"{value}"'
-    return str(value)
+        return _quote_string(value)
+    if isinstance(value, int):
+        spelling = str(value)
+        if not _INT_SPELLING.match(spelling):
+            raise ValueError(f"viba has no literal for this number: {spelling}")
+        return spelling
+    if isinstance(value, float):
+        spelling = str(value)
+        if not _FLOAT_SPELLING.match(spelling):
+            raise ValueError(f"viba has no literal for this number: {spelling}")
+        return spelling
+    raise ValueError(f"viba has no literal for {type(value).__name__}")
+
+
+def _quote_string(value: str) -> str:
+    """One of the three string literals, chosen so the text reads back as is.
+
+    A delimiter inside the text would end the literal early, and a trailing
+    backslash would swallow the closing one, so each form is only used when
+    the text is free of its delimiter. A text that no form can hold (all three
+    delimiters inside it, or a `'''` on a line-spanning text) has no spelling
+    in the language and raises ValueError.
+    """
+    if "\n" not in value and not value.endswith("\\"):
+        if '"' not in value:
+            return f'"{value}"'
+        if "'" not in value:
+            return f"'{value}'"
+    if "'''" not in value and not value.endswith("'"):
+        return f"'''{value}'''"
+    raise ValueError("no viba string literal holds this text")
 
 
 def _unparse_codeblock(codeblock_node: CodeBlock) -> str:
