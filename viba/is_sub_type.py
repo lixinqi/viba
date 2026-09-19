@@ -44,6 +44,13 @@ Semantics (per design):
   resolves eagerly in its lexical scope). Unfoldings are cached and
   guarded by a coinductive assumption table keyed on the node and
   its resolved actuals, so recursive generics terminate.
+- A literal sub is never nominal: when the sub side is a literal
+  container (ListLiteral / SetLiteral / DictLiteral) and the sup side
+  is a generic definition, the sup unfolds first and the residency
+  rule is asked of its body. `X[T] := list[T]` therefore takes
+  `list[T]`'s place — otherwise no literal could be a resident of an
+  alias of a container. The reverse (a literal on the sup side) and
+  two applied generics stay nominal.
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
   SetLiteral likewise; DictLiteral[(k, v), ...] of
@@ -713,6 +720,8 @@ class _Checker:
         sup_c = self._resolve_constructor(sp.constructor, p_mod, "sup")
         if self._literal_resident(sn, s_mod, sub_c, sp, p_mod, sup_c):
             return True
+        if self._literal_against_alias(sn, s_mod, sub_c, sp, p_mod):
+            return True
         if not self._generic_equal(sub_c, sup_c):
             return self._unequal_typeapps(sn, s_mod, sp, p_mod)
         if len(sn.args) != len(sp.args):
@@ -746,6 +755,27 @@ class _Checker:
         body = defn.body
         identity = isinstance(body, viba_ast.TypeRef) and body.name
         return len(params) == 1 and identity == params[0]
+
+    def _literal_against_alias(self, sn, s_mod, sub_c, sp, p_mod) -> bool:
+        """A literal container against an alias of a container.
+
+        `ListLiteral[a, b]` is a resident of what its container means, never
+        of a name, so a sup that is a generic definition unfolds first: with
+        `AppendOnlyList[T] := list[T]`, the name `AppendOnlyList[str]` takes
+        `list[str]`'s place and the residency rule is then asked as usual.
+        Comparing nominally here would make the alias a type no literal can
+        ever live in.
+        """
+        if not self._is_literal_container(sub_c):
+            return False
+        if not self._is_generic_application(sp, p_mod, "sup"):
+            return False
+        return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
+
+    def _is_literal_container(self, constructor) -> bool:
+        """ListLiteral / SetLiteral / DictLiteral: the sub side is a literal."""
+        return (isinstance(constructor, BuiltinGenericType)
+                and constructor.name in self._LITERAL_OF.values())
 
     def _literal_resident(self, sn, s_mod, sub_c, sp, p_mod, sup_c) -> bool:
         """A *Literal constructor against its container: every literal

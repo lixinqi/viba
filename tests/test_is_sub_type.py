@@ -227,6 +227,40 @@ def run_applied_generic_cases():
     check_result(res, True, "self-referencing application terminates")
 
 
+def run_literal_alias_cases():
+    """A literal sub is structural: an alias of a container unfolds."""
+    module = custom_module("""
+AppendOnlyList[T] := list[T]
+ReadOnlyList[T] := list[T]
+AppendOnlyDict[K, V] := dict[K, V]
+MaybeList[T] := list[T] | nil
+Layer[T] := AppendOnlyList[T]
+Loop[T] := Loop[T]
+""")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    check_result(judge('ListLiteral["a"]', "AppendOnlyList[str]"), True,
+                 "a literal container is a resident of an alias of list")
+    check_result(judge("ListLiteral[1]", "AppendOnlyList[int]"), True,
+                 "elements are checked against the bound parameter")
+    check_result(judge('DictLiteral[("k", 1)]', "AppendOnlyDict[str, int]"), True,
+                 "the same for dict, both parameters")
+    check_result(judge("ListLiteral[1]", "AppendOnlyList[str]"), False,
+                 "an element that does not fit the parameter is still False")
+    check_result(judge('ListLiteral["a"]', "MaybeList[str]"), True,
+                 "the alias body may be a sum with the container in it")
+    check_result(judge('ListLiteral["a"]', "Layer[str]"), True,
+                 "aliases of aliases unfold")
+    check_result(judge("ListLiteral[]", "Loop[int]"), True,
+                 "a self-referencing alias terminates (coinductive assumption)")
+    check_result(judge("AppendOnlyList[str]", "list[str]"), False,
+                 "two applications stay nominal: an alias is not its body")
+    check_result(judge("ReadOnlyList[str]", "AppendOnlyList[str]"), False,
+                 "two aliases of one body stay nominal with each other")
+
+
 def run_not_cases():
     """50 not[...] cases, one sub/sup .viba pair each (data/not)."""
     base = DATA / "not"
@@ -325,6 +359,7 @@ run_env_cases()
 run_env_get_cases()
 run_env_get_scope_cases()
 run_applied_generic_cases()
+run_literal_alias_cases()
 run_not_cases()
 run_canonical_chain_cases()
 run_suite_reflexivity()
