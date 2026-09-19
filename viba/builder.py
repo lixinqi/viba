@@ -408,13 +408,29 @@ def _origin_name(origin) -> str:
 
 
 def _definition_name(name: str) -> str:
-    """A definition's name: one plain name, and not a keyword."""
+    """A definition's name: one plain name, not a keyword, not a builtin."""
+    if name in _BUILTIN_TYPE_NAMES:
+        raise TypeError(f"vb.{name} is {_BUILTIN_TYPE_NAMES[name]}, "
+                        f"not a definition name")
     if isinstance(name, str) and name.isidentifier() and name not in _RESERVED:
         return name
     raise TypeError(f"{name!r} is not a definition name")
 
 
 _RESERVED = ("true", "false", "nil", "void", "None", "never", "import", "as")
+
+# The builtin containers are a shape, not names: the parser refuses them as
+# definition names and as generic parameters (viba/parser.py:
+# BUILTIN_TYPE_NAMES), so the builder does too. Kept here rather than imported
+# so that the builder does not pull the parser in.
+_BUILTIN_TYPE_NAMES = {
+    "list": "a builtin container",
+    "set": "a builtin container",
+    "dict": "a builtin container",
+    "ListLiteral": "a builtin literal constructor",
+    "SetLiteral": "a builtin literal constructor",
+    "DictLiteral": "a builtin literal constructor",
+}
 
 
 def _wrap(value) -> _Expr:
@@ -465,11 +481,13 @@ def _items(key) -> list:
 
 
 def _param(value) -> str:
-    """One generic parameter: a name."""
-    if isinstance(value, _Name):
-        return value.path
-    if isinstance(value, str):
-        return value
+    """One generic parameter: a name, and not a builtin."""
+    name = value.path if isinstance(value, _Name) else value
+    if isinstance(name, str) and name in _BUILTIN_TYPE_NAMES:
+        raise TypeError(f"{name} is {_BUILTIN_TYPE_NAMES[name]}, "
+                        f"not a generic parameter")
+    if isinstance(name, str):
+        return name
     raise TypeError(f"a generic parameter is a name, not {value!r}")
 
 

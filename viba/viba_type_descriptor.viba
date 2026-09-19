@@ -70,6 +70,9 @@ VibaDefinitionDescriptor :=
       体既不是积也不是和也不是指数时（A := int），$members 为空——那是别名，
       不是错误。
       $generic_params 是 Viba 多出来的：protobuf 没有参数化类型。
+      list / set / dict 与其字面量构造器 ListLiteral / SetLiteral /
+      DictLiteral 是形状而不是名字：等号左边不许出现它们——定义名
+      不行，泛型形参也不行（它们只在类型表达式里出现）。
       $file_hash 是所属文件那一份的副本，好让起点不查描述符池就能核版本。
     }]
 

@@ -877,6 +877,19 @@ def test_builder_guard_case_011():
         _raises(TypeError, lambda bad=bad, vb=vb: setattr(vb, "X", bad))
 
 
+def test_builder_guard_case_014():
+    """内建容器名不能当定义名，也不能当泛型形参（语法层面就不许）。"""
+    for name in ("list", "set", "dict",
+                 "ListLiteral", "SetLiteral", "DictLiteral"):
+        vb = builder.Builder()
+        _raises(TypeError, lambda name=name, vb=vb: setattr(vb, name, 1))
+    vb = builder.Builder()
+    _raises(TypeError, lambda: vb.X.__setitem__(vb.ListLiteral, vb.A))
+    _raises(TypeError, lambda: vb.X.__setitem__((vb.K, vb.SetLiteral), vb.A))
+    _raises(TypeError, lambda: vb.X.__setitem__(vb.list, vb.A))
+    _raises(TypeError, lambda: vb.X.__setitem__((vb.K, vb.dict), vb.A))
+
+
 def test_builder_guard_case_012():
     """`add_import` 的返回值是 builder，不是表达式，套进定义里也会拦。"""
     vb = builder.Builder()

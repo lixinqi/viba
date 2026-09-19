@@ -220,6 +220,38 @@ def p_definition(p):
     p[0] = p[1]
 
 
+# The builtin containers are a shape, not names: nothing may define one, and
+# no generic may take one as a parameter. The check runs over the parsed
+# definitions — raising inside a grammar action would be swallowed by PLY's
+# error recovery, and the definition would vanish from the tree instead.
+BUILTIN_TYPE_NAMES = {
+    "list": "a builtin container",
+    "set": "a builtin container",
+    "dict": "a builtin container",
+    "ListLiteral": "a builtin literal constructor",
+    "SetLiteral": "a builtin literal constructor",
+    "DictLiteral": "a builtin literal constructor",
+}
+
+
+def _reject_builtin_name(name: str, position: str) -> None:
+    if name in BUILTIN_TYPE_NAMES:
+        raise SyntaxError(
+            f"Viba parse error: {name} is {BUILTIN_TYPE_NAMES[name]}; "
+            f"it cannot be {position}")
+
+
+def check_definition_names(definitions) -> None:
+    """Refuse a builtin type name on the left of `:=`."""
+    for node in definitions:
+        if isinstance(node, TypeDefinition):
+            _reject_builtin_name(node.name, "a definition name")
+        elif isinstance(node, GenericDefinition):
+            _reject_builtin_name(node.name, "a definition name")
+            for param in node.generic_params or []:
+                _reject_builtin_name(param, "a generic parameter")
+
+
 def p_type_definition(p):
     """type_definition : CLASS_NAME ASSIGN adt_expr"""
     p[0] = TypeDefinition(p[1], p[3])

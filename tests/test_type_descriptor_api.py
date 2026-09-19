@@ -148,6 +148,23 @@ def _check_errors():
     assert isinstance(member_resolved_definition(member), Err)          # gone.mod 不在池子里
     assert isinstance(pool_find_member(orphan_pool, "err.orphan.Orphan.$nope"), Err)
 
+    # 内建容器是形状，不是名字：等号左边出现就编不出来
+    for bad in ("ListLiteral := int\n",
+                "SetLiteral[T] := T\n",
+                "DictLiteral[K] := K\n",
+                "list := int\n",
+                "set[T] := T\n",
+                "dict[K, V] := K\n",
+                "X[ListLiteral] := int\n",
+                "X[K, SetLiteral] := K\n",
+                "X[DictLiteral, K] := K\n",
+                "X[list] := int\n",
+                "X[K, set] := K\n",
+                "X[dict, K] := K\n"):
+        assert isinstance(parse_viba_file(empty_pool(), bad, "literal.viba", "literal"), Err), bad
+    assert isinstance(parse_viba_file(empty_pool(), "X[T] := T\nY := ListLiteral[1]\n",
+                                      "ok.viba", "ok"), Ok)
+
 
 def run():
     checks = [_check_alias_and_depth, _check_shapes, _check_generics,
