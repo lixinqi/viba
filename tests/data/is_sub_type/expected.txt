@@ -31,10 +31,10 @@
 030 true
 031 true
 032 false
-033 false  # transparent alias keeps the constructor's home module: List@sub /= List@sup (nominal)
+033 true  # two modules' List have the same body: structural, the home module is not the type
 034 false
-035 false
-036 false
+035 true  # MyList and List unfold into each other (equi-recursive)
+036 true  # two modules' Box have the same body
 037 error  # free-var atoms are gone: unresolvable TypeRef is an Err
 038 error  # unresolvable TypeRef is an Err, names no longer compared
 039 false

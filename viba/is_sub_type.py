@@ -7,13 +7,17 @@ Ok(True/False) is the judgment. Err reports malformed input, never a
 judgment: ellipsis (...) anywhere on either side -> Err (an open type
 has no judgment).
 
-Semantics (per design):
-- GenericDefinition references are nominal: same container module
-  (object identity) and same name -> equal; bodies never unfold.
-- TypeDefinition references are transparent: they unfold to their
-  bodies and compare structurally (B := A * $find bool <: A).
-  Recursive plain definitions are guarded by the coinductive
-  assumption table: a (sub, sup) pair already in flight is true.
+Semantics (per design): there are no nominal types — a name is an
+alias of what it is written as, and judgment is structural throughout.
+- Every definition unfolds to its body and is compared structurally
+  (B := A * $find bool <: A, and X[T] := list[T] gives X[int] the
+  shape of list[int]). A definition reference that cannot be unfolded
+  — a bare generic name, whose parameters have no actuals — compares
+  by name, which is all that is left of it.
+- Cycles are read coinductively (equi-recursive types): a (sub, sup)
+  pair already in flight is true. `Tree[T] := $leaf T * $kids
+  list[Tree[T]]` is therefore its own unfolding, and `Loop[T] :=
+  Loop[T]` is true against anything it reaches itself through.
 - Leaves compare by family: literal(v) <: base iff same family;
   literal <: literal iff equal values; never <: T; T <: never iff
   T is never (only never fits a never branch).
@@ -27,8 +31,8 @@ Semantics (per design):
   is how free names — e.g. generic parameters — get their meanings).
   A TypeRef the judgment actually reaches and cannot resolve by
   either channel is malformed: the check aborts with Err
-  (UnresolvedTypeError caught at the boundary). Generic definition
-  bodies never trigger this — they are nominal and never unfold.
+  (UnresolvedTypeError caught at the boundary). Unfolding a definition
+  body can reach such a name; that is then an Err, not a False.
 - not[A] is never <- A. A sub not[B] with the same branch tags and the
   poison PredicationFailed at every branch is the refutation: the
   not[oneof] shell is preserved, only the leaves are swapped. A sub
@@ -37,28 +41,30 @@ Semantics (per design):
   product is read through never <- (A | B) = (never <- A) * (never <- B),
   so the slot at every branch tag must carry a refutation: the poison
   PredicationFailed, or a type that fits never <- that branch.
-- Applied generics (TypeApp): both sides applied stays nominal —
-  same constructor and pairwise actuals. Exactly one side applied
-  unfolds structurally: the generic's body is compared with formal
-  parameters bound to the actuals through env_get (a TypeRef actual
-  resolves eagerly in its lexical scope). Unfoldings are cached and
-  guarded by a coinductive assumption table keyed on the node and
-  its resolved actuals, so recursive generics terminate.
-- A literal sub is never nominal: when the sub side is a literal
-  container (ListLiteral / SetLiteral / DictLiteral) and the sup side
-  is a generic definition, the sup unfolds first and the residency
-  rule is asked of its body. `X[T] := list[T]` therefore takes
-  `list[T]`'s place — otherwise no literal could be a resident of an
-  alias of a container. The reverse (a literal on the sup side) and
-  two applied generics stay nominal.
+- Applied generics (TypeApp): a builtin container is its name and its
+  arguments — list / set / dict and the *Literal containers have no
+  body to unfold, so they compare by name and pairwise actuals.
+  Every other constructor names a definition, so one side or both
+  unfold: the body is compared with the formal parameters bound to
+  the actuals through env_get (a TypeRef actual resolves eagerly in
+  its lexical scope). Unfoldings are cached and guarded by a
+  coinductive assumption table keyed on the node and its resolved
+  actuals, so recursive generics terminate. Variance is not declared
+  anywhere: it falls out of where the parameter sits (a parameter
+  under an exponent argument is contravariant, one under a product
+  is covariant).
+  An application whose actuals do not fit the definition's parameters
+  (Pair[int] for Pair[K, V]) cannot unfold; it then compares by
+  constructor name and pairwise actuals, the same rule a builtin
+  container follows.
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
   SetLiteral likewise; DictLiteral[(k, v), ...] of
   dict[k_union, v_union]. The reverse is False, and so is
   mixing container families.
-- The memo table maps (sub_key, sup_key) to the result in flight;
-  under nominal semantics no cycle can require assuming a pair, so
-  it is a pure memoization / shared-subgraph guard.
+- The memo table maps (sub_key, sup_key) to the result in flight; the
+  walk's own (node pair, module pair, env pair) table is the
+  coinductive assumption above it.
 """
 
 from viba import viba_ast
@@ -209,7 +215,7 @@ class _Checker:
         return False
 
     def _probe_leaves(self, sub: Type, sup: Type):
-        probes = (self._check_base, self._check_literal, self._check_nominal)
+        probes = (self._check_base, self._check_literal, self._check_builtin_name)
         results = (probe(sub, sup) for probe in probes)
         return next((r for r in results if r is not None), None)
 
@@ -223,7 +229,8 @@ class _Checker:
             return None
         return isinstance(sub, type(sup)) and sub.value == sup.value
 
-    def _check_nominal(self, sub: Type, sup: Type):
+    def _check_builtin_name(self, sub: Type, sup: Type):
+        """A builtin container with no arguments is its name."""
         if isinstance(sup, BuiltinGenericType):
             return isinstance(sub, BuiltinGenericType) and sub.name == sup.name
         return None
@@ -241,8 +248,13 @@ class _Checker:
         return self._walk(sn, s_mod, sp, p_mod)
 
     def _same_generic(self, sn, s_mod, sp, p_mod) -> bool:
-        """Nominal: same module object and same name; never unfolded."""
-        return s_mod is p_mod and sn.name == sp.name
+        """Two bare generic names: the same name, and nothing else.
+
+        A generic with no arguments has no parameters bound, so there is no
+        body to unfold; the name is all that can be compared. Which module it
+        was written in is how it was resolved, not part of the type.
+        """
+        return sn.name == sp.name
 
     # ------------------------------------------------------------------
     # Structural walk over viba.viba_ast nodes
@@ -477,7 +489,7 @@ class _Checker:
         """Exactly one side is a TypeApp. Generic definitions unfold
         structurally; everything else (builtin generics, literal
         containers) falls through to lifting. Both sides applied
-        stays nominal (see _walk_typeapps)."""
+        unfolds too (see _walk_typeapps)."""
         sn_app = isinstance(sn, viba_ast.TypeApp)
         if sn_app == isinstance(sp, viba_ast.TypeApp):
             return None
@@ -490,7 +502,7 @@ class _Checker:
 
     def _is_generic_application(self, node, module, side) -> bool:
         """True only when the constructor is a GenericDefinition:
-        builtin generics and literal containers lift instead."""
+        builtin generics and literal containers have no body to lift."""
         resolved = self._resolve_name(node.constructor, module, side)
         if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable constructor {node.constructor!r}")
@@ -712,7 +724,7 @@ class _Checker:
 
     # Literal containers: ListLiteral[a, b, c] is a resident of
     # list[a | b | c]; SetLiteral likewise; DictLiteral[(k, v), ...]
-    # of dict[k_union, v_union]. Containment, not nominal equality.
+    # of dict[k_union, v_union]. Containment, not name equality.
     _LITERAL_OF = {"list": "ListLiteral", "set": "SetLiteral", "dict": "DictLiteral"}
 
     def _walk_typeapps(self, sn, s_mod, sp, p_mod) -> bool:
@@ -720,62 +732,35 @@ class _Checker:
         sup_c = self._resolve_constructor(sp.constructor, p_mod, "sup")
         if self._literal_resident(sn, s_mod, sub_c, sp, p_mod, sup_c):
             return True
-        if self._literal_against_alias(sn, s_mod, sub_c, sp, p_mod):
+        if isinstance(sub_c, BuiltinGenericType) and isinstance(sup_c, BuiltinGenericType):
+            return self._builtin_against_builtin(sn, s_mod, sub_c, sp, p_mod, sup_c)
+        # Every other constructor names a definition, and a definition is an
+        # alias of its body: unfold (one side or both) and compare structurally.
+        if self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod):
             return True
-        if not self._generic_equal(sub_c, sup_c):
-            return self._unequal_typeapps(sn, s_mod, sp, p_mod)
+        if self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod):
+            return True
+        # Both sides unfolded and the answer was False; that is the judgment.
+        if self._unfolds(sn, s_mod, "sub") or self._unfolds(sp, p_mod, "sup"):
+            return False
+        # Neither side has a body to unfold: the actuals do not fit the
+        # definition's parameters (Pair[int] for Pair[K, V]). The constructor's
+        # name with its arguments is then all that is left — exactly what a
+        # builtin container gives.
+        if self._constructor_name(sub_c) != self._constructor_name(sup_c):
+            return False
         if len(sn.args) != len(sp.args):
             return False
-        pairs = zip(sn.args, sp.args)
-        return all(self._walk(a, s_mod, b, p_mod) for a, b in pairs)
+        return all(self._walk(a, s_mod, b, p_mod) for a, b in zip(sn.args, sp.args))
 
-    def _unequal_typeapps(self, sn, s_mod, sp, p_mod) -> bool:
-        """Constructors differ: only transparent generics (identity
-        bodies, e.g. Id[T] := T) unfold. Other generics stay nominal —
-        same shape from different origins is not a match."""
-        if self._is_transparent(sn, s_mod, "sub"):
-            return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
-        if self._is_transparent(sp, p_mod, "sup"):
-            return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
-        return False
-
-    def _is_transparent(self, node, module, side) -> bool:
-        """An identity generic: Id[T] := T. Substitution lives in
-        env_get; the body carries no structure of its own."""
-        resolved = self._resolve_name(node.constructor, module, side)
-        if not isinstance(resolved, Ok):
+    def _builtin_against_builtin(self, sn, s_mod, sub_c, sp, p_mod, sup_c) -> bool:
+        """A builtin container is its name and its arguments — there is no
+        body to unfold (list / set / dict and the *Literal containers)."""
+        if sub_c.name != sup_c.name:
             return False
-        target = resolved.ok_value
-        if not isinstance(target, AstNodeType):
+        if len(sn.args) != len(sp.args):
             return False
-        defn = target.ast_node
-        if not isinstance(defn, viba_ast.GenericDefinition):
-            return False
-        params = defn.generic_params or []
-        body = defn.body
-        identity = isinstance(body, viba_ast.TypeRef) and body.name
-        return len(params) == 1 and identity == params[0]
-
-    def _literal_against_alias(self, sn, s_mod, sub_c, sp, p_mod) -> bool:
-        """A literal container against an alias of a container.
-
-        `ListLiteral[a, b]` is a resident of what its container means, never
-        of a name, so a sup that is a generic definition unfolds first: with
-        `AppendOnlyList[T] := list[T]`, the name `AppendOnlyList[str]` takes
-        `list[str]`'s place and the residency rule is then asked as usual.
-        Comparing nominally here would make the alias a type no literal can
-        ever live in.
-        """
-        if not self._is_literal_container(sub_c):
-            return False
-        if not self._is_generic_application(sp, p_mod, "sup"):
-            return False
-        return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
-
-    def _is_literal_container(self, constructor) -> bool:
-        """ListLiteral / SetLiteral / DictLiteral: the sub side is a literal."""
-        return (isinstance(constructor, BuiltinGenericType)
-                and constructor.name in self._LITERAL_OF.values())
+        return all(self._walk(a, s_mod, b, p_mod) for a, b in zip(sn.args, sp.args))
 
     def _literal_resident(self, sn, s_mod, sub_c, sp, p_mod, sup_c) -> bool:
         """A *Literal constructor against its container: every literal
@@ -814,16 +799,24 @@ class _Checker:
             raise UnresolvedTypeError(f"unresolvable constructor {name!r}")
         return resolved.ok_value
 
-    def _generic_equal(self, sub_c, sup_c) -> bool:
-        if isinstance(sub_c, BuiltinGenericType) or isinstance(sup_c, BuiltinGenericType):
-            same_kind = isinstance(sub_c, BuiltinGenericType)
-            return same_kind and isinstance(sup_c, BuiltinGenericType) and sub_c.name == sup_c.name
-        sub_def = _as_definition(getattr(sub_c, "ast_node", None))
-        sup_def = _as_definition(getattr(sup_c, "ast_node", None))
-        if sub_def is None or sup_def is None:
+    def _unfolds(self, node, module, side) -> bool:
+        """Whether this application has a body to unfold: its constructor is a
+        generic definition and the actuals fit its parameters."""
+        resolved = self._resolve_name(node.constructor, module, side)
+        if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
             return False
-        same_module = getattr(sub_c, "container_module", None) is getattr(sup_c, "container_module", None)
-        return same_module and sub_def.name == sup_def.name
+        definition = resolved.ok_value.ast_node
+        if not isinstance(definition, viba_ast.GenericDefinition):
+            return False
+        params = definition.generic_params or []
+        return len(params) == len(node.args)
+
+    def _constructor_name(self, constructor) -> str:
+        """The name a constructor was written as, builtin or definition."""
+        if isinstance(constructor, BuiltinGenericType):
+            return constructor.name
+        definition = _as_definition(getattr(constructor, "ast_node", None))
+        return definition.name if definition is not None else ""
 
 
 # ----------------------------------------------------------------------
@@ -859,7 +852,8 @@ def _as_leaf(t: Type) -> Type:
 
 def _unwrap_definition(entry: AstNodeType):
     """Plain TypeDefinitions are transparent: compare their bodies.
-    GenericDefinitions stay wrapped (they are nominal)."""
+    A generic definition with no arguments stays wrapped: there are no
+    actuals to bind its parameters, so it has no body to compare."""
     node = entry.ast_node
     if isinstance(node, viba_ast.TypeDefinition):
         return node.body, entry.container_module

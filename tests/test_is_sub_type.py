@@ -75,8 +75,8 @@ def load_entry_as(text: str, module):
     """Re-parsed entry node pinned to an existing module context.
 
     Round-trip identity: unparse -> re-parse must denote the same type
-    in the SAME module, or nominal constructors would differ by the
-    fresh module's object identity alone.
+    in the SAME module, or a name that module resolution has to settle
+    (a bare generic, say) would be looked up in a fresh, empty one.
     """
     from viba.type import AstNodeType
     return AstNodeType(_entry_node(text), module)
@@ -161,7 +161,7 @@ def check_generic_env_case():
     g_local = custom_module("G[T] := $v T")
     sub = entry_type("G[int]", g_source)
     sup = entry_type("G[int]", g_local)
-    check_result(is_sub_type(sub, sup), False, "generic env vs local: nominal")
+    check_result(is_sub_type(sub, sup), True, "generic env vs local: same body")
 
 
 def _type_serving(target, wanted: str):
@@ -255,10 +255,40 @@ Loop[T] := Loop[T]
                  "aliases of aliases unfold")
     check_result(judge("ListLiteral[]", "Loop[int]"), True,
                  "a self-referencing alias terminates (coinductive assumption)")
-    check_result(judge("AppendOnlyList[str]", "list[str]"), False,
-                 "two applications stay nominal: an alias is not its body")
-    check_result(judge("ReadOnlyList[str]", "AppendOnlyList[str]"), False,
-                 "two aliases of one body stay nominal with each other")
+    check_result(judge("AppendOnlyList[str]", "list[str]"), True,
+                 "an alias and its body are the same type")
+    check_result(judge("ReadOnlyList[str]", "AppendOnlyList[str]"), True,
+                 "two aliases of one body are each other's subtype")
+
+
+def run_structural_generic_cases():
+    """No nominal generics: every name is an alias of its body."""
+    module = custom_module("""
+Num := int | float
+Handler[T] := str <- $in T
+Putter[T] := $out T
+Pair[K, V] := $key K * $value V
+Alpha[T] := $v T
+Beta[T] := $v T
+""")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    check_result(judge("Handler[Num]", "Handler[int]"), True,
+                 "a contravariant parameter: Num <: int in the sup's place")
+    check_result(judge("Handler[int]", "Handler[Num]"), False,
+                 "and the other way round is False")
+    check_result(judge("Putter[int]", "Putter[Num]"), True,
+                 "a covariant parameter: int <: Num")
+    check_result(judge("Putter[Num]", "Putter[int]"), False,
+                 "covariant the other way is False")
+    check_result(judge("Alpha[int]", "Beta[int]"), True,
+                 "two names with one body are each other's subtype")
+    check_result(judge("Pair[int]", "Pair[int]"), True,
+                 "actuals that do not fit the parameters: no body, so name and args")
+    check_result(judge("Pair[int]", "Pair[str]"), False,
+                 "the same fallback still compares the actuals")
 
 
 def run_not_cases():
@@ -360,6 +390,7 @@ run_env_get_cases()
 run_env_get_scope_cases()
 run_applied_generic_cases()
 run_literal_alias_cases()
+run_structural_generic_cases()
 run_not_cases()
 run_canonical_chain_cases()
 run_suite_reflexivity()

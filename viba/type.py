@@ -3,7 +3,7 @@
 This is the metalanguage layer: Viba types being compared are reified
 as values of the `Type` classes below. Structure stays at the viba.viba_ast
 layer (wrapped in AstNodeType); this module models leaves, references
-and the module machinery they need for nominal resolution.
+and the module machinery they need for lexical resolution.
 
 Decoupling contract: this layer knows how to build Type values from
 viba.viba_ast nodes, but nothing about rules, results or compliance.
