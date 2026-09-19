@@ -182,15 +182,9 @@ VibaLiteralDescriptor :=
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
-  * $value VibaConstantValue      # 字面量本身
+  * $value VibaConstant      # 字面量本身
 
-VibaConstantValue :=             # 叶子只有这五种，跟设计侧的字面量种类对齐
-    Oneof
-  | $bool_value bool
-  | $int_value int
-  | $float_value float
-  | $str_value str
-  | $nil_value nil               # 语法里走不到：写 nil 走 $nil 那一支，这一支留给访问侧取叶子
+VibaConstant := (bool | int | float | str | nil)
 
 # ---------------------------------------------------------------- #
 # 5. 描述符池

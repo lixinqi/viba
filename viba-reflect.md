@@ -108,38 +108,55 @@ VibaNode[Data] :=
   * $by_field_index (VibaNode[Data] <- $i int)
   * $at_index (VibaNode[Data] <- $i int)
   * $at_key (VibaNode[Data] <- $key str)
-  * $leaf VibaConstantValue
+  * $leaf VibaConstant
   * $is_list bool
   * $is_set bool
   * $is_dict bool
   * $len int
   * $keys list[str]
 
+VibaReflectConfig :=
+		Object
+	* $never_equivalent_terminators set[str]
+	* $nil_equivalent_terminators set[str]
+
+Result[T] :=
+		Oneof
+	| $ok ($ok_value T)
+	| $err ($err_msg str)
+
 VibaRoot[Data] :=
     Result[VibaNode[Data]]
+  <- $config VibaReflectConfig
   <- $definition VibaDefinitionDescriptor
   <- $data Data
 
+
 VibaHas[Data] :=
     Result[bool]
+  <- $config VibaReflectConfig
   <- $node VibaNode[Data]
   <- $step VibaStep
 
 VibaGet[Data] :=
     Result[VibaNode[Data]]
+  <- $config VibaReflectConfig
   <- $node VibaNode[Data]
   <- $step VibaStep
 
 VibaLeaf[Data] :=
-    Result[VibaConstantValue]
+    Result[VibaConstant]
+  <- $config VibaReflectConfig
   <- $node VibaNode[Data]
 
 VibaLength[Data] :=
     Result[int]
+  <- $config VibaReflectConfig
   <- $node VibaNode[Data]
 
 VibaKeys[Data] :=
     Result[list[str]]
+  <- $config VibaReflectConfig
   <- $node VibaNode[Data]
 
 ```
@@ -158,36 +175,24 @@ VibaKeys[Data] :=
 
 **起点只配成对**：`$root` 拿到数据就给节点。版本不归协议管：一份材料对着哪一版设计做的，由上层自己记、自己核。
 
-### 5.2 实现方交付的类型
-
-```viba
-VibaAccess[Data] :=
-    Object
-  * $root (Result[VibaNode[Data]] <- $definition VibaDefinitionDescriptor <- $data Data)
-  * $has (Result[bool] <- $node VibaNode[Data] <- $step VibaStep)
-  * $get (Result[VibaNode[Data]] <- $node VibaNode[Data] <- $step VibaStep)
-  * $leaf (Result[VibaConstantValue] <- $node VibaNode[Data])
-  * $length (Result[int] <- $node VibaNode[Data])
-  * $keys (Result[list[str]] <- $node VibaNode[Data])
-```
-
-实现方交付一份 `VibaAccess[自己那份数据类型]`：六格函数齐全，才算把第 5.1 节的接口实现完整。节点上的访问器由框架补（第 5.4 节），不是实现方的事。
-
-### 5.3 便利函数
+### 5.2 便利函数
 
 ```viba
 VibaResolve[Data] :=
     Result[VibaNode[Data]]
+  <- $config VibaReflectConfig
   <- $node VibaNode[Data]
   <- $path VibaPath
 
 VibaGetByPath[Data] :=
-    Result[VibaConstantValue]
+    Result[VibaConstant]
+  <- $config VibaReflectConfig
   <- $node VibaNode[Data]
   <- $path VibaPath
 
 VibaListFields[Data] :=
     Result[list[VibaNode[Data]]]
+  <- $config VibaReflectConfig
   <- $node VibaNode[Data]
   <- $definition VibaDefinitionDescriptor
 
@@ -198,6 +203,24 @@ VibaListFields[Data] :=
 - `VibaListFields`：按 `DefinitionMembers` 逐个 `VibaGet`，取到的收进表；缺的字段不进表。
 
 这三个由第 5.1 节的接口拼出，不需要实现方单独提供。
+
+### 5.3 实现方交付的类型
+
+```viba
+VibaAccess[Data] :=
+    Object
+  * $root (Result[VibaNode[Data]] <- $definition VibaDefinitionDescriptor <- $data Data)
+  * $has (Result[bool] <- $node VibaNode[Data] <- $step VibaStep)
+  * $get (Result[VibaNode[Data]] <- $node VibaNode[Data] <- $step VibaStep)
+  * $leaf (Result[VibaConstant] <- $node VibaNode[Data])
+  * $length (Result[int] <- $node VibaNode[Data])
+  * $keys (Result[list[str]] <- $node VibaNode[Data])
+  * Assert[{
+  	其构造方法必须接受VibaReflectConfig参数。
+  }]
+```
+
+实现方交付一份 `VibaAccess[自己那份数据类型]`：六格函数齐全，才算把第 5.1 节的接口实现完整。节点上的访问器由框架补（第 5.4 节），不是实现方的事。
 
 ### 5.4 节点上的便捷访问
 
