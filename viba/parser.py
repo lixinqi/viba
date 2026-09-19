@@ -303,9 +303,12 @@ def p_type_app_expr(p):
 
 def p_optional_type_args(p):
     """optional_type_args : LBRACKET adt_expr adt_arg_list RBRACKET
+    | LBRACKET RBRACKET
     | epsilon"""
-    if len(p) > 2:
+    if len(p) == 5:
         p[0] = [p[2]] + p[3]
+    elif len(p) == 3:
+        p[0] = []
     else:
         p[0] = None
 
@@ -550,6 +553,8 @@ if __name__ == "__main__":
         ("CodeBlockMixed := {code} * nil | never", "Code block with identities"),
         ("CodeBlockWithTuple := ({a}, {b})", "Code blocks in tuple"),
         ("CodeBlockGeneric := List[{item}]", "Code block as generic arg"),
+        ("EmptyApp := ListLiteral[]", "Application of no arguments"),
+        ("EmptyAppInSum := ListLiteral[] | nil", "Empty application in a sum"),
         ("CodeBlockComplex := ({res {OK} | {err}} <- {inp})", "Complex code block expression"),
         # ====== IMPORT TESTS ======
         ("import numpy", "Plain import"),

@@ -125,10 +125,7 @@ def _unparse_exponent(exp_node: Exponent, indent: int, depth: int) -> str:
 
 
 def _unparse_typeapp(app_node: TypeApp, indent: int, depth: int) -> str:
-    """Unparse a TypeApp."""
-    if not app_node.args:
-        return app_node.constructor
-
+    """Unparse a TypeApp: Name[a, b], and Name[] for an application of none."""
     args = ", ".join(
         _dedent(_unparse_type(arg, indent, depth + 1), " " * (indent * (depth + 1)))
         for arg in app_node.args)

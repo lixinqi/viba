@@ -50,7 +50,8 @@ List[T] :=
 latest_file[Ctx] :=
   mc.Result[mc.FileState]
   <- $ctx Ctx
-  <- $file mc.FileId""", source
+  <- $file mc.FileId
+""", source
 
     module = viba_ast.canonical(viba_ast.parse(source))
     assert isinstance(module.body[0], viba_ast.Import)
@@ -121,10 +122,47 @@ def _check_operators():
 
 def _check_round_trip():
     for source in (str(_sketch()), _check_operators()):
+        # 只有收尾那个换行是 builder 加的，打印器本身不带
         once = viba_ast.unparse(viba_ast.parse(source))
         twice = viba_ast.unparse(viba_ast.parse(once))
-        assert once == source, f"不是规范写法：\n{source}\n!=\n{once}"
+        assert once == source.rstrip("\n"), f"不是规范写法：\n{source}\n!=\n{once}"
         assert once == twice, f"unparse 不稳定：\n{once}\n!=\n{twice}"
+
+
+def _check_append():
+    """读既有文件：只能在后面追加新定义。"""
+    existing = (Path(__file__).resolve().parent
+                / "data" / "rule_coding_style_check" / "demo.viba")
+    source = existing.read_text()
+    vb = builder.Builder(source)
+    builder.comment(vb, "加上一条")
+    vb.Added = vb.Object * tag.x(vb.T)
+
+    written = str(vb)
+    assert written.startswith(source.strip()), "既有内容要原样在最前面"
+    assert written.endswith("Added :=\n  Object\n  * $x T\n")
+    assert "# 加上一条" in written
+
+    module = builder.check(vb)                      # 写出来的要能读回来
+    names = [d.name for d in module.body if isinstance(d, (TypeDefinition, GenericDefinition))]
+    assert names == ["CodeLength", "DocCoverage", "Keywords", "DemoRule", "Added"], names
+
+    for taken in ("DemoRule", "CodeLength"):
+        try:
+            setattr(vb, taken, 1)                   # 已有名字不能再定义一次
+            raise AssertionError("本该抛")
+        except TypeError:
+            pass
+    try:
+        builder.add_import(vb, "x")                 # 续写既有文件时插不进 import
+        raise AssertionError("本该抛")
+    except TypeError:
+        pass
+    try:
+        builder.Builder("X := (")                   # 起点本身得是 Viba 源码
+        raise AssertionError("本该抛")
+    except ValueError:
+        pass
 
 
 def _check_errors():
@@ -170,11 +208,12 @@ def _check_errors():
 
 
 def run():
-    checks = [_check_sketch, _check_operators, _check_round_trip, _check_errors]
+    checks = [_check_sketch, _check_operators, _check_round_trip, _check_append,
+              _check_errors]
     for check in checks:
         check()
     print(f"builder: {len(checks)} checks passed "
-          f"(上层写法、算子、规范写法回环、错误)")
+          f"(上层写法、算子、规范写法回环、续写、错误)")
     return 0
 
 
