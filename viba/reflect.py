@@ -16,7 +16,7 @@ underscore.
     VibaNode[Data]                    VibaNode
     VibaReflectConfig                 Config
     Result[T]                         Ok / Err (viba.type)
-    VibaConstantValue                 VibaConstantValue (kind + constant_value)
+    VibaConstant                      the naked value (bool / int / float / str / None)
     VibaAccess[Data]                  VibaAccess, built with a Config
     VibaRoot / VibaHas / VibaGet      VibaAccess.root / has / get / leaf /
     VibaLeaf / VibaLength / VibaKeys  length / keys
@@ -70,7 +70,6 @@ from viba.viba_type_descriptor import (
     TYPE_APP,
     TYPE_REF,
     VibaChainDescriptor,
-    VibaConstantValue,
     VibaDefinitionDescriptor,
     VibaMemberDescriptor,
     VibaPool,
@@ -246,14 +245,15 @@ class VibaNode:
         return self._access._unwrap(self._access.get(self, at_key(key)))
 
     @property
-    def leaf(self) -> VibaConstantValue:
+    def leaf(self):
+        """The node's $leaf cell: the literal this piece carries."""
         return self._access._unwrap(self._access.leaf(self))
 
     @property
     def value(self):
         """The section 5.4 Python landing: ``leaf`` lands on ``node.value``, the
-        literal record's constant_value (bool / int / float / str / None)."""
-        return self.leaf.constant_value
+        naked value (bool / int / float / str / None)."""
+        return self.leaf
 
     # ---- shapes: the written chain head only, no unfolding ----
 
@@ -384,9 +384,9 @@ class VibaAccess:
     def leaf(self, node: VibaNode) -> Result:
         data = node.data
         if isinstance(data, viba_ast.Constant):
-            return Ok(_constant_value(data.value))
+            return Ok(data.value)
         if isinstance(data, viba_ast.Nil):
-            return Ok(VibaConstantValue("nil", None))
+            return Ok(None)
         return Err(f"this piece is not a leaf: {node!r}")
 
     def length(self, node: VibaNode) -> Result:
@@ -786,11 +786,11 @@ class VibaAccess:
             return branch.kind == NEVER
         if not isinstance(data, viba_ast.Constant):
             return False
-        literal = _constant_value(data.value)
         if branch.kind == LITERAL:
-            return (branch.payload.value.kind == literal.kind
-                    and branch.payload.value.constant_value == literal.constant_value)
-        return branch.kind == TYPE_REF and branch.payload.type_name == literal.kind
+            other = branch.payload.value
+            return type(other) is type(data.value) and other == data.value
+        return (branch.kind == TYPE_REF
+                and branch.payload.type_name == _scalar_name(data.value))
 
     def _key_of(self, pair):
         """The key of one dict entry; None when it is not a literal."""
@@ -971,18 +971,17 @@ def _key_text(key) -> Optional[str]:
     return str(key)
 
 
-def _constant_value(value) -> VibaConstantValue:
+def _scalar_name(value) -> Optional[str]:
+    """The name the design writes for this literal: bool / int / float / str."""
     if isinstance(value, bool):
-        return VibaConstantValue("bool", value)
+        return "bool"
     if isinstance(value, int):
-        return VibaConstantValue("int", value)
+        return "int"
     if isinstance(value, float):
-        return VibaConstantValue("float", value)
+        return "float"
     if isinstance(value, str):
-        return VibaConstantValue("str", value)
-    if value is None:
-        return VibaConstantValue("nil", None)
-    raise TypeError(f"no constant kind for {value!r}")
+        return "str"
+    return None
 
 
 # The protocol names (viba-reflect.md sections 4 and 5), and only these.

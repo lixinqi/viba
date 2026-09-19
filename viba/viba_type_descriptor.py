@@ -57,24 +57,6 @@ EXPONENT_UNIT = ("never",)  # 指数链链头（结果那一元）的单位元
 
 
 # ----------------------------------------------------------------------
-# 常量
-# ----------------------------------------------------------------------
-
-
-class VibaConstantValue:
-    """One of the five leaf kinds: bool / int / float / str / nil."""
-
-    __slots__ = ("kind", "constant_value")
-
-    def __init__(self, kind: str, constant_value=None):
-        self.kind = kind
-        self.constant_value = constant_value
-
-    def __repr__(self):
-        return f"VibaConstantValue({self.kind}, {self.constant_value!r})"
-
-
-# ----------------------------------------------------------------------
 # 类型表达式：和类型的十二支
 # ----------------------------------------------------------------------
 
@@ -164,11 +146,11 @@ class VibaChainDescriptor:
 
 
 class VibaLiteralDescriptor:
-    """A literal: one of the five leaf kinds."""
+    """A literal: the value itself (bool / int / float / str / nil)."""
 
     __slots__ = ("pool", "resolvable_type", "value")
 
-    def __init__(self, pool, resolvable_type, value: VibaConstantValue):
+    def __init__(self, pool, resolvable_type, value):
         self.pool = pool
         self.resolvable_type = resolvable_type
         self.value = value
@@ -442,7 +424,7 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
         return VibaTypeDescriptor(TYPE_REF, VibaTypeRefDescriptor(pool, resolvable, node.name))
     if isinstance(node, ast_nodes.Constant):
         return VibaTypeDescriptor(LITERAL, VibaLiteralDescriptor(
-            pool, resolvable, _constant_value(node.value)))
+            pool, resolvable, node.value))
     if isinstance(node, ast_nodes.Nil):
         return VibaTypeDescriptor(NIL)
     if isinstance(node, ast_nodes.Never):
@@ -452,21 +434,6 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
     if isinstance(node, ast_nodes.CodeBlock):
         return VibaTypeDescriptor(CODE_BLOCK, VibaCodeBlockDescriptor(pool, resolvable, node.code))
     raise TypeError(f"no descriptor for {type(node).__name__}")
-
-
-def _constant_value(value) -> VibaConstantValue:
-    if isinstance(value, bool):
-        return VibaConstantValue("bool", value)
-    if isinstance(value, int):
-        return VibaConstantValue("int", value)
-    if isinstance(value, float):
-        return VibaConstantValue("float", value)
-    if isinstance(value, str):
-        return VibaConstantValue("str", value)
-    if value is None:
-        # 语法里走不到这里：写 nil 走的是 $nil 那一支；留给访问侧取叶子用。
-        return VibaConstantValue("nil", None)
-    raise TypeError(f"no constant kind for {value!r}")
 
 
 # ----------------------------------------------------------------------
@@ -618,7 +585,6 @@ def member_containing_definition(member: VibaMemberDescriptor) -> Result:
 
 
 __all__ = [
-    "VibaConstantValue",
     "VibaTypeDescriptor",
     "VibaTypeRefDescriptor", "VibaTypeAppDescriptor", "VibaTupleDescriptor",
     "VibaTaggedDescriptor", "VibaChainDescriptor",

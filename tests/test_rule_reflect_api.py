@@ -248,7 +248,7 @@ def test_api_leaf_case_001():
     """int 字面量读得出值：量出来的值是 $value 那一层的字面量。"""
     m = _materials()
     inside = m.demo_node.by_tag("code_length").by_tag("value")
-    assert m.demo_access.leaf(inside).ok_value.constant_value == 7
+    assert m.demo_access.leaf(inside).ok_value == 7
 
 
 def test_api_leaf_case_002():
@@ -262,9 +262,9 @@ def test_api_leaf_case_002():
         viba_ast.Tagged("$maybe", viba_ast.Constant(3)),
     ])
     node = m.node1_access.root(m.node1, Witness(body)).ok_value
-    assert m.node1_access.leaf(node.by_tag("items")).ok_value.constant_value == 1.5
-    assert m.node1_access.leaf(node.by_tag("seen")).ok_value.constant_value is True
-    assert m.node1_access.leaf(node.by_tag("table")).ok_value.constant_value == "x"
+    assert m.node1_access.leaf(node.by_tag("items")).ok_value == 1.5
+    assert m.node1_access.leaf(node.by_tag("seen")).ok_value is True
+    assert m.node1_access.leaf(node.by_tag("table")).ok_value == "x"
 
 
 def test_api_leaf_case_003():
@@ -281,7 +281,7 @@ def test_api_leaf_case_003():
     ])
     node = m.node1_access.root(m.node1, Witness(body)).ok_value
     leaf = m.node1_access.leaf(node.by_tag("maybe"))
-    assert isinstance(leaf, Ok) and leaf.ok_value.kind == "nil"
+    assert isinstance(leaf, Ok) and leaf.ok_value is None
 
 
 def test_api_leaf_case_004():
@@ -426,7 +426,7 @@ def test_api_node_leaf_case_001():
     """leaf 给常量记录，Python 落点 value 给裸值。"""
     m = _materials()
     node = m.demo_node.by_tag("code_length").by_tag("value")
-    assert node.leaf.constant_value == 7 and node.value == 7
+    assert node.leaf == 7 and node.value == 7
 
 
 def test_api_node_leaf_case_002():
@@ -504,7 +504,7 @@ def test_api_node_get_case_003():
     node = m.written_not_node
     assert m.written_not_access.has(node, by_tag("$not_operand")).ok_value is True
     operand = node.get_not_operand()
-    assert operand.by_tag("a").leaf.constant_value == 3
+    assert operand.by_tag("a").leaf == 3
     assert operand.get_a().value == 3
 
 
@@ -646,8 +646,8 @@ def test_api_node_path_case_001():
 def test_api_chain_case_001():
     """Viba 层：by_tag → at_index / at_key → leaf，一路点下去。"""
     m = _materials()
-    assert m.node1_node.by_tag("items").at_index(1).leaf.constant_value == 2
-    assert m.node1_node.by_tag("table").at_key("m").leaf.constant_value == 2
+    assert m.node1_node.by_tag("items").at_index(1).leaf == 2
+    assert m.node1_node.by_tag("table").at_key("m").leaf == 2
 
 
 def test_api_chain_case_002():
@@ -673,7 +673,7 @@ def test_api_chain_case_005():
     m = _materials()
     node = m.rule40_node
     assert node.by_tag("group_spec").by_tag("value").by_tag("bucket") \
-        .at_index(0).by_tag("name").leaf.constant_value == "slot0"
+        .at_index(0).by_tag("name").leaf == "slot0"
 
 
 def test_api_chain_case_006():
@@ -681,7 +681,7 @@ def test_api_chain_case_006():
     m = _materials()
     path = [by_tag("$group_spec"), by_tag("$value"), by_tag("$bucket"),
             at_index(0), by_tag("$name")]
-    assert reflect.access.get_by_path(m.rule40_node, path).ok_value.constant_value == "slot0"
+    assert reflect.access.get_by_path(m.rule40_node, path).ok_value == "slot0"
     assert isinstance(reflect.access.resolve(m.rule40_node, path[:-1]), Ok)
     assert isinstance(reflect.access.get_by_path(m.rule40_node, path[:-1]), Err)
 
@@ -757,8 +757,8 @@ BareWitness := Object * $x ($a 1)
     accessor, node = _bare_sum_material(source, "Outer", "BareWitness")
     x = node.by_tag("$x")
     assert accessor.has(x, by_field_index(0)).ok_value is True
-    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(0), by_tag("$a")]).ok_value.constant_value == 1
-    assert reflect.access.get_by_path(node, [by_tag("$x"), by_tag("$a")]).ok_value.constant_value == 1
+    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(0), by_tag("$a")]).ok_value == 1
+    assert reflect.access.get_by_path(node, [by_tag("$x"), by_tag("$a")]).ok_value == 1
     assert accessor.has(x, by_field_index(1)).ok_value is False  # the nil branch is not taken
     assert isinstance(reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(1)]), Err)
 
@@ -773,13 +773,13 @@ NilWitness := Object * $x nil
     accessor, node = _bare_sum_material(leafy, "Leafy", "LeafyWitness")
     x = node.by_tag("$x")
     assert accessor.has(x, by_field_index(0)).ok_value is True
-    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(0)]).ok_value.constant_value == 7
+    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(0)]).ok_value == 7
     assert accessor.has(x, by_field_index(1)).ok_value is False
 
     accessor, node = _bare_sum_material(leafy, "Optional", "NilWitness")
     x = node.by_tag("$x")
     assert accessor.has(x, by_field_index(0)).ok_value is False
-    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(1)]).ok_value.constant_value is None
+    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(1)]).ok_value is None
 
     two = """A := Object * $a int
 B := Object * $b str
@@ -802,10 +802,10 @@ def test_api_resolve_case_005():
 def test_api_get_by_path_case_001():
     """先 resolve 再 leaf：一条路径直接读出值。"""
     m = _materials()
-    assert reflect.access.get_by_path(m.demo_node, [by_tag("$code_length"), by_tag("$value")]).ok_value.constant_value == 7
+    assert reflect.access.get_by_path(m.demo_node, [by_tag("$code_length"), by_tag("$value")]).ok_value == 7
     assert reflect.access.get_by_path(m.demo_node,
-                     [by_tag("$keywords"), by_tag("$value"), at_index(1)]).ok_value.constant_value == "b"
-    assert reflect.access.get_by_path(m.node1_node, [by_tag("$table"), at_key("k")]).ok_value.constant_value == 1
+                     [by_tag("$keywords"), by_tag("$value"), at_index(1)]).ok_value == "b"
+    assert reflect.access.get_by_path(m.node1_node, [by_tag("$table"), at_key("k")]).ok_value == 1
 
 
 def test_api_get_by_path_case_002():
@@ -873,7 +873,7 @@ def test_api_walk_case_001():
     assert () in paths
     assert (by_tag("$coverage"), by_tag("$value"), by_tag("$total_lines")) in paths
     assert (by_tag("$keywords"), by_tag("$value"), at_index(0)) in paths
-    leaves = [m.demo_access.leaf(n).ok_value.constant_value for n in walked
+    leaves = [m.demo_access.leaf(n).ok_value for n in walked
               if isinstance(n.data, (viba_ast.Constant, viba_ast.Nil))]
     assert leaves == [7, 5, 11, "a", "b"]
 
