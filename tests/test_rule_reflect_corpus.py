@@ -76,7 +76,7 @@ class UnderTest:
     def _paths(self, node, path):
         """独立于 RuleAccess.walk 的遍历，只按协议里那几条下一步。"""
         out = [path]
-        slots = self.accessor._members(node)
+        slots = self.accessor.members(node)
         if slots is not None:
             positional = 0
             for tag, _ in slots:
@@ -88,8 +88,8 @@ class UnderTest:
                 given = self.accessor.get(node, step)
                 if isinstance(given, Ok) and given.ok_value is not None:
                     out += self._paths(given.ok_value, path + (step,))
-        shape = self.accessor._unfold(node.descriptor)
-        container = self.accessor._container_kind(shape)
+        shape = self.accessor.unfold(node.descriptor)
+        container = self.accessor.container_kind(shape)
         if container == "dict":
             keys = self.accessor.keys(node)
             for key in keys.ok_value:
@@ -106,7 +106,7 @@ class UnderTest:
 
     def _walk(self, node, note: str) -> int:
         seen = 0
-        slots = self.accessor._members(node)
+        slots = self.accessor.members(node)
         if slots is not None:
             positional = 0
             for tag, _ in slots:
@@ -125,8 +125,8 @@ class UnderTest:
                 seen += 1
                 if given_get.ok_value is not None:
                     seen += self._walk(given_get.ok_value, note)
-        shape = self.accessor._unfold(node.descriptor)
-        container = self.accessor._container_kind(shape)
+        shape = self.accessor.unfold(node.descriptor)
+        container = self.accessor.container_kind(shape)
         if container == "dict":
             keys = self.accessor.keys(node)
             assert isinstance(keys, Ok), f"{self.path.name} {note}: {node!r} {keys!r}"

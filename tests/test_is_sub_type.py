@@ -446,6 +446,21 @@ P := int
                  "a narrower one is not")
 
 
+def run_code_block_cases():
+    """A code block has no members: the unit is its resident."""
+    module = custom_module("Guard := Object * $a {return 1}\n")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    check_result(judge("nil", "{return 1}"), True, "the unit resides in a code block")
+    check_result(judge("{other code}", "{return 1}"), True,
+                 "another code block is a unit too (the text is not reachable)")
+    check_result(judge("7", "{return 1}"), False, "a literal does not")
+    check_result(judge("{return 1}", "nil"), True, "a code block fits nil")
+    check_result(judge("{return 1}", "never"), False, "and never fits nothing")
+
+
 def run_canonical_chain_cases():
     """主链压成链、支链留成分组：规范化只并一路 $left / $result。
 
@@ -534,6 +549,7 @@ run_structural_generic_cases()
 run_recursive_generic_cases()
 run_unit_alias_cases()
 run_never_head_cases()
+run_code_block_cases()
 run_canonical_chain_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")

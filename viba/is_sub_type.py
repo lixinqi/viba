@@ -207,6 +207,8 @@ class _Checker:
             return result
         if isinstance(sup, AstNodeType) and isinstance(sub, AstNodeType):
             return self._check_ast_pair(sub, sup)
+        if isinstance(sup, AstNodeType) and isinstance(sup.ast_node, viba_ast.CodeBlock):
+            return isinstance(sub, NilType)     # 代码块没有成员，单位是它的居民
         return False
 
     def _probe_leaves(self, sub: Type, sup: Type):
@@ -302,6 +304,8 @@ class _Checker:
             if isinstance(sn, viba_ast.TypeApp):
                 # 应用形的 sub 一样要展开：X[T] := nil 的居民就是 nil。
                 return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
+            if isinstance(sn, viba_ast.CodeBlock) and isinstance(sp, viba_ast.Nil):
+                return True                     # 代码块是单位，nil 收得下
             return type(sn) is type(sp)
         if self.terminators:
             operand = self._never_head_operand(sp, p_mod)
@@ -624,7 +628,13 @@ class _Checker:
         if isinstance(sp, viba_ast.TypeApp) and isinstance(sn, viba_ast.TypeApp):
             return self._walk_typeapps(sn, s_mod, sp, p_mod)
         if isinstance(sp, viba_ast.CodeBlock):
-            return isinstance(sn, viba_ast.CodeBlock) and sn.code == sp.code
+            # A code block has no members: the unit is its only resident, and a
+            # code block counts as one. Its text is not compared — the protocol
+            # hands no reader the material's code, so there is nothing to
+            # compare against.
+            if isinstance(sn, viba_ast.CodeBlock):
+                return True
+            return isinstance(self._lift(sn, s_mod, "sub"), NilType)
         return False
 
     def _walk_sum(self, sn, s_mod, sp, p_mod) -> bool:
