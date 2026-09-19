@@ -17,7 +17,8 @@ from test_rule_reflect_api import _materials, _load, _definition_of
 from viba import builder, serialize, viba_ast
 from viba.type import AstNodeType, Err, Ok, custom_module
 from viba.rule.is_compliant import is_compliant
-from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
+from viba.viba_type_descriptor import (empty_pool, parse_viba_file,
+                                        pool_add_file, pool_find_definition)
 from viba.reflect import VibaData
 
 PASS = FAIL = 0
@@ -896,6 +897,278 @@ def run_more_gap_corners():
          "cannot write this piece out")
 
 
+
+# ---------------------------------------------------------------------------
+# 再一轮：跨模块、环、材料本身的形状、名字参数、和式的容器、指数字段实参、压力。
+# ---------------------------------------------------------------------------
+
+
+def _pool(*files):
+    """把这几份文件编进一个池子：(文件名, 模块名, 源码)。"""
+    pool = empty_pool()
+    for file_name, module_name, source in files:
+        parsed = parse_viba_file(pool, source, file_name, module_name)
+        check(isinstance(parsed, Ok), f"pool: {file_name} parses ({parsed})")
+        if not isinstance(parsed, Ok):
+            return None
+        pool = pool_add_file(pool, parsed.ok_value).ok_value
+    return pool
+
+
+def _corner_in(label, pool, full_name, body, expect=None, resident=True,
+               strict=True, resident_source=None, resident_name=None):
+    """同一个池子里的定义写一份材料；居民那一判用本地拼法的等价设计来问。"""
+    from viba.reflect import access
+    found = pool_find_definition(pool, full_name)
+    check(isinstance(found, Ok), f"{label}: the definition is in the pool ({found})")
+    if not isinstance(found, Ok):
+        return
+    rooted = access.root(found.ok_value, VibaData(body))
+    check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
+    if not isinstance(rooted, Ok):
+        return
+    written = serialize.serialize("entry", access, rooted.ok_value)
+    check(isinstance(written, Ok), f"{label}: writes ({written})")
+    if not isinstance(written, Ok):
+        return
+    if expect is not None:
+        check(expect in written.ok_value,
+              f"{label}: {expect!r} is in\n{written.ok_value}")
+    _round_trip(label, found.ok_value, access, rooted.ok_value,
+                resident_source if resident_source is not None else "",
+                resident_name or full_name.split(".")[-1],
+                resident=resident if resident_source is not None else False,
+                strict=strict)
+
+
+def _gap_in(label, pool, full_name, body, needle):
+    from viba.reflect import access
+    found = pool_find_definition(pool, full_name)
+    check(isinstance(found, Ok), f"{label}: the definition is in the pool ({found})")
+    if not isinstance(found, Ok):
+        return
+    rooted = access.root(found.ok_value, VibaData(body))
+    check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
+    if not isinstance(rooted, Ok):
+        return
+    written = serialize.serialize("entry", access, rooted.ok_value)
+    check(isinstance(written, Err) and needle in written.err_msg,
+          f"{label}: an Err saying {needle!r} ({written})")
+
+
+_DEFS = ("defs.viba", "defs",
+         "U := Object\nP := Object * $x int\nW[V] := Object * $v V\nN := never\n")
+
+
+def _main(body):
+    return ("main.viba", "main", "import defs as d\n" + body)
+
+
+def run_cross_module_cases():
+    """跨模块：import 前缀的名字也是名字，单位/积/泛型/never 一样展开。"""
+    def pool_of(body):
+        return _pool(_DEFS, _main(body))
+
+    _corner_in("a unit from another module as a member",
+               pool_of("Box := Object * $u d.U\n"), "main.Box",
+               _product(_tagged("$u", viba_ast.Nil())), expect="* $u nil",
+               resident_source="U := Object\nBox := Object * $u U\n")
+    _corner_in("a unit from another module as the head",
+               pool_of("Box := d.U * $a int\n"), "main.Box",
+               _product(_tagged("$a", viba_ast.Constant(1))),
+               expect="entry :=\n  Object\n  * $a 1\n",
+               resident_source="U := Object\nBox := U * $a int\n")
+    _corner_in("a product from another module",
+               pool_of("Box := Object * $p d.P\n"), "main.Box",
+               _product(_tagged("$p", _product(_tagged("$x", viba_ast.Constant(1))))),
+               expect="* $p(Object",
+               resident_source="P := Object * $x int\nBox := Object * $p P\n")
+    _corner_in("a generic from another module",
+               pool_of("Box := Object * $w d.W[int]\n"), "main.Box",
+               _product(_tagged("$w", _product(_tagged("$v", viba_ast.Constant(1))))),
+               expect="* $w(Object",
+               resident_source="W[V] := Object * $v V\nBox := Object * $w W[int]\n")
+    _corner_in("a never from another module",
+               pool_of("Box := Object * $n (d.N | int)\n"), "main.Box",
+               _product(_tagged("$n", viba_ast.SumChain([viba_ast.Constant(1)]))),
+               expect="* $n 1",
+               resident_source="N := never\nBox := Object * $n (N | int)\n")
+    _corner_in("a module path used without an alias",
+               _pool(("pkg/util.viba", "pkg.util", "T := str\n"),
+                     ("main.viba", "main",
+                      "import pkg.util\nBox := Object * $t util.T\n")),
+               "main.Box",
+               _product(_tagged("$t", viba_ast.Constant("x"))), expect='* $t "x"',
+               resident_source="T := str\nBox := Object * $t T\n")
+    _corner_in("an import of an import",
+               _pool(_DEFS,
+                     ("mid.viba", "mid", "import defs as d\nM := d.U\n"),
+                     ("main.viba", "main",
+                      "import mid as m\nBox := Object * $m m.M\n")),
+               "main.Box", _product(_tagged("$m", viba_ast.Nil())), expect="* $m nil",
+               resident_source="U := Object\nBox := Object * $m U\n")
+    _gap_in("gap never from another module", pool_of("Box := Object * $n d.N\n"),
+            "main.Box", _product(_tagged("$n", viba_ast.Constant(1))),
+            "nothing resides in never")
+
+
+def run_cycle_cases():
+    """池子里的环：名字对、自名、自指的泛型，都不转圈。"""
+    _corner_in("a pair of names that point at each other",
+               _pool(("m.viba", "m", "A := B\nB := A\nBox := Object * $a A\n")),
+               "m.Box", _product(_tagged("$a", viba_ast.Constant(1))),
+               expect="* $a 1", resident=False)
+    _corner_in("a name that points at itself",
+               _pool(("m.viba", "m", "A := A\nBox := Object * $a A\n")),
+               "m.Box", _product(_tagged("$a", viba_ast.Constant(1))),
+               expect="* $a 1", resident=False)
+    _corner_in("a generic that asks for itself",
+               _pool(("m.viba", "m", "W[T] := W[T]\nBox := Object * $w W[int]\n")),
+               "m.Box", _product(_tagged("$w", viba_ast.Constant(1))),
+               expect="* $w 1")
+    _corner_in("a generic whose body only grows",
+               _pool(("m.viba", "m", "W[T] := W[list[T]]\nBox := Object * $w W[int]\n")),
+               "m.Box", _product(_tagged("$w", viba_ast.Constant(1))),
+               expect="* $w 1", resident=False)
+
+
+def run_material_root_cases():
+    """材料本身不是一个产品：叶子、单个标签、和式、空链、nil。"""
+    def design():
+        return _pool(("m.viba", "m", "Box := Object * $a int\n"))
+
+    _corner_in("a leaf where the whole product is",
+               design(), "m.Box", viba_ast.Constant(1), expect="entry :=\n  1\n",
+               resident=False)
+    _corner_in("a lone tag where the product is",
+               design(), "m.Box", _tagged("$a", viba_ast.Constant(1)),
+               expect="entry :=\n  Object\n  * $a 1\n")
+    _corner_in("nil where the whole product is",
+               design(), "m.Box", viba_ast.Nil(), expect="entry :=\n  nil\n",
+               resident=False)
+    _gap_in("gap a sum chain where the product is", design(), "m.Box",
+            viba_ast.SumChain([viba_ast.Constant(1)]), "no value here: $a")
+    _gap_in("gap an empty chain where the product is", design(), "m.Box",
+            viba_ast.ProductChain([]), "no value here: $a")
+
+
+def run_definition_name_cases():
+    """serialize 的名字参数：普通名字写得出来，内建名与关键字写不出来。"""
+    pool = _pool(("m.viba", "m", "Box := Object * $a int\n"))
+    definition = pool_find_definition(pool, "m.Box").ok_value
+    from viba.reflect import access
+    node = access.root(definition, VibaData(
+        _product(_tagged("$a", viba_ast.Constant(1))))).ok_value
+    for name in ("entry", "Entry_2", "a", "中文"):
+        written = serialize.serialize(name, access, node)
+        check(isinstance(written, Ok) and written.ok_value.startswith(f"{name} :="),
+              f"definition name {name!r}: writes ({written})")
+    for name in ("", "a.b", "a-b", "nil", "never", "void", "None", "true",
+                 "false", "import", "as", "list", "set", "dict", "ListLiteral"):
+        written = serialize.serialize(name, access, node)
+        check(isinstance(written, Err),
+              f"definition name {name!r}: an Err ({written})")
+
+
+def run_alias_of_definition_cases():
+    """定义自己的别名：写出来的源码跟写原定义时一样。"""
+    from viba.reflect import access
+    pool = _pool(("m.viba", "m", "Box := Object * $a int\nAlias := Box\nDeeper := Alias\n"))
+    body = _product(_tagged("$a", viba_ast.Constant(1)))
+    written = []
+    for full_name in ("m.Box", "m.Alias", "m.Deeper"):
+        definition = pool_find_definition(pool, full_name).ok_value
+        node = access.root(definition, VibaData(body)).ok_value
+        got = serialize.serialize("entry", access, node)
+        check(isinstance(got, Ok), f"{full_name}: writes ({got})")
+        written.append(got.ok_value if isinstance(got, Ok) else None)
+    check(written[0] == written[1] == written[2],
+          f"the alias writes the same source ({written})")
+
+
+def run_sums_in_containers():
+    """和式装在容器与元组里，每一格挑不同的支。"""
+    source = "S := int | $a str\nBox := Object * $xs list[S] * $ss set[S] * $t (S, S)\n"
+    pool = _pool(("m.viba", "m", source))
+    material = _product(
+        _tagged("$xs", viba_ast.TypeApp("ListLiteral", [
+            viba_ast.SumChain([viba_ast.Constant(1)]),
+            viba_ast.SumChain([_tagged("$a", viba_ast.Constant("x"))]),
+            viba_ast.SumChain([viba_ast.Constant(2)])])),
+        _tagged("$ss", viba_ast.TypeApp("SetLiteral", [
+            viba_ast.SumChain([_tagged("$a", viba_ast.Constant("y"))])])),
+        _tagged("$t", viba_ast.Tuple([
+            viba_ast.SumChain([viba_ast.Constant(3)]),
+            viba_ast.SumChain([_tagged("$a", viba_ast.Constant("z"))])])))
+    _corner_in("sums in a list, a set and a tuple", pool, "m.Box", material,
+               expect='ListLiteral[1, $a "x", 2]', strict=False)
+
+
+def run_exponent_argument_shapes():
+    """指数链的实参本身是什么形状：容器、元组、产品、代码块、nil、和式。"""
+    cases = [
+        ("list[int]", viba_ast.TypeApp("ListLiteral", [viba_ast.Constant(1)]),
+         "ListLiteral[1]"),
+        ("(int, str)", viba_ast.Tuple([viba_ast.Constant(1),
+                                       viba_ast.Constant("s")]), '(1, "s")'),
+        ("(Object * $x int)",
+         _product(_tagged("$x", viba_ast.Constant(2))), "* $x 2"),
+        ("{x}", viba_ast.CodeBlock("x"), "nil"),
+        ("nil", viba_ast.Nil(), "nil"),
+        ("(int | $a str)", viba_ast.SumChain([_tagged("$a", viba_ast.Constant("v"))]),
+         '$a "v"'),
+    ]
+    for index, (argument_type, argument, expect) in enumerate(cases):
+        pool = _pool(("m.viba", "m",
+                      f"G := Object * $g (never <- $b {argument_type})\n"))
+        material = _product(_tagged("$g", viba_ast.ExponentChain([
+            viba_ast.Never(), _tagged("$b", argument)])))
+        _corner_in(f"exponent argument[{index}] {argument_type}", pool, "m.G",
+                   material, expect=expect, resident=False, resident_source=None)
+
+
+def run_deep_stress():
+    """再深一点、再宽一点：容器 12/20 层、1000 个元素、100 个键、64 个成员。"""
+    for depth in (12, 20):
+        type_text, body = "int", viba_ast.Constant(1)
+        for _ in range(depth):
+            type_text = f"list[{type_text}]"
+            body = viba_ast.TypeApp("ListLiteral", [body])
+        pool = _pool(("m.viba", "m", f"Box := Object * $a {type_text}\n"))
+        _corner_in(f"depth {depth}", pool, "m.Box",
+                   _product(_tagged("$a", body)), expect="ListLiteral[")
+    pool = _pool(("m.viba", "m", "Box := Object * $a list[int]\n"))
+    thousand = viba_ast.TypeApp("ListLiteral",
+                                [viba_ast.Constant(i) for i in range(1000)])
+    _corner_in("a list of 1000", pool, "m.Box", _product(_tagged("$a", thousand)),
+               expect="ListLiteral[0, 1, 2")
+    pool = _pool(("m.viba", "m", "Box := Object * $a dict[str, int]\n"))
+    pairs = [viba_ast.Tuple([viba_ast.Constant(f"k{i}"), viba_ast.Constant(i)])
+             for i in range(100)]
+    _corner_in("a dict of 100", pool, "m.Box",
+               _product(_tagged("$a", viba_ast.TypeApp("DictLiteral", pairs))),
+               expect='("k99", 99)]')
+    pool = _pool(("m.viba", "m",
+                  "Box := Object * " + " * ".join(f"$f{i} int" for i in range(64)) + "\n"))
+    _corner_in("a product of 64", pool, "m.Box",
+               _product(*[_tagged(f"$f{i}", viba_ast.Constant(i))
+                          for i in range(64)]), expect="* $f63 63")
+
+
+def run_head_written_as_unit():
+    """产品头写成 nil：写出来的单位还是语言的那个 Object。"""
+    _corner_in("the head written as nil",
+               _pool(("m.viba", "m", "Box := nil * $a int\n")), "m.Box",
+               _product(_tagged("$a", viba_ast.Constant(1))),
+               expect="entry :=\n  Object\n  * $a 1\n")
+    _corner_in("two unit members and the head",
+               _pool(("m.viba", "m", "Box := Object * $u Object * $v Object\n")),
+               "m.Box",
+               _product(_tagged("$u", viba_ast.Nil()),
+                        _tagged("$v", viba_ast.Nil())),
+               expect="* $u nil\n  * $v nil")
+
+
 def run():
     for case in (run_fixture_cases, run_empty_container_cases, run_nil_slot_cases,
                  run_set_order_cases, run_exponent_cases, run_code_block_cases,
@@ -908,7 +1181,12 @@ def run():
                  run_container_fills, run_never_positions, run_dict_key_gaps,
                  run_positional_gaps, run_unit_member_shapes,
                  run_code_block_positions, run_exponent_batteries,
-                 run_name_alias_shapes, run_name_gaps, run_more_gap_corners):
+                 run_name_alias_shapes, run_name_gaps, run_more_gap_corners,
+                 run_cross_module_cases, run_cycle_cases,
+                 run_material_root_cases, run_definition_name_cases,
+                 run_alias_of_definition_cases, run_sums_in_containers,
+                 run_exponent_argument_shapes, run_deep_stress,
+                 run_head_written_as_unit):
         case()
     print(f"serialize: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

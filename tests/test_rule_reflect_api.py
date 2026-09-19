@@ -234,6 +234,50 @@ def _inline(source: str, name: str):
                           f"inline.{name}")
 
 
+def _pool_of(*files):
+    """(文件名, 模块名, 源码) 编进一个池子。"""
+    pool = empty_pool()
+    for file_name, module, source in files:
+        parsed = parse_viba_file(pool, source, file_name, module)
+        assert isinstance(parsed, Ok), parsed
+        added = pool_add_file(pool, parsed.ok_value)
+        assert isinstance(added, Ok), added
+        pool = added.ok_value
+    return pool
+
+
+def test_api_unfold_stops_at_a_cycle():
+    """名字绕回自己：展开停在名字上，不转圈。"""
+    access = reflect.access
+    cyclic = _inline("A := B\nB := A\nBox := Object * $a A\n", "Box")
+    node = access.root(cyclic, Witness(viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$a", viba_ast.Constant(1))]))).ok_value
+    assert access.unfold(access.member_steps(node)[0][2]).kind == "type_ref"
+
+    growing = _inline("W[T] := W[list[T]]\nBox := Object * $w W[int]\n", "Box")
+    node2 = access.root(growing, Witness(viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$w", viba_ast.Constant(1))]))).ok_value
+    assert access.unfold(access.member_steps(node2)[0][2]).kind == "type_app"
+
+
+def test_api_members_across_modules():
+    """import 前缀的名字：`d.P` 落到 defs 的 P，`d.U` 落地就是单位。"""
+    access = reflect.access
+    pool = _pool_of(("defs.viba", "defs", "U := Object\nP := Object * $x int\n"),
+                    ("main.viba", "main",
+                     "import defs as d\nBox := d.U * $a d.P\n"))
+    definition = _definition_of(pool, "main.Box")
+    node = access.root(definition, Witness(viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$a", viba_ast.ProductChain([
+            viba_ast.Tagged("$x", viba_ast.Constant(1))]))]))).ok_value
+    steps = access.member_steps(node)
+    assert [tag for tag, _, _ in steps] == ["$a"], steps
+    assert access.unfold(steps[0][2]).kind == "product"
+
+
 def test_api_members_unit_behind_a_name():
     """名字是透明的：`H := Object` 的 H 当产品头就不占一格，`U := Object`
     的成员是单位成员，`N := never` 的成员照旧没有居民。"""

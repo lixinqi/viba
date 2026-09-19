@@ -477,40 +477,58 @@ class VibaAccess:
         definition body, and a generic application folds its arguments in and
         lands on the body too. Sum, product and exponent follow one rule; there
         are no other exceptions.
-        """
-        seen = seen or set()
-        if id(descriptor) in seen:
-            return descriptor
-        seen = seen | {id(descriptor)}
+
+        A definition already being unfolded stops the walk, since a pool may
+        write a cycle (`A := B` with `B := A`) or a generic that asks for
+        itself (`W[T] := W[T]`, or `W[T] := W[list[T]]`, whose body only grows);
+        neither has a body to land on, so the piece stays the name it is."""
+        seen = seen if seen is not None else set()
         if descriptor.kind == TYPE_REF:
-            resolved = self._resolve_ref(descriptor)
-            if resolved is None:
+            target = self._written_target(descriptor, descriptor.payload.type_name)
+            if target is None or not isinstance(target.ast_node, viba_ast.TypeDefinition):
+                return descriptor  # a builtin leaf, a generic parameter: stop
+            key = ("ref", id(target.ast_node))
+            if key in seen:
                 return descriptor
-            return self.unfold(resolved, seen)
+            # The descriptor side has no public "descriptor for a type
+            # expression" entry point yet, so use its builder.
+            from viba.viba_type_descriptor import _build_type
+
+            body = _build_type(descriptor.payload.pool, target.container_module,
+                               target.ast_node.body)
+            return self.unfold(body, seen | {key})
         if descriptor.kind == TYPE_APP:
-            applied = self._apply_generic(descriptor)
-            if applied is not None:
-                return self.unfold(applied, seen)
+            target = self._written_target(descriptor, descriptor.payload.constructor_name)
+            if target is None or not isinstance(target.ast_node, viba_ast.GenericDefinition):
+                return descriptor  # a builtin container, an unfilled application
+            key = ("app", id(target.ast_node))
+            if key in seen:
+                return descriptor
+            applied = self._apply_generic(descriptor, target)
+            if applied is None:
+                return descriptor
+            return self.unfold(applied, seen | {key})
         return descriptor
 
-    def _apply_generic(self, descriptor: VibaTypeDescriptor) -> Optional[VibaTypeDescriptor]:
-        """When the constructor names a generic definition, hand back the body
-        descriptor with the arguments filled in."""
-        payload = descriptor.payload
-        if payload.resolvable_type is None:
+    def _written_target(self, descriptor: VibaTypeDescriptor, written: str):
+        """The definition a written name lands on — import prefix and all —
+        or None when it names no definition of the pool."""
+        resolvable = descriptor.payload.resolvable_type
+        if resolvable is None:
             return None
-        resolved = module_get_type(payload.resolvable_type.container_module,
-                                   payload.constructor_name)
+        resolved = module_get_type(resolvable.container_module, written)
         if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
             return None
-        target = resolved.ok_value
-        if not isinstance(target.ast_node, viba_ast.GenericDefinition):
-            return None
+        return resolved.ok_value
+
+    def _apply_generic(self, descriptor: VibaTypeDescriptor,
+                       target: AstNodeType) -> Optional[VibaTypeDescriptor]:
+        """The body descriptor of a generic definition, with the arguments
+        filled in."""
+        payload = descriptor.payload
         params = list(target.ast_node.generic_params or [])
         if len(params) != len(payload.args):
             return None
-        # The descriptor side has no public "descriptor for a type expression"
-        # entry point yet, so use its builder.
         # The builtin library is loaded as written (never canonicalized), so
         # canonicalize here first.
         from viba.viba_type_descriptor import _build_type
@@ -518,7 +536,6 @@ class VibaAccess:
         body_node = viba_ast.convert_to_chain_style(target.ast_node.body)
         body = _build_type(payload.pool, target.container_module, body_node)
         return self._substitute(body, dict(zip(params, payload.args)))
-
 
     def _substitute(self, descriptor: VibaTypeDescriptor,
                     bindings: dict) -> VibaTypeDescriptor:
@@ -544,25 +561,6 @@ class VibaAccess:
                 payload.pool, payload.resolvable_type, payload.tag,
                 self._substitute(payload.tagged_type, bindings)))
         return descriptor
-
-    def _resolve_ref(self, descriptor: VibaTypeDescriptor) -> Optional[VibaTypeDescriptor]:
-        """When a name points at a transparent definition, hand back that body's
-        descriptor."""
-        resolvable = descriptor.payload.resolvable_type
-        if resolvable is None:
-            return None
-        resolved = module_get_type(resolvable.container_module, descriptor.payload.type_name)
-        if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
-            return None  # a builtin leaf, a generic parameter: stop here
-        target = resolved.ok_value
-        if not isinstance(target.ast_node, viba_ast.TypeDefinition):
-            return None  # a generic needs arguments to have a body: bare name stops
-        # The descriptor side has no public "descriptor for a type expression"
-        # entry point yet, so use its builder.
-        from viba.viba_type_descriptor import _build_type
-
-        return _build_type(descriptor.payload.pool, target.container_module,
-                           target.ast_node.body)
 
     def carries_nil(self, descriptor: VibaTypeDescriptor) -> bool:
         """Whether this written type admits nil.

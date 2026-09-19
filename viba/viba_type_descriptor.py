@@ -275,8 +275,19 @@ def _environment(pool: VibaPool) -> Callable[[str], Result]:
             return Err(f"no module named {module_name!r} in pool")
         if len(matches) > 1:
             return Err(f"module {module_name!r} is served by {len(matches)} files")
-        return Ok(CustomModuleType(matches[0]._tree, pool.module_environment))
+        return Ok(CustomModuleType(matches[0]._tree, pool.module_environment,
+                                   _import_locals(matches[0])))
     return environment
+
+
+def _import_locals_for(tree) -> dict:
+    """一份语法树的 import 表：本地名 -> 模块名。"""
+    return {stmt.alias or stmt.module.split(".")[-1]: stmt.module
+            for stmt in tree.body if isinstance(stmt, ast_nodes.Import)}
+
+
+def _import_locals(file) -> dict:
+    return {import_.local_name: import_.module_name for import_ in file.imports}
 
 
 def _normalize_source(source: str) -> str:
@@ -298,7 +309,8 @@ def parse_viba_file(pool: VibaPool, source: str, file_name: str, module_name: st
 
 
 def _build_file(pool: VibaPool, tree, file_name: str, module_name: str, file_hash: str) -> VibaFileDescriptor:
-    module = CustomModuleType(tree, pool.module_environment)
+    module = CustomModuleType(tree, pool.module_environment,
+                              _import_locals_for(tree))
     imports = []
     definitions = []
     for stmt in tree.body:

@@ -173,26 +173,44 @@ class CustomModuleType(ModuleType):
 
     $module_environment answers `module_name -> Result[ModuleType]`
     for cross-module references; returning Err ends resolution.
+
+    $imports maps a file's import local name to the module it names, so a
+    written name that carries an import prefix (`d.Report` under
+    `import a.b as d`) lands on the definition it really points at.
     """
 
     def __init__(
         self,
         module: viba_ast.Module,
         module_environment: Callable[[str], Result] = None,
+        imports: dict = None,
     ):
         self.module = module
         if module_environment is None:
             module_environment = lambda name: Err(f"module {name!r} not found")
         self.module_environment = module_environment
+        self.imports = dict(imports or {})
 
     def lookup_local(self, type_name: str) -> Result:
-        """Find a top-level definition by name (no environment fallback)."""
+        """Find a top-level definition by name; failing that, through this
+        file's imports. The environment is not consulted for either."""
         named = (d for d in self.module.body
             if _is_definition(d) and d.name == type_name)
         found = next(named, None)
-        if found is None:
+        if found is not None:
+            return Ok(AstNodeType(found, self))
+        return self._lookup_imported(type_name)
+
+    def _lookup_imported(self, type_name: str) -> Result:
+        """`d.Name`: the prefix is one of this file's imports, so the name is
+        that module's own. Longer prefixes recurse through that module."""
+        prefix, dot, rest = type_name.partition(".")
+        if not dot or prefix not in self.imports:
             return Err(f"no type named {type_name!r} in module")
-        return Ok(AstNodeType(found, self))
+        imported = self.module_environment(self.imports[prefix])
+        if isinstance(imported, Err):
+            return Err(f"{prefix!r} names {self.imports[prefix]!r}: {imported.err_msg}")
+        return imported.ok_value.lookup_local(rest)
 
 
 def _is_definition(node) -> bool:
