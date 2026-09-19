@@ -37,6 +37,11 @@ def unparse_module(tree: Module, indent: int = 2) -> str:
     return "\n\n".join(_unparse_type(d, indent, 0) for d in definitions)
 
 
+def unparse_type(node: AST, indent: int = 2) -> str:
+    """Convert a single type expression to Viba source."""
+    return _unparse_type(node, indent, 0)
+
+
 def _unparse_type(node: AST, indent: int, depth: int) -> str:
     """Convert a single node to Viba code."""
 
@@ -51,7 +56,7 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
         Sum=lambda s: _unparse_binary(s, " | ", indent, depth),
         Product=lambda p: _unparse_binary(p, " * ", indent, depth),
         Exponent=lambda e: _unparse_exponent(e, indent, depth),
-        Tagged=lambda t: f"{unparse_tag(t)}{_tagged_body_parens(t.type, _unparse_type(t.type, indent, depth))}",
+        Tagged=lambda t: f"{unparse_tag(t)}{_tagged_body_parens(t.type, _unparse_type(t.type, indent, depth), ' ' * (indent * depth))}",
         TypeApp=lambda a: _unparse_typeapp(a, indent, depth),
         Tuple=lambda t: _unparse_tuple(t, indent, depth),
         TypeRef=lambda r: r.name,
@@ -68,15 +73,17 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
 
 def _unparse_type_definition(defn: TypeDefinition, indent: int, depth: int) -> str:
     """Unparse a TypeDefinition (no generic parameters)."""
-    body = _unparse_type(defn.body, indent, depth + 1)
-    return f"{defn.name} :=\n{' ' * indent * (depth + 1)}{body}"
+    prefix = " " * (indent * (depth + 1))
+    body = _dedent(_unparse_type(defn.body, indent, depth + 1), prefix)
+    return f"{defn.name} :=\n{prefix}{body}"
 
 
 def _unparse_generic_definition(defn: GenericDefinition, indent: int, depth: int) -> str:
     """Unparse a GenericDefinition."""
     params = "[" + ", ".join(defn.generic_params) + "]"
-    body = _unparse_type(defn.body, indent, depth + 1)
-    return f"{defn.name}{params} :=\n{' ' * indent * (depth + 1)}{body}"
+    prefix = " " * (indent * (depth + 1))
+    body = _dedent(_unparse_type(defn.body, indent, depth + 1), prefix)
+    return f"{defn.name}{params} :=\n{prefix}{body}"
 
 
 def _unparse_import(import_node: Import) -> str:
@@ -122,13 +129,20 @@ def _unparse_typeapp(app_node: TypeApp, indent: int, depth: int) -> str:
     if not app_node.args:
         return app_node.constructor
 
-    args = ", ".join(_unparse_type(arg, indent, depth + 1) for arg in app_node.args)
+    args = ", ".join(
+        _dedent(_unparse_type(arg, indent, depth + 1), " " * (indent * (depth + 1)))
+        for arg in app_node.args)
     return f"{app_node.constructor}[{args}]"
 
 
 def _unparse_tuple(tuple_node: Tuple, indent: int, depth: int) -> str:
-    """Unparse a Tuple: (A, B, C)."""
+    """Unparse a Tuple: (A, B, C), and (A,) for a tuple of one.
+
+    One element needs the comma: `(A)` is just `A` when it is read back.
+    """
     args = ", ".join(_unparse_type(e, indent, depth + 1) for e in tuple_node.elements)
+    if len(tuple_node.elements) == 1:
+        args += ","
     return f"({args})"
 
 
@@ -156,19 +170,20 @@ def _unparse_sumchain(chain: SumChain, indent: int, depth: int) -> str:
     if not chain.elements:
         return "never"
 
-    base_indent = " " * (indent * depth)
-    elem_indent = " " * (indent * (depth + 1))
+    line_indent = " " * (indent * depth)
+    inner_indent = " " * (indent * (depth + 1))
 
     lines = []
     for i, elem in enumerate(chain.elements):
-        elem_str = _unparse_type(elem, indent, depth + 1)
-        # 同种运算的支链要留着括号：平着写会被重新解析回主链里去。
+        elem_str = _dedent(_unparse_type(elem, indent, depth + 1), inner_indent)
+        # A same-kind branch keeps its parentheses: written flat it would be
+        # read back as part of the main chain.
         if isinstance(elem, SumChain):
             elem_str = f"({elem_str})"
         if i == 0:
-            lines.append(f"{base_indent}{elem_str}")
+            lines.append(f"{line_indent}{elem_str}")
         else:
-            lines.append(f"{elem_indent}| {elem_str}")
+            lines.append(f"{line_indent}| {elem_str}")
 
     return "\n".join(lines)
 
@@ -178,12 +193,12 @@ def _unparse_productchain(chain: ProductChain, indent: int, depth: int) -> str:
     if not chain.elements:
         return "nil"
 
-    base_indent = " " * (indent * depth)
-    elem_indent = " " * (indent * (depth + 1))
+    line_indent = " " * (indent * depth)
+    inner_indent = " " * (indent * (depth + 1))
 
     lines = []
     for i, elem in enumerate(chain.elements):
-        elem_str = _unparse_type(elem, indent, depth + 1)
+        elem_str = _dedent(_unparse_type(elem, indent, depth + 1), inner_indent)
         # `*` binds tighter than `|`, so a bare sum element would split the
         # product on reparse: `(A | B) * C` must keep its parentheses.
         # A same-kind branch chain (`A * (B * C)`) needs them for the same
@@ -192,9 +207,9 @@ def _unparse_productchain(chain: ProductChain, indent: int, depth: int) -> str:
         if isinstance(elem, (SumChain, ProductChain)):
             elem_str = f"({elem_str})"
         if i == 0:
-            lines.append(f"{base_indent}{elem_str}")
+            lines.append(f"{line_indent}{elem_str}")
         else:
-            lines.append(f"{elem_indent}* {elem_str}")
+            lines.append(f"{line_indent}* {elem_str}")
 
     return "\n".join(lines)
 
@@ -204,8 +219,8 @@ def _unparse_exponentchain(chain: ExponentChain, indent: int, depth: int) -> str
     if not chain.elements:
         return "never"
 
-    base_indent = " " * (indent * depth)
-    arg_indent = " " * (indent * (depth + 1))
+    line_indent = " " * (indent * depth)
+    inner_indent = " " * (indent * (depth + 1))
 
     # `<-` binds tighter than `|` and `*`, so any composite result or
     # argument must be parenthesized to preserve the grouping.
@@ -216,15 +231,25 @@ def _unparse_exponentchain(chain: ExponentChain, indent: int, depth: int) -> str
 
     lines = []
     result_str = _parenthesize(
-        chain.elements[0], _unparse_type(chain.elements[0], indent, depth)
+        chain.elements[0],
+        _dedent(_unparse_type(chain.elements[0], indent, depth + 1), inner_indent),
     )
-    lines.append(f"{base_indent}{result_str}")
+    lines.append(f"{line_indent}{result_str}")
 
     for arg in chain.elements[1:]:
-        arg_str = _parenthesize(arg, _unparse_type(arg, indent, depth + 1))
-        lines.append(f"{arg_indent}<- {arg_str}")
+        arg_str = _parenthesize(
+            arg, _dedent(_unparse_type(arg, indent, depth + 1), inner_indent))
+        lines.append(f"{line_indent}<- {arg_str}")
 
     return "\n".join(lines)
+
+
+def _dedent(text: str, prefix: str) -> str:
+    """Drop the first line's own indentation: the caller places that line."""
+    first, newline, rest = text.partition("\n")
+    if prefix and first.startswith(prefix):
+        first = first[len(prefix):]
+    return first + newline + rest
 
 
 def _needs_parens(child: AST, parent_name: str, position: str) -> bool:
@@ -257,8 +282,9 @@ def _is_binary(node: AST) -> bool:
     return node.__class__.__name__ in _BINARY_NAMES
 
 
-def _tagged_body_parens(node: AST, unparsed: str) -> str:
+def _tagged_body_parens(node: AST, unparsed: str, prefix: str = "") -> str:
     """Parenthesize a tagged body if it is a binary type or another tag."""
+    unparsed = _dedent(unparsed, prefix)
     if _is_binary(node) or isinstance(node, Tagged):
         return f"({unparsed})"
     return f" {unparsed}"

@@ -51,7 +51,7 @@ __all__ = [
     "Sum", "Product", "Exponent", "Tagged",
     "TypeApp", "Tuple", "TypeRef", "Constant", "Nil", "Never", "Ellipsis",
     "CodeBlock", "SumChain", "ProductChain", "ExponentChain",
-    "parse", "unparse", "canonical", "dump",
+    "parse", "unparse", "unparse_type", "canonical", "dump",
     "convert_to_chain_style", "convert_from_chain_style",
     "iter_child_nodes", "walk", "NodeVisitor", "NodeTransformer",
     "PRODUCT_MARKER", "SUM_MARKER", "rule_definitions", "rule_marker",
@@ -64,6 +64,13 @@ def parse(source: str) -> Module:
 
     program = _ply_parser.parse(source) or []
     return Module(program)
+
+
+def unparse_type(node: AST) -> str:
+    """Convert one type expression (not a whole Module) to Viba source."""
+    from viba.viba_ast.unparse import unparse_type as _unparse_type
+
+    return _unparse_type(node)
 
 
 def canonical(tree: Module) -> Module:
