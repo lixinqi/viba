@@ -29,7 +29,8 @@ from viba.viba_type_descriptor import (
     pool_find_definition,
 )
 from viba.rule.generate_witnesses import generate_witnesses
-from viba.rule.reflect import access, at_index, at_key, by_field_index, by_tag, Witness
+from viba.rule import reflect
+from viba.rule.reflect import at_index, at_key, by_field_index, by_tag, Witness
 from viba.rule.reset_predication_by_python_code import reset_predication_by_python_code
 
 DATA = Path(__file__).resolve().parent / "data" / "rule_coding_style_check"
@@ -54,7 +55,7 @@ class UnderTest:
         found = pool_find_definition(self.pool, f"{self.module_name}.{rule_name}")
         assert isinstance(found, Ok), found
         self.definition = found.value
-        self.accessor = access(self.definition)
+        self.accessor = reflect.access
         self.module = custom_module(self.source)
         self.definitions = {d.name: d for d in self.module.module.body}
         self.rule = AstNodeType(self.definitions[rule_name].body, self.module)
@@ -63,7 +64,7 @@ class UnderTest:
 
     def drive(self, witness, note: str = "") -> int:
         node = witness.ast_node if isinstance(witness, AstNodeType) else witness
-        rooted = self.accessor.root(Witness(node))
+        rooted = self.accessor.root(self.definition, Witness(node))
         assert isinstance(rooted, Ok), f"{self.path.name} {note}: {rooted!r}"
         walked = self._walk(rooted.value, note)
         # RuleAccess.walk 也是遍历，两者必须给出同一批坐标
@@ -190,7 +191,7 @@ def check_sum_rule() -> int:
         pairs += 1
     # 和类型：数据只落在选中的那一支上
     node = under.accessor.root(
-        Witness(under.witness_definition("SumWitnessPass").ast_node)).value
+        under.definition, Witness(under.witness_definition("SumWitnessPass").ast_node)).value
     assert under.accessor.has(node, by_tag("$small")).value is True
     assert under.accessor.has(node, by_tag("$big")).value is False
     return pairs
@@ -210,7 +211,7 @@ def check_not_rule() -> int:
         pairs += 1
     # not[A] 的外壳两边都在：操作数是一个坐标，三个分支在它下面
     node = under.accessor.root(
-        Witness(under.witness_definition("LawAbidingWitness").ast_node)).value
+        under.definition, Witness(under.witness_definition("LawAbidingWitness").ast_node)).value
     shell = node.by_tag("not_crimes")
     assert under.accessor.has(shell, by_tag("not_operand")).value is True
     operand = shell.get_not_operand()
@@ -224,14 +225,14 @@ def check_broken_rules() -> int:
     pairs = 0
     under = UnderTest(DATA / "broken_rules.viba", "BadRef")
     witness = generate_witnesses(under.rule, 1, seed=1)[0]
-    node = under.accessor.root(Witness(witness.ast_node)).value
+    node = under.accessor.root(under.definition, Witness(witness.ast_node)).value
     member = node.by_tag("x")
     assert not isinstance(under.accessor.leaf(member), Ok)  # Missing 解析不了，更读不出叶子
     pairs += 1
 
     under = UnderTest(DATA / "broken_rules.viba", "BadRule")
     witness = generate_witnesses(under.rule, 1, seed=1)[0]
-    node = under.accessor.root(Witness(witness.ast_node)).value
+    node = under.accessor.root(under.definition, Witness(witness.ast_node)).value
     assert under.accessor.has(node, by_tag("$x")).value is False  # ... 不是数据
     pairs += 1
     return pairs
@@ -303,8 +304,8 @@ def main() -> int:
     # 起点只配成对：给节点就行，版本协议不管
     under = UnderTest(DATA / "demo.viba", "DemoRule")
     witness = generate_witnesses(under.rule, 1, seed=1)[0]
-    assert isinstance(under.accessor.root(Witness(witness.ast_node)), Ok)
-    assert under.accessor.root(Witness(witness.ast_node)).value.data is witness.ast_node
+    assert isinstance(under.accessor.root(under.definition, Witness(witness.ast_node)), Ok)
+    assert under.accessor.root(under.definition, Witness(witness.ast_node)).value.data is witness.ast_node
 
     # 份数跟着语料算：60 条生成规则 × (20+20+200+20) + 几组固定的
     generated = (len(rule_paths) + len(not_paths)) * (WITNESSES_PER_RULE * 3 + MIXED_WITNESSES)
