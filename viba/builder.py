@@ -37,12 +37,13 @@ The operators are the language's operators:
     vb.Name[T] = body           Name[T] := body
     vb.Name = body              Name := body
     vb.Name[arg]                Name[arg], an application
+    vb.Name[()]                 Name[], an application of nothing
     vb.a.b.Name                 a dotted name, e.g. an import's module
     add_import(vb, m, a)        import m as a
 
 Python's own `str` / `int` / `float` / `bool` / `list` / `set` / `dict` are the
-language's names, `None` is `nil`, `...` is the ellipsis, and any other Python
-value is a literal. A Python `list` / `set` / `dict` is the container literal it
+language's names, `int | str` (what Python itself makes of a union) is a sum,
+`None` is `nil`, `...` is the ellipsis, and any other Python value is a literal. A Python `list` / `set` / `dict` is the container literal it
 means — `[a, b]` is `ListLiteral[a, b]`, `{a, b}` is `SetLiteral[a, b]` (written
 in sorted order, a set has none of its own) and `{a: 0}` is
 `DictLiteral[(a, 0)]`, in the order given.
@@ -82,6 +83,7 @@ chains, so `str(vb)` is stable — parse it and unparse it and nothing moves.
 
 from __future__ import annotations
 
+import types
 from typing import List, Optional
 
 from viba import viba_ast
@@ -163,8 +165,9 @@ def _power_argument(value) -> _Expr:
     """
     if isinstance(value, (_Tagged, _Branch)):
         return value
-    if isinstance(value, _Exponent) and all(
-            isinstance(element, _Tagged) for element in value.elements):
+    if isinstance(value, _Exponent):
+        # A chain can only have been built by `**`, and every one of those
+        # checked its own right side already.
         return value
     raise TypeError(
         f"the right side of ** is a tagged field — tag.name(body), or "
@@ -201,6 +204,9 @@ class _Tagged(_Expr):
 class _Tag:
     def __init__(self, name: str):
         self.name = name
+
+    def __repr__(self):
+        return f"tag.{self.name}"
 
     def __call__(self, body) -> _Tagged:
         return _Tagged(self.name, body)
@@ -274,6 +280,9 @@ class _Name(_Expr):
     def __init__(self, path: str, owner: Optional["Builder"] = None):
         object.__setattr__(self, "path", path)
         object.__setattr__(self, "owner", owner)
+
+    def __repr__(self):
+        return self.path
 
     def __setattr__(self, name: str, body) -> None:
         """`vb.a.b = body` is a slip: a definition's name is one name."""
@@ -382,12 +391,17 @@ def _wrap(value) -> _Expr:
     """
     if isinstance(value, _Expr):
         return value
-    if value is None:
+    if value is None or value is type(None):
         return _Nil()
+    if isinstance(value, types.UnionType):
+        # What Python's own `int | str` gives: a sum, branches and all.
+        return _Sum([_wrap(arg) for arg in value.__args__])
     if value is Ellipsis:
         return _Ellipsis()
     if isinstance(value, type) and value in _BUILTIN_NAMES:
         return _Name(_BUILTIN_NAMES[value])
+    if isinstance(value, _Tag):
+        raise TypeError(f"{value!r} is a tag with no body: write {value!r}(body)")
     if isinstance(value, (bool, int, float, str)):
         return _Literal(value)
     if isinstance(value, tuple):
