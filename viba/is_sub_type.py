@@ -38,35 +38,14 @@ alias of what it is written as, and judgment is structural throughout.
   either channel is malformed: the check aborts with Err
   (UnresolvedTypeError caught at the boundary). Unfolding a definition
   body can reach such a name; that is then an Err, not a False.
-- not[A] is never <- $not_operand A, so its operand sits in a
-  contravariant position: never <- B <: never <- A iff A <: B. Written
-  as an exponent, that is the whole rule. What a *witness* writes is
-  evidence rather than a copy: through never <- (A | B) = (never <- A)
-  * (never <- B), the slot at every branch tag must carry a refutation
-  — the poison PredicationFailed, or a field reading as never <- that
-  branch, whose argument is then compared contravariantly (a supertype
-  of the rule's branch is a refutation, which is the same variance as
-  above). A sub that is merely a copy of the prohibition — the same
-  not[...] shell with positive branches — is not evidence, so
-  not[int] <: not[int] is False; the rule layer relies on that: a
-  witness whose assertions failed writes the positive branch back and
-  must not be compliant.
-- Applied generics (TypeApp): a builtin container is its name and its
-  arguments — list / set / dict and the *Literal containers have no
-  body to unfold, so they compare by name and pairwise actuals.
-  Every other constructor names a definition, so one side or both
-  unfold: the body is compared with the formal parameters bound to
-  the actuals through env_get (a TypeRef actual resolves eagerly in
-  its lexical scope). Unfoldings are cached and guarded by a
-  coinductive assumption table keyed on the node and its resolved
-  actuals, so recursive generics terminate. Variance is not declared
-  anywhere: it falls out of where the parameter sits (a parameter
-  under an exponent argument is contravariant, one under a product
-  is covariant).
-  An application whose actuals do not fit the definition's parameters
-  (Pair[int] for Pair[K, V]) cannot unfold; it then compares by
-  constructor name and pairwise actuals, the same rule a builtin
-  container follows.
+- A never-headed chain (never <- A; a prohibition is written as one)
+  is an exponent like any other: result covariant, argument
+  contravariant, so never <- B <: never <- A iff A <: B. When the
+  caller named terminators, two branch readings apply on top: a branch
+  is settled by a terminator or by a field reading as never <- branch,
+  and a sub that is only a copy of a never-headed application settles
+  nothing. With no terminators named, the exponent rule is all there
+  is and never <- B <: never <- B holds.
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
   SetLiteral likewise; DictLiteral[(k, v), ...] of
@@ -113,13 +92,18 @@ _PROD_NODES = (viba_ast.Product, viba_ast.ProductChain)
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 
-def is_sub_type(sub: Type, sup: Type) -> Result:
-    """Ok(True/False) is the judgment; Err reports malformed input."""
+def is_sub_type(sub: Type, sup: Type, terminators=frozenset()) -> Result:
+    """Ok(True/False) is the judgment; Err reports malformed input.
+
+    `terminators` names the written types a never-headed chain accepts
+    where `never` itself would do. The core is told, not told about: which
+    word that is belongs to the layer that uses the chain.
+    """
     err = _input_error(sub, sup)
     if err is not None:
         return Err(err)
     try:
-        return Ok(_Checker().check(sub, sup))
+        return Ok(_Checker(terminators).check(sub, sup))
     except UnresolvedTypeError as exc:
         return Err(str(exc))
 
@@ -136,7 +120,8 @@ def _input_error(sub: Type, sup: Type):
 
 
 class _Checker:
-    def __init__(self):
+    def __init__(self, terminators=frozenset()):
+        self.terminators = frozenset(terminators)
         self.memo: dict = {}
         self._walk_memo: dict = {}
         self._walking: set = set()
@@ -318,9 +303,10 @@ class _Checker:
                 # 应用形的 sub 一样要展开：X[T] := nil 的居民就是 nil。
                 return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
             return type(sn) is type(sp)
-        operand = self._prohibition_operand(sp, p_mod)
-        if operand is not None:
-            return self._walk_prohibition(sn, s_mod, sp, p_mod, operand)
+        if self.terminators:
+            operand = self._never_head_operand(sp, p_mod)
+            if operand is not None:
+                return self._walk_never_head(sn, s_mod, sp, p_mod, operand)
         mixed = self._walk_mixed_typeapp(sn, s_mod, sp, p_mod)
         if mixed is not None:
             return mixed
@@ -330,49 +316,50 @@ class _Checker:
         return self._walk_structural(sn, s_mod, sp, p_mod)
 
     # ------------------------------------------------------------------
-    # 禁止 = never 头的指数链（`not[A]` 的定义体就是它，`never <- …` 是
-    # 直接写出来）。判据是形状，不是名字：三种链一个读法，指向定义时先
-    # 看定义体的形状。
-    # - 外壳：两边都是禁止，分支 tag 对得上，且 sub 的每个分支都是毒剂
-    #   PredicationFailed。
-    # - 逐分支否证：sub 写成带 tag 的积时，按
-    #   never <- (A | B) = (never <- A) * (never <- B)，每个分支 tag 都要
-    #   带上自己的否证（毒剂，或者一个能入席 never <- 那一支的类型），
-    #   缺一支就不算。
-    # - 其余落到普通的指数规则：never <- B <: never <- A 当且仅当 A <: B。
+    # never-headed chains: an exponent chain whose result is never, either
+    # written out (never <- $x T) or reached through a definition's body.
+    # The shape is what counts, not the name.
+    #
+    # A chain reads as a function type, so its argument is contravariant.
+    # Two further readings apply to branches, and both end in a terminator
+    # the caller named (self.terminators):
+    #   - settled: both sides are never-headed, the branch tags match, and
+    #     every sub branch is a terminator;
+    #   - per branch: through never <- (A | B) = (never <- A) * (never <- B),
+    #     the field at every branch tag must be a terminator or read as
+    #     never <- branch, whose argument is then compared contravariantly.
+    # A sub that is only a copy of the never-headed application settles
+    # nothing: the shape is not a terminator. Everything else falls to the
+    # ordinary exponent rule.
     # ------------------------------------------------------------------
 
-    def _walk_prohibition(self, sn, s_mod, sp, p_mod, operand) -> bool:
-        sub_operand = self._prohibition_operand(sn, s_mod)
-        if sub_operand is not None and self._prohibition_shell(sub_operand, operand):
+    def _walk_never_head(self, sn, s_mod, sp, p_mod, operand) -> bool:
+        sub_operand = self._never_head_operand(sn, s_mod)
+        if sub_operand is not None and self._same_branches_settled(sub_operand, operand):
             return True
-        if self._prohibition_evidence(sn, s_mod, operand):
+        if self._branches_settled(sn, s_mod, operand):
             return True
         node, _ = self._unfold_ref(sn, s_mod, "sub")
         if isinstance(sp, viba_ast.TypeApp):
             if isinstance(node, viba_ast.TypeApp):
-                # 两边都写成应用（外壳）：只认全毒剂的外壳，不是指数读法。
-                # 于是 not[A] <: not[A] 是 False——自己是禁止，不构成否证。
+                # Both sides written as applications: a copy settles
+                # nothing, and the shape is not read as an exponent here.
                 return False
-            # 应用形式：展开到定义体（形参代实参）再按指数规则比。
+            # Application form: unfold to the body and use the exponent rule.
             return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
         mixed = self._walk_mixed_typeapp(sn, s_mod, sp, p_mod)
         if mixed is not None:
             return mixed
         return self._walk_exponent(sn, s_mod, sp, p_mod)
 
-    def _prohibition_operand(self, node, module):
-        """(操作数节点, 模块) when this段写成禁止，否则 None。
-
-        应用形式看构造子的定义体（体是 never 头的指数链，操作数是某个形参）；
-        指数形式看链本身：首元 never、第二元是操作数。
-        """
-        operand = self._application_operand(node, module)
+    def _never_head_operand(self, node, module):
+        """(operand node, module) when this piece is a never-headed chain."""
+        operand = self._never_head_application(node, module)
         if operand is not None:
             return operand
-        return self._exponent_operand(node, module)
+        return self._never_head_exponent(node, module)
 
-    def _application_operand(self, node, module):
+    def _never_head_application(self, node, module):
         if not isinstance(node, viba_ast.TypeApp):
             return None
         resolved = self._resolve_name(node.constructor, module, "sup")
@@ -397,7 +384,7 @@ class _Checker:
             return None
         return node.args[index], module
 
-    def _exponent_operand(self, node, module):
+    def _never_head_exponent(self, node, module):
         if not isinstance(node, _EXP_NODES):
             return None
         elements = _exponent_elements(node)
@@ -406,44 +393,40 @@ class _Checker:
         operand = elements[1]
         return (operand.type if isinstance(operand, viba_ast.Tagged) else operand), module
 
-    def _prohibition_shell(self, sub_operand, sup_operand) -> bool:
-        """两边都是禁止：分支 tag 对得上，且 sub 的每个分支都是毒剂。"""
-        sub_node, sub_mod = sub_operand
-        sup_node, sup_mod = sup_operand
-        sup_branches = self._sum_branches(sup_node, sup_mod)
-        sub_branches = self._sum_branches(sub_node, sub_mod)
+    def _same_branches_settled(self, sub_operand, sup_operand) -> bool:
+        """Both sides never-headed: same tags, every sub branch settled."""
+        sub_branches = self._sum_branches(sub_operand[0], sub_operand[1])
+        sup_branches = self._sum_branches(sup_operand[0], sup_operand[1])
         if sup_branches is None or sub_branches is None:
             return False
-        sup_tags = sorted(tag for tag, _, _ in sup_branches)
-        sub_tags = sorted(tag for tag, _, _ in sub_branches)
-        if sup_tags != sub_tags:
+        if sorted(tag for tag, _, _ in sup_branches) != sorted(tag for tag, _, _ in sub_branches):
             return False
-        return all(self._is_poison(branch, mod) for _, branch, mod in sub_branches)
+        return all(self._is_terminator(branch, mod) for _, branch, mod in sub_branches)
 
-    def _is_poison(self, node, module) -> bool:
+    def _is_terminator(self, node, module) -> bool:
         node, module = self._unfold_ref(node, module, "sub")
-        if _is_predication_failed(node):
+        if isinstance(node, viba_ast.Never):
             return True
-        return isinstance(node, viba_ast.Never)
+        return (isinstance(node, viba_ast.TypeApp)
+                and node.constructor in self.terminators)
 
-    def _prohibition_evidence(self, sn, s_mod, sup_operand) -> bool:
+    def _branches_settled(self, sn, s_mod, sup_operand) -> bool:
         branches = self._sum_branches(sup_operand[0], sup_operand[1])
         if branches is None:
             return False
         fields = self._tagged_fields(sn, s_mod)
-        return all(self._branch_evidence(fields.get(tag), b_type, b_mod)
+        return all(self._branch_settled(fields.get(tag), b_type, b_mod)
                    for tag, b_type, b_mod in branches)
 
-    def _branch_evidence(self, field, branch_type, branch_mod) -> bool:
-        """A branch is refuted by the poison PredicationFailed, or by a
-        field that reads as never <- that branch."""
+    def _branch_settled(self, field, branch_type, branch_mod) -> bool:
+        """One branch is settled by a terminator at that tag, or by a field
+        reading as never <- branch whose argument is a supertype of it."""
         if field is None:
             return False
-        node, module = field
-        node, module = self._unfold_ref(node, module, "sub")
-        if self._is_poison(node, module):
+        node, module = self._unfold_ref(field[0], field[1], "sub")
+        if self._is_terminator(node, module):
             return True
-        meaning = self._function_argument(node, module)
+        meaning = self._never_head_operand(node, module)
         if meaning is None:
             return False
         sub_arg, sub_mod = meaning
@@ -453,15 +436,9 @@ class _Checker:
         finally:
             self._swap_envs()
 
-    def _function_argument(self, node, module):
-        """(argument, module) when node reads as never <- argument: a
-        prohibition application, or an exponent whose result is never."""
-        node, module = self._unfold_ref(node, module, "sub")
-        return self._prohibition_operand(node, module)
-
     def _sum_branches(self, node, module):
-        """[(tag, body, module)] for a not argument; None when a branch
-        is not tagged, since only a tag can hold a never-arrow."""
+        """[(tag, body, module)] for the operand of a never-headed chain;
+        None when a branch is untagged, since only a tag can hold one."""
         out = []
         stack = [(node, module)]
         while stack:
@@ -836,12 +813,6 @@ class _Checker:
 # ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------
-
-
-def _is_predication_failed(node) -> bool:
-    """The poison: a failed predication, named by its constructor. It
-    is the required refutation evidence at a not branch."""
-    return isinstance(node, viba_ast.TypeApp) and node.constructor == "PredicationFailed"
 
 
 def _as_definition(node):

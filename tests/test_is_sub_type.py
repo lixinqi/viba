@@ -424,43 +424,26 @@ Pair[K, V] := $key K * $value V
                  "an application with no body to unfold is not nil either")
 
 
-def run_prohibition_shape_cases():
-    """A prohibition application is the shell, not the exponent."""
+def run_never_head_cases():
+    """Without terminators named, a never-headed chain is just an exponent."""
     module = custom_module("""
 not[A] := never <- $not_operand A
-Num := int | float
+P := int
 """)
 
     def judge(sub, sup):
         return is_sub_type(entry_type(sub, module), entry_type(sup, module))
 
-    check_result(judge("not[int]", "not[int]"), False,
-                 "a copy of the prohibition is not evidence")
-    check_result(judge("not[int]", "not[int | str]"), False,
-                 "nor is a wider one")
-    check_result(judge("not[int | str]", "not[int]"), False,
-                 "nor a narrower one")
-    check_result(judge("not[Num]", "not[int]"), False,
-                 "nor one whose operand is an alias")
-    check_result(judge("never <- $not_operand int", "never <- $not_operand int"), True,
-                 "written as an exponent, the exponent case reads it")
-    check_result(judge("not[int]", "never <- $not_operand int"), True,
-                 "an application sub against an exponent sup is the same shape")
-
-
-def run_not_cases():
-    """50 not[...] cases, one sub/sup .viba pair each (data/not)."""
-    base = DATA / "not"
-    expected = {}
-    for line in (base / "expected.txt").read_text().splitlines():
-        num, _, want = line.partition(" ")
-        if num:
-            expected[num] = parse_want(want)
-    for sup_path in sorted(base.glob("sup*.viba")):
-        num = sup_path.stem[3:]
-        sub_e = load_entry((base / f"sub{num}.viba").read_text())
-        sup_e = load_entry(sup_path.read_text())
-        check_result(is_sub_type(sub_e, sup_e), expected[num], f"not case {num}")
+    check_result(judge("not[P]", "not[P]"), True,
+                 "the core judges it as an exponent: reflexivity holds")
+    check_result(judge("$a (never <- P)", "not[$a P]"), False,
+                 "a product is not that exponent")
+    check_result(judge("never <- $not_operand P", "never <- $not_operand P"), True,
+                 "written as an exponent: reflexivity holds")
+    check_result(judge("never <- $not_operand (P | str)", "never <- $not_operand P"), True,
+                 "the argument is contravariant: a wider one is accepted")
+    check_result(judge("never <- $not_operand P", "never <- $not_operand (P | str)"), False,
+                 "a narrower one is not")
 
 
 def run_canonical_chain_cases():
@@ -550,8 +533,7 @@ run_literal_alias_cases()
 run_structural_generic_cases()
 run_recursive_generic_cases()
 run_unit_alias_cases()
-run_prohibition_shape_cases()
-run_not_cases()
+run_never_head_cases()
 run_canonical_chain_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")

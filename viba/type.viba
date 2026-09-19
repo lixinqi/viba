@@ -52,14 +52,17 @@ IsSubType :=
     Err（UnresolvedTypeError 在边界转为 Err）。
     指数参数交换模块时 env 随之交换：自由名永远经自己语法一侧的
     env_get 解析。
-    禁止（never 头的指数链，not[A] 与 never <- $not_operand A 是同一件事，
-    判据是形状不是名字）三条读法：两边都写成应用形式（外壳）时，
-    分支 tag 要对得上且 sub 的每个分支都是毒剂 PredicationFailed；
-    sub 写成带 tag 的积时按 never <- (A | B) = (never <- A) * (never <- B)
-    读，每个分支 tag 必须带上自己分支的否证（毒剂，或一个能入席那一支
-    的类型），缺一支就不算；其余按指数规则比——never <- B <: never <- A
-    当且仅当 A <: B。写名字（含泛型形参）的叶子按名字解析后比，
-    nil <: x（x := nil）为真。
+    never 头的指数链（never <- A；禁止就写成它）与别的指数一样：结果
+    协变、参数逆变，never <- B <: never <- A 当且仅当 A <: B。核心不知道
+    这一支该用什么词收尾：调用方把终止子（terminators）传进来，核心只按
+    形状认链——两边都是 never 头且分支 tag 对得上时，sub 的每一支都得是
+    终止子才算数；sub 写成带 tag 的积时按
+    never <- (A | B) = (never <- A) * (never <- B) 读，每个分支 tag 都要
+    带上一个终止子，或一个能入席 never <- 那一支的类型（参数按逆变比），
+    缺一支就不算；只把禁止自己抄一遍不算数。不传终止子时只剩指数规则
+    （于是 never <- B <: never <- B 为真）。哪个词是终止子属于用它那一层，
+    规则层给的是 PredicationFailed。
+    写名字（含泛型形参）的叶子按名字解析后比，nil <: x（x := nil）为真。
     没有名义类型：定义名是它所写之物的别名，一律结构比较。
     TypeApp 两侧俱在时也展开：泛型体以 env_get 绑定形参-实参后
     参与比较（TypeRef 实参在词法作用域即刻解析；常量/单位元实参

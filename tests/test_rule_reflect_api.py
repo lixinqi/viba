@@ -45,7 +45,7 @@ from viba.rule.reflect import (
 
 _RULES = Path(__file__).resolve().parent / "data" / "rule_coding_style_check"
 _NOT_RULES = _RULES / "not_rules"
-_NOT_CASES = Path(__file__).resolve().parent / "data" / "is_sub_type" / "not"
+_NOT_CASES = Path(__file__).resolve().parent / "data" / "rule_refutation" / "not"
 _CASES = Path(__file__).resolve().parent / "data" / "type_descriptor" / "case_000"
 
 
