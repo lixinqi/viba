@@ -71,7 +71,7 @@ latest_file[Ctx] :=
 | `vb.Name[T, U] = body` | `Name[T, U] := body` |
 | `vb.Name` | `Name` |
 | `vb.a.b.Name` | `a.b.Name` |
-| `vb.Name[arg, arg]` | `Name[arg, arg]` |
+| `vb.Name[arg0, arg1]` | `Name[arg0, arg1]` |
 | `vb.Name[()]` | `Name[]` |
 | `A \| B` | `A \| B`（和） |
 | `A * B` | `A * B`（积） |

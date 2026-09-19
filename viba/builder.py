@@ -36,7 +36,7 @@ The operators are the language's operators:
     vb.Name      a written name, and the slot a definition lands in
     vb.Name[T] = body           Name[T] := body
     vb.Name = body              Name := body
-    vb.Name[arg]                Name[arg], an application
+    vb.Name[arg0, arg1]         Name[arg0, arg1], an application
     vb.Name[()]                 Name[], an application of nothing
     vb.a.b.Name                 a dotted name, e.g. an import's module
     add_import(vb, m, a)        import m as a
