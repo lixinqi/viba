@@ -923,6 +923,81 @@ def test_api_witness_case_001():
 
 
 # ----------------------------------------------------------------------
+# 写材料要用的两块：成员换算成步子、槽位让不让 nil
+# ----------------------------------------------------------------------
+
+
+def test_api_member_steps_case_001():
+    """有 tag 的按 tag、没 tag 的按位置，顺序就是成员的顺序。"""
+    m = _materials()
+    steps = reflect.access.member_steps(m.demo_node)
+    assert [tag for tag, _, _ in steps] == [
+        "$code_length", "$coverage", "$keywords", "$assert_code_len_le_24"]
+    assert [repr(step) for _, step, _ in steps] == [
+        "by_tag('$code_length')", "by_tag('$coverage')", "by_tag('$keywords')",
+        "by_tag('$assert_code_len_le_24')"]
+
+
+def test_api_member_steps_case_002():
+    """位置成员自己数自己的：tag 的不占号。"""
+    m = _materials()
+    steps = reflect.access.member_steps(m.shape_node)
+    assert [(tag, repr(step)) for tag, step, _ in steps] == [
+        (None, "by_field_index(0)"), (None, "by_field_index(1)")]
+
+
+def test_api_member_steps_case_003():
+    """拿到的步子就是 VibaGet 收的步子，直接走得通。"""
+    m = _materials()
+    for _, step, _ in reflect.access.member_steps(m.demo_node):
+        assert isinstance(reflect.access.get(m.demo_node, step), Ok)
+
+
+def test_api_member_steps_case_004():
+    """不是积/和的那一段没有成员，步子表是空的。"""
+    m = _materials()
+    assert reflect.access.member_steps(m.node1_node.by_tag("items")) == []
+
+
+def test_api_carries_nil_case_001():
+    """和里有一支是 nil：这个槽位让 nil。"""
+    m = _materials()
+    body = viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$maybe", viba_ast.Nil()),
+    ])
+    node = m.node1_access.root(m.node1, Witness(body)).ok_value
+    assert reflect.access.carries_nil(node.get_maybe().descriptor) is True
+
+
+def test_api_carries_nil_case_002():
+    """不是和就不让 nil。"""
+    m = _materials()
+    assert reflect.access.carries_nil(m.demo_node.descriptor) is False
+
+
+def test_api_carries_nil_case_003():
+    """别名与泛型应用先展开再看。"""
+    pool = empty_pool()
+    parsed = parse_viba_file(pool, "Maybe[T] := T | nil\nPlain[T] := T\n"
+                                   "Holder := Object * $a Maybe[int] * $b Plain[int]\n",
+                             "holder.viba", "holder")
+    pool = pool_add_file(pool, parsed.ok_value).ok_value
+    definition = pool_find_definition(pool, "holder.Holder").ok_value
+    node = reflect.access.root(definition, Witness(viba_ast.TypeRef("Object"))).ok_value
+    fields = {tag: descriptor
+              for tag, _, descriptor in reflect.access.member_steps(node)}
+    assert reflect.access.carries_nil(fields["$a"]) is True
+    assert reflect.access.carries_nil(fields["$b"]) is False
+
+
+def test_api_carries_nil_case_004():
+    """容器是名字而不是和，不让 nil。"""
+    m = _materials()
+    assert reflect.access.carries_nil(m.node1_node.get_items().descriptor) is False
+
+
+# ----------------------------------------------------------------------
 # 跑
 # ----------------------------------------------------------------------
 

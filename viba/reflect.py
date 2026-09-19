@@ -323,7 +323,7 @@ class VibaNode:
         names = ["value", "leaf", "is_list", "is_set", "is_dict",
                  "keys", "values", "items", "path", "descriptor", "data"]
         positional = 0
-        for tag, _ in self._access._members(self) or []:
+        for tag, _, _ in self._access.member_steps(self):
             if tag:
                 short = tag[1:]
                 names += [f"get_{short}", f"has_{short}", f"try_get_{short}"]
@@ -564,6 +564,18 @@ class VibaAccess:
         return _build_type(descriptor.payload.pool, target.container_module,
                            target.ast_node.body)
 
+    def carries_nil(self, descriptor: VibaTypeDescriptor) -> bool:
+        """Whether this written type admits nil.
+
+        Unfolded, that is a sum with a branch that is the product unit: a
+        writer asking whether a slot with no value may be written `nil`.
+        """
+        shape = self._unfold(descriptor)
+        if shape.kind != SUM:
+            return False
+        return any(self._is_unit_descriptor(element)
+                   for element in shape.payload.elements)
+
     def _container_kind(self, descriptor: VibaTypeDescriptor) -> Optional[str]:
         """The three builtin containers list / set / dict; a tuple is not one, it
         is a product matched by position."""
@@ -583,6 +595,22 @@ class VibaAccess:
         """The members of this piece: [(tag or None, descriptor), ...], None when
         it has none."""
         return self._design_members(node.descriptor)
+
+    def member_steps(self, node: VibaNode) -> List[tuple]:
+        """[(tag or None, that step, descriptor)]: the members of this piece,
+        each with the step that takes you there; a None tag goes by position.
+
+        The step is what VibaGet takes, so a writer walks a material the same
+        way a reader does.
+        """
+        out, positional = [], 0
+        for tag, descriptor in self._members(node) or []:
+            if tag:
+                out.append((tag, by_tag(tag), descriptor))
+            else:
+                out.append((None, by_field_index(positional), descriptor))
+                positional += 1
+        return out
 
     def _design_members(self, descriptor: VibaTypeDescriptor) -> Optional[List[tuple]]:
         """Same, straight from a design descriptor.
@@ -849,13 +877,7 @@ class VibaAccess:
     def _walk(self, node: VibaNode) -> List[VibaNode]:
         """Walk every address reachable on this map."""
         out = [node]
-        positional = 0
-        for tag, _ in self._members(node) or []:
-            if tag:
-                step = by_tag(tag)
-            else:
-                step = by_field_index(positional)
-                positional += 1
+        for _, step, _ in self.member_steps(node):
             given = self.get(node, step)
             if isinstance(given, Ok) and given.ok_value is not None:
                 out += self._walk(given.ok_value)
