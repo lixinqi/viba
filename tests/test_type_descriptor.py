@@ -46,9 +46,9 @@ def build_pool(case_dir: Path, expected: dict):
         source = (case_dir / module["file"]).read_text()
         parsed = parse_viba_file(pool, source, module["file"], module["module"])
         assert isinstance(parsed, Ok), (case_dir, module["module"], parsed)
-        added = pool_add_file(pool, parsed.value)
+        added = pool_add_file(pool, parsed.ok_value)
         assert isinstance(added, Ok), (case_dir, module["module"], added)
-        pool = added.value
+        pool = added.ok_value
     return pool
 
 
@@ -65,7 +65,7 @@ def check_case(case_dir: Path):
         source = (case_dir / module["file"]).read_text()
         found = pool_find_file(pool, module["file"])
         assert isinstance(found, Ok), (case_dir, module["file"], found)
-        file = found.value
+        file = found.ok_value
         assert file.module_name == module["module"]
         assert file.file_hash == hashlib.sha256(_normalize(source).encode("utf-8")).hexdigest()
         assert [(i.module_name, i.local_name) for i in file.imports] == \
@@ -76,38 +76,38 @@ def check_case(case_dir: Path):
         for wanted in module["definitions"]:
             found_def = pool_find_definition(pool, wanted["full_name"])
             assert isinstance(found_def, Ok), (case_dir, wanted["full_name"])
-            definition = found_def.value
+            definition = found_def.ok_value
             assert definition.generic_params == wanted["generic_params"]
             assert definition.body.pool is pool
-            assert definition_file(definition).value.file_name == module["file"]
+            assert definition_file(definition).ok_value.file_name == module["file"]
 
-            members = definition_members(definition).value
+            members = definition_members(definition).ok_value
             assert len(members) == len(wanted["members"]), (case_dir, wanted["full_name"])
             for truth, member in zip(wanted["members"], members):
                 assert member.member_index == truth["index"]
                 assert member.tag == truth["tag"], (case_dir, truth, member.tag)
                 assert member.pool is pool
                 assert member.member_type.kind == truth["kind"], (case_dir, truth)
-                assert member_containing_definition(member).value.full_name == wanted["full_name"]
+                assert member_containing_definition(member).ok_value.full_name == wanted["full_name"]
 
                 written = member_type_name(member)
                 if truth["type_name"] is None:
                     assert isinstance(written, Err), (case_dir, truth, written)
                 else:
-                    assert isinstance(written, Ok) and written.value == truth["type_name"], (case_dir, truth)
+                    assert isinstance(written, Ok) and written.ok_value == truth["type_name"], (case_dir, truth)
 
                 resolved = member_resolved_definition(member)
                 if truth["resolved"] is None:
                     assert isinstance(resolved, Err), (case_dir, truth, resolved)
                 else:
-                    assert isinstance(resolved, Ok) and resolved.value.full_name == truth["resolved"], \
+                    assert isinstance(resolved, Ok) and resolved.ok_value.full_name == truth["resolved"], \
                         (case_dir, truth, resolved)
 
-                assert definition_find_member_by_index(definition, member.member_index).value is member
+                assert definition_find_member_by_index(definition, member.member_index).ok_value is member
                 if truth["tag"]:
-                    assert definition_find_member_by_tag(definition, truth["tag"]).value is member
+                    assert definition_find_member_by_tag(definition, truth["tag"]).ok_value is member
                     full = f"{wanted['full_name']}.{truth['tag']}"
-                    assert pool_find_member(pool, full).value is member
+                    assert pool_find_member(pool, full).ok_value is member
                 checked_members += 1
 
             assert isinstance(definition_find_member_by_tag(definition, "$nope"), Err)
@@ -122,7 +122,7 @@ def check_case(case_dir: Path):
     assert isinstance(file_find_import_by_local_name(pool.file_name2file[first["file"]], "nope"), Err)
     assert isinstance(pool_add_file(pool, pool.files[0]), Err)  # 同一个文件加两次
     elsewhere = parse_viba_file(empty_pool(), "X := int\n", "elsewhere.viba", "elsewhere")
-    assert isinstance(pool_add_file(pool, elsewhere.value), Err)  # 别的池子建出来的
+    assert isinstance(pool_add_file(pool, elsewhere.ok_value), Err)  # 别的池子建出来的
 
     return len(expected["modules"]), checked_members
 
@@ -135,8 +135,8 @@ def run():
     pool = empty_pool()
     named = parse_viba_file(pool, "A := int\n", "deep/dir/x.viba", "some.module")
     assert isinstance(named, Ok)
-    assert named.value.file_name == "deep/dir/x.viba"
-    assert named.value.module_name == "some.module"
+    assert named.ok_value.file_name == "deep/dir/x.viba"
+    assert named.ok_value.module_name == "some.module"
 
     files = members = 0
     for case_dir in case_dirs:

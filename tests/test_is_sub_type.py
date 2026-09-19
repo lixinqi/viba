@@ -47,9 +47,9 @@ def check_result(result, want, label: str):
     if want == "error":
         ok, got = isinstance(result, Err), type(result).__name__
     elif isinstance(result, Ok):
-        ok, got = result.value is want, repr(result.value)
+        ok, got = result.ok_value is want, repr(result.ok_value)
     else:
-        ok, got = False, f"Err({result.message!r})"
+        ok, got = False, f"Err({result.err_msg!r})"
     if ok:
         PASS += 1
     else:
@@ -314,7 +314,7 @@ def run_suite_reflexivity():
         if isinstance(result, Err):
             skipped += 1  # parser cases need not be closed judgments
             continue
-        check(result.value, True, f"suite reflexive {src!r}")
+        check(result.ok_value, True, f"suite reflexive {src!r}")
         count += 1
     print(f"bulk reflexivity on {count} suite definitions ({skipped} skipped)")
 

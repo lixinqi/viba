@@ -16,24 +16,28 @@ from viba import viba_ast
 
 
 # ----------------------------------------------------------------------
-# Result (cf. Result[T] := $ok T | $err str)
+# Result (cf. Result[T] := Oneof | $ok ($ok_value T) | $err ($err_msg str))
 # ----------------------------------------------------------------------
 
 
 class Ok:
-    def __init__(self, value):
-        self.value = value
+    """The $ok branch: its payload is ok_value."""
+
+    def __init__(self, ok_value):
+        self.ok_value = ok_value
 
     def __repr__(self):
-        return f"Ok({self.value!r})"
+        return f"Ok({self.ok_value!r})"
 
 
 class Err:
-    def __init__(self, message: str):
-        self.message = message
+    """The $err branch: its payload is err_msg."""
+
+    def __init__(self, err_msg: str):
+        self.err_msg = err_msg
 
     def __repr__(self):
-        return f"Err({self.message!r})"
+        return f"Err({self.err_msg!r})"
 
 
 Result = Union[Ok, Err]
@@ -249,11 +253,11 @@ def _lookup_custom(module: CustomModuleType, type_name: str) -> Result:
         return local
     via_env = module.module_environment(type_name)
     if isinstance(via_env, Ok):
-        return module_get_type(via_env.value, type_name)
+        return module_get_type(via_env.ok_value, type_name)
     builtin = BUILTIN_MODULE.lookup(type_name)
     if isinstance(builtin, Ok):
         return builtin
-    return Err(f"type {type_name!r} unresolved: {local.message}; {via_env.message}")
+    return Err(f"type {type_name!r} unresolved: {local.err_msg}; {via_env.err_msg}")
 
 
 # ----------------------------------------------------------------------

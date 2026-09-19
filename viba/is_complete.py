@@ -92,10 +92,10 @@ def _add_file(pool, file_name: str, module_name: str, source: str):
     parsed = parse_viba_file(pool, source, file_name, module_name)
     if isinstance(parsed, Err):
         return None
-    added = pool_add_file(pool, parsed.value)
+    added = pool_add_file(pool, parsed.ok_value)
     if isinstance(added, Err):
         return None
-    return added.value
+    return added.ok_value
 
 
 def _dependencies(library, viba_paths) -> List[Tuple[str, str, str]]:
@@ -164,7 +164,7 @@ class _Checker:
         module = self.pool.module_environment(module_name)
         if isinstance(module, Err):
             return {}
-        return {node.name: node for node in module.value.module.body
+        return {node.name: node for node in module.ok_value.module.body
                 if _is_definition(node)}
 
     def _resolve(self, name: str, module_name: str):
@@ -177,13 +177,13 @@ class _Checker:
             imported = file_find_import_by_local_name(file, local)
             if isinstance(imported, Err):
                 return None
-            module_name, name = imported.value.module_name, rest
+            module_name, name = imported.ok_value.module_name, rest
         node = self._definitions_of(module_name).get(name)
         if node is not None:
             return node, module_name
         builtin = BUILTIN_MODULE.lookup(name)
-        if isinstance(builtin, Ok) and isinstance(builtin.value, AstNodeType):
-            return builtin.value.ast_node, BUILTIN_MODULE_NAME
+        if isinstance(builtin, Ok) and isinstance(builtin.ok_value, AstNodeType):
+            return builtin.ok_value.ast_node, BUILTIN_MODULE_NAME
         return None  # not a definition (a builtin scalar and the like)
 
     # ---- the walk itself ----

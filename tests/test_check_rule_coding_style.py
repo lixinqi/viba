@@ -47,7 +47,7 @@ def _entry(module, name: str):
 def _judgment(module, sub_name: str, sup_name: str):
     result = is_sub_type(_entry(module, sub_name), _entry(module, sup_name))
     assert isinstance(result, Ok), f"{sub_name} <: {sup_name}: {result!r}"
-    return result.value
+    return result.ok_value
 
 
 def main():
@@ -59,7 +59,7 @@ def main():
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
     assert names == ["DemoRule"], f"rule markers: {names}"
     spec = check_rule_coding_style(_entry(module, "DemoRule"))
-    assert isinstance(spec, Ok) and spec.value is None, f"rule style check: {spec!r}"
+    assert isinstance(spec, Ok) and spec.ok_value is None, f"rule style check: {spec!r}"
     print("rule coding style: round-trip + style check + 2 judgment checks + marker scan passed")
 
 

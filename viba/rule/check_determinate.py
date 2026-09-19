@@ -33,5 +33,5 @@ def check_determinate(rule, count: int, seed=None):
             return Err(f"witness #{index}: predicate raised {exc!r}")
         judged = is_compliant(witness, rule)
         if isinstance(judged, Err):
-            return Err(f"witness #{index}: {judged.message}")
+            return Err(f"witness #{index}: {judged.err_msg}")
     return Ok(None)

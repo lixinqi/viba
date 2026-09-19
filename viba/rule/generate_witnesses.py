@@ -77,8 +77,8 @@ def _gen_typeapp(node, module: ModuleType, rng, fail_prob: float):
     if node.constructor == "not":
         return _not_witness(node, module, rng, fail_prob)
     resolved = module_get_type(module, node.constructor)
-    if isinstance(resolved, Ok) and isinstance(resolved.value, BuiltinGenericType):
-        return _container_literal(node, resolved.value, module, rng, fail_prob)
+    if isinstance(resolved, Ok) and isinstance(resolved.ok_value, BuiltinGenericType):
+        return _container_literal(node, resolved.ok_value, module, rng, fail_prob)
     return node
 
 
@@ -132,9 +132,9 @@ def _unfold(node, module: ModuleType):
     if not isinstance(node, viba_ast.TypeRef):
         return node, module
     resolved = module_get_type(module, node.name)
-    if not isinstance(resolved, Ok) or not isinstance(resolved.value, AstNodeType):
+    if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
         return node, module
-    target = resolved.value
+    target = resolved.ok_value
     if not isinstance(target.ast_node, viba_ast.TypeDefinition):
         return node, module
     return target.ast_node.body, target.container_module
@@ -166,7 +166,7 @@ def _typed_literal(node, module: ModuleType, rng, fail_prob):
     if isinstance(node, viba_ast.TypeRef):
         resolved = module_get_type(module, node.name)
         if isinstance(resolved, Ok):
-            return _literal_of_type(resolved.value, rng, fail_prob)
+            return _literal_of_type(resolved.ok_value, rng, fail_prob)
     return _gen_node(node, module, rng, fail_prob)
 
 
@@ -177,7 +177,7 @@ def _metric_literal(name_node, module: ModuleType, rng, fail_prob):
     if isinstance(name_node, viba_ast.TypeRef):
         resolved = module_get_type(module, name_node.name)
         if isinstance(resolved, Ok):
-            literal = _literal_of_type(resolved.value, rng, fail_prob)
+            literal = _literal_of_type(resolved.ok_value, rng, fail_prob)
             return _under_metric_slot(module, literal)
     return _under_metric_slot(module, viba_ast.Nil())
 
@@ -186,8 +186,8 @@ def _under_metric_slot(module: ModuleType, literal):
     """The tag the Metric definition body puts the measured value under;
     a body that is not one tagged layer takes the literal as is."""
     resolved = module_get_type(module, "Metric")
-    if isinstance(resolved, Ok) and isinstance(resolved.value, AstNodeType):
-        body = resolved.value.ast_node
+    if isinstance(resolved, Ok) and isinstance(resolved.ok_value, AstNodeType):
+        body = resolved.ok_value.ast_node
         if isinstance(body, viba_ast.GenericDefinition):
             if isinstance(body.body, viba_ast.Tagged):
                 return viba_ast.Tagged(body.body.tag, literal)
@@ -212,7 +212,7 @@ def _gen_typeref(node, module: ModuleType, rng, fail_prob):
     resolved = module_get_type(module, node.name)
     if not isinstance(resolved, Ok):
         return node
-    t = resolved.value
+    t = resolved.ok_value
     if isinstance(t, (NilType, NeverType)):
         return node
     if isinstance(t, (BoolType, IntType, FloatType, StrType)):

@@ -142,9 +142,9 @@ def _expect_args(node, count, name):
 
 def _names_a_rule(name, module):
     resolved = module_get_type(module, name)
-    if not isinstance(resolved, Ok) or not isinstance(resolved.value, AstNodeType):
+    if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
         return False
-    node = resolved.value.ast_node
+    node = resolved.ok_value.ast_node
     return body_marker(getattr(node, "body", node)) is not None
 
 

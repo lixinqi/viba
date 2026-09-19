@@ -16,6 +16,7 @@ underscore.
     VibaNode[Data]                    VibaNode
     VibaReflectConfig                 Config
     Result[T]                         Ok / Err (viba.type)
+    VibaConstantValue                 VibaConstantValue (kind + constant_value)
     VibaAccess[Data]                  VibaAccess, built with a Config
     VibaRoot / VibaHas / VibaGet      VibaAccess.root / has / get / leaf /
     VibaLeaf / VibaLength / VibaKeys  length / keys
@@ -251,8 +252,8 @@ class VibaNode:
     @property
     def value(self):
         """The section 5.4 Python landing: ``leaf`` lands on ``node.value``, the
-        value the literal record carries (bool / int / float / str / None)."""
-        return self.leaf.value
+        literal record's constant_value (bool / int / float / str / None)."""
+        return self.leaf.constant_value
 
     # ---- shapes: the written chain head only, no unfolding ----
 
@@ -293,11 +294,11 @@ class VibaNode:
 
     def _has_tag(self, name: str) -> bool:
         given = self._access.has(self, by_tag(name))
-        return bool(given.value) if isinstance(given, Ok) else False
+        return bool(given.ok_value) if isinstance(given, Ok) else False
 
     def _has_field(self, index: int) -> bool:
         given = self._access.has(self, by_field_index(index))
-        return bool(given.value) if isinstance(given, Ok) else False
+        return bool(given.ok_value) if isinstance(given, Ok) else False
 
     def __contains__(self, name: str) -> bool:
         return self._has_tag(name)
@@ -421,7 +422,7 @@ class VibaAccess:
             given = self.get(current, step)
             if isinstance(given, Err):
                 return given
-            current = given.value
+            current = given.ok_value
         return Ok(current)
 
     def get_by_path(self, node: VibaNode, path: Sequence[VibaStep]) -> Result:
@@ -429,9 +430,9 @@ class VibaAccess:
         resolved = self.resolve(node, path)
         if isinstance(resolved, Err):
             return resolved
-        if resolved.value is None:
+        if resolved.ok_value is None:
             return Err("this step has no value")
-        return self.leaf(resolved.value)
+        return self.leaf(resolved.ok_value)
 
     def list_fields(self, node: VibaNode, definition: VibaDefinitionDescriptor) -> Result:
         """VibaListFields: VibaGet each DefinitionMember; take what comes back."""
@@ -440,7 +441,7 @@ class VibaAccess:
             return members
         out = []
         positional = 0
-        for member in members.value:
+        for member in members.ok_value:
             if member.tag:
                 step = by_tag(member.tag)
             else:
@@ -453,18 +454,18 @@ class VibaAccess:
             given = self.get(node, step)
             # Take what comes back; what is missing (including pieces that are
             # neither product nor sum) does not enter the table.
-            if isinstance(given, Ok) and given.value is not None:
-                out.append(given.value)
+            if isinstance(given, Ok) and given.ok_value is not None:
+                out.append(given.ok_value)
         return Ok(out)
 
     # ---- private: the taking path (Err and Ok(nil) both throw) ----
 
     def _unwrap(self, given: Result):
         if isinstance(given, Err):
-            raise VibaReflectError(given.message)
-        if given.value is None:
+            raise VibaReflectError(given.err_msg)
+        if given.ok_value is None:
             raise VibaReflectError("this piece has no value")
-        return given.value
+        return given.ok_value
 
     # ---- private: the map (descriptors read as addressable shapes) ----
 
@@ -500,9 +501,9 @@ class VibaAccess:
             return None
         resolved = module_get_type(payload.resolvable_type.container_module,
                                    payload.constructor_name)
-        if isinstance(resolved, Err) or not isinstance(resolved.value, AstNodeType):
+        if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
             return None
-        target = resolved.value
+        target = resolved.ok_value
         if not isinstance(target.ast_node, viba_ast.GenericDefinition):
             return None
         params = list(target.ast_node.generic_params or [])
@@ -551,9 +552,9 @@ class VibaAccess:
         if resolvable is None:
             return None
         resolved = module_get_type(resolvable.container_module, descriptor.payload.type_name)
-        if isinstance(resolved, Err) or not isinstance(resolved.value, AstNodeType):
+        if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
             return None  # a builtin leaf, a generic parameter: stop here
-        target = resolved.value
+        target = resolved.ok_value
         if not isinstance(target.ast_node, viba_ast.TypeDefinition):
             return None  # a generic needs arguments to have a body: bare name stops
         # The descriptor side has no public "descriptor for a type expression"
@@ -788,7 +789,7 @@ class VibaAccess:
         literal = _constant_value(data.value)
         if branch.kind == LITERAL:
             return (branch.payload.value.kind == literal.kind
-                    and branch.payload.value.value == literal.value)
+                    and branch.payload.value.constant_value == literal.constant_value)
         return branch.kind == TYPE_REF and branch.payload.type_name == literal.kind
 
     def _key_of(self, pair):
@@ -818,7 +819,7 @@ class VibaAccess:
 
     def _is_unit_member(self, member: VibaMemberDescriptor) -> bool:
         written = member_type_name(member)
-        return isinstance(written, Ok) and self.config.is_unit_name(written.value)
+        return isinstance(written, Ok) and self.config.is_unit_name(written.ok_value)
 
     def _is_unit_data(self, node) -> bool:
         """The same on the material side: a unit written as a form or a name."""
@@ -856,24 +857,24 @@ class VibaAccess:
                 step = by_field_index(positional)
                 positional += 1
             given = self.get(node, step)
-            if isinstance(given, Ok) and given.value is not None:
-                out += self._walk(given.value)
+            if isinstance(given, Ok) and given.ok_value is not None:
+                out += self._walk(given.ok_value)
         shape = self._unfold(node.descriptor)
         container = self._container_kind(shape)
         if container == "dict":
             given_keys = self.keys(node)
             if isinstance(given_keys, Ok):
-                for key in given_keys.value:
+                for key in given_keys.ok_value:
                     given = self.get(node, at_key(key))
-                    if isinstance(given, Ok) and given.value is not None:
-                        out += self._walk(given.value)
+                    if isinstance(given, Ok) and given.ok_value is not None:
+                        out += self._walk(given.ok_value)
         elif self._has_elements_by_index(shape):
             length = self.length(node)
             if isinstance(length, Ok):
-                for index in range(length.value):
+                for index in range(length.ok_value):
                     given = self.get(node, at_index(index))
-                    if isinstance(given, Ok) and given.value is not None:
-                        out += self._walk(given.value)
+                    if isinstance(given, Ok) and given.ok_value is not None:
+                        out += self._walk(given.ok_value)
         return out
 
 
@@ -933,18 +934,18 @@ def _design_module(descriptor):
 def _definition_body(module, name):
     """The plain definition body that name points at; None when it is not one."""
     resolved = module_get_type(module, name)
-    if isinstance(resolved, Err) or not isinstance(resolved.value, AstNodeType):
+    if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
         return None
-    node = resolved.value.ast_node
+    node = resolved.ok_value.ast_node
     return node.body if isinstance(node, viba_ast.TypeDefinition) else None
 
 
 def _generic_definition(module, name):
     """The generic definition that name points at; None when it is not one."""
     resolved = module_get_type(module, name)
-    if isinstance(resolved, Err) or not isinstance(resolved.value, AstNodeType):
+    if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
         return None
-    node = resolved.value.ast_node
+    node = resolved.ok_value.ast_node
     return node if isinstance(node, viba_ast.GenericDefinition) else None
 
 

@@ -41,15 +41,15 @@ def load(check, modules):
         source = (MATERIAL / check / rel_path).read_text()
         parsed = parse_viba_file(pool, source, rel_path, module_name)
         assert isinstance(parsed, Ok), (rel_path, parsed)
-        added = pool_add_file(pool, parsed.value)
+        added = pool_add_file(pool, parsed.ok_value)
         assert isinstance(added, Ok), (rel_path, added)
-        pool = added.value
+        pool = added.ok_value
     return pool
 
 
 def _member(pool, definition_full_name, tag):
-    definition = pool_find_definition(pool, definition_full_name).value
-    return definition_find_member_by_tag(definition, tag).value
+    definition = pool_find_definition(pool, definition_full_name).ok_value
+    return definition_find_member_by_tag(definition, tag).ok_value
 
 
 def _check_alias_and_depth():
@@ -59,17 +59,17 @@ def _check_alias_and_depth():
         ("pkg/mod.viba", "pkg.mod"),
         ("pkg/sub/sub2/deepest.viba", "pkg.sub.sub2.deepest"),
     ])
-    file = pool_find_file(pool, "pkg/sub/sub2/deepest.viba").value
+    file = pool_find_file(pool, "pkg/sub/sub2/deepest.viba").ok_value
     assert [(i.module_name, i.local_name) for i in file.imports] == [
         ("top", "top"), ("pkg.mod", "mod")]
 
-    deep = pool_find_definition(pool, "pkg.sub.sub2.deepest.Deep").value
-    assert definition_file(deep).value.file_name == "pkg/sub/sub2/deepest.viba"
+    deep = pool_find_definition(pool, "pkg.sub.sub2.deepest.Deep").ok_value
+    assert definition_file(deep).ok_value.file_name == "pkg/sub/sub2/deepest.viba"
 
     # 别名进来的模块，解析到别的文件里的定义
-    assert member_resolved_definition(_member(pool, deep.full_name, "$m")).value.full_name == "pkg.mod.Mid"
+    assert member_resolved_definition(_member(pool, deep.full_name, "$m")).ok_value.full_name == "pkg.mod.Mid"
     # 不带别名，本地名就是模块名最后一段
-    assert member_resolved_definition(_member(pool, deep.full_name, "$root")).value.full_name == "top.Base"
+    assert member_resolved_definition(_member(pool, deep.full_name, "$root")).ok_value.full_name == "top.Base"
     # 写成 pkg.mod.Mid：pkg 不是 import 的本地名，解析不了
     assert isinstance(member_resolved_definition(_member(pool, deep.full_name, "$bad")), Err)
     assert isinstance(file_find_import_by_local_name(file, "nope"), Err)
@@ -78,8 +78,8 @@ def _check_alias_and_depth():
 def _check_shapes():
     """成员的类型形状：容器、可选、元组、内联、字面量、代码块、指数。"""
     pool = load("shapes", [("shapes.viba", "shapes")])
-    definition = pool_find_definition(pool, "shapes.Shapes").value
-    members = definition_members(definition).value
+    definition = pool_find_definition(pool, "shapes.Shapes").ok_value
+    members = definition_members(definition).ok_value
     assert [m.tag for m in members] == ["$items", "$seen", "$table", "$maybe",
                                         "$pair", "$inline", "$lit", "$code", "$fn"]
     assert [m.member_type.kind for m in members] == ["type_app", "type_app", "type_app",
@@ -88,7 +88,7 @@ def _check_shapes():
     # 只有写成名字的成员才有 type_name；内联结构没有
     assert isinstance(member_type_name(members[0]), Err)
     assert isinstance(member_type_name(members[5]), Err)
-    assert member_containing_definition(members[0]).value.full_name == "shapes.Shapes"
+    assert member_containing_definition(members[0]).ok_value.full_name == "shapes.Shapes"
     # 内建构造器不是定义，解析不了
     assert isinstance(member_resolved_definition(members[0]), Err)
 
@@ -96,14 +96,14 @@ def _check_shapes():
 def _check_generics():
     """泛型形参：形参名进 $generic_params，形参不是定义；单个带标签的体算一个成员。"""
     pool = load("generics", [("generics.viba", "generics")])
-    box = pool_find_definition(pool, "generics.Box").value
-    pair = pool_find_definition(pool, "generics.Pair").value
+    box = pool_find_definition(pool, "generics.Box").ok_value
+    pair = pool_find_definition(pool, "generics.Pair").ok_value
     assert box.generic_params == ["T"] and pair.generic_params == ["K", "V"]
-    assert [m.tag for m in definition_members(box).value] == ["$v"]
-    assert [m.tag for m in definition_members(pair).value] == ["$k", "$v"]
+    assert [m.tag for m in definition_members(box).ok_value] == ["$v"]
+    assert [m.tag for m in definition_members(pair).ok_value] == ["$k", "$v"]
 
-    use = pool_find_definition(pool, "generics.Use").value
-    assert member_type_name(_member(pool, use.full_name, "$param")).value == "T"
+    use = pool_find_definition(pool, "generics.Use").ok_value
+    assert member_type_name(_member(pool, use.full_name, "$param")).ok_value == "T"
     assert isinstance(member_resolved_definition(_member(pool, use.full_name, "$param")), Err)
     assert isinstance(member_resolved_definition(_member(pool, use.full_name, "$unknown")), Err)
     assert _member(pool, use.full_name, "$box").member_type.kind == "type_app"
@@ -112,13 +112,13 @@ def _check_generics():
 def _check_unit_heads():
     """积/和链头的单位元不算成员；别名体没有成员。"""
     pool = load("unit_heads", [("heads.viba", "unit_heads")])
-    rule = pool_find_definition(pool, "unit_heads.Rule").value
-    color = pool_find_definition(pool, "unit_heads.Color").value
-    bare = pool_find_definition(pool, "unit_heads.Bare").value
-    alias = pool_find_definition(pool, "unit_heads.Alias").value
+    rule = pool_find_definition(pool, "unit_heads.Rule").ok_value
+    color = pool_find_definition(pool, "unit_heads.Color").ok_value
+    bare = pool_find_definition(pool, "unit_heads.Bare").ok_value
+    alias = pool_find_definition(pool, "unit_heads.Alias").ok_value
 
     assert [(m.member_index, m.tag) for m in rule.members] == [(0, "$a"), (1, None)]
-    assert member_type_name(rule.members[1]).value == "str"
+    assert member_type_name(rule.members[1]).ok_value == "str"
     assert [(m.member_index, m.tag) for m in color.members] == [(0, "$red"), (1, "$blue")]
     assert [m.tag for m in bare.members] == ["$only"]      # 体是一整个带标签类型
     assert alias.members == []                              # 体是别名，没有成员
@@ -136,15 +136,15 @@ def _check_errors():
     parsed = parse_viba_file(dup_pool, (MATERIAL / "errors" / "dup2.viba").read_text(),
                              "dup2.viba", "err.dup")
     assert isinstance(parsed, Ok)
-    assert isinstance(pool_add_file(dup_pool, parsed.value), Err)      # 全名撞车
+    assert isinstance(pool_add_file(dup_pool, parsed.ok_value), Err)      # 全名撞车
     assert isinstance(pool_add_file(dup_pool, dup_pool.files[0]), Err)  # 文件重名
     elsewhere = parse_viba_file(empty_pool(), "Z := int\n", "elsewhere.viba", "elsewhere")
-    assert isinstance(pool_add_file(dup_pool, elsewhere.value), Err)   # 别的池子建出来的
+    assert isinstance(pool_add_file(dup_pool, elsewhere.ok_value), Err)   # 别的池子建出来的
 
     orphan_pool = load("errors", [("orphan.viba", "err.orphan")])
-    orphan = pool_find_definition(orphan_pool, "err.orphan.Orphan").value
+    orphan = pool_find_definition(orphan_pool, "err.orphan.Orphan").ok_value
     member = _member(orphan_pool, orphan.full_name, "$p")
-    assert member_type_name(member).value == "g.Thing"
+    assert member_type_name(member).ok_value == "g.Thing"
     assert isinstance(member_resolved_definition(member), Err)          # gone.mod 不在池子里
     assert isinstance(pool_find_member(orphan_pool, "err.orphan.Orphan.$nope"), Err)
 

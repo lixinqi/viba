@@ -30,7 +30,7 @@ def is_shape_compatible(sub: AstNodeType, sup: AstNodeType) -> Result:
     fits = is_sub_type(erase_predications(sub), erase_predications(sup))
     if isinstance(fits, Err):
         return fits
-    return Ok(bool(fits.value))
+    return Ok(bool(fits.ok_value))
 
 
 def erase_predications(rule: AstNodeType) -> AstNodeType:
@@ -73,9 +73,9 @@ def _erase(node, module):
 def _unfold(node, module):
     """A TypeRef to a plain TypeDefinition unfolds to its body."""
     resolved = module_get_type(module, node.name)
-    if not isinstance(resolved, Ok) or not isinstance(resolved.value, AstNodeType):
+    if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
         return node, module
-    target = resolved.value
+    target = resolved.ok_value
     if not isinstance(target.ast_node, ast_nodes.TypeDefinition):
         return node, module
     return target.ast_node.body, target.container_module

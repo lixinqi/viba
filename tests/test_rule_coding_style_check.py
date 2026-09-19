@@ -52,7 +52,7 @@ def _entry(defs, module, name: str) -> AstNodeType:
 
 def _spec(defs, module, name: str) -> None:
     given = check_rule_coding_style(_entry(defs, module, name))
-    assert isinstance(given, Ok) and given.value is None, f"{name}: style {given!r}"
+    assert isinstance(given, Ok) and given.ok_value is None, f"{name}: style {given!r}"
 
 
 def _flip_sites(rule) -> int:
@@ -108,9 +108,9 @@ def _unfold_ref(node, module):
     if not isinstance(node, viba_ast.TypeRef):
         return node, module
     resolved = module_get_type(module, node.name)
-    if not isinstance(resolved, Ok) or not isinstance(resolved.value, AstNodeType):
+    if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
         return node, module
-    target = resolved.value
+    target = resolved.ok_value
     if not isinstance(target.ast_node, viba_ast.TypeDefinition):
         return node, module
     return target.ast_node.body, target.container_module
@@ -121,7 +121,7 @@ def _judge(rule, witnesses, path: Path):
     for witness in witnesses:
         given = is_compliant(witness, rule)
         assert isinstance(given, Ok), f"{path.name}: judge errored: {given!r}"
-        verdicts.add(given.value)
+        verdicts.add(given.ok_value)
     return verdicts
 
 
@@ -130,7 +130,7 @@ def _judge_counts(rule, witnesses, path: Path):
     for witness in witnesses:
         given = is_compliant(witness, rule)
         assert isinstance(given, Ok), f"{path.name}: judge errored: {given!r}"
-        counts[given.value] += 1
+        counts[given.ok_value] += 1
     return counts
 
 
@@ -160,7 +160,7 @@ def _check_generated_rule(path: Path, name: str, seed: int) -> int:
         f"{path.name}: True {counts[True]}/{MIXED_WITNESSES}, model {expected:.1f}±{spread:.1f} (sites={sites})")
     checked += MIXED_WITNESSES
     determined = check_determinate(rule, WITNESSES_PER_RULE, seed=1)
-    assert isinstance(determined, Ok) and determined.value is None, f"{path.name}: {determined!r}"
+    assert isinstance(determined, Ok) and determined.ok_value is None, f"{path.name}: {determined!r}"
     return checked
 
 
@@ -182,7 +182,7 @@ def _check_demo() -> None:
     verdicts = _judge(rule, generate_witnesses(rule, 50, seed=7), path)
     assert verdicts == {True, False}, f"demo verdicts: {verdicts}"
     determined = check_determinate(rule, 50, seed=1)
-    assert isinstance(determined, Ok) and determined.value is None
+    assert isinstance(determined, Ok) and determined.ok_value is None
 
 
 def _check_sum_rule() -> None:
@@ -197,14 +197,14 @@ def _check_sum_rule() -> None:
     for witness in generate_witnesses(rule, 40, seed=3):
         judged = is_compliant(witness, rule)
         assert isinstance(judged, Ok), f"sum judge errored: {judged!r}"
-        verdicts.add(judged.value)
+        verdicts.add(judged.ok_value)
     assert verdicts == {True, False}, f"sum verdicts: {verdicts}"
     determined = check_determinate(rule, 40, seed=3)
-    assert isinstance(determined, Ok) and determined.value is None
+    assert isinstance(determined, Ok) and determined.ok_value is None
     for witness, want in (("SumWitnessPass", True), ("SumWitnessFail", False)):
         sub = _entry(defs, module, witness)
         got = is_compliant(sub, rule)
-        assert isinstance(got, Ok) and got.value is want, f"{witness}: {got!r}"
+        assert isinstance(got, Ok) and got.ok_value is want, f"{witness}: {got!r}"
 
 
 def _check_broken_rules() -> None:
@@ -226,15 +226,15 @@ def _check_not_rule() -> None:
                           ("PartialWitness", False)):
         sub = _entry(defs, module, witness)
         got = is_compliant(sub, rule)
-        assert isinstance(got, Ok) and got.value is want, f"{witness}: {got!r}"
+        assert isinstance(got, Ok) and got.ok_value is want, f"{witness}: {got!r}"
     verdicts = set()
     for witness in generate_witnesses(rule, 40, seed=3):
         judged = is_compliant(witness, rule)
         assert isinstance(judged, Ok), f"not judge errored: {judged!r}"
-        verdicts.add(judged.value)
+        verdicts.add(judged.ok_value)
     assert verdicts == {True, False}, f"not verdicts: {verdicts}"
     determined = check_determinate(rule, 40, seed=3)
-    assert isinstance(determined, Ok) and determined.value is None
+    assert isinstance(determined, Ok) and determined.ok_value is None
 
 
 def _check_predicate_reset():
@@ -247,8 +247,8 @@ def _check_predicate_reset():
     rule = _entry(defs, module, "PredicateBoundRule")
     check = _predicate_node(rule.ast_node)
     witnesses = [_bound_witness(module, value, check) for value in range(100)]
-    before = sum(is_compliant(w, rule).value for w in witnesses)
-    after = sum(is_compliant(reset_predication_by_python_code(w), rule).value for w in witnesses)
+    before = sum(is_compliant(w, rule).ok_value for w in witnesses)
+    after = sum(is_compliant(reset_predication_by_python_code(w), rule).ok_value for w in witnesses)
     assert before == 100, f"before reset: compliant {before}/100"
     assert after == 50, f"after reset: compliant {after}/100"
     print(f"predicate reset: {before}/100 -> {after}/100")
@@ -360,7 +360,7 @@ def _check_shape_compatible():
     for label, body in cases.items():
         given = is_shape_compatible(AstNodeType(body, module), rule)
         want = label not in rejected
-        assert isinstance(given, Ok) and given.value is want, f"{label}: {given!r}"
+        assert isinstance(given, Ok) and given.ok_value is want, f"{label}: {given!r}"
     print(f"shape compatible: {checked} generated witnesses fit")
 
 
@@ -376,7 +376,7 @@ def _shape_compatible_samples(path, rule, seed) -> int:
     for fail_prob in (0.0, 1.0):
         for witness in generate_witnesses(rule, 3, seed=seed, fail_prob=fail_prob):
             given = is_shape_compatible(witness, rule)
-            assert isinstance(given, Ok) and given.value is True, f"{path.name}: {given!r}"
+            assert isinstance(given, Ok) and given.ok_value is True, f"{path.name}: {given!r}"
             count += 1
     return count
 
@@ -395,7 +395,7 @@ def _check_predicate_code():
         for witness in witnesses:
             given = is_compliant(reset_predication_by_python_code(witness), rule)
             assert isinstance(given, Ok), f"{path.name}: judge errored: {given!r}"
-            compliant += given.value
+            compliant += given.ok_value
             total += 1
     assert 0 < compliant < total, f"predicate code: compliant {compliant}/{total}"
     print(f"predicate code: compliant {compliant}/{total} = {compliant / total:.1%}")

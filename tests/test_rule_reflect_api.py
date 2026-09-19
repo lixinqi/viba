@@ -59,13 +59,13 @@ def _load(path: Path, module_name: str):
     pool = empty_pool()
     parsed = parse_viba_file(pool, source, path.name, module_name)
     assert isinstance(parsed, Ok), parsed
-    return pool_add_file(pool, parsed.value).value
+    return pool_add_file(pool, parsed.ok_value).ok_value
 
 
 def _definition_of(pool, full_name: str):
     found = pool_find_definition(pool, full_name)
     assert isinstance(found, Ok), found
-    return found.value
+    return found.ok_value
 
 
 def _body_of(path: Path, name: str):
@@ -159,54 +159,54 @@ class _Materials:
         self.demo = _definition_of(demo, "demo.DemoRule")
         self.demo_access = reflect.access
         self.demo_witness = Witness(_demo_body())
-        self.demo_node = self.demo_access.root(self.demo, self.demo_witness).value
+        self.demo_node = self.demo_access.root(self.demo, self.demo_witness).ok_value
 
         top = _load(_CASES / "top.viba", "top")
         self.shape = _definition_of(top, "top.Shape0")
         self.shape_access = reflect.access
         self.shape_node = self.shape_access.root(self.shape, Witness(
-            viba_ast.Product(viba_ast.Constant(1), viba_ast.Constant("two")))).value
+            viba_ast.Product(viba_ast.Constant(1), viba_ast.Constant("two")))).ok_value
         self.node1 = _definition_of(top, "top.Node1")
         self.node1_access = reflect.access
         self.node1_node = self.node1_access.root(
-            self.node1, Witness(_node1_body())).value
+            self.node1, Witness(_node1_body())).ok_value
 
         not_rule = _load(_RULES / "not_rule.viba", "not_rule")
         self.not_rule = _definition_of(not_rule, "not_rule.NoDeathPenaltyRule")
         self.not_access = reflect.access
         self.law_abiding = self.not_access.root(
-            self.not_rule, Witness(_body_of(_RULES / "not_rule.viba", "LawAbidingWitness"))).value
+            self.not_rule, Witness(_body_of(_RULES / "not_rule.viba", "LawAbidingWitness"))).ok_value
 
         named = _load(_NOT_RULES / "not_rule03.viba", "not_rule03")
         self.named_not = _definition_of(named, "not_rule03.NotRule03")
         self.named_not_access = reflect.access
         self.named_not_node = self.named_not_access.root(
-            self.named_not, Witness(_named_operand_body())).value
+            self.named_not, Witness(_named_operand_body())).ok_value
 
         written = _load(_NOT_CASES / "sup061.viba", "sup061")
         self.written_not = _definition_of(written, "sup061.F6")
         self.written_not_access = reflect.access
         self.written_not_node = self.written_not_access.root(
-            self.written_not, Witness(_written_operand_body())).value
+            self.written_not, Witness(_written_operand_body())).ok_value
 
         rule40 = _load(_RULES / "rules" / "rule40.viba", "rule40")
         self.rule40 = _definition_of(rule40, "rule40.Rule40")
         self.rule40_access = reflect.access
         self.rule40_node = self.rule40_access.root(
-            self.rule40, Witness(rule40_body())).value
+            self.rule40, Witness(rule40_body())).ok_value
 
         sum_rule = _load(_RULES / "sum_rule.viba", "sum_rule")
         self.sum_rule = _definition_of(sum_rule, "sum_rule.SumRule")
         self.sum_access = reflect.access
         self.sum_pass = self.sum_access.root(
-            self.sum_rule, Witness(_body_of(_RULES / "sum_rule.viba", "SumWitnessPass"))).value
+            self.sum_rule, Witness(_body_of(_RULES / "sum_rule.viba", "SumWitnessPass"))).ok_value
 
     def _without(self, node, tag):
         """把某个 tag 摘掉的那份材料（造"数据里没有"用）。"""
         kept = [e for e in viba_ast.convert_to_chain_style(node.data).elements
                 if not (isinstance(e, viba_ast.Tagged) and e.tag == tag)]
         return reflect.access.root(self.demo,
-                                   Witness(viba_ast.ProductChain(kept))).value
+                                   Witness(viba_ast.ProductChain(kept))).ok_value
 
 
 _MATERIALS = None
@@ -229,14 +229,14 @@ def test_api_root_case_001():
     m = _materials()
     rooted = m.demo_access.root(m.demo, m.demo_witness)
     assert isinstance(rooted, Ok)
-    assert rooted.value.descriptor is m.demo.body
+    assert rooted.ok_value.descriptor is m.demo.body
 
 
 def test_api_root_case_002():
     """起点只把 (描述符, 数据) 配成对：节点给出来，data 就是那份材料；版本协议不管。"""
     m = _materials()
     rooted = m.demo_access.root(m.demo, Witness(m.demo_witness.node))
-    assert isinstance(rooted, Ok) and rooted.value.data is m.demo_witness.node
+    assert isinstance(rooted, Ok) and rooted.ok_value.data is m.demo_witness.node
 
 
 # ----------------------------------------------------------------------
@@ -248,7 +248,7 @@ def test_api_leaf_case_001():
     """int 字面量读得出值：量出来的值是 $value 那一层的字面量。"""
     m = _materials()
     inside = m.demo_node.by_tag("code_length").by_tag("value")
-    assert m.demo_access.leaf(inside).value.value == 7
+    assert m.demo_access.leaf(inside).ok_value.constant_value == 7
 
 
 def test_api_leaf_case_002():
@@ -261,10 +261,10 @@ def test_api_leaf_case_002():
         viba_ast.Tagged("$table", viba_ast.Constant("x")),
         viba_ast.Tagged("$maybe", viba_ast.Constant(3)),
     ])
-    node = m.node1_access.root(m.node1, Witness(body)).value
-    assert m.node1_access.leaf(node.by_tag("items")).value.value == 1.5
-    assert m.node1_access.leaf(node.by_tag("seen")).value.value is True
-    assert m.node1_access.leaf(node.by_tag("table")).value.value == "x"
+    node = m.node1_access.root(m.node1, Witness(body)).ok_value
+    assert m.node1_access.leaf(node.by_tag("items")).ok_value.constant_value == 1.5
+    assert m.node1_access.leaf(node.by_tag("seen")).ok_value.constant_value is True
+    assert m.node1_access.leaf(node.by_tag("table")).ok_value.constant_value == "x"
 
 
 def test_api_leaf_case_003():
@@ -279,9 +279,9 @@ def test_api_leaf_case_003():
         viba_ast.Tagged("$table", viba_ast.TypeApp("DictLiteral", [])),
         viba_ast.Tagged("$maybe", viba_ast.Nil()),
     ])
-    node = m.node1_access.root(m.node1, Witness(body)).value
+    node = m.node1_access.root(m.node1, Witness(body)).ok_value
     leaf = m.node1_access.leaf(node.by_tag("maybe"))
-    assert isinstance(leaf, Ok) and leaf.value.kind == "nil"
+    assert isinstance(leaf, Ok) and leaf.ok_value.kind == "nil"
 
 
 def test_api_leaf_case_004():
@@ -298,19 +298,19 @@ def test_api_leaf_case_004():
 def test_api_length_case_001():
     """list 给元素个数。"""
     m = _materials()
-    assert m.node1_access.length(m.node1_node.by_tag("items")).value == 2
+    assert m.node1_access.length(m.node1_node.by_tag("items")).ok_value == 2
 
 
 def test_api_length_case_002():
     """set 给元素个数。"""
     m = _materials()
-    assert m.node1_access.length(m.node1_node.by_tag("seen")).value == 1
+    assert m.node1_access.length(m.node1_node.by_tag("seen")).ok_value == 1
 
 
 def test_api_length_case_003():
     """dict 给键数。"""
     m = _materials()
-    assert m.node1_access.length(m.node1_node.by_tag("table")).value == 2
+    assert m.node1_access.length(m.node1_node.by_tag("table")).ok_value == 2
 
 
 def test_api_length_case_004():
@@ -327,7 +327,7 @@ def test_api_length_case_004():
 def test_api_keys_case_001():
     """dict 给键，顺序由实现定。"""
     m = _materials()
-    assert m.node1_access.keys(m.node1_node.by_tag("table")).value == ["k", "m"]
+    assert m.node1_access.keys(m.node1_node.by_tag("table")).ok_value == ["k", "m"]
 
 
 def test_api_keys_case_002():
@@ -401,7 +401,7 @@ def test_api_node_at_index_case_004():
     """A dict is not index-addressable: $at_index is for list / set / tuple."""
     m = _materials()
     table = m.node1_node.by_tag("table")
-    assert m.node1_access.has(table, at_index(0)).value is False
+    assert m.node1_access.has(table, at_index(0)).ok_value is False
     assert isinstance(m.node1_access.get(table, at_index(0)), Err)
     assert len(table) == 2  # 数得出来，只是不按下标取
 
@@ -426,7 +426,7 @@ def test_api_node_leaf_case_001():
     """leaf 给常量记录，Python 落点 value 给裸值。"""
     m = _materials()
     node = m.demo_node.by_tag("code_length").by_tag("value")
-    assert node.leaf.value == 7 and node.value == 7
+    assert node.leaf.constant_value == 7 and node.value == 7
 
 
 def test_api_node_leaf_case_002():
@@ -502,9 +502,9 @@ def test_api_node_get_case_003():
     """设计直接写 never <- $not_operand A 时也一样：get_not_operand() 取到 A，再往下取叶子。"""
     m = _materials()
     node = m.written_not_node
-    assert m.written_not_access.has(node, by_tag("$not_operand")).value is True
+    assert m.written_not_access.has(node, by_tag("$not_operand")).ok_value is True
     operand = node.get_not_operand()
-    assert operand.by_tag("a").leaf.value == 3
+    assert operand.by_tag("a").leaf.constant_value == 3
     assert operand.get_a().value == 3
 
 
@@ -542,7 +542,7 @@ def test_api_node_try_get_case_002():
     m = _materials()
     sparse = m._without(m.demo_node, "$code_length")
     given = sparse.try_get_code_length()
-    assert isinstance(given, Ok) and given.value is None
+    assert isinstance(given, Ok) and given.ok_value is None
 
 
 def test_api_node_try_get_case_003():
@@ -646,8 +646,8 @@ def test_api_node_path_case_001():
 def test_api_chain_case_001():
     """Viba 层：by_tag → at_index / at_key → leaf，一路点下去。"""
     m = _materials()
-    assert m.node1_node.by_tag("items").at_index(1).leaf.value == 2
-    assert m.node1_node.by_tag("table").at_key("m").leaf.value == 2
+    assert m.node1_node.by_tag("items").at_index(1).leaf.constant_value == 2
+    assert m.node1_node.by_tag("table").at_key("m").leaf.constant_value == 2
 
 
 def test_api_chain_case_002():
@@ -673,7 +673,7 @@ def test_api_chain_case_005():
     m = _materials()
     node = m.rule40_node
     assert node.by_tag("group_spec").by_tag("value").by_tag("bucket") \
-        .at_index(0).by_tag("name").leaf.value == "slot0"
+        .at_index(0).by_tag("name").leaf.constant_value == "slot0"
 
 
 def test_api_chain_case_006():
@@ -681,7 +681,7 @@ def test_api_chain_case_006():
     m = _materials()
     path = [by_tag("$group_spec"), by_tag("$value"), by_tag("$bucket"),
             at_index(0), by_tag("$name")]
-    assert reflect.access.get_by_path(m.rule40_node, path).value.value == "slot0"
+    assert reflect.access.get_by_path(m.rule40_node, path).ok_value.constant_value == "slot0"
     assert isinstance(reflect.access.resolve(m.rule40_node, path[:-1]), Ok)
     assert isinstance(reflect.access.get_by_path(m.rule40_node, path[:-1]), Err)
 
@@ -712,15 +712,15 @@ def test_api_resolve_case_001():
     path = [by_tag("$coverage"), by_tag("$value"), by_tag("$documented_lines")]
     resolved = reflect.access.resolve(m.demo_node, path)
     assert isinstance(resolved, Ok)
-    assert resolved.value.path == tuple(path)
-    assert resolved.value.value == 5
+    assert resolved.ok_value.path == tuple(path)
+    assert resolved.ok_value.value == 5
 
 
 def test_api_resolve_case_002():
     """容器路径：at_index / at_key。"""
     m = _materials()
-    assert reflect.access.resolve(m.node1_node, [by_tag("$items"), at_index(1)]).value.value == 2
-    assert reflect.access.resolve(m.node1_node, [by_tag("$table"), at_key("k")]).value.value == 1
+    assert reflect.access.resolve(m.node1_node, [by_tag("$items"), at_index(1)]).ok_value.value == 2
+    assert reflect.access.resolve(m.node1_node, [by_tag("$table"), at_key("k")]).ok_value.value == 1
 
 
 def test_api_resolve_case_003():
@@ -734,7 +734,7 @@ def test_api_resolve_case_004():
     m = _materials()
     sparse = m._without(m.demo_node, "$keywords")
     given = reflect.access.resolve(sparse, [by_tag("$keywords")])
-    assert isinstance(given, Ok) and given.value is None
+    assert isinstance(given, Ok) and given.ok_value is None
 
 
 def _bare_sum_material(source: str, outer: str, witness: str):
@@ -742,10 +742,10 @@ def _bare_sum_material(source: str, outer: str, witness: str):
     pool = empty_pool()
     parsed = parse_viba_file(pool, source, "bare_sum.viba", "bare_sum")
     assert isinstance(parsed, Ok), parsed
-    pool = pool_add_file(pool, parsed.value).value
+    pool = pool_add_file(pool, parsed.ok_value).ok_value
     definition = _definition_of(pool, f"bare_sum.{outer}")
     body = {d.name: d for d in viba_ast.parse(source).body}[witness].body
-    return reflect.access, reflect.access.root(definition, Witness(body)).value
+    return reflect.access, reflect.access.root(definition, Witness(body)).ok_value
 
 
 def test_api_resolve_case_006():
@@ -756,10 +756,10 @@ BareWitness := Object * $x ($a 1)
 """
     accessor, node = _bare_sum_material(source, "Outer", "BareWitness")
     x = node.by_tag("$x")
-    assert accessor.has(x, by_field_index(0)).value is True
-    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(0), by_tag("$a")]).value.value == 1
-    assert reflect.access.get_by_path(node, [by_tag("$x"), by_tag("$a")]).value.value == 1
-    assert accessor.has(x, by_field_index(1)).value is False  # the nil branch is not taken
+    assert accessor.has(x, by_field_index(0)).ok_value is True
+    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(0), by_tag("$a")]).ok_value.constant_value == 1
+    assert reflect.access.get_by_path(node, [by_tag("$x"), by_tag("$a")]).ok_value.constant_value == 1
+    assert accessor.has(x, by_field_index(1)).ok_value is False  # the nil branch is not taken
     assert isinstance(reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(1)]), Err)
 
 
@@ -772,14 +772,14 @@ NilWitness := Object * $x nil
 """
     accessor, node = _bare_sum_material(leafy, "Leafy", "LeafyWitness")
     x = node.by_tag("$x")
-    assert accessor.has(x, by_field_index(0)).value is True
-    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(0)]).value.value == 7
-    assert accessor.has(x, by_field_index(1)).value is False
+    assert accessor.has(x, by_field_index(0)).ok_value is True
+    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(0)]).ok_value.constant_value == 7
+    assert accessor.has(x, by_field_index(1)).ok_value is False
 
     accessor, node = _bare_sum_material(leafy, "Optional", "NilWitness")
     x = node.by_tag("$x")
-    assert accessor.has(x, by_field_index(0)).value is False
-    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(1)]).value.value is None
+    assert accessor.has(x, by_field_index(0)).ok_value is False
+    assert reflect.access.get_by_path(node, [by_tag("$x"), by_field_index(1)]).ok_value.constant_value is None
 
     two = """A := Object * $a int
 B := Object * $b str
@@ -787,7 +787,7 @@ Two := Object * $x (A | B)
 TwoWitness := Object * $x ($a 1)
 """
     accessor, node = _bare_sum_material(two, "Two", "TwoWitness")
-    assert accessor.has(node.by_tag("$x"), by_field_index(0)).value is False
+    assert accessor.has(node.by_tag("$x"), by_field_index(0)).ok_value is False
 
 
 def test_api_resolve_case_005():
@@ -795,17 +795,17 @@ def test_api_resolve_case_005():
     m = _materials()
     sparse = m._without(m.demo_node, "$keywords")
     given = reflect.access.resolve(sparse, [by_tag("$keywords"), at_index(0)])
-    assert isinstance(given, Err) and given.message == "this step has no value"
+    assert isinstance(given, Err) and given.err_msg == "this step has no value"
     assert isinstance(reflect.access.get_by_path(sparse, [by_tag("$keywords"), at_index(0)]), Err)
 
 
 def test_api_get_by_path_case_001():
     """先 resolve 再 leaf：一条路径直接读出值。"""
     m = _materials()
-    assert reflect.access.get_by_path(m.demo_node, [by_tag("$code_length"), by_tag("$value")]).value.value == 7
+    assert reflect.access.get_by_path(m.demo_node, [by_tag("$code_length"), by_tag("$value")]).ok_value.constant_value == 7
     assert reflect.access.get_by_path(m.demo_node,
-                     [by_tag("$keywords"), by_tag("$value"), at_index(1)]).value.value == "b"
-    assert reflect.access.get_by_path(m.node1_node, [by_tag("$table"), at_key("k")]).value.value == 1
+                     [by_tag("$keywords"), by_tag("$value"), at_index(1)]).ok_value.constant_value == "b"
+    assert reflect.access.get_by_path(m.node1_node, [by_tag("$table"), at_key("k")]).ok_value.constant_value == 1
 
 
 def test_api_get_by_path_case_002():
@@ -839,7 +839,7 @@ def test_api_list_fields_case_001():
     m = _materials()
     listed = reflect.access.list_fields(m.demo_node, m.demo)
     assert isinstance(listed, Ok)
-    assert [n.path[-1].value for n in listed.value] == [
+    assert [n.path[-1].value for n in listed.ok_value] == [
         "$code_length", "$coverage", "$keywords", "$assert_code_len_le_24"]
 
 
@@ -848,7 +848,7 @@ def test_api_list_fields_case_002():
     m = _materials()
     sparse = m._without(m.demo_node, "$code_length")
     listed = reflect.access.list_fields(sparse, m.demo)
-    assert [n.path[-1].value for n in listed.value] == [
+    assert [n.path[-1].value for n in listed.ok_value] == [
         "$coverage", "$keywords", "$assert_code_len_le_24"]
 
 
@@ -856,7 +856,7 @@ def test_api_list_fields_case_003():
     """这一段没有成员时是空表，不是 Err。"""
     m = _materials()
     listed = reflect.access.list_fields(m.demo_node.by_tag("code_length"), m.demo)
-    assert isinstance(listed, Ok) and listed.value == []
+    assert isinstance(listed, Ok) and listed.ok_value == []
 
 
 # ----------------------------------------------------------------------
@@ -873,7 +873,7 @@ def test_api_walk_case_001():
     assert () in paths
     assert (by_tag("$coverage"), by_tag("$value"), by_tag("$total_lines")) in paths
     assert (by_tag("$keywords"), by_tag("$value"), at_index(0)) in paths
-    leaves = [m.demo_access.leaf(n).value.value for n in walked
+    leaves = [m.demo_access.leaf(n).ok_value.constant_value for n in walked
               if isinstance(n.data, (viba_ast.Constant, viba_ast.Nil))]
     assert leaves == [7, 5, 11, "a", "b"]
 

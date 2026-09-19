@@ -51,10 +51,10 @@ class UnderTest:
         pool = empty_pool()
         parsed = parse_viba_file(pool, self.source, path.name, self.module_name)
         assert isinstance(parsed, Ok), parsed
-        self.pool = pool_add_file(pool, parsed.value).value
+        self.pool = pool_add_file(pool, parsed.ok_value).ok_value
         found = pool_find_definition(self.pool, f"{self.module_name}.{rule_name}")
         assert isinstance(found, Ok), found
-        self.definition = found.value
+        self.definition = found.ok_value
         self.accessor = reflect.access
         self.module = custom_module(self.source)
         self.definitions = {d.name: d for d in self.module.module.body}
@@ -66,10 +66,10 @@ class UnderTest:
         node = witness.ast_node if isinstance(witness, AstNodeType) else witness
         rooted = self.accessor.root(self.definition, Witness(node))
         assert isinstance(rooted, Ok), f"{self.path.name} {note}: {rooted!r}"
-        walked = self._walk(rooted.value, note)
+        walked = self._walk(rooted.ok_value, note)
         # RuleAccess.walk 也是遍历，两者必须给出同一批坐标
-        ours = sorted(repr(n.path) for n in self.accessor._walk(rooted.value))
-        theirs = sorted(repr(p) for p in self._paths(rooted.value, ()))
+        ours = sorted(repr(n.path) for n in self.accessor._walk(rooted.ok_value))
+        theirs = sorted(repr(p) for p in self._paths(rooted.ok_value, ()))
         assert ours == theirs, f"{self.path.name} {note}: walk 与独立遍历不一致"
         return 1 + walked
 
@@ -86,22 +86,22 @@ class UnderTest:
                     step = by_field_index(positional)
                     positional += 1
                 given = self.accessor.get(node, step)
-                if isinstance(given, Ok) and given.value is not None:
-                    out += self._paths(given.value, path + (step,))
+                if isinstance(given, Ok) and given.ok_value is not None:
+                    out += self._paths(given.ok_value, path + (step,))
         shape = self.accessor._unfold(node.descriptor)
         container = self.accessor._container_kind(shape)
         if container == "dict":
             keys = self.accessor.keys(node)
-            for key in keys.value:
+            for key in keys.ok_value:
                 given = self.accessor.get(node, at_key(key))
-                if isinstance(given, Ok) and given.value is not None:
-                    out += self._paths(given.value, path + (at_key(key),))
+                if isinstance(given, Ok) and given.ok_value is not None:
+                    out += self._paths(given.ok_value, path + (at_key(key),))
         elif self.accessor._has_elements_by_index(shape):
             length = self.accessor.length(node)
-            for index in range(length.value):
+            for index in range(length.ok_value):
                 given = self.accessor.get(node, at_index(index))
-                if isinstance(given, Ok) and given.value is not None:
-                    out += self._paths(given.value, path + (at_index(index),))
+                if isinstance(given, Ok) and given.ok_value is not None:
+                    out += self._paths(given.ok_value, path + (at_index(index),))
         return out
 
     def _walk(self, node, note: str) -> int:
@@ -120,29 +120,29 @@ class UnderTest:
                 assert isinstance(given_has, Ok), f"{self.path.name} {note}: {step} {given_has!r}"
                 # 有数据 <-> has 真；没数据是 Ok(nil)
                 assert isinstance(given_get, Ok), f"{self.path.name} {note}: {step} {given_get!r}"
-                assert (given_get.value is not None) == given_has.value, \
+                assert (given_get.ok_value is not None) == given_has.ok_value, \
                     f"{self.path.name} {note}: {step} has={given_has!r} get={given_get!r}"
                 seen += 1
-                if given_get.value is not None:
-                    seen += self._walk(given_get.value, note)
+                if given_get.ok_value is not None:
+                    seen += self._walk(given_get.ok_value, note)
         shape = self.accessor._unfold(node.descriptor)
         container = self.accessor._container_kind(shape)
         if container == "dict":
             keys = self.accessor.keys(node)
             assert isinstance(keys, Ok), f"{self.path.name} {note}: {node!r} {keys!r}"
-            for key in keys.value:
+            for key in keys.ok_value:
                 given = self.accessor.get(node, at_key(key))
-                assert isinstance(given, Ok) and given.value is not None, \
+                assert isinstance(given, Ok) and given.ok_value is not None, \
                     f"{self.path.name} {note}: key {key!r} {given!r}"
-                seen += 1 + self._walk(given.value, note)
+                seen += 1 + self._walk(given.ok_value, note)
         elif self.accessor._has_elements_by_index(shape):
             length = self.accessor.length(node)
             assert isinstance(length, Ok), f"{self.path.name} {note}: {node!r} {length!r}"
-            for index in range(length.value):
+            for index in range(length.ok_value):
                 given = self.accessor.get(node, at_index(index))
-                assert isinstance(given, Ok) and given.value is not None, \
+                assert isinstance(given, Ok) and given.ok_value is not None, \
                     f"{self.path.name} {note}: at {index} {given!r}"
-                seen += 1 + self._walk(given.value, note)
+                seen += 1 + self._walk(given.ok_value, note)
         if isinstance(node.data, (viba_ast.Constant, viba_ast.Nil)):
             assert isinstance(self.accessor.leaf(node), Ok), f"{self.path.name} {note}: {node!r}"
         return seen
@@ -191,9 +191,9 @@ def check_sum_rule() -> int:
         pairs += 1
     # 和类型：数据只落在选中的那一支上
     node = under.accessor.root(
-        under.definition, Witness(under.witness_definition("SumWitnessPass").ast_node)).value
-    assert under.accessor.has(node, by_tag("$small")).value is True
-    assert under.accessor.has(node, by_tag("$big")).value is False
+        under.definition, Witness(under.witness_definition("SumWitnessPass").ast_node)).ok_value
+    assert under.accessor.has(node, by_tag("$small")).ok_value is True
+    assert under.accessor.has(node, by_tag("$big")).ok_value is False
     return pairs
 
 
@@ -211,12 +211,12 @@ def check_not_rule() -> int:
         pairs += 1
     # not[A] 的外壳两边都在：操作数是一个坐标，三个分支在它下面
     node = under.accessor.root(
-        under.definition, Witness(under.witness_definition("LawAbidingWitness").ast_node)).value
+        under.definition, Witness(under.witness_definition("LawAbidingWitness").ast_node)).ok_value
     shell = node.by_tag("not_crimes")
-    assert under.accessor.has(shell, by_tag("not_operand")).value is True
+    assert under.accessor.has(shell, by_tag("not_operand")).ok_value is True
     operand = shell.get_not_operand()
     for branch in ("$homicide", "$arson", "$robbery"):
-        assert under.accessor.has(operand, by_tag(branch)).value is True
+        assert under.accessor.has(operand, by_tag(branch)).ok_value is True
     return pairs
 
 
@@ -225,15 +225,15 @@ def check_broken_rules() -> int:
     pairs = 0
     under = UnderTest(DATA / "broken_rules.viba", "BadRef")
     witness = generate_witnesses(under.rule, 1, seed=1)[0]
-    node = under.accessor.root(under.definition, Witness(witness.ast_node)).value
+    node = under.accessor.root(under.definition, Witness(witness.ast_node)).ok_value
     member = node.by_tag("x")
     assert not isinstance(under.accessor.leaf(member), Ok)  # Missing 解析不了，更读不出叶子
     pairs += 1
 
     under = UnderTest(DATA / "broken_rules.viba", "BadRule")
     witness = generate_witnesses(under.rule, 1, seed=1)[0]
-    node = under.accessor.root(under.definition, Witness(witness.ast_node)).value
-    assert under.accessor.has(node, by_tag("$x")).value is False  # ... 不是数据
+    node = under.accessor.root(under.definition, Witness(witness.ast_node)).ok_value
+    assert under.accessor.has(node, by_tag("$x")).ok_value is False  # ... 不是数据
     pairs += 1
     return pairs
 
@@ -305,7 +305,7 @@ def main() -> int:
     under = UnderTest(DATA / "demo.viba", "DemoRule")
     witness = generate_witnesses(under.rule, 1, seed=1)[0]
     assert isinstance(under.accessor.root(under.definition, Witness(witness.ast_node)), Ok)
-    assert under.accessor.root(under.definition, Witness(witness.ast_node)).value.data is witness.ast_node
+    assert under.accessor.root(under.definition, Witness(witness.ast_node)).ok_value.data is witness.ast_node
 
     # 份数跟着语料算：60 条生成规则 × (20+20+200+20) + 几组固定的
     generated = (len(rule_paths) + len(not_paths)) * (WITNESSES_PER_RULE * 3 + MIXED_WITNESSES)

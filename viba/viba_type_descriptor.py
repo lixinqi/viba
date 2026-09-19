@@ -64,14 +64,14 @@ EXPONENT_UNIT = ("never",)  # 指数链链头（结果那一元）的单位元
 class VibaConstantValue:
     """One of the five leaf kinds: bool / int / float / str / nil."""
 
-    __slots__ = ("kind", "value")
+    __slots__ = ("kind", "constant_value")
 
-    def __init__(self, kind: str, value=None):
+    def __init__(self, kind: str, constant_value=None):
         self.kind = kind
-        self.value = value
+        self.constant_value = constant_value
 
     def __repr__(self):
-        return f"VibaConstantValue({self.kind}, {self.value!r})"
+        return f"VibaConstantValue({self.kind}, {self.constant_value!r})"
 
 
 # ----------------------------------------------------------------------
@@ -585,27 +585,27 @@ def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
     containing = pool_find_definition(pool, member.containing_full_name)
     if isinstance(containing, Err):
         return containing
-    file = pool_find_file(pool, containing.value.file_name)
+    file = pool_find_file(pool, containing.ok_value.file_name)
     if isinstance(file, Err):
         return file
-    written = name.value
+    written = name.ok_value
     prefix, dot, rest = written.partition(".")
     if dot:
-        import_ = file_find_import_by_local_name(file.value, prefix)
+        import_ = file_find_import_by_local_name(file.ok_value, prefix)
         if isinstance(import_, Err):
             return Err(f"{prefix!r} is neither an import nor a module of this file")
-        module_name = import_.value.module_name
+        module_name = import_.ok_value.module_name
         target_name = rest
     else:
-        module_name = file.value.module_name
+        module_name = file.ok_value.module_name
         target_name = written
     module = pool.module_environment(module_name)
     if isinstance(module, Err):
         return module
-    resolved = module_get_type(module.value, target_name)
+    resolved = module_get_type(module.ok_value, target_name)
     if isinstance(resolved, Err):
         return resolved
-    node = getattr(resolved.value, "ast_node", None)
+    node = getattr(resolved.ok_value, "ast_node", None)
     if not isinstance(node, (ast_nodes.TypeDefinition, ast_nodes.GenericDefinition)):
         return Err(f"{written!r} is not a definition")
     if node.name != target_name:

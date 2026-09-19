@@ -187,7 +187,7 @@ class _Checker:
         resolved = self._resolve_name(node.name, module, side)
         if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable TypeRef {node.name!r}")
-        return resolved.value
+        return resolved.ok_value
 
     def _check_uncached(self, sub: Type, sup: Type) -> bool:
         if isinstance(sub, NeverType):
@@ -266,7 +266,7 @@ class _Checker:
         resolved = self._resolve_name(node.name, module, side)
         if isinstance(resolved, Err):
             return node, module
-        target = resolved.value
+        target = resolved.ok_value
         if not isinstance(target, AstNodeType):
             return node, module
         body = target.ast_node
@@ -345,7 +345,7 @@ class _Checker:
         resolved = self._resolve_name(node.constructor, module, "sup")
         if isinstance(resolved, Err):
             return None
-        target = resolved.value
+        target = resolved.ok_value
         if not (isinstance(target, AstNodeType)
                 and isinstance(target.ast_node, viba_ast.GenericDefinition)):
             return None
@@ -487,7 +487,7 @@ class _Checker:
         resolved = self._resolve_name(node.constructor, module, side)
         if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable constructor {node.constructor!r}")
-        target = resolved.value
+        target = resolved.ok_value
         return isinstance(target, AstNodeType) and isinstance(
             target.ast_node, viba_ast.GenericDefinition)
 
@@ -534,7 +534,7 @@ class _Checker:
         resolved = self._resolve_name(node.constructor, module, side)
         if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable constructor {node.constructor!r}")
-        return resolved.value
+        return resolved.ok_value
 
     def _binder(self, params, args, module, side):
         meanings = {}
@@ -558,7 +558,7 @@ class _Checker:
         parts = []
         for arg in node.args:
             meaning = self._meaning(arg, module, side)
-            part = _type_key(meaning.value) if isinstance(meaning, Ok) else ("err",)
+            part = _type_key(meaning.ok_value) if isinstance(meaning, Ok) else ("err",)
             parts.append(part)
         return (id(node), side, id(module), tuple(parts))
 
@@ -736,7 +736,7 @@ class _Checker:
         resolved = self._resolve_name(node.constructor, module, side)
         if not isinstance(resolved, Ok):
             return False
-        target = resolved.value
+        target = resolved.ok_value
         if not isinstance(target, AstNodeType):
             return False
         defn = target.ast_node
@@ -782,7 +782,7 @@ class _Checker:
         resolved = self._resolve_name(name, module, side)
         if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable constructor {name!r}")
-        return resolved.value
+        return resolved.ok_value
 
     def _generic_equal(self, sub_c, sup_c) -> bool:
         if isinstance(sub_c, BuiltinGenericType) or isinstance(sup_c, BuiltinGenericType):
