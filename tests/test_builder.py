@@ -254,6 +254,31 @@ def test_builder_exponent_case_004():
     assert _text(vb) == "X :=\n  A\n  <- B\n  <- $p C"
 
 
+def test_builder_group_case_001():
+    """`tag(…)` 在和里就是括号：A | (B | C)。"""
+    vb = builder.Builder()
+    vb.X = vb.A | tag(vb.B | vb.C)
+    assert _text(vb) == "X :=\n  A\n  | (B\n    | C)"
+    assert [_shape(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "SumChain"]
+
+
+def test_builder_group_case_002():
+    """`tag(…)` 在积里也是括号：A * (B | C)、A * (B * C)。"""
+    vb = builder.Builder()
+    vb.X = vb.A * tag(vb.B | vb.C)
+    vb.Y = vb.A * tag(vb.B * vb.C)
+    text = _text(vb)
+    assert "X :=\n  A\n  * (B\n    | C)" in text
+    assert "Y :=\n  A\n  * (B\n    * C)" in text
+
+
+def test_builder_group_case_003():
+    """`tag(…)` 裹一个名字跟没裹一样。"""
+    vb = builder.Builder()
+    vb.X = vb.A | tag(vb.B)
+    assert _text(vb) == "X :=\n  A\n  | B"
+
+
 def test_builder_exponent_case_005():
     """`tag(name, body)` 与 `tag.name(body)` 一样。"""
     vb = builder.Builder()
