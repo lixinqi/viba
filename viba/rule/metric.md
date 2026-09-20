@@ -29,11 +29,16 @@ PersonPoint := ($x int * $y int)
 Moment := str
 
 # definition：受害人、嫌疑人、时刻 → 两人当时的直线距离
+# 末尾的 Hint 是实际执行的代码，入口是 metric_func
 GetDistance :=
     Result[int]
   <- $victim PersonPoint
   <- $suspect PersonPoint
   <- $at Moment
+  <- Hint[$python_code {
+def metric_func(victim, suspect, at):
+    return ((victim.x - suspect.x) ** 2 + (victim.y - suspect.y) ** 2) ** 0.5
+}]
 
 # prepare：取证准备——参数填真实的值，结果位留声明的类型
 Prepare :=
@@ -114,7 +119,9 @@ Result[5] <- Prepare
 
 1. 结果位落在 `Result[JsonLike]` 里（第 5 节第 2 条）；
 2. 参数与量的值都写成可读的数据形状：叶子落在 `JsonLike` 的原子上（第 6 节）；
-3. 固定证据时只动 `$call_instance`：`$func` 留设计函数的名字，`$call_instance` 的参数
+3. 末尾带一个 `Hint[$python_code {...}]`：实际执行的代码，入口是 `metric_func`，写法照
+   `Predicate` 的 `$python_code`。它是说明块，参数位上不算参数，判定不受它影响；
+4. 固定证据时只动 `$call_instance`：`$func` 留设计函数的名字，`$call_instance` 的参数
    填成真实的值（`Prepare`），量出来的值放在结果位，被测调用自己的结果位留声明。
 
 参数的写法自由：带 tag（本例 `$victim` / `$suspect` / `$at`）按名字取，不带 tag 按

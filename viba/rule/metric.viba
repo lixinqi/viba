@@ -5,6 +5,10 @@
 # is what a metric function must fit. Metric[CoreFunc] is the metric object: the
 # reserved tag is its nominal anchor, $func is the design's function, and
 # $call_instance is the call that was measured.
+#
+# A metric function ends with Hint[$python_code {...}], whose metric_func entry
+# is the code that actually runs. The Hint carries documentation, so a judgment
+# drops it from the argument list.
 
 Result[T] :=
     Oneof
