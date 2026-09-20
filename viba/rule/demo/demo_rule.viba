@@ -15,5 +15,5 @@ DemoRule :=
   * $assert_distance_ge_5
       Predicate[{the distance is at least 5}, $python_code {
 def predicate(self):
-    return self.distance.call_instance.field_0.ok >= 5
+    return self.get_distance().get_call_instance().get_field_0().get_ok().value >= 5
 }]

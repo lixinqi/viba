@@ -5,5 +5,5 @@ BrokenRule :=
   * $len Metric[Len]
   * $check Predicate[{broken}, $python_code {
 def predicate(self):
-    return self.len.value <
+    return self.get_len().get_value().value <
 }]

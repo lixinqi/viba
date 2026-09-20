@@ -18,60 +18,60 @@ Rule35 :=
   * $assert_00_cyclomatic_complexity_at_most_24
       Predicate[{cyclomatic_complexity at most 24}, $python_code {
 def predicate(self):
-    return self.cyclomatic_complexity.value <= 24
+    return self.get_cyclomatic_complexity().get_value().value <= 24
 }]
   * $assert_01_param_count_at_most_24
       Predicate[{param_count at most 24}, $python_code {
 def predicate(self):
-    return self.param_count.value <= 24
+    return self.get_param_count().get_value().value <= 24
 }]
   * $assert_02_cyclomatic_complexity_not_above_param_count
       Predicate[{cyclomatic_complexity not above param_count}, $python_code {
 def predicate(self):
-    return self.cyclomatic_complexity.value <= self.param_count.value
+    return self.get_cyclomatic_complexity().get_value().value <= self.get_param_count().get_value().value
 }]
   * $assert_03_coverage_ratio_within_50_5
       Predicate[{coverage_ratio within 50.5}, $python_code {
 def predicate(self):
-    return self.coverage_ratio.value <= 50.5
+    return self.get_coverage_ratio().get_value().value <= 50.5
 }]
   * $assert_04_coverage_ratio_non_negative
       Predicate[{coverage_ratio non-negative}, $python_code {
 def predicate(self):
-    return self.coverage_ratio.value >= 0.0
+    return self.get_coverage_ratio().get_value().value >= 0.0
 }]
   * $assert_05_module_name_short
       Predicate[{module_name short}, $python_code {
 def predicate(self):
-    return len(self.module_name.value) <= 8
+    return len(self.get_module_name().get_value().value) <= 8
 }]
   * $assert_06_module_name_not_empty
       Predicate[{module_name not empty}, $python_code {
 def predicate(self):
-    return len(self.module_name.value) >= 1
+    return len(self.get_module_name().get_value().value) >= 1
 }]
   * $assert_07_imports_non_empty
       Predicate[{imports non-empty}, $python_code {
 def predicate(self):
-    return len(self.imports.value) >= 1
+    return len(self.get_imports().get_value()) >= 1
 }]
   * $assert_08_imports_bounded
       Predicate[{imports bounded}, $python_code {
 def predicate(self):
-    return len(self.imports.value) <= 4
+    return len(self.get_imports().get_value()) <= 4
 }]
   * $assert_09_indent_width_non_negative
       Predicate[{indent_width non-negative}, $python_code {
 def predicate(self):
-    return self.indent_width.value.spaces >= 0
+    return self.get_indent_width().get_value().get_spaces().value >= 0
 }]
   * $assert_10_lookup_non_empty
       Predicate[{lookup non-empty}, $python_code {
 def predicate(self):
-    return len(self.lookup.value) >= 1
+    return len(self.get_lookup().get_value()) >= 1
 }]
   * $assert_11_lookup_bounded
       Predicate[{lookup bounded}, $python_code {
 def predicate(self):
-    return len(self.lookup.value) <= 4
+    return len(self.get_lookup().get_value()) <= 4
 }]

@@ -21,5 +21,6 @@ GetDistance :=
   <- $at Moment
   <- Hint[$python_code {
 def metric_func(victim, suspect, at):
-    return ((victim.x - suspect.x) ** 2 + (victim.y - suspect.y) ** 2) ** 0.5
+    return ((victim.get_x().value - suspect.get_x().value) ** 2
+            + (victim.get_y().value - suspect.get_y().value) ** 2) ** 0.5
 }]

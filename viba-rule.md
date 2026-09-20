@@ -34,7 +34,13 @@ Rule 里可以带谓词（Predicate）与禁止性字段（`not`），书写形�
 
 `$python_code` 代码块内的花括号必须成对出现（CodeBlock 词法约束）。
 
-判定器代码必须定义名为 `predicate` 的函数作为入口。`predicate` 恰好接受一个参数，参数名约定为 `self`：`self` 的属性与 Rule 中带标签的字段按名字对应（标签去掉 `$` 前缀），度量字段的实测值取其 `.value` 属性（也就是 `Metric` 定义体上 `$value` 那一层），嵌套的积字段按属性继续展开，元组字段按下标访问。`predicate` 返回布尔值：返回真值表示断言成立，返回假值表示断言不成立。
+判定器代码必须定义名为 `predicate` 的函数作为入口。`predicate` 恰好接受一个参数，参数名约定为 `self`，而 `self` 就是**反射节点**（`viba.reflect.VibaNode`）：设计取自 Rule，材料取自 Witness，代码按协议的地址读材料，不另造 Python 对象。读法（`viba-reflect.md`）：
+
+- 带标签的字段：`self.get_<tag>()`（标签去掉 `$`）；
+- 位置字段：`self.get_field_<i>()`（结果位是 `0`，参数按书写顺序从 `1` 起）；
+- 这一格携带的值：`.value`（叶子；`bool` / `int` / `float` / `str` / `nil`）。
+
+例如内建 `Metric[Name] := $value Name` 的度量字段读作 `self.get_<tag>().get_value().value`。`predicate` 返回布尔值：返回真值表示断言成立，返回假值表示断言不成立。
 
 ## 5. Metric 的书写形式
 
@@ -121,7 +127,7 @@ DemoRule :=
   * $assert_code_len_le_24
       Predicate[{code length <= 24}, $python_code {
 def predicate(self):
-    return self.code_length.value <= 24
+    return self.get_code_length().get_value().value <= 24
 }]
 ```
 
@@ -143,7 +149,7 @@ from viba.rule import (
 ```
 
 - `generate_witnesses(rule, count, seed=None, fail_prob=0.1)` — 按规则生成 `count` 份随机 Witness。`fail_prob` 是每个 `Predicate` 字段（以及每个 `not` 分支）被翻成违规形态的概率。
-- `reset_predication_by_python_code(witness)` — 执行 Witness 里每个 `Predicate` 的 `$python_code`，返回假的换成 `PredicationFailed[...]`。配合 `fail_prob=0` 使用，就是让代码而不是随机数决定哪些断言不成立。
+- `reset_predication_by_python_code(witness, rule)` — 执行 Witness 里每个 `Predicate` 的 `$python_code`（`self` 是 Rule 的设计加 Witness 的材料构成的反射节点），返回假的换成 `PredicationFailed[...]`。配合 `fail_prob=0` 使用，就是让代码而不是随机数决定哪些断言不成立。
 - `is_compliant(witness, rule)` — 判定 `witness <: rule`，返回 `Ok(True)` 或 `Ok(False)`。
 - `is_shape_compatible(witness, rule)` — 只把谓词叶子擦掉：两边的 `Predicate[...]` 与 `PredicationFailed[...]`（包括藏在类型名后面的）都换成同一个毒剂叶子，其余原样，再要求 `witness <: rule`。用来判断“形状是否准备好”：断言成没成不影响，但字段不能缺、tag 不能错、度量的数据类型也要对。
 - `check_rule_coding_style(rule)` — 检查规则是否符合本文档的书写规范，合规返回 `Ok(None)`，否则 `Err(第一条违规)`。
@@ -169,7 +175,7 @@ rule = AstNodeType(defs["DemoRule"].body, module)
 check_determinate(rule, 50)   # Result[None]：规范 + 代码 + 每份 witness 都判得出来
 
 for witness in generate_witnesses(rule, 20, seed=1, fail_prob=0.0):
-    witness = reset_predication_by_python_code(witness)   # 跑 predicate 代码
+    witness = reset_predication_by_python_code(witness, rule)   # 跑 predicate 代码
     print(is_compliant(witness, rule))                    # Ok(True) / Ok(False)
 ```
 

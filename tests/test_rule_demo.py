@@ -9,7 +9,6 @@ cannot rot.
 """
 
 import sys
-import types
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -17,10 +16,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba import viba_ast
 from viba.check_tag_and_inline import check_tag_and_inline
 from viba.is_sub_type import is_sub_type
+from viba.reflect import VibaNode, access as reflect_access
 from viba.rule import (check_rule_coding_style, is_compliant,
                        reset_predication_by_python_code)
 from viba.type import AstNodeType, CustomModuleType, Err, Ok
-from viba.viba_type_descriptor import (empty_pool, parse_viba_file, pool_add_file)
+from viba.viba_type_descriptor import (descriptor_of, empty_pool, parse_viba_file,
+                                       pool_add_file)
 
 ROOT = Path(__file__).resolve().parent.parent
 DEMO = ROOT / "viba" / "rule" / "demo"
@@ -128,7 +129,7 @@ def main() -> int:
     check(isinstance(verdict, Ok) and verdict.ok_value is True,
           f"DemoWitnessLow as written judges True (no code has run): {verdict!r}")
 
-    ran = reset_predication_by_python_code(low)
+    ran = reset_predication_by_python_code(low, rule)
     check(_assertion_of(ran) == "PredicationFailed",
           "running the code flips the low witness to the poison")
     verdict = is_compliant(ran, rule)
@@ -142,16 +143,21 @@ def main() -> int:
     check(isinstance(verdict, Ok) and verdict.ok_value is False,
           f"DemoWitnessFailed <: DemoRule: {verdict!r}")
 
-    kept = reset_predication_by_python_code(passing)
+    kept = reset_predication_by_python_code(passing, rule)
     check(_assertion_of(kept) == "Predicate", "5 >= 5 flips nothing")
     verdict = is_compliant(kept, rule)
     check(isinstance(verdict, Ok) and verdict.ok_value is True,
           f"the passing witness stays positive: {verdict!r}")
 
+    # the metric's code runs on the prepared call's own nodes: the same
+    # reflection the predicate reads with
+    prepare = _definition(materials, "Prepare")
+    called = VibaNode(reflect_access, descriptor_of(get_distance), prepare.ast_node,
+                      data_module=prepare.container_module)
     namespace = {}
     exec(compile(_metric_func_code(get_distance), "<metric_func>", "exec"), namespace)
-    point = types.SimpleNamespace
-    measured = namespace["metric_func"](point(x=0, y=0), point(x=3, y=4), "12:30")
+    measured = namespace["metric_func"](called.get_victim(), called.get_suspect(),
+                                       called.get_at())
     check(measured == 5.0, f"metric_func over (0,0) and (3,4) is 5, got {measured!r}")
 
     print(f"rule_demo: {PASS} passed, {FAIL} failed")

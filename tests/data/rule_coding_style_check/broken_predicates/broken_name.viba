@@ -5,5 +5,5 @@ BrokenRule :=
   * $len Metric[Len]
   * $check Predicate[{broken}, $python_code {
 def predicate(self):
-    return undefined_helper(self.len.value)
+    return undefined_helper(self.get_len().get_value().value)
 }]

@@ -409,6 +409,15 @@ def _is_unit(node, names) -> bool:
     return isinstance(node, ast_nodes.TypeRef) and node.name in names
 
 
+def descriptor_of(node) -> VibaTypeDescriptor:
+    """一份语法节点（AstNodeType）的浅描述符：谁手里只有语法、又想用反射读它，
+    从这里拿描述符。
+
+    池子是空的：这里没有按名字查池子的地方，名字由这份设计所写的那个模块解析
+    （描述符随身带着它）。"""
+    return _build_type(empty_pool(), node.container_module, node.ast_node)
+
+
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
     resolvable = AstNodeType(node, module)
     if isinstance(node, (ast_nodes.Product, ast_nodes.ProductChain)):
@@ -609,7 +618,7 @@ __all__ = [
     "VibaLiteralDescriptor", "VibaCodeBlockDescriptor",
     "VibaMemberDescriptor", "VibaDefinitionDescriptor",
     "VibaImportDescriptor", "VibaFileDescriptor", "VibaPool",
-    "empty_pool",
+    "empty_pool", "descriptor_of",
     "parse_viba_file", "pool_add_file", "pool_find_file",
     "pool_find_definition", "pool_find_member",
     "file_find_import_by_local_name",

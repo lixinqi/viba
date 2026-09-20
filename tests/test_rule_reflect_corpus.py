@@ -252,7 +252,7 @@ def check_predicate_reset() -> int:
         pairs += 1
     for value in range(100):
         witness = _bound_witness(under.module, value, check)
-        under.drive(reset_predication_by_python_code(witness), f"bound reset {value}")
+        under.drive(reset_predication_by_python_code(witness, under.rule), f"bound reset {value}")
         pairs += 1
     return pairs
 
@@ -265,7 +265,7 @@ def check_predicate_code() -> int:
         witnesses = generate_witnesses(under.rule, PREDICATE_WITNESSES,
                                       seed=int(number), fail_prob=0.0)
         for witness in witnesses:
-            under.drive(reset_predication_by_python_code(witness), "predicate code")
+            under.drive(reset_predication_by_python_code(witness, under.rule), "predicate code")
             pairs += 1
     return pairs
 

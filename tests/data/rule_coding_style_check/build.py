@@ -57,56 +57,56 @@ HELPERS = {
 # kind -> list of (description, predicate body); {t} is the field tag
 BANK = {
     "int": [
-        ("{t} at most 24", "return self.{t}.value <= 24"),
+        ("{t} at most 24", "return self.get_{t}().get_value().value <= 24"),
     ],
     "cross_int": [
-        ("{t1} not above {t2}", "return self.{t1}.value <= self.{t2}.value"),
+        ("{t1} not above {t2}", "return self.get_{t1}().get_value().value <= self.get_{t2}().get_value().value"),
     ],
     "float": [
-        ("{t} within 50.5", "return self.{t}.value <= 50.5"),
-        ("{t} non-negative", "return self.{t}.value >= 0.0"),
+        ("{t} within 50.5", "return self.get_{t}().get_value().value <= 50.5"),
+        ("{t} non-negative", "return self.get_{t}().get_value().value >= 0.0"),
     ],
     "bool": [
-        ("{t} required", "return self.{t}.value"),
+        ("{t} required", "return self.get_{t}().get_value().value"),
     ],
     "str": [
-        ("{t} short", "return len(self.{t}.value) <= 8"),
-        ("{t} not empty", "return len(self.{t}.value) >= 1"),
+        ("{t} short", "return len(self.get_{t}().get_value().value) <= 8"),
+        ("{t} not empty", "return len(self.get_{t}().get_value().value) >= 1"),
     ],
     "list": [
-        ("{t} non-empty", "return len(self.{t}.value) >= 1"),
-        ("{t} bounded", "return len(self.{t}.value) <= 4"),
+        ("{t} non-empty", "return len(self.get_{t}().get_value()) >= 1"),
+        ("{t} bounded", "return len(self.get_{t}().get_value()) <= 4"),
     ],
     "set": [
-        ("{t} bounded", "return len(self.{t}.value) <= 3"),
-        ("{t} non-empty", "return len(self.{t}.value) >= 1"),
+        ("{t} bounded", "return len(self.get_{t}().get_value()) <= 3"),
+        ("{t} non-empty", "return len(self.get_{t}().get_value()) >= 1"),
     ],
     "dict": [
-        ("{t} non-empty", "return len(self.{t}.value) >= 1"),
-        ("{t} bounded", "return len(self.{t}.value) <= 4"),
+        ("{t} non-empty", "return len(self.get_{t}().get_value()) >= 1"),
+        ("{t} bounded", "return len(self.get_{t}().get_value()) <= 4"),
     ],
-    "prod1": [("{t} non-negative", "return self.{t}.value.spaces >= 0")],
+    "prod1": [("{t} non-negative", "return self.get_{t}().get_value().get_spaces().value >= 0")],
     "prod2": [
-        ("{t} documented within total", "return self.{t}.value.documented_lines <= self.{t}.value.total_lines"),
+        ("{t} documented within total", "return self.get_{t}().get_value().get_documented_lines().value <= self.get_{t}().get_value().get_total_lines().value"),
     ],
-    "prod3": [("{t} spent within cap", "return self.{t}.value.spent <= self.{t}.value.cap")],
+    "prod3": [("{t} spent within cap", "return self.get_{t}().get_value().get_spent().value <= self.get_{t}().get_value().get_cap().value")],
     "intlist": [
-        ("{t} non-empty", "return len(self.{t}.value) >= 1"),
-        ("{t} bounded", "return len(self.{t}.value) <= 4"),
+        ("{t} non-empty", "return len(self.get_{t}().get_value()) >= 1"),
+        ("{t} bounded", "return len(self.get_{t}().get_value()) <= 4"),
     ],
     "dictss": [
-        ("{t} non-empty", "return len(self.{t}.value) >= 1"),
-        ("{t} bounded", "return len(self.{t}.value) <= 4"),
+        ("{t} non-empty", "return len(self.get_{t}().get_value()) >= 1"),
+        ("{t} bounded", "return len(self.get_{t}().get_value()) <= 4"),
     ],
     "prod_ab": [
-        ("{t} ordered", "return self.{t}.value.a <= self.{t}.value.b"),
-        ("{t} sum bounded", "return self.{t}.value.a + self.{t}.value.b <= 100"),
+        ("{t} ordered", "return self.get_{t}().get_value().get_a().value <= self.get_{t}().get_value().get_b().value"),
+        ("{t} sum bounded", "return self.get_{t}().get_value().get_a().value + self.get_{t}().get_value().get_b().value <= 100"),
     ],
-    "prod_ns": [("{t} name fits size", "return len(self.{t}.value.name) <= self.{t}.value.size")],
-    "prod_xyz": [("{t} x plus y within z", "return self.{t}.value.x + self.{t}.value.y <= self.{t}.value.z")],
+    "prod_ns": [("{t} name fits size", "return len(self.get_{t}().get_value().get_name().value) <= self.get_{t}().get_value().get_size().value")],
+    "prod_xyz": [("{t} x plus y within z", "return self.get_{t}().get_value().get_x().value + self.get_{t}().get_value().get_y().value <= self.get_{t}().get_value().get_z().value")],
     "prod_bucket": [
         ("{t} slots named short",
-         "return all(len(slot.name) <= 8 for slot in self.{t}.value.bucket)"),
+         "return all(len(slot.get_name().value) <= 8 for slot in self.get_{t}().get_value().get_bucket())"),
     ],
 }
 

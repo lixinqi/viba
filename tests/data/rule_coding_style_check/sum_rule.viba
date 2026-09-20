@@ -7,7 +7,7 @@ SmallRule :=
   * $assert_x_le_24
       Predicate[{x at most 24}, $python_code {
 def predicate(self):
-    return self.x.value <= 24
+    return self.get_x().get_value().value <= 24
 }]
 
 BigRule :=
@@ -16,7 +16,7 @@ BigRule :=
   * $assert_y_ge_10
       Predicate[{y at least 10}, $python_code {
 def predicate(self):
-    return self.y.value >= 10
+    return self.get_y().get_value().value >= 10
 }]
 
 SumRule :=
@@ -27,7 +27,7 @@ SumRule :=
 SumWitnessPass :=
   $small (RuleObject * $x ($value 20) * $assert_x_le_24 Predicate[{x at most 24}, $python_code {
 def predicate(self):
-    return self.x.value <= 24
+    return self.get_x().get_value().value <= 24
 }])
 
 SumWitnessFail :=

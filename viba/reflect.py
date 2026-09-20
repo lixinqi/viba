@@ -193,12 +193,14 @@ class VibaData:
     and the like are carried by the caller, not by the protocol.
     """
 
-    __slots__ = ("node",)
+    __slots__ = ("node", "module")
 
-    def __init__(self, node):
+    def __init__(self, node, module=None):
         if isinstance(node, AstNodeType):
+            module = module or node.container_module
             node = node.ast_node
         self.node = node
+        self.module = module
 
 
 # ----------------------------------------------------------------------
@@ -214,14 +216,17 @@ class VibaNode:
     compared).
     """
 
-    __slots__ = ("_access", "descriptor", "data", "path")
+    __slots__ = ("_access", "descriptor", "data", "path", "data_module")
 
     def __init__(self, access: "VibaAccess", descriptor: VibaTypeDescriptor, data,
-                 path: Sequence[VibaStep] = ()):
+                 path: Sequence[VibaStep] = (), data_module=None):
         self._access = access
         self.descriptor = descriptor
         self.data = data
         self.path = tuple(path)
+        # The module the material was written in: a name on the data side is
+        # resolved there, not where the design piece came from.
+        self.data_module = data_module
 
     def __repr__(self):
         where = ".".join(repr(step) for step in self.path) or "root"
@@ -355,14 +360,16 @@ class VibaAccess:
 
     def root(self, definition: VibaDefinitionDescriptor, data: VibaData) -> Result:
         """VibaRoot: hand out the (descriptor, data) pair."""
-        return Ok(VibaNode(self, definition.body, data.node))
+        return Ok(VibaNode(self, definition.body, data.node,
+                           data_module=data.module))
 
     def has(self, node: VibaNode, step: VibaStep) -> Result:
         """VibaHas: is this step there. No such address in the design and no
         such piece in the material are both false."""
         if not self._knows(node, step, self.members(node)):
             return Ok(False)
-        return Ok(self._value_at(node.data, step, node.descriptor) is not None)
+        return Ok(self._value_at(node.data, step, node.descriptor,
+                                 node.data_module) is not None)
 
     def get(self, node: VibaNode, step: VibaStep) -> Result:
         """VibaGet: take one step. A piece the material lacks is Ok(nil); an
@@ -373,10 +380,11 @@ class VibaAccess:
         descriptor = self.target_of(node, step, slots)
         if descriptor is None:
             return Err(f"the design has no such address: {step} ({node!r})")
-        piece = self._value_at(node.data, step, node.descriptor)
+        piece = self._value_at(node.data, step, node.descriptor, node.data_module)
         if piece is None:
             return Ok(None)
-        return Ok(VibaNode(self, descriptor, piece, tuple(node.path) + (step,)))
+        return Ok(VibaNode(self, descriptor, piece, tuple(node.path) + (step,),
+                           data_module=node.data_module))
 
     def leaf(self, node: VibaNode) -> Result:
         data = node.data
@@ -806,12 +814,12 @@ class VibaAccess:
 
     # ---- private: the data side ----
 
-    def _value_at(self, data, step: VibaStep, design=None):
+    def _value_at(self, data, step: VibaStep, design=None, data_module=None):
         """The matching piece in the material; None when there is none (``...``
         is not data)."""
-        return _as_value(self._match(data, step, design))
+        return _as_value(self._match(data, step, design, data_module))
 
-    def _expand_data(self, data, design):
+    def _expand_data(self, data, design, data_module=None):
         """Unfold a material written as a name or a generic application: a name
         gives its definition body, an application fills its arguments in.
 
@@ -821,12 +829,12 @@ class VibaAccess:
         expanded stays as written, so a cycle (`A := B` with `B := A`) and a
         body that only grows (`W[T] := W[list[T]]`) both terminate.
         """
-        return self._expand_data_seen(data, design, set())
+        return self._expand_data_seen(data, design, set(), data_module)
 
-    def _expand_data_seen(self, data, design, seen):
+    def _expand_data_seen(self, data, design, seen, data_module=None):
         """_expand_data, and the definitions it expanded on the way."""
         if isinstance(data, viba_ast.TypeRef):
-            module = _design_module(design)
+            module = data_module or _design_module(design)
             if module is None:
                 return data
             body = _definition_body(module, data.name)
@@ -835,9 +843,9 @@ class VibaAccess:
             key = self._data_definition_key(data, module)
             if key is None or key in seen:
                 return data
-            return self._expand_data_seen(body, design, seen | {key})
+            return self._expand_data_seen(body, design, seen | {key}, data_module)
         if isinstance(data, viba_ast.TypeApp):
-            module = _design_module(design)
+            module = data_module or _design_module(design)
             if module is None:
                 return data
             definition = _generic_definition(module, data.constructor)
@@ -851,12 +859,12 @@ class VibaAccess:
                 return data
             bindings = dict(zip(params, data.args))
             body = _fill_params(definition.body, bindings)
-            return self._expand_data_seen(body, design, seen | {key})
+            return self._expand_data_seen(body, design, seen | {key}, data_module)
         return data
 
-    def _match(self, data, step: VibaStep, design=None):
+    def _match(self, data, step: VibaStep, design=None, data_module=None):
         if step.kind in ("by_tag", "by_field_index"):
-            slots = self._data_members(data, design)
+            slots = self._data_members(data, design, data_module)
             if slots is not None:
                 if step.kind == "by_tag":
                     for tag, piece in slots:
@@ -966,16 +974,16 @@ class VibaAccess:
         return (isinstance(node, viba_ast.TypeRef)
                 and node.name in self.config.nil_eqv)
 
-    def _data_members(self, data, design=None) -> Optional[List[tuple]]:
+    def _data_members(self, data, design=None, data_module=None) -> Optional[List[tuple]]:
         """The members of this data piece: [(tag or None, piece), ...].
 
         A product design is read by the design's own rule
         (_product_data_members). Sum and exponent designs follow one rule: the
         elements of the written chain, minus a unit chain head.
         """
-        expanded = self._expand_data(data, design)
+        expanded = self._expand_data(data, design, data_module)
         if design is not None and self.unfold(design).kind == PRODUCT:
-            return self._product_data_members(expanded, design, set())
+            return self._product_data_members(expanded, design, set(), data_module)
         elements = _flatten(expanded)
         if elements is None:
             if isinstance(expanded, viba_ast.Tagged):
@@ -991,7 +999,7 @@ class VibaAccess:
                 slots.append((None, element))
         return slots
 
-    def _product_data_members(self, data, design, seen) -> List[tuple]:
+    def _product_data_members(self, data, design, seen, data_module=None) -> List[tuple]:
         """A product's members on the material side, by the design's rule.
 
         An untagged piece written as a name or an application that unfolds to a
@@ -1007,7 +1015,7 @@ class VibaAccess:
             if isinstance(data, viba_ast.Tagged):
                 return [(data.tag, data.type)]
             return []
-        module = _design_module(design)
+        module = data_module or _design_module(design)
         out = []
         for element in elements:
             if isinstance(element, viba_ast.Tagged):
@@ -1016,10 +1024,11 @@ class VibaAccess:
             key = self._data_definition_key(element, module) if module is not None else None
             expanded = element
             if key is not None and key not in seen:
-                expanded = self._expand_data(element, design)
+                expanded = self._expand_data(element, design, data_module)
             if isinstance(expanded, (viba_ast.Product, viba_ast.ProductChain)):
                 next_seen = seen | {key} if key is not None else seen
-                out.extend(self._product_data_members(expanded, design, next_seen))
+                out.extend(self._product_data_members(expanded, design, next_seen,
+                                                       data_module))
             elif isinstance(expanded, viba_ast.Tagged):
                 out.append((expanded.tag, expanded.type))
             elif self._is_product_unit_data(expanded):

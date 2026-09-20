@@ -28,100 +28,100 @@ Rule24 :=
   * $assert_00_code_length_at_most_24
       Predicate[{code_length at most 24}, $python_code {
 def predicate(self):
-    return self.code_length.value <= 24
+    return self.get_code_length().get_value().value <= 24
 }]
   * $assert_01_max_lines_at_most_24
       Predicate[{max_lines at most 24}, $python_code {
 def predicate(self):
-    return self.max_lines.value <= 24
+    return self.get_max_lines().get_value().value <= 24
 }]
   * $assert_02_code_length_not_above_max_lines
       Predicate[{code_length not above max_lines}, $python_code {
 def predicate(self):
-    return self.code_length.value <= self.max_lines.value
+    return self.get_code_length().get_value().value <= self.get_max_lines().get_value().value
 }]
   * $assert_03_coverage_ratio_within_50_5
       Predicate[{coverage_ratio within 50.5}, $python_code {
 def predicate(self):
-    return self.coverage_ratio.value <= 50.5
+    return self.get_coverage_ratio().get_value().value <= 50.5
 }]
   * $assert_04_coverage_ratio_non_negative
       Predicate[{coverage_ratio non-negative}, $python_code {
 def predicate(self):
-    return self.coverage_ratio.value >= 0.0
+    return self.get_coverage_ratio().get_value().value >= 0.0
 }]
   * $assert_05_time_budget_within_50_5
       Predicate[{time_budget within 50.5}, $python_code {
 def predicate(self):
-    return self.time_budget.value <= 50.5
+    return self.get_time_budget().get_value().value <= 50.5
 }]
   * $assert_06_time_budget_non_negative
       Predicate[{time_budget non-negative}, $python_code {
 def predicate(self):
-    return self.time_budget.value >= 0.0
+    return self.get_time_budget().get_value().value >= 0.0
 }]
   * $assert_07_has_tests_required
       Predicate[{has_tests required}, $python_code {
 def predicate(self):
-    return self.has_tests.value
+    return self.get_has_tests().get_value().value
 }]
   * $assert_08_module_name_short
       Predicate[{module_name short}, $python_code {
 def predicate(self):
-    return len(self.module_name.value) <= 8
+    return len(self.get_module_name().get_value().value) <= 8
 }]
   * $assert_09_module_name_not_empty
       Predicate[{module_name not empty}, $python_code {
 def predicate(self):
-    return len(self.module_name.value) >= 1
+    return len(self.get_module_name().get_value().value) >= 1
 }]
   * $assert_10_keywords_non_empty
       Predicate[{keywords non-empty}, $python_code {
 def predicate(self):
-    return len(self.keywords.value) >= 1
+    return len(self.get_keywords().get_value()) >= 1
 }]
   * $assert_11_keywords_bounded
       Predicate[{keywords bounded}, $python_code {
 def predicate(self):
-    return len(self.keywords.value) <= 4
+    return len(self.get_keywords().get_value()) <= 4
 }]
   * $assert_12_tags_bounded
       Predicate[{tags bounded}, $python_code {
 def predicate(self):
-    return len(self.tags.value) <= 3
+    return len(self.get_tags().get_value()) <= 3
 }]
   * $assert_13_tags_non_empty
       Predicate[{tags non-empty}, $python_code {
 def predicate(self):
-    return len(self.tags.value) >= 1
+    return len(self.get_tags().get_value()) >= 1
 }]
   * $assert_14_scores_non_empty
       Predicate[{scores non-empty}, $python_code {
 def predicate(self):
-    return len(self.scores.value) >= 1
+    return len(self.get_scores().get_value()) >= 1
 }]
   * $assert_15_scores_bounded
       Predicate[{scores bounded}, $python_code {
 def predicate(self):
-    return len(self.scores.value) <= 4
+    return len(self.get_scores().get_value()) <= 4
 }]
   * $assert_16_int_pair_ordered
       Predicate[{int_pair ordered}, $python_code {
 def predicate(self):
-    return self.int_pair.value.a <= self.int_pair.value.b
+    return self.get_int_pair().get_value().get_a().value <= self.get_int_pair().get_value().get_b().value
 }]
   * $assert_17_int_pair_sum_bounded
       Predicate[{int_pair sum bounded}, $python_code {
 def predicate(self):
-    return self.int_pair.value.a + self.int_pair.value.b <= 100
+    return self.get_int_pair().get_value().get_a().value + self.get_int_pair().get_value().get_b().value <= 100
 }]
   * $assert_18_name_size_name_fits_size
       Predicate[{name_size name fits size}, $python_code {
 def predicate(self):
-    return len(self.name_size.value.name) <= self.name_size.value.size
+    return len(self.get_name_size().get_value().get_name().value) <= self.get_name_size().get_value().get_size().value
 }]
   * $assert_19_triplet_x_plus_y_within_z
       Predicate[{triplet x plus y within z}, $python_code {
 def predicate(self):
-    return self.triplet.value.x + self.triplet.value.y <= self.triplet.value.z
+    return self.get_triplet().get_value().get_x().value + self.get_triplet().get_value().get_y().value <= self.get_triplet().get_value().get_z().value
 }]

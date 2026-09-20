@@ -269,7 +269,7 @@ def _check_predicate_reset():
     check = _predicate_node(rule.ast_node)
     witnesses = [_bound_witness(module, value, check) for value in range(100)]
     before = sum(is_compliant(w, rule).ok_value for w in witnesses)
-    after = sum(is_compliant(reset_predication_by_python_code(w), rule).ok_value for w in witnesses)
+    after = sum(is_compliant(reset_predication_by_python_code(w, rule), rule).ok_value for w in witnesses)
     assert before == 100, f"before reset: compliant {before}/100"
     assert after == 50, f"after reset: compliant {after}/100"
     print(f"predicate reset: {before}/100 -> {after}/100")
@@ -416,7 +416,7 @@ def _check_predicate_code():
         rule = _entry(defs, module, f"Rule{number}")
         witnesses = generate_witnesses(rule, PREDICATE_WITNESSES, seed=int(number), fail_prob=0.0)
         for witness in witnesses:
-            given = is_compliant(reset_predication_by_python_code(witness), rule)
+            given = is_compliant(reset_predication_by_python_code(witness, rule), rule)
             assert isinstance(given, Ok), f"{path.name}: judge errored: {given!r}"
             compliant += given.ok_value
             total += 1

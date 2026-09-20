@@ -10,5 +10,5 @@ DemoRule :=
   * $assert_code_len_le_24
       Predicate[{code length <= 24}, $python_code {
 def predicate(self):
-    return self.code_length.value <= 24
+    return self.get_code_length().get_value().value <= 24
 }]

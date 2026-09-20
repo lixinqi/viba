@@ -28,7 +28,7 @@ def check_determinate(rule, count: int, seed=None):
     witnesses = generate_witnesses(rule, count, seed, fail_prob=0.0)
     for index, witness in enumerate(witnesses):
         try:
-            witness = reset_predication_by_python_code(witness)
+            witness = reset_predication_by_python_code(witness, rule)
         except Exception as exc:  # the predicate code must actually run
             return Err(f"witness #{index}: predicate raised {exc!r}")
         judged = is_compliant(witness, rule)
