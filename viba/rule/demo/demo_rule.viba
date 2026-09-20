@@ -1,0 +1,19 @@
+# The rule this demo judges: at that moment the two were at least 5 apart.
+# It depends on viba/rule/rule.viba (RuleObject) and demo_metric_func.viba;
+# Metric itself comes from viba/rule/metric.viba.
+#
+# Verdicts (tests/test_rule_demo.py):
+#   check_rule_coding_style(DemoRule)  => Ok(None)
+
+import viba.rule.rule
+import viba.rule.metric
+import viba.rule.demo.demo_metric_func
+
+DemoRule :=
+    rule.RuleObject
+  * $distance metric.Metric[demo_metric_func.GetDistance]
+  * $assert_distance_ge_5
+      Predicate[{the distance is at least 5}, $python_code {
+def predicate(self):
+    return self.distance.call_instance.field_0.ok >= 5
+}]

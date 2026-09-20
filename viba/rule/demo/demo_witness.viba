@@ -1,0 +1,51 @@
+# The evidence: at 12:30 the victim was at (0,0) and the suspect at (3,4), and
+# the metric answered $ok 5 - the distance demo_metric_func's code computes for
+# those two points. It depends on all three files above.
+#
+# Verdicts (tests/test_rule_demo.py):
+#   DemoWitnessPass <: DemoRule                        => Ok(True)
+#   DemoWitnessFail <: DemoRule                        => Ok(False)
+#   reset_predication_by_python_code(DemoWitnessFlip)  => the predicate flips
+#                                                         (3 < 5), and the
+#                                                         result judges False
+#   reset_predication_by_python_code(DemoWitnessPass)  => stays positive
+
+import viba.rule.metric
+import viba.rule.demo.demo_metric_func
+import viba.rule.demo.demo_rule
+
+# pass: the metric answered 5, and 5 >= 5 holds
+DemoWitnessPass :=
+    $distance (
+        $__metric_object_yanatuttn__ nil
+        * $func demo_metric_func.GetDistance
+        * $call_instance (metric.Result[5] <- demo_metric_func.Prepare)
+      )
+  * $assert_distance_ge_5
+      Predicate[{the distance is at least 5}, $python_code {
+def predicate(self):
+    return self.distance.call_instance.field_0.ok >= 5
+}]
+
+# fail: the same measurement, but the assertion is the poison
+DemoWitnessFail :=
+    $distance (
+        $__metric_object_yanatuttn__ nil
+        * $func demo_metric_func.GetDistance
+        * $call_instance (metric.Result[5] <- demo_metric_func.Prepare)
+      )
+  * $assert_distance_ge_5 PredicationFailed[nil, str]
+
+# fail, written positive: the metric answered 3 this time, so the predicate
+# itself flips
+DemoWitnessFlip :=
+    $distance (
+        $__metric_object_yanatuttn__ nil
+        * $func demo_metric_func.GetDistance
+        * $call_instance (metric.Result[3] <- demo_metric_func.Prepare)
+      )
+  * $assert_distance_ge_5
+      Predicate[{the distance is at least 5}, $python_code {
+def predicate(self):
+    return self.distance.call_instance.field_0.ok >= 5
+}]

@@ -1,0 +1,32 @@
+# The demo's metric function: how far apart the victim and the suspect were at
+# a moment. It depends on viba/rule/metric.viba (Result, JsonLike, Metric).
+#
+# Verdicts (tests/test_rule_demo.py):
+#   GetDistance <: MetricFuncInterface        => Ok(True)
+#   check_tag_and_inline(metric.viba + demo)  => Ok(None)
+
+import viba.rule.metric
+
+# demo: a point and a moment
+PersonPoint := ($x int * $y int)
+Moment := str
+
+# definition: victim, suspect, moment -> the distance between them.
+# The trailing Hint is the code that actually runs; its entry is metric_func.
+GetDistance :=
+    metric.Result[int]
+  <- $victim PersonPoint
+  <- $suspect PersonPoint
+  <- $at Moment
+  <- Hint[$python_code {
+def metric_func(victim, suspect, at):
+    return ((victim.x - suspect.x) ** 2 + (victim.y - suspect.y) ** 2) ** 0.5
+}]
+
+# prepare: the call with its arguments fixed and its result left declared.
+# The evidence keeps this in the metric object's $call_instance argument slot.
+Prepare :=
+    metric.Result[int]
+  <- $victim ($x 0 * $y 0)
+  <- $suspect ($x 3 * $y 4)
+  <- $at "12:30"

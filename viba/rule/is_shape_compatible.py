@@ -23,13 +23,13 @@ Two notes on the shape of this:
 from viba.viba_ast import nodes as ast_nodes
 from viba.type import AstNodeType, Err, Ok, Result, module_get_type
 from viba.is_sub_type import is_sub_type
-from viba.rule.is_compliant import TERMINATORS
+from viba.rule.is_compliant import TERMINATORS, judgment_config
 
 
 def is_shape_compatible(sub: AstNodeType, sup: AstNodeType) -> Result:
     """Ok(True) when the sub shape fits the sup shape."""
     fits = is_sub_type(erase_predications(sub), erase_predications(sup),
-                       terminators=TERMINATORS)
+                       terminators=TERMINATORS, config=judgment_config)
     if isinstance(fits, Err):
         return fits
     return Ok(bool(fits.ok_value))
