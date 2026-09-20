@@ -119,18 +119,25 @@ _PROD_NODES = (viba_ast.Product, viba_ast.ProductChain)
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 
-def is_sub_type(sub: Type, sup: Type, terminators=frozenset()) -> Result:
+def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> Result:
     """Ok(True/False) is the judgment; Err reports malformed input.
 
     `terminators` names the written types a never-headed chain accepts
     where `never` itself would do. The core is told, not told about: which
     word that is belongs to the layer that uses the chain.
+
+    `config` is the same value the address layer reads with
+    (`VibaReflectConfig`: `never_eqv` and `nil_eqv`, the written names that
+    stand for the units). A name in either set is that unit here too, bare
+    or applied — `Assert[{...}]` is the unit when `Assert` is one — so a
+    layer that parks prose in such a block gets it bypassed instead of
+    resolved. Nothing named, nothing bypassed.
     """
     err = _input_error(sub, sup)
     if err is not None:
         return Err(err)
     try:
-        return Ok(_Checker(terminators).check(sub, sup))
+        return Ok(_Checker(terminators, config).check(sub, sup))
     except UnresolvedTypeError as exc:
         return Err(str(exc))
     except DuplicateTagError as exc:
@@ -150,9 +157,17 @@ def _input_error(sub: Type, sup: Type):
     return None
 
 
+# The written units a config can name: shared, so a substituted unit keeps one
+# node and the memo keys stay put.
+_UNIT_NIL = viba_ast.Nil()
+_UNIT_NEVER = viba_ast.Never()
+
+
 class _Checker:
-    def __init__(self, terminators=frozenset()):
+    def __init__(self, terminators=frozenset(), config=None):
         self.terminators = frozenset(terminators)
+        self.nil_eqv = frozenset(getattr(config, "nil_eqv", ()) or ())
+        self.never_eqv = frozenset(getattr(config, "never_eqv", ()) or ())
         self.memo: dict = {}
         self._walk_memo: dict = {}
         self._walking: set = set()
@@ -291,6 +306,8 @@ class _Checker:
     def _walk(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
         sn, s_mod = self._unfold_ref(sn, s_mod, "sub")
         sp, p_mod = self._unfold_ref(sp, p_mod, "sup")
+        sn = self._config_unit_node(sn)
+        sp = self._config_unit_node(sp)
         senv, penv = self._env_ids("sub"), self._env_ids("sup")
         key = (id(sn), id(sp), id(s_mod), id(p_mod), senv, penv)
         if key in self._walking:
@@ -864,12 +881,43 @@ class _Checker:
             return None
         return ("inline", id(resolved.ok_value.ast_node)), node.name
 
+    def _config_unit(self, node):
+        """The unit the config calls this piece, or None.
+
+        A name and an application of it count the same: `Assert[{...}]` is the
+        unit when `Assert` is one, and is then not resolved at all.
+        """
+        if isinstance(node, viba_ast.TypeRef):
+            name = node.name
+        elif isinstance(node, viba_ast.TypeApp):
+            name = node.constructor
+        else:
+            return None
+        if name in self.nil_eqv:
+            return NilType()
+        if name in self.never_eqv:
+            return NeverType()
+        return None
+
+    def _config_unit_node(self, node):
+        """The written unit a config names, so the rest of the walk reads it
+        like any other nil or never; the node itself when it names none."""
+        unit = self._config_unit(node)
+        if isinstance(unit, NilType):
+            return _UNIT_NIL
+        if isinstance(unit, NeverType):
+            return _UNIT_NEVER
+        return node
+
     def _is_product_unit(self, node, module, side: str) -> bool:
-        """The product's unit: nil by form, or a name (a generic parameter
-        among them) bound to nil. never is the sum's unit and counts as a
-        member of a product."""
+        """The product's unit: nil by form, a name the config calls nil, or a
+        name (a generic parameter among them) bound to nil. never is the sum's
+        unit and counts as a member of a product."""
         if isinstance(node, viba_ast.Nil):
             return True
+        unit = self._config_unit(node)
+        if unit is not None:
+            return isinstance(unit, NilType)
         if not isinstance(node, viba_ast.TypeRef):
             return False
         resolved = self._resolve_name(node.name, module, side)

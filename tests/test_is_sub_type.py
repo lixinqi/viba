@@ -28,6 +28,7 @@ from viba.type import (
     entry_type,
 )
 from viba.is_sub_type import is_sub_type
+from viba.reflect import Config
 from viba.viba_type_descriptor import (empty_pool, parse_viba_file, pool_add_file,
                                        pool_find_definition)
 
@@ -708,6 +709,53 @@ def run_function_chain_cases():
                  "the other way the inner sub is padded, and float <: never fails")
 
 
+def run_config_cases():
+    """config：哪些写下来的名字算单位元，裸名与应用同名同权。规则层把说明块
+    `Assert[{...}]` 说成单位，判定就该当单位读，而不是去解析那个名字。"""
+    module = custom_module("""
+Result[T] := Oneof | $ok ($ok_value T) | $err ($err_msg str)
+JsonLike :=
+    Oneof
+  | nil
+  | bool
+  | int
+  | float
+  | str
+  | list[JsonLike]
+  | set[JsonLike]
+  | dict[str, JsonLike]
+MetricFuncInterface := Result[JsonLike] <- never
+DemoPoint := ($x int * $y int)
+GetDistance := Result[int] <- DemoPoint <- DemoPoint
+MetricObject := Object * $__metric_object_you_are_not_allowed_to_use_this_tag_name__ nil
+Metric[CoreFunc] :=
+    MetricObject
+  * $func CoreFunc
+  * Assert[{
+      CoreFunc <: (Result[JsonLike] <- never)
+    }]
+""")
+    config = Config(nil_eqv={"Assert", "Hint"}, never_eqv={"Oneof"})
+
+    def judge(sub, sup, given=config):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module), config=given)
+
+    check_result(judge("Metric[GetDistance]", "Metric[GetDistance]"), True,
+                 "with the config the Assert block is a unit, so the metric compares")
+    check_result(judge("Metric[GetDistance]", "Metric[GetDistance]", given=None), "error",
+                 "without it the block is a name nothing defines, and the judgment Errs")
+    check_result(judge("Assert[{x}]", "nil"), True,
+                 "an applied unit name is the unit")
+    check_result(judge("nil", "Hint[{y}]"), True,
+                 "and the same read backwards")
+    check_result(judge("Object * Assert[{x}] * $a int", "$a int"), True,
+                 "an untagged unit member is no member")
+    check_result(judge("GetDistance", "MetricFuncInterface"), True,
+                 "the metric's own interface holds")
+    check_result(judge("GetDistance", "MetricFuncInterface", given=None), True,
+                 "and it needs no config to hold")
+
+
 def run_never_head_cases():
     """Without terminators named, a never-headed chain is just an exponent."""
     module = custom_module("""
@@ -837,6 +885,7 @@ run_inline_member_cases()
 run_inline_cycle_guard_cases()
 run_cross_module_inline_cases()
 run_function_chain_cases()
+run_config_cases()
 run_never_head_cases()
 run_code_block_cases()
 run_canonical_chain_cases()
