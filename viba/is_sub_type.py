@@ -129,13 +129,13 @@ def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> R
     `config` is the same value the address layer reads with
     (`VibaReflectConfig`: `never_eqv` and `nil_eqv`, the written names that
     stand for the units). A name in either set is that unit here too, bare
-    or applied — `Assert[{...}]` is the unit when `Assert` is one — so a
-    layer that parks documentation in such a block gets it bypassed instead
-    of resolved. Such an argument is also not a position: documentation
-    drops out of a function's argument list, so `A <- B <- Assert[{...}]` and
-    `A <- Assert[{...}] <- B` are both `A <- B`. A unit written as a plain
-    name does keep its position (`Object` is the nil of the product, and nil
-    is a real slot in a tuple). Nothing named, nothing bypassed.
+    or applied — `U[{...}]` is the unit when `U` is one — so a layer that
+    parks documentation in such a block gets it bypassed instead of
+    resolved. Such an argument is also not a position: documentation drops
+    out of a function's argument list, so `A <- B <- U[{...}]` and
+    `A <- U[{...}] <- B` are both `A <- B`. A unit written as a plain name
+    does keep its position (it is the nil of the product, and nil is a real
+    slot in a tuple). Nothing named, nothing bypassed.
     """
     err = _input_error(sub, sup)
     if err is not None:
@@ -832,7 +832,7 @@ class _Checker:
             while True:
                 if isinstance(self._config_unit(node), NilType):
                     # A unit a config names is no member: a name is bypassed,
-                    # not resolved, so `rule.RuleObject` stays the marker.
+                    # not resolved, so it stays the unit it was declared to be.
                     return {}, []
                 target = self._inlining_key(node, node_mod, side)
                 if target is not None:
@@ -901,10 +901,10 @@ class _Checker:
     def _config_unit(self, node):
         """The unit the config calls this piece, or None.
 
-        A name and an application of it count the same: `Assert[{...}]` is the
-        unit when `Assert` is one, and is then not resolved at all. A name
-        reached through an import counts too: `rule.RuleObject` names the
-        marker, so what the config lists is the last segment.
+        A name and an application of it count the same: `U[{...}]` is the
+        unit when `U` is one, and is then not resolved at all. A name reached
+        through an import counts too: `m.U` names the unit, so what the config
+        lists is the last segment.
         """
         if isinstance(node, viba_ast.TypeRef):
             name = node.name
@@ -931,9 +931,9 @@ class _Checker:
 
     def _drop_unit_args(self, args):
         """The arguments that carry documentation drop out of the chain, and
-        only those: (A <- B <- Assert[{...}]) is (A <- B), and so is
-        (A <- Assert[{...}] <- B) — what is dropped is the block, not the
-        position it was written in.
+        only those: (A <- B <- U[{...}]) is (A <- B), and so is
+        (A <- U[{...}] <- B) — what is dropped is the block, not the position
+        it was written in.
 
         A unit written as a name is an argument like any other: the argument
         list is a tuple, and nil is a real slot in it (`Object` is that nil).
@@ -944,8 +944,8 @@ class _Checker:
     def _carries_documentation(self, node) -> bool:
         """A code block, or a unit a config names applied to one: the shape
         the writing layers park documentation in. Documentation is not an
-        argument. The block may sit behind a tag, as `Hint[$python_code
-        {...}]` writes it."""
+        argument. The block may sit behind a tag, as `U[$t {...}]` writes
+        it."""
         if isinstance(node, viba_ast.CodeBlock):
             return True
         if not isinstance(node, viba_ast.TypeApp):
