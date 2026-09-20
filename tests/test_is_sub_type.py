@@ -594,7 +594,13 @@ def run_cross_module_inline_cases():
              "import base\nB := base.A * $z bool\nUBox := base.U * $w int\n"
              "Dup := base.A * $x int\n"),
             ("other.viba", "other", "import ring\nCyc := ring.Ring * $c int\n"),
-            ("ring.viba", "ring", "import other\nRing := other.Cyc * $r int\n")):
+            ("ring.viba", "ring", "import other\nRing := other.Cyc * $r int\n"),
+            ("mid.viba", "pkg.mod", "Mid := int\n"),
+            ("deepest.viba", "pkg.mod.sub",
+             "import pkg.mod\nDeep := Object * $m pkg.mod.Mid * $k int\n"),
+            ("user.viba", "user",
+             "import pkg.mod\nimport pkg.mod.sub\n"
+             "Long := pkg.mod.sub.Deep\nShort := pkg.mod.Mid\nOld := mod.Mid\n")):
         parsed = parse_viba_file(pool, source, file_name, module_name)
         assert isinstance(parsed, Ok), parsed
         pool = pool_add_file(pool, parsed.ok_value).ok_value
@@ -618,6 +624,14 @@ def run_cross_module_inline_cases():
     ringed = judge("ring.Ring", "Ring")
     check(isinstance(ringed, Err) and "comes back to" in ringed.err_msg, True,
           "and it names the chain")
+    check_result(judge("user.Long", "$m int * $k int"), True,
+                 "import pkg.mod without as binds pkg.mod, so pkg.mod.sub.Deep resolves")
+    check_result(judge("user.Short", "int"), True,
+                 "and pkg.mod.Mid resolves by the shorter module too")
+    check_result(judge("pkg.mod.sub.Deep", "$m int * $k int"), True,
+                 "a module may reach another by its whole path")
+    check_result(judge("user.Old", "int"), "error",
+                 "the last word of a module path is not bound: mod.Mid resolves nowhere")
 
 
 def run_function_chain_cases():

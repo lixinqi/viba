@@ -68,11 +68,39 @@ def _check_alias_and_depth():
 
     # 别名进来的模块，解析到别的文件里的定义
     assert member_resolved_definition(_member(pool, deep.full_name, "$m")).ok_value.full_name == "pkg.mod.Mid"
-    # 不带别名，本地名就是模块名最后一段
+    # 单段模块名：import top 绑的就是 top，top.Base 解析得到
     assert member_resolved_definition(_member(pool, deep.full_name, "$root")).ok_value.full_name == "top.Base"
-    # 写成 pkg.mod.Mid：pkg 不是 import 的本地名，解析不了
+    # mod 是别名，写成 pkg.mod.Mid 不是别名，解析不了
     assert isinstance(member_resolved_definition(_member(pool, deep.full_name, "$bad")), Err)
     assert isinstance(file_find_import_by_local_name(file, "nope"), Err)
+
+
+def _check_import_binding():
+    """import 绑的是什么：带 as 绑别名，不带 as 绑模块全名，最长的前缀优先。"""
+    pool = load("import_binding", [
+        ("top.viba", "top"),
+        ("pkg/mod.viba", "pkg.mod"),
+        ("pkg/mod/sub.viba", "pkg.mod.sub"),
+        ("user.viba", "user"),
+    ])
+    file = pool_find_file(pool, "user.viba").ok_value
+    assert [(i.module_name, i.local_name) for i in file.imports] == [
+        ("pkg.mod", "pkg.mod"), ("pkg.mod.sub", "pkg.mod.sub"), ("top", "top")]
+
+    user = pool_find_definition(pool, "user.User").ok_value
+    # pkg.mod 与 pkg.mod.sub 同时绑着：最长的那个前缀赢
+    assert member_resolved_definition(
+        _member(pool, user.full_name, "$long")).ok_value.full_name == "pkg.mod.sub.Deep"
+    assert member_resolved_definition(
+        _member(pool, user.full_name, "$short")).ok_value.full_name == "pkg.mod.Mid"
+    # 单段模块名照旧
+    assert member_resolved_definition(
+        _member(pool, user.full_name, "$root")).ok_value.full_name == "top.Base"
+    # 没有 as，最后一段不算绑定：mod.Mid 与 sub.Deep 都解析不了
+    assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$old")), Err)
+    assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$first")), Err)
+    # 模块路径的前缀也不是模块：pkg.Mid 解析不了
+    assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$partial")), Err)
 
 
 def _check_shapes():
@@ -203,12 +231,13 @@ def _check_errors():
 
 
 def run():
-    checks = [_check_alias_and_depth, _check_shapes, _check_generics,
-              _check_unit_heads, _check_errors]
+    checks = [_check_alias_and_depth, _check_import_binding, _check_shapes,
+              _check_generics, _check_unit_heads, _check_errors]
     for check in checks:
         check()
     print(f"type_descriptor_api: {len(checks)} checks passed "
-          f"(imports and prefixes, member shapes, generics, unit chain heads, negatives)")
+          f"(imports and prefixes, import binding, member shapes, generics, "
+          f"unit chain heads, negatives)")
     return 0
 
 

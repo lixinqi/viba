@@ -1,0 +1,3 @@
+import pkg.mod as mod
+
+Deep := Object * $m mod.Mid * $k int

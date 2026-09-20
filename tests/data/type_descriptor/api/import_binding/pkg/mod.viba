@@ -1,0 +1,3 @@
+import top as t
+
+Mid := Object * $b t.Base * $s str

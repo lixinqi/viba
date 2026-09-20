@@ -1,0 +1,12 @@
+import pkg.mod
+import pkg.mod.sub
+import top
+
+User :=
+  Object
+  * $long pkg.mod.sub.Deep
+  * $short pkg.mod.Mid
+  * $root top.Base
+  * $old mod.Mid
+  * $partial pkg.Mid
+  * $first sub.Deep
