@@ -60,14 +60,14 @@ alias of what it is written as, and judgment is structural throughout.
   arguments are ones the sup never asks about — so
   (int <- $a int <- $b str) <: (int <- $a int) holds while
   (int <- $a int) <: (int <- $a int <- $b str) is False.
-- A never-headed chain (never <- A; a prohibition is written as one)
-  is an exponent like any other: result covariant, argument
-  contravariant, so never <- B <: never <- A iff A <: B. When the
-  caller named terminators, two branch readings apply on top: a branch
-  is settled by a terminator or by a field reading as never <- branch,
-  and a sub that is only a copy of a never-headed application settles
-  nothing. With no terminators named, the exponent rule is all there
-  is and never <- B <: never <- B holds.
+- A chain whose result is never (`never <- A`) is an exponent like any
+  other: result covariant, argument contravariant, so never <- B <:
+  never <- A iff A <: B. When the caller named terminators, two
+  readings of its branches apply on top: a branch is matched by a
+  terminator, or by a field that reads as `never <- branch`, and a sub
+  that only copies the application matches nothing. With no terminators
+  named, the exponent rule is all there is and never <- B <: never <- B
+  holds.
 - Literal containers: ListLiteral[a, b, c] is a resident of
   list[a | b | c] (containment: every element fits the union);
   SetLiteral likewise; DictLiteral[(k, v), ...] of
@@ -1085,7 +1085,8 @@ def _flatten_sum(node):
 
 
 def _param_index(node, params) -> "Optional[int]":
-    """禁止的操作数写着哪个形参（可能带一层标签）；没有就 None。"""
+    """Which of the generic's parameters the operand is written as (through
+    one tag at most); None when it is none of them."""
     if isinstance(node, viba_ast.Tagged):
         node = node.type
     if isinstance(node, viba_ast.TypeRef) and node.name in params:
