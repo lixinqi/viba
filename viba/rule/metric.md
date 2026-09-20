@@ -121,7 +121,8 @@ Result[5] <- Prepare
 1. 结果位落在 `Result[JsonLike]` 里（第 5 节第 2 条）；
 2. 参数与量的值都写成可读的数据形状：叶子落在 `JsonLike` 的原子上（第 6 节）；
 3. 末尾带一个 `Hint[$python_code {...}]`：实际执行的代码，入口是 `metric_func`，写法照
-   `Predicate` 的 `$python_code`。它是说明块，参数位上不算参数，判定不受它影响；
+   `Predicate` 的 `$python_code`。它是说明块，参数位上不算参数，判定不受它影响。证据里
+   记下的值必须是这段代码对这次调用给出的值——值不是证据写的，是代码答的；
 4. 固定证据时只动 `$call_instance`：`$func` 留设计函数的名字，`$call_instance` 的参数
    填成真实的值（`Prepare`），量出来的值放在结果位，被测调用自己的结果位留声明。
 

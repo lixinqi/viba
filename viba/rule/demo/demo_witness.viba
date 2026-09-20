@@ -1,6 +1,9 @@
-# The evidence for demo_rule: at 12:30 the victim was at (0,0) and the suspect
-# at (3,4), and the metric answered $ok 5 - the distance demo_metric_func's code
-# computes for those two points. It depends on all four files above.
+# The evidence for demo_rule. Each witness carries one prepared call and the
+# value metric_func answers for it: $ok 5 over demo_prepare.Prepare (victim
+# (0,0), suspect (3,4)) and $ok 3 over demo_prepare.PrepareNear (victim (0,0),
+# suspect (0,3)). The value is the code's - the witness only records it, and
+# tests/test_rule_demo.py runs metric_func to check the record. It depends on
+# all four files above.
 #
 # Verdicts (tests/test_rule_demo.py):
 #   DemoWitnessPass   <: DemoRule  => Ok(True)
@@ -20,13 +23,13 @@ import viba.rule.demo.demo_metric_func as demo_metric_func
 import viba.rule.demo.demo_prepare as demo_prepare
 import viba.rule.demo.demo_rule as demo_rule
 
-# The measurement went the other way: 3, one point short of the threshold
+# The nearer pair: metric_func answers 3, one short of the threshold
 DemoWitnessLow :=
     $distance (
         Object
         * $__metric_object_yanatuttn__ nil
         * $func demo_metric_func.GetDistance
-        * $call_instance (metric.Result[3] <- demo_prepare.Prepare)
+        * $call_instance (metric.Result[3] <- demo_prepare.PrepareNear)
       )
   * $assert_distance_ge_5
       Predicate[{the distance is at least 5}, $python_code {
@@ -34,7 +37,7 @@ def predicate(self):
     return self.get_distance().get_call_instance().get_field_0().get_ok().value >= 5
 }]
 
-# pass: the metric answered 5, and 5 >= 5 holds
+# the farther pair: metric_func answers 5, and 5 >= 5 holds
 DemoWitnessPass :=
     $distance (
         Object
@@ -54,6 +57,6 @@ DemoWitnessFailed :=
         Object
         * $__metric_object_yanatuttn__ nil
         * $func demo_metric_func.GetDistance
-        * $call_instance (metric.Result[3] <- demo_prepare.Prepare)
+        * $call_instance (metric.Result[3] <- demo_prepare.PrepareNear)
       )
   * $assert_distance_ge_5 PredicationFailed[nil, str]

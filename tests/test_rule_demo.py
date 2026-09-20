@@ -105,7 +105,7 @@ def main() -> int:
     metric = modules["viba.rule.metric"]
     functions = modules["viba.rule.demo.demo_metric_func"]
     designs = modules["viba.rule.demo.demo_rule"]
-    prepared = modules["viba.rule.demo.demo_prepare"]
+    prepare_module = modules["viba.rule.demo.demo_prepare"]
     materials = modules["viba.rule.demo.demo_witness"]
 
     reviewed = check_tag_and_inline(_pool())
@@ -151,16 +151,32 @@ def main() -> int:
     check(isinstance(verdict, Ok) and verdict.ok_value is True,
           f"the passing witness stays positive: {verdict!r}")
 
-    # the metric's code runs on the prepared call's own nodes: the same
-    # reflection the predicate reads with
-    prepare = _definition(prepared, "Prepare")
-    called = VibaNode(reflect_access, descriptor_of(get_distance), prepare.ast_node,
-                      data_module=prepare.container_module)
+    # The metric's code runs on a prepared call's own nodes - the same
+    # reflection the predicate reads with - and the evidence must record what it
+    # answers. That is the check that no witness's value was made up.
     namespace = {}
     exec(compile(_metric_func_code(get_distance), "<metric_func>", "exec"), namespace)
-    measured = namespace["metric_func"](called.get_victim(), called.get_suspect(),
-                                       called.get_at())
-    check(measured == 5.0, f"metric_func over (0,0) and (3,4) is 5, got {measured!r}")
+
+    def computed(name):
+        called = _definition(prepare_module, name)
+        node = VibaNode(reflect_access, descriptor_of(get_distance), called.ast_node,
+                        data_module=called.container_module)
+        return namespace["metric_func"](node.get_victim(), node.get_suspect(),
+                                        node.get_at())
+
+    def recorded(witness):
+        root = VibaNode(reflect_access, descriptor_of(rule), witness.ast_node,
+                        data_module=witness.container_module)
+        return root.get_distance().get_call_instance().get_field_0().get_ok().value
+
+    check(computed("Prepare") == 5.0,
+          f"metric_func over Prepare is 5, got {computed('Prepare')!r}")
+    check(computed("PrepareNear") == 3.0,
+          f"metric_func over PrepareNear is 3, got {computed('PrepareNear')!r}")
+    check(recorded(passing) == computed("Prepare"),
+          "the passing evidence records what the metric answers")
+    check(recorded(low) == computed("PrepareNear"),
+          "the low evidence records what the metric answers")
 
     print(f"rule_demo: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0
