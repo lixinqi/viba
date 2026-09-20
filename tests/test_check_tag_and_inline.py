@@ -1,9 +1,10 @@
 """Tests for check_tag_and_inline: the tags a design's products end up with,
 once the inline chains are spread, and whether those chains end.
 
-Cases are small designs written here; then the repo's own corpora are run as
-designs — a file the repo already trusts must come back Ok(None), and the files
-the corpus marks as malformed must come back Err.
+Cases are small designs written here, then the generated descriptor corpus is
+run as designs — a file the repo already trusts must come back Ok(None). The
+corpora that belong to a judgement sit in that judgement's own suite, which
+reviews its designs through this check.
 
     python3 tests/test_check_tag_and_inline.py
 """
@@ -19,9 +20,7 @@ from viba.type import Ok
 from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
 
 DATA = Path(__file__).resolve().parent / "data"
-TYPES = DATA / "is_sub_type"
 DESCRIPTORS = DATA / "type_descriptor"
-RULES = DATA / "rule_coding_style_check"
 
 PASS = FAIL = 0
 
@@ -167,13 +166,6 @@ def run_config_case():
 # 语料：仓库里现成的设计
 # ----------------------------------------------------------------------
 
-# 语料里本来就写错的那几份：重标签（sub071 写在同层、sub112 摊进来、sup113 写在
-# 同层）与内联成环（sub117、sub120-sub123、sub125）。语料按"对/错"标的是子类型
-# 判定，不是写法；这两边恰好一致，所以这里能拿它当验收。
-MALFORMED_CORPUS = {"sub071", "sub112", "sup113", "sub117",
-                    "sub120", "sub121", "sub122", "sub123", "sub125"}
-
-
 def file_design(path: Path):
     pool = empty_pool()
     parsed = parse_viba_file(pool, path.read_text(), path.name, path.stem)
@@ -183,23 +175,6 @@ def file_design(path: Path):
     if not isinstance(built, Ok):
         return f"does not compile: {built.err_msg}"
     return check_tag_and_inline(built.ok_value)
-
-
-def run_is_sub_type_corpus():
-    """sub/sup 两份语料：写对的 Ok，语料标成写错的 Err。"""
-    wrong = []
-    files = 0
-    pairs = sorted(TYPES.glob("sub*.viba"))
-    for path in sorted(TYPES.glob("*.viba")):
-        if not path.stem.startswith(("sub", "sup")):
-            continue
-        files += 1
-        want_clean = path.stem not in MALFORMED_CORPUS
-        got = file_design(path)
-        if isinstance(got, Ok) is not want_clean:
-            wrong.append(f"{path.name}: {'Ok' if isinstance(got, Ok) else got}")
-    check_empty(f"is_sub_type corpus: {len(pairs)} pairs, {files} files, "
-                f"{len(MALFORMED_CORPUS)} of them malformed", wrong)
 
 
 def run_descriptor_corpus():
@@ -214,24 +189,10 @@ def run_descriptor_corpus():
     check_empty(f"type_descriptor corpus: {files} files", wrong)
 
 
-def run_rule_corpus():
-    """仓库里现成的规则：自己写的字段都摊得开、tag 不重。"""
-    wrong = []
-    files = 0
-    for path in sorted(RULES.rglob("*.viba")):
-        files += 1
-        got = file_design(path)
-        if not isinstance(got, Ok) and "broken" not in path.name:
-            wrong.append(f"{path.name}: {got}")
-    check_empty(f"rule corpus: {files} files (the broken ones excepted)", wrong)
-
-
 def run():
     run_cases()
     run_config_case()
-    run_is_sub_type_corpus()
     run_descriptor_corpus()
-    run_rule_corpus()
     print(f"check_tag_and_inline: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0
 

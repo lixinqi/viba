@@ -23,6 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba import viba_ast
+from viba.check_tag_and_inline import check_tag_and_inline
 from viba.rule import (
     check_determinate,
     check_rule_coding_style,
@@ -32,6 +33,7 @@ from viba.rule import (
     reset_predication_by_python_code,
 )
 from viba.type import AstNodeType, Err, Ok, custom_module, module_get_type
+from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
 
 DATA = Path(__file__).resolve().parent / "data" / "rule_coding_style_check"
 NOT_DATA = DATA / "not_rules"
@@ -164,13 +166,26 @@ def _check_generated_rule(path: Path, name: str, seed: int) -> int:
     return checked
 
 
+def _review(path: Path) -> None:
+    """对设计的审查：这份规则文件摊开以后 tag 不重、内联链摊得底。"""
+    pool = empty_pool()
+    parsed = parse_viba_file(pool, path.read_text(), path.name, path.stem)
+    assert isinstance(parsed, Ok), f"{path.name}: {parsed}"
+    built = pool_add_file(pool, parsed.ok_value)
+    assert isinstance(built, Ok), f"{path.name}: {built}"
+    reviewed = check_tag_and_inline(built.ok_value)
+    assert isinstance(reviewed, Ok), f"{path.name}: {reviewed}"
+
+
 def _check_rule_file(path: Path) -> int:
     number = path.stem[len("rule"):]
+    _review(path)
     return _check_generated_rule(path, f"Rule{number}", int(number))
 
 
 def _check_not_rule_file(path: Path) -> int:
     number = path.stem[len("not_rule"):]
+    _review(path)
     return _check_generated_rule(path, f"NotRule{number}", int(number))
 
 
@@ -424,7 +439,7 @@ def main():
           f" ({total} verdict witnesses + {determinacy} determinacy witnesses)"
           f" + demo + sum-rule + not-rule + 2 broken rules rejected"
           f" + broken predicates rejected + predicate reset + shape compatible"
-          f" + predicate code")
+          f" + predicate code, every file reviewed")
 
 
 main()

@@ -28,6 +28,7 @@ from viba.viba_type_descriptor import (
     pool_add_file,
     pool_find_definition,
 )
+from viba.check_tag_and_inline import check_tag_and_inline
 from viba.rule.generate_witnesses import generate_witnesses
 from viba.rule import reflect
 from viba.rule.reflect import at_index, at_key, by_field_index, by_tag, Witness
@@ -52,6 +53,9 @@ class UnderTest:
         parsed = parse_viba_file(pool, self.source, path.name, self.module_name)
         assert isinstance(parsed, Ok), parsed
         self.pool = pool_add_file(pool, parsed.ok_value).ok_value
+        reviewed = check_tag_and_inline(self.pool)
+        assert isinstance(reviewed, Ok), f"{path.name}: {reviewed}"
+        self.reviewed = True
         found = pool_find_definition(self.pool, f"{self.module_name}.{rule_name}")
         assert isinstance(found, Ok), found
         self.definition = found.ok_value
@@ -312,7 +316,8 @@ def main() -> int:
     fixed = 100 + 82 + 83 + 2 + 200 + len(rule_paths) * PREDICATE_WITNESSES
     assert pairs == generated + fixed, f"covered {pairs} pairs, expected {generated + fixed}"
     print(f"rule_reflect: {pairs} 份 (rule, witness) 走通 "
-          f"({len(rule_paths)} + {len(not_paths)} 条生成规则，含坐标枚举、叶子与容器取值)")
+          f"({len(rule_paths)} + {len(not_paths)} 条生成规则，含坐标枚举、叶子与容器取值)；"
+          f"语料里的设计都过了 check_tag_and_inline")
     return 0
 
 

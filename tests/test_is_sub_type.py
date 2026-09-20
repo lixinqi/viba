@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import ast as py_ast
 
 from viba import viba_ast
+from viba.check_tag_and_inline import check_tag_and_inline
 from viba.type import (
     BUILTIN_MODULE,
     AstNodeType,
@@ -27,6 +28,7 @@ from viba.type import (
     entry_type,
 )
 from viba.is_sub_type import is_sub_type
+from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
 
 DATA = Path(__file__).resolve().parent / "data" / "is_sub_type"
 PASS = FAIL = 0
@@ -113,6 +115,38 @@ def run_data_cases():
         rt_sup = load_entry_as(canon_sup, sup_e.container_module)
         check_result(is_sub_type(rt_sub, sub_e), True, f"case {num} sub roundtrip")
         check_result(is_sub_type(rt_sup, sup_e), True, f"case {num} sup roundtrip")
+
+
+# 语料里本来就写错的：重标签（sub071 写在同层、sub112 摊进来、sup113 写在同层）
+# 与内联成环（sub117、sub120-sub123、sub125）。语料按"对/错"标的是子类型判定，
+# 不是写法；这两边恰好一致，所以能拿它当设计的审查。
+MALFORMED_CORPUS = {"sub071", "sub112", "sup113", "sub117",
+                    "sub120", "sub121", "sub122", "sub123", "sub125"}
+
+
+def run_design_review():
+    """每份语料都是一个设计：摊开以后 tag 不得重复，内联链要摊到底。"""
+    wrong = []
+    files = 0
+    for path in sorted(DATA.glob("*.viba")):
+        if not path.stem.startswith(("sub", "sup")):
+            continue
+        files += 1
+        pool = empty_pool()
+        parsed = parse_viba_file(pool, path.read_text(), path.name, path.stem)
+        if not isinstance(parsed, Ok):
+            reviewed = f"does not parse: {parsed.err_msg}"
+        else:
+            built = pool_add_file(pool, parsed.ok_value)
+            # 连池子都建不起来（写在同一层的重标签）也是这一遍的事
+            reviewed = built if not isinstance(built, Ok) else check_tag_and_inline(built.ok_value)
+        want_clean = path.stem not in MALFORMED_CORPUS
+        if isinstance(reviewed, Ok) is not want_clean:
+            wrong.append(f"{path.name}: {reviewed}")
+    for line in wrong:
+        check(False, True, f"design review {line}")
+    if not wrong:
+        check(True, True, f"design review of {files} corpus files")
 
 
 def run_py_side_cases():
@@ -663,6 +697,7 @@ def run_suite_reflexivity():
 
 
 run_data_cases()
+run_design_review()
 run_py_side_cases()
 run_env_cases()
 run_env_get_cases()
