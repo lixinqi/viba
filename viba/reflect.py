@@ -610,6 +610,12 @@ class VibaAccess:
         it has none."""
         return self._design_members(node.descriptor)
 
+    def members_of(self, descriptor: VibaTypeDescriptor) -> Optional[List[tuple]]:
+        """The same, straight from a piece of the map: the members a descriptor
+        has, without a data piece to hang them on. A checker that reads the
+        design's own shape (no material involved) asks here."""
+        return self._design_members(descriptor)
+
     def member_steps(self, node: VibaNode) -> List[tuple]:
         """[(tag or None, that step, descriptor)]: the members of this piece,
         each with the step that takes you there; a None tag goes by position.
