@@ -88,6 +88,15 @@ def _metric_func_code(get_distance):
     raise AssertionError("the metric function carries no Hint")
 
 
+def _assertion_of(witness):
+    """The constructor of the witness's assertion field: Predicate while it is
+    still positive, PredicationFailed once the code has run."""
+    for element in viba_ast.walk(witness.ast_node):
+        if isinstance(element, viba_ast.Tagged) and element.tag == "$assert_distance_ge_5":
+            return element.type.constructor
+    raise AssertionError("the witness carries no assertion field")
+
+
 def main() -> int:
     modules = _modules()
     metric = modules["viba.rule.metric"]
@@ -112,17 +121,28 @@ def main() -> int:
     check(isinstance(verdict, Ok) and verdict.ok_value is True,
           f"DemoWitnessPass <: DemoRule: {verdict!r}")
 
-    failing = _definition(materials, "DemoWitnessFail")
-    verdict = is_compliant(failing, rule)
-    check(isinstance(verdict, Ok) and verdict.ok_value is False,
-          f"DemoWitnessFail <: DemoRule: {verdict!r}")
+    low = _definition(materials, "DemoWitnessLow")
+    check(_assertion_of(low) == "Predicate", "DemoWitnessLow is written positive")
+    verdict = is_compliant(low, rule)
+    check(isinstance(verdict, Ok) and verdict.ok_value is True,
+          f"DemoWitnessLow as written judges True (no code has run): {verdict!r}")
 
-    flipped = reset_predication_by_python_code(_definition(materials, "DemoWitnessFlip"))
-    verdict = is_compliant(flipped, rule)
+    ran = reset_predication_by_python_code(low)
+    check(_assertion_of(ran) == "PredicationFailed",
+          "running the code flips the low witness to the poison")
+    verdict = is_compliant(ran, rule)
     check(isinstance(verdict, Ok) and verdict.ok_value is False,
-          f"the flipped witness (3 < 5) judges False: {verdict!r}")
+          f"3 < 5 after the code ran: {verdict!r}")
+
+    failed = _definition(materials, "DemoWitnessFailed")
+    check(_assertion_of(failed) == "PredicationFailed",
+          "DemoWitnessFailed is the post-run form")
+    verdict = is_compliant(failed, rule)
+    check(isinstance(verdict, Ok) and verdict.ok_value is False,
+          f"DemoWitnessFailed <: DemoRule: {verdict!r}")
 
     kept = reset_predication_by_python_code(passing)
+    check(_assertion_of(kept) == "Predicate", "5 >= 5 flips nothing")
     verdict = is_compliant(kept, rule)
     check(isinstance(verdict, Ok) and verdict.ok_value is True,
           f"the passing witness stays positive: {verdict!r}")

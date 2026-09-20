@@ -68,7 +68,8 @@ Result[5] <- Prepare
 
 ```viba
 * $distance (
-    $__metric_object_yanatuttn__ nil
+    Object
+    * $__metric_object_yanatuttn__ nil
     * $func GetDistance
     * $call_instance (Result[5] <- Prepare)
   )

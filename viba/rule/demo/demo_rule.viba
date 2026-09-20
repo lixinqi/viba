@@ -5,9 +5,9 @@
 # Verdicts (tests/test_rule_demo.py):
 #   check_rule_coding_style(DemoRule)  => Ok(None)
 
-import viba.rule.rule
-import viba.rule.metric
-import viba.rule.demo.demo_metric_func
+import viba.rule.rule as rule
+import viba.rule.metric as metric
+import viba.rule.demo.demo_metric_func as demo_metric_func
 
 DemoRule :=
     rule.RuleObject

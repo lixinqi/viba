@@ -1,25 +1,54 @@
-# The evidence: at 12:30 the victim was at (0,0) and the suspect at (3,4), and
-# the metric answered $ok 5 - the distance demo_metric_func's code computes for
-# those two points. It depends on all three files above.
+# The evidence for demo_rule: at 12:30 the victim was at (0,0) and the suspect
+# at (3,4), and the metric answered $ok 5 - the distance demo_metric_func's code
+# computes for those two points. It depends on all three files above.
 #
 # Verdicts (tests/test_rule_demo.py):
-#   DemoWitnessPass <: DemoRule                        => Ok(True)
-#   DemoWitnessFail <: DemoRule                        => Ok(False)
-#   reset_predication_by_python_code(DemoWitnessFlip)  => the predicate flips
-#                                                         (3 < 5), and the
-#                                                         result judges False
-#   reset_predication_by_python_code(DemoWitnessPass)  => stays positive
+#   DemoWitnessPass   <: DemoRule  => Ok(True)
+#   DemoWitnessLow    <: DemoRule  => Ok(True) as written: a Predicate field is
+#                                     a type to compare, so a positive witness
+#                                     judges True until its code runs
+#   reset_predication_by_python_code(DemoWitnessLow)
+#                     <: DemoRule  => Ok(False): the code ran, 3 < 5, and the
+#                                     layer wrote the poison where the
+#                                     Predicate was - which is DemoWitnessFailed
+#   DemoWitnessFailed <: DemoRule  => Ok(False)
+#   reset_predication_by_python_code(DemoWitnessPass)
+#                     <: DemoRule  => Ok(True): 5 >= 5, nothing flips
 
-import viba.rule.metric
-import viba.rule.demo.demo_metric_func
-import viba.rule.demo.demo_rule
+import viba.rule.metric as metric
+import viba.rule.demo.demo_metric_func as demo_metric_func
+import viba.rule.demo.demo_rule as demo_rule
+
+# prepare: the call with its arguments fixed and its result left declared. This
+# is evidence, not design: it is what the metric object's $call_instance
+# argument slot carries.
+Prepare :=
+    metric.Result[int]
+  <- $victim ($x 0 * $y 0)
+  <- $suspect ($x 3 * $y 4)
+  <- $at "12:30"
+
+# The measurement went the other way: 3, one point short of the threshold
+DemoWitnessLow :=
+    $distance (
+        Object
+        * $__metric_object_yanatuttn__ nil
+        * $func demo_metric_func.GetDistance
+        * $call_instance (metric.Result[3] <- Prepare)
+      )
+  * $assert_distance_ge_5
+      Predicate[{the distance is at least 5}, $python_code {
+def predicate(self):
+    return self.distance.call_instance.field_0.ok >= 5
+}]
 
 # pass: the metric answered 5, and 5 >= 5 holds
 DemoWitnessPass :=
     $distance (
-        $__metric_object_yanatuttn__ nil
+        Object
+        * $__metric_object_yanatuttn__ nil
         * $func demo_metric_func.GetDistance
-        * $call_instance (metric.Result[5] <- demo_metric_func.Prepare)
+        * $call_instance (metric.Result[5] <- Prepare)
       )
   * $assert_distance_ge_5
       Predicate[{the distance is at least 5}, $python_code {
@@ -27,25 +56,12 @@ def predicate(self):
     return self.distance.call_instance.field_0.ok >= 5
 }]
 
-# fail: the same measurement, but the assertion is the poison
-DemoWitnessFail :=
+# DemoWitnessLow after its code ran: the poison where the Predicate was
+DemoWitnessFailed :=
     $distance (
-        $__metric_object_yanatuttn__ nil
+        Object
+        * $__metric_object_yanatuttn__ nil
         * $func demo_metric_func.GetDistance
-        * $call_instance (metric.Result[5] <- demo_metric_func.Prepare)
+        * $call_instance (metric.Result[3] <- Prepare)
       )
   * $assert_distance_ge_5 PredicationFailed[nil, str]
-
-# fail, written positive: the metric answered 3 this time, so the predicate
-# itself flips
-DemoWitnessFlip :=
-    $distance (
-        $__metric_object_yanatuttn__ nil
-        * $func demo_metric_func.GetDistance
-        * $call_instance (metric.Result[3] <- demo_metric_func.Prepare)
-      )
-  * $assert_distance_ge_5
-      Predicate[{the distance is at least 5}, $python_code {
-def predicate(self):
-    return self.distance.call_instance.field_0.ok >= 5
-}]
