@@ -1,0 +1,244 @@
+# The viba package's top-level API, written in viba: one definition per public
+# function, the way viba/type.viba writes the type universe. It is a signature
+# list — nothing here is implemented, nothing here judges, and the Comments
+# blocks are units, so a reader that drops documentation reads only the shapes.
+#
+# Naming: the Python symbol sits in the English comment above each definition.
+# A parameter that has a Python default is still written: viba has no defaults,
+# and "can be left out" is what the comment says.
+
+# ----------------------------------------------------------------------
+# Syntax: viba.viba_ast
+# ----------------------------------------------------------------------
+
+# parse(source) -> Module
+Parse := Module <- $source str <- Comments[{语法或词法错误时抛异常，不是 Result。}]
+
+# unparse(tree) -> str
+Unparse := str <- $tree Module
+
+# unparse_type(node) -> str
+UnparseType := str <- $node AST
+
+# canonical(tree) -> Module
+Canonical := Module <- $tree Module <- Comments[{压成链、并 $left/$result 一路，支链保留分组。}]
+
+# dump(tree) -> str
+Dump := str <- $tree Module
+
+# walk(node) -> list[AST]
+Walk := list[AST] <- $node AST
+
+# convert_to_chain_style(node) -> AST
+ToChain := AST <- $node AST <- Comments[{A * (B * C) 与 A * B * C 到这一步才同形。}]
+
+# convert_from_chain_style(node) -> AST
+FromChain := AST <- $node AST
+
+# ----------------------------------------------------------------------
+# The type model: viba.type
+# ----------------------------------------------------------------------
+
+# custom_module(source, environment=None) -> CustomModuleType
+CustomModule :=
+    CustomModuleType
+  <- $source str
+  <- $environment (Result[ModuleType] <- $module_name str)
+  <- Comments[{跨模块的名字由 environment 答；不给就是"没有别的模块"。}]
+
+# entry_type(source, module=None) -> AstNodeType
+EntryType := AstNodeType <- $source str <- $module ModuleType
+
+# module_get_type(module, type_name) -> Result[Type]
+ModuleGetType := Result[Type] <- $module ModuleType <- $type_name str
+
+# The outcome of every API here that answers instead of throwing.
+Result[T] :=
+    Oneof
+  | $ok T
+  | $err str
+
+# ----------------------------------------------------------------------
+# The judgment: viba.is_sub_type
+# ----------------------------------------------------------------------
+
+# is_sub_type(sub, sup, terminators=frozenset(), config=None) -> Result[bool]
+IsSubType :=
+    Result[bool]
+  <- $sub Type
+  <- $sup Type
+  <- $terminators list[str]
+  <- $config VibaReflectConfig
+  <- Comments[{
+      Ok(True/False) 是判定，Err 说明输入不合法（ellipsis、名字解析不了、重标签、
+      内联成环）。terminators 与 config 都由调用方给：核心只认 |、*、<-，
+      哪些名字算终止子、哪些名字算单位元属于用它那一层。
+    }]
+
+# ----------------------------------------------------------------------
+# Completeness: viba.is_complete
+# ----------------------------------------------------------------------
+
+# is_complete(entry_file_content, library=(), viba_paths=(), terminators=frozenset()) -> bool
+IsComplete :=
+    bool
+  <- $entry str
+  <- $library list[tuple[str, str]]
+  <- $paths list[str]
+  <- $terminators list[str]
+  <- Comments[{不返回 Result：缺东西就是 False。}]
+
+# ----------------------------------------------------------------------
+# Design review: viba.check_tag_and_inline
+# ----------------------------------------------------------------------
+
+# check_tag_and_inline(design, config=language_config) -> Result[None]
+CheckTagAndInline :=
+    Result[nil]
+  <- $design VibaPool
+  <- $config VibaReflectConfig
+  <- Comments[{
+      审一份设计：摊进来的 tag 不许重复，内联链不许成环。Ok(None) 是通过，
+      Err 指第一处毛病。它审的是设计本身，材料不参与。
+    }]
+
+# ----------------------------------------------------------------------
+# Writing material back: viba.serialize
+# ----------------------------------------------------------------------
+
+# serialize(name, node) -> Result[str]
+Serialize :=
+    Result[str]
+  <- $name str
+  <- $node VibaNode
+  <- Comments[{写出来的体是那个定义的居民；写不出来的地方给 SerializeGap。}]
+
+# ----------------------------------------------------------------------
+# The address layer: viba.reflect
+# ----------------------------------------------------------------------
+
+# access = VibaAccess(language_config)
+Access := VibaAccess <- $config VibaReflectConfig
+
+# by_tag(name) -> VibaStep
+ByTag := VibaStep <- $name str
+
+# by_field_index(index) -> VibaStep
+ByFieldIndex := VibaStep <- $index int
+
+# at_index(index) -> VibaStep
+AtIndex := VibaStep <- $index int
+
+# at_key(key) -> VibaStep
+AtKey := VibaStep <- $key str
+
+# VibaNode: 设计的一格 + 材料的一格。读法（viba-reflect.md 第 5 节）：
+# 带标签的字段 get_<tag>()、位置字段 get_field_<i>()、值 .value、
+# 容器 len(node) / node[i] / node.keys()。VibaAccess 的方法除下表外还有
+# has / leaf / length / keys / container_kind / root / get_by_path。
+
+# ----------------------------------------------------------------------
+# The pool of designs: viba.viba_type_descriptor
+# ----------------------------------------------------------------------
+
+# empty_pool() -> VibaPool
+EmptyPool := VibaPool
+
+# descriptor_of(node) -> VibaTypeDescriptor
+DescriptorOf :=
+    VibaTypeDescriptor
+  <- $node AstNodeType
+  <- Comments[{手里只有语法、又想用反射读它时用这个：池子是空的，名字照旧在
+      这份设计所写的那个模块里解析。}]
+
+# parse_viba_file(pool, source, file_name, module_name) -> Result[VibaFileDescriptor]
+ParseVibaFile :=
+    Result[VibaFileDescriptor]
+  <- $pool VibaPool
+  <- $source str
+  <- $file_name str
+  <- $module_name str
+
+# pool_add_file(pool, file) -> Result[VibaPool]
+PoolAddFile := Result[VibaPool] <- $pool VibaPool <- $file VibaFileDescriptor
+
+# pool_find_file(pool, file_name) -> Result[VibaFileDescriptor]
+PoolFindFile := Result[VibaFileDescriptor] <- $pool VibaPool <- $file_name str
+
+# pool_find_definition(pool, full_name) -> Result[VibaDefinitionDescriptor]
+PoolFindDefinition := Result[VibaDefinitionDescriptor] <- $pool VibaPool <- $full_name str
+
+# pool_find_member(pool, full_name) -> Result[VibaMemberDescriptor]
+PoolFindMember := Result[VibaMemberDescriptor] <- $pool VibaPool <- $full_name str
+
+# file_find_import_by_local_name(file, local_name) -> Result[VibaImportDescriptor]
+FindImport := Result[VibaImportDescriptor] <- $file VibaFileDescriptor <- $local_name str
+
+# definition_members(definition) -> Result[list[VibaMemberDescriptor]]
+DefinitionMembers := Result[list[VibaMemberDescriptor]] <- $definition VibaDefinitionDescriptor
+
+# definition_find_member_by_tag(definition, tag) -> Result[VibaMemberDescriptor]
+MemberByTag := Result[VibaMemberDescriptor] <- $definition VibaDefinitionDescriptor <- $tag str
+
+# definition_find_member_by_index(definition, member_index) -> Result[VibaMemberDescriptor]
+MemberByIndex := Result[VibaMemberDescriptor] <- $definition VibaDefinitionDescriptor <- $member_index int
+
+# definition_file(definition) -> Result[VibaFileDescriptor]
+DefinitionFile := Result[VibaFileDescriptor] <- $definition VibaDefinitionDescriptor
+
+# member_type_name(member) -> Result[str]
+MemberTypeName := Result[str] <- $member VibaMemberDescriptor
+
+# member_resolved_definition(member) -> Result[VibaDefinitionDescriptor]
+MemberResolved := Result[VibaDefinitionDescriptor] <- $member VibaMemberDescriptor
+
+# member_containing_definition(member) -> Result[VibaDefinitionDescriptor]
+MemberContaining := Result[VibaDefinitionDescriptor] <- $member VibaMemberDescriptor
+
+# ----------------------------------------------------------------------
+# The rule layer: viba.rule
+# ----------------------------------------------------------------------
+
+# generate_witnesses(rule, count, seed=None, fail_prob=0.1) -> list[AstNodeType]
+GenerateWitnesses :=
+    list[AstNodeType]
+  <- $rule AstNodeType
+  <- $count int
+  <- $seed int
+  <- $fail_prob float
+  <- Comments[{内建写法 Metric[Name] := $value Name 的度量字段填随机字面量；
+      每个 Predicate 字段以 fail_prob 的概率换成 PredicationFailed。}]
+
+# generate_witness(rule, prepared) -> AstNodeType
+GenerateWitness :=
+    AstNodeType
+  <- $rule AstNodeType
+  <- $prepared AstNodeType
+  <- Comments[{
+      度量对象（Metric[CoreFunc]，见 viba/rule/metric.md）由这段代码现算：跑
+      CoreFunc 的 Hint 里的 metric_func，拿它的答案填 $call_instance 的结果位。
+      证据是结果，不是一份要对齐的文件。
+    }]
+
+# reset_predication_by_python_code(witness, rule) -> AstNodeType
+ResetPredication :=
+    AstNodeType
+  <- $witness AstNodeType
+  <- $rule AstNodeType
+  <- Comments[{跑每个 Predicate 的 $python_code，self 是反射节点（规则的设计 +
+      材料），返回假的换成 PredicationFailed[nil, str]。}]
+
+# is_compliant(witness, rule) -> Result[bool]
+IsCompliant := Result[bool] <- $witness AstNodeType <- $rule AstNodeType
+
+# is_shape_compatible(sub, sup) -> Result[bool]
+IsShapeCompatible := Result[bool] <- $sub AstNodeType <- $sup AstNodeType
+
+# check_rule_coding_style(rule) -> Result[None]
+CheckRuleCodingStyle := Result[nil] <- $rule AstNodeType
+
+# check_determinate(rule, count, seed=None) -> Result[None]
+CheckDeterminate := Result[nil] <- $rule AstNodeType <- $count int <- $seed int
+
+# rule_definitions(module) -> list[TypeDefinition]
+RuleDefinitions := list[TypeDefinition] <- $module Module

@@ -228,11 +228,27 @@ def run_descriptor_corpus():
     check_empty(f"type_descriptor corpus: {files} files", wrong)
 
 
+def run_package_sources():
+    """包自己的 .viba 文件也要能编、能过审：签名表（viba/api.viba）、
+    语言单位（viba/type.viba）、规则层与度量层（viba/rule/*.viba、demo/*.viba）。"""
+    root = Path(__file__).resolve().parent.parent / "viba"
+    paths = [root / "api.viba", root / "type.viba", root / "viba_type_descriptor.viba"]
+    paths += sorted((root / "rule").glob("*.viba"))
+    paths += sorted((root / "rule" / "demo").glob("*.viba"))
+    wrong = []
+    for path in paths:
+        got = file_design(path)
+        if not isinstance(got, Ok):
+            wrong.append(f"{path.relative_to(root.parent)}: {got}")
+    check_empty(f"package sources: {len(paths)} files", wrong)
+
+
 def run():
     run_cases()
     run_cross_module_cases()
     run_config_case()
     run_descriptor_corpus()
+    run_package_sources()
     print(f"check_tag_and_inline: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0
 
