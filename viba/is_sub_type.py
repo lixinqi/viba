@@ -167,6 +167,11 @@ _UNIT_NIL = viba_ast.Nil()
 _UNIT_NEVER = viba_ast.Never()
 
 
+def _has_code_block(node) -> bool:
+    """A {...} somewhere under this piece, behind tags and applications too."""
+    return any(isinstance(part, viba_ast.CodeBlock) for part in viba_ast.walk(node))
+
+
 class _Checker:
     def __init__(self, terminators=frozenset(), config=None):
         self.terminators = frozenset(terminators)
@@ -308,6 +313,10 @@ class _Checker:
     # ------------------------------------------------------------------
 
     def _walk(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
+        # A unit a config names is bypassed, not resolved: the name alone is
+        # what the layer said it is, so it answers before anything unfolds.
+        sn = self._config_unit_node(sn)
+        sp = self._config_unit_node(sp)
         sn, s_mod = self._unfold_ref(sn, s_mod, "sub")
         sp, p_mod = self._unfold_ref(sp, p_mod, "sup")
         sn = self._config_unit_node(sn)
@@ -821,6 +830,10 @@ class _Checker:
         try:
             node, node_mod = elem, module
             while True:
+                if isinstance(self._config_unit(node), NilType):
+                    # A unit a config names is no member: a name is bypassed,
+                    # not resolved, so `rule.RuleObject` stays the marker.
+                    return {}, []
                 target = self._inlining_key(node, node_mod, side)
                 if target is not None:
                     key, name = target
@@ -889,7 +902,9 @@ class _Checker:
         """The unit the config calls this piece, or None.
 
         A name and an application of it count the same: `Assert[{...}]` is the
-        unit when `Assert` is one, and is then not resolved at all.
+        unit when `Assert` is one, and is then not resolved at all. A name
+        reached through an import counts too: `rule.RuleObject` names the
+        marker, so what the config lists is the last segment.
         """
         if isinstance(node, viba_ast.TypeRef):
             name = node.name
@@ -897,6 +912,7 @@ class _Checker:
             name = node.constructor
         else:
             return None
+        name = name.split(".")[-1]
         if name in self.nil_eqv:
             return NilType()
         if name in self.never_eqv:
@@ -928,14 +944,15 @@ class _Checker:
     def _carries_documentation(self, node) -> bool:
         """A code block, or a unit a config names applied to one: the shape
         the writing layers park documentation in. Documentation is not an
-        argument."""
+        argument. The block may sit behind a tag, as `Hint[$python_code
+        {...}]` writes it."""
         if isinstance(node, viba_ast.CodeBlock):
             return True
         if not isinstance(node, viba_ast.TypeApp):
             return False
         if not isinstance(self._config_unit(node), NilType):
             return False
-        return any(isinstance(arg, viba_ast.CodeBlock) for arg in node.args)
+        return any(_has_code_block(arg) for arg in node.args)
 
     def _is_product_unit(self, node, module, side: str) -> bool:
         """The product's unit: nil by form, a name the config calls nil, or a

@@ -80,12 +80,13 @@ def _check_field(node, module, tagged, in_sum):
         _check_sum(node, module)
         return
     if isinstance(node, ast_nodes.TypeApp):
-        if node.constructor == "Predicate":
+        constructor = _short(node.constructor)
+        if constructor == "Predicate":
             _check_predicate(node, tagged, in_sum)
-        elif node.constructor == "Metric":
+        elif constructor == "Metric":
             _check_tagged(tagged, "Metric")
             _expect_args(node, 1, "Metric")
-        elif node.constructor == "not":
+        elif constructor == "not":
             _check_tagged(tagged, "not")
             _expect_args(node, 1, "not")
 
@@ -125,4 +126,10 @@ def _expect_args(node, count, name):
 
 
 def _is_marker(node, name):
-    return isinstance(node, ast_nodes.TypeRef) and node.name == name
+    """A written marker: `RuleObject`, or `rule.RuleObject` through an import."""
+    return isinstance(node, ast_nodes.TypeRef) and node.name.split(".")[-1] == name
+
+
+def _short(name: str) -> str:
+    """The name without the import prefix it was reached by."""
+    return name.split(".")[-1]

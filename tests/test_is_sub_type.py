@@ -750,6 +750,11 @@ Metric[CoreFunc] :=
                  "and the same read backwards")
     check_result(judge("Object * Assert[{x}] * $a int", "$a int"), True,
                  "an untagged unit member is no member")
+    check_result(judge("Result[int] <- DemoPoint <- m.Hint[$python_code {x}]",
+                       "Result[int] <- DemoPoint"), True,
+                 "a unit named through an import counts as the unit")
+    check_result(judge("Object * m.Assert[{x}] * $a int", "$a int"), True,
+                 "the same for an inline member")
     check_result(judge("GetDistance", "MetricFuncInterface"), True,
                  "the metric's own interface holds")
     check_result(judge("GetDistance", "MetricFuncInterface", given=None), True,
@@ -760,6 +765,15 @@ Metric[CoreFunc] :=
                  "and a bare block drops on its own")
     check_result(judge("Result[int] <- Hint <- DemoPoint", "Result[int] <- DemoPoint"), False,
                  "a unit written as a plain name is a real argument")
+    check_result(judge("Result[int] <- DemoPoint <- Hint[$python_code {def metric_func(): ...}]",
+                       "Result[int] <- DemoPoint"), True,
+                 "a block behind a tag is documentation too")
+    check_result(judge("Result[int] <- DemoPoint",
+                       "Result[int] <- DemoPoint <- Hint[$python_code {def metric_func(): ...}]"),
+                 True, "and the same read backwards")
+    check_result(judge("Result[int] <- DemoPoint",
+                       "Result[int] <- DemoPoint <- Hint[str]"), False,
+                 "but an applied unit with no block in it keeps its slot")
     check_result(judge("Result[int] <- DemoPoint", "Result[int] <- DemoPoint <- Assert[{x}]"), True,
                  "and the same read backwards")
     check_result(judge("Result[int] <- Assert[{x}] <- DemoPoint", "Result[int] <- DemoPoint"), True,

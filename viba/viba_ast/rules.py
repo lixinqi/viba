@@ -30,10 +30,12 @@ def rule_marker(defn) -> Optional[str]:
 
 
 def body_marker(body) -> Optional[str]:
-    """PRODUCT_MARKER if a definition body is a rule body."""
+    """PRODUCT_MARKER if a definition body is a rule body. The marker may be
+    written through an import (`rule.RuleObject`): what counts is the name,
+    not the prefix it was reached by."""
     head = _chain_head(body)
-    if isinstance(head, TypeRef) and head.name == PRODUCT_MARKER:
-        return head.name
+    if isinstance(head, TypeRef) and head.name.split(".")[-1] == PRODUCT_MARKER:
+        return PRODUCT_MARKER
     return None
 
 
