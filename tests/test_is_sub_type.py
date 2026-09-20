@@ -621,7 +621,8 @@ def run_cross_module_inline_cases():
 
 def run_function_chain_cases():
     """函数之间比函数：结果协变、参数逆变，按书写顺序逐位比（$arg0 对 $arg0）；
-    长链截到短链的长度，多写的参数不比；除 never 外，非函数一律 False。"""
+    短链在自己末尾补 never 补齐——补在 sup 那边等于 sub 多写的参数不比，补在
+    sub 那边要求 sup 多要的那个参数就是 never；除 never 外，非函数一律 False。"""
     module = custom_module("")
 
     def judge(sub, sup):
@@ -629,8 +630,10 @@ def run_function_chain_cases():
 
     check_result(judge("int <- str <- float", "int <- str"), True,
                  "the longer chain is used where the shorter is expected")
-    check_result(judge("int <- str", "int <- str <- float"), True,
-                 "and the shorter where the longer is: the extra argument is not compared")
+    check_result(judge("int <- str", "int <- str <- float"), False,
+                 "the other way round it is not: sub has nothing to offer for $arg1")
+    check_result(judge("int <- str", "int <- str <- never"), True,
+                 "unless the argument the sup adds is never itself")
     check_result(judge("int <- str <- float", "int <- float"), False,
                  "the shared prefix compares by position: $arg0 is str, not float")
     check_result(judge("int <- float <- str", "int <- float"), True,
