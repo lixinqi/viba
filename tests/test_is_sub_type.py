@@ -713,7 +713,7 @@ def run_config_cases():
     """config：哪些写下来的名字算单位元，裸名与应用同名同权。规则层把说明块
     `Assert[{...}]` 说成单位，判定就该当单位读，而不是去解析那个名字。"""
     module = custom_module("""
-Result[T] := Oneof | $ok ($ok_value T) | $err ($err_msg str)
+Result[T] := Oneof | $ok T | $err str
 JsonLike :=
     Oneof
   | nil

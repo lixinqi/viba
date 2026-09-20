@@ -80,7 +80,7 @@ Result[5] <- Prepare
 | 地址 | 叶子 |
 |---|---|
 | `$__metric_object_yanatuttn__` | `nil` |
-| `$call_instance . by_field_index(0) . by_tag($ok) . by_tag($ok_value)` | `5` |
+| `$call_instance . by_field_index(0) . by_tag($ok)` | `5` |
 | `$call_instance . by_field_index(1) . by_tag($victim) . by_tag($x)` / `. by_tag($y)` | `0` / `0` |
 | `$call_instance . by_field_index(1) . by_tag($suspect) . by_tag($x)` / `. by_tag($y)` | `3` / `4` |
 | `$call_instance . by_field_index(1) . by_tag($at)` | `"12:30"` |
@@ -91,7 +91,7 @@ Result[5] <- Prepare
 声明的 `Result[int]` 上，没有叶子——那是 `Prepare` 留下的。
 
 参数不带 tag 时按位置取（`by_field_index(i)`）。谓词读测量值：走 `$call_instance` 的
-结果位，再走 `$ok` / `$ok_value`。
+结果位，再走 `$ok`。
 
 ## 7. 度量函数的写法
 

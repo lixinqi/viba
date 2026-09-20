@@ -9,8 +9,8 @@
 
 Result[T] :=
     Oneof
-  | $ok ($ok_value T)
-  | $err ($err_msg str)
+  | $ok T
+  | $err str
 
 JsonLike :=
     Oneof

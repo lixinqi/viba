@@ -16,7 +16,7 @@ from viba import viba_ast
 
 
 # ----------------------------------------------------------------------
-# Result (cf. Result[T] := Oneof | $ok ($ok_value T) | $err ($err_msg str))
+# Result (cf. Result[T] := Oneof | $ok T | $err str)
 # ----------------------------------------------------------------------
 
 
