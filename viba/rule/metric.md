@@ -78,7 +78,8 @@ Result[5]
 
 ```viba
 # 度量基类
-MetricObject := Object * $__metric_object_you_are_not_allowed_to_use_this_tag_name__ nil
+# yanatuttn = you_are_not_allowed_to_use_this_tag_name
+MetricObject := Object * $__metric_object_yanatuttn__ nil
 
 Metric[CoreFunc] :=
     MetricObject
@@ -99,7 +100,7 @@ Metric[CoreFunc] :=
 
 ```viba
 * $distance (
-    $__metric_object_you_are_not_allowed_to_use_this_tag_name__ nil
+    $__metric_object_yanatuttn__ nil
     * $func GetDistance
     * $call_instance (
         Result[5]
@@ -147,7 +148,7 @@ Metric[CoreFunc] :=
 
 | 地址 | 叶子 |
 |---|---|
-| `$marker` | `nil` |
+| `$__metric_object_yanatuttn__` | `nil` |
 | `$call_instance . by_field_index(0) . by_tag($ok) . by_tag($ok_value)` | `5` |
 | `$call_instance . by_field_index(1) . by_tag($victim) . by_tag($x)` / `. by_tag($y)` | `0` / `0` |
 | `$call_instance . by_field_index(1) . by_tag($suspect) . by_tag($x)` / `. by_tag($y)` | `3` / `4` |

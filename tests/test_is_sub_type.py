@@ -727,7 +727,7 @@ JsonLike :=
 MetricFuncInterface := Result[JsonLike] <- never
 DemoPoint := ($x int * $y int)
 GetDistance := Result[int] <- DemoPoint <- DemoPoint
-MetricObject := Object * $__metric_object_you_are_not_allowed_to_use_this_tag_name__ nil
+MetricObject := Object * $__metric_object_yanatuttn__ nil  # yanatuttn = you_are_not_allowed_to_use_this_tag_name
 Metric[CoreFunc] :=
     MetricObject
   * $func CoreFunc
