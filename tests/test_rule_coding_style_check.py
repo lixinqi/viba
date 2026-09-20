@@ -291,7 +291,7 @@ def _check_broken_predicates():
 def _check_shape_compatible():
     """Every generated witness must fit its rule's shape, with
     Predicate and PredicationFailed erased to the same leaf. A witness
-    that drops a field, renames a tag, or loses the marker does not."""
+    that drops a field or renames a tag does not."""
     checked = 0
     for path in sorted((DATA / "rules").glob("rule*.viba")):
         number = path.stem[len("rule"):]
@@ -325,6 +325,8 @@ def _check_shape_compatible():
                 viba_ast.Tagged("$other", check),
             ),
         ),
+        # 单位元不是成员：Object 起头是写法，判定里加不出约束，所以
+        # 少了它照样合形（viba-rule 第 8 节要求 Witness 写它）。
         "no marker": viba_ast.Product(
             viba_ast.Tagged("$len", viba_ast.Constant(7)),
             viba_ast.Tagged("$check", check),
@@ -356,7 +358,7 @@ def _check_shape_compatible():
             ),
         ),
     }
-    rejected = ("missing field", "wrong tag", "no marker", "wrong metric type")
+    rejected = ("missing field", "wrong tag", "wrong metric type")
     for label, body in cases.items():
         given = is_shape_compatible(AstNodeType(body, module), rule)
         want = label not in rejected

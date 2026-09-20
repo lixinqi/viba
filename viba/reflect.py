@@ -71,14 +71,11 @@ from viba.viba_type_descriptor import (
     TYPE_REF,
     VibaChainDescriptor,
     VibaDefinitionDescriptor,
-    VibaMemberDescriptor,
     VibaPool,
     VibaTaggedDescriptor,
     VibaTupleDescriptor,
     VibaTypeAppDescriptor,
     VibaTypeDescriptor,
-    definition_members,
-    member_type_name,
 )
 
 # The three builtin containers, and the literal shapes implementations use.
@@ -435,20 +432,19 @@ class VibaAccess:
         return self.leaf(resolved.ok_value)
 
     def list_fields(self, node: VibaNode, definition: VibaDefinitionDescriptor) -> Result:
-        """VibaListFields: VibaGet each DefinitionMember; take what comes back."""
-        members = definition_members(definition)
-        if isinstance(members, Err):
-            return members
+        """VibaListFields: VibaGet each member the map reads off the definition;
+        take what comes back.
+
+        The members are read the way the map reads them — inlined members
+        promoted, units left out — so the listing and the walk agree on where a
+        field sits. What is missing does not enter the table.
+        """
         out = []
         positional = 0
-        for member in members.ok_value:
-            if member.tag:
-                step = by_tag(member.tag)
+        for tag, _ in self._design_members(definition.body) or []:
+            if tag:
+                step = by_tag(tag)
             else:
-                # A unit the config names may be written as a positional member;
-                # it is not a field, takes no positional number, and is skipped.
-                if self._is_unit_member(member):
-                    continue
                 step = by_field_index(positional)
                 positional += 1
             given = self.get(node, step)
@@ -482,33 +478,41 @@ class VibaAccess:
         write a cycle (`A := B` with `B := A`) or a generic that asks for
         itself (`W[T] := W[T]`, or `W[T] := W[list[T]]`, whose body only grows);
         neither has a body to land on, so the piece stays the name it is."""
-        seen = seen if seen is not None else set()
+        return self._unfold_seen(descriptor, set() if seen is None else set(seen))[0]
+
+    def _unfold_seen(self, descriptor: VibaTypeDescriptor,
+                     seen: set):
+        """Unfold, and hand back the definitions it expanded on the way.
+
+        Same rule as unfold; the returned set is what keeps the inline chain of
+        a product finite (see _product_members).
+        """
         if descriptor.kind == TYPE_REF:
             target = self._written_target(descriptor, descriptor.payload.type_name)
             if target is None or not isinstance(target.ast_node, viba_ast.TypeDefinition):
-                return descriptor  # a builtin leaf, a generic parameter: stop
+                return descriptor, seen  # a builtin leaf, a generic parameter: stop
             key = ("ref", id(target.ast_node))
             if key in seen:
-                return descriptor
+                return descriptor, seen
             # The descriptor side has no public "descriptor for a type
             # expression" entry point yet, so use its builder.
             from viba.viba_type_descriptor import _build_type
 
             body = _build_type(descriptor.payload.pool, target.container_module,
                                target.ast_node.body)
-            return self.unfold(body, seen | {key})
+            return self._unfold_seen(body, seen | {key})
         if descriptor.kind == TYPE_APP:
             target = self._written_target(descriptor, descriptor.payload.constructor_name)
             if target is None or not isinstance(target.ast_node, viba_ast.GenericDefinition):
-                return descriptor  # a builtin container, an unfilled application
+                return descriptor, seen  # a builtin container, an unfilled application
             key = ("app", id(target.ast_node))
             if key in seen:
-                return descriptor
+                return descriptor, seen
             applied = self._apply_generic(descriptor, target)
             if applied is None:
-                return descriptor
-            return self.unfold(applied, seen | {key})
-        return descriptor
+                return descriptor, seen
+            return self._unfold_seen(applied, seen | {key})
+        return descriptor, seen
 
     def _written_target(self, descriptor: VibaTypeDescriptor, written: str):
         """The definition a written name lands on — import prefix and all —
@@ -613,13 +617,17 @@ class VibaAccess:
     def _design_members(self, descriptor: VibaTypeDescriptor) -> Optional[List[tuple]]:
         """Same, straight from a design descriptor.
 
-        Sum, product and exponent chains follow one rule: the members are
-        $elements, and a unit chain head does not count. A branch (a chain
-        nested in $elements) counts as one member like any other element.
+        Sum and exponent chains follow one rule: the members are $elements,
+        and a unit chain head does not count. A product is read by
+        _product_members: its untagged members may stand for members of their
+        own. A branch (a chain nested in $elements) counts as one member like
+        any other element.
         """
         descriptor = self.unfold(descriptor)
         elements = None
-        if descriptor.kind in (PRODUCT, SUM, EXPONENT):
+        if descriptor.kind == PRODUCT:
+            return self._product_members(descriptor)
+        if descriptor.kind in (SUM, EXPONENT):
             elements = list(descriptor.payload.elements)
         elif descriptor.kind == TAGGED:
             return [(descriptor.payload.tag, descriptor.payload.tagged_type)]
@@ -634,6 +642,36 @@ class VibaAccess:
             else:
                 slots.append((None, element))
         return slots
+
+    def _product_members(self, descriptor: VibaTypeDescriptor,
+                         seen: Optional[set] = None) -> List[tuple]:
+        """A product's members: [(tag or None, descriptor), ...].
+
+        An untagged member is an inline slot. One that unfolds to a product or
+        to a single tagged member hands those members over, recursively; one
+        that unfolds to the product unit — nil, or a name the config calls nil —
+        is no member at all (that is what the head `Object` has always meant);
+        anything else is one positional member, as written.
+
+        A definition already being inlined stays as that positional member, so
+        a pool may write an inline cycle (`A := $x int * A`) and still be read.
+        """
+        seen = set() if seen is None else seen
+        out = []
+        for element in descriptor.payload.elements:
+            if element.kind == TAGGED:
+                out.append((element.payload.tag, element.payload.tagged_type))
+                continue
+            shape, inner_seen = self._unfold_seen(element, set(seen))
+            if shape.kind == PRODUCT:
+                out.extend(self._product_members(shape, inner_seen))
+            elif shape.kind == TAGGED:
+                out.append((shape.payload.tag, shape.payload.tagged_type))
+            elif self._is_product_unit(element):
+                continue
+            else:
+                out.append((None, element))
+        return out
 
     def _bare_sum(self, descriptor: VibaTypeDescriptor) -> Optional[List[tuple]]:
         """The positional branches of an untagged sum whose layer a material may
@@ -737,28 +775,46 @@ class VibaAccess:
 
         One rule on both sides (the design side works on descriptors, this one
         on syntax trees); a name resolves in the module the design piece comes
-        from, hence the module carried by ``design``.
+        from, hence the module carried by ``design``. A definition already
+        expanded stays as written, so a cycle (`A := B` with `B := A`) and a
+        body that only grows (`W[T] := W[list[T]]`) both terminate.
         """
-        module = _design_module(design)
-        if module is None:
-            return data
+        return self._expand_data_seen(data, design, set())
+
+    def _expand_data_seen(self, data, design, seen):
+        """_expand_data, and the definitions it expanded on the way."""
         if isinstance(data, viba_ast.TypeRef):
+            module = _design_module(design)
+            if module is None:
+                return data
             body = _definition_body(module, data.name)
-            return data if body is None else body
+            if body is None:
+                return data
+            key = self._data_definition_key(data, module)
+            if key is None or key in seen:
+                return data
+            return self._expand_data_seen(body, design, seen | {key})
         if isinstance(data, viba_ast.TypeApp):
+            module = _design_module(design)
+            if module is None:
+                return data
             definition = _generic_definition(module, data.constructor)
             if definition is None:
                 return data
             params = list(definition.generic_params or [])
             if len(params) != len(data.args):
                 return data
+            key = self._data_definition_key(data, module)
+            if key is None or key in seen:
+                return data
             bindings = dict(zip(params, data.args))
-            return _fill_params(definition.body, bindings)
+            body = _fill_params(definition.body, bindings)
+            return self._expand_data_seen(body, design, seen | {key})
         return data
 
     def _match(self, data, step: VibaStep, design=None):
         if step.kind in ("by_tag", "by_field_index"):
-            slots = self._data_members(self._expand_data(data, design))
+            slots = self._data_members(data, design)
             if slots is not None:
                 if step.kind == "by_tag":
                     for tag, piece in slots:
@@ -844,12 +900,14 @@ class VibaAccess:
         return (descriptor.kind == TYPE_REF
                 and self.config.is_unit_name(descriptor.payload.type_name))
 
-    def _is_unit_member(self, member: VibaMemberDescriptor) -> bool:
-        written = member_type_name(member)
-        if isinstance(written, Ok) and self.config.is_unit_name(written.ok_value):
+    def _is_product_unit(self, descriptor) -> bool:
+        """The product's unit: nil by kind, or a name the config calls nil.
+        never is the sum's unit and is no product unit."""
+        shape = self.unfold(descriptor)
+        if shape.kind == NIL:
             return True
-        member_type = getattr(member, "member_type", None)
-        return member_type is not None and self._is_unit_descriptor(member_type)
+        return (shape.kind == TYPE_REF
+                and shape.payload.type_name in self.config.nil_eqv)
 
     def _is_unit_data(self, node) -> bool:
         """The same on the material side: a unit written as a form or a name."""
@@ -858,13 +916,28 @@ class VibaAccess:
         return (isinstance(node, viba_ast.TypeRef)
                 and self.config.is_unit_name(node.name))
 
-    def _data_members(self, data) -> Optional[List[tuple]]:
-        """The members of this data piece: [(tag or None, piece), ...]; the
-        three chains follow one rule."""
-        elements = _flatten(data)
+    def _is_product_unit_data(self, node) -> bool:
+        """The product's unit on the material side: nil, or a name the config
+        calls nil. never is the sum's unit and is no product unit."""
+        if isinstance(node, viba_ast.Nil):
+            return True
+        return (isinstance(node, viba_ast.TypeRef)
+                and node.name in self.config.nil_eqv)
+
+    def _data_members(self, data, design=None) -> Optional[List[tuple]]:
+        """The members of this data piece: [(tag or None, piece), ...].
+
+        A product design is read by the design's own rule
+        (_product_data_members). Sum and exponent designs follow one rule: the
+        elements of the written chain, minus a unit chain head.
+        """
+        expanded = self._expand_data(data, design)
+        if design is not None and self.unfold(design).kind == PRODUCT:
+            return self._product_data_members(expanded, design, set())
+        elements = _flatten(expanded)
         if elements is None:
-            if isinstance(data, viba_ast.Tagged):
-                return [(data.tag, data.type)]
+            if isinstance(expanded, viba_ast.Tagged):
+                return [(expanded.tag, expanded.type)]
             return None
         if elements and self._is_unit_data(elements[0]):
             elements = elements[1:]
@@ -875,6 +948,61 @@ class VibaAccess:
             else:
                 slots.append((None, element))
         return slots
+
+    def _product_data_members(self, data, design, seen) -> List[tuple]:
+        """A product's members on the material side, by the design's rule.
+
+        An untagged piece written as a name or an application that unfolds to a
+        product or to a single tagged member hands those members over,
+        recursively; one that is the product unit is no member at all; anything
+        else is one positional piece. A definition already being inlined stays
+        one positional piece, so an inline cycle terminates. A group written on
+        the right of the chain is a branch and stays one piece (the protocol's
+        own reading).
+        """
+        elements = _flatten(data)
+        if elements is None:
+            if isinstance(data, viba_ast.Tagged):
+                return [(data.tag, data.type)]
+            return []
+        module = _design_module(design)
+        out = []
+        for element in elements:
+            if isinstance(element, viba_ast.Tagged):
+                out.append((element.tag, element.type))
+                continue
+            key = self._data_definition_key(element, module) if module is not None else None
+            expanded = element
+            if key is not None and key not in seen:
+                expanded = self._expand_data(element, design)
+            if isinstance(expanded, (viba_ast.Product, viba_ast.ProductChain)):
+                next_seen = seen | {key} if key is not None else seen
+                out.extend(self._product_data_members(expanded, design, next_seen))
+            elif isinstance(expanded, viba_ast.Tagged):
+                out.append((expanded.tag, expanded.type))
+            elif self._is_product_unit_data(expanded):
+                continue
+            else:
+                out.append((None, element))
+        return out
+
+    def _data_definition_key(self, data, module) -> Optional[tuple]:
+        """The definition a material piece points at, as the key of the inline
+        chain; None when it is not a name over a definition."""
+        if isinstance(data, viba_ast.TypeRef):
+            resolved = module_get_type(module, data.name)
+            if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
+                return None
+            node = resolved.ok_value.ast_node
+            if isinstance(node, viba_ast.TypeDefinition):
+                return ("ref", id(node))
+            return None
+        if isinstance(data, viba_ast.TypeApp):
+            definition = _generic_definition(module, data.constructor)
+            if definition is None or len(definition.generic_params or []) != len(data.args):
+                return None
+            return ("app", id(definition))
+        return None
 
     def _walk(self, node: VibaNode) -> List[VibaNode]:
         """Walk every address reachable on this map."""

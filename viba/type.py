@@ -251,6 +251,10 @@ class UnresolvedTypeError(Exception):
     """A TypeRef could not be resolved to a Type."""
 
 
+class DuplicateTagError(Exception):
+    """One product writes the same tag twice, inlined members counted."""
+
+
 def module_get_type(module: ModuleType, type_name: str) -> Result:
     """Resolve a type name against a module (ModuleGetType).
 

@@ -1038,6 +1038,65 @@ def test_api_member_steps_case_004():
     assert reflect.access.member_steps(m.node1_node.by_tag("items")) == []
 
 
+def test_api_member_steps_case_005():
+    """不带标签的积成员是内联位：它的 tag 直接列出来，不带那一跳。"""
+    pool = empty_pool()
+    parsed = parse_viba_file(pool, "A := $x int * $y str\nB := A * $z bool\n",
+                             "inline.viba", "inline")
+    pool = pool_add_file(pool, parsed.ok_value).ok_value
+    definition = pool_find_definition(pool, "inline.B").ok_value
+    body = viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$x", viba_ast.Constant(1)),
+        viba_ast.Tagged("$y", viba_ast.Constant("s")),
+        viba_ast.Tagged("$z", viba_ast.Constant(True)),
+    ])
+    node = reflect.access.root(definition, Witness(body)).ok_value
+    steps = reflect.access.member_steps(node)
+    assert [tag for tag, _, _ in steps] == ["$x", "$y", "$z"]
+    assert [repr(step) for _, step, _ in steps] == [
+        "by_tag('$x')", "by_tag('$y')", "by_tag('$z')"]
+    assert reflect.access.get_by_path(node, [by_tag("$x")]).ok_value == 1
+
+
+def test_api_member_steps_case_006():
+    """单位元不是成员：写在头里、写在中间、藏在名字后面，都不算。"""
+    pool = empty_pool()
+    parsed = parse_viba_file(pool, "U := Object\n"
+                                   "Box := Object * U * $a int * Object * $b str\n",
+                             "units.viba", "units")
+    pool = pool_add_file(pool, parsed.ok_value).ok_value
+    definition = pool_find_definition(pool, "units.Box").ok_value
+    body = viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"), viba_ast.Nil(),
+        viba_ast.Tagged("$a", viba_ast.Constant(1)), viba_ast.Nil(),
+        viba_ast.Tagged("$b", viba_ast.Constant("s")),
+    ])
+    node = reflect.access.root(definition, Witness(body)).ok_value
+    assert [tag for tag, _, _ in reflect.access.member_steps(node)] == ["$a", "$b"]
+    assert reflect.access.get_by_path(node, [by_tag("$b")]).ok_value == "s"
+
+
+def test_api_list_fields_case_004():
+    """内联进来的字段也在表里，位置按摊开后的算。"""
+    pool = empty_pool()
+    parsed = parse_viba_file(pool, "A := $x int * $y str\nB := int * A * $z bool\n",
+                             "fields.viba", "fields")
+    pool = pool_add_file(pool, parsed.ok_value).ok_value
+    definition = pool_find_definition(pool, "fields.B").ok_value
+    body = viba_ast.ProductChain([
+        viba_ast.Constant(7),
+        viba_ast.Tagged("$x", viba_ast.Constant(1)),
+        viba_ast.Tagged("$y", viba_ast.Constant("s")),
+        viba_ast.Tagged("$z", viba_ast.Constant(True)),
+    ])
+    node = reflect.access.root(definition, Witness(body)).ok_value
+    listed = reflect.access.list_fields(node, definition)
+    assert isinstance(listed, Ok)
+    assert [repr(n.path[-1]) for n in listed.ok_value] == [
+        "by_field_index(0)", "by_tag('$x')", "by_tag('$y')", "by_tag('$z')"]
+
+
 def test_api_carries_nil_case_001():
     """和里有一支是 nil：这个槽位让 nil。"""
     m = _materials()

@@ -1,0 +1,3 @@
+Inner := $x int
+Box[T] := T * $a int
+X := Box[Inner]

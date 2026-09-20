@@ -755,10 +755,13 @@ def run_positional_gaps():
 
 
 def run_unit_member_shapes():
-    """单位成员：带标签、不带标签、在产品头后面。"""
+    """单位成员：带标签、不带标签、在产品头后面。
+
+    不带标签的单位元不是成员：不占位置，也不写出来（带标签的照写，只是没有值）。
+    """
     _corner("a unit member with no tag", "Box := Object * Object * $a int\n", "Box",
             _product(viba_ast.Nil(), _tagged("$a", viba_ast.Constant(1))),
-            expect="* nil")
+            expect="entry :=\n  Object\n  * $a 1\n")
     _corner("two unit members, one tagged",
             "Box := Object * Object * $u Object * $a int\n", "Box",
             _product(viba_ast.Nil(), _tagged("$u", viba_ast.Nil()),
@@ -1201,6 +1204,67 @@ def run_head_written_as_unit():
                expect="* $u nil\n  * $v nil")
 
 
+def run_inline_member_cases():
+    """内联成员：第一个不带标签的成员摊进自己的成员，递归；单位元不算成员；
+    重标签写不出来；内联环不转圈。"""
+    _corner("an inline product member",
+            "A := $x int * $y int\nB := A * $z int\n", "B",
+            _product(_tagged("$x", viba_ast.Constant(1)),
+                     _tagged("$y", viba_ast.Constant(2)),
+                     _tagged("$z", viba_ast.Constant(3))),
+            expect="entry :=\n  $x 1\n  * $y 2\n  * $z 3\n")
+    _corner("an inline chain two deep",
+            "A := $x int\nB := A * $y int\nC := B * $z int\n", "C",
+            _product(_tagged("$x", viba_ast.Constant(1)),
+                     _tagged("$y", viba_ast.Constant(2)),
+                     _tagged("$z", viba_ast.Constant(3))),
+            expect="entry :=\n  $x 1\n  * $y 2\n  * $z 3\n")
+    _corner("a member that is no product keeps its place",
+            "Box := int * $a int\n", "Box",
+            _product(viba_ast.Constant(7), _tagged("$a", viba_ast.Constant(1))),
+            expect="entry :=\n  7\n  * $a 1\n")
+    _corner("an inline member after a positional one",
+            "A := $x int * $y int\nBox := int * A * $z int\n", "Box",
+            _product(viba_ast.Constant(7),
+                     _tagged("$x", viba_ast.Constant(1)),
+                     _tagged("$y", viba_ast.Constant(2)),
+                     _tagged("$z", viba_ast.Constant(3))),
+            expect="entry :=\n  7\n  * $x 1\n  * $y 2\n  * $z 3\n")
+    _corner("a unit member between positional ones",
+            "Box := Object * int * Object * int * $a int\n", "Box",
+            _product(viba_ast.Constant(7), viba_ast.Nil(),
+                     viba_ast.Constant(8), _tagged("$a", viba_ast.Constant(1))),
+            expect="entry :=\n  Object\n  * 7\n  * 8\n  * $a 1\n")
+    _corner("the head written as a name over the unit",
+            "U := Object\nBox := U * $a int\n", "Box",
+            _product(_tagged("$a", viba_ast.Constant(1))),
+            expect="entry :=\n  Object\n  * $a 1\n")
+    _corner("the member written as a name on the material side",
+            "Data := $x 1 * $y 2\nA := $x int * $y int\nB := A * $z int\n", "B",
+            _product(viba_ast.TypeRef("Data"), _tagged("$z", viba_ast.Constant(3))),
+            expect="entry :=\n  $x 1\n  * $y 2\n  * $z 3\n")
+    _corner("an inline member behind a generic application",
+            "Inner := $x int * $y int\nBox[T] := T * $z int\nB := Box[Inner]\n", "B",
+            _product(_tagged("$x", viba_ast.Constant(1)),
+                     _tagged("$y", viba_ast.Constant(2)),
+                     _tagged("$z", viba_ast.Constant(3))),
+            expect="entry :=\n  $x 1\n  * $y 2\n  * $z 3\n")
+    _gap("the same tag twice through an inline",
+         "A := $x int\nB := A * $x str\n", "B",
+         _product(_tagged("$x", viba_ast.Constant(1))), "written twice")
+    _gap("the same tag twice, one of them inlined",
+         "A := $x int * $y int\nB := A * $y str\n", "B",
+         _product(_tagged("$x", viba_ast.Constant(1)),
+                  _tagged("$y", viba_ast.Constant(2))), "written twice")
+    _gap("an inline cycle stays one positional member",
+         "A := A * $x int\n", "A",
+         _product(_tagged("$x", viba_ast.Constant(1))), "no value here")
+    _gap("an inline cycle that repeats a tag",
+         "A := $x int * A * $y int\n", "A",
+         _product(_tagged("$x", viba_ast.Constant(1)),
+                  _tagged("$y", viba_ast.Constant(2))), "written twice")
+
+
 def run():
     for case in (run_fixture_cases, run_empty_container_cases, run_nil_slot_cases,
                  run_set_order_cases, run_exponent_cases, run_code_block_cases,
@@ -1219,7 +1283,7 @@ def run():
                  run_material_root_cases, run_definition_name_cases,
                  run_alias_of_definition_cases, run_sums_in_containers,
                  run_exponent_argument_shapes, run_deep_stress,
-                 run_head_written_as_unit):
+                 run_head_written_as_unit, run_inline_member_cases):
         case()
     print(f"serialize: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

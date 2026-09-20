@@ -1,0 +1,2 @@
+U := Object
+Box := U * $a int

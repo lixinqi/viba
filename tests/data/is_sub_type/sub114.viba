@@ -1,0 +1,3 @@
+A := $x int
+B := A * $y int
+C := B * $z int

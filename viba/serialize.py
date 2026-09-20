@@ -121,19 +121,31 @@ def _unit_expression(descriptor):
 
 
 def _emit_product(access: VibaAccess, node: VibaNode, shape):
-    """Product: the leading unit, then every member in order.
+    """Product: the leading unit (when the design wrote one), then every member
+    in order.
 
-    A member the design writes as a unit is written as the unit — under its
-    tag when the design gave it one; a member with a value is written from it
+    The members come from the map, so an untagged member that stands for a
+    product has already handed its own members over and units are gone. A
+    member the design writes as a unit is written as the unit — under its tag
+    when the design gave it one; a member with a value is written from it
     (tagged members under their tag); a member with no value is written `nil`
-    when its written type admits nil, and is a gap otherwise. Positional
-    members are addressed by position, tagged ones by tag.
+    when its written type admits nil, and is a gap otherwise. Positional members
+    are addressed by position, tagged ones by tag; the same tag twice is a gap,
+    since the two pieces could not be told apart when read back.
     """
     written = []
     elements = list(shape.payload.elements)
-    if elements and access._is_unit_descriptor(elements[0]):
+    if elements and access._is_product_unit(elements[0]):
         written.append(_unit_expression(elements[0]))
+    seen_tags = set()
     for tag, step, descriptor in access.member_steps(node):
+        # A tag holds one member: the same tag twice is a design this cannot
+        # write, since the piece each occurrence carries could not be told
+        # apart when read back.
+        if tag is not None:
+            if tag in seen_tags:
+                raise SerializeGap(f"the tag {tag} is written twice in one product")
+            seen_tags.add(tag)
         # The design itself writes a unit here — unless the name it writes
         # lands on `never`, which has no resident for a material to hold.
         if (access._is_unit_descriptor(descriptor)

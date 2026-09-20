@@ -424,6 +424,69 @@ Pair[K, V] := $key K * $value V
                  "an application with no body to unfold is not nil either")
 
 
+def run_inline_member_cases():
+    """An untagged product member is an inline slot: a product hands its own
+    members over (recursively), the product unit disappears, and the same tag
+    twice — inlined or written — is malformed input."""
+    module = custom_module("""
+A := $x int * $y str
+B := A * $z bool
+C := B * $w float
+Unit := Object
+UBox := Unit * $a int
+Pos := int * $a int
+Inner := $p int * $q str
+Wrap[T] := T * $a int
+Applied := Wrap[Inner]
+MyNil[T] := nil
+MyUnit[T] := T
+Dup := A * $x bool
+Cycle := Cycle * $c int
+""")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    check_result(judge("B", "$x int * $y str * $z bool"), True,
+                 "the inlined tags are B's own")
+    check_result(judge("$x int * $y str * $z bool", "B"), True,
+                 "and the judgment is the other way round too")
+    check_result(judge("C", "B * $w float"), True,
+                 "the chain inlines all the way down")
+    check_result(judge("B", "$x int * $y str"), True,
+                 "a tagged field of an inlined member is covered by width")
+    check_result(judge("$x int * $y str", "B"), False,
+                 "but the inline's own tag is still required")
+    check_result(judge("UBox", "$a int"), True,
+                 "the unit behind a name is no member")
+    check_result(judge("$a int", "UBox"), True,
+                 "in both directions")
+    check_result(judge("Pos", "int * $a int"), True,
+                 "a member that is no product keeps its position")
+    check_result(judge("Applied", "$p int * $q str * $a int"), True,
+                 "a generic actual that is a product is inlined")
+    check_result(judge("MyNil[int] * $a int", "$a int"), True,
+                 "an application whose body is the unit is no member")
+    check_result(judge("$a int", "MyNil[int] * $a int"), True,
+                 "in both directions")
+    check_result(judge("MyUnit[Inner] * $a int", "$p int * $q str * $a int"), True,
+                 "an application that lands on a product is inlined")
+    check_result(judge("Wrap[Inner] * $z bool", "$p int * $q str * $a int * $z bool"), True,
+                 "as an untagged member inside another product")
+    check_result(judge("Cycle", "Cycle"), "error",
+                 "a self-inline repeats a tag: an Err, not a hang")
+    cycle = is_sub_type(entry_type("Cycle", module), entry_type("Cycle", module))
+    check(isinstance(cycle, Err) and "$c" in cycle.err_msg, True,
+          "and the Err names the tag that repeats")
+    check_result(judge("Dup", "$x int"), "error",
+                 "the same tag twice through an inline -> Err")
+    check_result(judge("$a int * $a str", "$a int"), "error",
+                 "written twice at one level -> Err")
+    dup = is_sub_type(entry_type("Dup", module), entry_type("$x int", module))
+    check(isinstance(dup, Err) and "$x" in dup.err_msg, True,
+          "the Err names the tag that repeats")
+
+
 def run_never_head_cases():
     """Without terminators named, a never-headed chain is just an exponent."""
     module = custom_module("""
@@ -548,6 +611,7 @@ run_literal_alias_cases()
 run_structural_generic_cases()
 run_recursive_generic_cases()
 run_unit_alias_cases()
+run_inline_member_cases()
 run_never_head_cases()
 run_code_block_cases()
 run_canonical_chain_cases()
