@@ -620,9 +620,9 @@ def run_cross_module_inline_cases():
 
 
 def run_function_chain_cases():
-    """函数之间比函数：结果协变、参数逆变，按书写顺序逐位比（$arg0 对 $arg0）；
-    短链在自己末尾补 never 补齐——补在 sup 那边等于 sub 多写的参数不比，补在
-    sub 那边要求 sup 多要的那个参数就是 never；除 never 外，非函数一律 False。"""
+    """函数之间比函数：结果协变、参数逆变，按书写顺序逐位比（$arg0 对 $arg0）。
+    sub 比 sup 短直接 False；sub 比 sup 长就把 sub 截到 sup 的长度，多写的参数不比。
+    除 never 外，非函数一律 False。"""
     module = custom_module("")
 
     def judge(sub, sup):
@@ -632,8 +632,8 @@ def run_function_chain_cases():
                  "the longer chain is used where the shorter is expected")
     check_result(judge("int <- str", "int <- str <- float"), False,
                  "the other way round it is not: sub has nothing to offer for $arg1")
-    check_result(judge("int <- str", "int <- str <- never"), True,
-                 "unless the argument the sup adds is never itself")
+    check_result(judge("int <- str", "int <- str <- never"), False,
+                 "no exception: the sub is shorter, so it is no substitute")
     check_result(judge("int <- str <- float", "int <- float"), False,
                  "the shared prefix compares by position: $arg0 is str, not float")
     check_result(judge("int <- float <- str", "int <- float"), True,
@@ -642,6 +642,10 @@ def run_function_chain_cases():
                  "equal lengths compare every argument: nil is no float")
     check_result(judge("int <- str <- nil", "int <- str"), True,
                  "a longer chain is not asked about the arguments it adds")
+    check_result(judge("int <- str <- float <- bool", "int <- str"), True,
+                 "however many it adds, they are all beyond the sup")
+    check_result(judge("int <- str", "int <- str <- float <- never"), False,
+                 "and the sub never gets to add one of its own")
     check_result(judge("int <- str <- nil", "int <- nil"), False,
                  "$arg0 is str against nil")
     check_result(judge("int <- str", "int"), False,

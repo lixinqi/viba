@@ -52,16 +52,14 @@ alias of what it is written as, and judgment is structural throughout.
   (UnresolvedTypeError caught at the boundary). Unfolding a definition
   body can reach such a name; that is then an Err, not a False.
 - Functions (exponent chains) compare as functions: the result
-  covariantly, the arguments contravariantly, in the order they are
-  written from $arg0. Only functions compare with functions (never,
-  the bottom, fits anywhere and is handled before this). The shorter
-  chain is padded with never at its end — the argument nobody can
-  supply — so that the two line up: padding the sup says the sub's
-  extra arguments are not asked about ((int <- $a int <- $b str) <:
-  (int <- $a int) holds, never fitting anything), while padding the
-  sub asks the sup's extra argument to be never itself
-  ((int <- $a int) <: (int <- $a int <- $b str) holds only when $b is
-  never): a chain is not a substitute for one that asks for more.
+  covariantly, the arguments contravariantly, position by position
+  from $arg0. Only functions compare with functions (never, the
+  bottom, fits anywhere and is handled before this). A sub that wires
+  fewer arguments than the sup is no substitute for it: False. One
+  that writes more is cut to the sup's length first — the extra
+  arguments are ones the sup never asks about — so
+  (int <- $a int <- $b str) <: (int <- $a int) holds while
+  (int <- $a int) <: (int <- $a int <- $b str) is False.
 - A never-headed chain (never <- A; a prohibition is written as one)
   is an exponent like any other: result covariant, argument
   contravariant, so never <- B <: never <- A iff A <: B. When the
@@ -895,19 +893,12 @@ class _Checker:
         contravariantly, in the order they are written.
 
         Only functions compare with functions — never, the bottom, fits
-        anywhere and is answered before this. The shorter argument list is
-        padded at its end with never, the argument nobody can supply, so
-        that the two line up from $arg0:
-
-        * the sup padded means the sub's extra arguments are not asked
-          about — never fits whatever they are — so a function that takes
-          more can serve where one that takes less is expected:
-          (int <- $a int <- $b str) <: (int <- $a int);
-        * the sub padded means the sup's extra argument must be never
-          itself, since sub has nothing to offer there: (int <- $a int) <:
-          (int <- $a int <- $b str) holds only when $b is never. Asking
-          for more than the other side has is not something a substitute
-          may do.
+        anywhere and is answered before this. A sub that writes fewer
+        arguments than the sup is no substitute for it: False. One that
+        writes more carries more than the sup asks for, so it is cut to the
+        sup's length and the extra arguments are not compared — the shared
+        prefix still has to be: (int <- $a int <- $b str) <: (int <- $a int),
+        while (int <- $a int) <: (int <- $a int <- $b str) is False.
 
         Argument walks swap modules, so the env stacks swap with them: a
         free name resolves through the env of the syntax it came from."""
@@ -916,14 +907,12 @@ class _Checker:
         sub_res, sub_args = _exponent_parts(sn)
         sup_res, sup_args = _exponent_parts(sp)
         if len(sub_args) < len(sup_args):
-            sub_args += [viba_ast.Never()] * (len(sup_args) - len(sub_args))
-        elif len(sup_args) < len(sub_args):
-            sup_args += [viba_ast.Never()] * (len(sub_args) - len(sup_args))
+            return False
         if not self._walk(sub_res, s_mod, sup_res, p_mod):
             return False
         self._swap_envs()
         try:
-            pairs = zip(sup_args, sub_args)
+            pairs = zip(sup_args, sub_args)  # the sub is cut to the sup's length
             walks = (self._walk(sa, p_mod, sb, s_mod) for sa, sb in pairs)
             return all(walks)
         finally:
