@@ -642,6 +642,12 @@ def run_function_chain_cases():
                  "equal lengths compare every argument: nil is no float")
     check_result(judge("int <- str <- nil", "int <- str"), True,
                  "a longer chain is not asked about the arguments it adds")
+    check_result(judge("int <- float", "int <- float <- nil"), False,
+                 "an extra nil argument is still an argument: arity is part of the shape")
+    check_result(judge("int <- float", "int <- float <- Object"), False,
+                 "Object is nil, and the argument is still asked for")
+    check_result(judge("int <- float", "int <- float <- never"), False,
+                 "never as the extra one is no exception either")
     check_result(judge("int <- str <- float <- bool", "int <- str"), True,
                  "however many it adds, they are all beyond the sup")
     check_result(judge("int <- str", "int <- str <- float <- never"), False,
