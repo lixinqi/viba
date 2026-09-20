@@ -1,5 +1,9 @@
 """viba.check_tag_and_inline — a design's tags, and the chains that spread them.
 
+check_tag_and_inline(design, config) -> Result[None]. Ok(None) when every
+product the design writes has all its tags different once the inline chains are
+spread, and every inline chain ends; Err names the first mistake.
+
     from viba.check_tag_and_inline import check_tag_and_inline
     check_tag_and_inline(pool)       # -> Ok(None), or Err(the first mistake)
 
@@ -36,8 +40,7 @@ inlines — but saying what you mean costs nothing.
 
 from __future__ import annotations
 
-from viba.reflect import Config, VibaAccess
-from viba.reflect import language_config
+from viba.reflect import Config, VibaAccess, language_config
 from viba.type import DuplicateTagError, Err, InlineCycleError, Ok, Result
 from viba.viba_type_descriptor import (
     EXPONENT,
