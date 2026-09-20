@@ -28,7 +28,8 @@ from viba.type import (
     entry_type,
 )
 from viba.is_sub_type import is_sub_type
-from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
+from viba.viba_type_descriptor import (empty_pool, parse_viba_file, pool_add_file,
+                                       pool_find_definition)
 
 DATA = Path(__file__).resolve().parent / "data" / "is_sub_type"
 PASS = FAIL = 0
@@ -582,6 +583,42 @@ S := S | $a int
                  "a sum cycle leaves the branches unsettled, and comes back at all")
 
 
+def run_cross_module_inline_cases():
+    """跨模块的内联：别的模块那个积的 tag 一样摊进来；重标签与成环也跨文件抓。
+    判定这边没有池子，所以模块从池子里的定义取（那份容器模块）再比。"""
+    pool = empty_pool()
+    for file_name, module_name, source in (
+            ("base.viba", "base", "A := $x int * $y str\nU := Object\n"),
+            ("main.viba", "main",
+             "import base\nB := base.A * $z bool\nUBox := base.U * $w int\n"
+             "Dup := base.A * $x int\n"),
+            ("other.viba", "other", "import ring\nCyc := ring.Ring * $c int\n"),
+            ("ring.viba", "ring", "import other\nRing := other.Cyc * $r int\n")):
+        parsed = parse_viba_file(pool, source, file_name, module_name)
+        assert isinstance(parsed, Ok), parsed
+        pool = pool_add_file(pool, parsed.ok_value).ok_value
+
+    def judge(name, sup):
+        definition = pool_find_definition(pool, name).ok_value
+        module = definition.body.payload.resolvable_type.container_module
+        here = AstNodeType(definition.body.payload.resolvable_type.ast_node, module)
+        return is_sub_type(here, entry_type(sup, module))
+
+    check_result(judge("main.B", "$x int * $y str * $z bool"), True,
+                 "a product from another module is inlined")
+    check_result(judge("main.B", "$x int * $y str"), True,
+                 "its tags are the product's own")
+    check_result(judge("main.UBox", "$w int"), True,
+                 "a unit from another module is no member")
+    check_result(judge("main.Dup", "$x int"), "error",
+                 "a tag repeated across modules -> Err")
+    check_result(judge("ring.Ring", "Ring"), "error",
+                 "an inline ring across two files -> Err")
+    ringed = judge("ring.Ring", "Ring")
+    check(isinstance(ringed, Err) and "comes back to" in ringed.err_msg, True,
+          "and it names the chain")
+
+
 def run_never_head_cases():
     """Without terminators named, a never-headed chain is just an exponent."""
     module = custom_module("""
@@ -709,6 +746,7 @@ run_recursive_generic_cases()
 run_unit_alias_cases()
 run_inline_member_cases()
 run_inline_cycle_guard_cases()
+run_cross_module_inline_cases()
 run_never_head_cases()
 run_code_block_cases()
 run_canonical_chain_cases()

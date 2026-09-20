@@ -1046,6 +1046,42 @@ def run_cross_module_cases():
             "main.Box", _product(_tagged("$n", viba_ast.Constant(1))),
             "nothing resides in never")
 
+    # 内联也跨模块：不带标签的成员是别的模块那个积时，它的 tag 一样摊进来
+    _corner_in("a product from another module inlined",
+               pool_of("Box := d.P * $a int\n"), "main.Box",
+               _product(_tagged("$x", viba_ast.Constant(1)),
+                        _tagged("$a", viba_ast.Constant(2))),
+               expect="entry :=\n  $x 1\n  * $a 2\n",
+               resident_source="P := Object * $x int\nBox := P * $a int\n")
+    _corner_in("a product from another module inlined behind a name",
+               pool_of("Q := d.P\nBox := Q * $a int\n"), "main.Box",
+               _product(_tagged("$x", viba_ast.Constant(1)),
+                        _tagged("$a", viba_ast.Constant(2))),
+               expect="entry :=\n  $x 1\n  * $a 2\n",
+               resident_source="P := Object * $x int\nBox := P * $a int\n")
+    _corner_in("an import of an import, inlined",
+               _pool(_DEFS,
+                     ("mid.viba", "mid", "import defs as d\nM := d.P\n"),
+                     ("main.viba", "main",
+                      "import mid as m\nBox := m.M * $a int\n")),
+               "main.Box",
+               _product(_tagged("$x", viba_ast.Constant(1)),
+                        _tagged("$a", viba_ast.Constant(2))),
+               expect="entry :=\n  $x 1\n  * $a 2\n",
+               resident_source="P := Object * $x int\nBox := P * $a int\n")
+    _gap_in("a tag repeated across modules",
+            pool_of("Box := d.P * $x int\n"), "main.Box",
+            _product(_tagged("$x", viba_ast.Constant(1)),
+                     _tagged("$a", viba_ast.Constant(2))), "written twice")
+    _gap_in("gap an inline ring across two files",
+            _pool(("other.viba", "other",
+                   "import base\nA := base.B * $x int\n"),
+                  ("base.viba", "base",
+                   "import other\nB := other.A * $y float\n")),
+            "base.B",
+            _product(_tagged("$x", viba_ast.Constant(1)),
+                     _tagged("$y", viba_ast.Constant(2.5))), "comes back to")
+
 
 def run_cycle_cases():
     """池子里的环：名字对、自名、自指的泛型，都不转圈。"""

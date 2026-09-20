@@ -136,6 +136,45 @@ def run_cases():
         check(label, design(source), want)
 
 
+def pool_design(files):
+    """几份文件编进一个池子，再当设计审一遍。"""
+    pool = empty_pool()
+    for file_name, module_name, source in files:
+        parsed = parse_viba_file(pool, source, file_name, module_name)
+        if not isinstance(parsed, Ok):
+            return f"does not parse: {parsed.err_msg}"
+        built = pool_add_file(pool, parsed.ok_value)
+        if not isinstance(built, Ok):
+            return f"does not compile: {built.err_msg}"
+        pool = built.ok_value
+    return check_tag_and_inline(pool)
+
+
+# 跨模块：名字按它自己那个模块的 import 表解析，摊进来的 tag 与环也跨文件
+BASE = ("base.viba", "base", "A := $x int * $y str\nU := Object\n")
+CROSS = {
+    "a product from another module is inlined": (
+        [BASE, ("main.viba", "main", "import base\nB := base.A * $z bool\n")], "Ok"),
+    "an import of an import is inlined": (
+        [BASE, ("mid.viba", "mid", "import base as b\nM := b.A\n"),
+         ("main.viba", "main", "import mid as m\nB := m.M * $z bool\n")], "Ok"),
+    "a tag repeated across modules": (
+        [BASE, ("main.viba", "main", "import base\nDup := base.A * $x int\n")],
+        "written twice"),
+    "an inline ring across two files": (
+        [("other.viba", "other", "import ring\nCyc := ring.Ring * $c int\n"),
+         ("ring.viba", "ring", "import other\nRing := other.Cyc * $r int\n")],
+        "comes back to"),
+    "a unit from another module": (
+        [BASE, ("main.viba", "main", "import base\nUBox := base.U * $w int\n")], "Ok"),
+}
+
+
+def run_cross_module_cases():
+    for label, (files, want) in CROSS.items():
+        check(label, pool_design(files), want)
+
+
 def run_config_case():
     """换个词汇（`RuleObject` / `Predicate` 当单位元）问同一件事：写得对的仍然
     Ok，写错的仍然 Err——单位没有 tag，也不参与内联，所以 tag 的答案不由它决定，
@@ -191,6 +230,7 @@ def run_descriptor_corpus():
 
 def run():
     run_cases()
+    run_cross_module_cases()
     run_config_case()
     run_descriptor_corpus()
     print(f"check_tag_and_inline: {PASS} passed, {FAIL} failed")
