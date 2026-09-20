@@ -19,6 +19,7 @@ from viba.is_sub_type import is_sub_type
 from viba.reflect import VibaNode, access as reflect_access
 from viba.rule import (check_rule_coding_style, is_compliant,
                        reset_predication_by_python_code)
+from viba.rule.generate_witnesses import generate_witness
 from viba.type import AstNodeType, CustomModuleType, Err, Ok
 from viba.viba_type_descriptor import (descriptor_of, empty_pool, parse_viba_file,
                                        pool_add_file)
@@ -31,7 +32,6 @@ FILES = (
     (DEMO / "demo_metric_func.viba", "viba.rule.demo.demo_metric_func"),
     (DEMO / "demo_prepare.viba", "viba.rule.demo.demo_prepare"),
     (DEMO / "demo_rule.viba", "viba.rule.demo.demo_rule"),
-    (DEMO / "demo_witness.viba", "viba.rule.demo.demo_witness"),
 )
 
 PASS = FAIL = 0
@@ -104,9 +104,8 @@ def main() -> int:
     modules = _modules()
     metric = modules["viba.rule.metric"]
     functions = modules["viba.rule.demo.demo_metric_func"]
-    designs = modules["viba.rule.demo.demo_rule"]
     prepare_module = modules["viba.rule.demo.demo_prepare"]
-    materials = modules["viba.rule.demo.demo_witness"]
+    designs = modules["viba.rule.demo.demo_rule"]
 
     reviewed = check_tag_and_inline(_pool())
     check(isinstance(reviewed, Ok), f"check_tag_and_inline over the demo: {reviewed!r}")
@@ -120,40 +119,8 @@ def main() -> int:
     style = check_rule_coding_style(rule)
     check(isinstance(style, Ok), f"check_rule_coding_style(DemoRule): {style!r}")
 
-    passing = _definition(materials, "DemoWitnessPass")
-    verdict = is_compliant(passing, rule)
-    check(isinstance(verdict, Ok) and verdict.ok_value is True,
-          f"DemoWitnessPass <: DemoRule: {verdict!r}")
-
-    low = _definition(materials, "DemoWitnessLow")
-    check(_assertion_of(low) == "Predicate", "DemoWitnessLow is written positive")
-    verdict = is_compliant(low, rule)
-    check(isinstance(verdict, Ok) and verdict.ok_value is True,
-          f"DemoWitnessLow as written judges True (no code has run): {verdict!r}")
-
-    ran = reset_predication_by_python_code(low, rule)
-    check(_assertion_of(ran) == "PredicationFailed",
-          "running the code flips the low witness to the poison")
-    verdict = is_compliant(ran, rule)
-    check(isinstance(verdict, Ok) and verdict.ok_value is False,
-          f"3 < 5 after the code ran: {verdict!r}")
-
-    failed = _definition(materials, "DemoWitnessFailed")
-    check(_assertion_of(failed) == "PredicationFailed",
-          "DemoWitnessFailed is the post-run form")
-    verdict = is_compliant(failed, rule)
-    check(isinstance(verdict, Ok) and verdict.ok_value is False,
-          f"DemoWitnessFailed <: DemoRule: {verdict!r}")
-
-    kept = reset_predication_by_python_code(passing, rule)
-    check(_assertion_of(kept) == "Predicate", "5 >= 5 flips nothing")
-    verdict = is_compliant(kept, rule)
-    check(isinstance(verdict, Ok) and verdict.ok_value is True,
-          f"the passing witness stays positive: {verdict!r}")
-
-    # The metric's code runs on a prepared call's own nodes - the same
-    # reflection the predicate reads with - and the evidence must record what it
-    # answers. That is the check that no witness's value was made up.
+    # The metric's own code, run over each prepared call: this is the answer
+    # every witness below must carry.
     namespace = {}
     exec(compile(_metric_func_code(get_distance), "<metric_func>", "exec"), namespace)
 
@@ -173,10 +140,36 @@ def main() -> int:
           f"metric_func over Prepare is 5, got {computed('Prepare')!r}")
     check(computed("PrepareNear") == 3.0,
           f"metric_func over PrepareNear is 3, got {computed('PrepareNear')!r}")
+
+    # Nothing below is written down: the witness is generated from the rule and
+    # the prepared call, and its value is the code's answer.
+    passing = generate_witness(rule, _definition(prepare_module, "Prepare"))
+    verdict = is_compliant(passing, rule)
+    check(isinstance(verdict, Ok) and verdict.ok_value is True,
+          f"the generated witness for Prepare satisfies DemoRule: {verdict!r}")
     check(recorded(passing) == computed("Prepare"),
-          "the passing evidence records what the metric answers")
+          f"it records the metric's answer, got {recorded(passing)!r}")
+    check(_assertion_of(passing) == "Predicate", "and its assertion is still positive")
+
+    low = generate_witness(rule, _definition(prepare_module, "PrepareNear"))
     check(recorded(low) == computed("PrepareNear"),
-          "the low evidence records what the metric answers")
+          f"the witness for PrepareNear records its answer, got {recorded(low)!r}")
+    verdict = is_compliant(low, rule)
+    check(isinstance(verdict, Ok) and verdict.ok_value is True,
+          f"as generated it judges True (no code has run): {verdict!r}")
+
+    failed = reset_predication_by_python_code(low, rule)
+    check(_assertion_of(failed) == "PredicationFailed",
+          "running its code flips the assertion to the poison")
+    verdict = is_compliant(failed, rule)
+    check(isinstance(verdict, Ok) and verdict.ok_value is False,
+          f"3 < 5 after the code ran: {verdict!r}")
+
+    kept = reset_predication_by_python_code(passing, rule)
+    check(_assertion_of(kept) == "Predicate", "5 >= 5 flips nothing")
+    verdict = is_compliant(kept, rule)
+    check(isinstance(verdict, Ok) and verdict.ok_value is True,
+          f"the passing witness stays positive: {verdict!r}")
 
     print(f"rule_demo: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

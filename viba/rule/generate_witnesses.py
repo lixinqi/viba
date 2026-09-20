@@ -13,6 +13,7 @@ yields Ok(True) or Ok(false) only.
 import random
 
 from viba import viba_ast
+from viba.reflect import VibaNode, access as reflect_access
 from viba.type import (
     AstNodeType,
     BoolType,
@@ -26,8 +27,156 @@ from viba.type import (
     StrType,
     module_get_type,
 )
+from viba.rule.markers import PRODUCT_MARKER
+from viba.viba_type_descriptor import descriptor_of
 
 _WORDS = ("alpha", "beta", "gamma", "delta")
+
+
+def generate_witness(rule: AstNodeType, prepared: AstNodeType) -> AstNodeType:
+    """The witness of a metric-carrying rule for one prepared call.
+
+    Every `Metric[CoreFunc]` field becomes the metric object: the marker,
+    `$func` naming CoreFunc, and `$call_instance` carrying
+    `<Result>[<value>] <- (<the prepared call>)`, where value is what
+    CoreFunc's `Hint[$python_code {...}]` answers for that call. The other
+    fields are the rule's own: a positive Predicate stays positive, because
+    running the code is reset_predication_by_python_code's step.
+    """
+    module = rule.container_module
+    out = []
+    for member in _chain(rule.ast_node):
+        if _is_marker(member):
+            continue                      # a witness carries no rule marker
+        metric = _metric_of(member, module)
+        out.append(metric(prepared) if metric is not None else member)
+    return AstNodeType(viba_ast.ProductChain(out), module)
+
+
+def _is_marker(member):
+    """The rule's own marker: the rule says it is a rule, the witness does not."""
+    return (isinstance(member, viba_ast.TypeRef)
+            and member.name.split(".")[-1] == PRODUCT_MARKER)
+
+
+def _chain(node):
+    return list(_chain_node(node).elements)
+
+
+def _chain_node(node):
+    if isinstance(node, (viba_ast.ProductChain, viba_ast.SumChain,
+                         viba_ast.ExponentChain)):
+        return node
+    if isinstance(node, (viba_ast.Product, viba_ast.Sum, viba_ast.Exponent)):
+        return viba_ast.convert_to_chain_style(node)
+    return viba_ast.ProductChain([node])
+
+
+def _metric_of(member, module):
+    """A builder for this member when it is a metric object, else None."""
+    if not isinstance(member, viba_ast.Tagged):
+        return None
+    written = member.type
+    if not (isinstance(written, viba_ast.TypeApp)
+            and written.constructor.split(".")[-1] == "Metric"):
+        return None
+    return _MetricMember(member.tag, written, module)
+
+
+class _MetricMember:
+    """One `$tag Metric[CoreFunc]` member of the rule."""
+
+    def __init__(self, tag, written, module):
+        self.tag = tag
+        self.written = written
+        self.module = module
+        resolved = module_get_type(module, written.constructor)
+        if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
+            raise ValueError(f"{written.constructor} is not a metric definition")
+        self.definition = resolved.ok_value.ast_node
+        self.home = resolved.ok_value.container_module
+        if not isinstance(self.definition, viba_ast.GenericDefinition):
+            raise ValueError(f"{written.constructor} is not generic")
+        self.core = written.args[0]
+
+    def __call__(self, prepared):
+        return viba_ast.Tagged(self.tag, viba_ast.ProductChain([
+            viba_ast.TypeRef("Object"),
+            viba_ast.Tagged(self._marker_tag(), viba_ast.Nil()),
+            viba_ast.Tagged("$func", self.core),
+            viba_ast.Tagged("$call_instance", self._call_instance(prepared)),
+        ]))
+
+    def _marker_tag(self) -> str:
+        """The reserved tag: the tagged member of the object's anchor."""
+        for member in _chain(self.definition.body):
+            if not isinstance(member, viba_ast.TypeRef):
+                continue
+            resolved = module_get_type(self.home, member.name)
+            if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
+                continue
+            for inner in _chain(resolved.ok_value.ast_node.body):
+                if isinstance(inner, viba_ast.Tagged) and isinstance(inner.type, viba_ast.Nil):
+                    return inner.tag
+        raise ValueError("the metric definition carries no marker tag")
+
+    def _result_name(self) -> str:
+        """How `Result` is written where this field was written: the metric's
+        own prefix is the one the rule used (`metric.Metric` -> `metric`)."""
+        prefix = (self.written.constructor.rsplit(".", 1)[0]
+                  if "." in self.written.constructor else "")
+        for member in _chain(self.definition.body):
+            if not (isinstance(member, viba_ast.Tagged) and member.tag == "$call_instance"):
+                continue
+            call = _chain(member.type)
+            if call and isinstance(call[0], viba_ast.TypeApp):
+                name = call[0].constructor.split(".")[-1]
+                return f"{prefix}.{name}" if prefix else name
+        raise ValueError("the metric definition has no $call_instance")
+
+    def _call_instance(self, prepared):
+        return viba_ast.ExponentChain([
+            viba_ast.TypeApp(self._result_name(), [viba_ast.Constant(self._measure(prepared))]),
+            _chain_node(prepared.ast_node),
+        ])
+
+    def _measure(self, prepared):
+        """What CoreFunc's own code answers for this prepared call."""
+        function, home = _function_of(self.core, self.module)
+        code = _hint_code(function, self.core)
+        root = VibaNode(reflect_access, descriptor_of(AstNodeType(function.body, home)),
+                        prepared.ast_node, data_module=self.module)
+        arguments = []
+        positional = 0
+        for element in _chain(function.body)[1:]:
+            if isinstance(element, viba_ast.Tagged):
+                arguments.append(root.by_tag(element.tag))
+            elif (isinstance(element, viba_ast.TypeApp)
+                  and element.constructor.split(".")[-1] == "Hint"):
+                continue                      # documentation, not an argument
+            else:
+                positional += 1
+                arguments.append(root.by_field_index(positional))
+        namespace = {}
+        exec(compile(code, "<metric_func>", "exec"), namespace)
+        return namespace["metric_func"](*arguments)
+
+
+def _function_of(core, module):
+    """(definition node, its home module) of the CoreFunc name."""
+    resolved = module_get_type(module, core.name)
+    if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
+        raise ValueError(f"{core.name} names no metric function")
+    return resolved.ok_value.ast_node, resolved.ok_value.container_module
+
+
+def _hint_code(function, core):
+    """The code the function's trailing Hint carries."""
+    for element in _chain(function.body):
+        if (isinstance(element, viba_ast.TypeApp)
+                and element.constructor.split(".")[-1] == "Hint"):
+            return element.args[0].type.code
+    raise ValueError(f"{core.name} carries no Hint[$python_code {{...}}]")
 
 
 def generate_witnesses(rule: AstNodeType, count: int, seed=None, fail_prob: float = 0.1) -> list:
