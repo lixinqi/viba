@@ -4,9 +4,9 @@ check_rule_coding_style(rule) -> Result[None]. Ok(None) when the rule
 follows the writing conventions; Err names the first violation.
 
 Checked (viba-rule.md section in parentheses):
-- the chain head is RuleObject or OneofRule (2);
-- a RuleObject body is a product, a OneofRule body is a sum (2);
-- a OneofRule branch names another rule (2);
+- the chain head is RuleObject or Oneof (2);
+- a RuleObject body is a product, a Oneof body is a sum (2);
+- a Oneof branch names another rule (2);
 - untagged product fields come before tagged ones (3);
 - Predicate[Cond, $python_code Code] carries exactly those two
   arguments, and Code defines `predicate` (4);
@@ -29,7 +29,7 @@ def check_rule_coding_style(rule: AstNodeType) -> Result:
     module = rule.container_module
     marker = body_marker(body)
     if marker is None:
-        return Err("missing RuleObject/OneofRule marker")
+        return Err("missing RuleObject/Oneof marker")
     try:
         if marker == PRODUCT_MARKER:
             _check_product(body, module, top=True)
@@ -76,13 +76,13 @@ def _check_product(node, module, top=False):
 def _check_oneof(node, module):
     elements = _sum_elements(node)
     if not elements or not _is_marker(elements[0], SUM_MARKER):
-        raise _Violation("a OneofRule body must open with OneofRule")
+        raise _Violation("a Oneof body must open with Oneof")
     for element in elements[1:]:
         reference = element.type if isinstance(element, ast_nodes.Tagged) else element
         if not isinstance(reference, ast_nodes.TypeRef):
-            raise _Violation("a OneofRule branch must name another rule")
+            raise _Violation("a Oneof branch must name another rule")
         if not _names_a_rule(reference.name, module):
-            raise _Violation(f"OneofRule branch {reference.name!r} is not a rule")
+            raise _Violation(f"Oneof branch {reference.name!r} is not a rule")
 
 
 def _check_field(node, module, tagged, in_sum):

@@ -10,7 +10,7 @@ fails and every witness must be rejected (False), and with the default
 fail_prob the True share must match (1 - fail_prob) ** flip_sites,
 where a flip site is a positive Predicate field or a tagged not branch.
 check_determinate must certify each rule. demo.viba, sum_rule.viba, not_rule.viba and
-broken_rules.viba cover the original DEMO, an OneofRule over
+broken_rules.viba cover the original DEMO, an Oneof over
 Predicate-carrying branch rules, a prohibitive not[...] rule with
 per-branch refutation witnesses, and two broken rules determinacy must
 reject. All Viba source lives in data files — this file is pure

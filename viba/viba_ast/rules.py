@@ -1,10 +1,10 @@
-"""Rule markers: RuleObject / OneofRule.
+"""Rule markers: RuleObject / Oneof.
 
 A rule is a plain type definition whose chain head carries a marker:
-RuleObject (like Object, product identity, cardinality 1) or
-OneofRule (like Oneof, sum identity, cardinality 0). The markers are
-syntactic synonyms of Object/Oneof in every judgment; they exist so a
-module can declare which of its definitions are rules.
+RuleObject (like Object, product identity, cardinality 1) or Oneof (the
+sum identity, cardinality 0). The markers are syntactic synonyms of
+Object/Oneof in every judgment; the RuleObject name exists so a module can
+declare which of its definitions are rules.
 """
 
 from typing import List, Optional
@@ -21,7 +21,7 @@ from viba.viba_ast.nodes import (
 )
 
 PRODUCT_MARKER = "RuleObject"
-SUM_MARKER = "OneofRule"
+SUM_MARKER = "Oneof"
 
 
 def rule_marker(defn) -> Optional[str]:

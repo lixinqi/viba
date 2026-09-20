@@ -187,7 +187,7 @@ def run_config_case():
     built = pool_add_file(pool, parsed.ok_value).ok_value
     check("a rule's inlined tag repeats (language names)",
           check_tag_and_inline(built), "written twice")
-    rule_config = Config(never_eqv={"Oneof", "OneofRule"},
+    rule_config = Config(never_eqv={"Oneof"},
                          nil_eqv={"Object", "RuleObject", "Predicate",
                                   "PredicationFailed"})
     check("the same, asked with the rule layer's vocabulary",

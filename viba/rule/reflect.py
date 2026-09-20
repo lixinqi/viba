@@ -29,7 +29,7 @@ from viba.reflect import (
 Witness = VibaData
 
 # The rule layer's units: viba-rule.md's rule markers and the predicate forms.
-access = VibaAccess(Config(never_eqv={"Oneof", "OneofRule"},
+access = VibaAccess(Config(never_eqv={"Oneof"},
                            nil_eqv={"Object", "RuleObject", "Predicate",
                                     "PredicationFailed"}))
 

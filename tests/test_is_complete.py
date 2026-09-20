@@ -55,7 +55,7 @@ def main():
     # A rule: the rule layer hands in its own names as terminators
     demo = read(RULES / "demo.viba")
     rule_stops = {"Metric", "Predicate", "PredicationFailed",
-                  "RuleObject", "OneofRule"}
+                  "RuleObject", "Oneof"}
     check("rule file, no terminators", is_complete(demo, [], [], set()), False)
     check("rule file + the rule layer's terminators",
           is_complete(demo, [], [], rule_stops), True)

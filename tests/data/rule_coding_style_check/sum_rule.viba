@@ -20,7 +20,7 @@ def predicate(self):
 }]
 
 SumRule :=
-  OneofRule
+  Oneof
   | $small SmallRule
   | $big BigRule
 

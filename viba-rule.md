@@ -4,18 +4,18 @@
 
 Rule 不是 Viba 的新机制，只是 Viba 类型的一个应用。
 
-一条规则（Rule）是以 `Metric` 与字面量为叶子的 Viba 类型描述，声明材料必须满足的结构与断言；一份呈证材料（Witness）也是一个 Viba 类型。判定就是子类型判定 `witness <: rule`。规则层用到的 `RuleObject` / `OneofRule` 标记与 `Predicate` / `Metric` / `PredicationFailed` / `not` 都只是 Viba 类型写法。
+一条规则（Rule）是以 `Metric` 与字面量为叶子的 Viba 类型描述，声明材料必须满足的结构与断言；一份呈证材料（Witness）也是一个 Viba 类型。判定就是子类型判定 `witness <: rule`。规则层用到的 `RuleObject` / `Oneof` 标记与 `Predicate` / `Metric` / `PredicationFailed` / `not` 都只是 Viba 类型写法。
 
 Rule 里可以带谓词（Predicate）与禁止性字段（`not`），书写形式见第 4 节与第 7 节。
 
 ## 2. 规则标记
 
-规则以标记开头：`RuleObject` 或 `OneofRule`。
+规则以标记开头：`RuleObject` 或 `Oneof`。
 
-- `RuleObject` 与 `Object` 完全同义：积类型单位元，基数为 1。规则体为积类型时使用。
-- `OneofRule` 与 `Oneof` 完全同义：和类型单位元，基数为 0。规则体为和类型时使用；其分支必须是其他规则的引用。
+- `RuleObject` 与 `Object` 完全同义：积类型单位元，基数为 1。规则体为积类型时使用；定义见 `viba/rule/rule.viba`。
+- `Oneof` 就是和类型单位元，基数为 0。规则体为和类型时使用；其分支必须是其他规则的引用。
 
-标记只是名字层面的声明：判定语义上 `RuleObject` 就是 `Object`，`OneofRule` 就是 `Oneof`。它唯一的额外含义是：一个 module 中，只有带标记的定义才会被认为是规则；其余定义（Metric 名字、辅助类型）不参与规则枚举。
+标记只是名字层面的声明：判定语义上 `RuleObject` 就是 `Object`，`Oneof` 就是和类型单位元本身。它唯一的额外含义是：一个 module 中，只有带标记的定义才会被认为是规则；其余定义（Metric 名字、辅助类型）不参与规则枚举。
 
 ## 3. 字段顺序纪律
 
@@ -73,7 +73,7 @@ NoDeathPenaltyRule :=
 
 Witness 与 Rule 结构平行：带 tag 的字段按 tag 一一对位，只有叶子按规则要求换掉。
 
-- **标记**：Rule 用 `RuleObject` / `OneofRule` 起头；Witness 用同义的 `Object` / `Oneof` 起头，不带标记（带了会被当成规则枚举）。
+- **标记**：Rule 用 `RuleObject` / `Oneof` 起头；Witness 自己不带标记，从 tag 起头（带了标记会被当成规则枚举）。
 - **Metric 字段**：Rule 写 `$len Metric[Len]`，Witness 把实测值填进 `$value`，例如 `$len ($value 42)`；容器与带 tag 的积同理（`Metric[Name]` 的体就是 `$value Name`）。
 - **Predicate 字段**：断言成立就照写 `Predicate[...]`；断言不成立就写 `PredicationFailed[...]`。
 - **禁止性字段**：保持 `not[oneof]` 外壳，只把每个分支的叶子换成 `PredicationFailed[...]`（见第 7 节）。
