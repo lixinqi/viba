@@ -442,6 +442,19 @@ MyNil[T] := nil
 MyUnit[T] := T
 Dup := A * $x bool
 Cycle := Cycle * $c int
+AliasCycle := AliasTail * $x int
+AliasTail := AliasCycle
+Mutual := Other * $m int
+Other := Mutual * $o int
+Tagged[T] := $x T
+TaggedBox := Tagged[int] * $y int
+BareBox[T] := T * $x int
+BareInt := BareBox[int] * $y int
+Nested[T] := $x (Tagged[T])
+NestedBox := Nested[int] * $z bool
+First[T] := $f T
+Second[T] := $s T
+TwoParams := First[int] * Second[str] * $z bool
 """)
 
     def judge(sub, sup):
@@ -474,10 +487,30 @@ Cycle := Cycle * $c int
     check_result(judge("Wrap[Inner] * $z bool", "$p int * $q str * $a int * $z bool"), True,
                  "as an untagged member inside another product")
     check_result(judge("Cycle", "Cycle"), "error",
-                 "a self-inline repeats a tag: an Err, not a hang")
+                 "a member that inlines itself has no expansion: an Err, not a hang")
     cycle = is_sub_type(entry_type("Cycle", module), entry_type("Cycle", module))
-    check(isinstance(cycle, Err) and "$c" in cycle.err_msg, True,
-          "and the Err names the tag that repeats")
+    check(isinstance(cycle, Err) and "comes back to 'Cycle'" in cycle.err_msg, True,
+          "and the Err says which chain comes back")
+    check_result(judge("AliasCycle", "AliasCycle"), "error",
+                 "an alias can close the same loop")
+    check_result(judge("Mutual", "Mutual"), "error",
+                 "so can two definitions")
+    check_result(judge("Cycle", "$c int"), "error",
+                 "the cycle is malformed whatever it is judged against")
+    check_result(judge("TaggedBox", "$x int * $y int"), True,
+                 "an inlined generic carries its actual into a tagged member")
+    check_result(judge("$x int * $y int", "TaggedBox"), True,
+                 "in both directions")
+    check_result(judge("TaggedBox", "$x str * $y int"), False,
+                 "and the actual really is the member's type")
+    check_result(judge("BareInt", "int * $x int * $y int"), True,
+                 "a bare parameter member keeps its own actual")
+    check_result(judge("NestedBox", "$x ($x int) * $z bool"), True,
+                 "a nested application keeps its own bindings")
+    check_result(judge("TwoParams", "$f int * $s str * $z bool"), True,
+                 "two inlined generics do not share a parameter name")
+    check_result(judge("TwoParams", "$f str * $s int * $z bool"), False,
+                 "each member keeps the binding it was written under")
     check_result(judge("Dup", "$x int"), "error",
                  "the same tag twice through an inline -> Err")
     check_result(judge("$a int * $a str", "$a int"), "error",
@@ -485,6 +518,34 @@ Cycle := Cycle * $c int
     dup = is_sub_type(entry_type("Dup", module), entry_type("$x int", module))
     check(isinstance(dup, Err) and "$x" in dup.err_msg, True,
           "the Err names the tag that repeats")
+
+
+def run_inline_cycle_guard_cases():
+    """成环的内联在每条路上都是 Err，不是崩：普通判定、带终止子的禁止链
+    （禁止链要先问 sub 的字段，那条路以前会 RecursionError）。"""
+    module = custom_module("""
+H := int
+notcrimes := never <- $not_operand ($h H | $a A)
+A := A * $x int
+Sub := A * $x int * $h H
+Loop := Loop * $c int
+""")
+    terminators = frozenset({"PredicationFailed"})
+    check_result(is_sub_type(entry_type("Loop", module), entry_type("Loop", module)),
+                 "error", "an inline cycle is malformed input")
+    judged = is_sub_type(entry_type("Sub", module), entry_type("notcrimes", module),
+                         terminators=terminators)
+    check_result(judged, "error", "the never-headed path says so too, instead of spinning")
+    check(isinstance(judged, Err) and "comes back to 'A'" in judged.err_msg, True,
+          "and names the chain that comes back")
+    sums = custom_module("""
+H := int
+notcrimes := never <- $not_operand (S | $h H)
+S := S | $a int
+""")
+    check_result(is_sub_type(entry_type("S", sums), entry_type("notcrimes", sums),
+                             terminators=terminators), False,
+                 "a sum cycle leaves the branches unsettled, and comes back at all")
 
 
 def run_never_head_cases():
@@ -612,6 +673,7 @@ run_structural_generic_cases()
 run_recursive_generic_cases()
 run_unit_alias_cases()
 run_inline_member_cases()
+run_inline_cycle_guard_cases()
 run_never_head_cases()
 run_code_block_cases()
 run_canonical_chain_cases()

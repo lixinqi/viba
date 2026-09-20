@@ -67,13 +67,22 @@ def _emit(access: VibaAccess, node: VibaNode):
     what the binding put in the node: VibaLeaf answers "the value is itself this
     piece" (a literal, a unit) and the rest is walked one step at a time.
 
-    The written type is asked first, for one thing only: a piece the design
-    calls `never` — however many names that takes — has no resident, so a
-    material that carries something there is not a material of this design.
+    The written type is asked first, for two things only: a piece the design
+    calls `never` — however many names that takes — has no resident, and a
+    product whose inline chain comes back to where it started has no reading.
+    Either way a material that carries something there is not a material of
+    this design.
     """
     shape = access.unfold(node.descriptor)
     if shape.kind == NEVER:
         raise SerializeGap("nothing resides in never")
+    if shape.kind == PRODUCT:
+        # An untagged member is an inline slot, so the chain has to bottom out:
+        # a product whose chain comes back to where it started has no reading,
+        # and what was written for it would mean something else when read back.
+        cycle = access.inline_cycle(shape)
+        if cycle is not None:
+            raise SerializeGap(f"the inline chain comes back to {cycle!r}")
     given = access.leaf(node)
     if isinstance(given, Ok):
         return _emit_leaf(given.ok_value)

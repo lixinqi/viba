@@ -1097,6 +1097,28 @@ def test_api_list_fields_case_004():
         "by_field_index(0)", "by_tag('$x')", "by_tag('$y')", "by_tag('$z')"]
 
 
+def test_api_inline_cycle_case_001():
+    """内联成环要问得出来：直接、绕别名、绕两个定义都算。"""
+    pool = empty_pool()
+    parsed = parse_viba_file(pool, "A := A * $x int\n"
+                                   "Alias := Tail * $x int\nTail := Alias\n"
+                                   "Mutual := Other * $m int\nOther := Mutual * $o int\n"
+                                   "Fine := Inner * $x int\nInner := Object * $y int\n",
+                             "cycles.viba", "cycles")
+    pool = pool_add_file(pool, parsed.ok_value).ok_value
+
+    def cycle_of(name):
+        definition = pool_find_definition(pool, f"cycles.{name}").ok_value
+        return reflect.access.inline_cycle(definition.body)
+
+    assert cycle_of("A") == "A"
+    assert cycle_of("Alias") == "Tail"
+    assert cycle_of("Mutual") == "Other"
+    assert cycle_of("Fine") is None
+    assert reflect.access.inline_cycle(
+        pool_find_definition(pool, "cycles.Inner").ok_value.body) is None
+
+
 def test_api_carries_nil_case_001():
     """和里有一支是 nil：这个槽位让 nil。"""
     m = _materials()

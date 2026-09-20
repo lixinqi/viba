@@ -1256,13 +1256,16 @@ def run_inline_member_cases():
          "A := $x int * $y int\nB := A * $y str\n", "B",
          _product(_tagged("$x", viba_ast.Constant(1)),
                   _tagged("$y", viba_ast.Constant(2))), "written twice")
-    _gap("an inline cycle stays one positional member",
+    _gap("a member that inlines itself",
          "A := A * $x int\n", "A",
-         _product(_tagged("$x", viba_ast.Constant(1))), "no value here")
-    _gap("an inline cycle that repeats a tag",
+         _product(_tagged("$x", viba_ast.Constant(1))), "comes back to 'A'")
+    _gap("an alias that closes the loop",
+         "A := B * $x int\nB := A\n", "A",
+         _product(_tagged("$x", viba_ast.Constant(1))), "comes back to 'B'")
+    _gap("a cyclic member beside a repeated tag",
          "A := $x int * A * $y int\n", "A",
          _product(_tagged("$x", viba_ast.Constant(1)),
-                  _tagged("$y", viba_ast.Constant(2))), "written twice")
+                  _tagged("$y", viba_ast.Constant(2))), "comes back to 'A'")
 
 
 def run():

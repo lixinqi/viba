@@ -487,13 +487,13 @@ class VibaAccess:
         Same rule as unfold; the returned set is what keeps the inline chain of
         a product finite (see _product_members).
         """
+        found = self._definition_target(descriptor)
+        if found is None:
+            return descriptor, seen  # a builtin leaf, a generic parameter: stop
+        key, target = found
+        if key in seen:
+            return descriptor, seen
         if descriptor.kind == TYPE_REF:
-            target = self._written_target(descriptor, descriptor.payload.type_name)
-            if target is None or not isinstance(target.ast_node, viba_ast.TypeDefinition):
-                return descriptor, seen  # a builtin leaf, a generic parameter: stop
-            key = ("ref", id(target.ast_node))
-            if key in seen:
-                return descriptor, seen
             # The descriptor side has no public "descriptor for a type
             # expression" entry point yet, so use its builder.
             from viba.viba_type_descriptor import _build_type
@@ -501,18 +501,30 @@ class VibaAccess:
             body = _build_type(descriptor.payload.pool, target.container_module,
                                target.ast_node.body)
             return self._unfold_seen(body, seen | {key})
+        applied = self._apply_generic(descriptor, target)
+        if applied is None:
+            return descriptor, seen
+        return self._unfold_seen(applied, seen | {key})
+
+    def _definition_target(self, descriptor: VibaTypeDescriptor):
+        """(key, definition) for a descriptor written as a name or an
+        application that has a body to land on; None otherwise.
+
+        The key is the definition's identity, which is what both unfolding and
+        the inline chain count on: a name and an application of one definition
+        are told apart, and the same definition twice is the same key.
+        """
+        if descriptor.kind == TYPE_REF:
+            target = self._written_target(descriptor, descriptor.payload.type_name)
+            if target is None or not isinstance(target.ast_node, viba_ast.TypeDefinition):
+                return None
+            return ("ref", id(target.ast_node)), target
         if descriptor.kind == TYPE_APP:
             target = self._written_target(descriptor, descriptor.payload.constructor_name)
             if target is None or not isinstance(target.ast_node, viba_ast.GenericDefinition):
-                return descriptor, seen  # a builtin container, an unfilled application
-            key = ("app", id(target.ast_node))
-            if key in seen:
-                return descriptor, seen
-            applied = self._apply_generic(descriptor, target)
-            if applied is None:
-                return descriptor, seen
-            return self._unfold_seen(applied, seen | {key})
-        return descriptor, seen
+                return None
+            return ("app", id(target.ast_node)), target
+        return None
 
     def _written_target(self, descriptor: VibaTypeDescriptor, written: str):
         """The definition a written name lands on — import prefix and all —
@@ -644,7 +656,8 @@ class VibaAccess:
         return slots
 
     def _product_members(self, descriptor: VibaTypeDescriptor,
-                         seen: Optional[set] = None) -> List[tuple]:
+                         seen: Optional[set] = None,
+                         cycles: Optional[list] = None) -> List[tuple]:
         """A product's members: [(tag or None, descriptor), ...].
 
         An untagged member is an inline slot. One that unfolds to a product or
@@ -653,8 +666,10 @@ class VibaAccess:
         is no member at all (that is what the head `Object` has always meant);
         anything else is one positional member, as written.
 
-        A definition already being inlined stays as that positional member, so
-        a pool may write an inline cycle (`A := $x int * A`) and still be read.
+        A definition the chain meets twice (`A := A * $x int`) has no expansion
+        to read: this layer still hands the member out as it stands — it cannot
+        throw — and names it in ``cycles`` when a caller asks for the malformed
+        design to be caught (see inline_cycle).
         """
         seen = set() if seen is None else seen
         out = []
@@ -664,14 +679,35 @@ class VibaAccess:
                 continue
             shape, inner_seen = self._unfold_seen(element, set(seen))
             if shape.kind == PRODUCT:
-                out.extend(self._product_members(shape, inner_seen))
+                out.extend(self._product_members(shape, inner_seen, cycles))
             elif shape.kind == TAGGED:
                 out.append((shape.payload.tag, shape.payload.tagged_type))
             elif self._is_product_unit(element):
                 continue
             else:
+                if cycles is not None:
+                    found = self._definition_target(element)
+                    if found is not None and found[0] in seen:
+                        cycles.append(_written_name(element))
                 out.append((None, element))
         return out
+
+    def inline_cycle(self, descriptor: VibaTypeDescriptor) -> Optional[str]:
+        """The name a product's inline chain comes back to, or None.
+
+        An untagged member is an inline slot, so a member that reaches a
+        definition already being inlined has no full expansion: `A := A * $x
+        int` writes A as itself, and there is nothing to read. This layer still
+        hands the member out (`member_steps` cannot throw), so a checker that
+        needs a well-formed design asks here — `is_sub_type` and `serialize`
+        both refuse such a design.
+        """
+        shape = self.unfold(descriptor)
+        if shape.kind != PRODUCT:
+            return None
+        cycles = []
+        self._product_members(shape, None, cycles)
+        return cycles[0] if cycles else None
 
     def _bare_sum(self, descriptor: VibaTypeDescriptor) -> Optional[List[tuple]]:
         """The positional branches of an untagged sum whose layer a material may
@@ -1081,6 +1117,13 @@ def _design_module(descriptor):
     """Which module the design piece belongs to (material names resolve in it)."""
     resolvable = getattr(descriptor, "resolvable_type", None)
     return getattr(resolvable, "container_module", None)
+
+
+def _written_name(descriptor) -> str:
+    """The name a reference or an application was written as."""
+    if descriptor.kind == TYPE_REF:
+        return descriptor.payload.type_name
+    return descriptor.payload.constructor_name
 
 
 def _definition_body(module, name):

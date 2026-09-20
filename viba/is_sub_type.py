@@ -39,7 +39,10 @@ alias of what it is written as, and judgment is structural throughout.
   untagged member is one positional member, paired with the other
   side's positionals in order. Tags hold the members together, so the
   same tag twice in one product (inlined or written) is malformed
-  input: Err.
+  input: Err. So is a chain that never reaches a shape because it
+  comes back to a definition it is already expanding — `A := A * $x
+  int` writes A as itself, and an alias or a generic can close the
+  same loop.
 - TypeRef resolves through module_get_type in its own container
   module (lexical scoping); when that fails, the env_get bindings of
   the side's AstNodeType stack are consulted, innermost first (this
@@ -76,6 +79,7 @@ from viba.type import (
     Err,
     FloatLiteralType,
     FloatType,
+    InlineCycleError,
     IntLiteralType,
     IntType,
     ModuleType,
@@ -118,6 +122,8 @@ def is_sub_type(sub: Type, sup: Type, terminators=frozenset()) -> Result:
     except UnresolvedTypeError as exc:
         return Err(str(exc))
     except DuplicateTagError as exc:
+        return Err(str(exc))
+    except InlineCycleError as exc:
         return Err(str(exc))
 
 
@@ -464,11 +470,23 @@ class _Checker:
 
     def _sum_branches(self, node, module):
         """[(tag, body, module)] for the operand of a never-headed chain;
-        None when a branch is untagged, since only a tag can hold one."""
+        None when a branch is untagged, since only a tag can hold one.
+
+        A sum written as a cycle (`S := S | $a int`) has no finite branch list
+        to read: the walk stops where it would meet a definition twice and
+        answers None, which leaves the branches unsettled rather than spinning.
+        """
         out = []
+        seen = set()
         stack = [(node, module)]
         while stack:
             current, current_mod = stack.pop()
+            target = self._inlining_key(current, current_mod, "sup")
+            if target is not None:
+                key = target[0]
+                if key in seen:
+                    return None
+                seen = seen | {key}
             current, current_mod = self._unfold_ref(current, current_mod, "sup")
             if isinstance(current, viba_ast.Sum):
                 stack.append((current.right, current_mod))
@@ -481,17 +499,28 @@ class _Checker:
                 return None
         return out
 
-    def _tagged_fields(self, node, module):
+    def _tagged_fields(self, node, module, seen=frozenset()):
         """{tag: (body, module)} over a product of tags, unfolding named
-        definitions and named products along the way. The same tag twice is
-        malformed input, here as everywhere."""
+        definitions and named products along the way.
+
+        The same tag twice is malformed input, here as everywhere, and so is an
+        inline chain that comes back to a definition it is already walking: an
+        untagged member is an inline slot, so `A := A * $x int` has no expansion
+        to read (and asking for its fields must not spin).
+        """
+        target = self._inlining_key(node, module, "sub")
+        if target is not None:
+            key, name = target
+            if key in seen:
+                raise InlineCycleError(f"the inline chain comes back to {name!r}")
+            seen = seen | {key}
         node, module = self._unfold_ref(node, module, "sub")
         if isinstance(node, viba_ast.Tagged):
             return {node.tag: (node.type, module)}
         if isinstance(node, _PROD_NODES):
             fields = {}
             for element in _product_elements(node):
-                for tag, field in self._tagged_fields(element, module).items():
+                for tag, field in self._tagged_fields(element, module, seen).items():
                     if tag in fields:
                         raise DuplicateTagError(
                             f"the tag {tag} is written twice in one product")
@@ -670,7 +699,9 @@ class _Checker:
     def _walk_tagged(self, sn, s_mod, sp, p_mod) -> bool:
         if isinstance(sn, _PROD_NODES):
             tagged, _ = self._split_product(sn, s_mod, "sub")
-            return sp.tag in tagged and self._walk(tagged[sp.tag], s_mod, sp.type, p_mod)
+            if sp.tag not in tagged:
+                return False
+            return self._walk_bound(tagged[sp.tag], (sp.type, p_mod, None))
         if not isinstance(sn, viba_ast.Tagged):
             return self._walk(sn, s_mod, sp.type, p_mod)
         return sn.tag == sp.tag and self._walk(sn.type, s_mod, sp.type, p_mod)
@@ -684,53 +715,85 @@ class _Checker:
         bool carries A's tags)."""
         sub_tagged, sub_bare = self._split_product(sn, s_mod, "sub")
         sup_tagged, sup_bare = self._split_product(sp, p_mod, "sup")
-        if not self._tags_covered(sub_tagged, s_mod, sup_tagged, p_mod):
+        if not self._tags_covered(sub_tagged, sup_tagged):
             return False
         if len(sub_bare) != len(sup_bare):
             return False
-        pairs = zip(sub_bare, sup_bare)
-        return all(self._walk(a, s_mod, b, p_mod) for a, b in pairs)
+        return all(self._walk_bound(a, b) for a, b in zip(sub_bare, sup_bare))
 
-    def _split_product(self, node, module, side: str, seen=frozenset()):
-        """Flatten a Product/ProductChain into ({tag: body}, [bare]),
+    def _walk_bound(self, sub, sup) -> bool:
+        """Compare two member bodies, each written under its own bindings.
+
+        A member is ``(node, module, env)`` — see _split_element. The bindings
+        are pushed only for the comparison, so a parameter of an inlined
+        generic still resolves where the member body is walked.
+        """
+        pushed = []
+        for side, member in (("sub", sub), ("sup", sup)):
+            if member[2] is not None:
+                self._env_stacks[side].append(member[2])
+                pushed.append(side)
+        try:
+            return self._walk(sub[0], sub[1], sup[0], sup[1])
+        finally:
+            for side in pushed:
+                self._env_stacks[side].pop()
+
+    def _split_product(self, node, module, side: str, seen=frozenset(), env=None):
+        """Flatten a Product/ProductChain into ({tag: member}, [member]),
         unfolding transparent TypeDefinitions along the way.
 
         An untagged member is an inline slot: one whose definition is a
         product contributes its own members here, recursively, and one
         that is the product unit (nil, or a name bound to it) is no
         member at all. Every other untagged member is one positional
-        (bare) member. A definition already being inlined is left as
-        that one positional member, so an inline cycle terminates. The
-        same tag twice in one product is malformed input."""
+        (bare) member. The same tag twice in one product is malformed
+        input, and so is an inline chain that comes back to a definition
+        it is already expanding (see _split_element)."""
         tagged, bare = {}, []
         for elem in _product_elements(node):
-            t, b = self._split_element(elem, module, side, seen)
-            for tag, body in t.items():
+            t, b = self._split_element(elem, module, side, seen, env)
+            for tag, member in t.items():
                 if tag in tagged:
                     raise DuplicateTagError(
                         f"the tag {tag} is written twice in one product")
-                tagged[tag] = body
+                tagged[tag] = member
             bare.extend(b)
         return tagged, bare
 
-    def _split_element(self, elem, module, side: str, seen=frozenset()):
-        """One untagged member: what it contributes to ({tag: body}, [bare]).
+    def _split_element(self, elem, module, side: str, seen=frozenset(), env=None):
+        """One untagged member: what it contributes to ({tag: member}, [member]).
+
+        A member is ``(node, module, env)``: what it is written as, the module
+        its other names resolve in, and the bindings it was written under. The
+        bindings travel with the member because an inlined generic hands its
+        own body over — with `Box[T] := $x T`, what B := Box[int] carries as
+        `$x`'s body is the written `T`, which only means `int` under Box's
+        binder. A binder resolves its actuals where it is built, so the
+        innermost one is all a member needs.
 
         Names and applications unfold one after another, with a generic's
         actuals bound, until the member is a shape: a product inlines its own
         members here, a single tagged thing is one member, the product unit is
         no member. Anything else is one positional (bare) member, kept as it
-        was written. A definition already being inlined stops the chain, so a
-        member that asks for itself stays positional.
+        was written.
+
+        An inline chain has to bottom out: a definition the chain meets twice
+        never reaches a shape, so the design is malformed input — `A := A * $x
+        int` says A is written as itself. Refusing it is what keeps the walk
+        finite as well.
         """
         pushed = []
+        ambient = env
         try:
             node, node_mod = elem, module
             while True:
-                key = self._inlining_key(node, node_mod, side)
-                if key is not None:
+                target = self._inlining_key(node, node_mod, side)
+                if target is not None:
+                    key, name = target
                     if key in seen:
-                        return {}, [elem]       # an inline cycle: as written
+                        raise InlineCycleError(
+                            f"the inline chain comes back to {name!r}")
                     seen = seen | {key}
                 node, node_mod = self._unfold_ref(node, node_mod, side)
                 parts = (self._application_parts(node, node_mod, side)
@@ -739,18 +802,20 @@ class _Checker:
                     break
                 body, home, app_key, binder = parts
                 if app_key in seen:
-                    break
+                    raise InlineCycleError(
+                        f"the inline chain comes back to {node.constructor!r}")
                 seen = seen | {app_key}
                 self._env_stacks[side].append(binder)
                 pushed.append(side)
+                ambient = binder
                 node, node_mod = body, home
             if isinstance(node, _PROD_NODES):
-                return self._split_product(node, node_mod, side, seen)
+                return self._split_product(node, node_mod, side, seen, ambient)
             if isinstance(node, viba_ast.Tagged):
-                return {node.tag: node.type}, []
+                return {node.tag: (node.type, node_mod, ambient)}, []
             if self._is_product_unit(node, node_mod, side):
                 return {}, []
-            return {}, [elem]
+            return {}, [(elem, module, env)]
         finally:
             for _ in pushed:
                 self._env_stacks[side].pop()
@@ -773,18 +838,19 @@ class _Checker:
                 ("app", id(definition)), self._binder(params, node.args, module, side))
 
     def _inlining_key(self, node, module, side: str):
-        """The definition an untagged member names, as the key of the inline
-        chain; None when the member is not a name over a product."""
+        """(key, written name) of the definition an untagged member names, or
+        None when it names no definition of its own. The key is the definition's
+        identity, so a chain that meets it twice is caught — the alias case
+        included: with `B := A` and `A := B * $x int`, walking into B is walking
+        into A."""
         if not isinstance(node, viba_ast.TypeRef):
             return None
         resolved = self._resolve_name(node.name, module, side)
         if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
             return None
-        body = resolved.ok_value.ast_node
-        body = body.body if isinstance(body, viba_ast.TypeDefinition) else body
-        if not isinstance(body, _PROD_NODES):
+        if not isinstance(resolved.ok_value.ast_node, viba_ast.TypeDefinition):
             return None
-        return ("inline", id(resolved.ok_value.ast_node))
+        return ("inline", id(resolved.ok_value.ast_node)), node.name
 
     def _is_product_unit(self, node, module, side: str) -> bool:
         """The product's unit: nil by form, or a name (a generic parameter
@@ -797,15 +863,15 @@ class _Checker:
         resolved = self._resolve_name(node.name, module, side)
         return isinstance(resolved, Ok) and isinstance(resolved.ok_value, NilType)
 
-    def _tags_covered(self, sub_tagged, s_mod, sup_tagged, p_mod) -> bool:
-        items = sup_tagged.items()
-        checks = (self._match_tag(sub_tagged, t, s_mod, b, p_mod) for t, b in items)
+    def _tags_covered(self, sub_tagged, sup_tagged) -> bool:
+        checks = (self._match_tag(sub_tagged, tag, member)
+                  for tag, member in sup_tagged.items())
         return all(checks)
 
-    def _match_tag(self, sub_tagged, tag, s_mod, sup_body, p_mod) -> bool:
+    def _match_tag(self, sub_tagged, tag, sup_member) -> bool:
         if tag not in sub_tagged:
             return False
-        return self._walk(sub_tagged[tag], s_mod, sup_body, p_mod)
+        return self._walk_bound(sub_tagged[tag], sup_member)
 
     def _walk_tuple(self, sn, s_mod, sp, p_mod) -> bool:
         if not isinstance(sn, viba_ast.Tuple) or len(sn.elements) != len(sp.elements):

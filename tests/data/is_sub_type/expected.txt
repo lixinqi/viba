@@ -115,6 +115,9 @@
 114 true  # inlining runs down the whole chain
 115 true  # a name over the unit is the unit
 116 true  # a member that is no product still pairs by position
-117 error  # an inline cycle that repeats a tag is malformed
+117 error  # a member that inlines itself is malformed
 118 true  # an actual bound to a product is inlined too
 119 true  # recursively
+120 error  # a member that inlines itself has no expansion
+121 error  # an alias closes the same loop
+122 error  # and so do two definitions

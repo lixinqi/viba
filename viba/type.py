@@ -255,6 +255,10 @@ class DuplicateTagError(Exception):
     """One product writes the same tag twice, inlined members counted."""
 
 
+class InlineCycleError(Exception):
+    """An inline chain comes back to a definition it is already expanding."""
+
+
 def module_get_type(module: ModuleType, type_name: str) -> Result:
     """Resolve a type name against a module (ModuleGetType).
 
