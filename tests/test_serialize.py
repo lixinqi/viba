@@ -50,7 +50,7 @@ def _leaves(access, node):
 
 def _round_trip(label, definition, access, node, design_source, design_name,
                 resident=True, strict=True):
-    written = serialize.serialize("entry", access, node)
+    written = serialize.serialize("entry", node)
     check(isinstance(written, Ok), f"{label}: writes ({written})")
     if not isinstance(written, Ok):
         return
@@ -73,7 +73,7 @@ def _round_trip(label, definition, access, node, design_source, design_name,
         check(sorted(map(repr, before.values())) == sorted(map(repr, after.values())),
               f"{label}: the same leaves under either spelling ({before} vs {after})")
 
-    twice = serialize.serialize("entry", access, again.ok_value)
+    twice = serialize.serialize("entry", again.ok_value)
     check(isinstance(twice, Ok) and twice.ok_value == source,
           f"{label}: written again it is the same source ({twice})")
 
@@ -125,7 +125,7 @@ def run_empty_container_cases():
     ])
     from viba.reflect import access
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", access, node)
+    written = serialize.serialize("entry", node)
     check(isinstance(written, Ok), f"empty: writes ({written})")
     if isinstance(written, Ok):
         source_out = written.ok_value
@@ -144,7 +144,7 @@ def run_nil_slot_cases():
         viba_ast.Tagged("$a", viba_ast.Constant(1)),
     ])
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", access, node)
+    written = serialize.serialize("entry", node)
     check(isinstance(written, Ok), f"nil slot: writes ({written})")
     if isinstance(written, Ok):
         check("* $b nil" in written.ok_value, "nil slot: written as nil")
@@ -162,7 +162,7 @@ def run_set_order_cases():
             "SetLiteral", [viba_ast.Constant("c"), viba_ast.Constant("a")])),
     ])
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", access, node)
+    written = serialize.serialize("entry", node)
     check(isinstance(written, Ok), f"set order: writes ({written})")
     if isinstance(written, Ok):
         check('SetLiteral["c", "a"]' in written.ok_value,
@@ -187,7 +187,7 @@ Bad := $kill int | $steal int
         ])),
     ])
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", access, node)
+    written = serialize.serialize("entry", node)
     check(isinstance(written, Ok), f"exponent: writes ({written})")
     if isinstance(written, Ok):
         out = written.ok_value
@@ -209,7 +209,7 @@ def run_code_block_cases():
         viba_ast.Tagged("$code", viba_ast.CodeBlock("return 1")),
     ])
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", access, node)
+    written = serialize.serialize("entry", node)
     check(isinstance(written, Ok), f"code block: writes ({written})")
     if isinstance(written, Ok):
         check("* $code nil" in written.ok_value, "code block: written as nil")
@@ -232,7 +232,7 @@ def _corner(label, source, name, body, expect=None, resident=True, strict=True):
     check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
-    written = serialize.serialize("entry", access, rooted.ok_value)
+    written = serialize.serialize("entry", rooted.ok_value)
     check(isinstance(written, Ok), f"{label}: writes ({written})")
     if not isinstance(written, Ok):
         return
@@ -251,7 +251,7 @@ def _gap(label, source, name, body, needle):
     check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
-    written = serialize.serialize("entry", access, rooted.ok_value)
+    written = serialize.serialize("entry", rooted.ok_value)
     check(isinstance(written, Err) and needle in written.err_msg,
           f"{label}: an Err saying {needle!r} ({written})")
 
@@ -437,7 +437,7 @@ def run_never_and_key_cases():
     pool, definition = _design("Guard := Object * $a never\n", "Guard")
     node = access.root(definition, VibaData(viba_ast.ProductChain([
         viba_ast.TypeRef("Object"), viba_ast.Tagged("$a", viba_ast.Never())]))).ok_value
-    written = serialize.serialize("entry", access, node)
+    written = serialize.serialize("entry", node)
     check(isinstance(written, Err), f"never slot: an Err ({written})")
 
     pool2, definition2 = _design("Guard := Object * $t dict[int, str]\n", "Guard")
@@ -445,7 +445,7 @@ def run_never_and_key_cases():
         viba_ast.TypeRef("Object"),
         viba_ast.Tagged("$t", viba_ast.TypeApp("DictLiteral", [
             viba_ast.Tuple([viba_ast.Constant(7), viba_ast.Constant("x")])]))]))).ok_value
-    written2 = serialize.serialize("entry", access, node2)
+    written2 = serialize.serialize("entry", node2)
     check(isinstance(written2, Err), f"int-keyed dict: an Err ({written2})")
 
 
@@ -458,14 +458,14 @@ def run_gap_cases():
     sparse = viba_ast.ProductChain([viba_ast.TypeRef("Object"),
                                     viba_ast.Tagged("$a", viba_ast.Constant(1))])
     node = access.root(definition, VibaData(sparse)).ok_value
-    written = serialize.serialize("entry", access, node)
+    written = serialize.serialize("entry", node)
     check(isinstance(written, Err) and "no value here" in written.err_msg,
           f"gap: a tagged slot with no value and no nil is an Err ({written})")
 
     # 材料本身是空的：设计里的那个地址上什么都没有，就写成 gap，不硬编
     pool2, definition2 = _design("not[A] := never <- $not_operand A\n", "not")
     node2 = access.root(definition2, VibaData(viba_ast.Never())).ok_value
-    written2 = serialize.serialize("entry", access, node2)
+    written2 = serialize.serialize("entry", node2)
     check(isinstance(written2, Err), f"gap: an exponent is an Err ({written2})")
 
 
@@ -962,7 +962,7 @@ def _corner_in(label, pool, full_name, body, expect=None, resident=True,
     check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
-    written = serialize.serialize("entry", access, rooted.ok_value)
+    written = serialize.serialize("entry", rooted.ok_value)
     check(isinstance(written, Ok), f"{label}: writes ({written})")
     if not isinstance(written, Ok):
         return
@@ -986,7 +986,7 @@ def _gap_in(label, pool, full_name, body, needle):
     check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
-    written = serialize.serialize("entry", access, rooted.ok_value)
+    written = serialize.serialize("entry", rooted.ok_value)
     check(isinstance(written, Err) and needle in written.err_msg,
           f"{label}: an Err saying {needle!r} ({written})")
 
@@ -1095,12 +1095,12 @@ def run_definition_name_cases():
     node = access.root(definition, VibaData(
         _product(_tagged("$a", viba_ast.Constant(1))))).ok_value
     for name in ("entry", "Entry_2", "a", "中文"):
-        written = serialize.serialize(name, access, node)
+        written = serialize.serialize(name, node)
         check(isinstance(written, Ok) and written.ok_value.startswith(f"{name} :="),
               f"definition name {name!r}: writes ({written})")
     for name in ("", "a.b", "a-b", "nil", "never", "void", "None", "true",
                  "false", "import", "as", "list", "set", "dict", "ListLiteral"):
-        written = serialize.serialize(name, access, node)
+        written = serialize.serialize(name, node)
         check(isinstance(written, Err),
               f"definition name {name!r}: an Err ({written})")
 
@@ -1114,7 +1114,7 @@ def run_alias_of_definition_cases():
     for full_name in ("m.Box", "m.Alias", "m.Deeper"):
         definition = pool_find_definition(pool, full_name).ok_value
         node = access.root(definition, VibaData(body)).ok_value
-        got = serialize.serialize("entry", access, node)
+        got = serialize.serialize("entry", node)
         check(isinstance(got, Ok), f"{full_name}: writes ({got})")
         written.append(got.ok_value if isinstance(got, Ok) else None)
     check(written[0] == written[1] == written[2],

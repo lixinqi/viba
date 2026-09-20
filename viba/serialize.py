@@ -4,7 +4,7 @@
     from viba import serialize
 
     root = access.root(definition, VibaData(material))
-    serialize.serialize("entry", access, root.ok_value)
+    serialize.serialize("entry", root.ok_value)
     # -> Ok('entry :=\n  Object\n  * $left 1\n  * $right 2\n')
 
 Every value is asked for through the protocol's cells — the same ones a reader
@@ -45,9 +45,14 @@ class SerializeGap(Exception):
 # is the name `Object`, _NAMES.Object[...] an application of it.
 _NAMES = builder.Builder()
 
-def serialize(name: str, access: VibaAccess, node: VibaNode) -> Result:
+def serialize(name: str, node: VibaNode) -> Result:
     """A piece of the design in hand (a VibaNode) -> viba source: the definition
-    named `name` whose body is that piece's spelling."""
+    named `name` whose body is that piece's spelling.
+
+    The node carries the accessor it was read through, so this reads the piece
+    exactly as the caller did, and asks for no accessor of its own.
+    """
+    access = node._access
     try:
         expression = _emit(access, node)
         vb = builder.Builder()
