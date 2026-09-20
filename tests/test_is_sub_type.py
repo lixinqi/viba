@@ -666,6 +666,24 @@ def run_function_chain_cases():
                  "an argument compares contravariantly: float <: never is what is asked")
     check_result(judge("int <- float", "int <- never"), True,
                  "so the never argument is the wider one here")
+    check_result(judge("int <- float", "int <- nil"), False,
+                 "an argument slot: nil is no float, so the sub cannot take what sup passes")
+    check_result(judge("int <- nil", "int <- float"), False,
+                 "and float is no nil the other way")
+    check_result(judge("int <- float", "int <- never"), True,
+                 "never in the sup's slot asks for nothing: anything fits")
+    check_result(judge("int <- never", "int <- float"), False,
+                 "while a sub that asks for never can take only nothing")
+    check_result(judge("int <- nil", "int <- Object"), True,
+                 "Object is nil in an argument slot too")
+    check_result(judge("int <- int", "int <- 42"), True,
+                 "the sup takes only 42 and the sub takes any int: True")
+    check_result(judge("int <- 42", "int <- int"), False,
+                 "the other way the sub takes only 42 while sup may pass any int")
+    check_result(judge("int <- (int | nil)", "int <- int"), True,
+                 "a wider argument slot is a subtype: int <: int | nil")
+    check_result(judge("int <- int", "int <- (int | nil)"), False,
+                 "a narrower one is not: nil <: int fails")
     check_result(judge("int <- (int <- str <- never)", "int <- (int <- str <- float)"), True,
                  "a branch argument flips the inner direction: the result of contravariance twice")
     check_result(judge("int <- (int <- str <- float)", "int <- (int <- str <- never)"), False,
