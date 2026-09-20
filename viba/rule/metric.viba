@@ -35,7 +35,8 @@ Metric[CoreFunc] :=
   * $call_instance (Result[JsonLike] <- CoreFunc)
   * Appendix[{
       CoreFunc <: (Result[JsonLike] <- never)
-      当取证的时候，CoreFunc的输入输出参数必须填上真实的值。
+      When the evidence is fixed, CoreFunc's arguments and result must be
+      written as real values.
     }]
 
 # The example: a victim and a suspect, each with a point, and the distance
