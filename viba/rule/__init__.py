@@ -1,7 +1,7 @@
 """The rule layer: a Viba application for declaring and judging rules.
 
 The core stays in viba — is_sub_type over the Type model, the AST and
-the parser. The rule vocabulary (RuleObject / Oneof, Predicate,
+the parser. The rule vocabulary (RuleObject, Predicate,
 Metric, PredicationFailed, not) lives in viba/builtin.viba, and these
 modules carry the accumulated rule-level API:
 

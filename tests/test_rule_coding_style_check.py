@@ -10,8 +10,9 @@ fails and every witness must be rejected (False), and with the default
 fail_prob the True share must match (1 - fail_prob) ** flip_sites,
 where a flip site is a positive Predicate field or a tagged not branch.
 check_determinate must certify each rule. demo.viba, sum_rule.viba, not_rule.viba and
-broken_rules.viba cover the original DEMO, an Oneof over
-Predicate-carrying branch rules, a prohibitive not[...] rule with
+broken_rules.viba cover the original DEMO, a sum over Predicate-carrying
+branch rules (a type, not a rule: style and determinacy both refuse it), a
+prohibitive not[...] rule with
 per-branch refutation witnesses, and two broken rules determinacy must
 reject. All Viba source lives in data files — this file is pure
 checking logic.
@@ -205,17 +206,21 @@ def _check_sum_rule() -> None:
     module, defs = _load(path)
     rule = _entry(defs, module, "SumRule")
     names = [d.name for d in viba_ast.rule_definitions(module.module)]
-    assert names == ["SmallRule", "BigRule", "SumRule"], f"markers: {names}"
+    assert names == ["SmallRule", "BigRule"], f"markers: {names}"
     for name in names:
         _spec(defs, module, name)
+    # SumRule is a sum, and a sum is not a rule: no marker, so no style pass
+    rejected = check_rule_coding_style(rule)
+    assert isinstance(rejected, Err) and "RuleObject" in rejected.err_msg, rejected
     verdicts = set()
     for witness in generate_witnesses(rule, 40, seed=3):
         judged = is_compliant(witness, rule)
         assert isinstance(judged, Ok), f"sum judge errored: {judged!r}"
         verdicts.add(judged.ok_value)
     assert verdicts == {True, False}, f"sum verdicts: {verdicts}"
-    determined = check_determinate(rule, 40, seed=3)
-    assert isinstance(determined, Ok) and determined.ok_value is None
+    # A sum is not a rule, so nothing certifies one: the determinacy check
+    # refuses SumRule for the same reason the style check does.
+    assert isinstance(check_determinate(rule, 40, seed=3), Err)
     for witness, want in (("SumWitnessPass", True), ("SumWitnessFail", False)):
         sub = _entry(defs, module, witness)
         got = is_compliant(sub, rule)

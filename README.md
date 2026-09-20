@@ -96,7 +96,7 @@ intermediate representation.
 | `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
 
 `viba/rule/` is the rule layer — a Viba application built on the core.
-The rule vocabulary (`RuleObject` / `Oneof`, `Predicate`, `Metric`,
+The rule vocabulary (`RuleObject`, `Predicate`, `Metric`,
 `PredicationFailed`, `not`) lives in `builtin.viba`; these modules carry
 the accumulated API:
 

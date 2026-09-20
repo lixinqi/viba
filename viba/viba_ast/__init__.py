@@ -41,7 +41,6 @@ from viba.viba_ast.chain import convert_to_chain_style, convert_from_chain_style
 from viba.viba_ast.unparse import unparse_module
 from viba.viba_ast.rules import (
     PRODUCT_MARKER,
-    SUM_MARKER,
     rule_definitions,
     rule_marker,
 )
@@ -54,7 +53,7 @@ __all__ = [
     "parse", "unparse", "unparse_type", "canonical", "dump",
     "convert_to_chain_style", "convert_from_chain_style",
     "iter_child_nodes", "walk", "NodeVisitor", "NodeTransformer",
-    "PRODUCT_MARKER", "SUM_MARKER", "rule_definitions", "rule_marker",
+    "PRODUCT_MARKER", "rule_definitions", "rule_marker",
 ]
 
 

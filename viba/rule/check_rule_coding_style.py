@@ -4,9 +4,8 @@ check_rule_coding_style(rule) -> Result[None]. Ok(None) when the rule
 follows the writing conventions; Err names the first violation.
 
 Checked (viba-rule.md section in parentheses):
-- the chain head is RuleObject or Oneof (2);
-- a RuleObject body is a product, a Oneof body is a sum (2);
-- a Oneof branch names another rule (2);
+- the chain head is RuleObject, so the body is a product (2) —
+  a sum is not a rule at all;
 - untagged product fields come before tagged ones (3);
 - Predicate[Cond, $python_code Code] carries exactly those two
   arguments, and Code defines `predicate` (4);
@@ -16,8 +15,8 @@ Checked (viba-rule.md section in parentheses):
 """
 
 from viba.viba_ast import nodes as ast_nodes
-from viba.viba_ast.rules import PRODUCT_MARKER, SUM_MARKER, body_marker
-from viba.type import AstNodeType, Err, Ok, Result, module_get_type
+from viba.viba_ast.rules import PRODUCT_MARKER, body_marker
+from viba.type import AstNodeType, Err, Ok, Result
 
 
 class _Violation(Exception):
@@ -29,12 +28,9 @@ def check_rule_coding_style(rule: AstNodeType) -> Result:
     module = rule.container_module
     marker = body_marker(body)
     if marker is None:
-        return Err("missing RuleObject/Oneof marker")
+        return Err("missing RuleObject marker")
     try:
-        if marker == PRODUCT_MARKER:
-            _check_product(body, module, top=True)
-        else:
-            _check_oneof(body, module)
+        _check_product(body, module, top=True)
     except _Violation as exc:
         return Err(str(exc))
     return Ok(None)
@@ -71,18 +67,6 @@ def _check_product(node, module, top=False):
             if tagged_seen:
                 raise _Violation("untagged product field after a tagged one")
             _check_field(element, module, tagged=False, in_sum=False)
-
-
-def _check_oneof(node, module):
-    elements = _sum_elements(node)
-    if not elements or not _is_marker(elements[0], SUM_MARKER):
-        raise _Violation("a Oneof body must open with Oneof")
-    for element in elements[1:]:
-        reference = element.type if isinstance(element, ast_nodes.Tagged) else element
-        if not isinstance(reference, ast_nodes.TypeRef):
-            raise _Violation("a Oneof branch must name another rule")
-        if not _names_a_rule(reference.name, module):
-            raise _Violation(f"Oneof branch {reference.name!r} is not a rule")
 
 
 def _check_field(node, module, tagged, in_sum):
@@ -138,14 +122,6 @@ def _check_tagged(tagged, name):
 def _expect_args(node, count, name):
     if len(node.args) != count:
         raise _Violation(f"{name} takes exactly {count} argument(s)")
-
-
-def _names_a_rule(name, module):
-    resolved = module_get_type(module, name)
-    if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
-        return False
-    node = resolved.ok_value.ast_node
-    return body_marker(getattr(node, "body", node)) is not None
 
 
 def _is_marker(node, name):

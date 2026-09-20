@@ -1,10 +1,11 @@
-"""Rule markers: RuleObject / Oneof.
+"""The rule marker: RuleObject.
 
-A rule is a plain type definition whose chain head carries a marker:
-RuleObject (like Object, product identity, cardinality 1) or Oneof (the
-sum identity, cardinality 0). The markers are syntactic synonyms of
-Object/Oneof in every judgment; the RuleObject name exists so a module can
-declare which of its definitions are rules.
+A rule is a plain type definition whose chain head carries the marker,
+RuleObject (like Object, product identity, cardinality 1). The name is a
+syntactic synonym of Object in every judgment; it exists so a module can
+declare which of its definitions are rules. A definition whose body is a
+sum is not a rule: the sum identity is Oneof, and it says nothing about
+rules.
 """
 
 from typing import List, Optional
@@ -21,18 +22,17 @@ from viba.viba_ast.nodes import (
 )
 
 PRODUCT_MARKER = "RuleObject"
-SUM_MARKER = "Oneof"
 
 
 def rule_marker(defn) -> Optional[str]:
-    """PRODUCT_MARKER | SUM_MARKER if defn is a rule, else None."""
+    """PRODUCT_MARKER if defn is a rule, else None."""
     return body_marker(getattr(defn, "body", None))
 
 
 def body_marker(body) -> Optional[str]:
-    """PRODUCT_MARKER | SUM_MARKER if a definition body is a rule body."""
+    """PRODUCT_MARKER if a definition body is a rule body."""
     head = _chain_head(body)
-    if isinstance(head, TypeRef) and head.name in (PRODUCT_MARKER, SUM_MARKER):
+    if isinstance(head, TypeRef) and head.name == PRODUCT_MARKER:
         return head.name
     return None
 
