@@ -145,7 +145,7 @@
       "imports": [
         {
           "module": "pkg.sub.deep",
-          "local": "deep"
+          "local": "pkg.sub.deep"
         }
       ],
       "definitions": [
@@ -157,7 +157,7 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "deep.Plan0",
+              "type_name": "pkg.sub.deep.Plan0",
               "kind": "type_ref",
               "optional": false,
               "resolved": "pkg.sub.deep.Plan0"

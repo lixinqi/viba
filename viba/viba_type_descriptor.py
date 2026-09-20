@@ -281,8 +281,9 @@ def _environment(pool: VibaPool) -> Callable[[str], Result]:
 
 
 def _import_locals_for(tree) -> dict:
-    """一份语法树的 import 表：本地名 -> 模块名。"""
-    return {stmt.alias or stmt.module.split(".")[-1]: stmt.module
+    """一份语法树的 import 表：绑定名 -> 模块名。带了 as 就是那个别名；没带
+    as，绑定的是模块全名（`import a.b` 的引用写成 a.b.Name）。"""
+    return {stmt.alias or stmt.module: stmt.module
             for stmt in tree.body if isinstance(stmt, ast_nodes.Import)}
 
 
@@ -315,7 +316,7 @@ def _build_file(pool: VibaPool, tree, file_name: str, module_name: str, file_has
     definitions = []
     for stmt in tree.body:
         if isinstance(stmt, ast_nodes.Import):
-            local = stmt.alias or stmt.module.split(".")[-1]
+            local = stmt.alias or stmt.module
             imports.append(VibaImportDescriptor(pool, stmt.module, local))
         elif isinstance(stmt, (ast_nodes.TypeDefinition, ast_nodes.GenericDefinition)):
             definitions.append(_build_definition(pool, module, stmt, module_name, file_name, file_hash))
@@ -556,7 +557,8 @@ def member_type_name(member: VibaMemberDescriptor) -> Result:
 
 
 def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
-    """把成员类型里的名字落到定义：先切 import 前缀，再交给 ModuleGetType。"""
+    """把成员类型里的名字落到定义：先切 import 前缀（带 as 是别名，不带 as 是
+    模块全名，最长的匹配优先），再交给 ModuleGetType。"""
     name = member_type_name(member)
     if isinstance(name, Err):
         return name
@@ -568,14 +570,18 @@ def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
     if isinstance(file, Err):
         return file
     written = name.ok_value
-    prefix, dot, rest = written.partition(".")
-    if dot:
+    parts = written.split(".")
+    module_name = target_name = None
+    for cut in range(len(parts) - 1, 0, -1):
+        prefix = ".".join(parts[:cut])
         import_ = file_find_import_by_local_name(file.ok_value, prefix)
-        if isinstance(import_, Err):
-            return Err(f"{prefix!r} is neither an import nor a module of this file")
-        module_name = import_.ok_value.module_name
-        target_name = rest
-    else:
+        if isinstance(import_, Ok):
+            module_name = import_.ok_value.module_name
+            target_name = ".".join(parts[cut:])
+            break
+    if module_name is None:
+        if len(parts) > 1:
+            return Err(f"{parts[0]!r} is neither an import nor a module of this file")
         module_name = file.ok_value.module_name
         target_name = written
     module = pool.module_environment(module_name)

@@ -293,7 +293,7 @@
       "imports": [
         {
           "module": "pkg.sub.deep",
-          "local": "deep"
+          "local": "pkg.sub.deep"
         }
       ],
       "definitions": [
@@ -390,7 +390,7 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "deep.Report3",
+              "type_name": "pkg.sub.deep.Report3",
               "kind": "type_ref",
               "optional": false,
               "resolved": "pkg.sub.deep.Report3"

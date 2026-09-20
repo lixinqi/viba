@@ -100,7 +100,7 @@
       "imports": [
         {
           "module": "pkg.sub.sub2.deepest",
-          "local": "deepest"
+          "local": "pkg.sub.sub2.deepest"
         }
       ],
       "definitions": [
@@ -135,7 +135,7 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "deepest.Rule1",
+              "type_name": "pkg.sub.sub2.deepest.Rule1",
               "kind": "type_ref",
               "optional": false,
               "resolved": "pkg.sub.sub2.deepest.Rule1"
@@ -216,7 +216,7 @@
       "imports": [
         {
           "module": "pkg.mod",
-          "local": "mod"
+          "local": "pkg.mod"
         }
       ],
       "definitions": [
@@ -228,7 +228,7 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "mod.Config1",
+              "type_name": "pkg.mod.Config1",
               "kind": "type_ref",
               "optional": false,
               "resolved": "pkg.mod.Config1"

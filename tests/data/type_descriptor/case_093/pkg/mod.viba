@@ -4,4 +4,4 @@ Report0 := $only int
 
 Shape1 :=
   Object
-  * $peer deepest.Shape0
+  * $peer pkg.sub.sub2.deepest.Shape0

@@ -2,6 +2,6 @@ import pkg.sub.sub2.deepest
 
 Plan0 :=
   Object
-  * $peer deepest.Node1
+  * $peer pkg.sub.sub2.deepest.Node1
 
 Node1 := int * str * bool

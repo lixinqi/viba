@@ -4,4 +4,4 @@ Shape0 := $only int
 
 Report1 :=
   Object
-  * $peer leaf.Report1
+  * $peer lv1.lv2.lv3.leaf.Report1

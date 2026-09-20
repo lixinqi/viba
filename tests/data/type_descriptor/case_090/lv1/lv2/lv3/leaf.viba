@@ -19,4 +19,4 @@ Node2 :=
 
 Rule3 :=
   Object
-  * $peer deep.Report3
+  * $peer pkg.sub.deep.Report3

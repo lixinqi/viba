@@ -201,15 +201,21 @@ class CustomModuleType(ModuleType):
         return self._lookup_imported(type_name)
 
     def _lookup_imported(self, type_name: str) -> Result:
-        """`d.Name`: the prefix is one of this file's imports, so the name is
-        that module's own. Longer prefixes recurse through that module."""
-        prefix, dot, rest = type_name.partition(".")
-        if not dot or prefix not in self.imports:
-            return Err(f"no type named {type_name!r} in module")
-        imported = self.module_environment(self.imports[prefix])
-        if isinstance(imported, Err):
-            return Err(f"{prefix!r} names {self.imports[prefix]!r}: {imported.err_msg}")
-        return imported.ok_value.lookup_local(rest)
+        """`d.Name` or `a.b.Name`: the prefix is one of this file's imports, so
+        the name is that module's own. What an import binds is its alias when it
+        has one and its whole module name when it has none: `import a.b as c`
+        answers `c.Name`, `import a.b` answers `a.b.Name`. The longest prefix
+        wins, so a dotted module is not read as a shorter one plus a member."""
+        parts = type_name.split(".")
+        for cut in range(len(parts) - 1, 0, -1):
+            prefix = ".".join(parts[:cut])
+            if prefix not in self.imports:
+                continue
+            imported = self.module_environment(self.imports[prefix])
+            if isinstance(imported, Err):
+                return Err(f"{prefix!r} names {self.imports[prefix]!r}: {imported.err_msg}")
+            return imported.ok_value.lookup_local(".".join(parts[cut:]))
+        return Err(f"no type named {type_name!r} in module")
 
 
 def _is_definition(node) -> bool:

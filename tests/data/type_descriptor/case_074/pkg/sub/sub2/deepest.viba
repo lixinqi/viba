@@ -16,4 +16,4 @@ Shape2 :=
 
 Rule3 :=
   Object
-  * $peer leaf.Shape1
+  * $peer lv1.lv2.lv3.leaf.Shape1

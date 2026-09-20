@@ -2,7 +2,7 @@ import pkg.mod
 
 Config0 :=
   Object
-  * $peer mod.Config1
+  * $peer pkg.mod.Config1
 
 Shape1 := $left int | $right str
 

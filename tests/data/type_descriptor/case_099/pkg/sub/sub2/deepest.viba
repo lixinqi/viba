@@ -14,4 +14,4 @@ Rule1 :=
 
 Config2 :=
   Object
-  * $peer deepest.Rule1
+  * $peer pkg.sub.sub2.deepest.Rule1

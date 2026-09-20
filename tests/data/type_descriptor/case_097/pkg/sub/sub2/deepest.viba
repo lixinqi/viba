@@ -10,4 +10,4 @@ Config1 :=
 
 Node2 :=
   Object
-  * $peer leaf.Plan1
+  * $peer lv1.lv2.lv3.leaf.Plan1

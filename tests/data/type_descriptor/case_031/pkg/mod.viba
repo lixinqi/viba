@@ -7,4 +7,4 @@ Rule0 :=
 
 Report1 :=
   Object
-  * $peer deepest.Plan3
+  * $peer pkg.sub.sub2.deepest.Plan3

@@ -45,7 +45,8 @@ def check(ok: bool, label: str):
 
 
 def _import_locals(tree) -> dict:
-    return {stmt.alias or stmt.module.split(".")[-1]: stmt.module
+    """What each import binds: its alias, or the whole module name."""
+    return {stmt.alias or stmt.module: stmt.module
             for stmt in tree.body if isinstance(stmt, viba_ast.Import)}
 
 

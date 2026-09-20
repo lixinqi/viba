@@ -9,7 +9,7 @@ Config0 :=
 
 Shape1 :=
   Object
-  * $peer leaf.Config0
+  * $peer lv1.lv2.lv3.leaf.Config0
 
 Rule2[T] :=
   $v T

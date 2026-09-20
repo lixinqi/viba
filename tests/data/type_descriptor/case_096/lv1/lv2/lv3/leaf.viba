@@ -4,7 +4,7 @@ Report0 := str * (int | nil)
 
 Config1 :=
   Object
-  * $peer deep.Node1
+  * $peer pkg.sub.deep.Node1
 
 Node2 :=
   Oneof

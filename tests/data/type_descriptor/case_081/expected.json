@@ -166,7 +166,7 @@
       "imports": [
         {
           "module": "pkg.mod",
-          "local": "mod"
+          "local": "pkg.mod"
         }
       ],
       "definitions": [
@@ -201,7 +201,7 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "mod.Shape0",
+              "type_name": "pkg.mod.Shape0",
               "kind": "type_ref",
               "optional": false,
               "resolved": "pkg.mod.Shape0"

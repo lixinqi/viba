@@ -200,7 +200,7 @@
       "imports": [
         {
           "module": "lv1.lv2.lv3.leaf",
-          "local": "leaf"
+          "local": "lv1.lv2.lv3.leaf"
         }
       ],
       "definitions": [
@@ -305,7 +305,7 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "leaf.Shape1",
+              "type_name": "lv1.lv2.lv3.leaf.Shape1",
               "kind": "type_ref",
               "optional": false,
               "resolved": "lv1.lv2.lv3.leaf.Shape1"

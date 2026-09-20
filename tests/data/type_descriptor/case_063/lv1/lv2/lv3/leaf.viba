@@ -14,6 +14,6 @@ Node1 :=
 
 Plan2 :=
   Object
-  * $peer leaf.Node0
+  * $peer lv1.lv2.lv3.leaf.Node0
 
 Report3 := $only int

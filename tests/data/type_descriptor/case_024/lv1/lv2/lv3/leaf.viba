@@ -9,7 +9,7 @@ Shape1 :=
 
 Config2 :=
   Object
-  * $peer deepest.Config1
+  * $peer pkg.sub.sub2.deepest.Config1
 
 Report3 :=
   Object

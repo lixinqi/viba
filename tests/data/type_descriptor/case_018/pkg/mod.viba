@@ -7,7 +7,7 @@ Node0 :=
 
 Config1 :=
   Object
-  * $peer leaf.Config1
+  * $peer lv1.lv2.lv3.leaf.Config1
 
 Report2 :=
   Object

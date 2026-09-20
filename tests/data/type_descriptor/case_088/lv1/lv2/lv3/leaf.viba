@@ -10,6 +10,6 @@ Report1[T] :=
 
 Shape2 :=
   Object
-  * $peer deepest.Config0
+  * $peer pkg.sub.sub2.deepest.Config0
 
 Shape3 := str * (int | nil)

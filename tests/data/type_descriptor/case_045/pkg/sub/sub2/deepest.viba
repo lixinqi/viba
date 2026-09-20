@@ -2,7 +2,7 @@ import lv1.lv2.lv3.leaf
 
 Shape0 :=
   Object
-  * $peer leaf.Report0
+  * $peer lv1.lv2.lv3.leaf.Report0
 
 Config1 := str * (int | nil)
 

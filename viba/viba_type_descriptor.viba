@@ -17,7 +17,7 @@
 # 注释：同行 # 只写一句短的；成段的信息进定义末尾的 Comments[{...}] 节点。
 # 积体写 * Comments，指数体写 <- Comments；和体挂不上，只写同行短注。
 
-import viba.type
+import viba.type as type
 
 # ---------------------------------------------------------------- #
 # 1. 文件与定义
@@ -45,9 +45,9 @@ VibaImportDescriptor :=
     Object
   * $pool VibaPool
   * $module_name str            # import a.b as c -> 'a.b'
-  * $local_name str             # import a.b as c -> 'c'；import a.b -> 'b'
+  * $local_name str             # import a.b as c -> 'c'；import a.b -> 'a.b'
   * Comments[{
-      引用写成 c.Name 时，$local_name 是前半段。
+      引用写成 c.Name 或 a.b.Name 时，$local_name 是前半段，取最长的那个匹配。
       protobuf 没有对应物：它只用全名。
     }]
 

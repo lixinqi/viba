@@ -2,7 +2,7 @@ import lv1.lv2.lv3.leaf
 
 Config0 :=
   Object
-  * $peer leaf.Report1
+  * $peer lv1.lv2.lv3.leaf.Report1
 
 Config1 := $only int
 

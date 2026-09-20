@@ -7,7 +7,7 @@ Rule0 :=
 
 Shape1 :=
   Object
-  * $peer leaf.Rule0
+  * $peer lv1.lv2.lv3.leaf.Rule0
 
 Node2 :=
   Object

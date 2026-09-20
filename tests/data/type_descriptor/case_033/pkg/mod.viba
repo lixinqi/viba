@@ -7,4 +7,4 @@ Shape0 :=
 
 Config1 :=
   Object
-  * $peer deepest.Rule1
+  * $peer pkg.sub.sub2.deepest.Rule1

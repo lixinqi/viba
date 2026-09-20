@@ -4,4 +4,4 @@ Shape0 := $left int | $right str
 
 Rule1 :=
   Object
-  * $peer mod.Shape0
+  * $peer pkg.mod.Shape0

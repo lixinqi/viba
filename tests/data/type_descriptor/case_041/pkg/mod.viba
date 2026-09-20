@@ -2,7 +2,7 @@ import pkg.sub.deep
 
 Report0 :=
   Object
-  * $peer deep.Plan0
+  * $peer pkg.sub.deep.Plan0
 
 Shape1 := int * str
 

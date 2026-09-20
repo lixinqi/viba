@@ -4,7 +4,7 @@ Config0 := int * str
 
 Config1 :=
   Object
-  * $peer deepest.Report2
+  * $peer pkg.sub.sub2.deepest.Report2
 
 Rule2 :=
   Object

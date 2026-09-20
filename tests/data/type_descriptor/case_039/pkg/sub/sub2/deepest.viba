@@ -4,7 +4,7 @@ Plan0 := $only int
 
 Report1 :=
   Object
-  * $peer deep.Plan3
+  * $peer pkg.sub.deep.Plan3
 
 Shape2 :=
   Object

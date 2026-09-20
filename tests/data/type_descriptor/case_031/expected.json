@@ -245,7 +245,7 @@
       "imports": [
         {
           "module": "pkg.sub.sub2.deepest",
-          "local": "deepest"
+          "local": "pkg.sub.sub2.deepest"
         }
       ],
       "definitions": [
@@ -280,7 +280,7 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "deepest.Plan3",
+              "type_name": "pkg.sub.sub2.deepest.Plan3",
               "kind": "type_ref",
               "optional": false,
               "resolved": "pkg.sub.sub2.deepest.Plan3"

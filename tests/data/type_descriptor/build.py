@@ -34,9 +34,11 @@ def module_name_of(rel_path: str) -> str:
 
 
 def local_name_of(module: str, aliased: bool, rng) -> str:
+    """What the import binds: an alias, or the whole module name when the
+    import carries none (references then read a.b.Name)."""
     if aliased:
         return rng.choice(["m", "dep", "base", "up", "lib"])
-    return module.split(".")[-1]
+    return module
 
 
 # ----------------------------------------------------------------------
