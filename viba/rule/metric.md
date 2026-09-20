@@ -138,8 +138,8 @@ Metric[CoreFunc] :=
    `$call_instance` 那一位的类型检查（第 4 节 `Metric[CoreFunc]` 里那一位声明为
    `Result[JsonLike] <- CoreFunc`）。
 
-第 5 条就是普通的一次 `is_sub_type`，没有第二遍读法。值不进判定：它在数据里
-（after call），由 reflect 逐地址取，见第 6 节。
+第 5 条就是普通的一次 `is_sub_type`，没有为度量另加一条判定规则。值不进判定：它在
+数据里（after call），由 reflect 逐地址取，见第 6 节。
 
 ## 6. 追溯
 
