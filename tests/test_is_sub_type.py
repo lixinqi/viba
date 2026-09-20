@@ -642,6 +642,14 @@ def run_function_chain_cases():
                  "equal lengths compare every argument: nil is no float")
     check_result(judge("int <- str <- nil", "int <- str"), True,
                  "a longer chain is not asked about the arguments it adds")
+    check_result(judge("int <- str <- never", "int <- str"), True,
+                 "cut, and the never it drops was never supplyable")
+    check_result(judge("int <- str", "int <- str <- never"), True,
+                 "with never padding the other way as well: the two are interchangeable")
+    check_result(judge("int <- str", "int <- str <- nil"), False,
+                 "a nil extra is not interchangeable: cut away one way, unanswered coming back")
+    check_result(judge("int <- str <- float", "int <- str"), True,
+                 "and an unused float extra is cut away just the same")
     check_result(judge("int <- float", "int <- float <- nil"), False,
                  "an extra nil argument is still an argument: arity is part of the shape")
     check_result(judge("int <- float", "int <- float <- Object"), False,
