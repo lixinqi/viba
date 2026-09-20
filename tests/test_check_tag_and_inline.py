@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba.check_tag_and_inline import check_tag_and_inline
-from viba.rule import reflect as rule_reflect
+from viba.reflect import Config
 from viba.type import Ok
 from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
 
@@ -137,9 +137,10 @@ def run_cases():
         check(label, design(source), want)
 
 
-def run_rule_layer_case():
-    """规则层用自己那份 accessor 问同一件事：写得对的设计两边都 Ok，写错的两边
-    都 Err（哪个名字算单位元是那一层的事，tag 不由它决定）。"""
+def run_config_case():
+    """换个词汇（`RuleObject` / `Predicate` 当单位元）问同一件事：写得对的仍然
+    Ok，写错的仍然 Err——单位没有 tag，也不参与内联，所以 tag 的答案不由它决定，
+    但调用方能说出自己那份词汇。"""
     source = ("Base := $x Metric[int]\n"
               "Bad := RuleObject * Base * $x Metric[str]\n"
               "Fine := RuleObject * $x Metric[int] * $y Metric[str]\n")
@@ -148,15 +149,18 @@ def run_rule_layer_case():
     built = pool_add_file(pool, parsed.ok_value).ok_value
     check("a rule's inlined tag repeats (language names)",
           check_tag_and_inline(built), "written twice")
-    check("the same, asked with the rule accessor",
-          check_tag_and_inline(built, rule_reflect.access), "written twice")
+    rule_config = Config(never_eqv={"Oneof", "OneofRule"},
+                         nil_eqv={"Object", "RuleObject", "Predicate",
+                                  "PredicationFailed"})
+    check("the same, asked with the rule layer's vocabulary",
+          check_tag_and_inline(built, rule_config), "written twice")
 
     clean = "Fine := RuleObject * $x Metric[int] * $y Metric[str]\n"
     pool = empty_pool()
     parsed = parse_viba_file(pool, clean, "fine.viba", "fine")
     built = pool_add_file(pool, parsed.ok_value).ok_value
-    check("a clean rule is clean for the rule accessor",
-          check_tag_and_inline(built, rule_reflect.access), "Ok")
+    check("a clean rule is clean under that vocabulary too",
+          check_tag_and_inline(built, rule_config), "Ok")
 
 
 # ----------------------------------------------------------------------
@@ -224,7 +228,7 @@ def run_rule_corpus():
 
 def run():
     run_cases()
-    run_rule_layer_case()
+    run_config_case()
     run_is_sub_type_corpus()
     run_descriptor_corpus()
     run_rule_corpus()

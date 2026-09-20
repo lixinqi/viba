@@ -26,15 +26,18 @@ inline reading is a tag that only repeats once a base has been spread, and a
 chain that never reaches a shape.
 
 The map does the reading (viba.reflect): a product's members come from
-``VibaAccess.members_of`` and its chain from ``VibaAccess.inline_cycle``. The
-default accessor is the language layer's; the rule layer passes its own, since
-what counts as a unit is the layer's business.
+``VibaAccess.members_of`` and its chain from ``VibaAccess.inline_cycle``, and
+the accessor is built here from a config, so a caller never holds one. The
+default is the language's own config (``reflect.language_config``); a caller
+with a different vocabulary passes a ``VibaReflectConfig`` of its own. Which
+names stand for a unit does not change a tag — a unit has none and never
+inlines — but saying what you mean costs nothing.
 """
 
 from __future__ import annotations
 
-from viba.reflect import VibaAccess
-from viba.reflect import access as language_access
+from viba.reflect import Config, VibaAccess
+from viba.reflect import language_config
 from viba.type import DuplicateTagError, Err, InlineCycleError, Ok, Result
 from viba.viba_type_descriptor import (
     EXPONENT,
@@ -50,13 +53,18 @@ __all__ = ["check_tag_and_inline"]
 
 
 def check_tag_and_inline(design: VibaPool,
-                         access: VibaAccess = language_access) -> Result:
+                         config: Config = language_config) -> Result:
     """Result[None]: Ok(None) when every product this design writes has all its
     tags different once the inline chains are spread, and every inline chain
     ends; Err names the first mistake, in the order the definitions are
-    written."""
+    written.
+
+    ``config`` says which written names stand for the units (VibaReflectConfig);
+    the accessor that reads the design is built from it here, so a caller never
+    holds one.
+    """
     try:
-        _Checker(access).check(design)
+        _Checker(VibaAccess(config)).check(design)
     except (DuplicateTagError, InlineCycleError) as mistake:
         return Err(str(mistake))
     return Ok(None)

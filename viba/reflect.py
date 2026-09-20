@@ -1077,9 +1077,12 @@ class VibaAccess:
 # ----------------------------------------------------------------------
 
 # The language layer's units: what viba/type.viba and the descriptor's own
-# docs write for the sum unit and the product unit.
-access = VibaAccess(Config(never_eqv={"Oneof"},
-                           nil_eqv={"Object", "Assert", "Appendix", "Hint"}))
+# docs write for the sum unit and the product unit. The config is a value a
+# caller can hand around; the accessor built from it is not.
+language_config = Config(never_eqv={"Oneof"},
+                         nil_eqv={"Object", "Assert", "Appendix", "Hint"})
+
+access = VibaAccess(language_config)
 
 
 # ----------------------------------------------------------------------
@@ -1187,7 +1190,7 @@ def _scalar_name(value) -> Optional[str]:
 
 # The protocol names (viba-reflect.md sections 4 and 5), and only these.
 __all__ = [
-    "access", "Config",
+    "access", "Config", "language_config",
     "VibaAccess", "VibaNode", "VibaStep", "VibaPath",
     "by_tag", "by_field_index", "at_index", "at_key",
 ]
