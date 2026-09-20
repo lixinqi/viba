@@ -755,7 +755,7 @@ Metric[CoreFunc] :=
     check_result(judge("GetDistance", "MetricFuncInterface", given=None), True,
                  "and it needs no config to hold")
     check_result(judge("Result[int] <- DemoPoint <- Assert[{x}]", "Result[int] <- DemoPoint"), True,
-                 "prose carries no position: a block handed to a unit name drops")
+                 "documentation carries no position: a block handed to a unit name drops")
     check_result(judge("Result[int] <- {说明} <- DemoPoint", "Result[int] <- DemoPoint"), True,
                  "and a bare block drops on its own")
     check_result(judge("Result[int] <- Hint <- DemoPoint", "Result[int] <- DemoPoint"), False,
@@ -777,7 +777,7 @@ Metric[CoreFunc] :=
     check_result(judge("Result[int] <- $t nil <- DemoPoint", "Result[int] <- DemoPoint"), False,
                  "a tagged real nil keeps it too")
     check_result(judge("Result[int] <- Object <- DemoPoint", "Result[int] <- DemoPoint"), False,
-                 "Object is that nil: a plain unit name is no prose")
+                 "Object is that nil: a plain unit name is no documentation")
     check_result(judge("Result[int] <- Oneof <- DemoPoint", "Result[int] <- DemoPoint"), False,
                  "never is not nil: it keeps the position it was written in")
     check_result(judge("Result[int] <- DemoPoint", "Result[int] <- DemoPoint <- Assert[{x}]",
