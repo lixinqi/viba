@@ -1,11 +1,10 @@
-# The Metric layer's constraints. metric.md reads them and keeps the material;
-# this file keeps the definitions.
+# The Metric layer's constraints: what a metric field is made of, and what a
+# metric function must fit. metric.md reads them and carries the worked example.
 #
 # Result and JsonLike are the shapes reflect already reads. MetricFuncInterface
 # is what a metric function must fit. Metric[CoreFunc] is the metric object: the
 # reserved tag is its nominal anchor, $func is the design's function, and
-# $call_instance is the call that was measured. The definitions after it are the
-# example section 3 of the document walks through.
+# $call_instance is the call that was measured.
 
 Result[T] :=
     Oneof
@@ -38,23 +37,3 @@ Metric[CoreFunc] :=
       When the evidence is fixed, CoreFunc's arguments and result must be
       written as real values.
     }]
-
-# The example: a victim and a suspect, each with a point, and the distance
-# between them at a moment. Prepare is the call with its arguments fixed and
-# its result left declared — the preparation the evidence keeps in its argument
-# slot, and the type the constraint is written on.
-
-PersonPoint := ($x int * $y int)
-Moment := str
-
-GetDistance :=
-    Result[int]
-  <- $victim PersonPoint
-  <- $suspect PersonPoint
-  <- $at Moment
-
-Prepare :=
-    Result[int]
-  <- $victim ($x 0 * $y 0)
-  <- $suspect ($x 3 * $y 4)
-  <- $at "12:30"
