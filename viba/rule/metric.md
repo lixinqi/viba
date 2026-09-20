@@ -39,18 +39,31 @@ MetricFuncInterface := Result[JsonLike] <- never
 
 ## 3. 取证：一次调用
 
+情景：一起案子，受害人与嫌疑人各有一个当时的坐标。要量的是两人在某一时刻相距多远。
+
 ```viba
-# demo
-DemoPoint := ($x int * $y int)
+# demo：人物坐标与时刻
+PersonPoint := ($x int * $y int)
+Moment := str
 
-# definition
-GetDistance := Result[int] <- DemoPoint <- DemoPoint
+# definition：受害人、嫌疑人、时刻 → 两人当时的直线距离
+GetDistance :=
+    Result[int]
+  <- $victim PersonPoint
+  <- $suspect PersonPoint
+  <- $at Moment
 
-# before call：取证准备，先把参数定下来
-Result[int] <- ($x 0 * $y 0) <- ($x 3 * $y 3)
+# before call：取证准备，先把两个人与时刻定下来
+Result[int]
+  <- $victim ($x 0 * $y 0)
+  <- $suspect ($x 3 * $y 4)
+  <- $at "12:30"
 
-# after call：固定证据
-Result[9] <- ($x 0 * $y 0) <- ($x 3 * $y 3)
+# after call：固定证据——12:30 受害人在 (0,0)、嫌疑人在 (3,4)，量出来相距 5
+Result[5]
+  <- $victim ($x 0 * $y 0)
+  <- $suspect ($x 3 * $y 4)
+  <- $at "12:30"
 ```
 
 取证的支点：**同一段语法既是类型又是数据**。往右当类型，跟 `GetDistance` 比；往左当
@@ -80,7 +93,12 @@ Metric[CoreFunc] :=
 ```viba
 * $distance (
     $__metric_object_you_are_not_allowed_to_use_this_tag_name__ nil
-    * $func (Result[9] <- ($x 0 * $y 0) <- ($x 3 * $y 3))
+    * $func (
+        Result[5]
+          <- $victim ($x 0 * $y 0)
+          <- $suspect ($x 3 * $y 4)
+          <- $at "12:30"
+      )
   )
 ```
 
@@ -93,28 +111,29 @@ Metric[CoreFunc] :=
 2. **接口**：`CoreFunc <: MetricFuncInterface`，也就是 `Assert` 里写的第一句。
 3. **说明块**：`Assert[{...}]` 是写下来的说明，不是类型，判定不看它。
 4. **证据**：每位协变——每个参数的值属于声明的参数类型，结果的值属于声明的结果类型，
-   例如 `($x 0 * $y 0) <: DemoPoint`、`Result[9] <: Result[int]`。
-5. **值**：证据里每个叶子必须是字面量，不能是类型名。
+   例如 `($x 0 * $y 0) <: PersonPoint`、`Result[5] <: Result[int]`。
+5. **值**：证据的参数与结果都要落在值上，不能停在类型——`Result[int]` 是准备，
+   `Result[5]` 才是证据。
 
 第 4 条是"这次调用合不合法"，与"函数之间能不能顶替"是两回事，由单独一条读法/检查
 承担（见第 8 节）。第 5 条判定做不到（`9 <: int` 与 `int <: int` 同形），同样是单独
-一条检查：走过证据的每个地址，落到叶子时必须是字面量。有第 5 条，`JsonLike` 的意义
-才落到实处——叶子落在它的原子里，reflect 才保证取得到东西。
+一条检查：被实测的那部分必须是字面量。有第 5 条，`JsonLike` 的意义才落到实处——
+叶子落在它的原子里，reflect 才保证取得到东西。
 
 ## 6. 追溯
 
-第 4 节那份证据的地址与叶子（`by_field_index(0)` 是结果位；参数的书写顺序就是地址
-顺序）：
+第 4 节那份证据的地址与叶子（`by_field_index(0)` 是结果位；参数按 tag 寻址）：
 
 | 地址 | 叶子 |
 |---|---|
 | `$marker` | `nil` |
-| `$func . by_field_index(0) . by_tag($ok) . by_tag($ok_value)` | `9` |
-| `$func . by_field_index(1) . by_tag($x)` / `. by_tag($y)` | `0` / `0` |
-| `$func . by_field_index(2) . by_tag($x)` / `. by_tag($y)` | `3` / `3` |
+| `$func . by_field_index(0) . by_tag($ok) . by_tag($ok_value)` | `5` |
+| `$func . by_tag($victim) . by_tag($x)` / `. by_tag($y)` | `0` / `0` |
+| `$func . by_tag($suspect) . by_tag($x)` / `. by_tag($y)` | `3` / `4` |
+| `$func . by_tag($at)` | `"12:30"` |
 
-参数起了 tag 时（`<- $p0 DemoPoint`），地址从 `by_field_index(i)` 换成 `by_tag($p0)`。
-谓词读测量值：走 `$func` 的结果位，再走 `$ok` / `$ok_value`。
+参数不带 tag 时按位置取（`by_field_index(i)`）。谓词读测量值：走 `$func` 的结果位，
+再走 `$ok` / `$ok_value`。
 
 ## 7. 度量函数的写法
 
@@ -124,13 +143,14 @@ Metric[CoreFunc] :=
 2. 参数与结果都写成可读的数据形状：叶子落在 `JsonLike` 的原子上（第 5 节第 5 条）；
 3. 取证时参数与结果都填真实的值，不留类型名。
 
-参数的写法自由：带 tag（`$p0 DemoPoint`）按名字取，不带 tag 按位置取；参数量不限。
+参数的写法自由：带 tag（本例 `$victim` / `$suspect` / `$at`）按名字取，不带 tag 按
+位置取；参数量不限。
 
 ## 8. 尚未确定
 
 1. **证据的合法性怎么判**：判定层单开一条读法（每位协变），还是单独一条检查
    （第 5 节第 4 条）。
-2. **"每个叶子必须是字面量"怎么保证**：一条单独检查的入口（第 5 节第 5 条）。
+2. **"值不能停在类型"怎么保证**：一条单独检查的入口（第 5 节第 5 条）。
 3. **`Metric[T] := $value T` 的去留**：换掉、并存，还是把 `$value` 留成糖。
 4. **证据要不要写成定义**：每个度量字段都抄一遍保留 tag 太吵，可以让证据先写成一个
    定义，`$func` 那里引这个名字。
