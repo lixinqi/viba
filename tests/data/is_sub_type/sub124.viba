@@ -1,0 +1,3 @@
+Leaf := $l int
+B := Leaf * $y float
+A := B * $x int
