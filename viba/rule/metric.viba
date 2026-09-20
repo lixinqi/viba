@@ -1,0 +1,59 @@
+# The Metric layer's constraints. metric.md reads them and keeps the material;
+# this file keeps the definitions.
+#
+# Result and JsonLike are the shapes reflect already reads. MetricFuncInterface
+# is what a metric function must fit. Metric[CoreFunc] is the metric object: the
+# reserved tag is its nominal anchor, $func is the design's function, and
+# $call_instance is the call that was measured. The definitions after it are the
+# example section 3 of the document walks through.
+
+Result[T] :=
+    Oneof
+  | $ok ($ok_value T)
+  | $err ($err_msg str)
+
+JsonLike :=
+    Oneof
+  | nil
+  | bool
+  | int
+  | float
+  | str
+  | list[JsonLike]
+  | set[JsonLike]
+  | dict[str, JsonLike]
+
+MetricFuncInterface := Result[JsonLike] <- never
+
+# The object's nominal anchor: not a business field.
+# yanatuttn = you_are_not_allowed_to_use_this_tag_name
+MetricObject := Object * $__metric_object_yanatuttn__ nil
+
+Metric[CoreFunc] :=
+    MetricObject
+  * $func CoreFunc
+  * $call_instance (Result[JsonLike] <- CoreFunc)
+  * Appendix[{
+      CoreFunc <: (Result[JsonLike] <- never)
+      当取证的时候，CoreFunc的输入输出参数必须填上真实的值。
+    }]
+
+# The example: a victim and a suspect, each with a point, and the distance
+# between them at a moment. Prepare is the call with its arguments fixed and
+# its result left declared — the preparation the evidence keeps in its argument
+# slot, and the type the constraint is written on.
+
+PersonPoint := ($x int * $y int)
+Moment := str
+
+GetDistance :=
+    Result[int]
+  <- $victim PersonPoint
+  <- $suspect PersonPoint
+  <- $at Moment
+
+Prepare :=
+    Result[int]
+  <- $victim ($x 0 * $y 0)
+  <- $suspect ($x 3 * $y 4)
+  <- $at "12:30"

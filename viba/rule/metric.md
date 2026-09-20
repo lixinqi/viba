@@ -11,25 +11,7 @@
 
 ## 2. 接口
 
-```viba
-Result[T] :=
-    Oneof
-  | $ok ($ok_value T)
-  | $err ($err_msg str)
-
-JsonLike :=
-    Oneof
-  | nil
-  | bool
-  | int
-  | float
-  | str
-  | list[JsonLike]
-  | set[JsonLike]
-  | dict[str, JsonLike]
-
-MetricFuncInterface := Result[JsonLike] <- never
-```
+三条约束写在 `viba/rule/metric.viba` 里：
 
 - `Result` 用 reflect 协议里那一份：`$ok` 带值，`$err` 带说明。
 - `JsonLike` 是 reflect 读得出叶子的那一族形状：叶子是 `bool` / `int` / `float` /
@@ -40,56 +22,22 @@ MetricFuncInterface := Result[JsonLike] <- never
 ## 3. 取证：一次调用
 
 情景：一起案子，受害人与嫌疑人各有一个当时的坐标。要量的是两人在某一时刻相距多远。
+这一景的 `PersonPoint` / `Moment` / `GetDistance` 与取证准备的 `Prepare` 也都在
+`viba/rule/metric.viba` 里。
+
+固定下来的证据是 after call——12:30 受害人在 (0,0)、嫌疑人在 (3,4)，量出来相距 5：
 
 ```viba
-# demo：人物坐标与时刻
-PersonPoint := ($x int * $y int)
-Moment := str
-
-# definition：受害人、嫌疑人、时刻 → 两人当时的直线距离
-GetDistance :=
-    Result[int]
-  <- $victim PersonPoint
-  <- $suspect PersonPoint
-  <- $at Moment
-
-# prepare：取证准备——参数填真实的值，结果位留声明的类型
-Prepare :=
-    Result[int]
-  <- $victim ($x 0 * $y 0)
-  <- $suspect ($x 3 * $y 4)
-  <- $at "12:30"
-
-# after call：固定证据——12:30 受害人在 (0,0)、嫌疑人在 (3,4)，量出来相距 5
-Result[5]
-  <- (
-      Result[int]
-        <- $victim ($x 0 * $y 0)
-        <- $suspect ($x 3 * $y 4)
-        <- $at "12:30"
-    )
+Result[5] <- Prepare
 ```
 
-取证的支点：**同一段语法既是类型又是数据**。after call 是数据：参数位放着 prepare
+取证的支点：**同一段语法既是类型又是数据**。after call 是数据：参数位放着 `Prepare`
 （被测调用的准备——参数已定，结果位留声明），结果位是度量量出来的值。取证的类型写作
 `(Result[int] <- Prepare)`，判定见第 5 节；数据由 reflect 逐地址取，见第 6 节。
 
 ## 4. 度量对象
 
-```viba
-# 度量基类
-# yanatuttn = you_are_not_allowed_to_use_this_tag_name
-MetricObject := Object * $__metric_object_yanatuttn__ nil
-
-Metric[CoreFunc] :=
-    MetricObject
-  * $func CoreFunc
-  * $call_instance (Result[JsonLike] <- CoreFunc)
-  * Appendix[{
-      CoreFunc <: (Result[JsonLike] <- never)
-      当取证的时候，CoreFunc的输入输出参数必须填上真实的值。
-    }]
-```
+`MetricObject` 与 `Metric[CoreFunc]` 也在 `viba/rule/metric.viba` 里：
 
 - 那个 tag 是**名义锚**：它不属于任何业务字段，保留给度量对象自己。`MetricObject`
   是不带标签的成员，按内联规则摊进 `Metric[CoreFunc]`，于是度量的成员就是：保留 tag
@@ -102,15 +50,7 @@ Metric[CoreFunc] :=
 * $distance (
     $__metric_object_yanatuttn__ nil
     * $func GetDistance
-    * $call_instance (
-        Result[5]
-          <- (
-              Result[int]
-                <- $victim ($x 0 * $y 0)
-                <- $suspect ($x 3 * $y 4)
-                <- $at "12:30"
-            )
-      )
+    * $call_instance (Result[5] <- Prepare)
   )
 ```
 
@@ -122,17 +62,8 @@ Metric[CoreFunc] :=
    不会被别的同形数据顶替。
 2. **接口**：`CoreFunc <: MetricFuncInterface`，也就是 `Appendix` 里写的第一句。
 3. **说明块**：`Appendix[{...}]` 是写下来的说明，不是类型，判定不看它。
-4. **证据**：`$call_instance` 底下是一次调用——参数位是 `Prepare`，结果位是量出来的值：
-
-   ```viba
-   Result[5] <- Prepare
-
-   Prepare :=
-       Result[int]
-     <- $victim ($x 0 * $y 0)
-     <- $suspect ($x 3 * $y 4)
-     <- $at "12:30"
-   ```
+4. **证据**：`$call_instance` 底下是一次调用（第 3 节的 after call）——参数位是
+   `Prepare`，结果位是量出来的值。
 
 5. **约束**：`(Result[int] <- Prepare) <: (Result[JsonLike] <- GetDistance)`——就是
    `$call_instance` 那一位的类型检查（第 4 节 `Metric[CoreFunc]` 里那一位声明为
