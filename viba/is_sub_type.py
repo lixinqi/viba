@@ -131,7 +131,11 @@ def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> R
     stand for the units). A name in either set is that unit here too, bare
     or applied — `Assert[{...}]` is the unit when `Assert` is one — so a
     layer that parks prose in such a block gets it bypassed instead of
-    resolved. Nothing named, nothing bypassed.
+    resolved. Such an argument is also not a position: prose drops out of a
+    function's argument list, so `A <- B <- Assert[{...}]` and
+    `A <- Assert[{...}] <- B` are both `A <- B`. A unit written as a plain
+    name does keep its position (`Object` is the nil of the product, and nil
+    is a real slot in a tuple). Nothing named, nothing bypassed.
     """
     err = _input_error(sub, sup)
     if err is not None:
@@ -909,6 +913,29 @@ class _Checker:
             return _UNIT_NEVER
         return node
 
+    def _drop_unit_args(self, args):
+        """The arguments that carry prose drop out of the chain, and only
+        those: (A <- B <- Assert[{...}]) is (A <- B), and so is
+        (A <- Assert[{...}] <- B) — what is dropped is the block, not the
+        position it was written in.
+
+        A unit written as a name is an argument like any other: the argument
+        list is a tuple, and nil is a real slot in it (`Object` is that nil).
+        Only prose drops, so `never` is untouched too.
+        """
+        return [arg for arg in args if not self._carries_prose(arg)]
+
+    def _carries_prose(self, node) -> bool:
+        """A code block, or a unit a config names applied to one: the shape
+        the writing layers park prose in. Prose is not an argument."""
+        if isinstance(node, viba_ast.CodeBlock):
+            return True
+        if not isinstance(node, viba_ast.TypeApp):
+            return False
+        if not isinstance(self._config_unit(node), NilType):
+            return False
+        return any(isinstance(arg, viba_ast.CodeBlock) for arg in node.args)
+
     def _is_product_unit(self, node, module, side: str) -> bool:
         """The product's unit: nil by form, a name the config calls nil, or a
         name (a generic parameter among them) bound to nil. never is the sum's
@@ -944,8 +971,11 @@ class _Checker:
         contravariantly, in the order they are written.
 
         Only functions compare with functions — never, the bottom, fits
-        anywhere and is answered before this. The sub is brought to the
-        sup's arity first, the sup never moving:
+        anywhere and is answered before this. Arguments that carry prose (a
+        code block, or a unit applied to one) drop out first, whatever
+        position they were written in (_drop_unit_args), so the chain the sup
+        asks about is the chain of its real arguments. The sub is brought to
+        the sup's arity then, the sup never moving:
 
         * shorter, it is padded at its end with never — the argument
           nobody can supply — so (int <- $a int) <: (int <- $a int <-
@@ -964,6 +994,8 @@ class _Checker:
             return False
         sub_res, sub_args = _exponent_parts(sn)
         sup_res, sup_args = _exponent_parts(sp)
+        sub_args = self._drop_unit_args(sub_args)
+        sup_args = self._drop_unit_args(sup_args)
         if len(sub_args) < len(sup_args):
             sub_args += [viba_ast.Never()] * (len(sup_args) - len(sub_args))
         if not self._walk(sub_res, s_mod, sup_res, p_mod):

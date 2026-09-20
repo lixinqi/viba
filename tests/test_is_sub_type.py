@@ -754,6 +754,35 @@ Metric[CoreFunc] :=
                  "the metric's own interface holds")
     check_result(judge("GetDistance", "MetricFuncInterface", given=None), True,
                  "and it needs no config to hold")
+    check_result(judge("Result[int] <- DemoPoint <- Assert[{x}]", "Result[int] <- DemoPoint"), True,
+                 "prose carries no position: a block handed to a unit name drops")
+    check_result(judge("Result[int] <- {说明} <- DemoPoint", "Result[int] <- DemoPoint"), True,
+                 "and a bare block drops on its own")
+    check_result(judge("Result[int] <- Hint <- DemoPoint", "Result[int] <- DemoPoint"), False,
+                 "a unit written as a plain name is a real argument")
+    check_result(judge("Result[int] <- DemoPoint", "Result[int] <- DemoPoint <- Assert[{x}]"), True,
+                 "and the same read backwards")
+    check_result(judge("Result[int] <- Assert[{x}] <- DemoPoint", "Result[int] <- DemoPoint"), True,
+                 "written in the middle: dropping it leaves the argument order alone")
+    check_result(judge("Result[int] <- $a DemoPoint <- Hint[{y}]", "Result[int] <- $a DemoPoint"), True,
+                 "a tagged unit argument drops too")
+    check_result(judge("Result[int] <- Hint[{y}]", "Result[int] <- Assert[{x}]"), True,
+                 "a chain whose only argument is a unit is a chain of no arguments")
+    check_result(judge("Result[int] <- Hint[{y}]", "Result[int]"), False,
+                 "and a chain of no arguments is still a function, not the bare result")
+    check_result(judge("Result[int] <- DemoPoint", "Result[int] <- DemoPoint <- str"), False,
+                 "a real argument is still an argument")
+    check_result(judge("Result[int] <- nil <- DemoPoint", "Result[int] <- DemoPoint"), False,
+                 "a real nil keeps its position: the argument list is a tuple")
+    check_result(judge("Result[int] <- $t nil <- DemoPoint", "Result[int] <- DemoPoint"), False,
+                 "a tagged real nil keeps it too")
+    check_result(judge("Result[int] <- Object <- DemoPoint", "Result[int] <- DemoPoint"), False,
+                 "Object is that nil: a plain unit name is no prose")
+    check_result(judge("Result[int] <- Oneof <- DemoPoint", "Result[int] <- DemoPoint"), False,
+                 "never is not nil: it keeps the position it was written in")
+    check_result(judge("Result[int] <- DemoPoint", "Result[int] <- DemoPoint <- Assert[{x}]",
+                       given=None), "error",
+                 "without the config nothing is named, so nothing drops")
 
 
 def run_never_head_cases():
