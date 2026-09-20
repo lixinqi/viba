@@ -15,7 +15,7 @@ Checked (viba-rule.md section in parentheses):
 """
 
 from viba.viba_ast import nodes as ast_nodes
-from viba.viba_ast.rules import PRODUCT_MARKER, body_marker
+from viba.rule.markers import PRODUCT_MARKER, body_marker
 from viba.type import AstNodeType, Err, Ok, Result
 
 

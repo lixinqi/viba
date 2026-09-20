@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba import viba_ast
 from viba.check_tag_and_inline import check_tag_and_inline
+from viba.rule.markers import rule_definitions
 from viba.rule import (
     check_determinate,
     check_rule_coding_style,
@@ -140,7 +141,7 @@ def _judge_counts(rule, witnesses, path: Path):
 def _check_generated_rule(path: Path, name: str, seed: int) -> int:
     module, defs = _load(path)
     rule = _entry(defs, module, name)
-    found = [d.name for d in viba_ast.rule_definitions(module.module)]
+    found = [d.name for d in rule_definitions(module.module)]
     assert found == [name], f"{path.name}: marker scan {found}"
     _spec(defs, module, name)
     checked = 0
@@ -205,7 +206,7 @@ def _check_sum_rule() -> None:
     path = DATA / "sum_rule.viba"
     module, defs = _load(path)
     rule = _entry(defs, module, "SumRule")
-    names = [d.name for d in viba_ast.rule_definitions(module.module)]
+    names = [d.name for d in rule_definitions(module.module)]
     assert names == ["SmallRule", "BigRule"], f"markers: {names}"
     for name in names:
         _spec(defs, module, name)
@@ -238,7 +239,7 @@ def _check_not_rule() -> None:
     path = DATA / "not_rule.viba"
     module, defs = _load(path)
     rule = _entry(defs, module, "NoDeathPenaltyRule")
-    names = [d.name for d in viba_ast.rule_definitions(module.module)]
+    names = [d.name for d in rule_definitions(module.module)]
     assert names == ["NoDeathPenaltyRule"], f"markers: {names}"
     _spec(defs, module, "NoDeathPenaltyRule")
     for witness, want in (("LawAbidingWitness", True),

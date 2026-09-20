@@ -18,6 +18,7 @@ from viba import viba_ast
 from viba.type import AstNodeType, Ok, custom_module
 from viba.is_sub_type import is_sub_type
 from viba.rule import check_rule_coding_style
+from viba.rule.markers import rule_definitions
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "tests" / "data" / "rule_coding_style_check"
@@ -56,7 +57,7 @@ def main():
     module = custom_module(_spec_source() + demo)
     assert _judgment(module, "DemoWitnessPass", "DemoRuleStripped") is True
     assert _judgment(module, "DemoWitnessFail", "DemoRuleStripped") is False
-    names = [d.name for d in viba_ast.rule_definitions(module.module)]
+    names = [d.name for d in rule_definitions(module.module)]
     assert names == ["DemoRule"], f"rule markers: {names}"
     spec = check_rule_coding_style(_entry(module, "DemoRule"))
     assert isinstance(spec, Ok) and spec.ok_value is None, f"rule style check: {spec!r}"
