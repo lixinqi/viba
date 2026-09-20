@@ -621,7 +621,7 @@ def run_cross_module_inline_cases():
 
 def run_function_chain_cases():
     """函数之间比函数：结果协变、参数逆变，按书写顺序逐位比（$arg0 对 $arg0）。
-    sub 比 sup 短直接 False；sub 比 sup 长就把 sub 截到 sup 的长度，多写的参数不比。
+    先把 sub 弄到 sup 的长度（sup 不动）：sub 短了补 never，长了截掉；弄齐再逐位比。
     除 never 外，非函数一律 False。"""
     module = custom_module("")
 
@@ -632,8 +632,8 @@ def run_function_chain_cases():
                  "the longer chain is used where the shorter is expected")
     check_result(judge("int <- str", "int <- str <- float"), False,
                  "the other way round it is not: sub has nothing to offer for $arg1")
-    check_result(judge("int <- str", "int <- str <- never"), False,
-                 "no exception: the sub is shorter, so it is no substitute")
+    check_result(judge("int <- str", "int <- str <- never"), True,
+                 "shorter, the sub is padded with never, and never is what sup asks for")
     check_result(judge("int <- str <- float", "int <- float"), False,
                  "the shared prefix compares by position: $arg0 is str, not float")
     check_result(judge("int <- float <- str", "int <- float"), True,
@@ -646,12 +646,12 @@ def run_function_chain_cases():
                  "an extra nil argument is still an argument: arity is part of the shape")
     check_result(judge("int <- float", "int <- float <- Object"), False,
                  "Object is nil, and the argument is still asked for")
-    check_result(judge("int <- float", "int <- float <- never"), False,
-                 "never as the extra one is no exception either")
+    check_result(judge("int <- float", "int <- float <- never"), True,
+                 "an extra never is exactly what the padded sub can answer")
     check_result(judge("int <- str <- float <- bool", "int <- str"), True,
                  "however many it adds, they are all beyond the sup")
     check_result(judge("int <- str", "int <- str <- float <- never"), False,
-                 "and the sub never gets to add one of its own")
+                 "two short: the padded never meets float and that is no bool")
     check_result(judge("int <- str <- nil", "int <- nil"), False,
                  "$arg0 is str against nil")
     check_result(judge("int <- str", "int"), False,

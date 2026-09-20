@@ -54,10 +54,11 @@ IsSubType :=
     env_get 解析。
     指数链（函数）之间比函数：结果协变、参数逆变，按书写顺序逐位比（$arg0
     对 $arg0）；只有函数能和函数比（never 是底，谁都收得下，在那之前就答了）。
-    链长不等时看 sub：sub 比 sup 短就 False（拿不出 sup 要的那份信息，顶替不了）；
-    sub 比 sup 长就把 sub 截到 sup 的长度，多写的参数不比（sup 根本没问）——所以
-    (int <- $a int <- $b str) 能用在 (int <- $a int) 的地方（信息更全），反过来
-    False。共享的那一段照样逐位比。
+    链长不等时先把 sub 弄到 sup 的长度（sup 不动）：sub 短了就在自己末尾补 never
+    （谁都没法提供的那个参数），补上来的 never 要对得上 sup 多要的那一格——所以
+    (int <- $a int) <: (int <- $a int <- never) 成立，sup 多要的是 bool 就不成立；
+    sub 长了就截掉多写的，sup 根本没问那几位——所以 (int <- $a int <- $b str) 能
+    用在 (int <- $a int) 的地方。弄齐以后从 $arg0 起逐位比，共享的那一段照样得比。
     结果为 never 的指数链（never <- A）与别的指数一样：结果
     协变、参数逆变，never <- B <: never <- A 当且仅当 A <: B。核心不知道
     这一支该用什么词收尾：调用方把终止子（terminators）传进来，核心只按

@@ -54,12 +54,15 @@ alias of what it is written as, and judgment is structural throughout.
 - Functions (exponent chains) compare as functions: the result
   covariantly, the arguments contravariantly, position by position
   from $arg0. Only functions compare with functions (never, the
-  bottom, fits anywhere and is handled before this). A sub that wires
-  fewer arguments than the sup is no substitute for it: False. One
-  that writes more is cut to the sup's length first — the extra
-  arguments are ones the sup never asks about — so
-  (int <- $a int <- $b str) <: (int <- $a int) holds while
-  (int <- $a int) <: (int <- $a int <- $b str) is False.
+  bottom, fits anywhere and is handled before this). The sub is first
+  brought to the sup's arity: shorter it is padded with never at its
+  end, longer it is cut, the sup never moving. So
+  (int <- $a int <- $b str) <: (int <- $a int) holds (the extra
+  argument is one the sup never asks about) and (int <- $a int) <:
+  (int <- $a int <- never) holds too (the never it is padded with is
+  what the sup asks for), while (int <- $a int) <:
+  (int <- $a int <- $b bool) does not: padding never does not answer a
+  bool.
 - A chain whose result is never (`never <- A`) is an exponent like any
   other: result covariant, argument contravariant, so never <- B <:
   never <- A iff A <: B. When the caller named terminators, two
@@ -893,12 +896,19 @@ class _Checker:
         contravariantly, in the order they are written.
 
         Only functions compare with functions — never, the bottom, fits
-        anywhere and is answered before this. A sub that writes fewer
-        arguments than the sup is no substitute for it: False. One that
-        writes more carries more than the sup asks for, so it is cut to the
-        sup's length and the extra arguments are not compared — the shared
-        prefix still has to be: (int <- $a int <- $b str) <: (int <- $a int),
-        while (int <- $a int) <: (int <- $a int <- $b str) is False.
+        anywhere and is answered before this. The sub is brought to the
+        sup's arity first, the sup never moving:
+
+        * shorter, it is padded at its end with never — the argument
+          nobody can supply — so (int <- $a int) <: (int <- $a int <-
+          never) holds, the padded never being what the sup asks for,
+          while a sup that asks for a bool is not answered by it;
+        * longer, it is cut to the sup's length, so (int <- $a int <-
+          $b str) <: (int <- $a int): the extra argument is one the sup
+          never asks about, and is not looked at.
+
+        Then every position compares from $arg0, and the shared prefix has
+        to hold.
 
         Argument walks swap modules, so the env stacks swap with them: a
         free name resolves through the env of the syntax it came from."""
@@ -907,7 +917,7 @@ class _Checker:
         sub_res, sub_args = _exponent_parts(sn)
         sup_res, sup_args = _exponent_parts(sp)
         if len(sub_args) < len(sup_args):
-            return False
+            sub_args += [viba_ast.Never()] * (len(sup_args) - len(sub_args))
         if not self._walk(sub_res, s_mod, sup_res, p_mod):
             return False
         self._swap_envs()
