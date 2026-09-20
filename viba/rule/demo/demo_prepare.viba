@@ -1,0 +1,16 @@
+# The prepared call this demo's evidence carries: the victim, the suspect and
+# the moment are fixed, the result position keeps the declared type. It depends
+# on viba/rule/metric.viba; the witnesses depend on this file.
+#
+# The evidence keeps this in the metric object's $call_instance argument slot,
+# so the call instance reads as
+#   $call_instance . by_field_index(0)  the measured value
+#   $call_instance . by_field_index(1)  this prepared call
+
+import viba.rule.metric as metric
+
+Prepare :=
+    metric.Result[int]
+  <- $victim ($x 0 * $y 0)
+  <- $suspect ($x 3 * $y 4)
+  <- $at "12:30"

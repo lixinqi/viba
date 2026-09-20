@@ -29,6 +29,7 @@ FILES = (
     (ROOT / "viba" / "rule" / "metric.viba", "viba.rule.metric"),
     (ROOT / "viba" / "rule" / "rule.viba", "viba.rule.rule"),
     (DEMO / "demo_metric_func.viba", "viba.rule.demo.demo_metric_func"),
+    (DEMO / "demo_prepare.viba", "viba.rule.demo.demo_prepare"),
     (DEMO / "demo_rule.viba", "viba.rule.demo.demo_rule"),
     (DEMO / "demo_witness.viba", "viba.rule.demo.demo_witness"),
 )
@@ -104,6 +105,7 @@ def main() -> int:
     metric = modules["viba.rule.metric"]
     functions = modules["viba.rule.demo.demo_metric_func"]
     designs = modules["viba.rule.demo.demo_rule"]
+    prepared = modules["viba.rule.demo.demo_prepare"]
     materials = modules["viba.rule.demo.demo_witness"]
 
     reviewed = check_tag_and_inline(_pool())
@@ -151,7 +153,7 @@ def main() -> int:
 
     # the metric's code runs on the prepared call's own nodes: the same
     # reflection the predicate reads with
-    prepare = _definition(materials, "Prepare")
+    prepare = _definition(prepared, "Prepare")
     called = VibaNode(reflect_access, descriptor_of(get_distance), prepare.ast_node,
                       data_module=prepare.container_module)
     namespace = {}
