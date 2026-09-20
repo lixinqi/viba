@@ -619,6 +619,52 @@ def run_cross_module_inline_cases():
           "and it names the chain")
 
 
+def run_function_chain_cases():
+    """函数之间比函数：结果协变、参数逆变，按书写顺序逐位比（$arg0 对 $arg0）；
+    长链截到短链的长度，多写的参数不比；除 never 外，非函数一律 False。"""
+    module = custom_module("")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    check_result(judge("int <- str <- float", "int <- str"), True,
+                 "the longer chain is used where the shorter is expected")
+    check_result(judge("int <- str", "int <- str <- float"), True,
+                 "and the shorter where the longer is: the extra argument is not compared")
+    check_result(judge("int <- str <- float", "int <- float"), False,
+                 "the shared prefix compares by position: $arg0 is str, not float")
+    check_result(judge("int <- float <- str", "int <- float"), True,
+                 "here $arg0 is float on both sides")
+    check_result(judge("int <- str <- float", "int <- str <- nil"), False,
+                 "equal lengths compare every argument: nil is no float")
+    check_result(judge("int <- str <- nil", "int <- str"), True,
+                 "a longer chain is not asked about the arguments it adds")
+    check_result(judge("int <- str <- nil", "int <- nil"), False,
+                 "$arg0 is str against nil")
+    check_result(judge("int <- str", "int"), False,
+                 "a function is not a plain type")
+    check_result(judge("int", "int <- str"), False,
+                 "a plain type is not a function")
+    check_result(judge("str <- str", "int <- str"), False,
+                 "the results compare covariantly")
+    check_result(judge("int <- str", "(int | nil) <- str"), True,
+                 "a wider result is a supertype: int <: int | nil")
+    check_result(judge("{x} <- str", "int <- str"), False,
+                 "a code block is no int either")
+    check_result(judge("never", "int <- str"), True,
+                 "the exception is never: the bottom fits a function")
+    check_result(judge("never <- str", "int <- str"), True,
+                 "a never-headed chain is a function like any other")
+    check_result(judge("int <- never", "int <- float"), False,
+                 "an argument compares contravariantly: float <: never is what is asked")
+    check_result(judge("int <- float", "int <- never"), True,
+                 "so the never argument is the wider one here")
+    check_result(judge("int <- (int <- str <- never)", "int <- (int <- str <- float)"), True,
+                 "a branch argument flips the inner direction: the result of contravariance twice")
+    check_result(judge("int <- (int <- str <- float)", "int <- (int <- str <- never)"), False,
+                 "and the other way round is false")
+
+
 def run_never_head_cases():
     """Without terminators named, a never-headed chain is just an exponent."""
     module = custom_module("""
@@ -747,6 +793,7 @@ run_unit_alias_cases()
 run_inline_member_cases()
 run_inline_cycle_guard_cases()
 run_cross_module_inline_cases()
+run_function_chain_cases()
 run_never_head_cases()
 run_code_block_cases()
 run_canonical_chain_cases()

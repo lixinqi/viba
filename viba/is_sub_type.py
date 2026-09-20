@@ -51,6 +51,14 @@ alias of what it is written as, and judgment is structural throughout.
   either channel is malformed: the check aborts with Err
   (UnresolvedTypeError caught at the boundary). Unfolding a definition
   body can reach such a name; that is then an Err, not a False.
+- Functions (exponent chains) compare as functions: the result
+  covariantly, the arguments contravariantly, in the order they are
+  written. Only functions compare with functions (never, the bottom,
+  fits anywhere and is handled before this). A chain that writes more
+  arguments carries more information, so the longer one is cut to the
+  shorter one's length and the extra arguments are not compared:
+  (int <- $a int <- $b str) <: (int <- $a int) holds, and so does the
+  same with the sides swapped whenever the shared prefix compares.
 - A never-headed chain (never <- A; a prohibition is written as one)
   is an exponent like any other: result covariant, argument
   contravariant, so never <- B <: never <- A iff A <: B. When the
@@ -880,21 +888,29 @@ class _Checker:
         return all(self._walk(a, s_mod, b, p_mod) for a, b in pairs)
 
     def _walk_exponent(self, sn, s_mod, sp, p_mod) -> bool:
-        """Result covariant; arguments contravariant in application
-        order; a longer sub argument list is a subtype of a shorter.
-        Argument walks swap modules, so the env stacks swap with them:
-        a free name resolves through the env of the syntax it came from."""
-        if not isinstance(sn, _EXP_NODES):
+        """Two functions: the result covariantly, the arguments
+        contravariantly, in the order they are written.
+
+        Only functions compare with functions — never, the bottom, fits
+        anywhere and is answered before this. A chain that writes more
+        arguments than the other carries more than the other asks for, so
+        the longer chain is cut to the shorter one's length and the extra
+        arguments are not compared: (int <- $a int <- $b str) can be used
+        wherever (int <- $a int) is expected, since it has all of that and
+        more. The shared prefix still has to compare.
+
+        Argument walks swap modules, so the env stacks swap with them: a
+        free name resolves through the env of the syntax it came from."""
+        if not (isinstance(sn, _EXP_NODES) and isinstance(sp, _EXP_NODES)):
             return False
         sub_res, sub_args = _exponent_parts(sn)
         sup_res, sup_args = _exponent_parts(sp)
-        if len(sub_args) < len(sup_args):
-            return False
+        length = min(len(sub_args), len(sup_args))
         if not self._walk(sub_res, s_mod, sup_res, p_mod):
             return False
         self._swap_envs()
         try:
-            pairs = zip(sup_args, sub_args)
+            pairs = zip(sup_args[:length], sub_args[:length])
             walks = (self._walk(sa, p_mod, sb, s_mod) for sa, sb in pairs)
             return all(walks)
         finally:
@@ -1089,14 +1105,15 @@ def _exponent_elements(node):
 
 
 def _exponent_parts(node):
-    """指数读成 (结果, 参数表)：结果在前，参数按应用顺序（最右边的先喂）。
+    """指数读成 (结果, 参数表)：结果在前，参数按书写顺序（$arg0 在前）。
 
-    ``A <- B <- C`` 读成 (A, [B, C])——先喂 B 再喂 C。
+    ``A <- B <- C`` 读成 (A, [B, C])：头一个是 ``$arg0`` 那一位，链长不等
+    时按这一头截。支链（``A <- (B <- C)``）算一个参数。
     """
     elements = _exponent_elements(node)
     if not isinstance(node, _EXP_NODES):
         raise TypeError(f"not an exponent: {node!r}")
-    return elements[0], list(reversed(elements[1:]))
+    return elements[0], list(elements[1:])
 
 
 def _type_key(t: Type, env: tuple = ()):
