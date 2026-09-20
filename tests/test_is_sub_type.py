@@ -702,6 +702,10 @@ def run_function_chain_cases():
                  "a branch argument flips the inner direction: the result of contravariance twice")
     check_result(judge("int <- (int <- str <- float)", "int <- (int <- str <- never)"), False,
                  "and the other way round is false")
+    check_result(judge("int <- (int <- never)", "int <- (int <- float <- str)"), True,
+                 "a branch argument of a different arity: the inner sub is cut, never <: float")
+    check_result(judge("int <- (int <- float <- str)", "int <- (int <- never)"), False,
+                 "the other way the inner sub is padded, and float <: never fails")
 
 
 def run_never_head_cases():
