@@ -6,7 +6,9 @@ Partial computation, written in the design itself:
     (A <- $b B <- $c C) << $c C            is  A <- $b B
     (A <- $b B <- $c C) << $c C << $b B    is  A
 
-Giving every argument leaves the result: the chain is gone, not empty. The
+Giving every argument leaves the result: the chain is gone, not empty, and
+documentation (`Hint[$python_code {...}]`) is no argument, so a function that
+ends in one still lands on its result. The
 argument is matched the way the layers address one — by its tag when it is
 tagged, by its written form otherwise — and a design that gives an argument
 the function does not have is a mistake (`PartialError`), not a judgment.
@@ -45,7 +47,10 @@ def _give(base, module, argument, resolve):
     for index, written in enumerate(elements[1:], start=1):
         if _matches(written, argument):
             rest = elements[:index] + elements[index + 1:]
-            if len(rest) == 1:
+            if all(_is_documentation(element) for element in rest[1:]):
+                # Nothing but the result and documentation is left: documentation
+                # is no argument (the judgment drops it too), so this is the
+                # result itself - what a finished call declares at that position.
                 return rest[0], module
             return viba_ast.ExponentChain(rest), module
     raise PartialError(f"the function has no such argument: {_written(argument)}")
@@ -68,6 +73,11 @@ def _unfold(node, module, resolve):
 def _written(node) -> str:
     """The piece as one line: error messages read better without the layout."""
     return " ".join(viba_ast.unparse_type(node).split())
+
+
+def _is_documentation(node) -> bool:
+    """A piece that carries a code block: documentation, not an argument."""
+    return any(isinstance(part, viba_ast.CodeBlock) for part in viba_ast.walk(node))
 
 
 def _matches(written, given) -> bool:

@@ -24,3 +24,15 @@ def metric_func(victim, suspect, at):
     return ((victim.get_x().value - suspect.get_x().value) ** 2
             + (victim.get_y().value - suspect.get_y().value) ** 2) ** 0.5
 }]
+
+# `<<` gives one written argument, so this is the same measurement with the
+# moment already given: a function of the two points.
+GetDistanceAt1230 := GetDistance << $at "12:30"
+
+# Giving every argument leaves the result itself - which is what the prepared
+# call declares at its result position.
+GetDistanceDone :=
+    GetDistance
+  << $at "12:30"
+  << $victim PersonPoint
+  << $suspect PersonPoint

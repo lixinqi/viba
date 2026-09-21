@@ -16,11 +16,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba import viba_ast
 from viba.check_tag_and_inline import check_tag_and_inline
 from viba.is_sub_type import is_sub_type
-from viba.reflect import VibaNode, access as reflect_access
+from viba.reflect import VibaNode, access as reflect_access, language_config
 from viba.rule import (check_rule_coding_style, is_compliant,
                        reset_predication_by_python_code)
 from viba.rule.generate_witnesses import generate_witness
-from viba.type import AstNodeType, CustomModuleType, Err, Ok
+from viba.type import AstNodeType, CustomModuleType, Err, Ok, entry_type
 from viba.viba_type_descriptor import (descriptor_of, empty_pool, parse_viba_file,
                                        pool_add_file)
 
@@ -111,9 +111,26 @@ def main() -> int:
     check(isinstance(reviewed, Ok), f"check_tag_and_inline over the demo: {reviewed!r}")
 
     get_distance = _definition(functions, "GetDistance")
-    verdict = is_sub_type(get_distance, _definition(metric, "MetricFuncInterface"))
+    verdict = is_sub_type(get_distance, _definition(metric, "MetricFuncInterface"),
+                          config=language_config)
     check(isinstance(verdict, Ok) and verdict.ok_value is True,
           f"GetDistance <: MetricFuncInterface: {verdict!r}")
+
+    # The demo's `<<`: the moment given leaves a function of the two points,
+    # and giving those too leaves the declared result.
+    at_1230 = _definition(functions, "GetDistanceAt1230")
+    points = entry_type("metric.Result[int] <- $victim PersonPoint <- $suspect PersonPoint",
+                        functions)
+    verdict = is_sub_type(at_1230, points, config=language_config)
+    check(isinstance(verdict, Ok) and verdict.ok_value is True,
+          f"GetDistance << $at \"12:30\" is the two-point function: {verdict!r}")
+    check(is_sub_type(points, at_1230, config=language_config).ok_value is True,
+          "and the two are the same type the other way round")
+    done = _definition(functions, "GetDistanceDone")
+    verdict = is_sub_type(done, entry_type("metric.Result[int]", functions),
+                          config=language_config)
+    check(isinstance(verdict, Ok) and verdict.ok_value is True,
+          f"giving every argument leaves the result: {verdict!r}")
 
     rule = _definition(designs, "DemoRule")
     style = check_rule_coding_style(rule)
