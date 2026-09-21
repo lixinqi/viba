@@ -24,6 +24,7 @@ from viba.viba_ast.nodes import (
     Constant,
     Nil,
     Never,
+    Any,
     Ellipsis,
     CodeBlock,
     AST,
@@ -58,6 +59,7 @@ tokens = (
     "COMMA",
     "NIL",
     "NEVER",
+    "ANY",
     "ELLIPSIS",  # ...
     "CODE_BLOCK",  # { ... }
 )
@@ -140,6 +142,11 @@ def t_TRIPLE_STRING(t):
 def t_SINGLE_STRING(t):
     r"'([^\\\n]|(\\.))*?'"
     t.value = t.value[1:-1]
+    return t
+
+
+def t_ANY(t):
+    r"Any\b"
     return t
 
 
@@ -394,6 +401,7 @@ def p_primary_expr(p):
     | literal
     | NIL
     | NEVER
+    | ANY
     | ELLIPSIS
     | LPAREN partial_expr RPAREN
     | LPAREN adt_expr_list RPAREN
@@ -408,6 +416,8 @@ def p_primary_expr(p):
             p[0] = Nil()
         elif val == "never":
             p[0] = Never()
+        elif val == "Any":
+            p[0] = Any()
         elif val == "...":
             p[0] = Ellipsis()
         else:
@@ -477,6 +487,9 @@ if __name__ == "__main__":
         ('UnicodeStr := "中文🙂"', "Unicode string literal"),
         ("MultilineStr := '''one\ntwo'''", "Triple-quoted string spanning lines"),
         ("TrailingSlashStr := '''trail\\'''", "Triple-quoted string ending in a backslash"),
+        # 10i-10j: the top type
+        ("Top := Any", "The top type"),
+        ("TopSum := Any | int * str", "The top inside a sum and a product"),
         # 10f-10h: partial computation, `<<`
         ("Partial := (A <- $b B <- $c C) << $b B",
          "Function with one argument given"),

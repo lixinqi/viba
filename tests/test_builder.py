@@ -941,6 +941,22 @@ def test_builder_canonical_case_004():
 
 
 # ----------------------------------------------------------------------
+# 上界 Any
+# ----------------------------------------------------------------------
+
+
+def test_builder_any_case_001():
+    """`vb.Any` 写出来是关键字 Any，读回来还是它。"""
+    vb = builder.Builder()
+    vb.Top = vb.Any
+    vb.Maybe = vb.Top | None
+    assert str(vb).rstrip("\n") == "Top :=\n  Any\n\nMaybe :=\n  Top\n  | nil"
+    node = _one(vb, "Top")
+    assert _shape(node.body) == "Any"
+    assert viba_ast.unparse(viba_ast.parse(str(vb))) == str(vb).rstrip("\n")
+
+
+# ----------------------------------------------------------------------
 # 部分计算 `<<`
 # ----------------------------------------------------------------------
 

@@ -50,6 +50,7 @@ EXPONENT = "exponent"
 LITERAL = "literal"
 NIL = "nil"
 NEVER = "never"
+ANY = "any"
 ELLIPSIS = "ellipsis"
 CODE_BLOCK = "code_block"
 
@@ -448,6 +449,8 @@ def _partial_target(pool, name, module):
 
 
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
+    if isinstance(node, ast_nodes.Any):
+        return VibaTypeDescriptor(ANY)
     if isinstance(node, ast_nodes.Partial):
         reduced, _ = reduce_partial(node, module,
                                     lambda name, home: _partial_target(pool, name, home),

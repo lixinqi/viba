@@ -861,6 +861,37 @@ Box := A <- $b B
                  "giving Num to an Int slot is refused (Num <: Int does not hold)")
 
 
+def run_any_cases():
+    """Any 是所有类型的上界：T <: Any 恒真，反过来只有落在 Any（或等价于 Any 的
+    形状，如 Any | int、Any * nil）上才真。"""
+    module = custom_module("""
+A := int
+B := $x int * $y str
+C := int | str
+D := int <- $x str
+E := (int, str)
+Box[T] := $v T
+""")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    for sub in ("int", "str", "bool", "float", "nil", "never", "A", "B", "C", "D", "E",
+                "Box[int]", "7", '"x"', "true", "{code}", "Any | int", "Any * nil",
+                "$x Any", "list[int]"):
+        check_result(judge(sub, "Any"), True, f"{sub} <: Any")
+    check_result(judge("never", "Any"), True, "bottom fits the top too")
+    check_result(judge("Any", "Any"), True, "Any is a subtype of itself")
+    check_result(judge("Any", "Any | int"), True, "a sum with an Any branch is Any")
+    check_result(judge("Any", "Any * nil"), True, "a product whose rest is the unit is Any")
+    for sup in ("int", "nil", "never", "A", "B", "C", "D", "Any <- $x int", "$x int",
+                "list[int]"):
+        check_result(judge("Any", sup), False, f"Any <: {sup}")
+    check_result(judge("$x int", "$x Any"), True, "a member may widen to Any")
+    check_result(judge("$x Any", "$x int"), False, "but not narrow")
+    check_result(judge("Any", "$x Any"), True, "a bare Any fits the tagged field it is")
+
+
 def run_never_head_cases():
     """Without terminators named, a never-headed chain is just an exponent."""
     module = custom_module("""
@@ -995,6 +1026,7 @@ run_never_head_cases()
 run_code_block_cases()
 run_canonical_chain_cases()
 run_apply_cases()
+run_any_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

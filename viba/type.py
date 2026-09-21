@@ -56,6 +56,10 @@ class NeverType(Type):
     """never — the sum identity (bottom)."""
 
 
+class AnyType(Type):
+    """Any — the top type: every type is a subtype of it."""
+
+
 class NilType(Type):
     """nil — the product identity (unit). void/None are aliases."""
 

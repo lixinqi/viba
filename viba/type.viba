@@ -7,6 +7,7 @@
 
 Type :=
   Oneof
+  | $any_type ()                  # Any：所有类型的上界
   | $never_type ()
   | $nil_type ()
   | $bool_type ()
@@ -52,6 +53,8 @@ IsSubType :=
     Err（UnresolvedTypeError 在边界转为 Err）。
     指数参数交换模块时 env 随之交换：自由名永远经自己语法一侧的
     env_get 解析。
+    Any 是顶：T <: Any 恒真（sub 是不是 never 都一样）。反过来 Any <: T 只在 T 落成
+    Any 时为真——Any | int 与 Any * nil 都等价于 Any，所以它们也算；其余一律假。
     指数链（函数）之间比函数：结果协变、参数逆变，按书写顺序逐位比（$arg0
     对 $arg0）；只有函数能和函数比（never 是底，谁都收得下，在那之前就答了）。
     文档不算参数：代码块本身，或配置说成单位元的名字带上代码块（Assert 是

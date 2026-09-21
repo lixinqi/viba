@@ -213,8 +213,9 @@ HLSegment[T] := $data T * $next ...
 同样，`nil` 和 `never` 作为单位元和零元，这些设计保证了代数恒等式成立。`()` 是空 tuple——它自己的类型，只是基数也等于 1，并不与 `nil` 混同：
 
 ```
-A | never == A      （never 是 sum 的零元）
+A | never == A      （never 是 sum 的零元，也是底：什么都是它的上界）
 A * nil == A        （nil 是 product 的单位元）
+A | Any == Any      （Any 是顶：任何类型都是它的子类型）
 ```
 
 **但是这些严谨性不是为了理论正确，而是为了让 Agent 不需要记住「特殊情况」**。Agent 读到 `A | never` 应该直接等价于 `A`，不需要绕一个弯。

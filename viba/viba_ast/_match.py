@@ -28,6 +28,7 @@ def viba_type_match(
     Constant: Callable[[Any], Any] = None,
     Nil: Callable[[Any], Any] = None,
     Never: Callable[[Any], Any] = None,
+    Any: Callable[[Any], Any] = None,
     Ellipsis: Callable[[Any], Any] = None,
     CodeBlock: Callable[[Any], Any] = None,
     SumChain: Callable[[Any], Any] = None,

@@ -126,6 +126,12 @@ class Never(AST):
     _fields = ()
 
 
+class Any(AST):
+    """Any — the top type: every type is a subtype of it."""
+
+    _fields = ()
+
+
 class Ellipsis(AST):
     """... — open/variadic marker."""
 

@@ -348,6 +348,8 @@ class _Name(_Expr):
             return viba_ast.Nil()
         if self.path == "never":
             return viba_ast.Never()
+        if self.path == "Any":
+            return viba_ast.Any()
         if self.path in _SLIPS:
             raise TypeError(f"write {_SLIPS[self.path]}, not vb.{self.path}")
         return viba_ast.TypeRef(self.path)
@@ -446,7 +448,7 @@ def _definition_name(name: str) -> str:
     raise TypeError(f"{name!r} is not a definition name")
 
 
-_RESERVED = ("true", "false", "nil", "void", "None", "never", "import", "as")
+_RESERVED = ("true", "false", "nil", "void", "None", "never", "Any", "import", "as")
 
 # The builtin containers are a shape, not names: the parser refuses them as
 # definition names and as generic parameters (viba/parser.py:

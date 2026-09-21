@@ -109,10 +109,12 @@ def _check_shapes():
     definition = pool_find_definition(pool, "shapes.Shapes").ok_value
     members = definition_members(definition).ok_value
     assert [m.tag for m in members] == ["$items", "$seen", "$table", "$maybe",
-                                        "$pair", "$inline", "$lit", "$code", "$fn"]
+                                        "$pair", "$inline", "$lit", "$code", "$fn",
+                                        "$top"]
     assert [m.member_type.kind for m in members] == ["type_app", "type_app", "type_app",
                                                      "sum", "tuple", "sum",
-                                                     "literal", "code_block", "exponent"]
+                                                     "literal", "code_block", "exponent",
+                                                     "any"]
     # 只有写成名字的成员才有 type_name；内联结构没有
     assert isinstance(member_type_name(members[0]), Err)
     assert isinstance(member_type_name(members[5]), Err)

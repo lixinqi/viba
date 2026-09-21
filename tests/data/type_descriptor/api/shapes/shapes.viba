@@ -9,3 +9,4 @@ Shapes :=
   * $lit 42
   * $code {hello}
   * $fn (int <- str)
+  * $top Any

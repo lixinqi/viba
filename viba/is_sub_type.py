@@ -85,6 +85,7 @@ from viba import viba_ast
 from viba.partial import reduce_partial
 from viba.type import (
     PartialError,
+    AnyType,
     AstNodeType,
     BoolLiteralType,
     BoolType,
@@ -246,6 +247,10 @@ class _Checker:
             return NilType()
         if isinstance(node, viba_ast.Never):
             return NeverType()
+        # Any is not lifted: what it is *below* depends on the shape on the
+        # other side (`Any * nil` is Any, `Any | int` is Any), so the walk
+        # decides it. AnyType serves the Type-level API, and the top rule
+        # (`sup is AnyType`: everything fits) is what the walk asks first.
         if isinstance(node, viba_ast.TypeRef):
             return self._lift_ref(node, module, side)
         return None
@@ -259,6 +264,10 @@ class _Checker:
     def _check_uncached(self, sub: Type, sup: Type) -> bool:
         if isinstance(sub, NeverType):
             return True
+        if isinstance(sup, AnyType):
+            return True                     # Any is the top: everything fits
+        if isinstance(sub, AnyType):
+            return isinstance(sup, AnyType)     # Any is only below Any
         if isinstance(sup, (NeverType, NilType)):
             return type(sub) is type(sup)
         result = self._probe_leaves(sub, sup)
@@ -371,6 +380,12 @@ class _Checker:
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
         if isinstance(sn, viba_ast.Never):
             return True  # bottom fits anywhere
+        if isinstance(sp, viba_ast.Any):
+            # Any is the top: everything is its subtype. The other direction is
+            # no special case: Any fits a sum that has an Any branch, or a
+            # product whose other members are units, and nothing else - the
+            # ordinary walk already says so.
+            return True
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
             # 叶子对叶子：写名字（含泛型形参）也要认出来，名字是透明的。
             sub_leaf = self._lift(sn, s_mod, "sub")

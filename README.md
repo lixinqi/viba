@@ -20,7 +20,8 @@ Name[T, U, ...] := body
 | Generic | `Name[T]` | Parameterized type |
 | Tag | `$label T` | Named field / variant |
 | Nil | `nil` | Product identity (`A * nil = A`); `void` and `None` are aliases |
-| Never | `never` | Sum identity (`A \| never = A`) |
+| Never | `never` | Sum identity (`A \| never = A`), the bottom: it is a subtype of everything |
+| Any | `Any` | The top: every type is its subtype, and only Any (or a shape equal to it, e.g. `Any \| int`) is below it |
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
 | Code block | `{ ... }` | Arbitrary text, supports nesting |
