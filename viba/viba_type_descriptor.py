@@ -29,6 +29,7 @@ from viba import viba_ast
 from viba.partial import reduce_partial
 from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
+    PartialError,
     AstNodeType,
     CustomModuleType,
     Err,
@@ -307,7 +308,10 @@ def parse_viba_file(pool: VibaPool, source: str, file_name: str, module_name: st
     except Exception as exc:  # syntax error: the parser raises, turn it into Err
         return Err(f"cannot parse: {exc!r}")
     file_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    return Ok(_build_file(pool, tree, file_name, module_name, file_hash))
+    try:
+        return Ok(_build_file(pool, tree, file_name, module_name, file_hash))
+    except PartialError as exc:  # a design mistake, like a duplicate tag
+        return Err(str(exc))
 
 
 def _build_file(pool: VibaPool, tree, file_name: str, module_name: str, file_hash: str) -> VibaFileDescriptor:

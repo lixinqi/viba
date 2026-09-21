@@ -40,7 +40,7 @@ def _give(base, module, argument, resolve):
     base, module = _unfold(base, module, resolve)
     if not isinstance(base, _EXP_NODES):
         raise PartialError(
-            f"only a function has arguments to give, not {viba_ast.unparse_type(base)}")
+            f"only a function has arguments to give, not {_written(base)}")
     elements = _elements(base)
     for index, written in enumerate(elements[1:], start=1):
         if _matches(written, argument):
@@ -48,8 +48,7 @@ def _give(base, module, argument, resolve):
             if len(rest) == 1:
                 return rest[0], module
             return viba_ast.ExponentChain(rest), module
-    raise PartialError(
-        f"the function has no such argument: {viba_ast.unparse_type(argument)}")
+    raise PartialError(f"the function has no such argument: {_written(argument)}")
 
 
 def _unfold(node, module, resolve):
@@ -64,6 +63,11 @@ def _unfold(node, module, resolve):
             return node, module
         node, module = target
     return node, module
+
+
+def _written(node) -> str:
+    """The piece as one line: error messages read better without the layout."""
+    return " ".join(viba_ast.unparse_type(node).split())
 
 
 def _matches(written, given) -> bool:

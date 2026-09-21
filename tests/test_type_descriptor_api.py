@@ -226,6 +226,16 @@ def _check_errors():
     # import 一个叫 list 的模块不会把内建容器顶掉
     shadow = custom_module("import list\nZ := int\n")
     assert isinstance(module_get_type(shadow, "list"), Ok), "list still resolves"
+    # `<<` 给的不是函数：设计写错，编的时候就给 Err（不是留到判定）
+    for bad in ("P := (int * str) << $b str\n",
+                "S := (int | str) << $b str\n",
+                "L := 7 << $b str\n",
+                "N := int << $b str\n",
+                "M := (int <- $b str) << $c str\n"):
+        assert isinstance(parse_viba_file(empty_pool(), bad, "partial.viba", "partial"), Err), bad
+    for good in ("G := (int <- $b str) << $b str\n",
+                 "H := (int <- $b str <- $c bool) << $c bool << $b str\n"):
+        assert isinstance(parse_viba_file(empty_pool(), good, "partial_ok.viba", "partial_ok"), Ok), good
     # 已知的分歧：点分定义名现在能编（builder 那边 `vb.a.b = …` 是拦的）
     assert isinstance(parse_viba_file(empty_pool(), "a.b := int\n", "dotted.viba", "dotted"), Ok)
 
