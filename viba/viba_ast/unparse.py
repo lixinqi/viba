@@ -13,6 +13,7 @@ from viba.viba_ast.nodes import (
     Sum,
     Product,
     Exponent,
+    Apply,
     Tagged,
     TypeApp,
     Tuple,
@@ -57,6 +58,7 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
         Sum=lambda s: _unparse_binary(s, " | ", indent, depth),
         Product=lambda p: _unparse_binary(p, " * ", indent, depth),
         Exponent=lambda e: _unparse_exponent(e, indent, depth),
+        Apply=lambda a: _unparse_apply(a, indent, depth),
         Tagged=lambda t: f"{unparse_tag(t)}{_tagged_body_parens(t.type, _unparse_type(t.type, indent, depth), ' ' * (indent * depth))}",
         TypeApp=lambda a: _unparse_typeapp(a, indent, depth),
         Tuple=lambda t: _unparse_tuple(t, indent, depth),
@@ -123,6 +125,19 @@ def _unparse_exponent(exp_node: Exponent, indent: int, depth: int) -> str:
         argument = f"({argument})"
 
     return f"{result} <- {argument}"
+
+
+def _unparse_apply(node: Apply, indent: int, depth: int) -> str:
+    """Unparse `function << argument`."""
+    function = _unparse_type(node.function, indent, depth + 1)
+    argument = _unparse_type(node.argument, indent, depth + 1)
+
+    if _is_binary(node.function):
+        function = f"({function})"
+    if _is_binary(node.argument):
+        argument = f"({argument})"
+
+    return f"{function} << {argument}"
 
 
 def _unparse_typeapp(app_node: TypeApp, indent: int, depth: int) -> str:

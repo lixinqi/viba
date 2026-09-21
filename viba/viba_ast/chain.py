@@ -20,6 +20,7 @@ from viba.viba_ast.nodes import (
     Sum,
     Product,
     Exponent,
+    Apply,
     Tagged,
     TypeApp,
     Tuple,
@@ -36,6 +37,8 @@ def convert_to_chain_style(node: AST) -> AST:
         Sum=lambda s: _flatten_sum(s),
         Product=lambda p: _flatten_product(p),
         Exponent=lambda e: _flatten_exponent(e),
+        Apply=lambda a: Apply(convert_to_chain_style(a.function),
+                              convert_to_chain_style(a.argument)),
         TypeDefinition=lambda d: TypeDefinition(
             d.name, convert_to_chain_style(d.body)
         ),

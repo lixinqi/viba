@@ -76,6 +76,12 @@ class Exponent(AST):
     _fields = ("result", "argument")
 
 
+class Apply(AST):
+    """function << argument — the written argument is given to the function."""
+
+    _fields = ("function", "argument")
+
+
 class Tagged(AST):
     """$tag Type"""
 

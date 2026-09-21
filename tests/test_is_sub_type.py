@@ -813,6 +813,46 @@ Metric[CoreFunc] :=
                  "without the config nothing is named, so nothing drops")
 
 
+def run_apply_cases():
+    """`<<`：部分计算。给出一个参数，剩下的就是函数；给全了就是结果本身。
+    给函数没有的参数、或者给一个不是函数的东西，都是不合法输入（Err）。"""
+    module = custom_module("""
+A := int
+B := str
+C := bool
+Given := (A <- $b B <- $c C) << $b B
+GivenTail := (A <- $b B <- $c C) << $c C
+GivenAll := (A <- $b B <- $c C) << $c C << $b B
+GivenAllOther := (A <- $b B <- $c C) << $b B << $c C
+Named := Box << $b B
+Box := A <- $b B
+""")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    check_result(judge("Given", "A <- $c C"), True,
+                 "giving the front argument leaves the rest")
+    check_result(judge("A <- $c C", "Given"), True,
+                 "and the two are the same type the other way round")
+    check_result(judge("GivenTail", "A <- $b B"), True,
+                 "giving the last one leaves the front")
+    check_result(judge("GivenAll", "A"), True,
+                 "giving every argument leaves the result")
+    check_result(judge("GivenAllOther", "A"), True,
+                 "in any order")
+    check_result(judge("Named", "A"), True,
+                 "the function may be written as a name")
+    check_result(judge("(A <- $b B <- $c C) << $b B", "A <- $c C"), True,
+                 "written inline, no definition needed")
+    check_result(judge("$x ((A <- $b B) << $b B)", "$x A"), True,
+                 "a member of a product is reduced too")
+    check_result(judge("(A <- $b B) << $c C", "never"), "error",
+                 "an argument the function does not have -> Err")
+    check_result(judge("(A * B) << $b B", "never"), "error",
+                 "an argument given to something that is no function -> Err")
+
+
 def run_never_head_cases():
     """Without terminators named, a never-headed chain is just an exponent."""
     module = custom_module("""
@@ -946,6 +986,7 @@ run_config_cases()
 run_never_head_cases()
 run_code_block_cases()
 run_canonical_chain_cases()
+run_apply_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

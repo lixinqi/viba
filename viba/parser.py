@@ -16,6 +16,7 @@ from viba.viba_ast.nodes import (
     Sum,
     Product,
     Exponent,
+    Apply,
     Tagged,
     TypeApp,
     Tuple,
@@ -45,6 +46,7 @@ tokens = (
     "SUM_OP",  # |
     "PROD_OP",  # *
     "EXP_OP",  # <-
+    "APPLY_OP",  # <<
     "IMPORT",  # import
     "AS",  # as
     "LBRACKET",  # [
@@ -63,6 +65,8 @@ tokens = (
 t_ASSIGN = r":="
 t_SUM_OP = r"\|"
 t_PROD_OP = r"\*"
+# `<<` is listed first: PLY takes same-length tokens in definition order.
+t_APPLY_OP = r"<<"  
 t_EXP_OP = r"<-"
 t_LBRACKET = r"\["
 t_RBRACKET = r"\]"
@@ -252,13 +256,22 @@ def check_definition_names(definitions) -> None:
                 _reject_builtin_name(param, "a generic parameter")
 
 
+def p_apply_expr(p):
+    """apply_expr : apply_expr APPLY_OP adt_expr
+    | adt_expr"""
+    if len(p) == 4:
+        p[0] = Apply(p[1], p[3])
+    else:
+        p[0] = p[1]
+
+
 def p_type_definition(p):
-    """type_definition : CLASS_NAME ASSIGN adt_expr"""
+    """type_definition : CLASS_NAME ASSIGN apply_expr"""
     p[0] = TypeDefinition(p[1], p[3])
 
 
 def p_generic_definition(p):
-    """generic_definition : CLASS_NAME LBRACKET CLASS_NAME type_param_list RBRACKET ASSIGN adt_expr"""
+    """generic_definition : CLASS_NAME LBRACKET CLASS_NAME type_param_list RBRACKET ASSIGN apply_expr"""
     p[0] = GenericDefinition(p[1], [p[3]] + p[4], p[7])
 
 
@@ -334,7 +347,7 @@ def p_type_app_expr(p):
 
 
 def p_optional_type_args(p):
-    """optional_type_args : LBRACKET adt_expr adt_arg_list RBRACKET
+    """optional_type_args : LBRACKET apply_expr adt_arg_list RBRACKET
     | LBRACKET RBRACKET
     | epsilon"""
     if len(p) == 5:
@@ -346,7 +359,7 @@ def p_optional_type_args(p):
 
 
 def p_adt_arg_list(p):
-    """adt_arg_list : COMMA adt_expr adt_arg_list
+    """adt_arg_list : COMMA apply_expr adt_arg_list
     | epsilon"""
     if len(p) > 2:
         p[0] = [p[2]] + p[3]
@@ -360,8 +373,8 @@ def p_adt_arg_list(p):
 
 
 def p_adt_expr_list(p):
-    """adt_expr_list : adt_expr COMMA adt_expr
-    | adt_expr COMMA adt_expr_list"""
+    """adt_expr_list : apply_expr COMMA apply_expr
+    | apply_expr COMMA adt_expr_list"""
     # Flattens comma-separated expressions into a Python list
     if len(p) == 4 and not isinstance(p[3], list):
         p[0] = [p[1], p[3]]
@@ -382,7 +395,7 @@ def p_primary_expr(p):
     | NIL
     | NEVER
     | ELLIPSIS
-    | LPAREN adt_expr RPAREN
+    | LPAREN apply_expr RPAREN
     | LPAREN adt_expr_list RPAREN
     | CODE_BLOCK"""
     # 1. Handle atomic units (Length 2)
@@ -464,6 +477,13 @@ if __name__ == "__main__":
         ('UnicodeStr := "中文🙂"', "Unicode string literal"),
         ("MultilineStr := '''one\ntwo'''", "Triple-quoted string spanning lines"),
         ("TrailingSlashStr := '''trail\\'''", "Triple-quoted string ending in a backslash"),
+        # 10f-10h: partial computation, `<<`
+        ("Partial := (A <- $b B <- $c C) << $b B",
+         "Function with one argument given"),
+        ("PartialAll := T << $c C << $b B",
+         "Arguments given in the other order"),
+        ("PartialNested := M << $b (P * Q)",
+         "The given argument is a product"),
         # 11-15: Semantic Paths & Tagging
         ("SimpleTag := $target Output", "Basic tagged type"),
         ("NestedPath := $meta.id.hash STRING", "Nested semantic path ($a.b.c)"),

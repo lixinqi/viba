@@ -82,7 +82,9 @@ alias of what it is written as, and judgment is structural throughout.
 """
 
 from viba import viba_ast
+from viba.apply import reduce_apply
 from viba.type import (
+    ApplyError,
     AstNodeType,
     BoolLiteralType,
     BoolType,
@@ -143,6 +145,8 @@ def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> R
     try:
         return Ok(_Checker(terminators, config).check(sub, sup))
     except UnresolvedTypeError as exc:
+        return Err(str(exc))
+    except ApplyError as exc:
         return Err(str(exc))
     except DuplicateTagError as exc:
         return Err(str(exc))
@@ -317,8 +321,10 @@ class _Checker:
         # what the layer said it is, so it answers before anything unfolds.
         sn = self._config_unit_node(sn)
         sp = self._config_unit_node(sp)
-        sn, s_mod = self._unfold_ref(sn, s_mod, "sub")
-        sp, p_mod = self._unfold_ref(sp, p_mod, "sup")
+        # Names unfold, `<<` is given, and both can hand the other work (`A := B`
+        # with `B := X << Y`): run them until neither has anything left.
+        sn, s_mod = self._normalize(sn, s_mod, "sub")
+        sp, p_mod = self._normalize(sp, p_mod, "sup")
         sn = self._config_unit_node(sn)
         sp = self._config_unit_node(sp)
         senv, penv = self._env_ids("sub"), self._env_ids("sup")
@@ -830,6 +836,7 @@ class _Checker:
         try:
             node, node_mod = elem, module
             while True:
+                node, node_mod = self._apply(node, node_mod, side)
                 if isinstance(self._config_unit(node), NilType):
                     # A unit a config names is no member: a name is bypassed,
                     # not resolved, so it stays the unit it was declared to be.
@@ -897,6 +904,33 @@ class _Checker:
         if not isinstance(resolved.ok_value.ast_node, viba_ast.TypeDefinition):
             return None
         return ("inline", id(resolved.ok_value.ast_node)), node.name
+
+    def _normalize(self, node, module, side: str):
+        """Unfold names and give `<<` until neither is left."""
+        while True:
+            before = (id(node), id(module))
+            node, module = self._unfold_ref(node, module, side)
+            node, module = self._apply(node, module, side)
+            if (id(node), id(module)) == before:
+                return node, module
+
+    def _apply(self, node, module, side: str):
+        """A design's `<<` reduced: the function with that argument given."""
+        if not isinstance(node, viba_ast.Apply):
+            return node, module
+        return reduce_apply(node, module, lambda name, home: self._apply_target(name, home, side))
+
+    def _apply_target(self, name, module, side: str):
+        """(body, home) for the name a `<<` gives to, or None."""
+        resolved = self._resolve_name(name, module, side)
+        if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
+            return None
+        node = resolved.ok_value.ast_node
+        if isinstance(node, viba_ast.GenericDefinition):
+            return None                     # a bare generic name has no body
+        if isinstance(node, viba_ast.TypeDefinition):
+            node = node.body
+        return node, resolved.ok_value.container_module
 
     def _config_unit(self, node):
         """The unit the config calls this piece, or None.

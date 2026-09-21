@@ -26,6 +26,7 @@ import hashlib
 from typing import Callable, Dict, List, Optional
 
 from viba import viba_ast
+from viba.apply import reduce_apply
 from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
     AstNodeType,
@@ -418,7 +419,24 @@ def descriptor_of(node) -> VibaTypeDescriptor:
     return _build_type(empty_pool(), node.container_module, node.ast_node)
 
 
+def _apply_target(pool, name, module):
+    """(body, home) for the name a `<<` gives to, or None."""
+    resolved = module_get_type(module, name)
+    if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
+        return None
+    node = resolved.ok_value.ast_node
+    if isinstance(node, ast_nodes.GenericDefinition):
+        return None
+    if isinstance(node, ast_nodes.TypeDefinition):
+        node = node.body
+    return node, resolved.ok_value.container_module
+
+
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
+    if isinstance(node, ast_nodes.Apply):
+        reduced, _ = reduce_apply(node, module,
+                                  lambda name, home: _apply_target(pool, name, home))
+        return _build_type(pool, module, reduced)
     resolvable = AstNodeType(node, module)
     if isinstance(node, (ast_nodes.Product, ast_nodes.ProductChain)):
         return VibaTypeDescriptor(PRODUCT, VibaChainDescriptor(
