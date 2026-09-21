@@ -1,6 +1,6 @@
 # Viba
 
-A DSL for defining types using algebraic operations — sum (`|`), product (`*`), and exponent (`<-`).
+A DSL for defining types using algebraic operations — sum (`|`), product (`*`), exponent (`<-`), and partial computation (`<<`).
 
 ## Language Reference
 
@@ -16,6 +16,7 @@ Name[T, U, ...] := body
 | Sum | `A \| B` | Either A or B |
 | Product | `A * B` | Both A and B |
 | Exponent | `B <- A` | Function from A to B |
+| Partial | `T << $a A` | Function T with that written argument given: `(B <- $a A) << $a A` is `B` |
 | Generic | `Name[T]` | Parameterized type |
 | Tag | `$label T` | Named field / variant |
 | Nil | `nil` | Product identity (`A * nil = A`); `void` and `None` are aliases |
@@ -37,11 +38,13 @@ Name[T, U, ...] := body
 
 ### Operator Precedence (low to high)
 
-1. `|` (sum) — left-associative
-2. `*` (product) — left-associative
-3. `<-` (exponent) — left-associative
+1. `<<` (partial computation) — left-associative, loosest
+2. `|` (sum) — left-associative
+3. `*` (product) — left-associative
+4. `<-` (exponent) — left-associative
 
-All binary operators are left-associative.
+All binary operators are left-associative. `T << X` is not a constructor: it reduces a
+written function on the spot, and giving every argument leaves the result itself.
 
 ### Examples
 
@@ -94,6 +97,8 @@ intermediate representation.
 | `ast/_match.py` | Keyword-argument pattern matching over node classes |
 | `ast/__init__.py` | Public API: `parse`, `unparse`, `canonical`, `dump`, `walk`, visitors |
 | `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
+| `partial.py` | Reduces `T << X`: the function with that written argument given |
+| `api.viba` | The package's top-level API, as viba signatures |
 
 `viba/rule/` is the rule layer — a Viba application built on the core.
 The rule vocabulary (`RuleObject`, `Predicate`, `Metric`,
@@ -102,7 +107,9 @@ the accumulated API:
 
 | Module | Summary |
 |--------|---------|
-| `rule/generate_witnesses.py` | Random witnesses of a rule |
+| `rule/generate_witnesses.py` | Witnesses of a rule: random ones, and the measured one a prepared call yields |
+| `rule/markers.py` | The rule marker (`RuleObject`) and the definitions that carry it |
+| `rule/demo/` | The worked example: metric function, prepared call, rule |
 | `rule/reset_predication_by_python_code.py` | Runs each `Predicate`'s `$python_code`; a false predication becomes the poison |
 | `rule/is_compliant.py` | `witness <: rule` |
 | `rule/check_rule_coding_style.py` | Checks a rule against `viba-rule.md` |

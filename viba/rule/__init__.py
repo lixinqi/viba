@@ -6,6 +6,7 @@ Metric, PredicationFailed, not) lives in viba/builtin.viba, and these
 modules carry the accumulated rule-level API:
 
 - generate_witnesses: random witnesses of a rule;
+- generate_witness: the witness a prepared call yields, its value computed;
 - reset_predication_by_python_code: run each Predicate's $python_code
   and swap a false predication for the poison;
 - is_compliant: witness <: rule;
@@ -16,13 +17,14 @@ modules carry the accumulated rule-level API:
 """
 
 from viba.rule.check_determinate import check_determinate
-from viba.rule.generate_witnesses import generate_witnesses
+from viba.rule.generate_witnesses import generate_witness, generate_witnesses
 from viba.rule.is_compliant import is_compliant
 from viba.rule.is_shape_compatible import is_shape_compatible
 from viba.rule.reset_predication_by_python_code import reset_predication_by_python_code
 from viba.rule.check_rule_coding_style import check_rule_coding_style
 
 __all__ = [
+    "generate_witness",
     "generate_witnesses",
     "reset_predication_by_python_code",
     "is_compliant",
