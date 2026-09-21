@@ -836,7 +836,7 @@ class _Checker:
         try:
             node, node_mod = elem, module
             while True:
-                node, node_mod = self._apply(node, node_mod, side)
+                node, node_mod = self._partial(node, node_mod, side)
                 if isinstance(self._config_unit(node), NilType):
                     # A unit a config names is no member: a name is bypassed,
                     # not resolved, so it stays the unit it was declared to be.
@@ -910,18 +910,18 @@ class _Checker:
         while True:
             before = (id(node), id(module))
             node, module = self._unfold_ref(node, module, side)
-            node, module = self._apply(node, module, side)
+            node, module = self._partial(node, module, side)
             if (id(node), id(module)) == before:
                 return node, module
 
-    def _apply(self, node, module, side: str):
+    def _partial(self, node, module, side: str):
         """A design's `<<` reduced: the function with that argument given."""
         if not isinstance(node, viba_ast.Partial):
             return node, module
         return reduce_partial(node, module,
-                              lambda name, home: self._apply_target(name, home, side))
+                              lambda name, home: self._partial_target(name, home, side))
 
-    def _apply_target(self, name, module, side: str):
+    def _partial_target(self, name, module, side: str):
         """(body, home) for the name a `<<` gives to, or None."""
         resolved = self._resolve_name(name, module, side)
         if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):

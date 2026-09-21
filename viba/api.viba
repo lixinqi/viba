@@ -36,6 +36,22 @@ ToChain := AST <- $node AST <- Comments[{A * (B * C) 与 A * B * C 到这一步�
 FromChain := AST <- $node AST
 
 # ----------------------------------------------------------------------
+# Partial computation: viba.partial
+# ----------------------------------------------------------------------
+
+# reduce_partial(node, module, resolve) -> (node, module)
+ReducePartial :=
+    (AST, ModuleType)
+  <- $node AST
+  <- $module ModuleType
+  <- $resolve ((AST, ModuleType) <- $name str <- $module ModuleType)
+  <- Comments[{
+      把设计里的 `<<` 给掉：左边（展开名字之后）得是指数链，右边是写下的那个参数
+      （带 tag 按 tag 认，不带 tag 按写法认）。给完剩零个参数就是结果本身；
+      给的不是函数、或函数没有那个参数，都是 PartialError —— 判定与载入都把它变成 Err。
+    }]
+
+# ----------------------------------------------------------------------
 # The type model: viba.type
 # ----------------------------------------------------------------------
 

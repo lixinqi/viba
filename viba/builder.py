@@ -253,7 +253,7 @@ class _TagFactory:
 tag = _TagFactory()
 
 
-class _Apply(_Expr):
+class _TypeApp(_Expr):
     def __init__(self, constructor, args):
         self.constructor = _path(constructor)
         self.args = [_wrap(a) for a in args]
@@ -326,8 +326,8 @@ class _Name(_Expr):
             raise AttributeError(name)
         return _Name(f"{self.path}.{name}", self.owner)
 
-    def __getitem__(self, key) -> _Apply:
-        return _Apply(self.path, _items(key))
+    def __getitem__(self, key) -> _TypeApp:
+        return _TypeApp(self.path, _items(key))
 
     def __setitem__(self, key, body) -> None:
         """`vb.Name[T] = body` writes `Name[T] := body`."""
@@ -423,7 +423,7 @@ def _applied(value) -> Optional[_Expr]:
         return None
     if origin is Union:
         return _Sum([_wrap(arg) for arg in args])
-    return _Apply(_origin_name(origin), args)
+    return _TypeApp(_origin_name(origin), args)
 
 
 def _origin_name(origin) -> str:
@@ -489,14 +489,14 @@ def _wrap(value) -> _Expr:
     if isinstance(value, tuple):
         return _Tuple(value)
     if isinstance(value, list):
-        return _Apply("ListLiteral", value)
+        return _TypeApp("ListLiteral", value)
     if isinstance(value, set):
         # A set has no order of its own: write the members sorted, so the same
         # set always gives the same source.
-        return _Apply("SetLiteral",
+        return _TypeApp("SetLiteral",
                       sorted(value, key=lambda member: viba_ast.unparse_type(_ast(member))))
     if isinstance(value, dict):
-        return _Apply("DictLiteral", [_Tuple([key, item]) for key, item in value.items()])
+        return _TypeApp("DictLiteral", [_Tuple([key, item]) for key, item in value.items()])
     raise TypeError(f"cannot write {value!r} as a viba type expression")
 
 
