@@ -820,6 +820,10 @@ def run_apply_cases():
 A := int
 B := str
 C := bool
+Num := int | str
+Int := int
+Wide := (A <- $b Num) << $b Int
+Narrow := (A <- $b Int) << $b Num
 Given := (A <- $b B <- $c C) << $b B
 GivenTail := (A <- $b B <- $c C) << $c C
 GivenAll := (A <- $b B <- $c C) << $c C << $b B
@@ -851,6 +855,10 @@ Box := A <- $b B
                  "an argument the function does not have -> Err")
     check_result(judge("(A * B) << $b B", "never"), "error",
                  "an argument given to something that is no function -> Err")
+    check_result(judge("Wide", "A"), True,
+                 "the given argument has to fit the slot: Int <: Num holds")
+    check_result(judge("Narrow", "A"), "error",
+                 "giving Num to an Int slot is refused (Num <: Int does not hold)")
 
 
 def run_never_head_cases():

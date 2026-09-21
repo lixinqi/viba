@@ -233,6 +233,12 @@ def _check_errors():
                 "N := int << $b str\n",
                 "M := (int <- $b str) << $c str\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "partial.viba", "partial"), Err), bad
+    # 给的那个参数得能坐进那一格：C <: B 才算合法
+    assert isinstance(parse_viba_file(empty_pool(),
+                                      "W := (int <- $b (int | str)) << $b int\n",
+                                      "fit.viba", "fit"), Ok)
+    for bad in ("N := (int <- $b int) << $b (int | str)\n",):
+        assert isinstance(parse_viba_file(empty_pool(), bad, "unfit.viba", "unfit"), Err), bad
     for good in ("G := (int <- $b str) << $b str\n",
                  "H := (int <- $b str <- $c bool) << $c bool << $b str\n"):
         assert isinstance(parse_viba_file(empty_pool(), good, "partial_ok.viba", "partial_ok"), Ok), good

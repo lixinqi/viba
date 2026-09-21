@@ -16,7 +16,7 @@ Name[T, U, ...] := body
 | Sum | `A \| B` | Either A or B |
 | Product | `A * B` | Both A and B |
 | Exponent | `B <- A` | Function from A to B |
-| Partial | `T << $a A` | Function T with that written argument given: `(B <- $a A) << $a A` is `B` |
+| Partial | `T << $a A` | Function T with that written argument given: `(B <- $a A) << $a A` is `B`; what is given must fit the slot (`A' <: A`) |
 | Generic | `Name[T]` | Parameterized type |
 | Tag | `$label T` | Named field / variant |
 | Nil | `nil` | Product identity (`A * nil = A`); `void` and `None` are aliases |

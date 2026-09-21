@@ -918,8 +918,11 @@ class _Checker:
         """A design's `<<` reduced: the function with that argument given."""
         if not isinstance(node, viba_ast.Partial):
             return node, module
-        return reduce_partial(node, module,
-                              lambda name, home: self._partial_target(name, home, side))
+        return reduce_partial(
+            node, module,
+            lambda name, home: self._partial_target(name, home, side),
+            lambda given, given_module, written, written_module: self._walk(
+                given, given_module, written, written_module))
 
     def _partial_target(self, name, module, side: str):
         """(body, home) for the name a `<<` gives to, or None."""

@@ -423,6 +423,17 @@ def descriptor_of(node) -> VibaTypeDescriptor:
     return _build_type(empty_pool(), node.container_module, node.ast_node)
 
 
+def _fits(given, given_module, written, written_module):
+    """Does the given type fit the slot it is written to? The judgment answers,
+    with the language's units, exactly as it would anywhere else."""
+    from viba.is_sub_type import is_sub_type
+    from viba.reflect import language_config
+    judged = is_sub_type(AstNodeType(given, given_module),
+                         AstNodeType(written, written_module),
+                         config=language_config)
+    return isinstance(judged, Ok) and judged.ok_value is True
+
+
 def _partial_target(pool, name, module):
     """(body, home) for the name a `<<` gives to, or None."""
     resolved = module_get_type(module, name)
@@ -439,7 +450,8 @@ def _partial_target(pool, name, module):
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
     if isinstance(node, ast_nodes.Partial):
         reduced, _ = reduce_partial(node, module,
-                                  lambda name, home: _partial_target(pool, name, home))
+                                    lambda name, home: _partial_target(pool, name, home),
+                                    _fits)
         return _build_type(pool, module, reduced)
     resolvable = AstNodeType(node, module)
     if isinstance(node, (ast_nodes.Product, ast_nodes.ProductChain)):

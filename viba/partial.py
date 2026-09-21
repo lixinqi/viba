@@ -8,14 +8,16 @@ Partial computation, written in the design itself:
 
 Giving every argument leaves the result: the chain is gone, not empty, and
 documentation (`Hint[$python_code {...}]`) is no argument, so a function that
-ends in one still lands on its result. The
-argument is matched the way the layers address one — by its tag when it is
-tagged, by its written form otherwise — and a design that gives an argument
-the function does not have is a mistake (`PartialError`), not a judgment.
+ends in one still lands on its result.
 
-Names are unfolded through the caller's own resolution, so the reduction
-happens where the syntax is read: the judgment with its resolver, the
-descriptor layer with the pool's.
+The argument is matched the way the layers address one — by its tag when it is
+tagged, by its written form otherwise — and what is given has to *fit* the slot
+it is given to: `(A <- $b B) << $b C` needs `C <: B`. The judge is the
+caller's (the judgment passes its own walk, the descriptor layer passes
+`is_sub_type`), and names are unfolded through the caller's resolution too, so
+a design is refused where it is built and where it is judged. Giving an
+argument the function does not have, or one that does not fit, is a mistake
+(`PartialError`), not a judgment.
 """
 
 from typing import Callable, Optional, Tuple
@@ -26,26 +28,28 @@ from viba.type import PartialError
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 
-def reduce_partial(node, module, resolve: Callable) -> Tuple[object, object]:
+def reduce_partial(node, module, resolve: Callable, judge: Callable) -> Tuple[object, object]:
     """(node, module) with every `<<` given.
 
     `resolve(name, module) -> (body, home) | None` is how a written name is
     unfolded; an alias is followed to the end of the chain.
+    `judge(sub, sub_module, sup, sup_module) -> bool` says whether a given
+    argument fits the slot it is written to.
     """
     while isinstance(node, viba_ast.Partial):
-        base, base_module = reduce_partial(node.function, module, resolve)
-        node, module = _give(base, base_module, node.argument, resolve)
+        base, base_module = reduce_partial(node.function, module, resolve, judge)
+        node, module = _give(base, base_module, node.argument, module, resolve, judge)
     return node, module
 
 
-def _give(base, module, argument, resolve):
+def _give(base, module, argument, argument_module, resolve, judge):
     base, module = _unfold(base, module, resolve)
     if not isinstance(base, _EXP_NODES):
         raise PartialError(
             f"only a function has arguments to give, not {_written(base)}")
     elements = _elements(base)
     for index, written in enumerate(elements[1:], start=1):
-        if _matches(written, argument):
+        if _matches(written, argument, module, argument_module, judge):
             rest = elements[:index] + elements[index + 1:]
             if all(_is_documentation(element) for element in rest[1:]):
                 # Nothing but the result and documentation is left: documentation
@@ -80,11 +84,22 @@ def _is_documentation(node) -> bool:
     return any(isinstance(part, viba_ast.CodeBlock) for part in viba_ast.walk(node))
 
 
-def _matches(written, given) -> bool:
-    """The written argument and the given one are the same address: a tag when
-    both carry one (that is how a field is addressed), the written form else."""
+def _matches(written, given, module, given_module, judge) -> bool:
+    """Does the given argument go to this written slot?
+
+    A tag when both carry one (that is how a field is addressed) — and then the
+    given type has to fit the declared one, so `(A <- $b B) << $b C` is legal
+    only when `C <: B`. Without tags there is no address to name: the two are
+    the same piece, or they are not.
+    """
     if isinstance(written, viba_ast.Tagged) and isinstance(given, viba_ast.Tagged):
-        return written.tag == given.tag
+        if written.tag != given.tag:
+            return False
+        if judge(given.type, given_module, written.type, module):
+            return True
+        raise PartialError(
+            f"{_written(given)} does not fit {_written(written)}: "
+            f"{_written(given.type)} <: {_written(written.type)} does not hold")
     return viba_ast.unparse_type(written) == viba_ast.unparse_type(given)
 
 
