@@ -16,7 +16,7 @@ from viba.viba_ast.nodes import (
     Sum,
     Product,
     Exponent,
-    Apply,
+    Partial,
     Tagged,
     TypeApp,
     Tuple,
@@ -260,7 +260,7 @@ def p_apply_expr(p):
     """apply_expr : apply_expr APPLY_OP adt_expr
     | adt_expr"""
     if len(p) == 4:
-        p[0] = Apply(p[1], p[3])
+        p[0] = Partial(p[1], p[3])
     else:
         p[0] = p[1]
 

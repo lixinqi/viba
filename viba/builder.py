@@ -28,6 +28,7 @@ The operators are the language's operators:
     |            sum            A | B
     *            product        A * B
     **           exponent       A <- B, and the right side must be a tag
+    <<           partial        A << B, the argument B given to A; B is a tag too
     tag.x(body)  a tagged field $x body
     tag(body)    a group kept whole
     vb.nil       nil            (None is nil too)
@@ -125,6 +126,11 @@ class _Expr:
     def __rpow__(self, other):
         return _Exponent(_splice([other], _power_argument(self)))
 
+    # `<<` gives one written argument to a function: left-associative in the
+    # language too, so the nest Python builds is the nest that is written.
+    def __lshift__(self, other):
+        return _Partial(self, _partial_argument(other))
+
 
 class _Sum(_Expr):
     def __init__(self, elements):
@@ -173,6 +179,20 @@ def _power_argument(value) -> _Expr:
         return value
     raise TypeError(
         f"the right side of ** is a tagged field — tag.name(body), or "
+        f"tag(body) for a group — not {value!r}")
+
+
+def _partial_argument(value) -> _Expr:
+    """The right side of `<<`: a tagged field, or a group.
+
+    It names the argument that is being given, so it is the same shape `**`
+    wants: `tag.name(body)`, or `tag(body)` for a group. Anything else is a
+    slip and is refused here rather than written out.
+    """
+    if isinstance(value, (_Tagged, _Branch)):
+        return value
+    raise TypeError(
+        f"the right side of << is a tagged field — tag.name(body), or "
         f"tag(body) for a group — not {value!r}")
 
 
@@ -240,6 +260,15 @@ class _Apply(_Expr):
 
     def to_ast(self):
         return viba_ast.TypeApp(self.constructor, [_ast(a) for a in self.args])
+
+
+class _Partial(_Expr):
+    def __init__(self, function, argument):
+        self.function = function
+        self.argument = argument
+
+    def to_ast(self):
+        return viba_ast.Partial(_ast(self.function), _ast(self.argument))
 
 
 class _Literal(_Expr):

@@ -26,7 +26,7 @@ import hashlib
 from typing import Callable, Dict, List, Optional
 
 from viba import viba_ast
-from viba.apply import reduce_apply
+from viba.partial import reduce_partial
 from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
     AstNodeType,
@@ -433,8 +433,8 @@ def _apply_target(pool, name, module):
 
 
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
-    if isinstance(node, ast_nodes.Apply):
-        reduced, _ = reduce_apply(node, module,
+    if isinstance(node, ast_nodes.Partial):
+        reduced, _ = reduce_partial(node, module,
                                   lambda name, home: _apply_target(pool, name, home))
         return _build_type(pool, module, reduced)
     resolvable = AstNodeType(node, module)

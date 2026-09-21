@@ -20,7 +20,7 @@ def viba_type_match(
     Sum: Callable[[Any], Any] = None,
     Product: Callable[[Any], Any] = None,
     Exponent: Callable[[Any], Any] = None,
-    Apply: Callable[[Any], Any] = None,
+    Partial: Callable[[Any], Any] = None,
     Tagged: Callable[[Any], Any] = None,
     TypeApp: Callable[[Any], Any] = None,
     Tuple: Callable[[Any], Any] = None,

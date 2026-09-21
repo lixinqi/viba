@@ -76,7 +76,7 @@ class Exponent(AST):
     _fields = ("result", "argument")
 
 
-class Apply(AST):
+class Partial(AST):
     """function << argument — the written argument is given to the function."""
 
     _fields = ("function", "argument")

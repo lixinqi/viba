@@ -941,6 +941,54 @@ def test_builder_canonical_case_004():
 
 
 # ----------------------------------------------------------------------
+# 部分计算 `<<`
+# ----------------------------------------------------------------------
+
+
+def test_builder_partial_case_001():
+    """`A << tag.b(B)` 写成 `A << $b B`，体是 Partial。"""
+    vb = builder.Builder()
+    vb.A = int
+    vb.B = str
+    vb.Given = vb.A << tag.b(vb.B)
+    assert str(vb).rstrip("\n") == "A :=\n  int\n\nB :=\n  str\n\nGiven :=\n  A << $b B"
+
+
+def test_builder_partial_case_002():
+    """给掉一个参数：剩下的链就是新体；写出来读回来还是同一份。"""
+    vb = builder.Builder()
+    vb.A = int
+    vb.B = str
+    vb.C = bool
+    chain = vb.A ** tag.b(vb.B) ** tag.c(vb.C)
+    vb.Given = chain << tag.b(vb.B)
+    vb.All = chain << tag.c(vb.C) << tag.b(vb.B)
+    assert _shape(_one(vb, "Given").body) == "Partial"
+    assert _shape(_one(vb, "All").body) == "Partial"
+    assert viba_ast.unparse(viba_ast.parse(str(vb))) == str(vb).rstrip("\n")
+
+
+def test_builder_partial_case_003():
+    """右参数必须是 tag 或分组：与 `**` 同一条规矩。"""
+    vb = builder.Builder()
+    vb.A = int
+    vb.B = str
+    _raises(TypeError, lambda: vb.A << vb.B)
+    _raises(TypeError, lambda: vb.A << vb.B * vb.A)
+
+
+def test_builder_partial_case_004():
+    """`tag(body)`（分组）也收，写出来是括号；给完的判定交给判断层。"""
+    vb = builder.Builder()
+    vb.A = int
+    vb.B = str
+    vb.C = bool
+    vb.Given = (vb.A ** tag.b(vb.B)) << tag(vb.C)
+    module = viba_ast.parse(str(vb))
+    assert any(getattr(d, "name", None) == "Given" for d in module.body)
+
+
+# ----------------------------------------------------------------------
 # 跑
 # ----------------------------------------------------------------------
 

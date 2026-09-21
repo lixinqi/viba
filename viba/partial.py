@@ -9,7 +9,7 @@ Partial computation, written in the design itself:
 Giving every argument leaves the result: the chain is gone, not empty. The
 argument is matched the way the layers address one — by its tag when it is
 tagged, by its written form otherwise — and a design that gives an argument
-the function does not have is a mistake (`ApplyError`), not a judgment.
+the function does not have is a mistake (`PartialError`), not a judgment.
 
 Names are unfolded through the caller's own resolution, so the reduction
 happens where the syntax is read: the judgment with its resolver, the
@@ -19,19 +19,19 @@ descriptor layer with the pool's.
 from typing import Callable, Optional, Tuple
 
 from viba import viba_ast
-from viba.type import ApplyError
+from viba.type import PartialError
 
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 
-def reduce_apply(node, module, resolve: Callable) -> Tuple[object, object]:
+def reduce_partial(node, module, resolve: Callable) -> Tuple[object, object]:
     """(node, module) with every `<<` given.
 
     `resolve(name, module) -> (body, home) | None` is how a written name is
     unfolded; an alias is followed to the end of the chain.
     """
-    while isinstance(node, viba_ast.Apply):
-        base, base_module = reduce_apply(node.function, module, resolve)
+    while isinstance(node, viba_ast.Partial):
+        base, base_module = reduce_partial(node.function, module, resolve)
         node, module = _give(base, base_module, node.argument, resolve)
     return node, module
 
@@ -39,7 +39,7 @@ def reduce_apply(node, module, resolve: Callable) -> Tuple[object, object]:
 def _give(base, module, argument, resolve):
     base, module = _unfold(base, module, resolve)
     if not isinstance(base, _EXP_NODES):
-        raise ApplyError(
+        raise PartialError(
             f"only a function has arguments to give, not {viba_ast.unparse_type(base)}")
     elements = _elements(base)
     for index, written in enumerate(elements[1:], start=1):
@@ -48,7 +48,7 @@ def _give(base, module, argument, resolve):
             if len(rest) == 1:
                 return rest[0], module
             return viba_ast.ExponentChain(rest), module
-    raise ApplyError(
+    raise PartialError(
         f"the function has no such argument: {viba_ast.unparse_type(argument)}")
 
 
@@ -83,4 +83,4 @@ def _elements(node):
     return [node]
 
 
-__all__ = ["reduce_apply"]
+__all__ = ["reduce_partial"]

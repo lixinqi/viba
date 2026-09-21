@@ -260,7 +260,7 @@ class DuplicateTagError(Exception):
     """One product writes the same tag twice, inlined members counted."""
 
 
-class ApplyError(Exception):
+class PartialError(Exception):
     """A `<<` that cannot be given: the left side is no function, or it has no
     such argument."""
 

@@ -82,9 +82,9 @@ alias of what it is written as, and judgment is structural throughout.
 """
 
 from viba import viba_ast
-from viba.apply import reduce_apply
+from viba.partial import reduce_partial
 from viba.type import (
-    ApplyError,
+    PartialError,
     AstNodeType,
     BoolLiteralType,
     BoolType,
@@ -146,7 +146,7 @@ def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> R
         return Ok(_Checker(terminators, config).check(sub, sup))
     except UnresolvedTypeError as exc:
         return Err(str(exc))
-    except ApplyError as exc:
+    except PartialError as exc:
         return Err(str(exc))
     except DuplicateTagError as exc:
         return Err(str(exc))
@@ -916,9 +916,10 @@ class _Checker:
 
     def _apply(self, node, module, side: str):
         """A design's `<<` reduced: the function with that argument given."""
-        if not isinstance(node, viba_ast.Apply):
+        if not isinstance(node, viba_ast.Partial):
             return node, module
-        return reduce_apply(node, module, lambda name, home: self._apply_target(name, home, side))
+        return reduce_partial(node, module,
+                              lambda name, home: self._apply_target(name, home, side))
 
     def _apply_target(self, name, module, side: str):
         """(body, home) for the name a `<<` gives to, or None."""
