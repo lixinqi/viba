@@ -58,7 +58,30 @@ Interpret :=
     }]
 
 # Environment := EnvironmentStorage * EnvironmentCompute，宿主侧的形状见
-# viba/environ.viba；sub_env 给子环境，子环境带着父级的 compute。
+# viba/builtin.viba；sub_env 给子环境，子环境带着父级的 compute。
+
+# 快照与回放：venv 结果要能回放，不纯的宿主函数把答案快照进 storage。
+# snapshot_path(environ, name="value") -> str
+SnapshotPath := str <- $environ Environment <- $name str
+
+# read_snapshot(environ, name="value") -> Optional[VibaNode]
+ReadSnapshot := Optional[VibaNode] <- $environ Environment <- $name str
+
+# write_snapshot(environ, value, name="value") -> void
+WriteSnapshot :=
+    void
+  <- $environ Environment
+  <- $value VibaNode
+  <- $name str
+
+# replayed(environ, compute, name="value") -> VibaNode
+# 有快照就回放，没有就算出来、存下来。快照是序列化的 viba 数据，
+# 放在 storage 的 store_root_dir 下 cur_storage_path/<name>.viba。
+Replayed :=
+    VibaNode
+  <- $environ Environment
+  <- $compute (VibaNode <- void)
+  <- $name str
 
 # ----------------------------------------------------------------------
 # Partial computation: viba.partial

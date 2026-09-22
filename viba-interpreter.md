@@ -133,8 +133,11 @@ Environment :=
 
 EnvironmentStorage :=
     Object
+  * $store_root_dir str
   * $cur_storage_path str
   * $sub_storage (EnvironmentStorage <- $sub_storage_name str)
+  * $read_text ($content str <- $file_path str)
+  * $write_text (void <- $file_path str <- $content str)
   * {
       other storage information
     }
@@ -152,10 +155,16 @@ EnvironmentCompute :=
 Python 侧就是这三个类（`viba.interpreter`）：
 
 ```python
-EnvironmentStorage(cur_storage_path, sub_storage=None)   # sub(name) 给子 storage
+EnvironmentStorage(cur_storage_path, sub_storage=None, store_root_dir=None)
 EnvironmentCompute(get_func)                             # get_func(module_path, func_name)
-Environment(storage, compute)                            # sub_env(name) 给子环境
+Environment(storage, compute)                            # sub_env / tmp_sub_env 给子环境
 ```
+
+`EnvironmentStorage` 面朝 viba 的那几个概念：`cur_storage_path`（这条路径就是这次调用的
+身份）、`sub(name)`（子 storage，`sub_env` 用它）、`store_root_dir`（快照放在哪个目录下，
+不给就是默认的临时目录 `…/viba-store`）、`read_text(file_path)` / `write_text(file_path,
+content)`（在 store root 底下的纯文本读写，读不到返回 `None`）。子 storage 带着父级的
+`store_root_dir`。
 
 `get_func(module_path, func_name)` 返回一个可调用对象，没有就返回 `None`（于是 `Err`）。
 `module_path` 是**调用时那个 environment 的 storage 路径**——所以同一个 `add`，从
@@ -179,6 +188,46 @@ def twice(env, f, x):
 
 **interpret 不认识任何具体函数**：viba 默认不带任何库函数，实现全部来自 `get_func`，
 谁写、怎么生成，interpret 不感知。
+
+## 幂等与快照：结果要能回放
+
+一个 viba 程序的结果要可回放：同一份输入、同一批路径，跑多少次都该是同一个结果。可执行函数
+里唯一不保证这一点的东西是**宿主函数**——它可能读时钟、掷骰子、调服务。所以不纯的那些由它
+自己负责：**把答案快照到 `EnvironmentStorage` 里，下一次跑同一次调用就直接回放**。
+
+```python
+from viba.interpreter import read_snapshot, write_snapshot, replayed
+
+def roll(env, n):
+    def compute():
+        return random.randint(1, 10 ** 6)       # 不纯的那一步
+    return replayed(env, compute, f"roll-{n.value}")
+```
+
+- `replayed(env, compute, name)`：**有快照就回放，没有就算出来、存下来**。这是最常用的写法。
+  想分开写就是 `read_snapshot(env, name)`（没有返回 `None`）与 `write_snapshot(env, value, name)`。
+- 快照地址由**这次调用的 storage 路径**决定：`snapshot_path(env, name)` 是
+  `cur_storage_path/<name>.viba`，读写在 `store_root_dir` 底下。所以同一次调用（同一条路径）才
+  会命中同一条快照；换了路径（`tmp_sub_env`、另一个名字的子环境）就是另一次调用。
+- **快照是序列化的 viba 数据**（`viba.serialize` 写出来的 `value := …`），不是 pickle：存下来
+  的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回材料，叶子和原来一样。
+- **存不了、回放不出来就是错**：`Err`（宿主抛出来，interpret 转成 `Err`），不会静默给个默认值。
+
+于是"随机"也能回放：
+
+```viba
+roll :=
+	int
+	<- $env Environment
+	<- $n int
+	<- { roll a die: not a pure function, so its answer is snapshotted }
+
+__ret__ := roll << $env environ << $n 1
+```
+
+第一次跑算出 731204 并存进 `store_root/root/roll-1.viba`；第二次跑读到它，那条不纯的路一次
+都不走，结果还是 731204。`tests/test_interpreter.py` 里就是这么验的：同一个 store 跑两遍值
+相同、不纯函数只被调用一次；换一个 store 才会重新算。
 
 ## 类型层的模块
 

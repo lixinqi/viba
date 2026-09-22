@@ -45,10 +45,18 @@ environ := Environment
 # The host side of an environment. It is host vocabulary (the interpreter
 # calls get_func; HostLanguageFunc is whatever that interpreter's functions
 # are), so this file only states the shapes.
+#
+# The storage carries the run's snapshots as well as its paths: `store_root_dir`
+# is where they are kept, `read_text` and `write_text` are the text under it.
+# A snapshot is serialized viba data (viba-interpreter.md, "幂等与快照"), so a
+# host function that is not pure can take one and the next run plays it back.
 EnvironmentStorage :=
     Object
+  * $store_root_dir str
   * $cur_storage_path str
   * $sub_storage (EnvironmentStorage <- $sub_storage_name str)
+  * $read_text ($content str <- $file_path str)
+  * $write_text (void <- $file_path str <- $content str)
   * {
       other storage information
     }

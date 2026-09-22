@@ -44,14 +44,23 @@ A host function is called with the arguments already evaluated, in the order
 they are written: a piece of material arrives as a `viba.reflect.VibaNode`,
 anything else as itself (the environment among them). It answers with a
 `VibaNode`, or with a plain Python value, which lands as a leaf.
+
+A result has to be replayable, and a host function that is not pure — it
+reads a clock, a random number, a service — is where that is decided: it
+takes the snapshot of its answer (`write_snapshot`, or `replayed` which does
+both sides), and the next run of the same call finds it and plays it again
+(`read_snapshot`). The snapshots live in the environment's storage
+(`EnvironmentStorage.store_root_dir`), under the path the call runs at, and
+they are serialized viba data, so what was stored can be read and checked.
 """
 
 import os
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Optional
 
-from viba import viba_ast
+from viba import serialize, viba_ast
 from viba.reflect import VibaNode, access as reflect_access
 from viba.type import AstNodeType, Err, ModuleType, Ok, Result, custom_module
 from viba.viba_type_descriptor import descriptor_of
@@ -66,6 +75,12 @@ ENVIRON_NAME = "environ"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
 
+# Where a snapshot goes when the storage did not name a store root, and what
+# the definition in a snapshot file is called.
+DEFAULT_STORE_ROOT = os.path.join(tempfile.gettempdir(), "viba-store")
+SNAPSHOT_NAME = "value"
+SNAPSHOT_SUFFIX = ".viba"
+
 
 # ----------------------------------------------------------------------
 # The host side of an environment
@@ -73,19 +88,21 @@ ENVIRON_TYPE = "Environment"
 
 
 class EnvironmentStorage:
-    """Where a module's files and sub-modules live."""
+    """Where a module's files, sub-modules and snapshots live."""
 
-    __slots__ = ("cur_storage_path", "sub_storage")
+    __slots__ = ("cur_storage_path", "sub_storage", "store_root_dir")
 
-    def __init__(self, cur_storage_path: str, sub_storage: Optional[dict] = None):
+    def __init__(self, cur_storage_path: str, sub_storage: Optional[dict] = None,
+                 store_root_dir: Optional[str] = None):
         self.cur_storage_path = cur_storage_path
         self.sub_storage = dict(sub_storage or {})
+        self.store_root_dir = store_root_dir or DEFAULT_STORE_ROOT
 
     def sub(self, name: str) -> "EnvironmentStorage":
         """The child storage for `name`: `<cur>/<name>`, made on demand."""
         if name not in self.sub_storage:
             path = f"{self.cur_storage_path}/{name}" if self.cur_storage_path else name
-            self.sub_storage[name] = EnvironmentStorage(path)
+            self.sub_storage[name] = EnvironmentStorage(path, None, self.store_root_dir)
         return self.sub_storage[name]
 
     def tmp(self) -> "EnvironmentStorage":
@@ -95,6 +112,29 @@ class EnvironmentStorage:
             name = TMP_PREFIX + uuid.uuid4().hex[:12]
             if name not in self.sub_storage:
                 return self.sub(name)
+
+    # ---- the store: text under the store root ----
+
+    def read_text(self, file_path: str) -> Optional[str]:
+        """The text stored at `file_path`, or None when nothing is there.
+
+        `file_path` is read under `store_root_dir`, so a snapshot written by an
+        earlier run (or another process) is found again.
+        """
+        try:
+            return self._store_path(file_path).read_text()
+        except FileNotFoundError:
+            return None
+
+    def write_text(self, file_path: str, content: str) -> None:
+        """Store `content` at `file_path`, making the directories on the way."""
+        path = self._store_path(file_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+
+    def _store_path(self, file_path: str) -> Path:
+        relative = Path(*[part for part in str(file_path).split("/") if part])
+        return Path(self.store_root_dir) / relative
 
 
 class EnvironmentCompute:
@@ -132,6 +172,77 @@ class Environment:
         storage path. The written argument is ignored; it is there because a
         call gives one, and `()` is the way to write "nothing"."""
         return Environment(self.storage.tmp(), self.compute)
+
+
+# ----------------------------------------------------------------------
+# Snapshots: what makes a run replayable
+# ----------------------------------------------------------------------
+
+
+def snapshot_path(environ: Environment, name: str = SNAPSHOT_NAME) -> str:
+    """Where this call's snapshot lives: `<cur_storage_path>/<name>.viba`,
+    read under the storage's `store_root_dir`."""
+    path = _storage(environ).cur_storage_path
+    return "/".join(part for part in (path, name + SNAPSHOT_SUFFIX) if part)
+
+
+def read_snapshot(environ: Environment, name: str = SNAPSHOT_NAME):
+    """The value stored for this call, or None when nothing is stored yet.
+
+    A snapshot is serialized viba data: it is parsed and rooted again, so it
+    comes back as the material it was. What cannot be read raises — a host
+    function's exception is the `Err` the caller sees.
+    """
+    text = _storage(environ).read_text(snapshot_path(environ, name))
+    if text is None:
+        return None
+    module = custom_module(text)
+    stored = _definition(module, SNAPSHOT_NAME)
+    if stored is None:
+        raise RuntimeError(f"the snapshot has no {SNAPSHOT_NAME}: {text!r}")
+    node = stored.body
+    return VibaNode(reflect_access, descriptor_of(AstNodeType(node, module)), node)
+
+
+def write_snapshot(environ: Environment, value, name: str = SNAPSHOT_NAME) -> None:
+    """Store `value` as this call's snapshot: serialized viba data, so it can
+    be read back and played again."""
+    written = serialize.serialize(SNAPSHOT_NAME, _material(value))
+    if isinstance(written, Err):
+        raise RuntimeError(f"cannot snapshot this value: {written.err_msg}")
+    _storage(environ).write_text(snapshot_path(environ, name), written.ok_value)
+
+
+def replayed(environ: Environment, compute, name: str = SNAPSHOT_NAME):
+    """The snapshot of this call, or `compute()` — and then the snapshot.
+
+    A host function that is not pure answers through this, so running the same
+    call again answers the value of the first run: the call is idempotent.
+    """
+    stored = read_snapshot(environ, name)
+    if stored is not None:
+        return stored
+    value = compute()
+    write_snapshot(environ, value, name)
+    return value
+
+
+def _storage(environ: Environment) -> EnvironmentStorage:
+    storage = getattr(environ, "storage", None)
+    if storage is None:
+        raise RuntimeError("this environment has no storage to keep a snapshot in")
+    return storage
+
+
+def _material(value) -> VibaNode:
+    """A host value as material: a node as it is, a scalar as its leaf."""
+    if isinstance(value, VibaNode):
+        return value
+    if value is not None and not isinstance(value, (bool, int, float, str)):
+        raise RuntimeError(f"cannot snapshot {type(value).__name__}: "
+                           f"only a VibaNode, a scalar, or None")
+    node = viba_ast.Nil() if value is None else viba_ast.Constant(value)
+    return VibaNode(reflect_access, descriptor_of(AstNodeType(node, _NO_MODULE)), node)
 
 
 # ----------------------------------------------------------------------
@@ -707,4 +818,5 @@ def _elements(node):
     return [node]
 
 
-__all__ = ["interpret", "Environment", "EnvironmentStorage", "EnvironmentCompute"]
+__all__ = ["interpret", "Environment", "EnvironmentStorage", "EnvironmentCompute",
+           "snapshot_path", "read_snapshot", "write_snapshot", "replayed"]

@@ -7,16 +7,20 @@
 """
 
 import os
+import random
 import sys
 import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from viba import viba_ast
 from viba.interpreter import (Environment, EnvironmentCompute, EnvironmentStorage,
-                              interpret)
-from viba.reflect import access as reflect_access
-from viba.type import Err, Ok
+                              interpret, read_snapshot, replayed, snapshot_path,
+                              write_snapshot)
+from viba.reflect import VibaNode, access as reflect_access
+from viba.viba_type_descriptor import descriptor_of
+from viba.type import AstNodeType, Err, Ok, custom_module
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
 
@@ -156,6 +160,7 @@ def run() -> int:
         _more_corners(tmp)
         _virtual_files(tmp)
         _storage_paths(tmp)
+        _idempotence(tmp)
         _paths(tmp)
     finally:
         for leftover in sorted(tmp.rglob("*"), reverse=True):
@@ -1187,6 +1192,95 @@ __ret__ := add << $env environ
     result = interpret(same_env, environ)
     check(isinstance(result, Err) and "sub_env" in result.err_msg,
           f"and the message says what to do: {result!r}")
+
+
+def _idempotence(tmp: Path):
+    """快照与回放：不纯的宿主函数靠 EnvironmentStorage 做到幂等。"""
+    store = tmp / "store"
+    calls = []
+
+    def roll(env, n):
+        def compute():
+            calls.append(n.value)
+            return random.randint(1, 10 ** 6)
+        return replayed(env, compute, f"roll-{n.value}")
+
+    def get_func(module_path, func_name):
+        return roll if func_name == "roll" else None
+
+    compute = EnvironmentCompute(get_func)
+    source = _write(tmp, "roll.viba", """
+roll :=
+	int
+	<- $env Environment
+	<- $n int
+	<- { roll a die: not a pure function, so its answer is snapshotted }
+__ret__ := roll << $env environ << $n 1
+""")
+
+    def fresh_environ(root=store):
+        return Environment(EnvironmentStorage("root", None, str(root)), compute)
+
+    first = interpret(source, fresh_environ())
+    check(isinstance(first, Ok), f"the first run computes: {first!r}")
+    first_value = value_of(first)
+    check(calls == [1], f"and the impure function ran once: {calls}")
+
+    # 同一个 store 再跑：值一样，而且那条不纯的路根本不再走
+    second = interpret(source, fresh_environ())
+    check(isinstance(second, Ok) and value_of(second) == first_value,
+          f"the second run answers the first run's value: {second!r}")
+    check(calls == [1],
+          f"the impure function is not called again: {calls}")
+
+    # 快照是序列化的 viba 数据，摆在那里，读得回来
+    environ = fresh_environ()
+    snapshot = Path(environ.storage.store_root_dir) / snapshot_path(environ, "roll-1")
+    check(snapshot.is_file(), f"the snapshot is a file: {snapshot}")
+    text = snapshot.read_text()
+    check(text.startswith("value :="), f"and it is viba source: {text!r}")
+    stored = viba_ast.parse(text).body[0].body
+    check(isinstance(stored, viba_ast.Constant) and stored.value == first_value,
+          f"carrying the value that was answered: {stored!r}")
+
+    # 换一个 store：没有快照可回放，那条路又走了一次
+    calls.clear()
+    other = interpret(source, fresh_environ(tmp / "other-store"))
+    check(isinstance(other, Ok) and calls == [1],
+          f"another store has nothing to replay: {other!r} {calls}")
+
+    # 读不到、写得进
+    empty = fresh_environ()
+    check(read_snapshot(empty, "nothing-here") is None,
+          "an empty store answers None")
+    given = viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$a", viba_ast.Constant(1)),
+        viba_ast.Tagged("$b", viba_ast.Constant("x"))])
+    written = VibaNode(reflect_access, descriptor_of(
+        AstNodeType(given, custom_module(""))), given)
+    write_snapshot(empty, written, "product")
+    again = read_snapshot(empty, "product")
+    check(isinstance(again, VibaNode) and
+          reflect_access.leaf(again.by_tag("a")).ok_value == 1 and
+          reflect_access.leaf(again.by_tag("b")).ok_value == "x",
+          f"a material goes out and comes back: {again!r}")
+
+    # 快照坏了：宿主抛，interpret 答 Err，不是崩
+    broken = fresh_environ()
+    broken.storage.write_text(snapshot_path(broken, "roll-1"), "value := (")
+    labelled(interpret(source, broken), "raised", "a snapshot that does not parse -> Err")
+    nameless = fresh_environ()
+    nameless.storage.write_text(snapshot_path(nameless, "roll-1"), "other := 1\n")
+    labelled(interpret(source, nameless), "no value", "a snapshot with no value -> Err")
+
+    # 子 storage 带着同一个 store root；read_text/write_text 是纯文本那一层
+    child = empty.storage.sub("a")
+    check(child.store_root_dir == empty.storage.store_root_dir,
+          "a child storage keeps the parent's store root")
+    child.write_text("notes/one.txt", "hello")
+    check(child.read_text("notes/one.txt") == "hello", "and reads back what it wrote")
+    check(child.read_text("notes/two.txt") is None, "nothing there answers None")
 
 
 def _paths(tmp: Path):
