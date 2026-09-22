@@ -129,7 +129,8 @@ lib << (environ.tmp_sub_env << ())
 
 ## 宿主侧：Environment
 
-`Environment` 由宿主提供，至少两个概念：
+`Environment` 由宿主提供。三个名字里**只有 `Environment` 是 viba 里看得见的那一个**
+（`viba/builtin.viba`）：模块的 `$env` 那一格要的就是它，`environ` 也是它。
 
 ```viba
 Environment :=
@@ -137,29 +138,10 @@ Environment :=
   * $viba_path str
   * $sub_env (Environment <- $sub_env_name str)
   * $tmp_sub_env (Environment <- ())
-
-EnvironmentStorage :=
-    Object
-  * $store_root_dir str
-  * $cur_storage_path str
-  * $sub_storage (EnvironmentStorage <- $sub_storage_name str)
-  * $read_text ($content str <- $file_path str)
-  * $write_text (void <- $file_path str <- $content str)
-  * {
-      other storage information
-    }
-
-EnvironmentCompute :=
-    Object
-  * $get_func (HostLanguageFunc <- $module_path str <- $func_name str)
-  * {
-      HostLanguageFunc matches the interpreter: with the python interpreter it
-      is a python function. get_func is called by interpret, and a module's
-      sub-environment holds the parent's compute.
-    }
 ```
 
-Python 侧就是这三个类（`viba.interpret`）：
+storage 与 compute 是**宿主的词汇**，viba 里没有一个名字指得到它们（它们不是类型，是宿主
+对象），所以只在宿主侧出现（`viba.interpret`）：
 
 ```python
 EnvironmentStorage(cur_storage_path, sub_storage=None, store_root_dir=None)

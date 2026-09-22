@@ -104,8 +104,9 @@ def corners():
     # Builtin definitions count: builtin.viba's own names resolve too.
     check("a builtin definition behind a member",
           is_complete("X := $env Environment", [], [], set()), True)
-    check("a builtin carrying a doc block",
-          is_complete("X := $s EnvironmentStorage", [], [], set()), False)
+    check("a design carrying a doc block, behind a member",
+          is_complete("Block[T] := $text T * $note {what it means}\nX := $b Block[int]\n",
+                      [], [], set()), False)
 
     # A code block ends a walk only when the name wrapped around it is a
     # terminator, and the terminator is asked about the application.
@@ -169,11 +170,11 @@ def corners():
     check("arguments to a plain definition",
           is_complete("Box := int\nA := Box[int]\n", [], [], set()), False)
 
-    # The builtin library walks like any other design, and a builtin may name
-    # itself (EnvironmentStorage recurses); a doc block inside still stops it.
+    # The builtin library walks like any other design, and its definitions may
+    # name each other (Environment recurses through its own members).
     check("a builtin that is complete", is_complete("X := Environment", [], [], set()), True)
-    check("a builtin carrying a doc block",
-          is_complete("X := EnvironmentStorage", [], [], set()), False)
+    check("the same builtin behind a member",
+          is_complete("X := $env Environment", [], [], set()), True)
 
     # The entry's own file name is taken, so a library file under that name is
     # skipped and the entry still walks through.
