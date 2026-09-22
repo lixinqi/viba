@@ -1,4 +1,0 @@
-P := int
-Q := str
-R := bool
-S_ok3 := $a (never <- P) * $b (never <- Q) * $c (never <- R)

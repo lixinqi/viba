@@ -3,8 +3,6 @@
 All material comes from the repo, nothing new is invented:
 
     data/type_descriptor/case_081/     deep entry (import util as base) + util.viba
-    data/rule_coding_style_check/demo.viba   a rule: Predicate[{...}, $python_code {...}]
-    data/rule_coding_style_check/broken_rules.viba   $x ... and $x Missing
     data/is_sub_type/sub030.viba       recursive Chain := $head int * $tail Chain | nil
     data/is_sub_type/sup025.viba       X := ...
 
@@ -21,7 +19,6 @@ from viba.is_complete import is_complete
 
 DATA = Path(__file__).resolve().parent / "data"
 CASES = DATA / "type_descriptor" / "case_081"
-RULES = DATA / "rule_coding_style_check"
 TYPES = DATA / "is_sub_type"
 
 PASS = FAIL = 0
@@ -53,15 +50,16 @@ def main():
     check("deep entry, dependencies through library",
           is_complete(entry(), [("util.viba", read(CASES / "util.viba"))], [], set()), True)
 
-    # A rule: the rule layer hands in its own names as terminators
-    demo = read(RULES / "demo.viba")
-    rule_stops = {"Metric", "Predicate", "PredicationFailed",
-                  "RuleObject", "Oneof"}
-    check("rule file, no terminators", is_complete(demo, [], [], set()), False)
-    check("rule file + the rule layer's terminators",
-          is_complete(demo, [], [], rule_stops), True)
-    check("rule file + Metric only (Predicate still has code)",
-          is_complete(demo, [], [], {"Metric"}), False)
+    # A design with documentation blocks: the terminators are the caller's words
+    demo = ("Note[T] := $text T\n"
+            "Report := Object * $len Note[int] * $check Checked[{len under 50}]\n")
+    stops = {"Note", "Checked"}
+    check("a design with a code block, no terminators",
+          is_complete(demo, [], [], set()), False)
+    check("the same design with the caller's terminators",
+          is_complete(demo, [], [], stops), True)
+    check("only one of them (the wrapper over the code block is still there)",
+          is_complete(demo, [], [], {"Note"}), False)
 
     # Recursive definitions: coinduction lets them through
     check("recursive Chain", is_complete(read(TYPES / "sub030.viba"), [], [], set()), True)
@@ -72,7 +70,7 @@ def main():
     check("ellipsis + \"...\"", is_complete(ellipsis, [], [], {"..."}), True)
 
     # A name that does not resolve: no terminator can rescue it
-    broken = read(RULES / "broken_rules.viba")
+    broken = "X := $a Missing\n"
     check("unresolved reference", is_complete(broken, [], [], set()), False)
     check("unresolved reference + \"...\"", is_complete(broken, [], [], {"..."}), False)
 
@@ -104,9 +102,10 @@ def corners():
     check("Any under a container", is_complete("X := list[Any]", [], [], set()), False)
 
     # Builtin definitions count: builtin.viba's own names resolve too.
-    check("a builtin definition", is_complete("X := Metric[int]", [], [], set()), True)
-    check("a builtin definition over a code block",
-          is_complete("X := Metric[{code}]", [], [], set()), False)
+    check("a builtin definition behind a member",
+          is_complete("X := $env Environment", [], [], set()), True)
+    check("a builtin carrying a doc block",
+          is_complete("X := $s EnvironmentStorage", [], [], set()), False)
 
     # A code block ends a walk only when the name wrapped around it is a
     # terminator, and the terminator is asked about the application.

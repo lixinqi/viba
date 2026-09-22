@@ -1,3 +1,0 @@
-P := int
-Q := str
-NotNamedField := not[$a P | $b Q]

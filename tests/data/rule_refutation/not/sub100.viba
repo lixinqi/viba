@@ -1,1 +1,0 @@
-F25 := never <- $not_operand ($a int * ($b str | $c bool))

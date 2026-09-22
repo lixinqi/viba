@@ -23,7 +23,7 @@
 022 false
 023 false
 024 error  # ellipsis anywhere is a lint Err now
-025 error  # sup is ellipsis -> lint Err (sub poison moot)
+025 error  # sup is ellipsis -> lint Err
 026 false
 027 false  # $arg0 pairs with $arg0: str is no function, so no
 028 false

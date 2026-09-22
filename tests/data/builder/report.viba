@@ -1,0 +1,17 @@
+# A file the builder continues: one alias, one product, one container, one
+# product that uses all three. Neutral vocabulary on purpose — it is only here
+# to be appended to.
+CodeLength := int
+
+DocCoverage :=
+  Object
+  * $documented_lines int
+  * $total_lines int
+
+Keywords := list[str]
+
+Report :=
+  Object
+  * $len CodeLength
+  * $coverage DocCoverage
+  * $keywords Keywords

@@ -8,10 +8,12 @@
 
   ```viba
   Len := int
-  Rule :=
-      RuleObject
-    * $len Metric[Len]
-    * $check Predicate[{len under 50}, $python_code {...}]
+  Checked[T] := $value T * $assertion {what has to hold of it}
+
+  Report :=
+      Object
+    * $len Len
+    * $check Checked[{len under 50}]
   ```
 
 - **材料**：实现方那边的数据，实际是什么。它可以是 Python 对象、JSON、一段二进制。
@@ -32,7 +34,7 @@
 一句话：先立起点，再顺着地图一步一步点下去，点到叶子取值。
 
 ```python
-root = access(rule).root(witness)      # 起点：给根节点
+root = access(report).root(material)   # 起点：给根节点
 root.get_len().value                   # $len 这一段，取叶子：17
 root.get_counter()['value'].value      # 走两步：$counter → 键 'value'
 if 'items' in root:                    # 先问有没有，再迭代

@@ -15,8 +15,7 @@ from viba.viba_ast import GenericDefinition, Import, TypeDefinition
 
 tag = builder.tag
 
-_DEMO = (Path(__file__).resolve().parent
-         / "data" / "rule_coding_style_check" / "demo.viba")
+_DEMO = (Path(__file__).resolve().parent / "data" / "builder" / "report.viba")
 
 
 # ----------------------------------------------------------------------
@@ -647,8 +646,8 @@ def test_builder_code_case_001():
 def test_builder_code_case_002():
     """代码块能进应用（谓词那种写法）。"""
     vb = builder.Builder()
-    vb.X = vb.Predicate[builder.code("def predicate(self):\n    return 1")]
-    assert str(vb).startswith("X :=\n  Predicate[{def predicate(self):")
+    vb.X = vb.Checked[builder.code("def check(self):\n    return 1")]
+    assert str(vb).startswith("X :=\n  Checked[{def check(self):")
 
 
 # ----------------------------------------------------------------------
@@ -749,7 +748,7 @@ def test_builder_append_case_003():
     vb.Added = vb.Object
     names = [d.name for d in builder.check(vb).body
              if isinstance(d, (TypeDefinition, GenericDefinition))]
-    assert names == ["CodeLength", "DocCoverage", "Keywords", "DemoRule", "Added"]
+    assert names == ["CodeLength", "DocCoverage", "Keywords", "Report", "Added"]
 
 
 def test_builder_append_case_004():
@@ -762,7 +761,7 @@ def test_builder_append_case_004():
 def test_builder_append_case_005():
     """既有文件里的名字不能再定义一次。"""
     vb = builder.Builder(_DEMO.read_text())
-    _raises(TypeError, lambda: setattr(vb, "DemoRule", 1))
+    _raises(TypeError, lambda: setattr(vb, "Report", 1))
     _raises(TypeError, lambda: setattr(vb, "CodeLength", 1))
 
 

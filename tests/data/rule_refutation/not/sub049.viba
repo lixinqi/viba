@@ -1,3 +1,0 @@
-P := int
-R := bool
-S_two_miss := $x ($a (never <- P)) * $y ($c (never <- R))

@@ -1,2 +1,0 @@
-P := int
-Not1 := not[$a P]

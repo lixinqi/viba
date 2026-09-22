@@ -12,11 +12,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from test_rule_reflect_api import _materials, _load, _definition_of
-
 from viba import builder, serialize, viba_ast
+from viba.is_sub_type import is_sub_type
 from viba.type import AstNodeType, Err, Ok, custom_module
-from viba.rule.is_compliant import is_compliant
 from viba.viba_type_descriptor import (empty_pool, parse_viba_file,
                                         pool_add_file, pool_find_definition)
 from viba.reflect import VibaData
@@ -85,10 +83,23 @@ def _round_trip(label, definition, access, node, design_source, design_name,
         return
     module = custom_module(f"{design_source}\n{source}\n")
     design = {d.name: d.body for d in viba_ast.parse(design_source).body}
-    verdict = is_compliant(AstNodeType(body, module),
-                           AstNodeType(design[design_name], module))
+    verdict = is_sub_type(AstNodeType(body, module),
+                          AstNodeType(design[design_name], module))
     check(isinstance(verdict, Ok) and verdict.ok_value is True,
           f"{label}: the written body is a resident of the definition ({verdict})")
+
+
+def _definition_of(pool, full_name: str):
+    found = pool_find_definition(pool, full_name)
+    assert isinstance(found, Ok), found
+    return found.ok_value
+
+
+def _load(path: Path, module_name: str):
+    pool = empty_pool()
+    parsed = parse_viba_file(pool, path.read_text(), path.name, module_name)
+    assert isinstance(parsed, Ok), parsed
+    return pool_add_file(pool, parsed.ok_value).ok_value
 
 
 def _design(pool_source: str, name: str):
@@ -99,18 +110,63 @@ def _design(pool_source: str, name: str):
     return pool, _definition_of(pool, f"design.{name}")
 
 
-def run_fixture_cases():
-    m = _materials()
-    demo_source = (Path(__file__).resolve().parent / "data"
-                   / "rule_coding_style_check" / "demo.viba").read_text()
-    _round_trip("demo", m.demo, m.demo_access, m.demo_node, demo_source, "DemoRule")
-    _round_trip("node1", m.node1, m.node1_access, m.node1_node, """Node1 :=
+DEMO_DESIGN = """Report :=
+  Object
+  * $len int
+  * $coverage (Object * $documented_lines int * $total_lines int)
+  * $keywords list[str]
+"""
+
+
+NODE1_DESIGN = """Node1 :=
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe int
-""", "Node1")
+"""
+
+
+def _node(design, body):
+    from viba.reflect import access
+    rooted = access.root(design, VibaData(body))
+    assert isinstance(rooted, Ok), rooted
+    return access, rooted.ok_value
+
+
+def run_fixture_cases():
+    """两份手搓的材料：一个 int/积/list 的报告，一个 list/set/dict 的节点。"""
+    from viba.reflect import access
+
+    pool, definition = _design(DEMO_DESIGN, "Report")
+    body = viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$len", viba_ast.Constant(7)),
+        viba_ast.Tagged("$coverage", viba_ast.ProductChain([
+            viba_ast.Tagged("$documented_lines", viba_ast.Constant(5)),
+            viba_ast.Tagged("$total_lines", viba_ast.Constant(11)),
+        ])),
+        viba_ast.Tagged("$keywords", viba_ast.TypeApp("ListLiteral", [
+            viba_ast.Constant("a"), viba_ast.Constant("b")])),
+    ])
+    _, node = _node(definition, body)
+    _round_trip("report", definition, access, node, DEMO_DESIGN, "Report")
+
+    pool, definition = _design(NODE1_DESIGN, "Node1")
+    body = viba_ast.ProductChain([
+        viba_ast.TypeRef("Object"),
+        viba_ast.Tagged("$items", viba_ast.TypeApp(
+            "ListLiteral", [viba_ast.Constant(1), viba_ast.Constant(2)])),
+        viba_ast.Tagged("$seen", viba_ast.TypeApp(
+            "SetLiteral", [viba_ast.Constant("x")])),
+        viba_ast.Tagged("$table", viba_ast.TypeApp("DictLiteral", [
+            viba_ast.Tuple([viba_ast.Constant("k"), viba_ast.Constant(1)]),
+            viba_ast.Tuple([viba_ast.Constant("m"), viba_ast.Constant(2)]),
+        ])),
+        viba_ast.Tagged("$maybe", viba_ast.Constant(3)),
+    ])
+    _, node = _node(definition, body)
+    _round_trip("node1", definition, access, node, NODE1_DESIGN, "Node1")
 
 
 def run_empty_container_cases():

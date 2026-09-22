@@ -1,2 +1,0 @@
-Q := str
-NotInline := not[$a int | $b Q]

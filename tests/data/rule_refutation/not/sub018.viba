@@ -1,3 +1,0 @@
-P := int
-Q := str
-S_super2 := $a (never <- (P | Q)) * $b (never <- Q)

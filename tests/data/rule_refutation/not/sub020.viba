@@ -1,3 +1,0 @@
-P := int
-Q := str
-S_copy2 := not[$a P | $b Q]

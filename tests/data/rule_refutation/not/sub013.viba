@@ -1,2 +1,0 @@
-P := int
-S_one2 := $a (never <- P)

@@ -1,3 +1,0 @@
-P := int
-Q := str
-Deep := $x ($outer not[$a P | $b Q])

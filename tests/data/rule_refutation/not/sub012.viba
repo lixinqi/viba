@@ -1,3 +1,0 @@
-P := int
-Q := str
-S_rev2 := $b (never <- Q) * $a (never <- P)

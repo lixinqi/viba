@@ -1,3 +1,0 @@
-P := int
-Q := str
-S_posA := $a P * $b (never <- Q)

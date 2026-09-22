@@ -22,8 +22,8 @@ alias of what it is written as, and judgment is structural throughout.
   | nil` and the same shape under another name are each other's
   subtype, and a definition that reaches only itself (`Loop[T] :=
   Loop[T]`) is the largest type: it is both a subtype and a supertype
-  of anything it is compared with. A rule author who writes such a
-  definition gives the rule layer a type everything fits.
+  of anything it is compared with: whoever writes such a definition
+  gives their design a type everything fits.
 - Leaves compare by family: literal(v) <: base iff same family;
   literal <: literal iff equal values; never <: T; T <: never iff
   T is never (only never fits a never branch).

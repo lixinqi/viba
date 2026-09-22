@@ -190,29 +190,26 @@ def run_cross_module_cases():
 
 
 def run_config_case():
-    """换个词汇（`RuleObject` / `Predicate` 当单位元）问同一件事：写得对的仍然
-    Ok，写错的仍然 Err——单位没有 tag，也不参与内联，所以 tag 的答案不由它决定，
-    但调用方能说出自己那份词汇。"""
-    source = ("Base := $x Metric[int]\n"
-              "Bad := RuleObject * Base * $x Metric[str]\n"
-              "Fine := RuleObject * $x Metric[int] * $y Metric[str]\n")
+    """换个词汇问同一件事：单位元是调用方点的名，写对的仍然 Ok，写错的仍然 Err——
+    单位没有 tag，也不参与内联，所以 tag 的答案不由它决定。"""
+    source = ("Base := $x Box[int]\n"
+              "Bad := Unit * Base * $x Box[str]\n"
+              "Fine := Unit * $x Box[int] * $y Box[str]\n")
     pool = empty_pool()
-    parsed = parse_viba_file(pool, source, "rules.viba", "rules")
+    parsed = parse_viba_file(pool, source, "units.viba", "units")
     built = pool_add_file(pool, parsed.ok_value).ok_value
-    check("a rule's inlined tag repeats (language names)",
+    check("an inlined tag repeats (language names)",
           check_tag_and_inline(built), "written twice")
-    rule_config = Config(never_eqv={"Oneof"},
-                         nil_eqv={"Object", "RuleObject", "Predicate",
-                                  "PredicationFailed"})
-    check("the same, asked with the rule layer's vocabulary",
-          check_tag_and_inline(built, rule_config), "written twice")
+    unit_config = Config(never_eqv={"Oneof"}, nil_eqv={"Object", "Unit", "Box"})
+    check("the same, asked with the caller's own units",
+          check_tag_and_inline(built, unit_config), "written twice")
 
-    clean = "Fine := RuleObject * $x Metric[int] * $y Metric[str]\n"
+    clean = "Fine := Unit * $x Box[int] * $y Box[str]\n"
     pool = empty_pool()
     parsed = parse_viba_file(pool, clean, "fine.viba", "fine")
     built = pool_add_file(pool, parsed.ok_value).ok_value
-    check("a clean rule is clean under that vocabulary too",
-          check_tag_and_inline(built, rule_config), "Ok")
+    check("a clean one is clean under that vocabulary too",
+          check_tag_and_inline(built, unit_config), "Ok")
 
 
 # ----------------------------------------------------------------------
@@ -244,12 +241,10 @@ def run_descriptor_corpus():
 
 def run_package_sources():
     """包自己的 .viba 文件也要能编、能过审：签名表（viba/api.viba）、
-    语言单位（viba/type.viba）、规则层与度量层（viba/rule/*.viba、demo/*.viba）。"""
+    语言单位（viba/type.viba）、内建词汇（viba/builtin.viba）。"""
     root = Path(__file__).resolve().parent.parent / "viba"
     paths = [root / "api.viba", root / "type.viba", root / "viba_type_descriptor.viba",
              root / "builtin.viba"]
-    paths += sorted((root / "rule").glob("*.viba"))
-    paths += sorted((root / "rule" / "demo").glob("*.viba"))
     wrong = []
     for path in paths:
         got = file_design(path)

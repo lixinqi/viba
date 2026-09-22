@@ -83,7 +83,6 @@ Handler := {def forward(self, x): return x}
 | `viba-compliance.md` | Rules and witnesses as programs: judging, Prepare, replay |
 | `viba_builder.md` | Writing .viba source from Python expressions |
 | `contract-enough.md` | What "the implementation is enough" means |
-| `viba-rule.md` | **Deprecated** — the old rule layer: rules, witnesses, judgment |
 
 ## Modules
 
@@ -105,33 +104,6 @@ intermediate representation.
 | `builtin.viba` | Builtin vocabulary visible from every module — the environment shapes among them |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 | `api.viba` | The package's top-level API, as viba signatures |
-
-`viba/rule/` is the old rule layer — a Viba application built on the core. It is
-**deprecated and no longer maintained**: nothing in the core depends on it, it is
-not the way to write rules any more, and it does not follow the core as it moves.
-The replacement is the executable reading of the same files (`interpreter.py`,
-`viba-interpreter.md`): a rule, its evidence and its metric are written as a module
-that runs, and judgment is `<<` plus the type check. The vocabulary below stays in
-the tree for reference only.
-
-The rule vocabulary (`RuleObject`, `Predicate`, `Metric`,
-`PredicationFailed`, `not`) lives in `builtin.viba`; these modules carry
-the accumulated API:
-
-| Module | Summary |
-|--------|---------|
-| `rule/generate_witnesses.py` | Witnesses of a rule: random ones, and the measured one a prepared call yields |
-| `rule/markers.py` | The rule marker (`RuleObject`) and the definitions that carry it |
-| `rule/demo/` | The worked example: metric function, prepared call, rule |
-| `rule/reset_predication_by_python_code.py` | Runs each `Predicate`'s `$python_code`; a false predication becomes the poison |
-| `rule/is_compliant.py` | `witness <: rule` |
-| `rule/check_rule_coding_style.py` | Checks a rule against `viba-rule.md` |
-| `rule/check_determinate.py` | Well-formed, predicate code runs, every witness judges without error |
-| `is_sub_type.py`, `type.py`, `parser.py`, `viba_ast/` | Core: subtype judgment, Type model, syntax |
-
-```python
-from viba.rule import check_determinate, generate_witnesses, is_compliant
-```
 
 ## Usage
 

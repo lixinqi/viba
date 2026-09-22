@@ -1,3 +1,0 @@
-P := int
-Q := str
-S_namedbranch := $a (never <- P) * $b (never <- Q)

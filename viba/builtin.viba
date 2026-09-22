@@ -1,32 +1,6 @@
 # Builtin library — visible from every module, lowest precedence:
 # a custom module's own definitions and environment win.
 #
-# PredicationFailed marks a failed assertion in a witness. Its tags are
-# like no other type's ($__assertion_failed_*), so it seats in no Rule
-# type and a witness carrying it judges False against everything — no
-# special machinery, no nominal protection.
-PredicationFailed[T, MsgStr] :=
-  $__assertion_failed_original_data T
-  * $__assertion_failed_error_msg MsgStr
-
-# Metric[T] is the metric wrapper: the measured value sits under $value,
-# so a witness writes `$len ($value 42)`. What the metric means — its
-# data shape — lives entirely in T, which the rule author writes: names
-# are aliases, so T is whatever it is written as.
-Metric[T] :=
-  $value T
-
-# Predicate carries a natural-language condition (not executed) and an
-# executable predicator under $python_code. It is stripped before
-# judgment and never reaches is_sub_type.
-Predicate[Cond, PythonCode] :=
-  $assert_cond Cond * $assert_python_code PythonCode
-
-# not[A] is never <- $not_operand A: a prohibition. A witness keeps the
-# not[oneof] shell and swaps every branch leaf for the poison
-# PredicationFailed; a branch left positive, or missing, judges False.
-not[A] := never <- $not_operand A
-
 # The environment a running module is handed (viba-interpreter.md). Read as
 # a type, `environ` is an Environment — that is what a module's `$env` slot
 # asks for; read as computation, it is the real environment. `Environment` is

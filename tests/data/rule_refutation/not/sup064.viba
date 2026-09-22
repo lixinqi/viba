@@ -1,1 +1,0 @@
-N7 := not[$a int | $b str]

@@ -1,2 +1,0 @@
-P := int
-S_extraarg := $a (never <- P)

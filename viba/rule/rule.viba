@@ -1,6 +1,0 @@
-# The rule layer's nominal anchor. A rule's chain head carries it, which is how
-# a module says which of its definitions are rules (viba-rule.md section 2).
-
-# The object's nominal anchor: not a business field.
-# yanatuttn = you_are_not_allowed_to_use_this_tag_name
-RuleObject := Object * $__rule_object_yanatuttn__ nil

@@ -1,4 +1,0 @@
-P := int
-Q := str
-R := bool
-TwoNot := $x not[$a P | $b Q] * $y not[$c R]

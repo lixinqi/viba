@@ -371,9 +371,9 @@ Beta[T] := $v T
 Box[T] := $v T
 AliasOfBox[T] := Box[T]
 MissingAlias[T] := Missing
-Metric[T] := $value T
-Predicate[Cond, Code] := $assert_cond Cond * $assert_python_code Code
-PredicationFailed[T, Msg] := $__assertion_failed_original_data T * $__assertion_failed_error_msg Msg
+Wrap[T] := $value T
+Shape[Cond, Code] := $head Cond * $tail Code
+Odd[T, Msg] := $__odd_original T * $__odd_msg Msg
 """)
 
     def judge(sub, sup):
@@ -415,12 +415,12 @@ PredicationFailed[T, Msg] := $__assertion_failed_original_data T * $__assertion_
                  "unfolding an alias whose body names nothing is an Err")
     check_result(judge("Box[int]", "Missing"), "error",
                  "the same when the missing name is the whole body")
-    check_result(judge("Metric[int]", "Metric[Num]"), True,
-                 "a rule-layer shaped generic is covariant in its parameter")
-    check_result(judge("Metric[Num]", "Metric[int]"), False,
+    check_result(judge("Wrap[int]", "Wrap[Num]"), True,
+                 "a named generic is covariant in its parameter")
+    check_result(judge("Wrap[Num]", "Wrap[int]"), False,
                  "and False the other way")
-    check_result(judge("PredicationFailed[nil, str]", "Predicate[int, str]"), False,
-                 "the poison seats in no Predicate: their tags differ")
+    check_result(judge("Odd[nil, str]", "Shape[int, str]"), False,
+                 "two definitions with different tags do not fit each other")
 
 
 def run_unit_alias_cases():
@@ -562,12 +562,13 @@ def run_inline_cycle_guard_cases():
     （禁止链要先问 sub 的字段，那条路以前会 RecursionError）。"""
     module = custom_module("""
 H := int
+Odd := $a int
 notcrimes := never <- $not_operand ($h H | $a A)
 A := A * $x int
 Sub := A * $x int * $h H
 Loop := Loop * $c int
 """)
-    terminators = frozenset({"PredicationFailed"})
+    terminators = frozenset({"Odd"})
     check_result(is_sub_type(entry_type("Loop", module), entry_type("Loop", module)),
                  "error", "an inline cycle is malformed input")
     judged = is_sub_type(entry_type("Sub", module), entry_type("notcrimes", module),
@@ -577,6 +578,7 @@ Loop := Loop * $c int
           "and names the chain that comes back")
     sums = custom_module("""
 H := int
+Odd := $a int
 notcrimes := never <- $not_operand (S | $h H)
 S := S | $a int
 """)
@@ -772,7 +774,7 @@ def run_function_chain_cases():
 
 
 def run_config_cases():
-    """config：哪些写下来的名字算单位元，裸名与应用同名同权。规则层把说明块
+    """config：哪些写下来的名字算单位元，裸名与应用同名同权。调用方把说明块
     `Assert[{...}]` 说成单位，判定就该当单位读，而不是去解析那个名字。"""
     module = custom_module("""
 Result[T] := Oneof | $ok T | $err str
@@ -786,12 +788,12 @@ JsonLike :=
   | list[JsonLike]
   | set[JsonLike]
   | dict[str, JsonLike]
-MetricFuncInterface := Result[JsonLike] <- never
-DemoPoint := ($x int * $y int)
-GetDistance := Result[int] <- DemoPoint <- DemoPoint
-MetricObject := Object * $__metric_object_yanatuttn__ nil  # yanatuttn = you_are_not_allowed_to_use_this_tag_name
-Metric[CoreFunc] :=
-    MetricObject
+Interface := Result[JsonLike] <- never
+Point := ($x int * $y int)
+Read := Result[int] <- Point <- Point
+Anchor := Object * $__anchor_yanatuttn__ nil  # yanatuttn = you_are_not_allowed_to_use_this_tag_name
+Boxed[CoreFunc] :=
+    Anchor
   * $func CoreFunc
   * Assert[{
       CoreFunc <: (Result[JsonLike] <- never)
@@ -802,9 +804,9 @@ Metric[CoreFunc] :=
     def judge(sub, sup, given=config):
         return is_sub_type(entry_type(sub, module), entry_type(sup, module), config=given)
 
-    check_result(judge("Metric[GetDistance]", "Metric[GetDistance]"), True,
+    check_result(judge("Boxed[Read]", "Boxed[Read]"), True,
                  "with the config the Assert block is a unit, so the metric compares")
-    check_result(judge("Metric[GetDistance]", "Metric[GetDistance]", given=None), "error",
+    check_result(judge("Boxed[Read]", "Boxed[Read]", given=None), "error",
                  "without it the block is a name nothing defines, and the judgment Errs")
     check_result(judge("Assert[{x}]", "nil"), True,
                  "an applied unit name is the unit")
@@ -812,51 +814,51 @@ Metric[CoreFunc] :=
                  "and the same read backwards")
     check_result(judge("Object * Assert[{x}] * $a int", "$a int"), True,
                  "an untagged unit member is no member")
-    check_result(judge("Result[int] <- DemoPoint <- m.Hint[$python_code {x}]",
-                       "Result[int] <- DemoPoint"), True,
+    check_result(judge("Result[int] <- Point <- m.Hint[$python_code {x}]",
+                       "Result[int] <- Point"), True,
                  "a unit named through an import counts as the unit")
     check_result(judge("Object * m.Assert[{x}] * $a int", "$a int"), True,
                  "the same for an inline member")
-    check_result(judge("GetDistance", "MetricFuncInterface"), True,
-                 "the metric's own interface holds")
-    check_result(judge("GetDistance", "MetricFuncInterface", given=None), True,
+    check_result(judge("Read", "Interface"), True,
+                 "the declared interface holds")
+    check_result(judge("Read", "Interface", given=None), True,
                  "and it needs no config to hold")
-    check_result(judge("Result[int] <- DemoPoint <- Assert[{x}]", "Result[int] <- DemoPoint"), True,
+    check_result(judge("Result[int] <- Point <- Assert[{x}]", "Result[int] <- Point"), True,
                  "documentation carries no position: a block handed to a unit name drops")
-    check_result(judge("Result[int] <- {说明} <- DemoPoint", "Result[int] <- DemoPoint"), True,
+    check_result(judge("Result[int] <- {说明} <- Point", "Result[int] <- Point"), True,
                  "and a bare block drops on its own")
-    check_result(judge("Result[int] <- Hint <- DemoPoint", "Result[int] <- DemoPoint"), False,
+    check_result(judge("Result[int] <- Hint <- Point", "Result[int] <- Point"), False,
                  "a unit written as a plain name is a real argument")
-    check_result(judge("Result[int] <- DemoPoint <- Hint[$python_code {def metric_func(): ...}]",
-                       "Result[int] <- DemoPoint"), True,
+    check_result(judge("Result[int] <- Point <- Hint[$python_code {def metric_func(): ...}]",
+                       "Result[int] <- Point"), True,
                  "a block behind a tag is documentation too")
-    check_result(judge("Result[int] <- DemoPoint",
-                       "Result[int] <- DemoPoint <- Hint[$python_code {def metric_func(): ...}]"),
+    check_result(judge("Result[int] <- Point",
+                       "Result[int] <- Point <- Hint[$python_code {def metric_func(): ...}]"),
                  True, "and the same read backwards")
-    check_result(judge("Result[int] <- DemoPoint",
-                       "Result[int] <- DemoPoint <- Hint[str]"), False,
+    check_result(judge("Result[int] <- Point",
+                       "Result[int] <- Point <- Hint[str]"), False,
                  "but an applied unit with no block in it keeps its slot")
-    check_result(judge("Result[int] <- DemoPoint", "Result[int] <- DemoPoint <- Assert[{x}]"), True,
+    check_result(judge("Result[int] <- Point", "Result[int] <- Point <- Assert[{x}]"), True,
                  "and the same read backwards")
-    check_result(judge("Result[int] <- Assert[{x}] <- DemoPoint", "Result[int] <- DemoPoint"), True,
+    check_result(judge("Result[int] <- Assert[{x}] <- Point", "Result[int] <- Point"), True,
                  "written in the middle: dropping it leaves the argument order alone")
-    check_result(judge("Result[int] <- $a DemoPoint <- Hint[{y}]", "Result[int] <- $a DemoPoint"), True,
+    check_result(judge("Result[int] <- $a Point <- Hint[{y}]", "Result[int] <- $a Point"), True,
                  "a tagged unit argument drops too")
     check_result(judge("Result[int] <- Hint[{y}]", "Result[int] <- Assert[{x}]"), True,
                  "a chain whose only argument is a unit is a chain of no arguments")
     check_result(judge("Result[int] <- Hint[{y}]", "Result[int]"), False,
                  "and a chain of no arguments is still a function, not the bare result")
-    check_result(judge("Result[int] <- DemoPoint", "Result[int] <- DemoPoint <- str"), False,
+    check_result(judge("Result[int] <- Point", "Result[int] <- Point <- str"), False,
                  "a real argument is still an argument")
-    check_result(judge("Result[int] <- nil <- DemoPoint", "Result[int] <- DemoPoint"), False,
+    check_result(judge("Result[int] <- nil <- Point", "Result[int] <- Point"), False,
                  "a real nil keeps its position: the argument list is a tuple")
-    check_result(judge("Result[int] <- $t nil <- DemoPoint", "Result[int] <- DemoPoint"), False,
+    check_result(judge("Result[int] <- $t nil <- Point", "Result[int] <- Point"), False,
                  "a tagged real nil keeps it too")
-    check_result(judge("Result[int] <- Object <- DemoPoint", "Result[int] <- DemoPoint"), False,
+    check_result(judge("Result[int] <- Object <- Point", "Result[int] <- Point"), False,
                  "Object is that nil: a plain unit name is no documentation")
-    check_result(judge("Result[int] <- Oneof <- DemoPoint", "Result[int] <- DemoPoint"), False,
+    check_result(judge("Result[int] <- Oneof <- Point", "Result[int] <- Point"), False,
                  "never is not nil: it keeps the position it was written in")
-    check_result(judge("Result[int] <- DemoPoint", "Result[int] <- DemoPoint <- Assert[{x}]",
+    check_result(judge("Result[int] <- Point", "Result[int] <- Point <- Assert[{x}]",
                        given=None), "error",
                  "without the config nothing is named, so nothing drops")
 

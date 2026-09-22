@@ -1,1 +1,0 @@
-F10 := never <- $not_operand ($a int * $b str)

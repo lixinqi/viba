@@ -1,4 +1,0 @@
-P := int
-Q := str
-R := bool
-S_two_ok := $x ($a (never <- P) * $b (never <- Q)) * $y ($c (never <- R))

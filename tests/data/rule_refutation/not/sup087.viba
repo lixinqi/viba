@@ -1,2 +1,0 @@
-Ref := int
-F19 := never <- $not_operand (Ref)

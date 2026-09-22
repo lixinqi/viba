@@ -1,3 +1,0 @@
-P := int
-Q := str
-S_deep_ok := $x ($outer ($a (never <- P) * $b (never <- Q)))

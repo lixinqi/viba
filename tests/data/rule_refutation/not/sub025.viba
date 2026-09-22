@@ -1,4 +1,0 @@
-P := int
-Q := str
-FullEv := $a (never <- P) * $b (never <- Q)
-S_named2 := FullEv

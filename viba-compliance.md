@@ -235,8 +235,3 @@ record_text(file_path, content)          # 写进备份本身（prepare_run 用�
 
 `tests/test_compliance.py` 是一份可以照抄的完整例子；`viba/compliance/demo/` 是上面这套的
 最小可运行版本。
-
----
-
-`viba-rule.md` 是更早的一套规则做法（用子类型判定、另立 `Metric`/`Predicate` 等词），已废弃；
-现在的做法就是这一章。

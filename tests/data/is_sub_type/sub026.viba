@@ -1,1 +1,1 @@
-X := PredicationFailed
+X := $a int * $b str
