@@ -1,8 +1,0 @@
-
-add :=
-	int
-	<- $env Environment
-	<- $a int
-	<- $b int
-	<- { add }
-__ret__ := add << $a 1 << $b 2

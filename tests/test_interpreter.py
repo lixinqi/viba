@@ -7,6 +7,7 @@
 """
 
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -85,8 +86,8 @@ def run() -> int:
           f"and its own storage path: {child.storage.cur_storage_path!r}")
 
     # 4. 没有 __ret__ 的文件是设计，不是程序
-    tmp = Path(__file__).resolve().parent / "data" / "interpreter" / "_tmp"
-    tmp.mkdir(exist_ok=True)
+    #    写出来的临时文件不留在仓库里
+    tmp = Path(tempfile.mkdtemp(prefix="viba-interpreter-"))
     design = _write(tmp, "design.viba", "A := int\n")
     check(isinstance(interpret(design, environ), Err),
           "a file without __ret__ is design, not a program")
@@ -122,6 +123,9 @@ __ret__ := add << $a 1 << $b 2
     check(isinstance(interpret(missing, environ), Err),
           "an import that names no file -> Err")
 
+    for leftover in tmp.glob("*.viba"):
+        leftover.unlink()
+    tmp.rmdir()
     print(f"interpreter: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0
 
