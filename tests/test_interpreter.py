@@ -6,6 +6,7 @@
     python tests/test_interpreter.py
 """
 
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -70,6 +71,12 @@ class Host:
             return show
         if func_name == "explode":
             return lambda env: 1 / 0
+        if func_name == "inc":
+            return lambda env, x: x.value + 1
+        if func_name == "twice":
+            def twice(env, f, x):
+                return f(env, x).value + f(env, x).value
+            return twice
         if func_name == "echo":
             return lambda env, x: x
         if func_name == "leaf":
@@ -82,6 +89,20 @@ class Host:
             return lambda env: 0.5
         if func_name == "nothing":
             return lambda env: None
+        if func_name == "wrong_arity":
+            return lambda env: 1
+        if func_name == "make_node":
+            def make_node(env):
+                from viba import viba_ast
+                from viba.reflect import VibaNode, access
+                from viba.viba_type_descriptor import descriptor_of
+                from viba.type import AstNodeType, custom_module
+                node = viba_ast.Constant(11)
+                return VibaNode(access,
+                                descriptor_of(AstNodeType(node, custom_module(""))), node)
+            return make_node
+        if func_name == "answer_a_function":
+            return lambda env: (lambda: 1)
         return None
 
     def environ(self, path="root"):
@@ -97,6 +118,8 @@ def run() -> int:
         _environments(tmp)
         _modules(tmp)
         _loose_ends(tmp)
+        _higher_order_and_answers(tmp)
+        _shapes_and_scale(tmp)
         _paths(tmp)
     finally:
         for leftover in sorted(tmp.rglob("*"), reverse=True):
@@ -286,6 +309,31 @@ __ret__ := double << $a 21
     labelled(interpret(paths, object()), "needs an Environment",
              "interpret with something that is not an Environment -> Err")
 
+    # 子环境的名来自 viba 那边写下的东西：材料取它的叶子，别的就 str 一下
+    seeded = EnvironmentStorage("root", {"a": EnvironmentStorage("root/a")})
+    check(Environment(seeded, environ.compute).sub_env("a").storage is
+          seeded.sub_storage["a"],
+          "a storage handed in ready-made is the one sub_env hands back")
+    check(environ.sub_env(7).storage.cur_storage_path == "root/7",
+          "a name that is not a string still lands in the path")
+    child_a = environ.sub_env("a")
+    child_b = environ.sub_env("b")
+    check(child_a.sub_env("x").storage.cur_storage_path == "root/a/x" and
+          child_b.sub_env("x").storage.cur_storage_path == "root/b/x",
+          "the same name under two parents is two storages")
+
+    sub = _write(tmp, "sub.viba", """
+go :=
+	int
+	<- $env Environment
+	<- { nobody calls this }
+__ret__ := environ.sub_env << "child"
+""")
+    result = interpret(sub, environ)
+    check(isinstance(result, Ok) and isinstance(result.ok_value, Environment) and
+          result.ok_value.storage.cur_storage_path == "root/child",
+          f"environ.sub_env written in viba names a child: {result!r}")
+
 
 def _modules(tmp: Path):
     """模块：嵌套 import、dotted import、设计模块、自调用环。"""
@@ -386,6 +434,121 @@ __ret__ := plain << environ
              "a module call cycle A->B->A -> Err")
 
 
+def _higher_order_and_answers(tmp: Path):
+    """高阶（宿主调用拿到的 viba 函数）、宿主自己造的节点、以及少见的答案。"""
+    host = Host()
+    environ = host.environ()
+
+    higher = _write(tmp, "higher.viba", """
+inc :=
+	int
+	<- $env Environment
+	<- $x int
+	<- { add one }
+twice :=
+	int
+	<- $env Environment
+	<- $f (int <- $env Environment <- $x int)
+	<- $x int
+	<- { call f twice }
+__ret__ := twice << $env environ << $f inc << $x 10
+""")
+    result = interpret(higher, environ)
+    check(isinstance(result, Ok) and value_of(result) == 22,
+          f"a viba function handed to the host is callable: {result!r}")
+
+    made = _write(tmp, "made.viba", """
+make_node :=
+	int
+	<- $env Environment
+	<- { make a node }
+__ret__ := make_node << $env environ
+""")
+    result = interpret(made, environ)
+    check(isinstance(result, Ok) and value_of(result) == 11,
+          f"a node the host built itself: {result!r}")
+
+    afunc = _write(tmp, "afunc.viba", """
+answer_a_function :=
+	int
+	<- $env Environment
+	<- { answer a function }
+__ret__ := answer_a_function << $env environ
+""")
+    labelled(interpret(afunc, environ), "no leaf",
+             "a host answer that is a function -> Err")
+
+    arity = _write(tmp, "arity.viba", """
+wrong_arity :=
+	int
+	<- $env Environment
+	<- $a int
+	<- $b int
+	<- { takes two }
+__ret__ := wrong_arity << $env environ << $a 1 << $b 2
+""")
+    labelled(interpret(arity, environ), "raised", "a host function of the wrong arity -> Err")
+
+    nested = _write(tmp, "nested.viba", ADD + """
+unused :=
+	int
+	<- $env Environment
+	<- { never asked for }
+__ret__ := add << $env environ << $a 1 << $b 2
+""")
+    result = interpret(nested, environ)
+    check(isinstance(result, Ok) and value_of(result) == 3 and
+          ("root", "unused") not in host.calls,
+          f"a definition nobody asks for is never run: {result!r}")
+
+
+def _shapes_and_scale(tmp: Path):
+    """值形状、规模：元组/泛型应用不是值；长链、深 import。"""
+    host = Host()
+    environ = host.environ()
+    for body, label in ((u"(1, 2)", "a tuple"), ("list[int]", "a generic application"),
+                        ("int <- $x int", "an exponent")):
+        path = _write(tmp, f"shape_{abs(hash(body))}.viba", f"__ret__ := {body}\n")
+        labelled(interpret(path, environ), "cannot compute", f"__ret__ written as {label} -> Err")
+
+    many = "".join(f" << $a{i} {i}" for i in range(1, 21))
+    long_chain = _write(tmp, "long_chain.viba", """
+sum :=
+	int
+	<- $env Environment
+	<- $a1 int <- $a2 int <- $a3 int <- $a4 int <- $a5 int
+	<- $a6 int <- $a7 int <- $a8 int <- $a9 int <- $a10 int
+	<- $a11 int <- $a12 int <- $a13 int <- $a14 int <- $a15 int
+	<- $a16 int <- $a17 int <- $a18 int <- $a19 int <- $a20 int
+	<- { add them all }
+__ret__ := sum << $env environ""" + many + "\n")
+    host.knobs["answers"] = {}
+    original = host.get_func
+    def summing(path, func_name):
+        if func_name == "sum":
+            return lambda env, *rest: sum(v.value for v in rest)
+        return original(path, func_name)
+    host.get_func = summing
+    host2 = Environment(EnvironmentStorage("root"), EnvironmentCompute(host.get_func))
+    result = interpret(long_chain, host2)
+    check(isinstance(result, Ok) and value_of(result) == 210,
+          f"a twenty-argument chain: {result!r}")
+
+    # 深 import：五层
+    depth = tmp / "deep"
+    depth.mkdir(exist_ok=True)
+    _write(depth, "leaf5.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    previous = "leaf5"
+    for level in range(4, 0, -1):
+        name = f"leaf{level}"
+        _write(depth, f"{name}.viba",
+               f"import {previous} as down\n__ret__ := down << environ\n")
+        previous = name
+    result = interpret(str(depth / "leaf1.viba"), environ)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a five-deep import chain: {result!r}")
+
+
 def _paths(tmp: Path):
     """VIBA_PATH：按顺序找，import 旁边的先赢。"""
     host = Host()
@@ -406,6 +569,29 @@ def _paths(tmp: Path):
     result = interpret(near, environ, viba_path=f"{first}:{second}")
     check(isinstance(result, Ok) and value_of(result) == "hi",
           f"a module next to the importer beats VIBA_PATH: {result!r}")
+
+    # 空条目、不存在的目录：跳过，不炸
+    flat = tmp / "flat"
+    flat.mkdir(exist_ok=True)
+    _write(flat, "pkg/inner.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    ragged = f":{first}:{tmp / 'missing'}::{flat}:"
+    dotted = _write(tmp, "dotted.viba",
+                    "import pkg.inner\n__ret__ := pkg.inner << environ\n")
+    result = interpret(dotted, environ, viba_path=ragged)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a dotted module found on VIBA_PATH, empty and missing entries skipped: {result!r}")
+
+    aliased = _write(tmp, "aliased.viba",
+                     "import pkg.inner as inner\n__ret__ := inner << environ\n")
+    result = interpret(aliased, environ, viba_path=ragged)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"the same module under an alias: {result!r}")
+
+    # 相对路径按当前目录算
+    relative = os.path.relpath(str(flat), os.getcwd())
+    result = interpret(dotted, environ, viba_path=relative)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a relative VIBA_PATH entry: {result!r}")
 
 
 if __name__ == "__main__":

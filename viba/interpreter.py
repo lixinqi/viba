@@ -138,12 +138,30 @@ class _Given:
 
 
 def _argument_value(value):
-    """What a host function is handed: material as its node, else itself."""
+    """What a host function is handed.
+
+    Material arrives as its node, a viba function as a Python callable (the
+    host calls it like any other function: the values it is called with are
+    nodes or host objects, and the answer is a node or a host object), and
+    anything else as itself — the environment among them.
+    """
     if isinstance(value, _Material):
         return value.node
+    if isinstance(value, (_VibaFunc, _HostFunction, _ModuleFunc)):
+        return value.as_callable()
     if isinstance(value, _Host):
         return value.obj
     return value
+
+
+def _given_value(value):
+    """A value a host handed back into a call: a node, a scalar, or an object."""
+    if isinstance(value, _Material):
+        return value
+    answer = _answer("a host argument", value)
+    if isinstance(answer, Err):
+        raise RuntimeError(answer.err_msg)
+    return answer.ok_value
 
 
 # ----------------------------------------------------------------------
@@ -215,6 +233,8 @@ class _Runner:
 def run_module(runner: _Runner, module: ModuleType, environ: Environment,
                name: str, file: Optional[str]) -> Result:
     """The module as a function: `environ` in, `__ret__` out."""
+    if file is None:
+        file = runner.path_of.get(name)     # a module called through an import
     ret = _definition(module, RET_NAME)
     if ret is None:
         return Err(f"module {name!r} has no {RET_NAME}: it is design, not a program")
@@ -377,7 +397,24 @@ def _give(function, item):
     return Err(f"{getattr(function, 'name', function)!r} is not a function")
 
 
-class _VibaFunc:
+class _Callable:
+    """The viba values a host may call: one `as_callable` between them."""
+
+    def as_callable(self):
+        """This function as a host callable: the host hands over the values it
+        wants given, in the function's own order, and gets the answer back."""
+        def call(*values):
+            current = self
+            for value in values:
+                given = _give(current, _Given(None, _given_value(value)))
+                if isinstance(given, Err):
+                    raise RuntimeError(given.err_msg)
+                current = given.ok_value
+            return _argument_value(current)
+        return call
+
+
+class _VibaFunc(_Callable):
     """A viba function: its chain is the design, `given` what it has so far."""
 
     def __init__(self, activation: _Activation, name: str, chain, given=None):
@@ -460,7 +497,7 @@ class _VibaFunc:
         return None
 
 
-class _HostFunction:
+class _HostFunction(_Callable):
     """A function the host hangs off the environment: `environ.sub_env`."""
 
     def __init__(self, name: str, func, slots: int = 1, given=None):
@@ -480,7 +517,7 @@ class _HostFunction:
         return _answer(f"environ.{self.name}", answer)
 
 
-class _ModuleFunc:
+class _ModuleFunc(_Callable):
     """A module as a function: its one argument is the environment."""
 
     def __init__(self, runner: _Runner, module: ModuleType, name: str):

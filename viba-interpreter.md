@@ -14,7 +14,8 @@ interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 ```
 
 `interpret(viba_main_file, environ, viba_path=None)`：`viba_path` 相当于 PYTHONPATH（冒号分隔，
-按顺序找 `<name>.viba`，dotted 名当路径走）；import 的那个文件所在的目录总是先找。
+按顺序找 `<name>.viba`，dotted 名当路径走；空条目和不存在的目录跳过）；import 的那个文件所在的目录总是
+先找——**被 import 进来、又在自己的文件里 import 的模块，也按它自己的文件找**（链多深都一样）。
 写了 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
 
 ## 一个可执行的模块
@@ -113,6 +114,18 @@ Environment(storage, compute)                            # sub_env(name) 给子�
 **已经算好的实参**，按书写顺序给——材料是 `viba.reflect.VibaNode`，别的（environ 在内）是它本身。
 返回值是 `VibaNode`，或者一个普通 Python 值（落到函数声明结果的一个叶子上）。
 
+参数里出现 **viba 函数**（`$f (int <- $env Environment <- $x int)` 这种高阶签名）时，宿主拿到的是一个
+Python 可调用对象：它照那个函数自己的顺序给参数（可执行函数的 `$env` 也要给），拿回答案，答案同样是
+`VibaNode` 或普通 Python 值。所以高阶函数在宿主侧就是普通的高阶 Python 函数：
+
+```python
+def twice(env, f, x):
+    return f(env, x).value + f(env, x).value
+```
+
+宿主自己造一个 `VibaNode` 当答案也可以；但**列表、字典、可调用对象这类答不了**——它们没有对应的叶子，
+只能答 `VibaNode`、标量或 `None`（`None` 就是 `nil`）。
+
 **interpret 不认识任何具体函数**：viba 默认不带任何库函数，实现全部来自 `get_func`，
 谁写、怎么生成，interpret 不感知。
 
@@ -158,4 +171,6 @@ add raised ZeroDivisionError(...)     宿主函数抛了
 ... was not given an Environment      给了，但不是 Environment
 module 'x' is already running         模块调用成环
 ... is a function still waiting ...   __ret__ 不是值
+... answered list, which is no leaf   宿主答了没有叶子的东西
+cannot read ...                       文件读不了
 ```
