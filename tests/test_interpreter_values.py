@@ -16,7 +16,7 @@ from interpreter_support import ADD, LEAF, Checks, Host, value_of, write
 
 from viba.interpret import interpret
 from viba.reflect import access as reflect_access
-from viba.type import Err, NotMyDutyException, Ok
+from viba.type import Err, NotMyDutyException, Ok, Step
 
 checks = Checks("interpreter_values")
 check = checks.check
@@ -73,8 +73,8 @@ __ret__ = {func} << $env environ
 	<- {{ inline }}
 __ret__ = {func} << $env environ
 """)
-        labelled(interpret(path, environ), "no leaf",
-                 f"a host answer that is {label} -> Err")
+        checks.failed(interpret(path, environ), "no leaf",
+                      f"a host answer that is {label}")
 
     boom = write(tmp, "boom.viba", """
 explode =
@@ -83,9 +83,12 @@ explode =
 	<- { go }
 __ret__ = explode << $env environ
 """)
-    labelled(interpret(boom, environ), "ZeroDivision", "a host function that raises -> Err")
-    labelled(interpret(boom, Host(get_func_raises=True).environ()), "raised",
-             "a get_func that raises -> Err")
+    exploded = interpret(boom, environ)
+    checks.failed(exploded, "ZeroDivision", "a host function that raises")
+    check(exploded.step == Step("root", "explode") and exploded.reason == "raised",
+          f"and the failure names the step and why: {exploded!r}")
+    checks.failed(interpret(boom, Host(get_func_raises=True).environ()), "raised",
+                  "a get_func that raises")
 
     missing = write(tmp, "no_impl.viba", """
 ghost =
@@ -94,10 +97,15 @@ ghost =
 	<- { nothing implements this }
 __ret__ = ghost << $env environ
 """)
-    check(isinstance(interpret(missing, environ), NotMyDutyException),
+    stopped = interpret(missing, environ)
+    check(isinstance(stopped, NotMyDutyException),
           "get_func says None: the run stops with the deferral, not an Err")
-    check(not isinstance(interpret(missing, environ), Err),
+    check(not isinstance(stopped, Err),
           "and that deferral is not an Err: it says 'not mine', not 'broke'")
+    check(stopped.step == Step("root", "ghost") and stopped.reason == "no implementation",
+          f"the deferral names the step and why: {stopped!r}")
+    check(stopped.call is None,
+          f"a step given no material carries none: {stopped.call!r}")
 
     echo = write(tmp, "echo.viba", """
 echo =
@@ -120,7 +128,7 @@ wrong_arity =
 	<- { takes two }
 __ret__ = wrong_arity << $env environ << $a 1 << $b 2
 """)
-    labelled(interpret(arity, environ), "raised", "a host function of the wrong arity -> Err")
+    checks.failed(interpret(arity, environ), "raised", "a host function of the wrong arity")
 
     made = write(tmp, "made.viba", """
 make_node =
@@ -140,8 +148,8 @@ answer_a_function =
 	<- { answer a function }
 __ret__ = answer_a_function << $env environ
 """)
-    labelled(interpret(afunc, environ), "no leaf",
-             "a host answer that is a function -> Err")
+    checks.failed(interpret(afunc, environ), "no leaf",
+                  "a host answer that is a function")
 
 
 def _written_as_ret(tmp: Path):
@@ -267,6 +275,8 @@ __ret__ = twice << $env environ << $f inc << $x 10
     host.knobs["missing"] = ("inc",)
     result = interpret(higher, environ)
     checks.deferred(result, "the host calls a viba function with no implementation")
+    check(result.step == Step("root", "inc"),
+          f"the step that stopped is the one inside, not the one outside: {result.step!r}")
     host.knobs.pop("missing")
 
     # 宿主自己说"不是我的事"：get_func 抛递延，等于回答递延
@@ -289,8 +299,8 @@ inc =
 	<- { add one }
 __ret__ = overfeed << $env environ << $f inc << $x 10
 """)
-    labelled(interpret(overfeed, environ), "raised",
-             "a host that gives the viba function too many arguments -> Err")
+    checks.failed(interpret(overfeed, environ), "raised",
+                  "a host that gives the viba function too many arguments")
 
     fed = write(tmp, "fed.viba", """
 feed_a_list =
@@ -305,8 +315,8 @@ inc =
 	<- { add one }
 __ret__ = feed_a_list << $env environ << $f inc
 """)
-    labelled(interpret(fed, environ), "raised",
-             "a host handing a viba function something with no leaf -> Err")
+    checks.failed(interpret(fed, environ), "raised",
+                  "a host handing a viba function something with no leaf")
 
     # 没给全参数的函数当实参：宿主拿到的就是那个函数，回手就被拒
     handed = write(tmp, "handed.viba", LEAF + """
@@ -317,8 +327,8 @@ echo =
 	<- { hand the argument back }
 __ret__ = echo << $env environ << $x leaf
 """)
-    labelled(interpret(handed, environ), "no leaf",
-             "a viba function handed where a value is expected, echoed back -> Err")
+    checks.failed(interpret(handed, environ), "no leaf",
+                  "a viba function handed where a value is expected, echoed back")
 
     # 宿主里面再跑一次 interpret：两个 run 互不干扰
     inner = write(tmp, "inner_module.viba", LEAF + "__ret__ = leaf << $env environ\n")

@@ -11,9 +11,12 @@ runnable defines `__ret__`; a file that does not is design only.
     interpret("main.viba", environ, get_file=files.get)   # sources from anywhere
 
 A function the compute side does not implement is not a failure: the run stops
-and answers `NotMyDutyException` — `$not_my_duty_exception ()` — the deferral
-that says this host is not the one to finish it (`roadmap.md`). Every other
-answer is `Ok(node)` or `Err(message)`.
+and answers `NotMyDutyException` — `$not_my_duty_exception Duty` — the deferral
+that says this host is not the one to finish it, and carries the step, the
+material it was given and why (`roadmap.md`). A step whose implementation broke
+answers `Failed` — `$failed Failure` — with the same step in it. What is left is
+`Ok(node)`, for the `__ret__` that came out, and `Err(message)` for a source or
+an environment that cannot run at all.
 
 The interpreter is coupled to no function at all: viba ships with no library
 functions, and every implementation comes from the environment's compute
@@ -67,8 +70,10 @@ from typing import Optional
 
 from viba import serialize, viba_ast
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import (AstNodeType, Err, InterpretResult, ModuleType, NotMyDutyException,
-                       Ok, custom_module)
+from viba.type import (REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
+                       REASON_RAISED, REASON_REFUSED, AstNodeType, Err, Failed,
+                       InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
+                       custom_module)
 from viba.viba_type_descriptor import descriptor_of
 
 # A scalar a host answers belongs to no file: its leaf gets an empty module.
@@ -336,13 +341,24 @@ def _stopped(result) -> bool:
     return not isinstance(result, Ok)
 
 
-def _no_implementation() -> NotMyDutyException:
+def _no_implementation(step: Step, call) -> NotMyDutyException:
     """The deferral a host answers with: no implementation for that call.
 
-    `$not_my_duty_exception ()` is the unit, so which call it was does not
-    travel with it; the run that stopped is the one that knows.
+    The step, the material it was given and why are all in it, so the side that
+    answers next can write the work order without reading the run again.
     """
-    return NotMyDutyException()
+    return NotMyDutyException(step, call, REASON_NO_IMPLEMENTATION)
+
+
+def _refused(deferred: NotMyDutyException, step: Step, call) -> NotMyDutyException:
+    """What a `get_func` that raised the deferral is completed into.
+
+    A host refusing a call need not know where it stands: the run fills in the
+    step and the call it was about, and keeps whatever the host did say.
+    """
+    return NotMyDutyException(deferred.step or step,
+                              deferred.call if deferred.call is not None else call,
+                              deferred.reason or REASON_REFUSED)
 
 
 # ----------------------------------------------------------------------
@@ -353,10 +369,11 @@ def _no_implementation() -> NotMyDutyException:
 def interpret(viba_main_file: str, environ: Environment, get_file=None) -> InterpretResult:
     """Run `viba_main_file` with `environ`; its `__ret__` is the `Ok` value.
 
-    What it answers is `Result[VibaNode]` with a third branch: when the run
-    reaches a function the compute side does not implement, it stops and answers
-    the deferral `$not_my_duty_exception ()` instead of failing — that call is
-    not this host's duty, and the caller hands it on.
+    What it answers is `Result[VibaNode]` with two more branches, both naming the
+    step that stopped: `$not_my_duty_exception Duty`, when the compute side does
+    not implement that step (a deferral, not a failure — the caller hands it on,
+    and the duty carries the step, the material it was given and why), and
+    `$failed Failure`, when the implementation of that step broke.
 
     Where modules are looked up is the environment's business
     (`Environment.viba_path`): the directories are searched in order for
@@ -635,7 +652,8 @@ class _Activation:
         member = getattr(self.environ, rest, None)
         if not callable(member):
             return Err(f"the environment has no {rest!r}")
-        return Ok(_HostFunction(rest, member, slots=1))
+        return Ok(_HostFunction(rest, member, slots=1,
+                                module_path=_storage_path(self.environ)))
 
     # ---- calls ----
 
@@ -714,6 +732,8 @@ class _Callable:
                 given = _give(current, _Given(None, _given_value(value)))
                 if isinstance(given, NotMyDutyException):
                     raise given
+                if isinstance(given, Failed):
+                    raise given
                 if isinstance(given, Err):
                     raise RuntimeError(given.err_msg)
                 current = given.ok_value
@@ -772,22 +792,47 @@ class _VibaFunc(_Callable):
         if compute is None:
             return Err(f"{self.name}: the environment carries no compute side")
         module_path = _storage_path(environ)
+        step = Step(module_path, self.name)
         try:
             host = compute.get_func(module_path, self.name)
         except NotMyDutyException as deferred:   # the host refuses this call
-            return deferred
+            return _refused(deferred, step, self._call_material(given))
         except Exception as exc:            # the host is the host's business
-            return Err(f"get_func({module_path!r}, {self.name!r}) raised {exc!r}")
+            return Failed(f"get_func({module_path!r}, {self.name!r}) raised {exc!r}",
+                          step, REASON_GET_FUNC_RAISED)
         if host is None:
-            return _no_implementation()
+            return _no_implementation(step, self._call_material(given))
         args = [_argument_value(given[index]) for index, _ in self._ordered(given)]
         try:
             answer = host(*args)
         except NotMyDutyException as deferred:   # a viba call inside deferred
             return deferred
+        except Failed as failure:                # ... or failed inside
+            return failure
         except Exception as exc:
-            return Err(f"{self.name} raised {exc!r}")
-        return _answer(self.name, answer)
+            return Failed(f"{self.name} raised {exc!r}", step, REASON_RAISED)
+        return _answer(self.name, answer, step)
+
+    def _call_material(self, given):
+        """The material this call was given, as it was written.
+
+        A host value — the environment above all — is no material and does not
+        travel: the side that answers makes its own. One material argument is
+        that argument itself (no tag is needed to tell it from the others),
+        which is the `$call` a Prepare of such a call fixes; several make a
+        product, keeping the tags as written. None when the call was given no
+        material at all.
+        """
+        material_given = [(self.slots[index], value.node.data)
+                          for index, value in self._ordered(given)
+                          if isinstance(value, _Material)]
+        if not material_given:
+            return None
+        if len(material_given) == 1:
+            return material(material_given[0][1])
+        written = [viba_ast.Tagged(tag, piece) if tag else piece
+                   for tag, piece in material_given]
+        return material(viba_ast.ProductChain(written))
 
     def _ordered(self, given):
         """The arguments in written order: what the host function is handed."""
@@ -810,23 +855,29 @@ class _VibaFunc(_Callable):
 class _HostFunction(_Callable):
     """A function the host hangs off the environment: `environ.sub_env`."""
 
-    def __init__(self, name: str, func, slots: int = 1, given=None):
+    def __init__(self, name: str, func, slots: int = 1, given=None,
+                 module_path: str = ""):
         self.name = name
         self.func = func
         self.slots = slots
         self.given = list(given or [])
+        self.module_path = module_path
 
     def give(self, item):
         values = self.given + [_argument_value(item.value)]
+        step = Step(self.module_path, f"environ.{self.name}")
         if len(values) < self.slots:
-            return Ok(_HostFunction(self.name, self.func, self.slots, values))
+            return Ok(_HostFunction(self.name, self.func, self.slots, values,
+                                    self.module_path))
         try:
             answer = self.func(*values)
         except NotMyDutyException as deferred:
-            return deferred
+            return _refused(deferred, step, None)
+        except Failed as failure:
+            return failure
         except Exception as exc:
-            return Err(f"environ.{self.name} raised {exc!r}")
-        return _answer(f"environ.{self.name}", answer)
+            return Failed(f"environ.{self.name} raised {exc!r}", step, REASON_RAISED)
+        return _answer(f"environ.{self.name}", answer, step)
 
 
 class _ModuleFunc(_Callable):
@@ -854,22 +905,27 @@ class _ModuleFunc(_Callable):
         return Ok(_Material(node) if isinstance(node, VibaNode) else _Host(node))
 
 
-def _answer(name, answer):
+def _answer(name, answer, step: Step = None):
     """Result: what a host function answered, as a value.
 
     A `VibaNode` is taken as it is, an `Environment` stays a host value, and
     `None` is `nil` the way it is in the builder. A plain Python value lands
     as a leaf — but only a scalar one: a list, a dict, a callable or any other
     object has no leaf to be, and guessing one would put a piece into the
-    material that no design asked for.
+    material that no design asked for. Given a `step`, that refusal is a
+    failure of it; without one — a value a host is handing back into a call —
+    it is a plain `Err`.
     """
     if isinstance(answer, VibaNode):
         return Ok(_Material(answer))
     if isinstance(answer, Environment):
         return Ok(_Host(answer))
     if answer is not None and not isinstance(answer, (bool, int, float, str)):
-        return Err(f"{name} answered {type(answer).__name__}, "
-                   f"which is no leaf: answer a VibaNode, a scalar, or None")
+        msg = (f"{name} answered {type(answer).__name__}, "
+               f"which is no leaf: answer a VibaNode, a scalar, or None")
+        if step is not None:
+            return Failed(msg, step, REASON_NO_LEAF)
+        return Err(msg)
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
     return Ok(_Material(VibaNode(reflect_access,
                                  descriptor_of(AstNodeType(node, _NO_MODULE)), node)))

@@ -209,12 +209,12 @@ def _host_members(tmp: Path):
     # 没有 storage 的环境：宿主那边崩了也是 Err，不是把异常扔出来
     headless = Environment(None, EnvironmentCompute(host.get_func))
     headless_use = write(tmp, "headless.viba", '__ret__ = environ.sub_env << "a"\n')
-    labelled(interpret(headless_use, headless), "raised",
-             "an environment with no storage -> Err, not a crash")
+    checks.failed(interpret(headless_use, headless), "raised",
+                  "an environment with no storage, and a step that needs one")
     headless_tmp = write(tmp, "headless_tmp.viba",
                          "__ret__ = environ.tmp_sub_env << ()\n")
-    labelled(interpret(headless_tmp, headless), "raised",
-             "tmp_sub_env on an environment with no storage -> Err")
+    checks.failed(interpret(headless_tmp, headless), "raised",
+                  "tmp_sub_env on an environment with no storage")
 
 
 if __name__ == "__main__":

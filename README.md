@@ -193,12 +193,13 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
   environment arrives as itself.
 - `interpret` ships no library of its own: every implementation a run can reach is
   one `get_func` answered for, written from the hints the file carries.
-- What comes back is `Ok(node)`, `Err(message)`, or — when the run reached a step
-  this host does not implement — the deferral `NotMyDutyException`
-  (`$not_my_duty_exception ()`): not a failure, but the run saying it is somebody
-  else's to finish, which is what [`roadmap.md`](roadmap.md) builds on. `node.value`
-  is the answer when it landed on a literal; a product or a sum is walked with the
-  node accessors of [`viba-reflect.md`](viba-reflect.md).
+- What comes back is `Ok(node)`, `Err(message)`, `Failed` (`$failed Failure`, when a
+  step's implementation broke) or `NotMyDutyException` (`$not_my_duty_exception Duty`,
+  when the run reached a step this host does not implement). Both of the last two name
+  the `step`; the deferral also carries the `call` material, so the run can be written
+  up as a work order and handed on — what [`roadmap.md`](roadmap.md) builds on.
+  `node.value` is the answer when it landed on a literal; a product or a sum is walked
+  with the node accessors of [`viba-reflect.md`](viba-reflect.md).
 
 ### Calling one module from another
 

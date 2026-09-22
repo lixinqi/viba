@@ -42,34 +42,114 @@ class Err:
 Result = Union[Ok, Err]
 
 
+class Step:
+    """`Step`: which call stopped — what `get_func` was handed.
+
+        Step =
+            Object
+          * $module_path str
+          * $func_name str
+
+    `module_path` is the storage path the call ran under, so a step is an
+    address and not just a name: the same definition in another case is another
+    step.
+    """
+
+    def __init__(self, module_path: str, func_name: str):
+        self.module_path = module_path
+        self.func_name = func_name
+
+    def __eq__(self, other):
+        return (isinstance(other, Step) and self.module_path == other.module_path
+                and self.func_name == other.func_name)
+
+    def __hash__(self):
+        return hash((self.module_path, self.func_name))
+
+    def __repr__(self):
+        return f"Step({self.module_path!r}, {self.func_name!r})"
+
+
+class Failed(Exception):
+    """`$failed Failure`: the implementation of this step went wrong.
+
+        Failure =
+            Object
+          * $msg str
+          * $step Step
+          * $reason str
+
+    The message is for a person; `step` and `reason` are for a program — which
+    step it was is a field, not a sentence embedded in one, so a caller can act
+    on it without reading the run again.
+    """
+
+    def __init__(self, msg: str, step: Step = None, reason: str = ""):
+        super().__init__(msg)
+        self.msg = msg
+        self.step = step
+        self.reason = reason
+
+    def __repr__(self):
+        return f"Failed({self.msg!r}, {self.step!r}, {self.reason!r})"
+
+
 class NotMyDutyException(Exception):
-    """`$not_my_duty_exception ()`: some operator in this run is not this host's.
+    """`$not_my_duty_exception Duty`: some step in this run is not this host's.
+
+        Duty =
+            Object
+          * $step Step
+          * $call ...
+          * $reason str
 
     `interpret` answers with it when the compute side has no implementation for
-    a function the run reached — not a failure, but a deferral: the run says it
-    is not this host's duty to finish, and the caller hands it on (see
-    `roadmap.md`). The payload is the unit: it says the host is not the one to
-    answer, and nothing more.
+    a step the run reached — not a failure, but a deferral: the run says it is
+    not this host's duty to finish, and the caller hands it on (see
+    `roadmap.md`).
+
+    `call` is the material the step was given, as it was written — the same
+    material a Prepare fixes, so a work order can be written from it without
+    running anything again. Host values, the environment above all, are no
+    material and do not travel: the side that answers makes its own. `reason` is
+    one of the `REASON_*` strings below.
 
     It is an exception as well, because that is how the same news crosses a
     callable the run handed to a host; a `get_func` may raise it too, to refuse
-    a call it cannot serve.
+    a call it cannot serve — the run fills in the step and the call it knows,
+    and keeps whatever the host said.
     """
 
+    def __init__(self, step: Step = None, call=None, reason: str = ""):
+        super().__init__(reason)
+        self.step = step
+        self.call = call
+        self.reason = reason
+
     def __repr__(self):
-        return "NotMyDutyException()"
+        return f"NotMyDutyException({self.step!r}, {self.reason!r})"
 
 
-# What `interpret` answers, its third branch written out:
+# The `$reason` vocabulary: short, stable strings, the same ones a reader
+# switches on.
+REASON_NO_IMPLEMENTATION = "no implementation"   # get_func answered None
+REASON_REFUSED = "refused"                       # get_func raised the deferral
+REASON_GET_FUNC_RAISED = "get_func raised"       # get_func broke
+REASON_RAISED = "raised"                         # the implementation broke
+REASON_NO_LEAF = "no leaf"                       # it answered something with no leaf
+
+
+# What `interpret` answers, its branches written out:
 #
 #     Result[T] =
 #       Oneof
 #     | $ok T
 #     | $err str
-#     | $not_my_duty_exception ()
+#     | $failed Failure
+#     | $not_my_duty_exception Duty
 #
 # The other APIs keep the two-branch `Result`: their work is all here.
-InterpretResult = Union[Ok, Err, NotMyDutyException]
+InterpretResult = Union[Ok, Err, Failed, NotMyDutyException]
 
 
 # ----------------------------------------------------------------------

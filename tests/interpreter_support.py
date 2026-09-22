@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret)
 from viba.reflect import access as reflect_access
-from viba.type import Err, NotMyDutyException, Ok
+from viba.type import Err, Failed, NotMyDutyException, Ok
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
 
@@ -26,13 +26,13 @@ class Checks:
     def __init__(self, name: str):
         self.name = name
         self.passed = 0
-        self.failed = 0
+        self.failures = 0
 
     def check(self, ok: bool, label: str):
         if ok:
             self.passed += 1
         else:
-            self.failed += 1
+            self.failures += 1
             print(f"FAIL: {label}")
 
     def labelled(self, result, want, label: str):
@@ -48,9 +48,14 @@ class Checks:
         self.check(isinstance(result, NotMyDutyException),
                    f"{label}: expected the deferral, got {result!r}")
 
+    def failed(self, result, want: str, label: str):
+        """A step's implementation broke: `want` is part of its message."""
+        self.check(isinstance(result, Failed) and want in result.msg,
+                   f"{label}: expected Failed({want!r}), got {result!r}")
+
     def report(self) -> int:
-        print(f"{self.name}: {self.passed} passed, {self.failed} failed")
-        return 1 if self.failed else 0
+        print(f"{self.name}: {self.passed} passed, {self.failures} failed")
+        return 1 if self.failures else 0
 
 
 def value_of(result):
@@ -80,6 +85,8 @@ class Host:
         self.calls.append((module_path, func_name))
         if self.knobs.get("get_func_raises"):
             raise RuntimeError("host broke")
+        if self.knobs.get("refuse_with") is not None:
+            raise self.knobs["refuse_with"]     # a router with something to say
         if func_name in self.knobs.get("refuse", ()):
             # a host that refuses the call outright, the way a router would
             raise NotMyDutyException()

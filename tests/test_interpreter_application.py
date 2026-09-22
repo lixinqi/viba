@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from interpreter_support import ADD, Checks, Host, value_of, write
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Err, Ok
+from viba.type import Err, Ok, Step
 
 checks = Checks("interpreter_application")
 check = checks.check
@@ -102,7 +102,10 @@ explode =
 __ret__ = add << $env environ << $a (explode << $env environ) << $b 2
 """)
     host.calls.clear()
-    labelled(interpret(argument_boom, environ), "raised", "an argument that blows up -> Err")
+    exploded = interpret(argument_boom, environ)
+    checks.failed(exploded, "raised", "an argument that blows up")
+    check(exploded.step == Step("root", "explode"),
+          f"the step that stopped is the argument's, not the call's: {exploded.step!r}")
     check(("root", "add") not in host.calls,
           f"the call itself never happens: {host.calls}")
 

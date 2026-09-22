@@ -125,10 +125,10 @@ def _store_text(tmp: Path):
     # 快照坏了：宿主抛，interpret 答 Err，不是崩
     broken = fresh_environ()
     broken.storage.write_text(snapshot_path(broken, "roll-1"), "value = (")
-    labelled(interpret(source, broken), "raised", "a snapshot that does not parse -> Err")
+    checks.failed(interpret(source, broken), "raised", "a snapshot that does not parse")
     nameless = fresh_environ()
     nameless.storage.write_text(snapshot_path(nameless, "roll-1"), "other = 1\n")
-    labelled(interpret(source, nameless), "no value", "a snapshot with no value -> Err")
+    checks.failed(interpret(source, nameless), "no value", "a snapshot with no value")
 
     # 子 storage 带着同一个 store root；read_text/write_text 是纯文本那一层
     child = empty.storage.sub("a")

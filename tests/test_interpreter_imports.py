@@ -326,8 +326,8 @@ def _bad_sources(tmp: Path):
     bad = Host()
     bad.get_func = lambda p, n: "not callable"
     weird = write(tmp, "weird.viba", LEAF + "__ret__ = leaf << $env environ\n")
-    labelled(interpret(weird, bad.environ()), "raised",
-             "a non-callable implementation -> Err")
+    checks.failed(interpret(weird, bad.environ()), "raised",
+                  "a non-callable implementation")
 
 
 def _compiled_once(tmp: Path):

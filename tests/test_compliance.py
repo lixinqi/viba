@@ -16,12 +16,12 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from viba import viba_ast, serialize
-from viba.compliance import (PreparedStorage, is_compliant, measured_of, prepare_path,
-                             prepare_run, read_prepare, record_prepare)
+from viba.compliance import (PreparedStorage, call_of, is_compliant, measured_of,
+                             prepare_path, prepare_run, read_prepare, record_prepare)
 from viba.compliance.demo.host import RULE, DistanceHost
 from viba.interpret import Environment, EnvironmentCompute
 from viba.reflect import access as reflect_access
-from viba.type import Err, NotMyDutyException, Ok
+from viba.type import Err, Failed, NotMyDutyException, Ok
 
 BACKUP = Path(__file__).resolve().parent / "data" / "compliance" / "backup"
 
@@ -72,6 +72,7 @@ def run(tmp: Path):
     _storage(tmp)
     _refusals(tmp)
     _deferral(tmp)
+    _a_deferral_carries_the_work(tmp)
 
 
 def _deferral(tmp: Path):
@@ -94,6 +95,10 @@ def _deferral(tmp: Path):
     verdict = is_compliant(str(RULE), env)
     check(isinstance(verdict, NotMyDutyException),
           f"a rule whose predicate nobody implements answers the deferral: {verdict!r}")
+    check(verdict.step.func_name == "distance_ge" and
+          verdict.step.module_path.startswith("root/tmp_"),
+          f"the step names the call that stopped, temp path and all: {verdict.step!r}")
+    check(verdict.reason == "no implementation", f"and why: {verdict.reason!r}")
     check(host.measured == [((0, 0), (3, 4))],
           f"the measurement before it still happened: {host.measured}")
 
@@ -103,6 +108,48 @@ def _deferral(tmp: Path):
     backup = tmp / "deferral-backup"
     check(not backup.exists() or not any(backup.rglob("*")),
           "and a judgment that never happened prepares nothing")
+
+
+def _a_deferral_carries_the_work(tmp: Path):
+    """递延里的材料就是工单要的东西：不必再跑一次，就能写出一份合法 Prepare。"""
+    # 一条跑完的规则：它记下的 Prepare 就是"这一手该长什么样"
+    env, host = environ_for(tmp / "work-store")
+    check(isinstance(is_compliant(str(RULE), env), Ok), "the rule judges when it can")
+    recorded = read_prepare(case_environ(env), "measure_distance")
+    check(recorded is not None, f"and records its Prepare: {recorded!r}")
+    wanted = _written(call_of(recorded))
+
+    # 少掉量距离那一手：答案里带着同一份 $call
+    class NoMeasure(DistanceHost):
+        def get_func(self, module_path, func_name):
+            if func_name == "measure_distance":
+                return None
+            return DistanceHost.get_func(self, module_path, func_name)
+
+    env, host = environ_for(tmp / "work-deferred", host=NoMeasure())
+    duty = is_compliant(str(RULE), env)
+    check(isinstance(duty, NotMyDutyException), f"the rule defers: {duty!r}")
+    check(_written(duty.call) == wanted,
+          f"the material in the deferral is the $call a Prepare fixes:\n"
+          f"{_written(duty.call)}\n{wanted}")
+
+    # 拿它手写一份工单：$call 是那份材料，$measured 空着
+    hands = case_environ(env)
+    record_prepare(hands, "measure_distance", duty.call, None)
+    written = read_prepare(hands, "measure_distance")
+    check(_written(call_of(written)) == wanted,
+          f"a Prepare written from the deferral names the same call: "
+          f"{_written(call_of(written))}")
+    check(measured_of(written) == (None, False),
+          f"with nothing measured yet: {measured_of(written)!r}")
+
+
+def _written(node):
+    """One piece of material as viba source, laying out flattened away."""
+    text = serialize.serialize("call", node)
+    if not isinstance(text, Ok):
+        return repr(node)
+    return " ".join(text.ok_value.split())
 
 
 def _judge(tmp: Path):
@@ -275,8 +322,11 @@ case_env = environ.sub_env << "boom_case"
 the_case = boom_case << case_env
 __ret__ = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 """)
-    labelled(is_compliant(boom_rule, env), "raised",
-             "a measurement that blows up -> Err")
+    failed_verdict = is_compliant(boom_rule, env)
+    check(isinstance(failed_verdict, Failed) and "raised" in failed_verdict.msg,
+          f"a measurement that blows up -> Failed: {failed_verdict!r}")
+    check(failed_verdict.step.func_name == "measure_distance",
+          f"and the failure names the step: {failed_verdict.step!r}")
 
     plain = PreparedStorage("root", None, str(tmp / "no-backup-store"))
     no_backup = Environment(plain, EnvironmentCompute(DistanceHost().get_func))

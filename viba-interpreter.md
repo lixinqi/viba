@@ -161,10 +161,11 @@ content)`（在 store root 底下的纯文本读写，读不到返回 `None`）�
 `store_root_dir`。
 
 `get_func(module_path, func_name)` 返回一个可调用对象；没有就返回 `None`，于是这次调用是递延
-（`$not_my_duty_exception ()`，见最后一节）——它也可以直接抛 `NotMyDutyException`，那是一个
-路由在说"这条差事不归我"。
+（`$not_my_duty_exception Duty`，见最后一节）——它也可以直接抛 `NotMyDutyException`，那是一个
+路由在说"这条差事不归我"；它自己抛别的异常，则是这一步的 `$failed`。
 `module_path` 是**调用时那个 environment 的 storage 路径**——所以同一个 `add`，从
-`root/add_demo` 进来和从 `root` 进来，宿主看到的是不同的路径，可以路由到不同的实现。
+`root/add_demo` 进来和从 `root` 进来，宿主看到的是不同的路径，可以路由到不同的实现；也正是
+这个路径，加上 `func_name`，构成了答案里那个 `$step`。
 
 `HostLanguageFunc` 与 interpreter 匹配：Python interpreter 里就是一个 Python 函数，收到的参数是
 **已经算好的实参**，按书写顺序给——材料是 `viba.reflect.VibaNode`，别的（environ 在内）是它本身。
@@ -254,27 +255,62 @@ design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
 - `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
   这一格在类型上也对得上。
 
-## 三种答案
+## 四种答案
 
-`interpret` 返回的 `Result` 比别处多一支：
+`interpret` 返回的 `Result` 比别处多两支，而多出来的那两支都带着"是哪一步"：
 
 ```viba
 Result[T] =
   Oneof
 | $ok T
 | $err str
-| $not_my_duty_exception ()
+| $failed Failure
+| $not_my_duty_exception Duty
+
+Step =
+    Object
+  * $module_path str
+  * $func_name str
+
+Failure =
+    Object
+  * $msg str
+  * $step Step
+  * $reason str
+
+Duty =
+    Object
+  * $step Step
+  * $call ...
+  * $reason str
 ```
 
 - `Ok(VibaNode)` 是 `__ret__` 的值；
-- `Err(str)` 说明哪一步不行——**这一步是我的差事，它坏了**；
-- `$not_my_duty_exception ()` 说明**这一步不在这台机器上作答**：某个算子没有实现。
-  这不是失败，是递延——程序停在那儿，等有实现的一方接着做（[`roadmap.md`](roadmap.md)）。
-  `interpret` 不带库函数，所以"没有实现"是常态，不是错误。
+- `Err(str)` 说的是这一份**程序或环境**不行：编不过、文件不在、没有 `__ret__`、`$env` 没给……
+  它不说"哪一步的实现坏了"，所以不带步名；
+- `$failed Failure`：**某一步的实现坏了**，或者它答了没有叶子的东西。`$msg` 给人读，
+  `$step` 与 `$reason` 给程序读——"哪一步"是个字段，不是嵌在句子里的；
+- `$not_my_duty_exception Duty`：**这一步不在这台机器上作答**。这不是失败，是递延——程序停在
+  那儿，等有实现的一方接着做（[`roadmap.md`](roadmap.md)）。`interpret` 不带库函数，所以"没有
+  实现"是常态，不是错误。
 
-`get_func` 返回 `None`、或者它自己抛 `NotMyDutyException`（一个路由说"这条差事不归我"），
-都算递延；宿主函数抛别的异常才是 `Err`。递延会一路穿回调用方：被调用的模块里那一步没实现，
-整个 run 的答案就是递延，不会被当成"跑完了"。
+`$step` 的两个字段就是 `get_func(module_path, func_name)` 收到的那两个：路径是这次调用的**地址**，
+所以同一个定义、另一个案子，是另一步。`$call` 是这一步拿到的**材料**，按它写下来的样子——一份
+Prepare 要固定的正是这份材料，所以拿着递延就能把工单写出来，不必再跑一次。宿主值（首先是
+environment）不是材料，不随 `$call` 走：接手的那一侧自己造环境。`$reason` 只有这几种：
+
+| `$reason` | 意思 |
+|---|---|
+| `no implementation` | `get_func` 答了 `None` |
+| `refused` | `get_func` 抛了递延（一个路由说"这条差事不归我"） |
+| `get_func raised` | `get_func` 自己坏了 |
+| `raised` | 实现抛了 |
+| `no leaf` | 实现答了没有叶子的东西 |
+
+递延与失败都会一路穿回调用方，而且**原样上传、不被改写**：被调用的模块里那一步没实现，带回来的
+那一步是**里面那一次调用**（`root/模块名` 下的那个定义），不是外面那一层；穿过运行交给宿主的可
+调用对象时也一样。`get_func` 抛递延时，run 会把缺的补上：步名与 `$call` 用它知道的这次调用，
+`$reason` 留着宿主自己说的（没说就是 `refused`）。
 
 `Err` 的那句话长这样：
 
@@ -283,19 +319,25 @@ no such file: ...                     文件不在
 no definition named 'x' in module 'm' 名字解析不了
 module 'x' not found (...)            import 找不到文件
 module 'm' has no __ret__: ...        设计，不是程序
-get_func(...) raised ...              get_func 自己抛了
-add raised ZeroDivisionError(...)     宿主函数抛了
 ... takes no $env Environment ...     可执行函数没依赖 environ
 ... was not given the environment     调用时没给 environ
 ... was not given an Environment      给了，但不是 Environment
 module 'x' is already running         模块调用成环
 ... storage path ... already used     两次模块调用用了同一条 storage 路径
 ... is a function still waiting ...   __ret__ 不是值
-... answered list, which is no leaf   宿主答了没有叶子的东西
 cannot read ...                       文件读不了
 cannot parse ...                      编译不过（语法错误）
 get_file(...) raised ...              get_file 自己抛了
 get_file(...) answered bytes, ...     get_file 答的不是文件的文本
 viba_path is a string ...             viba_path 给错了类型
 get_file is a function ...            get_file 给错了类型
+```
+
+`$failed` 的那句话长这样（`$msg` 一栏，`$step` 与 `$reason` 是另外两个字段）：
+
+```
+get_func('root', 'add') raised ...    get_func 自己坏了
+add raised ZeroDivisionError(...)     实现抛了
+add answered list, which is no leaf   实现答了没有叶子的东西
+environ.sub_env raised ...            环境上挂的宿主函数坏了
 ```
