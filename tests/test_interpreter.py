@@ -118,6 +118,7 @@ def run() -> int:
         _environments(tmp)
         _modules(tmp)
         _loose_ends(tmp)
+        _names_and_sources(tmp)
         _higher_order_and_answers(tmp)
         _shapes_and_scale(tmp)
         _paths(tmp)
@@ -432,6 +433,36 @@ __ret__ := plain << environ
     _write(tmp, "cycle_b.viba", "import cycle_a as a\n__ret__ := a << environ\n")
     labelled(interpret(str(tmp / "cycle_a.viba"), environ), "already running",
              "a module call cycle A->B->A -> Err")
+
+
+def _names_and_sources(tmp: Path):
+    """编译不过的源、写错的名字、不是函数的东西、模块没给 Environment。"""
+    host = Host()
+    environ = host.environ()
+
+    broken = _write(tmp, "broken.viba", "add :=\n\tint\n\t<- )\n")
+    labelled(interpret(broken, environ), "cannot parse",
+             "a main file that does not compile -> Err")
+    bad_import = _write(tmp, "bad_import.viba", "import broken as b\n__ret__ := b << environ\n")
+    labelled(interpret(bad_import, environ), "cannot parse",
+             "an imported module that does not compile -> Err")
+
+    _write(tmp, "design_two.viba", "Only := int <- $env Environment\n")
+    for body, want, label in (
+            ("d.nope", "has no 'nope'", "a name the imported module does not have"),
+            ("environ.nope", "environment has no 'nope'", "a name the environment does not have"),
+            ("environ.sub_env", "still waiting for arguments",
+             "environ.sub_env with no module name"),
+            ("1 << $x 2", "is not a function", "giving an argument to a number"),
+            ("nope << $env environ", "no definition named", "a name nobody defined")):
+        path = _write(tmp, f"names_{abs(hash(body))}.viba",
+                      f"import design_two as d\n__ret__ := {body}\n")
+        labelled(interpret(path, environ), want, f"{label} -> Err")
+
+    _write(tmp, "plain_two.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    wrong = _write(tmp, "wrong_arg.viba", "import plain_two as p\n__ret__ := p << 7\n")
+    labelled(interpret(wrong, environ), "needs an Environment",
+             "a module called without an Environment -> Err")
 
 
 def _higher_order_and_answers(tmp: Path):

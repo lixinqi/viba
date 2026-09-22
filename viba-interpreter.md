@@ -173,4 +173,5 @@ module 'x' is already running         模块调用成环
 ... is a function still waiting ...   __ret__ 不是值
 ... answered list, which is no leaf   宿主答了没有叶子的东西
 cannot read ...                       文件读不了
+cannot parse ...                      编译不过（语法错误）
 ```

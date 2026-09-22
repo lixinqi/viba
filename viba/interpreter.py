@@ -209,7 +209,10 @@ class _Runner:
                 source = path.read_text()
             except OSError as exc:
                 return Err(f"cannot read {path}: {exc}")
-            self.by_path[key] = custom_module(source)
+            try:
+                self.by_path[key] = custom_module(source)
+            except SyntaxError as exc:
+                return Err(f"cannot parse {path}: {exc}")
         self.by_name[name] = self.by_path[key]
         self.path_of[name] = str(path)
         return Ok(self.by_path[key])
