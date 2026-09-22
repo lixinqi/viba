@@ -2,7 +2,7 @@ import top
 
 Node0 =
   Object
-  * $peer top.Shape1
+  * $peer top.Bundle1
 
 Report1 =
   Oneof

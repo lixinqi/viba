@@ -6,5 +6,5 @@ Node1 =
   Object
   * $peer base.Plan0
 
-Shape2[T] =
+Bundle2[T] =
   $v T

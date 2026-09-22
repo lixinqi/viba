@@ -10,5 +10,5 @@ Report1 =
   * $ghost Missing
   * $mix list[Missing]
 
-Shape2[T] =
+Bundle2[T] =
   $v T

@@ -51,8 +51,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "util.Shape1",
+          "name": "Bundle1",
+          "full_name": "util.Bundle1",
           "generic_params": [
             "T"
           ],
@@ -186,8 +186,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "pkg.sub.deep.Shape1",
+          "name": "Bundle1",
+          "full_name": "pkg.sub.deep.Bundle1",
           "generic_params": [],
           "members": [
             {

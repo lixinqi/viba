@@ -1,6 +1,6 @@
 import util as dep
 
-Shape0 =
+Bundle0 =
   Object
   * $ghost Missing
   * $mix list[Missing]

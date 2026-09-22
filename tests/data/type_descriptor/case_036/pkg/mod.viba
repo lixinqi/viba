@@ -1,8 +1,8 @@
 import pkg.sub.deep as lib
 
-Shape0 = int * str * bool
+Bundle0 = int * str * bool
 
-Shape1 =
+Bundle1 =
   Object
   * $peer lib.Config0
 

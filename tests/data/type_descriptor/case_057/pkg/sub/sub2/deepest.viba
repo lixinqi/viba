@@ -2,7 +2,7 @@ import util as lib
 
 Rule0 =
   Object
-  * $peer lib.Shape0
+  * $peer lib.Bundle0
 
 Rule1 =
   Object

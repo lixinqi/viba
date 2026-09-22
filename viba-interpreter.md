@@ -119,7 +119,7 @@ lib << (environ.tmp_sub_env << ())
 
 它像临时文件一样，**每次调用都给一个新的子环境**（路径是 `父路径/tmp_<随机>`），所以两次调用
 天然各占一条路径。写下来的那个实参被忽略——调用总得给一个实参，`()` 就是"什么都没有"的写法，
-给 `nil` 也一样。`viba/builtin.viba` 里 `Environment` 的成员形状因此写的是
+给 `nil` 也一样。`viba/builtin.viba` 里 `Environment` 的成员因此写的是
 `$tmp_sub_env (Environment <- ())`。
 
 路径每次都不同，这是 `tmp_sub_env` 的语义：它给**纯函数调用**、或者**结果不留的调用**用。一个

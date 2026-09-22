@@ -4,7 +4,7 @@ Config0 =
   Object
   * $peer pkg.mod.Config1
 
-Shape1 = $left int | $right str
+Bundle1 = $left int | $right str
 
 Plan2 =
   Object

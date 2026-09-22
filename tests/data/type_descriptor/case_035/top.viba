@@ -1,4 +1,4 @@
-Shape0 =
+Bundle0 =
   Object
   * $count int
   * $label str

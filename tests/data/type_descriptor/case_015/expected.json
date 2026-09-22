@@ -69,8 +69,8 @@
           ]
         },
         {
-          "name": "Shape2",
-          "full_name": "util.Shape2",
+          "name": "Bundle2",
+          "full_name": "util.Bundle2",
           "generic_params": [],
           "members": [
             {

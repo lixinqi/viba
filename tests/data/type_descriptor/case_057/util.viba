@@ -1,6 +1,6 @@
 import top as dep
 
-Shape0 = $left int | $right str
+Bundle0 = $left int | $right str
 
 Rule1 =
   Object

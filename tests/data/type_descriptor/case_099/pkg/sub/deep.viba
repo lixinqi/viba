@@ -4,7 +4,7 @@ Report0 = str * (int | nil)
 
 Report1 =
   Object
-  * $peer up.Shape0
+  * $peer up.Bundle0
 
 Config2 = $left int | $right str
 

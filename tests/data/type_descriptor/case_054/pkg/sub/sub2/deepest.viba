@@ -7,6 +7,6 @@ Plan1 = $only int
 Node2[T] =
   $v T
 
-Shape3 =
+Bundle3 =
   Object
-  * $peer up.Shape3
+  * $peer up.Bundle3

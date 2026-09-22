@@ -1,8 +1,8 @@
 import top
 
-Shape0 =
+Bundle0 =
   Object
-  * $peer top.Shape0
+  * $peer top.Bundle0
 
 Node1 =
   Object
@@ -11,6 +11,6 @@ Node1 =
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape2 = str * (int | nil)
+Bundle2 = str * (int | nil)
 
 Rule3 = $only int

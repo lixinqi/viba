@@ -10,4 +10,4 @@ Plan1 =
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape2 = $only int
+Bundle2 = $only int

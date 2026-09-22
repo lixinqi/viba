@@ -5,7 +5,7 @@ Plan0 =
   * $ghost Missing
   * $mix list[Missing]
 
-Shape1 = $left int | $right str
+Bundle1 = $left int | $right str
 
 Rule2 =
   Object

@@ -7,7 +7,7 @@ Config0 =
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1 =
+Bundle1 =
   Object
   * $peer lv1.lv2.lv3.leaf.Config0
 

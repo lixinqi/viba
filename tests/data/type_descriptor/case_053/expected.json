@@ -86,8 +86,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "lv1.lv2.lv3.leaf.Shape0",
+          "name": "Bundle0",
+          "full_name": "lv1.lv2.lv3.leaf.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -124,10 +124,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "base.Shape0",
+              "type_name": "base.Bundle0",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "lv1.lv2.lv3.leaf.Shape0"
+              "resolved": "lv1.lv2.lv3.leaf.Bundle0"
             }
           ]
         }
@@ -250,8 +250,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.mod.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.mod.Bundle0",
           "generic_params": [],
           "members": [
             {

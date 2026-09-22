@@ -1,8 +1,8 @@
 import lv1.lv2.lv3.leaf as base
 
-Shape0 = $only int
+Bundle0 = $only int
 
-Shape1 =
+Bundle1 =
   Object
   * $items list[int]
   * $seen set[str]
@@ -13,7 +13,7 @@ Plan2 =
   Object
   * $peer base.Node3
 
-Shape3 =
+Bundle3 =
   Object
   * $count int
   * $label str

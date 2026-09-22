@@ -2,9 +2,9 @@ import util as dep
 
 Config0 =
   Object
-  * $peer dep.Shape0
+  * $peer dep.Bundle0
 
-Shape1[T] =
+Bundle1[T] =
   $v T
 
 Config2 =

@@ -9,4 +9,4 @@ Config0 =
 
 Report1 =
   Object
-  * $peer lib.Shape2
+  * $peer lib.Bundle2

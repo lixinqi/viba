@@ -5,4 +5,4 @@ Node0[T] =
 
 Config1 =
   Object
-  * $peer top.Shape0
+  * $peer top.Bundle0

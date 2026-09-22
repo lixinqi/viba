@@ -5,7 +5,7 @@ Report0 =
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1 =
+Bundle1 =
   Object
   * $count int
   * $label str

@@ -8,7 +8,7 @@
     # -> Ok('entry =\n  Object\n  * $left 1\n  * $right 2\n')
 
 Every value is asked for through the protocol's cells — the same ones a reader
-uses — so this knows nothing about a design beyond its shape, and nothing about
+uses — so this knows nothing about a design beyond what is written, and nothing about
 how Data is bound. What comes out is canonical viba source (it goes through
 viba.builder), and `builder.check` reads it back before it is handed over.
 
@@ -78,37 +78,37 @@ def _emit(access: VibaAccess, node: VibaNode):
     Either way a material that carries something there is not a material of
     this design.
     """
-    shape = access.unfold(node.descriptor)
-    if shape.kind == NEVER:
+    unfolded = access.unfold(node.descriptor)
+    if unfolded.kind == NEVER:
         raise SerializeGap("nothing resides in never")
-    if shape.kind == PRODUCT:
+    if unfolded.kind == PRODUCT:
         # An untagged member is an inline slot, so the chain has to bottom out:
         # a product whose chain comes back to where it started has no reading,
         # and what was written for it would mean something else when read back.
-        cycle = access.inline_cycle(shape)
+        cycle = access.inline_cycle(unfolded)
         if cycle is not None:
             raise SerializeGap(f"the inline chain comes back to {cycle!r}")
     given = access.leaf(node)
     if isinstance(given, Ok):
         return _emit_leaf(given.ok_value)
-    if shape.kind == SUM:
+    if unfolded.kind == SUM:
         return _emit_sum(access, node)
-    if shape.kind == PRODUCT:
-        return _emit_product(access, node, shape)
-    if shape.kind == TUPLE:
+    if unfolded.kind == PRODUCT:
+        return _emit_product(access, node, unfolded)
+    if unfolded.kind == TUPLE:
         return _emit_tuple(access, node)
-    container = access.container_kind(shape)
+    container = access.container_kind(unfolded)
     if container is not None:
-        return _emit_container(access, node, container, shape)
-    if shape.kind == TAGGED:
+        return _emit_container(access, node, container, unfolded)
+    if unfolded.kind == TAGGED:
         return _emit_tagged(access, node)
-    if shape.kind == EXPONENT:
-        return _emit_exponent(access, node, shape)
-    if shape.kind == CODE_BLOCK:
-        return _emit_code_block(shape)
-    if shape.kind == NIL:
+    if unfolded.kind == EXPONENT:
+        return _emit_exponent(access, node, unfolded)
+    if unfolded.kind == CODE_BLOCK:
+        return _emit_code_block(unfolded)
+    if unfolded.kind == NIL:
         return None
-    raise SerializeGap(f"cannot write this piece out: {shape.kind}")
+    raise SerializeGap(f"cannot write this piece out: {unfolded.kind}")
 
 
 def _emit_sum(access: VibaAccess, node: VibaNode):
@@ -134,7 +134,7 @@ def _unit_expression(descriptor):
     return _NAMES.Object
 
 
-def _emit_product(access: VibaAccess, node: VibaNode, shape):
+def _emit_product(access: VibaAccess, node: VibaNode, unfolded):
     """Product: the leading unit (when the design wrote one), then every member
     in order.
 
@@ -148,7 +148,7 @@ def _emit_product(access: VibaAccess, node: VibaNode, shape):
     since the two pieces could not be told apart when read back.
     """
     written = []
-    elements = list(shape.payload.elements)
+    elements = list(unfolded.payload.elements)
     if elements and access._is_product_unit(elements[0]):
         written.append(_unit_expression(elements[0]))
     seen_tags = set()
@@ -198,20 +198,20 @@ def _emit_tagged(access: VibaAccess, node: VibaNode):
     raise SerializeGap(f"this tagged piece has no member: {node!r}")
 
 
-def _emit_code_block(shape):
+def _emit_code_block(unfolded):
     """`{ ... }`: opaque, and the material's own text is not reachable through
     the protocol — no cell hands it over. What cannot be read is not invented:
     the unit goes out in its place."""
     return None
 
 
-def _emit_exponent(access: VibaAccess, node: VibaNode, shape):
+def _emit_exponent(access: VibaAccess, node: VibaNode, unfolded):
     """Exponent chain: the result, then every argument under its own tag.
 
     Written the way the design writes it — never <- $not_operand (...) is just
     one such chain — with whatever the material has at each address filled in.
     """
-    elements = list(shape.payload.elements)
+    elements = list(unfolded.payload.elements)
     head = elements[0]
     steps = access.member_steps(node)
     if access._is_unit_descriptor(head):
@@ -219,7 +219,7 @@ def _emit_exponent(access: VibaAccess, node: VibaNode, shape):
                  else _NAMES.nil)
     else:
         if not steps:
-            raise SerializeGap(f"no value for the result of {shape.kind}")
+            raise SerializeGap(f"no value for the result of {unfolded.kind}")
         _, step, _ = steps[0]
         chain = _emit(access, _child(access, node, step))
         steps = steps[1:]
@@ -251,7 +251,7 @@ def _may_be_nil(access: VibaAccess, step, node) -> bool:
     return target is not None and access.carries_nil(target)
 
 
-def _emit_container(access: VibaAccess, node: VibaNode, container: str, shape):
+def _emit_container(access: VibaAccess, node: VibaNode, container: str, unfolded):
     """Container: a literal (ListLiteral / SetLiteral / DictLiteral).
 
     The members are written in the order the material has them, not sorted: a
@@ -262,8 +262,8 @@ def _emit_container(access: VibaAccess, node: VibaNode, container: str, shape):
         keys = access.keys(node)
         # The written key type, through however many names: `S = str` and
         # `G[V] = str` are the str the protocol hands keys over as.
-        key_type = (access.unfold(shape.payload.args[0])
-                    if shape.payload.args else None)
+        key_type = (access.unfold(unfolded.payload.args[0])
+                    if unfolded.payload.args else None)
         if not (key_type is not None and key_type.kind == TYPE_REF
                 and key_type.payload.type_name == "str"):
             raise SerializeGap("the protocol hands dict keys over as strings; "

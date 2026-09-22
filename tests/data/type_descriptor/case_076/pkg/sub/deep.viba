@@ -1,6 +1,6 @@
 import util
 
-Shape0 =
+Bundle0 =
   Object
   * $peer util.Config1
 

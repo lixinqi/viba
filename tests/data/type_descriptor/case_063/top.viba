@@ -1,7 +1,7 @@
 Rule0[T] =
   $v T
 
-Shape1 =
+Bundle1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

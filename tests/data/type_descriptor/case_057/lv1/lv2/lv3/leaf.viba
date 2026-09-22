@@ -2,7 +2,7 @@ import util as m
 
 Plan0 =
   Object
-  * $peer m.Shape0
+  * $peer m.Bundle0
 
 Plan1 =
   Object

@@ -206,7 +206,7 @@ class _Checker:
 
     def _walk(self, node, module_name: str, bindings: dict) -> bool:
         if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never)):
-            return True  # shapes a leaf reads out
+            return True  # a leaf reads these out
         if isinstance(node, viba_ast.Ellipsis):
             return "..." in self.stops
         if isinstance(node, viba_ast.CodeBlock):

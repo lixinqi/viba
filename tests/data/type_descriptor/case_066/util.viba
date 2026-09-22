@@ -1,6 +1,6 @@
-Shape0 = int * str
+Bundle0 = int * str
 
-Shape1 =
+Bundle1 =
   Object
   * $count int
   * $label str

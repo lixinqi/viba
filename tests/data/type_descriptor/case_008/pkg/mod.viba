@@ -7,6 +7,6 @@ Plan0 =
 
 Node1 =
   Object
-  * $peer lib.Shape1
+  * $peer lib.Bundle1
 
 Plan2 = int * str * bool

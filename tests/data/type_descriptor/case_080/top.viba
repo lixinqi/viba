@@ -5,4 +5,4 @@ Config0 =
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1 = $left int | $right str
+Bundle1 = $left int | $right str

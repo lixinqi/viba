@@ -3,7 +3,7 @@ Node0 =
   | $left int
   | $right str
 
-Shape1 =
+Bundle1 =
   Object
   * $items list[int]
   * $seen set[str]

@@ -35,8 +35,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "util.Shape1",
+          "name": "Bundle1",
+          "full_name": "util.Bundle1",
           "generic_params": [
             "T"
           ],
@@ -52,8 +52,8 @@
           ]
         },
         {
-          "name": "Shape2",
-          "full_name": "util.Shape2",
+          "name": "Bundle2",
+          "full_name": "util.Bundle2",
           "generic_params": [],
           "members": [
             {
@@ -94,10 +94,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "m.Shape2",
+              "type_name": "m.Bundle2",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "util.Shape2"
+              "resolved": "util.Bundle2"
             }
           ]
         },
@@ -145,8 +145,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.sub.deep.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.sub.deep.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -168,17 +168,17 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "pkg.sub.deep.Shape1",
+          "name": "Bundle1",
+          "full_name": "pkg.sub.deep.Bundle1",
           "generic_params": [],
           "members": [
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "up.Shape2",
+              "type_name": "up.Bundle2",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "util.Shape2"
+              "resolved": "util.Bundle2"
             }
           ]
         }
@@ -210,8 +210,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "lv1.lv2.lv3.leaf.Shape1",
+          "name": "Bundle1",
+          "full_name": "lv1.lv2.lv3.leaf.Bundle1",
           "generic_params": [],
           "members": [
             {
@@ -306,10 +306,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "lib.Shape1",
+              "type_name": "lib.Bundle1",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "lv1.lv2.lv3.leaf.Shape1"
+              "resolved": "lv1.lv2.lv3.leaf.Bundle1"
             }
           ]
         },

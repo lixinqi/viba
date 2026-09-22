@@ -1,11 +1,11 @@
 import pkg.mod as up
 
-Shape0 =
+Bundle0 =
   Object
   * $count int
   * $label str
 
-Shape1 = int * str
+Bundle1 = int * str
 
 Plan2 =
   Object

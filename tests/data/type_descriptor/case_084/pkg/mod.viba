@@ -1,4 +1,4 @@
-Shape0 = $left int | $right str
+Bundle0 = $left int | $right str
 
 Report1 =
   Object

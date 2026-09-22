@@ -50,8 +50,8 @@ def _one(vb, name):
     raise AssertionError(f"没有定义 {name!r}")
 
 
-def _shape(node) -> str:
-    """树里这一段的形状。"""
+def _kind(node) -> str:
+    """树里这一段是哪个类。"""
     return type(node).__name__
 
 
@@ -120,7 +120,7 @@ def test_builder_sketch_case_004():
     """`vb.UserName = str` 是普通定义，体是名字 str。"""
     node = _one(_sketch(), "UserName")
     assert isinstance(node, TypeDefinition)
-    assert _shape(node.body) == "TypeRef" and node.body.name == "str"
+    assert _kind(node.body) == "TypeRef" and node.body.name == "str"
 
 
 def test_builder_sketch_case_005():
@@ -132,39 +132,39 @@ def test_builder_sketch_case_005():
 def test_builder_sketch_case_006():
     """泛型体里的 `vb.T | None` 是和链，nil 是关键字节点。"""
     node = _one(_sketch(), "Optional")
-    assert _shape(node.body) == "SumChain"
-    assert [_shape(e) for e in node.body.elements] == ["TypeRef", "Nil"]
+    assert _kind(node.body) == "SumChain"
+    assert [_kind(e) for e in node.body.elements] == ["TypeRef", "Nil"]
     assert node.body.elements[0].name == "T"
 
 
 def test_builder_sketch_case_007():
     """`vb.Object * tag.head(vb.T) * …` 是积链，元素按写的顺序。"""
     branch = _one(_sketch(), "List").body.elements[1]
-    assert _shape(branch) == "ProductChain"
-    assert [_shape(e) for e in branch.elements] == ["TypeRef", "Tagged", "Tagged"]
+    assert _kind(branch) == "ProductChain"
+    assert [_kind(e) for e in branch.elements] == ["TypeRef", "Tagged", "Tagged"]
     assert [e.tag for e in branch.elements[1:]] == ["$head", "$tail"]
 
 
 def test_builder_sketch_case_008():
     """`vb.List[vb.T]` 是真应用：constructor 与实参各就各位。"""
     tail = _one(_sketch(), "List").body.elements[1].elements[2]
-    assert _shape(tail.type) == "TypeApp"
+    assert _kind(tail.type) == "TypeApp"
     assert tail.type.constructor == "List"
-    assert [_shape(a) for a in tail.type.args] == ["TypeRef"]
+    assert [_kind(a) for a in tail.type.args] == ["TypeRef"]
 
 
 def test_builder_sketch_case_009():
     """点分名字：`vb.sc.Result[vb.sc.FileState]`。"""
     result = _one(_sketch(), "latest_file").body.elements[0]
-    assert _shape(result) == "TypeApp" and result.constructor == "sc.Result"
+    assert _kind(result) == "TypeApp" and result.constructor == "sc.Result"
     assert result.args[0].name == "sc.FileState"
 
 
 def test_builder_sketch_case_010():
     """指数字段是平的 A <- B <- C，不是 A <- (B <- C)。"""
     body = _one(_sketch(), "latest_file").body
-    assert _shape(body) == "ExponentChain"
-    assert [_shape(e) for e in body.elements] == ["TypeApp", "Tagged", "Tagged"]
+    assert _kind(body) == "ExponentChain"
+    assert [_kind(e) for e in body.elements] == ["TypeApp", "Tagged", "Tagged"]
     assert [e.tag for e in body.elements[1:]] == ["$ctx", "$file"]
 
 
@@ -192,7 +192,7 @@ def test_builder_sum_case_002():
     """`A | (B | C)` 的支链留着，不压进主链。"""
     vb = builder.Builder()
     vb.X = vb.A | (vb.B | vb.C)
-    assert [_shape(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "SumChain"]
+    assert [_kind(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "SumChain"]
 
 
 def test_builder_sum_case_003():
@@ -214,7 +214,7 @@ def test_builder_product_case_002():
     vb = builder.Builder()
     vb.X = vb.A * (vb.B | vb.C)
     assert _text(vb) == "X =\n  A\n  * (B\n    | C)"
-    assert _shape(_one(vb, "X").body.elements[1]) == "SumChain"
+    assert _kind(_one(vb, "X").body.elements[1]) == "SumChain"
 
 
 def test_builder_product_case_003():
@@ -234,7 +234,7 @@ def test_builder_exponent_case_002():
     """连着写：链平着长。"""
     vb = builder.Builder()
     vb.X = vb.A ** tag.p(vb.B) ** tag.q(vb.C)
-    assert [_shape(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "Tagged", "Tagged"]
+    assert [_kind(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "Tagged", "Tagged"]
     assert _text(vb) == "X =\n  A\n  <- $p B\n  <- $q C"
 
 
@@ -243,7 +243,7 @@ def test_builder_exponent_case_003():
     vb = builder.Builder()
     vb.X = vb.A ** tag(vb.B ** tag.p(vb.C))
     assert _text(vb) == "X =\n  A\n  <- (B\n    <- $p C)"
-    assert _shape(_one(vb, "X").body.elements[1]) == "ExponentChain"
+    assert _kind(_one(vb, "X").body.elements[1]) == "ExponentChain"
 
 
 def test_builder_exponent_case_004():
@@ -258,7 +258,7 @@ def test_builder_group_case_001():
     vb = builder.Builder()
     vb.X = vb.A | tag(vb.B | vb.C)
     assert _text(vb) == "X =\n  A\n  | (B\n    | C)"
-    assert [_shape(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "SumChain"]
+    assert [_kind(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "SumChain"]
 
 
 def test_builder_group_case_002():
@@ -290,7 +290,7 @@ def test_builder_exponent_case_006():
     vb = builder.Builder()
     vb.X = vb.A * vb.B ** tag.p(vb.C)
     assert _text(vb) == "X =\n  A\n  * B\n    <- $p C"
-    assert _shape(_one(vb, "X").body.elements[1]) == "ExponentChain"
+    assert _kind(_one(vb, "X").body.elements[1]) == "ExponentChain"
 
 
 def test_builder_exponent_case_007():
@@ -314,28 +314,28 @@ def test_builder_unit_case_002():
     """`vb.nil` 建出来的就是 Nil 节点，不只是打印成 nil。"""
     vb = builder.Builder()
     vb.X = vb.nil
-    assert _shape(_one(vb, "X").body) == "Nil"
+    assert _kind(_one(vb, "X").body) == "Nil"
 
 
 def test_builder_unit_case_003():
     """`vb.void` 是 nil 的别名。"""
     vb = builder.Builder()
     vb.X = vb.void
-    assert _shape(_one(vb, "X").body) == "Nil"
+    assert _kind(_one(vb, "X").body) == "Nil"
 
 
 def test_builder_unit_case_004():
     """`vb.never` 建出来的是 Never 节点。"""
     vb = builder.Builder()
     vb.X = vb.never
-    assert _shape(_one(vb, "X").body) == "Never"
+    assert _kind(_one(vb, "X").body) == "Never"
 
 
 def test_builder_unit_case_005():
     """和里同时放 never 与 nil，树和文本都对。"""
     vb = builder.Builder()
     vb.X = vb.never | vb.nil
-    assert [_shape(e) for e in _one(vb, "X").body.elements] == ["Never", "Nil"]
+    assert [_kind(e) for e in _one(vb, "X").body.elements] == ["Never", "Nil"]
     assert _text(vb) == "X =\n  never\n  | nil"
 
 
@@ -343,7 +343,7 @@ def test_builder_unit_case_006():
     """`Object` / `Oneof` 是名字，不是关键字。"""
     vb = builder.Builder()
     vb.X = vb.Object | vb.Oneof
-    assert [_shape(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "TypeRef"]
+    assert [_kind(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "TypeRef"]
 
 
 def test_builder_unit_case_007():
@@ -351,7 +351,7 @@ def test_builder_unit_case_007():
     assert _writes(...) == "X =\n  ..."
     vb = builder.Builder()
     vb.X = ...
-    assert _shape(_one(vb, "X").body) == "Ellipsis"
+    assert _kind(_one(vb, "X").body) == "Ellipsis"
 
 
 def test_builder_literal_case_001():
@@ -380,7 +380,7 @@ def test_builder_literal_case_004():
     """`str` 这个类型（不是字符串实例）是名字。"""
     vb = builder.Builder()
     vb.X = str
-    assert _shape(_one(vb, "X").body) == "TypeRef" and _one(vb, "X").body.name == "str"
+    assert _kind(_one(vb, "X").body) == "TypeRef" and _one(vb, "X").body.name == "str"
 
 
 def test_builder_literal_case_005():
@@ -434,7 +434,7 @@ def test_builder_name_case_002():
     """应用：constructor[实参]。"""
     vb = builder.Builder()
     vb.X = vb.F[vb.A]
-    assert _shape(_one(vb, "X").body) == "TypeApp"
+    assert _kind(_one(vb, "X").body) == "TypeApp"
     assert _one(vb, "X").body.constructor == "F"
 
 
@@ -450,7 +450,7 @@ def test_builder_name_case_004():
     vb = builder.Builder()
     vb.X = vb.F[()]
     assert _text(vb) == "X =\n  F[]"
-    assert _shape(_one(vb, "X").body) == "TypeApp" and _one(vb, "X").body.args == []
+    assert _kind(_one(vb, "X").body) == "TypeApp" and _one(vb, "X").body.args == []
 
 
 def test_builder_name_case_005():
@@ -458,7 +458,7 @@ def test_builder_name_case_005():
     vb = builder.Builder()
     vb.Bare = vb.F
     vb.Empty = vb.F[()]
-    assert [_shape(_one(vb, n).body) for n in ("Bare", "Empty")] == ["TypeRef", "TypeApp"]
+    assert [_kind(_one(vb, n).body) for n in ("Bare", "Empty")] == ["TypeRef", "TypeApp"]
 
 
 def test_builder_name_case_006():
@@ -605,7 +605,7 @@ def test_builder_container_case_001():
 def test_builder_container_case_002():
     """容器字面量读回来还是字面量。"""
     body = viba_ast.parse(_writes([1, 2]) + "\n").body[0].body
-    assert _shape(body) == "TypeApp" and body.constructor == "ListLiteral"
+    assert _kind(body) == "TypeApp" and body.constructor == "ListLiteral"
 
 
 # ----------------------------------------------------------------------
@@ -617,7 +617,7 @@ def test_builder_tuple_case_001():
     """二元组。"""
     vb = builder.Builder()
     vb.X = (vb.A, vb.B)
-    assert _text(vb) == "X =\n  (A, B)" and _shape(_one(vb, "X").body) == "Tuple"
+    assert _text(vb) == "X =\n  (A, B)" and _kind(_one(vb, "X").body) == "Tuple"
 
 
 def test_builder_tuple_case_002():
@@ -640,7 +640,7 @@ def test_builder_code_case_001():
     vb = builder.Builder()
     vb.X = builder.code("return 1")
     assert _text(vb) == "X =\n  {return 1}"
-    assert _shape(_one(vb, "X").body) == "CodeBlock"
+    assert _kind(_one(vb, "X").body) == "CodeBlock"
 
 
 def test_builder_code_case_002():
@@ -703,7 +703,7 @@ def test_builder_check_case_002():
     """`check` 出的是 Module。"""
     vb = builder.Builder()
     vb.A = 1
-    assert _shape(builder.check(vb)) == "Module"
+    assert _kind(builder.check(vb)) == "Module"
 
 
 def test_builder_output_case_001():
@@ -936,7 +936,7 @@ def test_builder_canonical_case_004():
     """续写出来的整份文件也能读回来。"""
     vb = builder.Builder(_DEMO.read_text())
     vb.Added = vb.Object * tag.x(vb.T)
-    assert _shape(builder.check(vb)) == "Module"
+    assert _kind(builder.check(vb)) == "Module"
 
 
 # ----------------------------------------------------------------------
@@ -951,7 +951,7 @@ def test_builder_any_case_001():
     vb.Maybe = vb.Top | None
     assert str(vb).rstrip("\n") == "Top =\n  Any\n\nMaybe =\n  Top\n  | nil"
     node = _one(vb, "Top")
-    assert _shape(node.body) == "Any"
+    assert _kind(node.body) == "Any"
     assert viba_ast.unparse(viba_ast.parse(str(vb))) == str(vb).rstrip("\n")
 
 
@@ -978,8 +978,8 @@ def test_builder_partial_case_002():
     chain = vb.A ** tag.b(vb.B) ** tag.c(vb.C)
     vb.Given = chain << tag.b(vb.B)
     vb.All = chain << tag.c(vb.C) << tag.b(vb.B)
-    assert _shape(_one(vb, "Given").body) == "Partial"
-    assert _shape(_one(vb, "All").body) == "Partial"
+    assert _kind(_one(vb, "Given").body) == "Partial"
+    assert _kind(_one(vb, "All").body) == "Partial"
     assert viba_ast.unparse(viba_ast.parse(str(vb))) == str(vb).rstrip("\n")
 
 

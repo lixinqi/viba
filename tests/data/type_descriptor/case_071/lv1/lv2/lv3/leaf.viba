@@ -2,7 +2,7 @@ import util as base
 
 Config0 = str * (int | nil)
 
-Shape1 = $left int | $right str
+Bundle1 = $left int | $right str
 
 Rule2 =
   Object

@@ -241,7 +241,7 @@ def run_descriptor_corpus():
 
 def run_package_sources():
     """包自己的 .viba 文件也要能编、能过审：语言单位（viba/type.viba）、
-    描述符形状（viba/viba_type_descriptor.viba）、内建词汇（viba/builtin.viba）。"""
+    描述符（viba/viba_type_descriptor.viba）、内建词汇（viba/builtin.viba）。"""
     root = Path(__file__).resolve().parent.parent / "viba"
     paths = [root / "type.viba", root / "viba_type_descriptor.viba",
              root / "builtin.viba"]

@@ -12,7 +12,7 @@ Rule1 =
 Report2[T] =
   $v T
 
-Shape3 =
+Bundle3 =
   Object
   * $items list[int]
   * $seen set[str]

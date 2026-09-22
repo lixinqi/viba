@@ -16,4 +16,4 @@ Config2 =
   * $ghost Missing
   * $mix list[Missing]
 
-Shape3 = int * str
+Bundle3 = int * str

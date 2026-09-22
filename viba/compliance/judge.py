@@ -75,7 +75,7 @@ def read_prepare(environ: Environment, name: str):
 def prepare_material(call, measured=None):
     """A Prepare: `$call` is the prepared call, `$measured` what it answered.
 
-    Unmeasured is written `nil`, so a Prepare has one shape whether or not the
+    Unmeasured is written `nil`, so a Prepare reads the same whether or not the
     measurement happened yet."""
     return viba_ast.ProductChain([
         viba_ast.Tagged(CALL_TAG, _piece(call)),

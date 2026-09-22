@@ -134,8 +134,8 @@
           ]
         },
         {
-          "name": "Shape3",
-          "full_name": "pkg.sub.deep.Shape3",
+          "name": "Bundle3",
+          "full_name": "pkg.sub.deep.Bundle3",
           "generic_params": [],
           "members": [
             {
@@ -241,10 +241,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "base.Shape3",
+              "type_name": "base.Bundle3",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "pkg.sub.deep.Shape3"
+              "resolved": "pkg.sub.deep.Bundle3"
             }
           ]
         },
@@ -272,8 +272,8 @@
           ]
         },
         {
-          "name": "Shape2",
-          "full_name": "pkg.sub.sub2.deepest.Shape2",
+          "name": "Bundle2",
+          "full_name": "pkg.sub.sub2.deepest.Bundle2",
           "generic_params": [
             "T"
           ],

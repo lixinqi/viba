@@ -65,8 +65,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "util.Shape1",
+          "name": "Bundle1",
+          "full_name": "util.Bundle1",
           "generic_params": [],
           "members": [
             {
@@ -130,8 +130,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.sub.sub2.deepest.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.sub.sub2.deepest.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -249,10 +249,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "up.Shape0",
+              "type_name": "up.Bundle0",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "pkg.sub.sub2.deepest.Shape0"
+              "resolved": "pkg.sub.sub2.deepest.Bundle0"
             }
           ]
         },

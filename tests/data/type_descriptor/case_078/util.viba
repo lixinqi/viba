@@ -2,7 +2,7 @@ import top
 
 Config0 = str * (int | nil)
 
-Shape1 =
+Bundle1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
@@ -12,6 +12,6 @@ Node2 =
   | $left int
   | $right str
 
-Shape3 =
+Bundle3 =
   Object
   * $peer top.Node0

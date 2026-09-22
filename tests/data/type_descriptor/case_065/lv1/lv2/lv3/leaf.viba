@@ -1,6 +1,6 @@
 import pkg.mod as lib
 
-Shape0 =
+Bundle0 =
   Object
   * $ghost Missing
   * $mix list[Missing]

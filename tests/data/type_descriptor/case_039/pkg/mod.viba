@@ -3,7 +3,7 @@ import util as base
 Config0[T] =
   $v T
 
-Shape1 =
+Bundle1 =
   Oneof
   | $left int
   | $right str

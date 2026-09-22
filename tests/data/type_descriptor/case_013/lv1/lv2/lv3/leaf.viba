@@ -5,4 +5,4 @@ Config0[T] =
 
 Report1 =
   Object
-  * $peer dep.Shape1
+  * $peer dep.Bundle1

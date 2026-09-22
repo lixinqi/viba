@@ -30,8 +30,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "top.Shape1",
+          "name": "Bundle1",
+          "full_name": "top.Bundle1",
           "generic_params": [],
           "members": [
             {
@@ -88,10 +88,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "top.Shape1",
+              "type_name": "top.Bundle1",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "top.Shape1"
+              "resolved": "top.Bundle1"
             }
           ]
         },
@@ -258,8 +258,8 @@
           ]
         },
         {
-          "name": "Shape3",
-          "full_name": "pkg.sub.sub2.deepest.Shape3",
+          "name": "Bundle3",
+          "full_name": "pkg.sub.sub2.deepest.Bundle3",
           "generic_params": [],
           "members": [
             {

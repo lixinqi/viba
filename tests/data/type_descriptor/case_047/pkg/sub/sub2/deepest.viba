@@ -7,7 +7,7 @@ Config0 =
 
 Rule1 = $only int
 
-Shape2 =
+Bundle2 =
   Oneof
   | $left int
   | $right str

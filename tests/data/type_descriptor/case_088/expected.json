@@ -7,8 +7,8 @@
       "imports": [],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "util.Shape0",
+          "name": "Bundle0",
+          "full_name": "util.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -59,17 +59,17 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "top.Shape0",
+          "name": "Bundle0",
+          "full_name": "top.Bundle0",
           "generic_params": [],
           "members": [
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "up.Shape0",
+              "type_name": "up.Bundle0",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "util.Shape0"
+              "resolved": "util.Bundle0"
             }
           ]
         },
@@ -177,8 +177,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.sub.deep.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.sub.deep.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -284,8 +284,8 @@
           ]
         },
         {
-          "name": "Shape2",
-          "full_name": "lv1.lv2.lv3.leaf.Shape2",
+          "name": "Bundle2",
+          "full_name": "lv1.lv2.lv3.leaf.Bundle2",
           "generic_params": [],
           "members": [
             {
@@ -299,8 +299,8 @@
           ]
         },
         {
-          "name": "Shape3",
-          "full_name": "lv1.lv2.lv3.leaf.Shape3",
+          "name": "Bundle3",
+          "full_name": "lv1.lv2.lv3.leaf.Bundle3",
           "generic_params": [],
           "members": [
             {

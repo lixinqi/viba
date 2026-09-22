@@ -14,7 +14,7 @@ Rule2 =
   Object
   * $peer pkg.sub.sub2.deepest.Config1
 
-Shape3 =
+Bundle3 =
   Object
   * $ghost Missing
   * $mix list[Missing]

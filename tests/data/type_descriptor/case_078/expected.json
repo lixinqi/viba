@@ -96,8 +96,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "util.Shape1",
+          "name": "Bundle1",
+          "full_name": "util.Bundle1",
           "generic_params": [],
           "members": [
             {
@@ -142,8 +142,8 @@
           ]
         },
         {
-          "name": "Shape3",
-          "full_name": "util.Shape3",
+          "name": "Bundle3",
+          "full_name": "util.Bundle3",
           "generic_params": [],
           "members": [
             {
@@ -169,8 +169,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.sub.deep.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.sub.deep.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -192,17 +192,17 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "pkg.sub.deep.Shape1",
+          "name": "Bundle1",
+          "full_name": "pkg.sub.deep.Bundle1",
           "generic_params": [],
           "members": [
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "util.Shape1",
+              "type_name": "util.Bundle1",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "util.Shape1"
+              "resolved": "util.Bundle1"
             }
           ]
         },

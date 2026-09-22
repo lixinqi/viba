@@ -2,6 +2,6 @@ import pkg.sub.deep as dep
 
 Config0 =
   Object
-  * $peer dep.Shape1
+  * $peer dep.Bundle1
 
 Config1 = $only int

@@ -1,10 +1,10 @@
 import top
 
-Shape0 =
+Bundle0 =
   Object
   * $peer top.Config1
 
-Shape1 =
+Bundle1 =
   Object
   * $count int
   * $label str

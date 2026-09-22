@@ -134,7 +134,7 @@ class EnvironmentStorage:
 
     def _store_path(self, file_path: str, root_dir: Optional[str] = None) -> Path:
         """`file_path` read under the store root (or another root of the same
-        shape): the parts are taken as written, so a path never escapes it."""
+        kind): the parts are taken as written, so a path never escapes it."""
         relative = Path(*[part for part in str(file_path).split("/") if part])
         return Path(root_dir or self.store_root_dir) / relative
 
@@ -816,7 +816,7 @@ def _answer(name, answer):
     A `VibaNode` is taken as it is, an `Environment` stays a host value, and
     `None` is `nil` the way it is in the builder. A plain Python value lands
     as a leaf — but only a scalar one: a list, a dict, a callable or any other
-    object has no leaf to be, and guessing one would put a shape into the
+    object has no leaf to be, and guessing one would put a piece into the
     material that no design asked for.
     """
     if isinstance(answer, VibaNode):

@@ -10,7 +10,7 @@ Report1 =
   * $ghost Missing
   * $mix list[Missing]
 
-Shape2 =
+Bundle2 =
   Oneof
   | $left int
   | $right str

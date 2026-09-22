@@ -1,6 +1,6 @@
 import pkg.sub.sub2.deepest as m
 
-Shape0[T] =
+Bundle0[T] =
   $v T
 
 Node1 =

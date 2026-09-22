@@ -7,5 +7,5 @@ Report0 =
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1[T] =
+Bundle1[T] =
   $v T

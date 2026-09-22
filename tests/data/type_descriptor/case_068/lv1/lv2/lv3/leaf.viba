@@ -4,7 +4,7 @@ Plan0 = $only int
 
 Config1 = $left int | $right str
 
-Shape2 =
+Bundle2 =
   Object
   * $peer util.Config1
 

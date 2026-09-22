@@ -8,8 +8,8 @@ Config0 =
 Report1[T] =
   $v T
 
-Shape2 =
+Bundle2 =
   Object
   * $peer pkg.sub.sub2.deepest.Config0
 
-Shape3 = str * (int | nil)
+Bundle3 = str * (int | nil)

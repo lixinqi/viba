@@ -7,8 +7,8 @@
       "imports": [],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "top.Shape0",
+          "name": "Bundle0",
+          "full_name": "top.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -111,10 +111,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "base.Shape0",
+              "type_name": "base.Bundle0",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "top.Shape0"
+              "resolved": "top.Bundle0"
             }
           ]
         },
@@ -154,8 +154,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.mod.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.mod.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -185,8 +185,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "pkg.mod.Shape1",
+          "name": "Bundle1",
+          "full_name": "pkg.mod.Bundle1",
           "generic_params": [],
           "members": [
             {

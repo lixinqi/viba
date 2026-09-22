@@ -27,8 +27,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "util.Shape1",
+          "name": "Bundle1",
+          "full_name": "util.Bundle1",
           "generic_params": [
             "T"
           ],
@@ -51,8 +51,8 @@
       "imports": [],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.sub.sub2.deepest.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.sub.sub2.deepest.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -101,8 +101,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.mod.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.mod.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -124,8 +124,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "pkg.mod.Shape1",
+          "name": "Bundle1",
+          "full_name": "pkg.mod.Bundle1",
           "generic_params": [],
           "members": [
             {

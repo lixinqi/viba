@@ -1,6 +1,6 @@
 import lv1.lv2.lv3.leaf
 
-Shape0 = $only int
+Bundle0 = $only int
 
 Report1 =
   Object

@@ -2,7 +2,7 @@ import pkg.sub.sub2.deepest
 
 Rule0 =
   Object
-  * $peer pkg.sub.sub2.deepest.Shape0
+  * $peer pkg.sub.sub2.deepest.Bundle0
 
 Config1 =
   Oneof

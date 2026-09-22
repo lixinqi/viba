@@ -12,14 +12,14 @@ Semantics (per design): there are no nominal types — a name is an
 alias of what it is written as, and judgment is structural throughout.
 - Every definition unfolds to its body and is compared structurally
   (B = A * $find bool <: A, and X[T] = list[T] gives X[int] the
-  shape of list[int]). A definition reference that cannot be unfolded
+  body of list[int]). A definition reference that cannot be unfolded
   — a bare generic name, whose parameters have no actuals — compares
   by name, which is all that is left of it.
 - Cycles are read coinductively (equi-recursive types), and the
   assumption is the greatest fixed point: a (sub, sup) pair already in
   flight is true. `Tree[T] = $leaf T * $kids list[Tree[T]]` is
   therefore its own unfolding, `MyList[T] = $head T * $tail MyList[T]
-  | nil` and the same shape under another name are each other's
+  | nil` and the same type under another name are each other's
   subtype, and a definition that reaches only itself (`Loop[T] =
   Loop[T]`) is the largest type: it is both a subtype and a supertype
   of anything it is compared with: whoever writes such a definition
@@ -39,7 +39,7 @@ alias of what it is written as, and judgment is structural throughout.
   untagged member is one positional member, paired with the other
   side's positionals in order. Tags hold the members together, so the
   same tag twice in one product (inlined or written) is malformed
-  input: Err. So is a chain that never reaches a shape because it
+  input: Err. So is a chain that never reaches a body because it
   comes back to a definition it is already expanding — `A = A * $x
   int` writes A as itself, and an alias or a generic can close the
   same loop.
@@ -247,7 +247,7 @@ class _Checker:
             return NilType()
         if isinstance(node, viba_ast.Never):
             return NeverType()
-        # Any is not lifted: what it is *below* depends on the shape on the
+        # Any is not lifted: what it is *below* depends on the type on the
         # other side (`Any * nil` is Any, `Any | int` is Any), so the walk
         # decides it. AnyType serves the Type-level API, and the top rule
         # (`sup is AnyType`: everything fits) is what the walk asks first.
@@ -413,7 +413,7 @@ class _Checker:
     # ------------------------------------------------------------------
     # never-headed chains: an exponent chain whose result is never, either
     # written out (never <- $x T) or reached through a definition's body.
-    # The shape is what counts, not the name.
+    # What is written is what counts, not the name.
     #
     # A chain reads as a function type, so its argument is contravariant.
     # Two further readings apply to branches, and both end in a terminator
@@ -424,7 +424,7 @@ class _Checker:
     #     the field at every branch tag must be a terminator or read as
     #     never <- branch, whose argument is then compared contravariantly.
     # A sub that is only a copy of the never-headed application settles
-    # nothing: the shape is not a terminator. Everything else falls to the
+    # nothing: the chain head is not a terminator. Everything else falls to the
     # ordinary exponent rule.
     # ------------------------------------------------------------------
 
@@ -438,7 +438,7 @@ class _Checker:
         if isinstance(sp, viba_ast.TypeApp):
             if isinstance(node, viba_ast.TypeApp):
                 # Both sides written as applications: a copy settles
-                # nothing, and the shape is not read as an exponent here.
+                # nothing, and it is not read as an exponent here.
                 return False
             # Application form: unfold to the body and use the exponent rule.
             return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
@@ -836,13 +836,13 @@ class _Checker:
         innermost one is all a member needs.
 
         Names and applications unfold one after another, with a generic's
-        actuals bound, until the member is a shape: a product inlines its own
+        actuals bound, until the member is written out: a product inlines its own
         members here, a single tagged thing is one member, the product unit is
         no member. Anything else is one positional (bare) member, kept as it
         was written.
 
         An inline chain has to bottom out: a definition the chain meets twice
-        never reaches a shape, so the design is malformed input — `A = A * $x
+        never bottoms out, so the design is malformed input — `A = A * $x
         int` says A is written as itself. Refusing it is what keeps the walk
         finite as well.
         """
@@ -1000,8 +1000,8 @@ class _Checker:
         return [arg for arg in args if not self._carries_documentation(arg)]
 
     def _carries_documentation(self, node) -> bool:
-        """A code block, or a unit a config names applied to one: the shape
-        the writing layers park documentation in. Documentation is not an
+        """A code block, or a unit a config names applied to one: where the
+        writing layers park documentation. Documentation is not an
         argument. The block may sit behind a tag, as `U[$t {...}]` writes
         it."""
         if isinstance(node, viba_ast.CodeBlock):

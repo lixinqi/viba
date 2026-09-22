@@ -1,7 +1,7 @@
 import util as up
 
-Shape0 =
+Bundle0 =
   Object
-  * $peer up.Shape0
+  * $peer up.Bundle0
 
 Node1 = $left int | $right str

@@ -7,8 +7,8 @@
       "imports": [],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "util.Shape0",
+          "name": "Bundle0",
+          "full_name": "util.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -49,16 +49,16 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "m.Shape0",
+              "type_name": "m.Bundle0",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "util.Shape0"
+              "resolved": "util.Bundle0"
             }
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "pkg.sub.deep.Shape1",
+          "name": "Bundle1",
+          "full_name": "pkg.sub.deep.Bundle1",
           "generic_params": [],
           "members": [
             {
@@ -108,10 +108,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "dep.Shape1",
+              "type_name": "dep.Bundle1",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "pkg.sub.deep.Shape1"
+              "resolved": "pkg.sub.deep.Bundle1"
             }
           ]
         },
@@ -143,8 +143,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "lv1.lv2.lv3.leaf.Shape0",
+          "name": "Bundle0",
+          "full_name": "lv1.lv2.lv3.leaf.Bundle0",
           "generic_params": [
             "T"
           ],
@@ -241,8 +241,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.mod.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.mod.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -256,8 +256,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "pkg.mod.Shape1",
+          "name": "Bundle1",
+          "full_name": "pkg.mod.Bundle1",
           "generic_params": [],
           "members": [
             {
@@ -310,8 +310,8 @@
           ]
         },
         {
-          "name": "Shape3",
-          "full_name": "pkg.mod.Shape3",
+          "name": "Bundle3",
+          "full_name": "pkg.mod.Bundle3",
           "generic_params": [],
           "members": [
             {

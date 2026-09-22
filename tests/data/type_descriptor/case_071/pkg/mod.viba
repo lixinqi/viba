@@ -2,6 +2,6 @@ import util
 
 Config0 =
   Object
-  * $peer util.Shape0
+  * $peer util.Bundle0
 
-Shape1 = str * (int | nil)
+Bundle1 = str * (int | nil)

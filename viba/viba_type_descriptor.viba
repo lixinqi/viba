@@ -71,7 +71,7 @@ VibaDefinitionDescriptor =
       不是错误。
       $generic_params 是 Viba 多出来的：protobuf 没有参数化类型。
       list / set / dict 与其字面量构造器 ListLiteral / SetLiteral /
-      DictLiteral 是形状而不是名字：等号左边不许出现它们——定义名
+      DictLiteral 不是名字而是内建写法：等号左边不许出现它们——定义名
       不行，泛型形参也不行（它们只在类型表达式里出现）。
       $file_hash 是所属文件那一份的副本，好让起点不查描述符池就能核版本。
     }]
@@ -94,7 +94,7 @@ VibaMemberDescriptor =
         type / type_name -> $member_type（成员类型本身就是一段表达式，还能内联）
         containing_type  -> $containing_full_name
       protobuf 的 label 在 Viba 里没有对应物：我们没有 repeated 这个概念，
-      list[T] 就是一个类型；可选也没有 label，它就是 T | nil 这个和形状。
+      list[T] 就是一个类型；可选也没有 label，它就是 T | nil 这个和。
     }]
 
 # ---------------------------------------------------------------- #
@@ -163,7 +163,7 @@ VibaChainDescriptor =
   * $resolvable_type type.Type
   * $elements list[VibaTypeDescriptor]
   * Comments[{
-      和链、积链、指数链一个形状：$elements 是主链，按书写顺序。
+      和链、积链、指数链结构相同：$elements 是主链，按书写顺序。
       和/积的主链是一路 $left 嵌套下来的那一串（元素是分支 / 字段），
       指数的主链是一路 $result 嵌套下来的那一串（$elements[0] 是结果，
       其余是参数）。$right / $argument 那侧的嵌套是支链，原样算主链里的

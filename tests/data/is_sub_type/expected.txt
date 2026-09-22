@@ -122,5 +122,5 @@
 121 error  # an alias closes the same loop
 122 error  # and so do two definitions
 123 error  # a three-definition ring, tags all different
-124 true  # the same shape with the chain ending is fine
+124 true  # the same type with the chain ending is fine
 125 error  # the untagged member need not be first

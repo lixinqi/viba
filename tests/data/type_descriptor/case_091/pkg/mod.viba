@@ -1,6 +1,6 @@
 import top
 
-Shape0 = $only int
+Bundle0 = $only int
 
 Rule1 =
   Object

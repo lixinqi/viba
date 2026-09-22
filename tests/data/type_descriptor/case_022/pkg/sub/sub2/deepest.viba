@@ -1,4 +1,4 @@
-Shape0 = $only int
+Bundle0 = $only int
 
 Config1 =
   Oneof

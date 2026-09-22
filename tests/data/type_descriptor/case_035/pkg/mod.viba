@@ -1,4 +1,4 @@
-Shape0 =
+Bundle0 =
   Oneof
   | $left int
   | $right str

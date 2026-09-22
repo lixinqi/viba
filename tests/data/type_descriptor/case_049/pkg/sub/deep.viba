@@ -9,7 +9,7 @@ Node1 =
 Rule2[T] =
   $v T
 
-Shape3 =
+Bundle3 =
   Object
   * $ghost Missing
   * $mix list[Missing]

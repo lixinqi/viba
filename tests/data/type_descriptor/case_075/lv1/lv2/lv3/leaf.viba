@@ -1,6 +1,6 @@
 import top as dep
 
-Shape0 =
+Bundle0 =
   Oneof
   | $left int
   | $right str

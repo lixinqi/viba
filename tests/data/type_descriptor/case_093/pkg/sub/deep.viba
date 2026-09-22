@@ -2,11 +2,11 @@ import pkg.sub.deep as base
 
 Plan0 = $only int
 
-Shape1 =
+Bundle1 =
   Object
   * $peer base.Plan0
 
-Shape2 =
+Bundle2 =
   Oneof
   | $left int
   | $right str

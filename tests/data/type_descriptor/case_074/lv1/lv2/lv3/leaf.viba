@@ -4,7 +4,7 @@ Rule0 =
   Object
   * $peer lib.Node1
 
-Shape1 =
+Bundle1 =
   Object
   * $items list[int]
   * $seen set[str]

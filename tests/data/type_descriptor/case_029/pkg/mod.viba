@@ -5,13 +5,13 @@ Rule0 =
   * $count int
   * $label str
 
-Shape1 =
+Bundle1 =
   Object
   * $peer lib.Plan1
 
-Shape2 = int * str * bool
+Bundle2 = int * str * bool
 
-Shape3 =
+Bundle3 =
   Oneof
   | $left int
   | $right str

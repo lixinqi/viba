@@ -1,6 +1,6 @@
 import pkg.sub.sub2.deepest as dep
 
-Shape0 = $only int
+Bundle0 = $only int
 
-Shape1[T] =
+Bundle1[T] =
   $v T

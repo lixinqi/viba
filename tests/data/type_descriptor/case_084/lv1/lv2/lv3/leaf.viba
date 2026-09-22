@@ -3,9 +3,9 @@ import top
 Node0[T] =
   $v T
 
-Shape1 =
+Bundle1 =
   Object
-  * $peer top.Shape0
+  * $peer top.Bundle0
 
 Config2 =
   Object

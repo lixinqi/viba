@@ -2,7 +2,7 @@ import util
 
 Node0 = $only int
 
-Shape1 =
+Bundle1 =
   Object
   * $peer util.Rule0
 

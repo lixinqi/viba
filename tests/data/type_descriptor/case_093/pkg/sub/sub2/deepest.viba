@@ -1,6 +1,6 @@
 import pkg.sub.sub2.deepest as lib
 
-Shape0 =
+Bundle0 =
   Object
   * $items list[int]
   * $seen set[str]

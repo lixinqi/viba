@@ -372,7 +372,7 @@ Box[T] = $v T
 AliasOfBox[T] = Box[T]
 MissingAlias[T] = Missing
 Wrap[T] = $value T
-Shape[Cond, Code] = $head Cond * $tail Code
+Cell[Cond, Code] = $head Cond * $tail Code
 Odd[T, Msg] = $__odd_original T * $__odd_msg Msg
 """)
 
@@ -419,7 +419,7 @@ Odd[T, Msg] = $__odd_original T * $__odd_msg Msg
                  "a named generic is covariant in its parameter")
     check_result(judge("Wrap[Num]", "Wrap[int]"), False,
                  "and False the other way")
-    check_result(judge("Odd[nil, str]", "Shape[int, str]"), False,
+    check_result(judge("Odd[nil, str]", "Cell[int, str]"), False,
                  "two definitions with different tags do not fit each other")
 
 
@@ -716,7 +716,7 @@ def run_function_chain_cases():
     check_result(judge("int <- str <- float", "int <- str"), True,
                  "and an unused float extra is cut away just the same")
     check_result(judge("int <- float", "int <- float <- nil"), False,
-                 "an extra nil argument is still an argument: arity is part of the shape")
+                 "an extra nil argument is still an argument: arity is part of the type")
     check_result(judge("int <- float", "int <- float <- Object"), False,
                  "Object is nil, and the argument is still asked for")
     check_result(judge("int <- float", "int <- float <- never"), True,
@@ -922,7 +922,7 @@ Loop = Loop
 
 def run_any_cases():
     """Any 是所有类型的上界：T <: Any 恒真，反过来只有落在 Any（或等价于 Any 的
-    形状，如 Any | int、Any * nil）上才真。"""
+    类型，如 Any | int、Any * nil）上才真。"""
     module = custom_module("""
 A = int
 B = $x int * $y str

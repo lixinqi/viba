@@ -9,7 +9,7 @@ Config0 =
 
 Config1 =
   Object
-  * $peer base.Shape0
+  * $peer base.Bundle0
 
 Report2 =
   Object

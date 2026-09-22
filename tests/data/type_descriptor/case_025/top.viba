@@ -2,7 +2,7 @@ import top as m
 
 Node0 = $only int
 
-Shape1 = int * str * bool
+Bundle1 = int * str * bool
 
 Plan2 =
   Object

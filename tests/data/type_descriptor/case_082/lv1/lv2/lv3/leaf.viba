@@ -3,6 +3,6 @@ Rule0 =
   * $ghost Missing
   * $mix list[Missing]
 
-Shape1 = $only int
+Bundle1 = $only int
 
 Rule2 = $left int | $right str

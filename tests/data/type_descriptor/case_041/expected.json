@@ -165,8 +165,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "pkg.mod.Shape1",
+          "name": "Bundle1",
+          "full_name": "pkg.mod.Bundle1",
           "generic_params": [],
           "members": [
             {

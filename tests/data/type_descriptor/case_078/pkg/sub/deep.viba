@@ -1,12 +1,12 @@
 import util
 
-Shape0 =
+Bundle0 =
   Object
   * $count int
   * $label str
 
-Shape1 =
+Bundle1 =
   Object
-  * $peer util.Shape1
+  * $peer util.Bundle1
 
 Plan2 = int * str

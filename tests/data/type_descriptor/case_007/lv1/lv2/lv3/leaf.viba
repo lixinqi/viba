@@ -14,7 +14,7 @@ Plan2 =
   Object
   * $peer m.Rule0
 
-Shape3 =
+Bundle3 =
   Object
   * $count int
   * $label str

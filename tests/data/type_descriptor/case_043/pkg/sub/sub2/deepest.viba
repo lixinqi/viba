@@ -1,6 +1,6 @@
 import lv1.lv2.lv3.leaf as lib
 
-Shape0 =
+Bundle0 =
   Object
   * $peer lib.Config1
 

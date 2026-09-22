@@ -4,7 +4,7 @@ Report0 =
   Object
   * $peer pkg.sub.deep.Plan0
 
-Shape1 = int * str
+Bundle1 = int * str
 
 Report2 =
   Object

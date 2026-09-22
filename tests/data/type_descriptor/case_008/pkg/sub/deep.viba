@@ -1,10 +1,10 @@
 import util as up
 
-Shape0 =
+Bundle0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Shape1 =
+Bundle1 =
   Object
-  * $peer up.Shape2
+  * $peer up.Bundle2

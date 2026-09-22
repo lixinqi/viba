@@ -1,4 +1,4 @@
-Shape0 = int * str * bool
+Bundle0 = int * str * bool
 
 Config1 =
   Object

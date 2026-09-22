@@ -247,7 +247,7 @@ def p_definition(p):
     p[0] = p[1]
 
 
-# The builtin containers are a shape, not names: nothing may define one, and
+# The builtin containers are builtin, not names: nothing may define one, and
 # no generic may take one as a parameter. The check runs over the parsed
 # definitions — raising inside a grammar action would be swallowed by PLY's
 # error recovery, and the definition would vanish from the tree instead.

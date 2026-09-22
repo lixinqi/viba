@@ -26,7 +26,7 @@ labelled = checks.labelled
 def run(tmp: Path):
     _host_answers(tmp)
     _written_as_ret(tmp)
-    _shapes(tmp)
+    _written(tmp)
     _names_and_repeats(tmp)
     _crossing_the_host_boundary(tmp)
 
@@ -159,7 +159,7 @@ def _written_as_ret(tmp: Path):
     for body, label in (("(1 | 2)", "a sum"),
                         ("list[int]", "a generic application"),
                         ("int <- $x int", "an exponent")):
-        path = write(tmp, f"shape_{label.split()[-1]}.viba", f"__ret__ = {body}\n")
+        path = write(tmp, f"written_{label.split()[-1]}.viba", f"__ret__ = {body}\n")
         labelled(interpret(path, environ), "cannot compute",
                  f"__ret__ written as {label} -> Err")
 
@@ -174,13 +174,13 @@ def _written_as_ret(tmp: Path):
              "a builtin type name used as a value -> Err")
 
 
-def _shapes(tmp: Path):
+def _written(tmp: Path):
     """写在值位置上的数据就是材料：元组、tag、积。"""
     host = Host()
     environ = host.environ()
     for body, want, label in (("(1, 2)", 2, "a tuple of two"),
                               ("()", 0, "the empty tuple")):
-        path = write(tmp, f"shape_{abs(hash(body))}.viba", f"__ret__ = {body}\n")
+        path = write(tmp, f"written_{abs(hash(body))}.viba", f"__ret__ = {body}\n")
         result = interpret(path, environ)
         check(isinstance(result, Ok) and len(result.ok_value) == want,
               f"__ret__ written as {label} is material: {result!r}")

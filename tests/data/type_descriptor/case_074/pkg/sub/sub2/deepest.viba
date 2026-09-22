@@ -7,7 +7,7 @@ Report1 =
   * $count int
   * $label str
 
-Shape2 =
+Bundle2 =
   Object
   * $items list[int]
   * $seen set[str]
@@ -16,4 +16,4 @@ Shape2 =
 
 Rule3 =
   Object
-  * $peer lv1.lv2.lv3.leaf.Shape1
+  * $peer lv1.lv2.lv3.leaf.Bundle1

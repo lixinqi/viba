@@ -12,4 +12,4 @@ Node1[T] =
 
 Config2 =
   Object
-  * $peer util.Shape2
+  * $peer util.Bundle2

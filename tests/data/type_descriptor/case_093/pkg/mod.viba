@@ -2,6 +2,6 @@ import pkg.sub.sub2.deepest
 
 Report0 = $only int
 
-Shape1 =
+Bundle1 =
   Object
-  * $peer pkg.sub.sub2.deepest.Shape0
+  * $peer pkg.sub.sub2.deepest.Bundle0

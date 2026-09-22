@@ -3,7 +3,7 @@ Report0 =
   * $count int
   * $label str
 
-Shape1 =
+Bundle1 =
   Object
   * $items list[int]
   * $seen set[str]

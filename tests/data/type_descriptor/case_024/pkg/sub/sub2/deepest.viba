@@ -8,7 +8,7 @@ Config1 =
 
 Node2 = $left int | $right str
 
-Shape3 =
+Bundle3 =
   Object
   * $ghost Missing
   * $mix list[Missing]

@@ -2,14 +2,14 @@ import top
 
 Plan0 =
   Object
-  * $peer top.Shape0
+  * $peer top.Bundle0
 
 Node1[T] =
   $v T
 
 Node2 = $only int
 
-Shape3 =
+Bundle3 =
   Oneof
   | $left int
   | $right str

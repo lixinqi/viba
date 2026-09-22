@@ -5,10 +5,10 @@ Rule0 =
   * $ghost Missing
   * $mix list[Missing]
 
-Shape1[T] =
+Bundle1[T] =
   $v T
 
-Shape2 =
+Bundle2 =
   Object
   * $count int
   * $label str

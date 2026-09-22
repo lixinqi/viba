@@ -1,6 +1,6 @@
 import util as base
 
-Shape0[T] =
+Bundle0[T] =
   $v T
 
 Report1 = $left int | $right str

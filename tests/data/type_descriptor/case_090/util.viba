@@ -7,14 +7,14 @@ Rule0 =
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1 =
+Bundle1 =
   Object
   * $count int
   * $label str
 
 Report2 =
   Object
-  * $peer m.Shape2
+  * $peer m.Bundle2
 
-Shape3[T] =
+Bundle3[T] =
   $v T

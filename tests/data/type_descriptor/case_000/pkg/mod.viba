@@ -1,6 +1,6 @@
 import util as lib
 
-Shape0[T] =
+Bundle0[T] =
   $v T
 
 Plan1 =

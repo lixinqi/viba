@@ -65,8 +65,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "util.Shape0",
+          "name": "Bundle0",
+          "full_name": "util.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -248,10 +248,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "m.Shape0",
+              "type_name": "m.Bundle0",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "util.Shape0"
+              "resolved": "util.Bundle0"
             }
           ]
         },
@@ -344,10 +344,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "lib.Shape0",
+              "type_name": "lib.Bundle0",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "util.Shape0"
+              "resolved": "util.Bundle0"
             }
           ]
         },

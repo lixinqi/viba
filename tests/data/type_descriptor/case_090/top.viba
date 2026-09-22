@@ -1,4 +1,4 @@
-Shape0 =
+Bundle0 =
   Object
   * $count int
   * $label str
@@ -10,7 +10,7 @@ Plan1 =
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape2 =
+Bundle2 =
   Object
   * $ghost Missing
   * $mix list[Missing]

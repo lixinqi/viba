@@ -1,8 +1,8 @@
 import util
 
-Shape0 =
+Bundle0 =
   Object
-  * $peer util.Shape0
+  * $peer util.Bundle0
 
 Config1 =
   Oneof

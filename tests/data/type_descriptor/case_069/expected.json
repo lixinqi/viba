@@ -241,8 +241,8 @@
           ]
         },
         {
-          "name": "Shape3",
-          "full_name": "pkg.sub.deep.Shape3",
+          "name": "Bundle3",
+          "full_name": "pkg.sub.deep.Bundle3",
           "generic_params": [],
           "members": [
             {

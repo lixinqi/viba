@@ -11,4 +11,4 @@ Node2 = int * str
 
 Plan3 =
   Object
-  * $peer dep.Shape1
+  * $peer dep.Bundle1

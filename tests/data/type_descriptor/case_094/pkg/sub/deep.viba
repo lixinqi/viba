@@ -2,9 +2,9 @@ import util as m
 
 Plan0 =
   Object
-  * $peer m.Shape0
+  * $peer m.Bundle0
 
-Shape1 = $only int
+Bundle1 = $only int
 
 Report2[T] =
   $v T

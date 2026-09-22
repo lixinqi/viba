@@ -103,10 +103,10 @@ def _check_import_binding():
     assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$partial")), Err)
 
 
-def _check_shapes():
-    """成员的类型形状：容器、可选、元组、内联、字面量、代码块、指数。"""
-    pool = load("shapes", [("shapes.viba", "shapes")])
-    definition = pool_find_definition(pool, "shapes.Shapes").ok_value
+def _check_members():
+    """成员的类型：容器、可选、元组、内联、字面量、代码块、指数。"""
+    pool = load("members", [("members.viba", "members")])
+    definition = pool_find_definition(pool, "members.Members").ok_value
     members = definition_members(definition).ok_value
     assert [m.tag for m in members] == ["$items", "$seen", "$table", "$maybe",
                                         "$pair", "$inline", "$lit", "$code", "$fn",
@@ -118,7 +118,7 @@ def _check_shapes():
     # 只有写成名字的成员才有 type_name；内联结构没有
     assert isinstance(member_type_name(members[0]), Err)
     assert isinstance(member_type_name(members[5]), Err)
-    assert member_containing_definition(members[0]).ok_value.full_name == "shapes.Shapes"
+    assert member_containing_definition(members[0]).ok_value.full_name == "members.Members"
     # 内建构造器不是定义，解析不了
     assert isinstance(member_resolved_definition(members[0]), Err)
 
@@ -178,7 +178,7 @@ def _check_errors():
     assert isinstance(member_resolved_definition(member), Err)          # gone.mod 不在池子里
     assert isinstance(pool_find_member(orphan_pool, "err.orphan.Orphan.$nope"), Err)
 
-    # 内建容器是形状，不是名字：等号左边出现就编不出来
+    # 内建容器不是名字，是内建写法：等号左边出现就编不出来
     for bad in ("ListLiteral = int\n",
                 "SetLiteral[T] = T\n",
                 "DictLiteral[K] = K\n",
@@ -253,10 +253,10 @@ def _check_errors():
 
 def _check_reprs():
     """描述符的 repr：调试和 diff 都要用，所以既说得出是什么，也不能带地址。"""
-    pool = load("shapes", [("shapes.viba", "shapes")])
+    pool = load("members", [("members.viba", "members")])
     assert repr(pool) == "VibaPool(1 files)"
-    definition = pool_find_definition(pool, "shapes.Shapes").ok_value
-    assert repr(definition) == "VibaDefinitionDescriptor('shapes.Shapes')"
+    definition = pool_find_definition(pool, "members.Members").ok_value
+    assert repr(definition) == "VibaDefinitionDescriptor('members.Members')"
     assert repr(definition.members[0]) == "VibaMemberDescriptor(0, '$items')"
     seen = {m.tag: repr(m.member_type) for m in definition.members}
     assert seen["$items"] == \
@@ -275,12 +275,12 @@ def _check_reprs():
 
 
 def run():
-    checks = [_check_alias_and_depth, _check_import_binding, _check_shapes,
+    checks = [_check_alias_and_depth, _check_import_binding, _check_members,
               _check_generics, _check_unit_heads, _check_errors, _check_reprs]
     for check in checks:
         check()
     print(f"type_descriptor_api: {len(checks)} checks passed "
-          f"(imports and prefixes, import binding, member shapes, generics, "
+          f"(imports and prefixes, import binding, members, generics, "
           f"unit chain heads, negatives, descriptor reprs)")
     return 0
 

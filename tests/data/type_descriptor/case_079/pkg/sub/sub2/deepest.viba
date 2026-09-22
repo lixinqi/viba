@@ -1,6 +1,6 @@
 import top
 
-Shape0 =
+Bundle0 =
   Object
   * $peer top.Plan1
 

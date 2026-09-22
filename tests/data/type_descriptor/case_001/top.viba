@@ -3,4 +3,4 @@ Plan0 =
   * $ghost Missing
   * $mix list[Missing]
 
-Shape1 = int * str
+Bundle1 = int * str

@@ -1,6 +1,6 @@
 import lv1.lv2.lv3.leaf
 
-Shape0 =
+Bundle0 =
   Object
   * $peer lv1.lv2.lv3.leaf.Report0
 

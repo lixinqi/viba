@@ -1,6 +1,6 @@
 import pkg.sub.sub2.deepest as base
 
-Shape0 = $only int
+Bundle0 = $only int
 
 Plan1[T] =
   $v T

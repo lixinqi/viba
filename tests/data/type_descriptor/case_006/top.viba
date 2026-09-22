@@ -3,4 +3,4 @@ Rule0 =
   * $count int
   * $label str
 
-Shape1 = $only int
+Bundle1 = $only int

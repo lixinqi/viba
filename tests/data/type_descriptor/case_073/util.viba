@@ -1,6 +1,6 @@
 import top as dep
 
-Shape0 =
+Bundle0 =
   Object
   * $peer dep.Node0
 

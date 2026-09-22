@@ -153,8 +153,8 @@
           ]
         },
         {
-          "name": "Shape2",
-          "full_name": "pkg.sub.sub2.deepest.Shape2",
+          "name": "Bundle2",
+          "full_name": "pkg.sub.sub2.deepest.Bundle2",
           "generic_params": [],
           "members": [
             {

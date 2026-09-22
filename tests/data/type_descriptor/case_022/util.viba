@@ -2,5 +2,5 @@ import util as base
 
 Plan0 = $only int
 
-Shape1[T] =
+Bundle1[T] =
   $v T

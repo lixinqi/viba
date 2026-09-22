@@ -4,11 +4,11 @@ Config0 = $only int
 
 Config1 =
   Object
-  * $peer top.Shape0
+  * $peer top.Bundle0
 
 Node2 = $left int | $right str
 
-Shape3 =
+Bundle3 =
   Object
   * $count int
   * $label str

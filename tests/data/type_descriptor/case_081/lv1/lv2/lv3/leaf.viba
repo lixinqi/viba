@@ -4,7 +4,7 @@ Node0 =
   Object
   * $peer base.Report0
 
-Shape1 =
+Bundle1 =
   Object
   * $items list[int]
   * $seen set[str]
@@ -14,4 +14,4 @@ Shape1 =
 Config2[T] =
   $v T
 
-Shape3 = int * str * bool
+Bundle3 = int * str * bool

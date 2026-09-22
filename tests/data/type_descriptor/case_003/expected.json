@@ -169,8 +169,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "pkg.sub.sub2.deepest.Shape0",
+          "name": "Bundle0",
+          "full_name": "pkg.sub.sub2.deepest.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -184,8 +184,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "pkg.sub.sub2.deepest.Shape1",
+          "name": "Bundle1",
+          "full_name": "pkg.sub.sub2.deepest.Bundle1",
           "generic_params": [],
           "members": [
             {

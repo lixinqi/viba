@@ -27,7 +27,7 @@ definition, and reads every product it can reach.
 A tag written twice at one level never gets this far: compiling the file already
 refuses it (`PoolAddFile` answers `duplicate member`). What is left for the
 inline reading is a tag that only repeats once a base has been spread, and a
-chain that never reaches a shape.
+chain that never stops unfolding.
 
 The map does the reading (viba.reflect): a product's members come from
 ``VibaAccess.members_of`` and its chain from ``VibaAccess.inline_cycle``, and
@@ -101,11 +101,11 @@ class _Checker:
         if descriptor.kind == TYPE_APP:
             self._check_application(descriptor, frame)
             return
-        shape = self.access.unfold(descriptor)
-        if shape.kind == TYPE_APP:
-            self._check(shape, frame)  # a name that landed on an application
+        unfolded = self.access.unfold(descriptor)
+        if unfolded.kind == TYPE_APP:
+            self._check(unfolded, frame)  # a name that landed on an application
             return
-        self._dispatch(shape, frame)
+        self._dispatch(unfolded, frame)
 
     def _check_application(self, descriptor, frame):
         """An application: its arguments as written, then the body they make,
@@ -118,17 +118,17 @@ class _Checker:
             return  # a builtin container, or an application with no body to land on
         self._check(body, self._node_id(descriptor))
 
-    def _dispatch(self, shape, frame):
-        kind = shape.kind
+    def _dispatch(self, unfolded, frame):
+        kind = unfolded.kind
         if kind == PRODUCT:
-            self._check_product(shape, frame)
+            self._check_product(unfolded, frame)
         elif kind in (SUM, EXPONENT):
-            for element in shape.payload.elements:
+            for element in unfolded.payload.elements:
                 self._check(element, frame)
         elif kind == TAGGED:
-            self._check(shape.payload.tagged_type, frame)
+            self._check(unfolded.payload.tagged_type, frame)
         elif kind == TUPLE:
-            for element in shape.payload.elements:
+            for element in unfolded.payload.elements:
                 self._check(element, frame)
 
     def _check_product(self, descriptor, frame):

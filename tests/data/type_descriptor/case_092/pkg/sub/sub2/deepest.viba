@@ -2,7 +2,7 @@ import top as lib
 
 Rule0 = $only int
 
-Shape1 =
+Bundle1 =
   Oneof
   | $left int
   | $right str

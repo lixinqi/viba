@@ -2,7 +2,7 @@ import pkg.sub.sub2.deepest
 
 Plan0 = $only int
 
-Shape1 =
+Bundle1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

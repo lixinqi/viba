@@ -109,8 +109,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "top.Shape1",
+          "name": "Bundle1",
+          "full_name": "top.Bundle1",
           "generic_params": [],
           "members": [
             {
@@ -154,8 +154,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "lv1.lv2.lv3.leaf.Shape1",
+          "name": "Bundle1",
+          "full_name": "lv1.lv2.lv3.leaf.Bundle1",
           "generic_params": [],
           "members": [
             {

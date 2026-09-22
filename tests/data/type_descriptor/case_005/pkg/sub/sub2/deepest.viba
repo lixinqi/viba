@@ -1,6 +1,6 @@
 import top as base
 
-Shape0 =
+Bundle0 =
   Object
   * $ghost Missing
   * $mix list[Missing]

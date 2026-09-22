@@ -6,7 +6,7 @@ Report1 =
   Object
   * $peer pkg.sub.deep.Plan3
 
-Shape2 =
+Bundle2 =
   Object
   * $ghost Missing
   * $mix list[Missing]

@@ -1,6 +1,6 @@
 import top as up
 
-Shape0 = int * str * bool
+Bundle0 = int * str * bool
 
 Config1[T] =
   $v T

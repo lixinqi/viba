@@ -9,7 +9,7 @@ Rule1 =
   Object
   * $peer base.Rule0
 
-Shape2 =
+Bundle2 =
   Object
   * $ghost Missing
   * $mix list[Missing]

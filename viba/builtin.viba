@@ -9,7 +9,7 @@
 # child keeps the parent's — and `$tmp_sub_env` is the same thing under a name nobody
 # chose, fresh every call: `environ.tmp_sub_env << ()`. Its written argument
 # is ignored (a call gives one, and `()` is how "nothing" is written), so any
-# `()` does, and the shape says so by writing `()`.
+# `()` does, and the type says so by writing `()`.
 Environment =
     Object
   * $viba_path str

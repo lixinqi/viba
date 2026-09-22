@@ -4,7 +4,7 @@ Report0 =
   Object
   * $peer top.Report0
 
-Shape1 =
+Bundle1 =
   Object
   * $items list[int]
   * $seen set[str]
@@ -13,7 +13,7 @@ Shape1 =
 
 Rule2 = int * str * bool
 
-Shape3 =
+Bundle3 =
   Object
   * $ghost Missing
   * $mix list[Missing]

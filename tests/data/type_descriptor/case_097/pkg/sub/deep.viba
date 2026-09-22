@@ -1,9 +1,9 @@
 import pkg.sub.deep as up
 
-Shape0[T] =
+Bundle0[T] =
   $v T
 
-Shape1 =
+Bundle1 =
   Object
   * $count int
   * $label str

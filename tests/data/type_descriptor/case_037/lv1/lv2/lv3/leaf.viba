@@ -2,7 +2,7 @@ import lv1.lv2.lv3.leaf as m
 
 Plan0 = $only int
 
-Shape1 =
+Bundle1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

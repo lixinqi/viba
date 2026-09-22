@@ -3,7 +3,7 @@ import top as lib
 Config0[T] =
   $v T
 
-Shape1 =
+Bundle1 =
   Object
   * $peer lib.Plan0
 

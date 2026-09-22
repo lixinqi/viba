@@ -174,7 +174,7 @@ def build_case(case_index: int):
             plans.append(t_foreign_ref)
         rng.shuffle(plans)
         for index, template in enumerate(plans):
-            name = f"{rng.choice(['Config', 'Report', 'Shape', 'Node', 'Rule', 'Plan'])}{index}"
+            name = f"{rng.choice(['Config', 'Report', 'Bundle', 'Node', 'Rule', 'Plan'])}{index}"
             if template is t_foreign_ref:
                 foreign_module, foreign_local, foreign_def = rng.choice(known_definitions)
                 aliased = rng.random() < 0.5

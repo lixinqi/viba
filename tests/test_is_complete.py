@@ -166,7 +166,7 @@ def corners():
     check("a name as a terminator", is_complete("X = Foo", [], [], {"Foo"}), True)
     check("and the same name without it", is_complete("X = Foo", [], [], set()), False)
 
-    # Arguments to a definition that has no parameters: no shape to bind.
+    # Arguments to a definition that has no parameters: no parameter to bind.
     check("arguments to a plain definition",
           is_complete("Box = int\nA = Box[int]\n", [], [], set()), False)
 

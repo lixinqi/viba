@@ -1,8 +1,8 @@
 import util as m
 
-Shape0 =
+Bundle0 =
   Object
-  * $peer m.Shape1
+  * $peer m.Bundle1
 
 Config1 =
   Object

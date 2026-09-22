@@ -173,7 +173,7 @@ class ProductChain(AST):
 class ExponentChain(AST):
     """Canonical main chain of an exponent, in written order.
 
-    Same shape as SumChain / ProductChain: `elements[0]` is the result
+    Laid out like SumChain / ProductChain: `elements[0]` is the result
     (the leftmost thing written), the rest are the arguments in the order
     they are written. An element may itself be an ExponentChain — that is
     a branch: `A <- (B <- C)` is

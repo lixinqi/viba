@@ -29,8 +29,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "util.Shape1",
+          "name": "Bundle1",
+          "full_name": "util.Bundle1",
           "generic_params": [],
           "members": [
             {
@@ -74,8 +74,8 @@
       "imports": [],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "top.Shape0",
+          "name": "Bundle0",
+          "full_name": "top.Bundle0",
           "generic_params": [],
           "members": [
             {

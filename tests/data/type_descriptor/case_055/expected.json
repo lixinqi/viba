@@ -95,8 +95,8 @@
           ]
         },
         {
-          "name": "Shape2",
-          "full_name": "util.Shape2",
+          "name": "Bundle2",
+          "full_name": "util.Bundle2",
           "generic_params": [],
           "members": [
             {
@@ -191,10 +191,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "lib.Shape2",
+              "type_name": "lib.Bundle2",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "util.Shape2"
+              "resolved": "util.Bundle2"
             }
           ]
         }

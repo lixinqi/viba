@@ -5,7 +5,7 @@ Plan0[T] =
 
 Plan1 =
   Object
-  * $peer top.Shape1
+  * $peer top.Bundle1
 
 Plan2 =
   Object

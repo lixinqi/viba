@@ -312,8 +312,8 @@ def _gap(label, source, name, body, needle):
           f"{label}: an Err saying {needle!r} ({written})")
 
 
-def run_shape_corner_cases():
-    """形状的边角：深、宽、套、元组、别名、泛型、递归、无成员。"""
+def run_member_corner_cases():
+    """成员的边角：深、宽、套、元组、别名、泛型、递归、无成员。"""
     depth_type, depth_body = "int", viba_ast.Constant(1)
     for _ in range(6):
         depth_type, depth_body = (f"list[{depth_type}]",
@@ -526,7 +526,7 @@ def run_gap_cases():
 
 
 # ---------------------------------------------------------------------------
-# 成批的边角：叶子逐个过、形状两两套、和式每一支、标签、链长、深浅、压力。
+# 成批的边角：叶子逐个过、类型两两套、和式每一支、标签、链长、深浅、压力。
 # ---------------------------------------------------------------------------
 
 # 字符串这一列挑的是"引号、转义、空、换行、看起来像语言关键字"这些点：
@@ -667,7 +667,7 @@ _CONTEXT = ("Inner = Object * $x int\n"
             "S2 = $k int | $j str\n"
             "W[V] = Object * $v V\n")
 # 里面那一层：单位、字面量、产品、元组、别名、和式、容器、代码块、泛型应用。
-_INNER_SHAPES = [
+_INNER_TYPES = [
     ("unit", "Object", viba_ast.Nil()),
     ("literal", "int", viba_ast.Constant(1)),
     ("product", "Inner", _product(_tagged("$x", viba_ast.Constant(2)))),
@@ -681,7 +681,7 @@ _INNER_SHAPES = [
     ("generic", "W[int]", _product(_tagged("$v", viba_ast.Constant(7)))),
 ]
 # 外面那一层：成员位、容器元素、元组位、和式的两支。
-_OUTER_SHAPES = [
+_OUTER_TYPES = [
     ("member", lambda t: f"$m {t}", lambda m: _tagged("$m", m)),
     ("list", lambda t: f"$m list[{t}]",
      lambda m: _tagged("$m", viba_ast.TypeApp("ListLiteral", [m]))),
@@ -699,10 +699,10 @@ _OUTER_SHAPES = [
 ]
 
 
-def run_shape_matrix():
-    """形状两两套：9 种里层 × 7 种外层 = 63 个格子。"""
-    for outer_name, outer_type, outer_body in _OUTER_SHAPES:
-        for inner_name, inner_type, inner_body in _INNER_SHAPES:
+def run_type_matrix():
+    """类型两两套：9 种里层 × 7 种外层 = 63 个格子。"""
+    for outer_name, outer_type, outer_body in _OUTER_TYPES:
+        for inner_name, inner_type, inner_body in _INNER_TYPES:
             _corner(f"{outer_name} of {inner_name}",
                     _CONTEXT + "Box = Object * " + outer_type(inner_type) + "\n",
                     "Box", _product(outer_body(inner_body)))
@@ -810,7 +810,7 @@ def run_positional_gaps():
          "cannot write this piece out")
 
 
-def run_unit_member_shapes():
+def run_unit_members():
     """单位成员：带标签、不带标签、在产品头后面。
 
     不带标签的单位元不是成员：不占位置，也不写出来（带标签的照写，只是没有值）。
@@ -890,8 +890,8 @@ def run_exponent_batteries():
             expect="* $g(never", resident=False)
 
 
-def run_name_alias_shapes():
-    """名字背后的形状：单位、nil、以及各种别名当成员类型。"""
+def run_name_alias_members():
+    """名字背后的成员：单位、nil、以及各种别名当成员类型。"""
     _corner("a unit behind an alias as the head",
             "H = Object\nBox = H * $a int\n", "Box",
             _product(_tagged("$a", viba_ast.Constant(1))),
@@ -990,7 +990,7 @@ def run_more_gap_corners():
 
 
 # ---------------------------------------------------------------------------
-# 再一轮：跨模块、环、材料本身的形状、名字参数、和式的容器、指数字段实参、压力。
+# 再一轮：跨模块、环、材料本身怎么写、名字参数、和式的容器、指数字段实参、压力。
 # ---------------------------------------------------------------------------
 
 
@@ -1231,8 +1231,8 @@ def run_sums_in_containers():
                expect='ListLiteral[1, $a "x", 2]', strict=False)
 
 
-def run_exponent_argument_shapes():
-    """指数链的实参本身是什么形状：容器、元组、产品、代码块、nil、和式。"""
+def run_exponent_arguments():
+    """指数链的实参本身是什么类型：容器、元组、产品、代码块、nil、和式。"""
     cases = [
         ("list[int]", viba_ast.TypeApp("ListLiteral", [viba_ast.Constant(1)]),
          "ListLiteral[1]"),
@@ -1363,21 +1363,21 @@ def run_inline_member_cases():
 def run():
     for case in (run_fixture_cases, run_empty_container_cases, run_nil_slot_cases,
                  run_set_order_cases, run_exponent_cases, run_code_block_cases,
-                 run_shape_corner_cases, run_sum_corner_cases,
+                 run_member_corner_cases, run_sum_corner_cases,
                  run_leaf_corner_cases, run_exponent_corner_cases,
                  run_more_gap_cases, run_never_and_key_cases, run_gap_cases,
                  run_leaf_matrix, run_number_and_string_gaps, run_tag_matrix,
                  run_depth_and_width_ladders, run_absent_member_positions,
-                 run_alias_ladders, run_sum_ladders, run_shape_matrix,
+                 run_alias_ladders, run_sum_ladders, run_type_matrix,
                  run_container_fills, run_never_positions, run_dict_key_gaps,
-                 run_positional_gaps, run_unit_member_shapes,
+                 run_positional_gaps, run_unit_members,
                  run_subclass_leaf_cases,
                  run_code_block_positions, run_exponent_batteries,
-                 run_name_alias_shapes, run_name_gaps, run_more_gap_corners,
+                 run_name_alias_members, run_name_gaps, run_more_gap_corners,
                  run_dict_key_aliases, run_cross_module_cases, run_cycle_cases,
                  run_material_root_cases, run_definition_name_cases,
                  run_alias_of_definition_cases, run_sums_in_containers,
-                 run_exponent_argument_shapes, run_deep_stress,
+                 run_exponent_arguments, run_deep_stress,
                  run_head_written_as_unit, run_inline_member_cases):
         case()
     print(f"serialize: {PASS} passed, {FAIL} failed")

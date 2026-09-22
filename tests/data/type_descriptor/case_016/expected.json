@@ -104,8 +104,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "top.Shape0",
+          "name": "Bundle0",
+          "full_name": "top.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -143,8 +143,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "top.Shape1",
+          "name": "Bundle1",
+          "full_name": "top.Bundle1",
           "generic_params": [],
           "members": [
             {
@@ -158,8 +158,8 @@
           ]
         },
         {
-          "name": "Shape2",
-          "full_name": "top.Shape2",
+          "name": "Bundle2",
+          "full_name": "top.Bundle2",
           "generic_params": [],
           "members": [
             {
@@ -216,8 +216,8 @@
       ],
       "definitions": [
         {
-          "name": "Shape0",
-          "full_name": "lv1.lv2.lv3.leaf.Shape0",
+          "name": "Bundle0",
+          "full_name": "lv1.lv2.lv3.leaf.Bundle0",
           "generic_params": [],
           "members": [
             {
@@ -269,10 +269,10 @@
             {
               "index": 0,
               "tag": "$peer",
-              "type_name": "up.Shape1",
+              "type_name": "up.Bundle1",
               "kind": "type_ref",
               "optional": false,
-              "resolved": "top.Shape1"
+              "resolved": "top.Bundle1"
             }
           ]
         }

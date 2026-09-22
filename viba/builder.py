@@ -76,7 +76,7 @@ remember).
 
 Associativity: the language's `|` and `*` are left-associative and Python's are
 too, so `A | B | C` grows the one chain and `A | (B | C)` keeps a branch — the
-same shapes the parser reads back. Python's `**` is right-associative while
+same chains the parser reads back. Python's `**` is right-associative while
 `<-` is left-associative, so `A ** B ** C` is read as the written chain
 `A <- B <- C`; the nested group `A <- (B <- C)` needs `vb(...)`.
 
@@ -186,7 +186,7 @@ def _power_argument(value) -> _Expr:
 def _partial_argument(value) -> _Expr:
     """The right side of `<<`: a tagged field, or a group.
 
-    It names the argument that is being given, so it is the same shape `**`
+    It names the argument that is being given, so it is written the way `**`
     wants: `tag.name(body)`, or `tag(body)` for a group. Anything else is a
     slip and is refused here rather than written out.
     """
@@ -451,7 +451,7 @@ def _definition_name(name: str) -> str:
 
 _RESERVED = ("true", "false", "nil", "void", "None", "never", "Any", "import", "as")
 
-# The builtin containers are a shape, not names: the parser refuses them as
+# The builtin containers are builtin, not names: the parser refuses them as
 # definition names and as generic parameters (viba/parser.py:
 # BUILTIN_TYPE_NAMES), so the builder does too. Kept here rather than imported
 # so that the builder does not pull the parser in.

@@ -111,8 +111,8 @@
           ]
         },
         {
-          "name": "Shape3",
-          "full_name": "pkg.sub.sub2.deepest.Shape3",
+          "name": "Bundle3",
+          "full_name": "pkg.sub.sub2.deepest.Bundle3",
           "generic_params": [],
           "members": [
             {
@@ -161,8 +161,8 @@
           ]
         },
         {
-          "name": "Shape1",
-          "full_name": "lv1.lv2.lv3.leaf.Shape1",
+          "name": "Bundle1",
+          "full_name": "lv1.lv2.lv3.leaf.Bundle1",
           "generic_params": [],
           "members": [
             {

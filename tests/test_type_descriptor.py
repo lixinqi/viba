@@ -4,7 +4,7 @@ Every case is a directory with .viba files at different depths (some at the
 top, some three or four directories down) plus an ``expected.json``.  Each
 file is parsed into one pool, and then the descriptor side has to report
 exactly what the case says: imports, definitions, members, their written
-names, their shapes, and which definition a written name resolves to.
+names, their members, and which definition a written name resolves to.
 """
 
 import hashlib
@@ -144,7 +144,7 @@ def run():
         files += case_files
         members += case_members
     print(f"type_descriptor: {len(case_dirs)} cases, {files} files, "
-          f"{members} members checked (imports, resolution, shapes, negatives)")
+          f"{members} members checked (imports, resolution, member types, negatives)")
     return 0
 
 

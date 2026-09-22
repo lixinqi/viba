@@ -1,9 +1,9 @@
 import top
 
-Shape0[T] =
+Bundle0[T] =
   $v T
 
-Shape1 =
+Bundle1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

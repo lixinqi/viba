@@ -1,6 +1,6 @@
 import top as up
 
-Shape0 = str * (int | nil)
+Bundle0 = str * (int | nil)
 
 Rule1 =
   Object
@@ -9,4 +9,4 @@ Rule1 =
 
 Report2 =
   Object
-  * $peer up.Shape1
+  * $peer up.Bundle1

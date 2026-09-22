@@ -2,7 +2,7 @@ import pkg.mod as lib
 
 Report0 =
   Object
-  * $peer lib.Shape1
+  * $peer lib.Bundle1
 
 Plan1 =
   Object
