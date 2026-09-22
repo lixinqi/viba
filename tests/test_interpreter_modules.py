@@ -27,6 +27,39 @@ def run(tmp: Path):
     _nested_modules(tmp)
     _cycles(tmp)
     _storage_paths(tmp)
+    _deferral(tmp)
+
+
+def _deferral(tmp: Path):
+    """没实现的那一步不是失败：整条程序停在递延上，等别人来补。
+
+    递延要能穿过模块调用（被调的模块里那一步没实现，整个 run 的答案就是递延），
+    也要能穿过宿主的拒绝（`get_func` 抛递延，等于回答递延）。同一份 store 上补上
+    那一步，同一个 run 就跑完了——递延什么都没落下。
+    """
+    host = Host()
+    environ = host.environ()
+
+    write(tmp, "deferred_module.viba",
+          ADD + "__ret__ = add << $env environ << $a 1 << $b 2\n")
+    outer = write(tmp, "deferred_outer.viba", """
+import deferred_module as inner
+__ret__ = inner << (environ.sub_env << "deferred_module")
+""")
+
+    host.knobs["missing"] = ("add",)
+    checks.deferred(interpret(outer, environ),
+                    "a step with no implementation inside a called module")
+    host.knobs.pop("missing")
+
+    result = interpret(outer, environ)
+    check(isinstance(result, Ok) and value_of(result) == 3,
+          f"the same run finishes once the step is implemented: {result!r}")
+
+    host.knobs["refuse"] = ("add",)
+    checks.deferred(interpret(outer, environ),
+                    "a get_func that refuses the call it cannot serve")
+    host.knobs.pop("refuse")
 
 
 def _spec_modules():

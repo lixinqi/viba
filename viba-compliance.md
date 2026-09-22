@@ -118,6 +118,8 @@ verdict = is_compliant("rule_distance.viba", environ)   # -> Result[bool]
 
 - 规则答 `bool`，判定就是它：`Ok(True)` / `Ok(False)`。
 - 答的不是 `bool`，是 `Err`（"a verdict is a bool"）。
+- 规则里某一步没人实现，则是**递延**（`$not_my_duty_exception ()`）：判定还没发生，这次规则
+  不归这台机器跑完。`prepare_run` 在这种情形下什么都不记进备份——没发生的判定不准备案子。
 - 规则编不过、没有 `__ret__`、`$env` 没给、宿主函数抛了……都是 `Err`，说明哪一步不行。
 - 一次运行的环境（`Environment`、storage、`get_func`）怎么给，见
   [`viba-interpreter.md`](viba-interpreter.md)：

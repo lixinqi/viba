@@ -19,7 +19,6 @@ from viba import viba_ast
 # Result (cf. Result[T] = Oneof | $ok T | $err str)
 # ----------------------------------------------------------------------
 
-
 class Ok:
     """The $ok branch: its payload is ok_value."""
 
@@ -41,6 +40,36 @@ class Err:
 
 
 Result = Union[Ok, Err]
+
+
+class NotMyDutyException(Exception):
+    """`$not_my_duty_exception ()`: some operator in this run is not this host's.
+
+    `interpret` answers with it when the compute side has no implementation for
+    a function the run reached — not a failure, but a deferral: the run says it
+    is not this host's duty to finish, and the caller hands it on (see
+    `roadmap.md`). The payload is the unit: it says the host is not the one to
+    answer, and nothing more.
+
+    It is an exception as well, because that is how the same news crosses a
+    callable the run handed to a host; a `get_func` may raise it too, to refuse
+    a call it cannot serve.
+    """
+
+    def __repr__(self):
+        return "NotMyDutyException()"
+
+
+# What `interpret` answers, its third branch written out:
+#
+#     Result[T] =
+#       Oneof
+#     | $ok T
+#     | $err str
+#     | $not_my_duty_exception ()
+#
+# The other APIs keep the two-branch `Result`: their work is all here.
+InterpretResult = Union[Ok, Err, NotMyDutyException]
 
 
 # ----------------------------------------------------------------------

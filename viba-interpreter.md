@@ -160,7 +160,9 @@ Environment(storage, compute, viba_path=None)            # sub_env / tmp_sub_env
 content)`（在 store root 底下的纯文本读写，读不到返回 `None`）。子 storage 带着父级的
 `store_root_dir`。
 
-`get_func(module_path, func_name)` 返回一个可调用对象，没有就返回 `None`（于是 `Err`）。
+`get_func(module_path, func_name)` 返回一个可调用对象；没有就返回 `None`，于是这次调用是递延
+（`$not_my_duty_exception ()`，见最后一节）——它也可以直接抛 `NotMyDutyException`，那是一个
+路由在说"这条差事不归我"。
 `module_path` 是**调用时那个 environment 的 storage 路径**——所以同一个 `add`，从
 `root/add_demo` 进来和从 `root` 进来，宿主看到的是不同的路径，可以路由到不同的实现。
 
@@ -252,16 +254,35 @@ design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
 - `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
   这一格在类型上也对得上。
 
-## 错误
+## 三种答案
 
-`interpret` 返回 `Result`：`Ok(VibaNode)` 是 `__ret__` 的值，`Err(str)` 说明哪一步不行：
+`interpret` 返回的 `Result` 比别处多一支：
+
+```viba
+Result[T] =
+  Oneof
+| $ok T
+| $err str
+| $not_my_duty_exception ()
+```
+
+- `Ok(VibaNode)` 是 `__ret__` 的值；
+- `Err(str)` 说明哪一步不行——**这一步是我的差事，它坏了**；
+- `$not_my_duty_exception ()` 说明**这一步不在这台机器上作答**：某个算子没有实现。
+  这不是失败，是递延——程序停在那儿，等有实现的一方接着做（[`roadmap.md`](roadmap.md)）。
+  `interpret` 不带库函数，所以"没有实现"是常态，不是错误。
+
+`get_func` 返回 `None`、或者它自己抛 `NotMyDutyException`（一个路由说"这条差事不归我"），
+都算递延；宿主函数抛别的异常才是 `Err`。递延会一路穿回调用方：被调用的模块里那一步没实现，
+整个 run 的答案就是递延，不会被当成"跑完了"。
+
+`Err` 的那句话长这样：
 
 ```
 no such file: ...                     文件不在
 no definition named 'x' in module 'm' 名字解析不了
 module 'x' not found (...)            import 找不到文件
 module 'm' has no __ret__: ...        设计，不是程序
-no implementation for 'add' in ...    get_func 没给
 get_func(...) raised ...              get_func 自己抛了
 add raised ZeroDivisionError(...)     宿主函数抛了
 ... takes no $env Environment ...     可执行函数没依赖 environ

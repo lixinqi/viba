@@ -16,7 +16,7 @@ from interpreter_support import ADD, LEAF, Checks, Host, value_of, write
 
 from viba.interpret import interpret
 from viba.reflect import access as reflect_access
-from viba.type import Err, Ok
+from viba.type import Err, NotMyDutyException, Ok
 
 checks = Checks("interpreter_values")
 check = checks.check
@@ -94,7 +94,10 @@ ghost =
 	<- { nothing implements this }
 __ret__ = ghost << $env environ
 """)
-    labelled(interpret(missing, environ), "no implementation", "get_func says None -> Err")
+    check(isinstance(interpret(missing, environ), NotMyDutyException),
+          "get_func says None: the run stops with the deferral, not an Err")
+    check(not isinstance(interpret(missing, environ), Err),
+          "and that deferral is not an Err: it says 'not mine', not 'broke'")
 
     echo = write(tmp, "echo.viba", """
 echo =
@@ -259,6 +262,18 @@ __ret__ = twice << $env environ << $f inc << $x 10
     result = interpret(higher, environ)
     check(isinstance(result, Ok) and value_of(result) == 22,
           f"a viba function handed to the host is callable: {result!r}")
+
+    # 宿主手里那个 viba 函数没有实现：递延从宿主调用里穿出来，run 的答案还是递延
+    host.knobs["missing"] = ("inc",)
+    result = interpret(higher, environ)
+    checks.deferred(result, "the host calls a viba function with no implementation")
+    host.knobs.pop("missing")
+
+    # 宿主自己说"不是我的事"：get_func 抛递延，等于回答递延
+    host.knobs["refuse"] = ("twice",)
+    checks.deferred(interpret(higher, environ),
+                    "a get_func that refuses the call")
+    host.knobs.pop("refuse")
 
     overfeed = write(tmp, "overfeed.viba", """
 overfeed =

@@ -21,7 +21,7 @@ from viba.compliance import (PreparedStorage, is_compliant, measured_of, prepare
 from viba.compliance.demo.host import RULE, DistanceHost
 from viba.interpret import Environment, EnvironmentCompute
 from viba.reflect import access as reflect_access
-from viba.type import Err, Ok
+from viba.type import Err, NotMyDutyException, Ok
 
 BACKUP = Path(__file__).resolve().parent / "data" / "compliance" / "backup"
 
@@ -71,6 +71,38 @@ def run(tmp: Path):
     _the_store_wins(tmp)
     _storage(tmp)
     _refusals(tmp)
+    _deferral(tmp)
+
+
+def _deferral(tmp: Path):
+    """规则里那一步没人实现：判定是递延，不是失败。
+
+    一条没跑完的规则不产生判定，所以 `prepare_run` 什么都不记进备份——案子不会
+    被一个没发生的判定"准备"掉。
+    """
+
+    class Partial(DistanceHost):
+        """同一个宿主，少一件差事。"""
+
+        def get_func(self, module_path, func_name):
+            if func_name == "distance_ge":
+                return None
+            return DistanceHost.get_func(self, module_path, func_name)
+
+    env, host = environ_for(tmp / "deferral-store", tmp / "deferral-backup",
+                            host=Partial())
+    verdict = is_compliant(str(RULE), env)
+    check(isinstance(verdict, NotMyDutyException),
+          f"a rule whose predicate nobody implements answers the deferral: {verdict!r}")
+    check(host.measured == [((0, 0), (3, 4))],
+          f"the measurement before it still happened: {host.measured}")
+
+    prepared = prepare_run(str(RULE), env)
+    check(isinstance(prepared, NotMyDutyException),
+          f"prepare_run answers the deferral too: {prepared!r}")
+    backup = tmp / "deferral-backup"
+    check(not backup.exists() or not any(backup.rglob("*")),
+          "and a judgment that never happened prepares nothing")
 
 
 def _judge(tmp: Path):

@@ -7,8 +7,13 @@ runnable defines `__ret__`; a file that does not is design only.
 
     from viba.interpret import interpret
 
-    interpret("add_demo.viba", environ)          # -> Result[VibaNode]
+    interpret("add_demo.viba", environ)          # -> Ok(VibaNode) | Err(str) | deferral
     interpret("main.viba", environ, get_file=files.get)   # sources from anywhere
+
+A function the compute side does not implement is not a failure: the run stops
+and answers `NotMyDutyException` — `$not_my_duty_exception ()` — the deferral
+that says this host is not the one to finish it (`roadmap.md`). Every other
+answer is `Ok(node)` or `Err(message)`.
 
 The interpreter is coupled to no function at all: viba ships with no library
 functions, and every implementation comes from the environment's compute
@@ -62,7 +67,8 @@ from typing import Optional
 
 from viba import serialize, viba_ast
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import AstNodeType, Err, ModuleType, Ok, Result, custom_module
+from viba.type import (AstNodeType, Err, InterpretResult, ModuleType, NotMyDutyException,
+                       Ok, custom_module)
 from viba.viba_type_descriptor import descriptor_of
 
 # A scalar a host answers belongs to no file: its leaf gets an empty module.
@@ -320,13 +326,37 @@ def _given_value(value):
     return answer.ok_value
 
 
+def _stopped(result) -> bool:
+    """True when a step carried no value on: an `Err`, or the deferral.
+
+    `Err` says this run failed; `NotMyDutyException` says this run is asking for
+    an implementation it does not have. Both stop the chain, and both travel
+    back to the caller as they are.
+    """
+    return not isinstance(result, Ok)
+
+
+def _no_implementation() -> NotMyDutyException:
+    """The deferral a host answers with: no implementation for that call.
+
+    `$not_my_duty_exception ()` is the unit, so which call it was does not
+    travel with it; the run that stopped is the one that knows.
+    """
+    return NotMyDutyException()
+
+
 # ----------------------------------------------------------------------
 # interpret
 # ----------------------------------------------------------------------
 
 
-def interpret(viba_main_file: str, environ: Environment, get_file=None) -> Result:
-    """Run `viba_main_file` with `environ`; Result[VibaNode] is its `__ret__`.
+def interpret(viba_main_file: str, environ: Environment, get_file=None) -> InterpretResult:
+    """Run `viba_main_file` with `environ`; its `__ret__` is the `Ok` value.
+
+    What it answers is `Result[VibaNode]` with a third branch: when the run
+    reaches a function the compute side does not implement, it stops and answers
+    the deferral `$not_my_duty_exception ()` instead of failing — that call is
+    not this host's duty, and the caller hands it on.
 
     Where modules are looked up is the environment's business
     (`Environment.viba_path`): the directories are searched in order for
@@ -364,7 +394,7 @@ class _Runner:
         self.running: list = []        # module activations, for cycle refusal
         self.used_paths: set = set()   # storage paths module calls have run under
 
-    def run_file(self, file: str, environ: Environment) -> Result:
+    def run_file(self, file: str, environ: Environment) -> InterpretResult:
         path = Path(file)
         source, problem = self._source(path)
         if problem is not None:
@@ -372,7 +402,7 @@ class _Runner:
         if source is None:
             return Err(f"no such file: {file}")
         module = self._file_of(path, path.stem, source)
-        if isinstance(module, Err):
+        if _stopped(module):
             return module
         return _run_module(self, module.ok_value, environ, path.stem, str(path))
 
@@ -460,7 +490,7 @@ class _Runner:
 
 
 def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
-               name: str, file: Optional[str]) -> Result:
+               name: str, file: Optional[str]) -> InterpretResult:
     """The module as a function: `environ` in, `__ret__` out.
 
     The storage path a module runs under is its identity: it is what the host
@@ -486,7 +516,7 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
         value = _Activation(runner, module, environ, name, file).evaluate(ret.body)
     finally:
         runner.running.pop()
-    if isinstance(value, Err):
+    if _stopped(value):
         return value
     if not isinstance(value.ok_value, (_Material, _Host)):
         return Err(f"{name}.{RET_NAME} is a function still waiting for arguments")
@@ -521,7 +551,8 @@ class _Activation:
     # ---- expressions ----
 
     def evaluate(self, node):
-        """Result: the value this piece writes.
+        """Result: the value this piece writes — or why the chain stopped: an
+        `Err`, or the deferral of a step nobody here implements.
 
         A piece of data written where a value goes is material as it stands:
         a literal or a unit, a tuple, and a product of tags and literals —
@@ -563,7 +594,7 @@ class _Activation:
         if bound is not None:
             module_name, rest = bound
             imported = self.runner.imported(module_name, self.file)
-            if isinstance(imported, Err):
+            if _stopped(imported):
                 return imported
             if rest:
                 return self._member_of(imported.ok_value, module_name, rest)
@@ -621,17 +652,17 @@ class _Activation:
             written.append(node.argument)
             node = node.function
         function = self.evaluate(node)
-        if isinstance(function, Err):
+        if _stopped(function):
             return function
         current = function.ok_value
         for argument in reversed(written):
             value = self._argument(argument)
-            if isinstance(value, Err):
+            if _stopped(value):
                 return value
             if value.ok_value is None:
                 continue                        # documentation is no argument
             current = _give(current, value.ok_value)
-            if isinstance(current, Err):
+            if _stopped(current):
                 return current
             current = current.ok_value
         return Ok(current)
@@ -645,7 +676,7 @@ class _Activation:
         if isinstance(node, viba_ast.Tagged):
             tag, inner = node.tag, node.type
         value = self.evaluate(inner)
-        if isinstance(value, Err):
+        if _stopped(value):
             return value
         return Ok(_Given(tag, value.ok_value))
 
@@ -671,11 +702,18 @@ class _Callable:
 
     def as_callable(self):
         """This function as a host callable: the host hands over the values it
-        wants given, in the function's own order, and gets the answer back."""
+        wants given, in the function's own order, and gets the answer back.
+
+        A call that runs into a missing implementation crosses as the deferral
+        itself, so a host can tell "not mine" from "broke" the same way the run
+        does; an `Err` raises, since there is nothing to carry on with.
+        """
         def call(*values):
             current = self
             for value in values:
                 given = _give(current, _Given(None, _given_value(value)))
+                if isinstance(given, NotMyDutyException):
+                    raise given
                 if isinstance(given, Err):
                     raise RuntimeError(given.err_msg)
                 current = given.ok_value
@@ -736,13 +774,17 @@ class _VibaFunc(_Callable):
         module_path = _storage_path(environ)
         try:
             host = compute.get_func(module_path, self.name)
+        except NotMyDutyException as deferred:   # the host refuses this call
+            return deferred
         except Exception as exc:            # the host is the host's business
             return Err(f"get_func({module_path!r}, {self.name!r}) raised {exc!r}")
         if host is None:
-            return Err(f"no implementation for {self.name!r} in module {module_path!r}")
+            return _no_implementation()
         args = [_argument_value(given[index]) for index, _ in self._ordered(given)]
         try:
             answer = host(*args)
+        except NotMyDutyException as deferred:   # a viba call inside deferred
+            return deferred
         except Exception as exc:
             return Err(f"{self.name} raised {exc!r}")
         return _answer(self.name, answer)
@@ -780,6 +822,8 @@ class _HostFunction(_Callable):
             return Ok(_HostFunction(self.name, self.func, self.slots, values))
         try:
             answer = self.func(*values)
+        except NotMyDutyException as deferred:
+            return deferred
         except Exception as exc:
             return Err(f"environ.{self.name} raised {exc!r}")
         return _answer(f"environ.{self.name}", answer)
@@ -802,7 +846,7 @@ class _ModuleFunc(_Callable):
         if not isinstance(environ, Environment):
             return Err(f"module {self.name!r} needs an Environment")
         answer = _run_module(self.runner, self.module, environ, self.name, None)
-        if isinstance(answer, Err):
+        if _stopped(answer):
             return answer
         # `interpret` hands the node out; inside a run a module's answer is a
         # value like any other, so it goes back into the value model.

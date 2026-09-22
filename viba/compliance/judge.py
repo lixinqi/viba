@@ -25,8 +25,8 @@ judged as often as wanted.
 from pathlib import Path
 
 from viba import viba_ast
-from viba.interpret import (Environment, Err, Result, interpret, material,
-                              read_snapshot, write_snapshot)
+from viba.interpret import (Environment, Err, InterpretResult, Ok, interpret,
+                              material, read_snapshot, write_snapshot)
 from viba.reflect import VibaNode, access as reflect_access, by_tag
 from viba.compliance.storage import PREPARE_PREFIX, PREPARE_SEGMENT
 
@@ -43,10 +43,14 @@ __all__ = ["is_compliant", "measure", "prepare_material", "prepare_path", "prepa
 # ----------------------------------------------------------------------
 
 
-def is_compliant(rule_file: str, environ: Environment) -> Result:
-    """Result[bool]: run the rule and read its verdict."""
+def is_compliant(rule_file: str, environ: Environment) -> InterpretResult:
+    """Result[bool]: run the rule and read its verdict.
+
+    A run that reaches an operator this host does not implement answers the
+    deferral instead of a verdict — the judgment is somebody else's to finish.
+    """
     answer = interpret(rule_file, environ)
-    if isinstance(answer, Err):
+    if not isinstance(answer, Ok):
         return answer
     leaf = reflect_access.leaf(answer.ok_value)
     if isinstance(leaf, Err):
@@ -136,15 +140,19 @@ def measure(environ: Environment, name: str, call, compute, evidence: Environmen
 # ----------------------------------------------------------------------
 
 
-def prepare_run(rule_file: str, environ: Environment) -> Result:
-    """Run the rule, recording into the backup every Prepare it measured."""
+def prepare_run(rule_file: str, environ: Environment) -> InterpretResult:
+    """Run the rule, recording into the backup every Prepare it measured.
+
+    Nothing is recorded by a run that stopped: a deferral is not an answer, and
+    a case is not prepared by a judgment that never happened.
+    """
     storage = getattr(environ, "storage", None)
     record = getattr(storage, "record_text", None)
     if record is None or getattr(storage, "prepare_root_dir", None) is None:
         return Err("this storage cannot record a Prepare: give a PreparedStorage "
                    "with a prepare_root_dir")
     answer = is_compliant(rule_file, environ)
-    if isinstance(answer, Err):
+    if not isinstance(answer, Ok):
         return answer
     for path in _run_prepares(storage):
         text = storage.read_text(path)

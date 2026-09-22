@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret)
 from viba.reflect import access as reflect_access
-from viba.type import Err, Ok
+from viba.type import Err, NotMyDutyException, Ok
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
 
@@ -42,6 +42,11 @@ class Checks:
         else:
             self.check(isinstance(result, Err) and want in result.err_msg,
                        f"{label}: expected Err({want!r}), got {result!r}")
+
+    def deferred(self, result, label: str):
+        """The run stopped at a step this host does not implement."""
+        self.check(isinstance(result, NotMyDutyException),
+                   f"{label}: expected the deferral, got {result!r}")
 
     def report(self) -> int:
         print(f"{self.name}: {self.passed} passed, {self.failed} failed")
@@ -75,6 +80,11 @@ class Host:
         self.calls.append((module_path, func_name))
         if self.knobs.get("get_func_raises"):
             raise RuntimeError("host broke")
+        if func_name in self.knobs.get("refuse", ()):
+            # a host that refuses the call outright, the way a router would
+            raise NotMyDutyException()
+        if func_name in self.knobs.get("missing", ()):
+            return None
         if func_name == "add":
             return lambda env, a, b: a.value + b.value
         if func_name == "join":
