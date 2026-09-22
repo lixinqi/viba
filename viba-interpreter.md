@@ -121,6 +121,13 @@ lib << (environ.tmp_sub_env << ())
 给 `nil` 也一样。`viba/builtin.viba` 里 `Environment` 的成员形状因此写的是
 `$tmp_sub_env (Environment <- ())`。
 
+路径每次都不同，这是 `tmp_sub_env` 的语义：它给**纯函数调用**、或者**结果不留的调用**用。一个
+需要快照、要靠回放才幂等的函数如果挂在它底下，回放自然命中不了——每次的路径都是新的，快照会
+一次次写进不同的 `tmp_` 目录（`store_root/root/tmp_xxxx/…viba`），那条不纯的路于是每次都重走，
+**幂等检查会失败**。这不是缺陷，而是它给出的信号：这个函数需要显名保存，应该换到
+`environ.sub_env << "一个稳定的名字"` 上去。`tests/test_interpreter.py` 里两半都有用例：
+显名路径第二次跑就回放，临时路径两次都重算、并且留下两份快照。
+
 ## 宿主侧：Environment
 
 `Environment` 由宿主提供，至少两个概念：
@@ -208,7 +215,10 @@ def roll(env, n):
   想分开写就是 `read_snapshot(env, name)`（没有返回 `None`）与 `write_snapshot(env, value, name)`。
 - 快照地址由**这次调用的 storage 路径**决定：`snapshot_path(env, name)` 是
   `cur_storage_path/<name>.viba`，读写在 `store_root_dir` 底下。所以同一次调用（同一条路径）才
-  会命中同一条快照；换了路径（`tmp_sub_env`、另一个名字的子环境）就是另一次调用。
+  会命中同一条快照；换了路径（另一个名字的子环境）就是另一次调用。
+- **要回放就要一条稳定的路径**：跨两次运行能命中，靠的是两次运行里那条路径一样。用
+  `sub_env << "稳定的名字"` 就是稳定的；`tmp_sub_env` 每条路径都是新的，挂在它底下的调用不适合
+  保存要回放的东西（上一节：这正是它给出的"该显名保存了"的信号）。
 - **快照是序列化的 viba 数据**（`viba.serialize` 写出来的 `value := …`），不是 pickle：存下来
   的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回材料，叶子和原来一样。
 - **存不了、回放不出来就是错**：`Err`（宿主抛出来，interpret 转成 `Err`），不会静默给个默认值。

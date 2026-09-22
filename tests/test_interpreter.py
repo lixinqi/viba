@@ -161,6 +161,7 @@ def run() -> int:
         _virtual_files(tmp)
         _storage_paths(tmp)
         _idempotence(tmp)
+        _tmp_paths_never_replay(tmp)
         _paths(tmp)
     finally:
         for leftover in sorted(tmp.rglob("*"), reverse=True):
@@ -1281,6 +1282,60 @@ __ret__ := roll << $env environ << $n 1
     child.write_text("notes/one.txt", "hello")
     check(child.read_text("notes/one.txt") == "hello", "and reads back what it wrote")
     check(child.read_text("notes/two.txt") is None, "nothing there answers None")
+
+
+def _tmp_paths_never_replay(tmp: Path):
+    """tmp_sub_env 的随机路径不许用来存要回放的东西：它是给纯函数和无返回值用的。
+
+    一个需要幂等的函数如果挂在 tmp_sub_env 底下，回放永远命中不了——每次的路径
+    都是新的，快照会一次次写进不同的 tmp_ 目录。幂等检查因此失败，这正是给用户
+    的信号：换成显名子环境。"""
+    store = tmp / "tmp-store"
+    calls = []
+
+    def roll(env, n):
+        def compute():
+            calls.append(n.value)
+            return random.randint(1, 10 ** 6)
+        return replayed(env, compute, "roll")
+
+    compute = EnvironmentCompute(lambda path, func: roll if func == "roll" else None)
+    _write(tmp, "dice.viba", """
+roll :=
+	int
+	<- $env Environment
+	<- $n int
+	<- { roll a die: not pure }
+__ret__ := roll << $env environ << $n 1
+""")
+    named = _write(tmp, "dice_named.viba",
+                   "import dice as d\n__ret__ := d << (environ.sub_env << \"dice\")\n")
+    temporary = _write(tmp, "dice_tmp.viba",
+                       "import dice as d\n__ret__ := d << (environ.tmp_sub_env << ())\n")
+
+    def fresh_environ():
+        return Environment(EnvironmentStorage("root", None, str(store)), compute)
+
+    # 显名：一条稳定的路径，第二次跑就回放
+    calls.clear()
+    first = interpret(named, fresh_environ())
+    second = interpret(named, fresh_environ())
+    check(isinstance(first, Ok) and isinstance(second, Ok) and
+          value_of(first) == value_of(second) and calls == [1],
+          f"a named path replays across runs: {first!r} {second!r} {calls}")
+
+    # 临时：每次都是一条新路径，回放不到——于是又算了一遍
+    calls.clear()
+    before = sorted(path.name for path in (store / "root").glob("tmp_*"))
+    first = interpret(temporary, fresh_environ())
+    second = interpret(temporary, fresh_environ())
+    after = sorted(path.name for path in (store / "root").glob("tmp_*"))
+    check(isinstance(first, Ok) and isinstance(second, Ok) and
+          value_of(first) is not None and value_of(second) is not None and
+          calls == [1, 1],
+          f"a temporary path cannot replay: {first!r} {second!r} {calls}")
+    check(len(after) == len(before) + 2,
+          f"and every run leaves its own snapshot behind: {before} -> {after}")
 
 
 def _paths(tmp: Path):
