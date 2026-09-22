@@ -217,6 +217,7 @@ class _Runner:
         self.by_name: dict = {}        # module name -> module
         self.path_of: dict = {}        # module name -> file it was loaded from
         self.running: list = []        # module activations, for cycle refusal
+        self.used_paths: set = set()   # storage paths module calls have run under
 
     def run_file(self, file: str, environ: Environment) -> Result:
         path = Path(file)
@@ -315,7 +316,13 @@ class _Runner:
 
 def run_module(runner: _Runner, module: ModuleType, environ: Environment,
                name: str, file: Optional[str]) -> Result:
-    """The module as a function: `environ` in, `__ret__` out."""
+    """The module as a function: `environ` in, `__ret__` out.
+
+    The storage path a module runs under is its identity: it is what the host
+    is handed as `module_path`, so two activations under one path cannot be
+    told apart. No two module calls may share one — the caller gives each call
+    a sub-environment of its own.
+    """
     if file is None:
         file = runner.path_of.get(name)     # a module called through an import
     ret = _definition(module, RET_NAME)
@@ -323,6 +330,12 @@ def run_module(runner: _Runner, module: ModuleType, environ: Environment,
         return Err(f"module {name!r} has no {RET_NAME}: it is design, not a program")
     if name in runner.running:
         return Err(f"module {name!r} is already running: a module call cycle")
+    path = _storage_path(environ)
+    if path in runner.used_paths:
+        return Err(f"module {name!r} was handed the storage path {path!r}, which "
+                   f"another module call already used: give each module call a "
+                   f"sub-environment of its own (environ.sub_env << ...)")
+    runner.used_paths.add(path)
     runner.running.append(name)
     try:
         value = _Activation(runner, module, environ, name, file).evaluate(ret.body)
@@ -333,6 +346,12 @@ def run_module(runner: _Runner, module: ModuleType, environ: Environment,
     if not isinstance(value.ok_value, (_Material, _Host)):
         return Err(f"{name}.{RET_NAME} is a function still waiting for arguments")
     return Ok(_argument_value(value.ok_value))
+
+
+def _storage_path(environ: Environment) -> str:
+    """The path the host is handed for this environment: a module's identity."""
+    storage = getattr(environ, "storage", None)
+    return getattr(storage, "cur_storage_path", "") if storage else ""
 
 
 def _definition(module: ModuleType, name: str):
@@ -436,20 +455,28 @@ class _Activation:
     # ---- calls ----
 
     def _apply_chain(self, node):
-        given = []
+        """Give the written arguments to the function, in written order.
+
+        The chain nests left: `((f << a) << b) << c` is read by walking the
+        spine, which meets c first. The function is evaluated, then the
+        arguments the other way round, so a call runs left to right — that is
+        the order the host sees them in, and the order side effects happen in.
+        """
+        written = []
         while isinstance(node, viba_ast.Partial):
-            value = self._argument(node.argument)
-            if isinstance(value, Err):
-                return value
-            if value.ok_value is not None:
-                given.append(value.ok_value)
+            written.append(node.argument)
             node = node.function
         function = self.evaluate(node)
         if isinstance(function, Err):
             return function
         current = function.ok_value
-        for item in reversed(given):
-            current = _give(current, item)
+        for argument in reversed(written):
+            value = self._argument(argument)
+            if isinstance(value, Err):
+                return value
+            if value.ok_value is None:
+                continue                        # documentation is no argument
+            current = _give(current, value.ok_value)
             if isinstance(current, Err):
                 return current
             current = current.ok_value
@@ -549,11 +576,10 @@ class _VibaFunc(_Callable):
         if problem is not None:
             return Err(problem)
         environ = given[self.slots.index(ENVIRON_TAG)].obj
-        storage = getattr(environ, "storage", None)
         compute = getattr(environ, "compute", None)
         if compute is None:
             return Err(f"{self.name}: the environment carries no compute side")
-        module_path = getattr(storage, "cur_storage_path", "") if storage else ""
+        module_path = _storage_path(environ)
         try:
             host = compute.get_func(module_path, self.name)
         except Exception as exc:            # the host is the host's business

@@ -96,6 +96,20 @@ __ret__ := demo.print << environ << ret
 - `environ.sub_env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
   `父路径/add_demo`（见下）。
 
+**每次模块调用都要有自己的 storage 路径**：那条路径是这次调用的身份——宿主拿到的
+`get_func(module_path, func_name)` 里的 `module_path` 就是它，两次激活落在同一条路径上，宿主就
+分不出谁是谁（`root` 下主文件自己的 `add` 与某个模块的 `add` 会看成一个）。所以一次运行里
+**任何两次模块调用不许用同一条路径**，重复就是 `Err`，并且把正确写法写在错误里：
+
+```
+module 'lib' was handed the storage path 'root', which another module call already
+used: give each module call a sub-environment of its own (environ.sub_env << ...)
+```
+
+注意 `environ.sub_env << "x"` 对同一个父环境是**同一个** storage（同名子环境按需造一次、之后
+复用），所以同一个模块调两次要给两个名字，或者让宿主给出两份不同的 storage。主文件自己也算
+一次激活，占着它那条路径——直接 `lib << environ` 就是撞车。
+
 ## 宿主侧：Environment
 
 `Environment` 由宿主提供，至少两个概念：
@@ -195,6 +209,7 @@ add raised ZeroDivisionError(...)     宿主函数抛了
 ... was not given the environment     调用时没给 environ
 ... was not given an Environment      给了，但不是 Environment
 module 'x' is already running         模块调用成环
+... storage path ... already used     两次模块调用用了同一条 storage 路径
 ... is a function still waiting ...   __ret__ 不是值
 ... answered list, which is no leaf   宿主答了没有叶子的东西
 cannot read ...                       文件读不了

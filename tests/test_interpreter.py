@@ -155,6 +155,7 @@ def run() -> int:
         _caching_and_repeats(tmp)
         _more_corners(tmp)
         _virtual_files(tmp)
+        _storage_paths(tmp)
         _paths(tmp)
     finally:
         for leftover in sorted(tmp.rglob("*"), reverse=True):
@@ -395,7 +396,7 @@ __ret__ := join << $env environ << $a "a" << $b "b"
 """)
     dotted = _write(tmp, "dotted.viba", """
 import pkg.mod as mod
-__ret__ := mod << environ
+__ret__ := mod << (environ.sub_env << "mod")
 """)
     result = interpret(dotted, environ)
     check(isinstance(result, Ok) and value_of(result) == "ab",
@@ -404,7 +405,7 @@ __ret__ := mod << environ
     _write(tmp, "design_only.viba", "Only := $x int\n")
     design = _write(tmp, "use_design.viba", """
 import design_only as d
-__ret__ := d << environ
+__ret__ := d << (environ.sub_env << "d")
 """)
     labelled(interpret(design, environ), "has no __ret__",
              "calling a module that is design only -> Err")
@@ -429,7 +430,7 @@ def _loose_ends(tmp: Path):
     _write(tmp, "plain.viba", LEAF + "__ret__ := leaf << $env environ\n")
     plain = _write(tmp, "plain_user.viba", """
 import plain
-__ret__ := plain << environ
+__ret__ := plain << (environ.sub_env << "plain")
 """)
     result = interpret(plain, environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
@@ -463,8 +464,10 @@ __ret__ := plain << environ
     labelled(interpret(weird, bad.environ()), "raised", "a non-callable implementation -> Err")
 
     # A -> B -> A 的环
-    _write(tmp, "cycle_a.viba", "import cycle_b as b\n__ret__ := b << environ\n")
-    _write(tmp, "cycle_b.viba", "import cycle_a as a\n__ret__ := a << environ\n")
+    _write(tmp, "cycle_a.viba",
+           "import cycle_b as b\n__ret__ := b << (environ.sub_env << \"b\")\n")
+    _write(tmp, "cycle_b.viba",
+           "import cycle_a as a\n__ret__ := a << (environ.sub_env << \"a\")\n")
     labelled(interpret(str(tmp / "cycle_a.viba"), environ), "already running",
              "a module call cycle A->B->A -> Err")
 
@@ -654,7 +657,8 @@ __ret__ := sum << $env environ""" + many + "\n")
     for level in range(4, 0, -1):
         name = f"leaf{level}"
         _write(depth, f"{name}.viba",
-               f"import {previous} as down\n__ret__ := down << environ\n")
+               f"import {previous} as down\n"
+               f"__ret__ := down << (environ.sub_env << \"{previous}\")\n")
         previous = name
     result = interpret(str(depth / "leaf1.viba"), environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
@@ -669,12 +673,14 @@ def _caching_and_repeats(tmp: Path):
     environ = host.environ()
 
     _write(tmp, "shared.viba", LEAF + "__ret__ := leaf << $env environ\n")
-    _write(tmp, "left.viba", "import shared as s\n__ret__ := s << environ\n")
-    _write(tmp, "right.viba", "import shared as r\n__ret__ := r << environ\n")
+    _write(tmp, "left.viba",
+           "import shared as s\n__ret__ := s << (environ.sub_env << \"s\")\n")
+    _write(tmp, "right.viba",
+           "import shared as r\n__ret__ := r << (environ.sub_env << \"r\")\n")
     top = _write(tmp, "top.viba", ADD + """
 import left as l
 import right as r
-__ret__ := add << $env environ << $a (l << environ) << $b (r << environ)
+__ret__ := add << $env environ << $a (l << (environ.sub_env << "l")) << $b (r << (environ.sub_env << "r"))
 """)
 
     parsed = []
@@ -769,7 +775,8 @@ __ret__ := {func} << $env environ
     # import 写在定义之后也算
     _write(tmp, "late_lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
     late = _write(tmp, "late_import.viba",
-                  "__ret__ := late_lib << environ\nimport late_lib\n")
+                  "__ret__ := late_lib << (environ.sub_env << \"late_lib\")\n"
+                  "import late_lib\n")
     result = interpret(late, environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"an import written at the end of the file: {result!r}")
@@ -877,13 +884,16 @@ __ret__ := add << $env environ << $a half << $b half
     host.calls.clear()
     twice_module = _write(tmp, "twice_module.viba", ADD + """
 import late_lib as lib
-__ret__ := add << $env environ << $a (lib << environ) << $b (lib << environ)
+__ret__ := add << $env environ
+  << $a (lib << (environ.sub_env << "first"))
+  << $b (lib << (environ.sub_env << "second"))
 """)
     result = interpret(twice_module, environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"one module called twice: {result!r}")
-    check(host.calls.count(("root", "leaf")) == 2,
-          f"each call runs the module again: {host.calls}")
+    leaf_calls = [call for call in host.calls if call[1] == "leaf"]
+    check([path for path, _ in leaf_calls] == ["root/first", "root/second"],
+          f"each call runs the module again, under its own path: {host.calls}")
 
     # module.MyType.Inner：点到底也还是找那个定义
     dotted_member = _write(tmp, "dotted_member.viba",
@@ -897,7 +907,8 @@ __ret__ := add << $env environ << $a (lib << environ) << $b (lib << environ)
     _write(dotted_dir, "a/b.viba", "X := 1\n__ret__ := 1\n")
     _write(dotted_dir, "a/b/c.viba", "X := 2\n__ret__ := 2\n")
     both = _write(tmp, "both_dotted.viba",
-                  "import a.b\nimport a.b.c\n__ret__ := a.b.c << environ\n")
+                  "import a.b\nimport a.b.c\n"
+                  "__ret__ := a.b.c << (environ.sub_env << \"c\")\n")
     result = interpret(both, environ, viba_path=str(dotted_dir))
     check(isinstance(result, Ok) and value_of(result) == 2,
           f"the longest import prefix wins: {result!r}")
@@ -907,7 +918,8 @@ __ret__ := add << $env environ << $a (lib << environ) << $b (lib << environ)
     flat_dir.mkdir(exist_ok=True)
     _write(flat_dir, "pkg.inner.viba", LEAF + "__ret__ := leaf << $env environ\n")
     flat_use = _write(tmp, "flat_dotted.viba",
-                      "import pkg.inner\n__ret__ := pkg.inner << environ\n")
+                      "import pkg.inner\n"
+                      "__ret__ := pkg.inner << (environ.sub_env << \"inner\")\n")
     result = interpret(flat_use, environ, viba_path=str(flat_dir))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a dotted import that is one file named pkg.inner.viba: {result!r}")
@@ -981,7 +993,8 @@ def _virtual_files(tmp: Path):
     environ = host.environ()
 
     files = {
-        "/vfs/main.viba": "import pkg.inner\n__ret__ := pkg.inner << environ\n",
+        "/vfs/main.viba": ("import pkg.inner\n"
+                           "__ret__ := pkg.inner << (environ.sub_env << \"inner\")\n"),
         "/vfs/pkg/inner.viba": LEAF + "__ret__ := leaf << $env environ\n",
     }
     asked = []
@@ -1017,7 +1030,8 @@ def _virtual_files(tmp: Path):
     lib_path = "/vfs/lib.viba"
     files[twice] = ADD + ("import lib as one\nimport lib as two\n"
                           "__ret__ := add << $env environ"
-                          " << $a (one << environ) << $b (two << environ)\n")
+                          " << $a (one << (environ.sub_env << \"one\"))"
+                          " << $b (two << (environ.sub_env << \"two\"))\n")
     files[lib_path] = LEAF + "__ret__ := leaf << $env environ\n"
     result = interpret(twice, environ, get_file=get_file)
     check(isinstance(result, Ok) and value_of(result) == 14 and
@@ -1062,6 +1076,67 @@ def _virtual_files(tmp: Path):
              "a get_file that is not callable -> Err")
 
 
+def _storage_paths(tmp: Path):
+    """模块调用的 storage 路径是它的身份：两次调用不可以用同一个。"""
+    host = Host()
+    environ = host.environ()
+    _write(tmp, "lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
+
+    # 主文件自己也占着它那个路径：直接拿 environ 调模块就是撞车
+    same_env = _write(tmp, "same_env.viba",
+                      "import lib as lib\n__ret__ := lib << environ\n")
+    labelled(interpret(same_env, environ), "storage path",
+             "a module handed the caller's own environment -> Err")
+
+    # 两次调用给同一个子环境（同名子环境就是同一个 storage）→ 第二次撞车
+    repeated = _write(tmp, "repeated_path.viba", ADD + """
+import lib as lib
+__ret__ := add << $env environ
+  << $a (lib << (environ.sub_env << "one"))
+  << $b (lib << (environ.sub_env << "one"))
+""")
+    labelled(interpret(repeated, environ), "storage path",
+             "two calls to one storage path -> Err")
+
+    # 两个不同的模块，用同一个名字的子环境 → 也撞车
+    _write(tmp, "other.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    two_modules = _write(tmp, "two_modules.viba", ADD + """
+import lib as one
+import other as two
+__ret__ := add << $env environ
+  << $a (one << (environ.sub_env << "m"))
+  << $b (two << (environ.sub_env << "m"))
+""")
+    labelled(interpret(two_modules, environ), "storage path",
+             "two modules under one storage path -> Err")
+
+    # 各给各的名字：两次都跑得起来，宿主看到两个路径，按书写顺序
+    host.calls.clear()
+    two_names = _write(tmp, "two_names.viba", ADD + """
+import lib as one
+import other as two
+__ret__ := add << $env environ
+  << $a (one << (environ.sub_env << "one"))
+  << $b (two << (environ.sub_env << "two"))
+""")
+    result = interpret(two_names, environ)
+    check(isinstance(result, Ok) and value_of(result) == 14,
+          f"two modules, two storage paths: {result!r}")
+    check([path for path, func in host.calls if func == "leaf"]
+          == ["root/one", "root/two"],
+          f"the host sees each module under its own path: {host.calls}")
+
+    # 没有 storage 的环境：主文件先占下那条空路径，模块再用它就是撞车
+    headless = Environment(None, EnvironmentCompute(host.get_func))
+    labelled(interpret(same_env, headless), "storage path",
+             "a storage-less environment: the module call collides too")
+
+    # 撞车的错误说得清楚：给每次调用一个自己的子环境
+    result = interpret(same_env, environ)
+    check(isinstance(result, Err) and "sub_env" in result.err_msg,
+          f"and the message says what to do: {result!r}")
+
+
 def _paths(tmp: Path):
     """VIBA_PATH：按顺序找，import 旁边的先赢。"""
     host = Host()
@@ -1073,12 +1148,14 @@ def _paths(tmp: Path):
     _write(first, "lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
     _write(second, "lib.viba", TEXT + "__ret__ := text << $env environ\n")
 
-    user = _write(tmp, "uses_path.viba", "import lib as lib\n__ret__ := lib << environ\n")
+    user = _write(tmp, "uses_path.viba",
+                  "import lib as lib\n__ret__ := lib << (environ.sub_env << \"lib\")\n")
     result = interpret(user, environ, viba_path=f"{first}:{second}")
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"the first directory on VIBA_PATH wins: {result!r}")
 
-    near = _write(second, "near.viba", "import lib as lib\n__ret__ := lib << environ\n")
+    near = _write(second, "near.viba",
+                  "import lib as lib\n__ret__ := lib << (environ.sub_env << \"lib\")\n")
     result = interpret(near, environ, viba_path=f"{first}:{second}")
     check(isinstance(result, Ok) and value_of(result) == "hi",
           f"a module next to the importer beats VIBA_PATH: {result!r}")
@@ -1089,13 +1166,15 @@ def _paths(tmp: Path):
     _write(flat, "pkg/inner.viba", LEAF + "__ret__ := leaf << $env environ\n")
     ragged = f":{first}:{tmp / 'missing'}::{flat}:"
     dotted = _write(tmp, "dotted.viba",
-                    "import pkg.inner\n__ret__ := pkg.inner << environ\n")
+                    "import pkg.inner\n"
+                    "__ret__ := pkg.inner << (environ.sub_env << \"inner\")\n")
     result = interpret(dotted, environ, viba_path=ragged)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a dotted module found on VIBA_PATH, empty and missing entries skipped: {result!r}")
 
     aliased = _write(tmp, "aliased.viba",
-                     "import pkg.inner as inner\n__ret__ := inner << environ\n")
+                     "import pkg.inner as inner\n"
+                     "__ret__ := inner << (environ.sub_env << \"inner\")\n")
     result = interpret(aliased, environ, viba_path=ragged)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"the same module under an alias: {result!r}")
