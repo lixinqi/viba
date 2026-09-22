@@ -138,7 +138,6 @@ Color := $red int | $green int | $blue int
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `environ` in, `__ret__` out — the executable reading |
 | [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
 | [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
-| [`contract-enough.md`](contract-enough.md) | What "the implementation is enough" means |
 
 ## Modules
 
