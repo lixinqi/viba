@@ -392,11 +392,6 @@ class _Activation:
             return value
         return Ok(_Given(tag, value.ok_value))
 
-    def environ_of(self, given):
-        """The environment a call was given, or None."""
-        item = given.get(ENVIRON_TAG)
-        return item.obj if isinstance(item, _Host) else None
-
 
 def _give(function, item):
     """Give one written argument to `function`, or say what stood there.

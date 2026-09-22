@@ -151,11 +151,20 @@ def run_unparse_type_cases():
          case("A <- (B <- C)"), "A <- (B <- C)")
     same("a tagged leaf", unparse_type(Tagged("$a", Nil())), "$a nil")
     same("a code block goes back in braces", unparse_type(CodeBlock("x")), "{x}")
+    same("a chain inside a binary product keeps its parentheses",
+         unparse_type(Product(ProductChain([TypeRef("A"), TypeRef("B")]), TypeRef("C"))),
+         "(  A\n  * B) * C")
     same("an empty sum chain is never", unparse_type(SumChain([])), "never")
     same("an empty product chain is nil", unparse_type(ProductChain([])), "nil")
     same("an empty exponent chain is never", unparse_type(ExponentChain([])), "never")
     same("a one-element chain is its element",
          unparse_type(SumChain([TypeRef("A")])), "A")
+    from viba.viba_ast.chain import is_chain_type
+    check("chain nodes are chains",
+          all(is_chain_type(c) for c in (SumChain([]), ProductChain([]), ExponentChain([]))))
+    check("a binary node is not a chain",
+          not is_chain_type(Product(TypeRef("A"), TypeRef("B"))))
+
     same("a branch chain is parenthesized inside a product",
          unparse_type(ProductChain([TypeRef("A"), ProductChain([TypeRef("B")])])),
          "A\n* (B)")
@@ -173,6 +182,7 @@ def viba_code(text: str):
     same("dump without fields", dump(node, annotate_fields=False),
          "TypeDefinition('X', Tagged('$a', TypeRef('int')))")
     same("dump of a node with no fields", dump(Nil()), "Nil()")
+    same("dump of a node with no fields, indented", dump(Nil(), indent=2), "Nil()")
     same("dump indented by one",
          dump(node, indent=1),
          "TypeDefinition(\n name='X',\n body=Tagged(\n   tag='$a',\n"
@@ -308,6 +318,13 @@ def run_transformer_cases():
 
     raises("and the same holds inside a list", "must return an AST node",
            BadInList().visit, parse("X := int\n"))
+
+    class TouchNothing(NodeTransformer):
+        def visit_TypeRef(self, node):
+            return node
+
+    tree = TouchNothing().visit(Module([Tuple([TypeRef("A"), "stray"])]))
+    same("a list item that is not a node is kept", tree.body[0].elements[1], "stray")
 
     class TupleExtending(NodeTransformer):
         def visit_Nil(self, node):

@@ -246,6 +246,9 @@ def _check_errors():
         assert isinstance(parse_viba_file(empty_pool(), good, "partial_ok.viba", "partial_ok"), Ok), good
     # 已知的分歧：点分定义名现在能编（builder 那边 `vb.a.b = …` 是拦的）
     assert isinstance(parse_viba_file(empty_pool(), "a.b := int\n", "dotted.viba", "dotted"), Ok)
+    # 不是模块的东西：问它要名字，说的是"不认识这种模块"，不是崩
+    for not_a_module in ("not a module", None, 7):
+        assert isinstance(module_get_type(not_a_module, "X"), Err), not_a_module
 
 
 def run():

@@ -878,6 +878,7 @@ GivenAll := (A <- $b B <- $c C) << $c C << $b B
 GivenAllOther := (A <- $b B <- $c C) << $b B << $c C
 Named := Box << $b B
 Box := A <- $b B
+Loop := Loop
 """)
 
     def judge(sub, sup):
@@ -907,6 +908,14 @@ Box := A <- $b B
                  "the given argument has to fit the slot: Int <: Num holds")
     check_result(judge("Narrow", "A"), "error",
                  "giving Num to an Int slot is refused (Num <: Int does not hold)")
+    check_result(judge("(A <- B) << B", "A"), True,
+                 "an argument written without a tag matches the slot written the same way")
+    check_result(judge("(A <- B) << C", "A"), "error",
+                 "and one written differently finds no slot -> Err")
+    check_result(judge("Nope << $b B", "never"), "error",
+                 "a function name that resolves to nothing -> Err")
+    check_result(judge("Loop << $b B", "never"), "error",
+                 "a function name that only comes back to itself -> Err")
 
 
 def run_any_cases():
@@ -1054,6 +1063,23 @@ def run_suite_reflexivity():
     print(f"bulk reflexivity on {count} suite definitions ({skipped} skipped)")
 
 
+def run_type_object_cases():
+    """直接拿 Type 对象问，不经 AstNodeType：AnyType 就是那个上界，内建构造器按名字比。"""
+    from viba.type import AnyType, BuiltinGenericType, NeverType, NilType
+
+    check_result(is_sub_type(IntType(), AnyType()), True, "an int Type is below Any")
+    check_result(is_sub_type(NeverType(), AnyType()), True, "and so is bottom")
+    check_result(is_sub_type(AnyType(), AnyType()), True, "Any is below itself")
+    check_result(is_sub_type(AnyType(), IntType()), False, "Any is below no ordinary type")
+    check_result(is_sub_type(AnyType(), NilType()), False, "nor below the unit")
+    check_result(is_sub_type(StrType(), StrType()), True, "a base type is itself")
+    check_result(is_sub_type(IntType(), StrType()), False, "and not another base type")
+    check_result(is_sub_type(BuiltinGenericType("list"), BuiltinGenericType("list")),
+                 True, "a builtin container is its own name")
+    check_result(is_sub_type(BuiltinGenericType("list"), BuiltinGenericType("set")),
+                 False, "and not another container's name")
+
+
 run_data_cases()
 run_design_review()
 run_py_side_cases()
@@ -1076,6 +1102,7 @@ run_code_block_cases()
 run_canonical_chain_cases()
 run_apply_cases()
 run_any_cases()
+run_type_object_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

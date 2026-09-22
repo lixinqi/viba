@@ -126,6 +126,10 @@ class Host:
                     raise RuntimeError(result.err_msg)
                 return result.ok_value
             return inner_value
+        if func_name == "feed_a_list":
+            def feed_a_list(env, f):
+                return f(env, [1, 2])
+            return feed_a_list
         if func_name == "interrupt":
             def interrupt(env):
                 raise KeyboardInterrupt
@@ -935,6 +939,39 @@ __ret__ := add << $env environ << $a (lib << environ) << $b (lib << environ)
     result = interpret(said, shouting)
     check(isinstance(result, Ok) and value_of(result) == "hi!",
           f"a method the host hung on its environment: {result!r}")
+
+    # 宿主把没有叶子的东西喂给（它手里那个）viba 函数
+    fed = _write(tmp, "fed.viba", """
+feed_a_list :=
+	int
+	<- $env Environment
+	<- $f (int <- $env Environment <- $x int)
+	<- { hand f a list }
+inc :=
+	int
+	<- $env Environment
+	<- $x int
+	<- { add one }
+__ret__ := feed_a_list << $env environ << $f inc
+""")
+    labelled(interpret(fed, environ), "raised",
+             "a host handing a viba function something with no leaf -> Err")
+
+    # 一个参数位都没有的函数：不带 tag 的实参就是给多了
+    no_slots = _write(tmp, "no_slots.viba", """
+f :=
+	int
+	<- { a function with no argument slot }
+__ret__ := f << 1
+""")
+    labelled(interpret(no_slots, environ), "takes no more arguments",
+             "an untagged argument to a function with no slots -> Err")
+
+    # storage 都没有的环境：宿主那边崩了也是 Err，不是把异常扔出来
+    headless = Environment(None, EnvironmentCompute(host.get_func))
+    headless_use = _write(tmp, "headless.viba", '__ret__ := environ.sub_env << "a"\n')
+    labelled(interpret(headless_use, headless), "raised",
+             "an environment with no storage -> Err, not a crash")
 
 
 def _paths(tmp: Path):

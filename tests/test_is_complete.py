@@ -162,6 +162,53 @@ def corners():
               is_complete("import pkg.mod\nX := pkg.mod.M\n", [], [directory, directory], set()),
               True)
 
+    # A terminator may be a plain name, not only an application.
+    check("a name as a terminator", is_complete("X := Foo", [], [], {"Foo"}), True)
+    check("and the same name without it", is_complete("X := Foo", [], [], set()), False)
+
+    # Arguments to a definition that has no parameters: no shape to bind.
+    check("arguments to a plain definition",
+          is_complete("Box := int\nA := Box[int]\n", [], [], set()), False)
+
+    # The builtin library walks like any other design, and a builtin may name
+    # itself (EnvironmentStorage recurses); a doc block inside still stops it.
+    check("a builtin that is complete", is_complete("X := Environment", [], [], set()), True)
+    check("a builtin carrying a doc block",
+          is_complete("X := EnvironmentStorage", [], [], set()), False)
+
+    # The entry's own file name is taken, so a library file under that name is
+    # skipped and the entry still walks through.
+    check("a library file that takes the entry's name",
+          is_complete("X := int\n", [("entry.viba", "Y := str\n")], [], set()), True)
+
+    # A directory named like a module: reading it fails, so the module is not
+    # there (and the walk says so instead of crashing).
+    with tempfile.TemporaryDirectory() as directory:
+        (Path(directory) / "pkg.viba").mkdir()
+        check("a directory where a module should be",
+              is_complete("import pkg\nX := pkg.M\n", [], [directory], set()), False)
+
+    # The chain helper also has to read the binary form the parser builds
+    # before canonicalisation (nothing walks those through the entry).
+    from viba import viba_ast as nodes
+    from viba.is_complete import _chain_elements
+
+    binary = nodes.Product(
+        nodes.Product(nodes.TypeRef("A"), nodes.TypeRef("B")), nodes.TypeRef("C"))
+    same_names = [n.name for n in _chain_elements(binary)]
+    check(f"a binary product flattens in order ({same_names})",
+          same_names == ["A", "B", "C"], True)
+    # A right-nested run is a branch, not part of the main chain: the walk
+    # reads it as one element, the way the chain form keeps it.
+    binary_sum = nodes.Sum(nodes.TypeRef("A"), nodes.Sum(nodes.TypeRef("B"), nodes.TypeRef("C")))
+    sum_elements = _chain_elements(binary_sum)
+    check("a right-nested sum stays a branch",
+          len(sum_elements) == 2 and isinstance(sum_elements[1], nodes.Sum), True)
+    binary_exp = nodes.Exponent(
+        nodes.Exponent(nodes.TypeRef("A"), nodes.TypeRef("B")), nodes.TypeRef("C"))
+    check("a binary exponent flattens", len(_chain_elements(binary_exp)) == 3, True)
+    check("anything else has no chain", _chain_elements(nodes.TypeRef("A")) is None, True)
+
 
 if __name__ == "__main__":
     sys.exit(main())
