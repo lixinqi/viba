@@ -374,7 +374,7 @@ class _Runner:
         module = self._file_of(path, path.stem, source)
         if isinstance(module, Err):
             return module
-        return run_module(self, module.ok_value, environ, path.stem, str(path))
+        return _run_module(self, module.ok_value, environ, path.stem, str(path))
 
     # ---- where the source comes from ----
 
@@ -459,7 +459,7 @@ class _Runner:
         return out
 
 
-def run_module(runner: _Runner, module: ModuleType, environ: Environment,
+def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                name: str, file: Optional[str]) -> Result:
     """The module as a function: `environ` in, `__ret__` out.
 
@@ -801,7 +801,7 @@ class _ModuleFunc(_Callable):
         environ = values[0].obj if isinstance(values[0], _Host) else None
         if not isinstance(environ, Environment):
             return Err(f"module {self.name!r} needs an Environment")
-        answer = run_module(self.runner, self.module, environ, self.name, None)
+        answer = _run_module(self.runner, self.module, environ, self.name, None)
         if isinstance(answer, Err):
             return answer
         # `interpret` hands the node out; inside a run a module's answer is a

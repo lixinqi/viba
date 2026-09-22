@@ -1,5 +1,9 @@
 """`T << X`: the function T with the written argument X given to it.
 
+Internal: this is the reduction `<<` goes through, used by `viba.is_sub_type`
+and the descriptor layer. What a caller uses is the judgment (`is_sub_type`)
+and the reading of a module as a function, not this module.
+
 Partial computation, written in the design itself:
 
     (A <- $b B <- $c C) << $b B            is  A <- $c C

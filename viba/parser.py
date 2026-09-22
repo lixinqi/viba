@@ -1,3 +1,11 @@
+"""The .viba grammar: PLY tokens and productions, building `viba.viba_ast` nodes.
+
+Internal: callers parse through `viba.viba_ast.parse`, which runs the grammar and
+then the name check below. The module is here for its self-test (see the bottom)
+and for that one entry.
+
+"""
+
 import os
 import sys
 

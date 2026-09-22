@@ -87,12 +87,10 @@ Handler := {def forward(self, x): return x}
 ## Modules
 
 `viba/` is the package: the syntax layer, the type model and the judgment over it, and the
-tools built on those. The parser's grammar actions build `viba.viba_ast` nodes directly;
-there is no intermediate representation.
+tools built on those.
 
 | Module | Summary |
 |--------|---------|
-| `parser.py` | Lexer + parser (PLY) — .viba source straight to `viba.viba_ast` nodes |
 | `viba_ast/` | Node classes, chain canonicalization, unparse, visitors, `dump` |
 | `type.py` | The Type model, the builtin names, `module_get_type` |
 | `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) |
@@ -100,12 +98,15 @@ there is no intermediate representation.
 | `reflect.py` | The reflection protocol: addressing a design, reading a material |
 | `serialize.py` | Writes a piece of material back out as viba source |
 | `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
-| `partial.py` | Reduces `T << X`: the function with that written argument given |
 | `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
 | `is_complete.py` | Whether a design can be reflected through |
 | `interpret.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — the environment shapes among them |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
+
+Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY
+grammar behind `viba_ast.parse`, with a self-test at the bottom) and `partial.py` (the
+reduction `<<` goes through, used by the judgment).
 
 ## Usage
 
