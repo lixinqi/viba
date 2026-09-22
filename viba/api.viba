@@ -39,16 +39,19 @@ FromChain := AST <- $node AST
 # Running a module: viba.interpreter
 # ----------------------------------------------------------------------
 
-# interpret(viba_main_file, environ, viba_path=None) -> Result[VibaNode]
+# interpret(viba_main_file, environ, viba_path=None, get_file=None) -> Result[VibaNode]
 Interpret :=
     Result[VibaNode]
   <- $viba_main_file str
   <- $environ Environment
   <- $viba_path str
+  <- $get_file Optional[$file_content str <- $file_path str]
   <- Comments[{
       模块就是函数：environ 进，__ret__ 出。没有 __ret__ 的文件是设计，不是程序。
       interpret 不认识任何具体函数：实现全部来自 environ 的 compute 侧
       （get_func(module_path, func_name)），而且每个可执行函数都要依赖 environ。
+      get_file 是源的来处：留空就读文件系统；给了就一律走它——返回文件的文本，
+      那个路径上没有文件就返回 nil（或抛 FileNotFoundError）。路径按字符串给。
     }]
 
 # Environment := EnvironmentStorage * EnvironmentCompute，宿主侧的形状见

@@ -8,6 +8,7 @@ runnable defines `__ret__`; a file that does not is design only.
     from viba.interpreter import interpret
 
     interpret("add_demo.viba", environ)          # -> Result[VibaNode]
+    interpret("main.viba", environ, get_file=files.get)   # sources from anywhere
 
 The interpreter is coupled to no function at all: viba ships with no library
 functions, and every implementation comes from the environment's compute
@@ -16,6 +17,12 @@ caller writes or generates. Whatever that function is, it takes the
 environment — every executable function depends on it — and a module's
 sub-environment holds the parent's compute, so a chain of modules shares one
 implementation source.
+
+Neither is it coupled to a filesystem: `get_file(file_path) -> str | None` is
+where a file's source comes from. Left out, files are read from disk; given,
+nothing else is read — the whole run can be served out of memory, and a path
+that has no file is answered `None` (or a `FileNotFoundError`), so the search
+moves on to the next place.
 
 The host side, spelled out:
 
@@ -175,71 +182,135 @@ def _given_value(value):
 
 
 def interpret(viba_main_file: str, environ: Environment,
-              viba_path: Optional[str] = None) -> Result:
+              viba_path: Optional[str] = None, get_file=None) -> Result:
     """Run `viba_main_file` with `environ`; Result[VibaNode] is its `__ret__`.
 
     `viba_path` is where modules are looked up, like PYTHONPATH: the
     directories are searched in order for `<name>.viba` (a dotted name as a
     path), and the directory of the file that wrotes the import is searched
     first. It is written as a string of directories, or given as one path.
+
+    `get_file` is where the source of a file comes from:
+    `Optional[str <- $file_path str]`, the file's text for a path, `None` (or
+    a `FileNotFoundError`) when that path has no file. Left out, the
+    filesystem is read; given, nothing else is — a host can serve the whole
+    run out of memory, a database, or anything else.
     """
     if not isinstance(environ, Environment):
         return Err("interpret needs an Environment")
     if viba_path is not None and not isinstance(viba_path, (str, os.PathLike)):
         return Err(f"viba_path is a string of directories (or one path), "
                    f"not {type(viba_path).__name__}")
-    return _Runner(viba_path).run_file(viba_main_file, environ)
+    if get_file is not None and not callable(get_file):
+        return Err(f"get_file is a function (or None), not {type(get_file).__name__}")
+    return _Runner(viba_path, get_file).run_file(viba_main_file, environ)
 
 
 class _Runner:
     """One run: the files it has loaded, and where it looks for more."""
 
-    def __init__(self, viba_path=None):
+    def __init__(self, viba_path=None, get_file=None):
         text = "" if viba_path is None else os.fspath(viba_path)
         self.paths = [Path(p) for p in text.split(":") if p]
-        self.by_path: dict = {}        # resolved path -> module
+        self.get_file = get_file
+        self.by_path: dict = {}        # normalized path -> module
         self.by_name: dict = {}        # module name -> module
         self.path_of: dict = {}        # module name -> file it was loaded from
         self.running: list = []        # module activations, for cycle refusal
 
     def run_file(self, file: str, environ: Environment) -> Result:
         path = Path(file)
-        if not path.exists():
+        source, problem = self._source(path)
+        if problem is not None:
+            return Err(problem)
+        if source is None:
             return Err(f"no such file: {file}")
-        module = self._load(path, path.stem)
+        module = self._file_of(path, path.stem, source)
         if isinstance(module, Err):
             return module
         return run_module(self, module.ok_value, environ, path.stem, str(path))
 
-    def _load(self, path: Path, name: str):
-        key = str(path.resolve())
-        if key not in self.by_path:
+    # ---- where the source comes from ----
+
+    def _source(self, path: Path):
+        """(source, problem): the file's text, or why it cannot be read.
+
+        `source` is None when that path has no file at all — the caller then
+        looks somewhere else — and `problem` says the path was there and
+        could not be used (unreadable, or the host broke).
+        """
+        if self.get_file is not None:
             try:
-                source = path.read_text()
-            except OSError as exc:
-                return Err(f"cannot read {path}: {exc}")
+                source = self.get_file(str(path))
+            except FileNotFoundError:
+                return None, None
+            except Exception as exc:            # the host's business, reported
+                return None, f"get_file({path}) raised {exc!r}"
+            if source is None:
+                return None, None
+            if not isinstance(source, str):
+                return None, (f"get_file({path}) answered "
+                              f"{type(source).__name__}, not the file's text")
+            return source, None
+        try:
+            return path.read_text(), None
+        except FileNotFoundError:
+            return None, None
+        except OSError as exc:
+            return None, f"cannot read {path}: {exc}"
+
+    def _key(self, path: Path) -> str:
+        """What tells one file from another: the path, normalized. Not
+        resolved — a host's file need not be on this filesystem at all."""
+        return os.path.normpath(str(path))
+
+    def _file_of(self, path: Path, name: str, source: str):
+        """Parse one source, remember it under its path, bind it to `name`."""
+        key = self._key(path)
+        if key not in self.by_path:
             try:
                 self.by_path[key] = custom_module(source)
             except SyntaxError as exc:
                 return Err(f"cannot parse {path}: {exc}")
-        self.by_name[name] = self.by_path[key]
+        return self._bind(self.by_path[key], path, name)
+
+    def _bind(self, module, path: Path, name: str):
+        self.by_name[name] = module
         self.path_of[name] = str(path)
-        return Ok(self.by_path[key])
+        return Ok(module)
 
     def imported(self, name: str, near: Optional[str]):
         """The module `name`: loaded, or found next to `near`, or on the path."""
         if name in self.by_name:
             return Ok(self.by_name[name])
+        for place in self._places(name, near):
+            cached = self.by_path.get(self._key(place))
+            if cached is not None:
+                return self._bind(cached, place, name)
+            source, problem = self._source(place)
+            if problem is not None:
+                return Err(problem)
+            if source is None:
+                continue                    # no file here: the next place
+            return self._file_of(place, name, source)
+        return Err(f"module {name!r} not found (next to {near} and on VIBA_PATH)")
+
+    def _places(self, name: str, near: Optional[str]) -> list:
+        """Where `name` may be, in the order it is looked for: next to the
+        file that wrote the import first, then VIBA_PATH in order. A dotted
+        name is a path, and also one file named with the dots (`pkg.inner.viba`).
+        The same place twice is asked once."""
         rel = Path(*name.split(".")).with_suffix(".viba")
         places = []
         if near:
             places += [Path(near).parent / rel, Path(near).parent / f"{name}.viba"]
         for base in self.paths:
             places += [base / rel, base / f"{name}.viba"]
+        out = []
         for place in places:
-            if place.exists():
-                return self._load(place, name)
-        return Err(f"module {name!r} not found (next to {near} and on VIBA_PATH)")
+            if place not in out:
+                out.append(place)
+        return out
 
 
 def run_module(runner: _Runner, module: ModuleType, environ: Environment,

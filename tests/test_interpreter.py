@@ -154,6 +154,7 @@ def run() -> int:
         _shapes_and_scale(tmp)
         _caching_and_repeats(tmp)
         _more_corners(tmp)
+        _virtual_files(tmp)
         _paths(tmp)
     finally:
         for leftover in sorted(tmp.rglob("*"), reverse=True):
@@ -972,6 +973,93 @@ __ret__ := f << 1
     headless_use = _write(tmp, "headless.viba", '__ret__ := environ.sub_env << "a"\n')
     labelled(interpret(headless_use, headless), "raised",
              "an environment with no storage -> Err, not a crash")
+
+
+def _virtual_files(tmp: Path):
+    """get_file：源从宿主手里来，一个字节都不碰文件系统。"""
+    host = Host()
+    environ = host.environ()
+
+    files = {
+        "/vfs/main.viba": "import pkg.inner\n__ret__ := pkg.inner << environ\n",
+        "/vfs/pkg/inner.viba": LEAF + "__ret__ := leaf << $env environ\n",
+    }
+    asked = []
+
+    def get_file(path):
+        asked.append(path)
+        return files.get(path)
+
+    result = interpret("/vfs/main.viba", environ, get_file=get_file)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a run served out of a dict: {result!r}")
+    check("/vfs/pkg/inner.viba" in asked,
+          f"the hook is asked for the module next to the importer: {asked}")
+    check(all(isinstance(path, str) for path in asked),
+          f"every path the hook sees is written as a string: {asked}")
+
+    # 主文件也在宿主手里：文件系统上没有这个路径
+    check(not Path("/vfs/main.viba").exists(),
+          "the paths the hook serves are not on this filesystem")
+
+    # 找不到的名字：每个地方都问过，然后说 not found。主文件也在手里那份字典里。
+    asked.clear()
+    missing = "/vfs/wants_nope.viba"
+    files[missing] = "import nope\n__ret__ := nope << environ\n"
+    labelled(interpret(missing, environ, get_file=get_file), "not found",
+             "a name the hook does not serve -> not found")
+    check(asked == ["/vfs/wants_nope.viba", "/vfs/nope.viba"],
+          f"the main file, then one place for the name that is not there: {asked}")
+
+    # 模块已经加载过就不再问
+    asked.clear()
+    twice = "/vfs/twice.viba"
+    lib_path = "/vfs/lib.viba"
+    files[twice] = ADD + ("import lib as one\nimport lib as two\n"
+                          "__ret__ := add << $env environ"
+                          " << $a (one << environ) << $b (two << environ)\n")
+    files[lib_path] = LEAF + "__ret__ := leaf << $env environ\n"
+    result = interpret(twice, environ, get_file=get_file)
+    check(isinstance(result, Ok) and value_of(result) == 14 and
+          asked.count(lib_path) == 1,
+          f"a module already loaded is not asked for again: {result!r} {asked}")
+
+    # "这里没有"的三种说法都行：None、FileNotFoundError，以及别的报错
+    def with_main(behaviour):
+        """主文件照样答，别的地方交给 behaviour。"""
+        def hook(path):
+            return files[missing] if path == missing else behaviour(path)
+        return hook
+
+    def raising(path):
+        raise FileNotFoundError(path)
+
+    labelled(interpret(missing, environ, get_file=with_main(raising)), "not found",
+             "a hook that raises FileNotFoundError -> not found")
+    labelled(interpret(missing, environ, get_file=with_main(
+        lambda path: (_ for _ in ()).throw(ValueError("数据库连不上")))), "raised",
+        "a hook that raises something else -> Err")
+    labelled(interpret(missing, environ, get_file=with_main(lambda path: b"bytes")),
+             "not the file's text", "a hook that answers bytes -> Err")
+    labelled(interpret(missing, environ, get_file=with_main(lambda path: "X := (")),
+             "cannot parse",
+             "a hook that answers something that does not compile -> Err")
+
+    # 主文件也要走 hook
+    labelled(interpret("/vfs/nowhere.viba", environ, get_file=get_file), "no such file",
+             "a main file the hook does not serve -> no such file")
+
+    # hook 在场时不用文件系统：磁盘上那份真的不再被读
+    real = _write(tmp, "real_on_disk.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    served = dict(files)
+    served[real] = TEXT + "__ret__ := text << $env environ\n"
+    result = interpret(real, environ, get_file=served.get)
+    check(isinstance(result, Ok) and value_of(result) == "hi",
+          f"get_file wins over the filesystem: {result!r}")
+
+    # 不是函数的 get_file
+    labelled(interpret(str(missing), environ, get_file=7), "get_file is a function",
+             "a get_file that is not callable -> Err")
 
 
 def _paths(tmp: Path):

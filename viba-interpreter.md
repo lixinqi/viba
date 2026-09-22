@@ -17,11 +17,31 @@ from viba.interpreter import interpret
 interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 ```
 
-`interpret(viba_main_file, environ, viba_path=None)`：`viba_path` 相当于 PYTHONPATH（冒号分隔，
+`interpret(viba_main_file, environ, viba_path=None, get_file=None)`：`viba_path` 相当于 PYTHONPATH（冒号分隔，
 按顺序找 `<name>.viba`，dotted 名当路径走；空条目和不存在的目录跳过）；import 的那个文件所在的目录总是
 先找——**被 import 进来、又在自己的文件里 import 的模块，也按它自己的文件找**（链多深都一样）。
 写了 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
 `viba_path` 也可以直接给一个路径（`Path`）；给了别的类型是 `Err`，不是把 `AttributeError` 抛出来。
+
+## 源从哪来：get_file
+
+`get_file` 是 `Optional[$file_content str <- $file_path str]`：
+
+```python
+interpret("main.viba", environ, get_file=files.get)   # 一次运行全在内存里
+```
+
+- **留空（`None`）就读文件系统**，和以前一样（`Path.read_text()`）。
+- **给了就一律走它**，不再碰文件系统：连主文件也从它那儿读。所以宿主可以把整次运行架在内存、
+  数据库或者别的地方上，路径只是字符串。
+- 它收到的路径**按字符串给**（`$file_path str`），就是这次要找的那个候选路径（绝对还是相对，
+  取决于 `viba_path`/主文件是怎么写的）。
+- **"这个路径上没有文件"说三样都算**：返回 `None`、或者抛 `FileNotFoundError`——于是查找继续
+  去下一个地方（先 import 旁边，再 `viba_path` 按顺序），全都说没有就是
+  `module 'x' not found (...)`。主文件说没有就是 `no such file: ...`。
+- **返回非字符串、或者抛别的异常，是 `Err`**（`get_file(...) raised ...` / `... not the file's text`），
+  不是把异常扔给调用方；源编不过照旧是 `cannot parse ...`。
+- **同一个文件只问一次**：模块按路径认，已经加载过的（哪怕换了别名）不会再问第二次。
 
 ## 一个可执行的模块
 
@@ -179,4 +199,8 @@ module 'x' is already running         模块调用成环
 ... answered list, which is no leaf   宿主答了没有叶子的东西
 cannot read ...                       文件读不了
 cannot parse ...                      编译不过（语法错误）
+get_file(...) raised ...              get_file 自己抛了
+get_file(...) answered bytes, ...     get_file 答的不是文件的文本
+viba_path is a string ...             viba_path 给错了类型
+get_file is a function ...            get_file 给错了类型
 ```
