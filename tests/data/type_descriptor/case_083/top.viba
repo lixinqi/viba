@@ -1,13 +1,13 @@
 import util
 
-Plan0 :=
+Plan0 =
   Object
   * $count int
   * $label str
 
-Node1 :=
+Node1 =
   Object
   * $peer util.Plan0
 
-Config2[T] :=
+Config2[T] =
   $v T

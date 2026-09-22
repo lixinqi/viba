@@ -1,4 +1,4 @@
-Report0[T] :=
+Report0[T] =
   $v T
 
-Report1 := str * (int | nil)
+Report1 = str * (int | nil)

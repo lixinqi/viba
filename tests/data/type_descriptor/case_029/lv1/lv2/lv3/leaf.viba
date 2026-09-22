@@ -1,11 +1,11 @@
 import util as m
 
-Node0 :=
+Node0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Report1[T] :=
+Report1[T] =
   $v T

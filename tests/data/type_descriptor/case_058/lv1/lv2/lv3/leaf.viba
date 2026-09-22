@@ -1,18 +1,18 @@
 import top as base
 
-Rule0 :=
+Rule0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Rule1[T] :=
+Rule1[T] =
   $v T
 
-Report2 :=
+Report2 =
   Object
   * $count int
   * $label str
 
-Plan3 :=
+Plan3 =
   Object
   * $peer base.Config1

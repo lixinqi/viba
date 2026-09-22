@@ -1,7 +1,7 @@
 import pkg.sub.sub2.deepest
 
-Report0 := $only int
+Report0 = $only int
 
-Shape1 :=
+Shape1 =
   Object
   * $peer pkg.sub.sub2.deepest.Shape0

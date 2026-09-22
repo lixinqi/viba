@@ -1,10 +1,10 @@
 import util as up
 
-Shape0 :=
+Shape0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Shape1 :=
+Shape1 =
   Object
   * $peer up.Config1

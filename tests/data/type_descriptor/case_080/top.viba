@@ -1,8 +1,8 @@
-Config0 :=
+Config0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1 := $left int | $right str
+Shape1 = $left int | $right str

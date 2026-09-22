@@ -1,14 +1,14 @@
 import util as lib
 
-Plan0 := $left int | $right str
+Plan0 = $left int | $right str
 
-Config1 :=
+Config1 =
   Object
   * $peer lib.Node1
 
-Rule2 := $only int
+Rule2 = $only int
 
-Config3 :=
+Config3 =
   Object
   * $count int
   * $label str

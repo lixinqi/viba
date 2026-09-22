@@ -1,1 +1,1 @@
-Rule0 := int * str * bool
+Rule0 = int * str * bool

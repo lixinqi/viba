@@ -1,7 +1,7 @@
 import util
 
-Shape0 :=
+Shape0 =
   Object
   * $peer util.Rule1
 
-Report1 := $left int | $right str
+Report1 = $left int | $right str

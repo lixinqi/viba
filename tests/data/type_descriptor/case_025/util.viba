@@ -1,10 +1,10 @@
 import top
 
-Plan0[T] :=
+Plan0[T] =
   $v T
 
-Config1 := $only int
+Config1 = $only int
 
-Config2 :=
+Config2 =
   Object
   * $peer top.Node0

@@ -1,17 +1,17 @@
 import top
 
-Node0 :=
+Node0 =
   Object
   * $peer top.Plan0
 
-Plan1 :=
+Plan1 =
   Oneof
   | $left int
   | $right str
 
-Shape2 :=
+Shape2 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Node3 := $only int
+Node3 = $only int

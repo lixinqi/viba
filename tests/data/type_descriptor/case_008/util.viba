@@ -1,14 +1,14 @@
 import util as lib
 
-Rule0 :=
+Rule0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Shape1[T] :=
+Shape1[T] =
   $v T
 
-Shape2 :=
+Shape2 =
   Object
   * $count int
   * $label str

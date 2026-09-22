@@ -1,9 +1,9 @@
 import pkg.sub.deep as lib
 
-Shape0 := int * str * bool
+Shape0 = int * str * bool
 
-Shape1 :=
+Shape1 =
   Object
   * $peer lib.Config0
 
-Report2 := $left int | $right str
+Report2 = $left int | $right str

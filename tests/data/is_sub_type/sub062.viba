@@ -1,1 +1,1 @@
-X := $plus ($l ($num 1))
+X = $plus ($l ($num 1))

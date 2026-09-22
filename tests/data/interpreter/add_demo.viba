@@ -1,5 +1,5 @@
 # file name: add_demo.viba
-add :=
+add =
 	int
 	<- $env Environment
 	<- $a int
@@ -8,7 +8,7 @@ add :=
 		add two integer
 	}
 
-print :=
+print =
 	void
 	<- $env Environment
 	<- $x Any
@@ -16,7 +16,7 @@ print :=
 		print to stdout
 	}
 
-__ret__ :=
+__ret__ =
 	add
 	<< $env environ
 	<< $a 999999

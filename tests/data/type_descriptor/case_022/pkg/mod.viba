@@ -1,13 +1,13 @@
 import pkg.mod as up
 
-Shape0 :=
+Shape0 =
   Object
   * $count int
   * $label str
 
-Shape1 := int * str
+Shape1 = int * str
 
-Plan2 :=
+Plan2 =
   Object
   * $items list[int]
   * $seen set[str]

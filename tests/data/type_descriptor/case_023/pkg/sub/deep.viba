@@ -1,9 +1,9 @@
-Rule0 :=
+Rule0 =
   Object
   * $count int
   * $label str
 
-Rule1 :=
+Rule1 =
   Object
   * $items list[int]
   * $seen set[str]

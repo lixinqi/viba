@@ -1,14 +1,14 @@
 import pkg.sub.deep
 
-Plan0 := $only int
+Plan0 = $only int
 
-Report1 :=
+Report1 =
   Object
   * $peer pkg.sub.deep.Plan3
 
-Shape2 :=
+Shape2 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Node3 := $left int | $right str
+Node3 = $left int | $right str

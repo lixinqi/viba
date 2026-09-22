@@ -1,15 +1,15 @@
 import top as dep
 
-Rule0 :=
+Rule0 =
   Object
   * $peer dep.Config1
 
-Rule1 :=
+Rule1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Config2[T] :=
+Config2[T] =
   $v T
 
-Plan3 := $only int
+Plan3 = $only int

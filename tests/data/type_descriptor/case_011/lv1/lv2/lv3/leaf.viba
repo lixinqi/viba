@@ -1,14 +1,14 @@
 import util as dep
 
-Node0 :=
+Node0 =
   Object
   * $count int
   * $label str
 
-Report1 := $only int
+Report1 = $only int
 
-Node2 := int * str
+Node2 = int * str
 
-Plan3 :=
+Plan3 =
   Object
   * $peer dep.Shape1

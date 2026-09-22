@@ -1,17 +1,17 @@
 import pkg.mod as base
 
-Plan0 :=
+Plan0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Config1 := $only int
+Config1 = $only int
 
-Config2 :=
+Config2 =
   Oneof
   | $left int
   | $right str
 
-Config3 :=
+Config3 =
   Object
   * $peer base.Config1

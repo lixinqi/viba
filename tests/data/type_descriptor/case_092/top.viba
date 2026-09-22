@@ -1,7 +1,7 @@
 import util as base
 
-Report0 := int * str
+Report0 = int * str
 
-Config1 :=
+Config1 =
   Object
   * $peer base.Plan1

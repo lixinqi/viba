@@ -1,7 +1,7 @@
 import top
 
-Report0 := int * str
+Report0 = int * str
 
-Report1 :=
+Report1 =
   Object
   * $peer top.Plan0

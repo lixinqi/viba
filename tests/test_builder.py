@@ -80,21 +80,21 @@ def test_builder_sketch_case_001():
     """整份文件逐字。"""
     assert str(_sketch()) == """import store_core as sc
 
-UserName :=
+UserName =
   str
 
-Optional[T] :=
+Optional[T] =
   T
   | nil
 
-List[T] :=
+List[T] =
   Oneof
   | Object
     * $head T
     * $tail List[T]
   | nil
 
-latest_file[Ctx] :=
+latest_file[Ctx] =
   sc.Result[sc.FileState]
   <- $ctx Ctx
   <- $file sc.FileId
@@ -185,7 +185,7 @@ def test_builder_sum_case_001():
     """`|` 写和链，按写的顺序。"""
     vb = builder.Builder()
     vb.X = vb.A | vb.B | vb.C
-    assert _text(vb) == "X :=\n  A\n  | B\n  | C"
+    assert _text(vb) == "X =\n  A\n  | B\n  | C"
 
 
 def test_builder_sum_case_002():
@@ -199,21 +199,21 @@ def test_builder_sum_case_003():
     """和链里能放字面量与单位元。"""
     vb = builder.Builder()
     vb.X = 1 | vb.A | None
-    assert _text(vb) == "X :=\n  1\n  | A\n  | nil"
+    assert _text(vb) == "X =\n  1\n  | A\n  | nil"
 
 
 def test_builder_product_case_001():
     """`*` 写积链。"""
     vb = builder.Builder()
     vb.X = vb.A * vb.B * vb.C
-    assert _text(vb) == "X :=\n  A\n  * B\n  * C"
+    assert _text(vb) == "X =\n  A\n  * B\n  * C"
 
 
 def test_builder_product_case_002():
     """积里放和要带括号，读回来还是积。"""
     vb = builder.Builder()
     vb.X = vb.A * (vb.B | vb.C)
-    assert _text(vb) == "X :=\n  A\n  * (B\n    | C)"
+    assert _text(vb) == "X =\n  A\n  * (B\n    | C)"
     assert _shape(_one(vb, "X").body.elements[1]) == "SumChain"
 
 
@@ -221,13 +221,13 @@ def test_builder_product_case_003():
     """积里的 tagged 字段照写。"""
     vb = builder.Builder()
     vb.X = vb.Object * tag.a(vb.A) * tag.b(vb.B)
-    assert _text(vb) == "X :=\n  Object\n  * $a A\n  * $b B"
+    assert _text(vb) == "X =\n  Object\n  * $a A\n  * $b B"
 
 
 def test_builder_exponent_case_001():
     """`**` 写指数字段。"""
     assert _writes(builder.Builder().A ** tag.p(builder.Builder().B)) == \
-        "X :=\n  A\n  <- $p B"
+        "X =\n  A\n  <- $p B"
 
 
 def test_builder_exponent_case_002():
@@ -235,14 +235,14 @@ def test_builder_exponent_case_002():
     vb = builder.Builder()
     vb.X = vb.A ** tag.p(vb.B) ** tag.q(vb.C)
     assert [_shape(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "Tagged", "Tagged"]
-    assert _text(vb) == "X :=\n  A\n  <- $p B\n  <- $q C"
+    assert _text(vb) == "X =\n  A\n  <- $p B\n  <- $q C"
 
 
 def test_builder_exponent_case_003():
     """`tag(…)` 留住一个分组：A <- (B <- $p C)。"""
     vb = builder.Builder()
     vb.X = vb.A ** tag(vb.B ** tag.p(vb.C))
-    assert _text(vb) == "X :=\n  A\n  <- (B\n    <- $p C)"
+    assert _text(vb) == "X =\n  A\n  <- (B\n    <- $p C)"
     assert _shape(_one(vb, "X").body.elements[1]) == "ExponentChain"
 
 
@@ -250,14 +250,14 @@ def test_builder_exponent_case_004():
     """括号不分组：`**` 右边是链就摊平，要分组得写 tag(…)。"""
     vb = builder.Builder()
     vb.X = vb.A ** (vb.B ** tag.p(vb.C))
-    assert _text(vb) == "X :=\n  A\n  <- B\n  <- $p C"
+    assert _text(vb) == "X =\n  A\n  <- B\n  <- $p C"
 
 
 def test_builder_group_case_001():
     """`tag(…)` 在和里就是括号：A | (B | C)。"""
     vb = builder.Builder()
     vb.X = vb.A | tag(vb.B | vb.C)
-    assert _text(vb) == "X :=\n  A\n  | (B\n    | C)"
+    assert _text(vb) == "X =\n  A\n  | (B\n    | C)"
     assert [_shape(e) for e in _one(vb, "X").body.elements] == ["TypeRef", "SumChain"]
 
 
@@ -267,29 +267,29 @@ def test_builder_group_case_002():
     vb.X = vb.A * tag(vb.B | vb.C)
     vb.Y = vb.A * tag(vb.B * vb.C)
     text = _text(vb)
-    assert "X :=\n  A\n  * (B\n    | C)" in text
-    assert "Y :=\n  A\n  * (B\n    * C)" in text
+    assert "X =\n  A\n  * (B\n    | C)" in text
+    assert "Y =\n  A\n  * (B\n    * C)" in text
 
 
 def test_builder_group_case_003():
     """`tag(…)` 裹一个名字跟没裹一样。"""
     vb = builder.Builder()
     vb.X = vb.A | tag(vb.B)
-    assert _text(vb) == "X :=\n  A\n  | B"
+    assert _text(vb) == "X =\n  A\n  | B"
 
 
 def test_builder_exponent_case_005():
     """`tag(name, body)` 与 `tag.name(body)` 一样。"""
     vb = builder.Builder()
     vb.X = vb.A ** tag("p", vb.B)
-    assert _text(vb) == "X :=\n  A\n  <- $p B"
+    assert _text(vb) == "X =\n  A\n  <- $p B"
 
 
 def test_builder_exponent_case_006():
     """指数比积紧：`A * B ** tag.p(C)` 是 A * (B <- $p C)。"""
     vb = builder.Builder()
     vb.X = vb.A * vb.B ** tag.p(vb.C)
-    assert _text(vb) == "X :=\n  A\n  * B\n    <- $p C"
+    assert _text(vb) == "X =\n  A\n  * B\n    <- $p C"
     assert _shape(_one(vb, "X").body.elements[1]) == "ExponentChain"
 
 
@@ -297,7 +297,7 @@ def test_builder_exponent_case_007():
     """指数链的结果可以是应用。"""
     vb = builder.Builder()
     vb.X = vb.F[vb.A] ** tag.p(vb.B)
-    assert _text(vb) == "X :=\n  F[A]\n  <- $p B"
+    assert _text(vb) == "X =\n  F[A]\n  <- $p B"
 
 
 # ----------------------------------------------------------------------
@@ -307,7 +307,7 @@ def test_builder_exponent_case_007():
 
 def test_builder_unit_case_001():
     """`None` 是 nil。"""
-    assert _writes(None) == "X :=\n  nil"
+    assert _writes(None) == "X =\n  nil"
 
 
 def test_builder_unit_case_002():
@@ -336,7 +336,7 @@ def test_builder_unit_case_005():
     vb = builder.Builder()
     vb.X = vb.never | vb.nil
     assert [_shape(e) for e in _one(vb, "X").body.elements] == ["Never", "Nil"]
-    assert _text(vb) == "X :=\n  never\n  | nil"
+    assert _text(vb) == "X =\n  never\n  | nil"
 
 
 def test_builder_unit_case_006():
@@ -348,7 +348,7 @@ def test_builder_unit_case_006():
 
 def test_builder_unit_case_007():
     """`...` 是省略号。"""
-    assert _writes(...) == "X :=\n  ..."
+    assert _writes(...) == "X =\n  ..."
     vb = builder.Builder()
     vb.X = ...
     assert _shape(_one(vb, "X").body) == "Ellipsis"
@@ -359,7 +359,7 @@ def test_builder_literal_case_001():
     vb = builder.Builder()
     vb.T = True
     vb.F = False
-    assert _text(vb) == "T :=\n  true\n\nF :=\n  false"
+    assert _text(vb) == "T =\n  true\n\nF =\n  false"
     assert _one(vb, "T").body.value is True and _one(vb, "F").body.value is False
 
 
@@ -368,12 +368,12 @@ def test_builder_literal_case_002():
     vb = builder.Builder()
     vb.I = 42
     vb.F = 1.5
-    assert _text(vb) == "I :=\n  42\n\nF :=\n  1.5"
+    assert _text(vb) == "I =\n  42\n\nF =\n  1.5"
 
 
 def test_builder_literal_case_003():
     """字符串字面量。"""
-    assert _writes("x") == 'X :=\n  "x"'
+    assert _writes("x") == 'X =\n  "x"'
 
 
 def test_builder_literal_case_004():
@@ -387,14 +387,14 @@ def test_builder_literal_case_005():
     """内置类型名：int / float / bool / list / set / dict。"""
     vb = builder.Builder()
     vb.X = vb.int * vb.float * vb.bool * vb.list * vb.set * vb.dict
-    assert _text(vb) == "X :=\n  int\n  * float\n  * bool\n  * list\n  * set\n  * dict"
+    assert _text(vb) == "X =\n  int\n  * float\n  * bool\n  * list\n  * set\n  * dict"
 
 
 def test_builder_literal_case_008():
     """最左边是个普通 Python 值时，用 `builder.literal` 起头。"""
     vb = builder.Builder()
     vb.X = builder.literal("a") | 1
-    assert _text(vb) == 'X :=\n  "a"\n  | 1'
+    assert _text(vb) == 'X =\n  "a"\n  | 1'
 
 
 def test_builder_literal_case_009():
@@ -402,7 +402,7 @@ def test_builder_literal_case_009():
     vb = builder.Builder()
     vb.X = builder.literal(1) * "x"
     vb.Y = builder.literal(None) | vb.A
-    assert _text(vb) == 'X :=\n  1\n  * "x"\n\nY :=\n  nil\n  | A'
+    assert _text(vb) == 'X =\n  1\n  * "x"\n\nY =\n  nil\n  | A'
 
 
 def test_builder_literal_case_007():
@@ -410,14 +410,14 @@ def test_builder_literal_case_007():
     vb = builder.Builder()
     vb.X = int | str
     vb.Y = int | None
-    assert _text(vb) == "X :=\n  int\n  | str\n\nY :=\n  int\n  | nil"
+    assert _text(vb) == "X =\n  int\n  | str\n\nY =\n  int\n  | nil"
 
 
 def test_builder_literal_case_006():
     """字面量也能进和链（最左边那一个得是 builder 出来的，Python 才认）。"""
     vb = builder.Builder()
     vb.X = vb.A | "a" | 1 | None
-    assert _text(vb) == 'X :=\n  A\n  | "a"\n  | 1\n  | nil'
+    assert _text(vb) == 'X =\n  A\n  | "a"\n  | 1\n  | nil'
 
 
 # ----------------------------------------------------------------------
@@ -427,7 +427,7 @@ def test_builder_literal_case_006():
 
 def test_builder_name_case_001():
     """点分名字。"""
-    assert _writes(builder.Builder().some.deep.Name) == "X :=\n  some.deep.Name"
+    assert _writes(builder.Builder().some.deep.Name) == "X =\n  some.deep.Name"
 
 
 def test_builder_name_case_002():
@@ -442,14 +442,14 @@ def test_builder_name_case_003():
     """多实参，逗号分开。"""
     vb = builder.Builder()
     vb.X = vb.Map[vb.K, vb.V]
-    assert _text(vb) == "X :=\n  Map[K, V]"
+    assert _text(vb) == "X =\n  Map[K, V]"
 
 
 def test_builder_name_case_004():
     """空实参应用 `Name[]`：Python 没有空下标，写 `vb.F[()]`。"""
     vb = builder.Builder()
     vb.X = vb.F[()]
-    assert _text(vb) == "X :=\n  F[]"
+    assert _text(vb) == "X =\n  F[]"
     assert _shape(_one(vb, "X").body) == "TypeApp" and _one(vb, "X").body.args == []
 
 
@@ -465,14 +465,14 @@ def test_builder_name_case_006():
     """实参可以是点分名字、应用、字面量、tagged。"""
     vb = builder.Builder()
     vb.X = vb.F[vb.a.b, vb.G[vb.C], 1, tag.p(vb.D)]
-    assert _text(vb) == "X :=\n  F[a.b, G[C], 1, $p D]"
+    assert _text(vb) == "X =\n  F[a.b, G[C], 1, $p D]"
 
 
 def test_builder_applied_case_001():
     """Python 的下标类型 `list[vb.A]` 就是 `list[A]`。"""
     vb = builder.Builder()
     vb.X = list[vb.A]
-    assert _text(vb) == "X :=\n  list[A]"
+    assert _text(vb) == "X =\n  list[A]"
     assert _one(vb, "X").body.constructor == "list"
 
 
@@ -482,28 +482,28 @@ def test_builder_applied_case_002():
     vb.S = set[vb.A]
     vb.L = list[vb.A]
     vb.D = dict[str, int]
-    assert _text(vb) == "S :=\n  set[A]\n\nL :=\n  list[A]\n\nD :=\n  dict[str, int]"
+    assert _text(vb) == "S =\n  set[A]\n\nL =\n  list[A]\n\nD =\n  dict[str, int]"
 
 
 def test_builder_applied_case_003():
     """下标类型也能进和：`list[int] | None`。"""
     vb = builder.Builder()
     vb.X = list[int] | None
-    assert _text(vb) == "X :=\n  list[int]\n  | nil"
+    assert _text(vb) == "X =\n  list[int]\n  | nil"
 
 
 def test_builder_applied_case_004():
     """`typing.List[vb.A]` 落到语言的写法 `list[A]`。"""
     import typing
 
-    assert _writes(typing.List[int]) == "X :=\n  list[int]"
+    assert _writes(typing.List[int]) == "X =\n  list[int]"
 
 
 def test_builder_applied_case_005():
     """`typing.Optional[vb.A]` 是和：`A | nil`。"""
     import typing
 
-    assert _writes(typing.Optional[int]) == "X :=\n  int\n  | nil"
+    assert _writes(typing.Optional[int]) == "X =\n  int\n  | nil"
 
 
 def test_builder_definition_case_001():
@@ -526,7 +526,7 @@ def test_builder_definition_case_003():
     vb = builder.Builder()
     vb.Map[vb.K, vb.V] = vb.V
     assert _one(vb, "Map").generic_params == ["K", "V"]
-    assert _text(vb) == "Map[K, V] :=\n  V"
+    assert _text(vb) == "Map[K, V] =\n  V"
 
 
 def test_builder_definition_case_004():
@@ -544,61 +544,61 @@ def test_builder_definition_case_004():
 
 def test_builder_list_case_001():
     """`[a, b]` 是 ListLiteral，顺序照写。"""
-    assert _writes([1, "x"]) == 'X :=\n  ListLiteral[1, "x"]'
+    assert _writes([1, "x"]) == 'X =\n  ListLiteral[1, "x"]'
 
 
 def test_builder_list_case_002():
     """空列表写成 `ListLiteral[]`。"""
-    assert _writes([]) == "X :=\n  ListLiteral[]"
+    assert _writes([]) == "X =\n  ListLiteral[]"
 
 
 def test_builder_list_case_003():
     """列表元素可以是表达式与元组。"""
     vb = builder.Builder()
     vb.X = [vb.A, (vb.B, vb.C)]
-    assert _text(vb) == "X :=\n  ListLiteral[A, (B, C)]"
+    assert _text(vb) == "X =\n  ListLiteral[A, (B, C)]"
 
 
 def test_builder_set_case_001():
     """`{a, b}` 是 SetLiteral。"""
-    assert _writes({"a", "b"}) == 'X :=\n  SetLiteral["a", "b"]'
+    assert _writes({"a", "b"}) == 'X =\n  SetLiteral["a", "b"]'
 
 
 def test_builder_set_case_002():
     """集合无序：按写出来的文本排序，同一个集合每次一样。"""
     assert _writes({"c", "a", "b"}) == _writes({"a", "b", "c"}) == \
-        'X :=\n  SetLiteral["a", "b", "c"]'
+        'X =\n  SetLiteral["a", "b", "c"]'
 
 
 def test_builder_set_case_003():
     """集合元素是表达式也照排。"""
     vb = builder.Builder()
     vb.X = {vb.B, vb.A}
-    assert _text(vb) == "X :=\n  SetLiteral[A, B]"
+    assert _text(vb) == "X =\n  SetLiteral[A, B]"
 
 
 def test_builder_dict_case_001():
     """`{k: v}` 是 DictLiteral，键值成对，顺序照写。"""
-    assert _writes({"k": 1, "m": 2}) == 'X :=\n  DictLiteral[("k", 1), ("m", 2)]'
+    assert _writes({"k": 1, "m": 2}) == 'X =\n  DictLiteral[("k", 1), ("m", 2)]'
 
 
 def test_builder_dict_case_002():
     """字典的值可以是表达式。"""
     vb = builder.Builder()
     vb.X = {"k": vb.A}
-    assert _text(vb) == 'X :=\n  DictLiteral[("k", A)]'
+    assert _text(vb) == 'X =\n  DictLiteral[("k", A)]'
 
 
 def test_builder_dict_case_003():
     """空字典写成 `DictLiteral[]`。"""
-    assert _writes({}) == "X :=\n  DictLiteral[]"
+    assert _writes({}) == "X =\n  DictLiteral[]"
 
 
 def test_builder_container_case_001():
     """容器也能套容器。"""
     vb = builder.Builder()
     vb.X = [[1], {"k": [2]}]
-    assert _text(vb) == ('X :=\n  ListLiteral[ListLiteral[1], '
+    assert _text(vb) == ('X =\n  ListLiteral[ListLiteral[1], '
                          'DictLiteral[("k", ListLiteral[2])]]')
 
 
@@ -617,14 +617,14 @@ def test_builder_tuple_case_001():
     """二元组。"""
     vb = builder.Builder()
     vb.X = (vb.A, vb.B)
-    assert _text(vb) == "X :=\n  (A, B)" and _shape(_one(vb, "X").body) == "Tuple"
+    assert _text(vb) == "X =\n  (A, B)" and _shape(_one(vb, "X").body) == "Tuple"
 
 
 def test_builder_tuple_case_002():
     """一元组要留逗号，`(B)` 读回来只是 B。"""
     vb = builder.Builder()
     vb.X = (vb.B,)
-    assert _text(vb) == "X :=\n  (B,)"
+    assert _text(vb) == "X =\n  (B,)"
     assert len(viba_ast.parse(_text(vb) + "\n").body[0].body.elements) == 1
 
 
@@ -632,14 +632,14 @@ def test_builder_tuple_case_003():
     """空元组。"""
     vb = builder.Builder()
     vb.X = ()
-    assert _text(vb) == "X :=\n  ()" and _one(vb, "X").body.elements == []
+    assert _text(vb) == "X =\n  ()" and _one(vb, "X").body.elements == []
 
 
 def test_builder_code_case_001():
     """`code(text)` 写 `{...}`。"""
     vb = builder.Builder()
     vb.X = builder.code("return 1")
-    assert _text(vb) == "X :=\n  {return 1}"
+    assert _text(vb) == "X =\n  {return 1}"
     assert _shape(_one(vb, "X").body) == "CodeBlock"
 
 
@@ -647,7 +647,7 @@ def test_builder_code_case_002():
     """代码块能进应用（谓词那种写法）。"""
     vb = builder.Builder()
     vb.X = vb.Checked[builder.code("def check(self):\n    return 1")]
-    assert str(vb).startswith("X :=\n  Checked[{def check(self):")
+    assert str(vb).startswith("X =\n  Checked[{def check(self):")
 
 
 # ----------------------------------------------------------------------
@@ -660,7 +660,7 @@ def test_builder_import_case_001():
     vb = builder.Builder()
     vb.X = vb.A
     builder.add_import(vb, "store_core", "sc")
-    assert _text(vb) == "import store_core as sc\n\nX :=\n  A"
+    assert _text(vb) == "import store_core as sc\n\nX =\n  A"
 
 
 def test_builder_import_case_002():
@@ -676,7 +676,7 @@ def test_builder_comment_case_001():
     vb.A = 1
     builder.comment(vb, "说明")
     vb.B = 2
-    assert _text(vb) == "A :=\n  1\n\n# 说明\n\nB :=\n  2"
+    assert _text(vb) == "A =\n  1\n\n# 说明\n\nB =\n  2"
 
 
 def test_builder_comment_case_002():
@@ -691,7 +691,7 @@ def test_builder_comment_case_003():
     vb = builder.Builder()
     builder.comment(vb, "文件说明")
     vb.A = 1
-    assert _text(vb) == "# 文件说明\n\nA :=\n  1"
+    assert _text(vb) == "# 文件说明\n\nA =\n  1"
 
 
 def test_builder_check_case_001():
@@ -720,7 +720,7 @@ def test_builder_output_case_003():
     """收尾只有一个换行。"""
     vb = builder.Builder()
     vb.A = 1
-    assert str(vb) == "A :=\n  1\n"
+    assert str(vb) == "A =\n  1\n"
 
 
 # ----------------------------------------------------------------------
@@ -739,7 +739,7 @@ def test_builder_append_case_002():
     """新定义追加在最后。"""
     vb = builder.Builder(_DEMO.read_text())
     vb.Added = vb.Object * tag.x(vb.T)
-    assert str(vb).endswith("Added :=\n  Object\n  * $x T\n")
+    assert str(vb).endswith("Added =\n  Object\n  * $x T\n")
 
 
 def test_builder_append_case_003():
@@ -767,7 +767,7 @@ def test_builder_append_case_005():
 
 def test_builder_append_case_006():
     """带形参的重定义也拦。"""
-    vb = builder.Builder("X[T] := T\n")
+    vb = builder.Builder("X[T] = T\n")
     _raises(TypeError, lambda: vb.X.__setitem__(vb.T, vb.T))
 
 
@@ -779,14 +779,14 @@ def test_builder_append_case_007():
 
 def test_builder_append_case_008():
     """起点本身得是 Viba 源码。"""
-    _raises(ValueError, lambda: builder.Builder("X := ("))
+    _raises(ValueError, lambda: builder.Builder("X = ("))
 
 
 def test_builder_append_case_009():
     """起点只有注释也算合法源码。"""
     vb = builder.Builder("# 只是一句话")
     vb.A = 1
-    assert _text(vb).endswith("A :=\n  1")
+    assert _text(vb).endswith("A =\n  1")
 
 
 # ----------------------------------------------------------------------
@@ -895,7 +895,7 @@ def test_builder_guard_case_015():
     vb.List = 1
     vb.list2 = 2
     vb.X[vb.list2] = vb.A
-    assert _text(vb) == "List :=\n  1\n\nlist2 :=\n  2\n\nX[list2] :=\n  A"
+    assert _text(vb) == "List =\n  1\n\nlist2 =\n  2\n\nX[list2] =\n  A"
 
 
 def test_builder_guard_case_012():
@@ -949,7 +949,7 @@ def test_builder_any_case_001():
     vb = builder.Builder()
     vb.Top = vb.Any
     vb.Maybe = vb.Top | None
-    assert str(vb).rstrip("\n") == "Top :=\n  Any\n\nMaybe :=\n  Top\n  | nil"
+    assert str(vb).rstrip("\n") == "Top =\n  Any\n\nMaybe =\n  Top\n  | nil"
     node = _one(vb, "Top")
     assert _shape(node.body) == "Any"
     assert viba_ast.unparse(viba_ast.parse(str(vb))) == str(vb).rstrip("\n")
@@ -966,7 +966,7 @@ def test_builder_partial_case_001():
     vb.A = int
     vb.B = str
     vb.Given = vb.A << tag.b(vb.B)
-    assert str(vb).rstrip("\n") == "A :=\n  int\n\nB :=\n  str\n\nGiven :=\n  A << $b B"
+    assert str(vb).rstrip("\n") == "A =\n  int\n\nB =\n  str\n\nGiven =\n  A << $b B"
 
 
 def test_builder_partial_case_002():

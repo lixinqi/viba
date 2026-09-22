@@ -15,7 +15,7 @@ properties of the design alone — no material is involved:
 - the same tag twice in one product, inlined members counted: a base's `$x`
   next to a written `$x`, or one base inlined twice;
 - an inline chain that comes back to a definition it is already spreading
-  (`A := A * $x int`), which has no expansion to read at all.
+  (`A = A * $x int`), which has no expansion to read at all.
 
 Both are Err here, before anything judges the design, so the answer does not
 depend on what the design is later compared with. `is_sub_type` and `serialize`
@@ -153,10 +153,10 @@ class _Checker:
         second; a definition's own body and an instantiation of it differ in
         the third.
 
-        This is also what keeps a design that recurses walkable: `Chain :=
-        $head int * $tail Chain` (recursion through a tag), `Tree[T] := $leaf T
+        This is also what keeps a design that recurses walkable: `Chain =
+        $head int * $tail Chain` (recursion through a tag), `Tree[T] = $leaf T
         * $kids list[Tree[T]]` (a generic that asks for itself) and the
-        divergent `W[T] := W[list[T]]` all come round to a piece already looked
+        divergent `W[T] = W[list[T]]` all come round to a piece already looked
         at, and that piece has one answer. A descriptor with no written node (a
         bare unit or zero) has no key and nothing under it to walk.
         """

@@ -1,7 +1,7 @@
 import top as up
 
-Report0 := int * str
+Report0 = int * str
 
-Report1 :=
+Report1 =
   Object
   * $peer up.Rule0

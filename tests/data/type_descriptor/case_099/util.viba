@@ -1,17 +1,17 @@
 import util as dep
 
-Node0 :=
+Node0 =
   Oneof
   | $left int
   | $right str
 
-Shape1 :=
+Shape1 =
   Object
   * $count int
   * $label str
 
-Rule2 := $only int
+Rule2 = $only int
 
-Rule3 :=
+Rule3 =
   Object
   * $peer dep.Node0

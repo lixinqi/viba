@@ -1,1 +1,1 @@
-A := $x int * A * $y int
+A = $x int * A * $y int

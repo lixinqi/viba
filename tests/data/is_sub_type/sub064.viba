@@ -1,1 +1,1 @@
-X := $head never * $tail nil
+X = $head never * $tail nil

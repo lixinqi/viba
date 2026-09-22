@@ -1,1 +1,1 @@
-X := $x int * $y int
+X = $x int * $y int

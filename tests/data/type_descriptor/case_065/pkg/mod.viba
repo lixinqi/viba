@@ -1,15 +1,15 @@
 import top as base
 
-Rule0 :=
+Rule0 =
   Object
   * $count int
   * $label str
 
-Report1[T] :=
+Report1[T] =
   $v T
 
-Node2 := $left int | $right str
+Node2 = $left int | $right str
 
-Config3 :=
+Config3 =
   Object
   * $peer base.Report1

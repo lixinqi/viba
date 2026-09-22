@@ -1,2 +1,2 @@
-B2 := $next B2
-X := B2
+B2 = $next B2
+X = B2

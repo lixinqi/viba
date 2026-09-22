@@ -1,1 +1,1 @@
-X := SetLiteral[42, 'hi']
+X = SetLiteral[42, 'hi']

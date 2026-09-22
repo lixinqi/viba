@@ -1,7 +1,7 @@
-Report0 :=
+Report0 =
   Object
   * $count int
   * $label str
 
-Node1[T] :=
+Node1[T] =
   $v T

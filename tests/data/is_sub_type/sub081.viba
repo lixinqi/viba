@@ -1,1 +1,1 @@
-X := SetLiteral[int, str]
+X = SetLiteral[int, str]

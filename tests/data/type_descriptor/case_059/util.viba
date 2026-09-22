@@ -1,12 +1,12 @@
 import top as up
 
-Rule0 := $only int
+Rule0 = $only int
 
-Rule1 :=
+Rule1 =
   Object
   * $peer up.Plan0
 
-Plan2 :=
+Plan2 =
   Object
   * $count int
   * $label str

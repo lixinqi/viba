@@ -1,4 +1,4 @@
-Plan0 :=
+Plan0 =
   Object
   * $items list[int]
   * $seen set[str]

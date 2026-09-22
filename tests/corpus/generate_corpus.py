@@ -245,7 +245,7 @@ def render_definition(gen, theme, depth):
     name = gen.name(theme)
     params = gen.rng.sample(GENERIC_PARAMS, gen.rng.randint(0, 2))
     node = gen.expr(depth)
-    header = name + ("[" + ", ".join(params) + "]" if params else "") + " :="
+    header = name + ("[" + ", ".join(params) + "]" if params else "") + " ="
     return [header] + render(node, 1)
 
 
@@ -256,7 +256,7 @@ def gen_assert_definition(gen):
     metric = gen.rng.choice(["int", "float"])
     tag = gen.rng.choice(["$x", "$lines", "$ratio"])
     return [
-        f"{n} :=",
+        f"{n} =",
         IND + f"{tag} {metric}",
         IND + f"* Assert[{{{tag[1:]} <= {limit}}}]",
         IND + f"* {gen.rng.choice(TYPEREFS)}",
@@ -341,8 +341,8 @@ def gen_file(rng, index, with_imports=False):
                 break
         else:
             blocks = [i for i, l in enumerate(lines)
-                      if l and not l[0].isspace() and ":=" in l
-                      and not l.startswith("Guarded")]
+                      if l and not l[0].isspace() and " = " in l
+                      and not l.startswith(("#", "Guarded"))]
             if not blocks:
                 break
             del lines[blocks[-1]:]

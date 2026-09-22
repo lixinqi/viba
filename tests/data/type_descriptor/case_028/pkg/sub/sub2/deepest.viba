@@ -1,13 +1,13 @@
 import pkg.sub.sub2.deepest as base
 
-Shape0 :=
+Shape0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Rule1 := $only int
+Rule1 = $only int
 
-Node2 :=
+Node2 =
   Object
   * $count int
   * $label str

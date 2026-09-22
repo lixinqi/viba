@@ -1,1 +1,1 @@
-X := $cfg ($a int * $b float)
+X = $cfg ($a int * $b float)

@@ -1,6 +1,6 @@
-Config0 :=
+Config0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Config1 := int * str * bool
+Config1 = int * str * bool

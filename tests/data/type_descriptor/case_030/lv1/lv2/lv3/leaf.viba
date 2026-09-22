@@ -1,17 +1,17 @@
 import pkg.sub.deep as base
 
-Config0 :=
+Config0 =
   Object
   * $peer base.Config0
 
-Rule1 :=
+Rule1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Node2 :=
+Node2 =
   Object
   * $count int
   * $label str

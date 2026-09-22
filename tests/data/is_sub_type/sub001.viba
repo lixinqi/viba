@@ -1,1 +1,1 @@
-A := $nice int * $good str
+A = $nice int * $good str

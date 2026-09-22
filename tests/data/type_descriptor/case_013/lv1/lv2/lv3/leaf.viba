@@ -1,8 +1,8 @@
 import util as dep
 
-Config0[T] :=
+Config0[T] =
   $v T
 
-Report1 :=
+Report1 =
   Object
   * $peer dep.Shape1

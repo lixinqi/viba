@@ -1,11 +1,11 @@
 import util as up
 
-Config0[T] :=
+Config0[T] =
   $v T
 
-Config1 := str * (int | nil)
+Config1 = str * (int | nil)
 
-Config2 :=
+Config2 =
   Oneof
   | $left int
   | $right str

@@ -1,1 +1,1 @@
-X := list[int | str | float | bool]
+X = list[int | str | float | bool]

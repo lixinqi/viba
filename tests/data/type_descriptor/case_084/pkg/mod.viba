@@ -1,6 +1,6 @@
-Shape0 := $left int | $right str
+Shape0 = $left int | $right str
 
-Report1 :=
+Report1 =
   Object
   * $items list[int]
   * $seen set[str]

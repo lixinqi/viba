@@ -1,8 +1,8 @@
 import util as base
 
-Rule0 :=
+Rule0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Shape1 := $only int
+Shape1 = $only int

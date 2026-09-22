@@ -1,10 +1,10 @@
 import util as base
 
-Rule0 := int * str * bool
+Rule0 = int * str * bool
 
-Plan1 :=
+Plan1 =
   Object
   * $peer base.Node1
 
-Config2[T] :=
+Config2[T] =
   $v T

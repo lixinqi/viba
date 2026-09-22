@@ -1,6 +1,6 @@
 import top as lib
 
-Shape0 :=
+Shape0 =
   Object
   * $items list[int]
   * $seen set[str]

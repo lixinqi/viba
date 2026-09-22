@@ -26,7 +26,7 @@ for node in _py_ast.walk(tree_src):
 print(f"ast.parse OK on {count} suite cases")
 
 # 2. dump with indent
-demo = parse("Option[T] := $some T | ()")
+demo = parse("Option[T] = $some T | ()")
 print(dump(demo, indent=2))
 
 # 3. NodeVisitor: count node kinds
@@ -40,7 +40,7 @@ class KindCounter(NodeVisitor):
         super().generic_visit(node)
 
 counter = KindCounter()
-counter.visit(parse('FinalBoss[In, Out] := ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99'))
+counter.visit(parse('FinalBoss[In, Out] = ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99'))
 print("node counts:", counter.counts)
 
 # 4. NodeTransformer: rename a TypeRef everywhere
@@ -50,7 +50,7 @@ class RenameA(NodeTransformer):
             node.name = "Z"
         return node
 
-renamed = RenameA().visit(parse("T := A * (B <- A)"))
+renamed = RenameA().visit(parse("T = A * (B <- A)"))
 print("renamed:", dump(renamed))
 
 # 5. Empty source parses to an empty Module
@@ -59,16 +59,16 @@ assert empty.body == []
 print("empty source OK")
 
 # 5b. Tuple vs Product are distinct nodes
-tup = parse("X := (A, B, C)").body[0].body
-prod = parse("X := A * B * C").body[0].body
+tup = parse("X = (A, B, C)").body[0].body
+prod = parse("X = A * B * C").body[0].body
 assert isinstance(tup, Tuple) and len(tup.elements) == 3, dump(tup)
 assert isinstance(prod, Product), dump(prod)
-nested = parse("X := (A, (B, C))").body[0].body
+nested = parse("X = (A, (B, C))").body[0].body
 assert isinstance(nested.elements[1], Tuple), dump(nested)
 print("tuple/product distinction OK")
 
 # 5c. Import statements: parse, round-trip, alias
-imp = parse("import fx.graph as g\nX := g.Tensor")
+imp = parse("import fx.graph as g\nX = g.Tensor")
 assert imp.body[0].module == "fx.graph" and imp.body[0].alias == "g", dump(imp)
 assert unparse(parse("import a.b.c")) == "import a.b.c"
 assert unparse(parse("import a.b as c")) == "import a.b as c"

@@ -1,1 +1,1 @@
-X := $cfg ($a int * $b str) * $extra bool
+X = $cfg ($a int * $b str) * $extra bool

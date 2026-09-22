@@ -1,10 +1,10 @@
 import pkg.mod as lib
 
-Report0 :=
+Report0 =
   Object
   * $peer lib.Shape1
 
-Plan1 :=
+Plan1 =
   Object
   * $count int
   * $label str

@@ -1,14 +1,14 @@
 import pkg.sub.sub2.deepest as up
 
-Report0 := str * (int | nil)
+Report0 = str * (int | nil)
 
-Report1 :=
+Report1 =
   Object
   * $peer up.Shape0
 
-Config2 := $left int | $right str
+Config2 = $left int | $right str
 
-Report3 :=
+Report3 =
   Object
   * $count int
   * $label str

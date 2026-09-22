@@ -3,7 +3,7 @@
 
 import torch.nn
 
-Edge1[Out, V] :=
+Edge1[Out, V] =
     (
         $src {x + 1}
     )
@@ -16,7 +16,7 @@ Edge1[Out, V] :=
                 <- MatchResult
         )
 
-Node2 :=
+Node2 =
     (
         '''line one
 line two'''
@@ -48,7 +48,7 @@ line two'''
             )
     )
 
-Option3[T, S] :=
+Option3[T, S] =
     (
         $data (
             (
@@ -68,7 +68,7 @@ Option3[T, S] :=
         )
     )
 
-Report4 :=
+Report4 =
     (
         '''keep
   indent'''
@@ -76,7 +76,7 @@ Report4 :=
             * false
     )
 
-Plan5[E, K] :=
+Plan5[E, K] =
     (
         (
             never
@@ -99,7 +99,7 @@ line two'''
             )
         )
 
-Task6 :=
+Task6 =
     (
         'viba auto'
             | ...
@@ -107,7 +107,7 @@ Task6 :=
             | false
     )
 
-Guarded7 :=
+Guarded7 =
     $lines int
     * Assert[{lines <= 128}]
     * Metric

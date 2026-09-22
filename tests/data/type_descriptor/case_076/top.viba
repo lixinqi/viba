@@ -1,7 +1,7 @@
-Rule0[T] :=
+Rule0[T] =
   $v T
 
-Plan1 :=
+Plan1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

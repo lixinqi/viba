@@ -1,18 +1,18 @@
 import util as dep
 
-Config0 :=
+Config0 =
   Object
   * $peer dep.Shape0
 
-Shape1[T] :=
+Shape1[T] =
   $v T
 
-Config2 :=
+Config2 =
   Object
   * $count int
   * $label str
 
-Node3 :=
+Node3 =
   Object
   * $ghost Missing
   * $mix list[Missing]

@@ -1,17 +1,17 @@
 import util as base
 
-Node0 :=
+Node0 =
   Object
   * $peer base.Report0
 
-Shape1 :=
+Shape1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Config2[T] :=
+Config2[T] =
   $v T
 
-Shape3 := int * str * bool
+Shape3 = int * str * bool

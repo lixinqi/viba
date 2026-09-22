@@ -1,11 +1,11 @@
-Shape0 :=
+Shape0 =
   Oneof
   | $left int
   | $right str
 
-Node1 :=
+Node1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Report2 := $only int
+Report2 = $only int

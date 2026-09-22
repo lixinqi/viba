@@ -1,14 +1,14 @@
 import util
 
-Report0 := str * (int | nil)
+Report0 = str * (int | nil)
 
-Plan1 :=
+Plan1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Plan2 :=
+Plan2 =
   Object
   * $peer util.Report0

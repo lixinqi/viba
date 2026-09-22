@@ -1,7 +1,7 @@
 import pkg.mod
 
-Shape0 := $left int | $right str
+Shape0 = $left int | $right str
 
-Rule1 :=
+Rule1 =
   Object
   * $peer pkg.mod.Shape0

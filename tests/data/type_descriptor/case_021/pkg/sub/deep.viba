@@ -1,17 +1,17 @@
 import util
 
-Rule0 :=
+Rule0 =
   Object
   * $peer util.Shape2
 
-Config1 :=
+Config1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Config2 :=
+Config2 =
   Object
   * $count int
   * $label str

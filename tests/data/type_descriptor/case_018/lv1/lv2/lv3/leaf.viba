@@ -1,16 +1,16 @@
 import util as up
 
-Rule0 :=
+Rule0 =
   Object
   * $peer up.Report0
 
-Config1 :=
+Config1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Rule2 := str * (int | nil)
+Rule2 = str * (int | nil)
 
-Report3 := $only int
+Report3 = $only int

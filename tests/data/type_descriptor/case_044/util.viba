@@ -1,11 +1,11 @@
-Report0 :=
+Report0 =
   Object
   * $count int
   * $label str
 
-Rule1 :=
+Rule1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Report2 := str * (int | nil)
+Report2 = str * (int | nil)

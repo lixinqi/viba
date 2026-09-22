@@ -1,7 +1,7 @@
 import util
 
-Config0 :=
+Config0 =
   Object
   * $peer util.Shape0
 
-Shape1 := str * (int | nil)
+Shape1 = str * (int | nil)

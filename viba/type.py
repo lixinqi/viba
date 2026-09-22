@@ -16,7 +16,7 @@ from viba import viba_ast
 
 
 # ----------------------------------------------------------------------
-# Result (cf. Result[T] := Oneof | $ok T | $err str)
+# Result (cf. Result[T] = Oneof | $ok T | $err str)
 # ----------------------------------------------------------------------
 
 
@@ -325,5 +325,5 @@ def entry_type(source: str, module: ModuleType = None) -> AstNodeType:
     as the body of a throwaway definition.
     """
     module = module or CustomModuleType(viba_ast.Module([]))
-    tree = viba_ast.parse(f"__entry__ := {source}")
+    tree = viba_ast.parse(f"__entry__ = {source}")
     return AstNodeType(tree.body[0].body, module)

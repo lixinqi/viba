@@ -1,18 +1,18 @@
 import util as dep
 
-Node0 :=
+Node0 =
   Object
   * $peer dep.Rule0
 
-Rule1 :=
+Rule1 =
   Object
   * $count int
   * $label str
 
-Config2[T] :=
+Config2[T] =
   $v T
 
-Plan3 :=
+Plan3 =
   Object
   * $items list[int]
   * $seen set[str]

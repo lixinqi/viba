@@ -1,14 +1,14 @@
-Shape0 :=
+Shape0 =
   Object
   * $count int
   * $label str
 
-Report1 :=
+Report1 =
   Oneof
   | $left int
   | $right str
 
-Plan2 :=
+Plan2 =
   Object
   * $items list[int]
   * $seen set[str]

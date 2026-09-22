@@ -1,6 +1,6 @@
 import pkg.mod as dep
 
-Config0 :=
+Config0 =
   Object
   * $items list[int]
   * $seen set[str]

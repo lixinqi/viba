@@ -41,21 +41,21 @@ print(str(vb))
 ```viba
 import store_core as sc
 
-UserName :=
+UserName =
   str
 
-Optional[T] :=
+Optional[T] =
   T
   | nil
 
-List[T] :=
+List[T] =
   Oneof
   | Object
     * $head T
     * $tail List[T]
   | nil
 
-latest_file[Ctx] :=
+latest_file[Ctx] =
   sc.Result[sc.FileState]
   <- $ctx Ctx
   <- $file sc.FileId
@@ -67,8 +67,8 @@ latest_file[Ctx] :=
 
 | Python | Viba |
 |---|---|
-| `vb.Name = body` | `Name := body` |
-| `vb.Name[T, U] = body` | `Name[T, U] := body` |
+| `vb.Name = body` | `Name = body` |
+| `vb.Name[T, U] = body` | `Name[T, U] = body` |
 | `vb.Name` | `Name` |
 | `vb.a.b.Name` | `a.b.Name` |
 | `vb.Name[arg0, arg1]` | `Name[arg0, arg1]` |
@@ -101,8 +101,8 @@ latest_file[Ctx] :=
 ## 4. 定义
 
 ```python
-vb.UserName = str                 # UserName := str
-vb.Map[vb.K, vb.V] = vb.V         # Map[K, V] := V
+vb.UserName = str                 # UserName = str
+vb.Map[vb.K, vb.V] = vb.V         # Map[K, V] = V
 ```
 
 - 定义名要是一个普通标识符：不能是关键字（`nil` / `never` / `true` / `false` / `void` / `None` / `import` / `as`），不能带点、不能带横杠，`vb.a.b = …` 也拦（定义名是一个名字，不是一个点分路径）。
@@ -220,7 +220,7 @@ print(str(vb))
 ```viba
 import store_core as sc
 
-Answer :=
+Answer =
   42
 
 # 先放一条注释

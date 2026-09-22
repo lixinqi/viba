@@ -1,13 +1,13 @@
 import top
 
-Shape0 :=
+Shape0 =
   Object
   * $peer top.Config1
 
-Shape1 :=
+Shape1 =
   Object
   * $count int
   * $label str
 
-Node2[T] :=
+Node2[T] =
   $v T

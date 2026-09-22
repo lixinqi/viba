@@ -1,1 +1,1 @@
-X := $nice int * $other str
+X = $nice int * $other str

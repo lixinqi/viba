@@ -1,6 +1,6 @@
 import pkg.sub.sub2.deepest as dep
 
-Shape0 := $only int
+Shape0 = $only int
 
-Shape1[T] :=
+Shape1[T] =
   $v T

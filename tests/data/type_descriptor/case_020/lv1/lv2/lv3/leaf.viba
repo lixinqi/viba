@@ -1,7 +1,7 @@
 import lv1.lv2.lv3.leaf as up
 
-Rule0 := int * str * bool
+Rule0 = int * str * bool
 
-Plan1 :=
+Plan1 =
   Object
   * $peer up.Rule0

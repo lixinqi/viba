@@ -1,6 +1,6 @@
-Rule0 :=
+Rule0 =
   Object
   * $count int
   * $label str
 
-Config1 := $only int
+Config1 = $only int

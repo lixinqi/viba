@@ -1,7 +1,7 @@
 import pkg.sub.sub2.deepest as base
 
-Node0 := int * str
+Node0 = int * str
 
-Config1 :=
+Config1 =
   Object
   * $peer base.Plan3

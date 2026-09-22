@@ -1,9 +1,9 @@
 import top as up
 
-Plan0 := int * str
+Plan0 = int * str
 
-Rule1 :=
+Rule1 =
   Object
   * $peer up.Rule0
 
-Rule2 := $only int
+Rule2 = $only int

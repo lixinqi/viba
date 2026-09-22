@@ -1,12 +1,12 @@
 import pkg.sub.deep
 
-Report0 := str * (int | nil)
+Report0 = str * (int | nil)
 
-Config1 :=
+Config1 =
   Object
   * $peer pkg.sub.deep.Node1
 
-Node2 :=
+Node2 =
   Oneof
   | $left int
   | $right str

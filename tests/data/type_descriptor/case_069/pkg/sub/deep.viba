@@ -1,14 +1,14 @@
 import pkg.sub.deep as base
 
-Config0 := $left int | $right str
+Config0 = $left int | $right str
 
-Report1 :=
+Report1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Config2 :=
+Config2 =
   Object
   * $peer base.Config0
 
-Shape3 := $only int
+Shape3 = $only int

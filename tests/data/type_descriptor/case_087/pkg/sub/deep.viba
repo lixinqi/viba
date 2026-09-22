@@ -1,4 +1,4 @@
-Report0[T] :=
+Report0[T] =
   $v T
 
-Rule1 := $left int | $right str
+Rule1 = $left int | $right str

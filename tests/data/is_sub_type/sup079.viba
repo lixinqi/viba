@@ -1,1 +1,1 @@
-X := list[int | str]
+X = list[int | str]

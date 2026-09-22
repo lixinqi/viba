@@ -1,6 +1,6 @@
 import util as up
 
-Rule0 :=
+Rule0 =
   Object
   * $ghost Missing
   * $mix list[Missing]

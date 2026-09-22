@@ -17,10 +17,10 @@
 # viba/compliance/demo/rule_distance.viba
 import case_at_1230 as case_at_1230
 
-Point := $x int * $y int
-Case := $victim Point * $suspect Point * $at str
+Point = $x int * $y int
+Case = $victim Point * $suspect Point * $at str
 
-measure_distance :=
+measure_distance =
 	int
 	<- $env Environment
 	<- $evidence Environment
@@ -30,7 +30,7 @@ measure_distance :=
 		so the answer is prepared
 	}
 
-distance_ge :=
+distance_ge =
 	bool
 	<- $env Environment
 	<- $d int
@@ -41,20 +41,20 @@ distance_ge :=
 
 # the address of this case: the witness is read under it, and this is where the
 # case's evidence — its Prepare — is kept
-case_env := environ.sub_env << "case_at_1230"
+case_env = environ.sub_env << "case_at_1230"
 
 # the witness: the three facts of that moment
-the_case := case_at_1230 << case_env
+the_case = case_at_1230 << case_env
 
 # the measurement of those facts. The call itself runs under a temporary
 # environment (a call has no address of its own), and is told where the evidence
 # goes: this case's address. Not pure, so what it answers becomes the Prepare.
-distance := measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
+distance = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 
 # the rule's question: at least this far apart?
-threshold := 5
+threshold = 5
 
-__ret__ := distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold
+__ret__ = distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold
 ```
 
 读法：
@@ -72,7 +72,7 @@ __ret__ := distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $th
 - **`__ret__` 是判定**。它是 `bool`，跑完就是答案：真合规、假不合规。这条规则跑出来是
   `Ok(true)`——量出来恰好 5，够门槛。
 - **条件是它自己的函数，判据是它的参数**。`distance_ge` 问的是"距离至少到没到门槛"，门槛由
-  `$threshold` 给——`threshold := 5` 是这条规则自己的选择，换个案子换个门槛，写的还是同一个
+  `$threshold` 给——`threshold = 5` 是这条规则自己的选择，换个案子换个门槛，写的还是同一个
   函数。规则想有几个条件、想怎么组合（`<<` 给参数、定义复用、模块拆开），都是写程序的事。
 - **函数体里的 `{...}` 是说明**：实现来自宿主的 `get_func(module_path, func_name)`（见
   [`viba-interpreter.md`](viba-interpreter.md)），interpret 不带任何库函数。
@@ -86,7 +86,7 @@ __ret__ := distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $th
 ```viba
 # viba/compliance/demo/case_at_1230.viba
 # 12:30 那一刻：受害人在 (0,0)，嫌疑人在 (3,4)
-__ret__ :=
+__ret__ =
     $victim ($x 0 * $y 0)
   * $suspect ($x 3 * $y 4)
   * $at "12:30"
@@ -99,7 +99,7 @@ __ret__ :=
 那一刻），规则按这个名字调它：
 
 ```viba
-the_case := case_at_1230 << case_env
+the_case = case_at_1230 << case_env
 ```
 
 呈证是材料，规则要按地址读它：`$victim`、`$suspect`、`$at` 是地址，`$x`/`$y` 再往下一层。读的
@@ -151,7 +151,7 @@ def measure_distance(self, env, evidence, case):
 
 ```viba
 # <store>/root/case_at_1230/prepare/measure_distance.viba
-value :=
+value =
     $call (
         $victim ($x 0 * $y 0)
       * $suspect ($x 3 * $y 4)

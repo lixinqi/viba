@@ -1,12 +1,12 @@
-Shape0[T] :=
+Shape0[T] =
   $v T
 
-Config1 :=
+Config1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Config2 :=
+Config2 =
   Object
   * $count int
   * $label str

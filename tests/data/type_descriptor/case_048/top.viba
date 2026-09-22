@@ -1,7 +1,7 @@
 import util as m
 
-Report0 := $only int
+Report0 = $only int
 
-Shape1 :=
+Shape1 =
   Object
   * $peer m.Node0

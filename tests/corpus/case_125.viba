@@ -4,7 +4,7 @@
 import torch.nn as nn
 import fx.graph
 
-Graph2[K, In] :=
+Graph2[K, In] =
     (
         (
             (
@@ -31,7 +31,7 @@ c'''
         )
     )
 
-State4[T] :=
+State4[T] =
     Pair[
         (
             Result[$meta.id (), GraphModule, {fn(fn(x + 1))}]
@@ -45,7 +45,7 @@ c'''
             )
     ]
 
-Slice5[K, Out] :=
+Slice5[K, Out] =
     $src (
         (
             (
@@ -67,7 +67,7 @@ Slice5[K, Out] :=
             )
     )
 
-Graph6[T] :=
+Graph6[T] =
     (
         (
             false,
@@ -104,12 +104,12 @@ line two''',
             )
         )
 
-Stream10 :=
+Stream10 =
     never
         * 543
         * never
 
-State13 :=
+State13 =
     (
         'fast auto'
     )

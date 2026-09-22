@@ -1,10 +1,10 @@
 import util
 
-Report0 :=
+Report0 =
   Object
   * $count int
   * $label str
 
-Config1 :=
+Config1 =
   Object
   * $peer util.Report0

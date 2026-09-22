@@ -1,10 +1,10 @@
 import pkg.sub.sub2.deepest
 
-Rule0 :=
+Rule0 =
   Object
   * $peer pkg.sub.sub2.deepest.Shape0
 
-Config1 :=
+Config1 =
   Oneof
   | $left int
   | $right str

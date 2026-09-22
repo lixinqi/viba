@@ -1,9 +1,9 @@
 import util as base
 
-Config0 := str * (int | nil)
+Config0 = str * (int | nil)
 
-Shape1 := $left int | $right str
+Shape1 = $left int | $right str
 
-Rule2 :=
+Rule2 =
   Object
   * $peer base.Plan2

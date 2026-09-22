@@ -42,7 +42,7 @@ def is_err(label: str, result, needle: str):
           f"{label}: wanted Err({needle!r}), got {result!r}")
 
 
-BOX = """Box := Object * $a int * $b str * $xs list[int] * $d dict[str, int]
+BOX = """Box = Object * $a int * $b str * $xs list[int] * $d dict[str, int]
 """
 
 
@@ -176,7 +176,7 @@ def run_dynamic_accessors():
     same("dir() lists the accessors it answers to", "get_a" in dir(root), True)
 
     # 位置成员：按位置的那一族叫 get_field_<i>
-    position = _definition("Pos := Object * int * $a int\n", "Pos")
+    position = _definition("Pos = Object * int * $a int\n", "Pos")
     pos = _root(position, _product([viba_ast.Constant(5),
                                     viba_ast.Tagged("$a", viba_ast.Constant(6))]))
     same("a positional member reads by index", access.leaf(pos.get_field_0()).ok_value, 5)

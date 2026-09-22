@@ -1,1 +1,1 @@
-X := set[int | str]
+X = set[int | str]

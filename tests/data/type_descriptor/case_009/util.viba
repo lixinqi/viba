@@ -1,8 +1,8 @@
 import top
 
-Node0[T] :=
+Node0[T] =
   $v T
 
-Config1 :=
+Config1 =
   Object
   * $peer top.Shape0

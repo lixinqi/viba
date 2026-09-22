@@ -1,10 +1,10 @@
 import top as m
 
-Config0 :=
+Config0 =
   Object
   * $peer m.Node0
 
-Rule1 :=
+Rule1 =
   Object
   * $items list[int]
   * $seen set[str]

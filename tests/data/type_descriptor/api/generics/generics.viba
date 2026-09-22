@@ -1,5 +1,5 @@
-Box[T] := $v T
+Box[T] = $v T
 
-Pair[K, V] := $k K * $v V
+Pair[K, V] = $k K * $v V
 
-Use := Object * $box Box[int] * $param T * $unknown Nope
+Use = Object * $box Box[int] * $param T * $unknown Nope

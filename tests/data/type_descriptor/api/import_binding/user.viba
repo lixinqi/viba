@@ -2,7 +2,7 @@ import pkg.mod
 import pkg.mod.sub
 import top
 
-User :=
+User =
   Object
   * $long pkg.mod.sub.Deep
   * $short pkg.mod.Mid

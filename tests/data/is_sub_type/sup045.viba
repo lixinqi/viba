@@ -1,1 +1,1 @@
-X := $x int | $b str | $c bool
+X = $x int | $b str | $c bool

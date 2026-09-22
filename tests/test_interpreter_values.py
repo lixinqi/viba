@@ -39,11 +39,11 @@ def _host_answers(tmp: Path):
                               ("flag", True, "a bool"), ("ratio", 0.5, "a float"),
                               ("nothing", None, "None lands as nil")):
         path = write(tmp, f"{func}.viba", f"""
-{func} :=
+{func} =
 	int
 	<- $env Environment
 	<- {{ inline }}
-__ret__ := {func} << $env environ
+__ret__ = {func} << $env environ
 """)
         result = interpret(path, environ)
         check(isinstance(result, Ok) and value_of(result) == want,
@@ -53,11 +53,11 @@ __ret__ := {func} << $env environ
     for func, want, label in (("zero", 0, "0"), ("empty", "", "an empty str"),
                               ("falsey", False, "false")):
         path = write(tmp, f"falsy_{func}.viba", f"""
-{func} :=
+{func} =
 	int
 	<- $env Environment
 	<- {{ inline }}
-__ret__ := {func} << $env environ
+__ret__ = {func} << $env environ
 """)
         result = interpret(path, environ)
         check(isinstance(result, Ok) and value_of(result) == want,
@@ -67,75 +67,75 @@ __ret__ := {func} << $env environ
     for func, label in (("answer_a_list", "a list"), ("answer_a_tuple", "a tuple"),
                         ("answer_a_dict", "a dict")):
         path = write(tmp, f"{func}.viba", f"""
-{func} :=
+{func} =
 	int
 	<- $env Environment
 	<- {{ inline }}
-__ret__ := {func} << $env environ
+__ret__ = {func} << $env environ
 """)
         labelled(interpret(path, environ), "no leaf",
                  f"a host answer that is {label} -> Err")
 
     boom = write(tmp, "boom.viba", """
-explode :=
+explode =
 	int
 	<- $env Environment
 	<- { go }
-__ret__ := explode << $env environ
+__ret__ = explode << $env environ
 """)
     labelled(interpret(boom, environ), "ZeroDivision", "a host function that raises -> Err")
     labelled(interpret(boom, Host(get_func_raises=True).environ()), "raised",
              "a get_func that raises -> Err")
 
     missing = write(tmp, "no_impl.viba", """
-ghost :=
+ghost =
 	int
 	<- $env Environment
 	<- { nothing implements this }
-__ret__ := ghost << $env environ
+__ret__ = ghost << $env environ
 """)
     labelled(interpret(missing, environ), "no implementation", "get_func says None -> Err")
 
     echo = write(tmp, "echo.viba", """
-echo :=
+echo =
 	int
 	<- $env Environment
 	<- $x int
 	<- { pass it through }
-__ret__ := echo << $env environ << $x 42
+__ret__ = echo << $env environ << $x 42
 """)
     result = interpret(echo, environ)
     check(isinstance(result, Ok) and value_of(result) == 42,
           f"a host function echoing its argument: {result!r}")
 
     arity = write(tmp, "arity.viba", """
-wrong_arity :=
+wrong_arity =
 	int
 	<- $env Environment
 	<- $a int
 	<- $b int
 	<- { takes two }
-__ret__ := wrong_arity << $env environ << $a 1 << $b 2
+__ret__ = wrong_arity << $env environ << $a 1 << $b 2
 """)
     labelled(interpret(arity, environ), "raised", "a host function of the wrong arity -> Err")
 
     made = write(tmp, "made.viba", """
-make_node :=
+make_node =
 	int
 	<- $env Environment
 	<- { make a node }
-__ret__ := make_node << $env environ
+__ret__ = make_node << $env environ
 """)
     result = interpret(made, environ)
     check(isinstance(result, Ok) and value_of(result) == 11,
           f"a node the host built itself: {result!r}")
 
     afunc = write(tmp, "afunc.viba", """
-answer_a_function :=
+answer_a_function =
 	int
 	<- $env Environment
 	<- { answer a function }
-__ret__ := answer_a_function << $env environ
+__ret__ = answer_a_function << $env environ
 """)
     labelled(interpret(afunc, environ), "no leaf",
              "a host answer that is a function -> Err")
@@ -148,28 +148,28 @@ def _written_as_ret(tmp: Path):
 
     for body, want, label in (("42", 42, "a literal int"), ('"hi"', "hi", "a literal str"),
                               ("true", True, "a literal bool")):
-        path = write(tmp, f"lit_{want}.viba", f"__ret__ := {body}\n")
+        path = write(tmp, f"lit_{want}.viba", f"__ret__ = {body}\n")
         result = interpret(path, environ)
         check(isinstance(result, Ok) and value_of(result) == want,
               f"__ret__ written as {label}: {result!r}")
     for body, label in (("nil", "nil"), ("never", "never"), ("Any", "Any")):
-        path = write(tmp, f"unit_{label}.viba", f"__ret__ := {body}\n")
+        path = write(tmp, f"unit_{label}.viba", f"__ret__ = {body}\n")
         result = interpret(path, environ)
         check(isinstance(result, Ok), f"__ret__ written as {label}: {result!r}")
     for body, label in (("(1 | 2)", "a sum"),
                         ("list[int]", "a generic application"),
                         ("int <- $x int", "an exponent")):
-        path = write(tmp, f"shape_{label.split()[-1]}.viba", f"__ret__ := {body}\n")
+        path = write(tmp, f"shape_{label.split()[-1]}.viba", f"__ret__ = {body}\n")
         labelled(interpret(path, environ), "cannot compute",
                  f"__ret__ written as {label} -> Err")
 
-    write(tmp, "late_lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
     module_value = write(tmp, "module_value.viba",
-                         "import late_lib as lib\n__ret__ := lib\n")
+                         "import late_lib as lib\n__ret__ = lib\n")
     labelled(interpret(module_value, environ), "still waiting for arguments",
              "__ret__ written as a module -> Err")
 
-    builtin_value = write(tmp, "builtin_value.viba", "__ret__ := str\n")
+    builtin_value = write(tmp, "builtin_value.viba", "__ret__ = str\n")
     labelled(interpret(builtin_value, environ), "no definition named",
              "a builtin type name used as a value -> Err")
 
@@ -180,14 +180,14 @@ def _shapes(tmp: Path):
     environ = host.environ()
     for body, want, label in (("(1, 2)", 2, "a tuple of two"),
                               ("()", 0, "the empty tuple")):
-        path = write(tmp, f"shape_{abs(hash(body))}.viba", f"__ret__ := {body}\n")
+        path = write(tmp, f"shape_{abs(hash(body))}.viba", f"__ret__ = {body}\n")
         result = interpret(path, environ)
         check(isinstance(result, Ok) and len(result.ok_value) == want,
               f"__ret__ written as {label} is material: {result!r}")
 
     # 一份 witness 的写法：tag 与积是材料，和它的类型写法一样
     witness = write(tmp, "witness.viba",
-                    '__ret__ := $victim ($x 0 * $y 0) * $suspect ($x 3 * $y 4)\n')
+                    '__ret__ = $victim ($x 0 * $y 0) * $suspect ($x 3 * $y 4)\n')
     result = interpret(witness, environ)
     check(isinstance(result, Ok), f"a witness written as tags and a product: {result!r}")
     if isinstance(result, Ok):
@@ -202,22 +202,22 @@ def _names_and_repeats(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    twice_defined = write(tmp, "twice_defined.viba", "x := 1\nx := 2\n__ret__ := x\n")
+    twice_defined = write(tmp, "twice_defined.viba", "x = 1\nx = 2\n__ret__ = x\n")
     result = interpret(twice_defined, environ)
     check(isinstance(result, Ok) and value_of(result) == 1,
           f"a name defined twice: the first definition stands: {result!r}")
 
-    defined_after = write(tmp, "defined_after.viba", "__ret__ := x\nx := 7\n")
+    defined_after = write(tmp, "defined_after.viba", "__ret__ = x\nx = 7\n")
     result = interpret(defined_after, environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a definition written after its use: {result!r}")
 
     nested = write(tmp, "nested.viba", ADD + """
-unused :=
+unused =
 	int
 	<- $env Environment
 	<- { never asked for }
-__ret__ := add << $env environ << $a 1 << $b 2
+__ret__ = add << $env environ << $a 1 << $b 2
 """)
     result = interpret(nested, environ)
     check(isinstance(result, Ok) and value_of(result) == 3 and
@@ -226,8 +226,8 @@ __ret__ := add << $env environ << $a 1 << $b 2
 
     # 一个定义算一次：两处用它，宿主只被叫一次
     memo = write(tmp, "memo.viba", ADD + LEAF + """
-half := leaf << $env environ
-__ret__ := add << $env environ << $a half << $b half
+half = leaf << $env environ
+__ret__ = add << $env environ << $a half << $b half
 """)
     host.calls.clear()
     result = interpret(memo, environ)
@@ -243,76 +243,76 @@ def _crossing_the_host_boundary(tmp: Path):
     environ = host.environ()
 
     higher = write(tmp, "higher.viba", """
-inc :=
+inc =
 	int
 	<- $env Environment
 	<- $x int
 	<- { add one }
-twice :=
+twice =
 	int
 	<- $env Environment
 	<- $f (int <- $env Environment <- $x int)
 	<- $x int
 	<- { call f twice }
-__ret__ := twice << $env environ << $f inc << $x 10
+__ret__ = twice << $env environ << $f inc << $x 10
 """)
     result = interpret(higher, environ)
     check(isinstance(result, Ok) and value_of(result) == 22,
           f"a viba function handed to the host is callable: {result!r}")
 
     overfeed = write(tmp, "overfeed.viba", """
-overfeed :=
+overfeed =
 	int
 	<- $env Environment
 	<- $f (int <- $env Environment <- $x int)
 	<- $x int
 	<- { give f one argument too many }
-inc :=
+inc =
 	int
 	<- $env Environment
 	<- $x int
 	<- { add one }
-__ret__ := overfeed << $env environ << $f inc << $x 10
+__ret__ = overfeed << $env environ << $f inc << $x 10
 """)
     labelled(interpret(overfeed, environ), "raised",
              "a host that gives the viba function too many arguments -> Err")
 
     fed = write(tmp, "fed.viba", """
-feed_a_list :=
+feed_a_list =
 	int
 	<- $env Environment
 	<- $f (int <- $env Environment <- $x int)
 	<- { hand f a list }
-inc :=
+inc =
 	int
 	<- $env Environment
 	<- $x int
 	<- { add one }
-__ret__ := feed_a_list << $env environ << $f inc
+__ret__ = feed_a_list << $env environ << $f inc
 """)
     labelled(interpret(fed, environ), "raised",
              "a host handing a viba function something with no leaf -> Err")
 
     # 没给全参数的函数当实参：宿主拿到的就是那个函数，回手就被拒
     handed = write(tmp, "handed.viba", LEAF + """
-echo :=
+echo =
 	int
 	<- $env Environment
 	<- $x int
 	<- { hand the argument back }
-__ret__ := echo << $env environ << $x leaf
+__ret__ = echo << $env environ << $x leaf
 """)
     labelled(interpret(handed, environ), "no leaf",
              "a viba function handed where a value is expected, echoed back -> Err")
 
     # 宿主里面再跑一次 interpret：两个 run 互不干扰
-    inner = write(tmp, "inner_module.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    inner = write(tmp, "inner_module.viba", LEAF + "__ret__ = leaf << $env environ\n")
     outer = write(tmp, "outer_run.viba", """
-inner_value :=
+inner_value =
 	int
 	<- $env Environment
 	<- { run another module from inside the host }
-__ret__ := inner_value << $env environ
+__ret__ = inner_value << $env environ
 """)
     host.knobs["inner_file"] = inner
     result = interpret(outer, environ)
@@ -322,11 +322,11 @@ __ret__ := inner_value << $env environ
 
     # 宿主抛的不是 Exception：interpret 不吞
     interrupt = write(tmp, "interrupt.viba", """
-interrupt :=
+interrupt =
 	int
 	<- $env Environment
 	<- { interrupt }
-__ret__ := interrupt << $env environ
+__ret__ = interrupt << $env environ
 """)
     try:
         interpret(interrupt, environ)

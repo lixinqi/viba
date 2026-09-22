@@ -1,2 +1,2 @@
-U := Object
-Box := U * $a int
+U = Object
+Box = U * $a int

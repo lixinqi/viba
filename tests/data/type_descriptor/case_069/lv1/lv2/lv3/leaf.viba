@@ -1,12 +1,12 @@
 import top as dep
 
-Config0 :=
+Config0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Rule1 :=
+Rule1 =
   Object
   * $peer dep.Rule0

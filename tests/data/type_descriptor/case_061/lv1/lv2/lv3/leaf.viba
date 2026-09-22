@@ -1,15 +1,15 @@
 import top as m
 
-Rule0 :=
+Rule0 =
   Object
   * $count int
   * $label str
 
-Node1 :=
+Node1 =
   Object
   * $peer m.Rule1
 
-Rule2 :=
+Rule2 =
   Object
   * $items list[int]
   * $seen set[str]

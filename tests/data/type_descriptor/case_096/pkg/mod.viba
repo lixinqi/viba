@@ -1,8 +1,8 @@
 import util as dep
 
-Rule0 :=
+Rule0 =
   Object
   * $peer dep.Rule0
 
-Report1[T] :=
+Report1[T] =
   $v T

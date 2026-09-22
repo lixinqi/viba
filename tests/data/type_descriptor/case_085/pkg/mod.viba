@@ -1,7 +1,7 @@
 import top as lib
 
-Plan0 :=
+Plan0 =
   Object
   * $peer lib.Report0
 
-Config1 := $only int
+Config1 = $only int

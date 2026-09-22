@@ -1,7 +1,7 @@
 import util as m
 
-Rule0 := $only int
+Rule0 = $only int
 
-Plan1 :=
+Plan1 =
   Object
   * $peer m.Config1

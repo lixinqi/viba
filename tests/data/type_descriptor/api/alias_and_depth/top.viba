@@ -1,1 +1,1 @@
-Base := Object * $n int
+Base = Object * $n int

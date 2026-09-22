@@ -1,2 +1,2 @@
-A := $nice int
-B := A * $find bool
+A = $nice int
+B = A * $find bool

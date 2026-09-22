@@ -1,7 +1,7 @@
 import pkg.sub.sub2.deepest
 
-Plan0 :=
+Plan0 =
   Object
   * $peer pkg.sub.sub2.deepest.Node1
 
-Node1 := int * str * bool
+Node1 = int * str * bool

@@ -1,11 +1,11 @@
-Shape0[T] :=
+Shape0[T] =
   $v T
 
-Config1 :=
+Config1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Report2 := $only int
+Report2 = $only int

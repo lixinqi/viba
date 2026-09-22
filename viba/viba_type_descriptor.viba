@@ -23,7 +23,7 @@ import viba.type as type
 # 1. 文件与定义
 # ---------------------------------------------------------------- #
 
-VibaFileDescriptor :=
+VibaFileDescriptor =
     Object
   * $pool VibaPool                              # 自己属于哪个描述符池
   * $file_name str                              # 文件标识（路径）
@@ -41,7 +41,7 @@ VibaFileDescriptor :=
       取小写十六进制。记的是解析前的原文，所以任何一次重写都会换哈希。
     }]
 
-VibaImportDescriptor :=
+VibaImportDescriptor =
     Object
   * $pool VibaPool
   * $module_name str            # import a.b as c -> 'a.b'
@@ -51,7 +51,7 @@ VibaImportDescriptor :=
       protobuf 没有对应物：它只用全名。
     }]
 
-VibaDefinitionDescriptor :=
+VibaDefinitionDescriptor =
     Object
   * $pool VibaPool
   * $def_name str
@@ -66,8 +66,8 @@ VibaDefinitionDescriptor :=
       定义体是写成一串的积/和/指数时，成员就是那一串的元素，链头的单位元不算；
       三种链一个规矩，元素本身同一种东西。
       protobuf: DescriptorProto 把字段与枚举值分成两个类；这里只有一个成员类。
-      体写成一整个带标签类型时（Box[T] := $v T），它是一个元素的积；
-      体既不是积也不是和也不是指数时（A := int），$members 为空——那是别名，
+      体写成一整个带标签类型时（Box[T] = $v T），它是一个元素的积；
+      体既不是积也不是和也不是指数时（A = int），$members 为空——那是别名，
       不是错误。
       $generic_params 是 Viba 多出来的：protobuf 没有参数化类型。
       list / set / dict 与其字面量构造器 ListLiteral / SetLiteral /
@@ -80,7 +80,7 @@ VibaDefinitionDescriptor :=
 # 2. 成员：字段与分支是同一件事
 # ---------------------------------------------------------------- #
 
-VibaMemberDescriptor :=
+VibaMemberDescriptor =
     Object
   * $pool VibaPool
   * $member_index int           # 在 $members 里的位置，从 0 起
@@ -101,7 +101,7 @@ VibaMemberDescriptor :=
 # 3. 类型表达式
 # ---------------------------------------------------------------- #
 
-VibaTypeDescriptor :=            # protobuf: FieldDescriptorProto.type 那一栏
+VibaTypeDescriptor =            # protobuf: FieldDescriptorProto.type 那一栏
     Oneof
   | $type_ref VibaTypeRefDescriptor
   | $type_app VibaTypeAppDescriptor
@@ -116,7 +116,7 @@ VibaTypeDescriptor :=            # protobuf: FieldDescriptorProto.type 那一栏
   | $ellipsis ()                         # ...：同上
   | $code_block VibaCodeBlockDescriptor
 
-VibaTypeRefDescriptor :=
+VibaTypeRefDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
@@ -126,7 +126,7 @@ VibaTypeRefDescriptor :=
       protobuf: FieldDescriptorProto.type_name。
     }]
 
-VibaTypeAppDescriptor :=
+VibaTypeAppDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
@@ -137,7 +137,7 @@ VibaTypeAppDescriptor :=
       内建的 list / set / dict 与它们的 ListLiteral / SetLiteral / DictLiteral 也走这里。
     }]
 
-VibaTupleDescriptor :=
+VibaTupleDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
@@ -147,7 +147,7 @@ VibaTupleDescriptor :=
       () 也走这里，$elements 为空。protobuf 没有对应物。
     }]
 
-VibaTaggedDescriptor :=
+VibaTaggedDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
@@ -157,7 +157,7 @@ VibaTaggedDescriptor :=
       $tag Type。链里的带标签元素就是它。
     }]
 
-VibaChainDescriptor :=
+VibaChainDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
@@ -171,7 +171,7 @@ VibaChainDescriptor :=
       A <- (B <- C) 是 [A, [B, C]]，与 A * B * C / A <- B <- C 都不同形。
     }]
 
-VibaCodeBlockDescriptor :=
+VibaCodeBlockDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
@@ -181,19 +181,19 @@ VibaCodeBlockDescriptor :=
 # 4. 字面量
 # ---------------------------------------------------------------- #
 
-VibaLiteralDescriptor :=
+VibaLiteralDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
   * $value VibaConstant      # 字面量本身
 
-VibaConstant := (bool | int | float | str | nil)
+VibaConstant = (bool | int | float | str | nil)
 
 # ---------------------------------------------------------------- #
 # 5. 描述符池
 # ---------------------------------------------------------------- #
 
-VibaPool :=
+VibaPool =
     Object
   * $files list[VibaFileDescriptor]
   * $file_name2file dict[str, VibaFileDescriptor]
@@ -217,7 +217,7 @@ VibaPool :=
 # 6. 查询
 # ---------------------------------------------------------------- #
 
-ParseVibaFile :=
+ParseVibaFile =
     Result[VibaFileDescriptor]
   <- $pool VibaPool
   <- $source str
@@ -230,7 +230,7 @@ ParseVibaFile :=
       语法错就是 Err；产出是规范化（链式）形式，并按源码记账 $file_hash。
     }]
 
-PoolAddFile :=
+PoolAddFile =
     Result[VibaPool]
   <- $pool VibaPool
   <- $file VibaFileDescriptor
@@ -241,7 +241,7 @@ PoolAddFile :=
       protobuf: DescriptorPool::BuildFile。
     }]
 
-PoolFindFile :=
+PoolFindFile =
     Result[VibaFileDescriptor]
   <- $pool VibaPool
   <- $file_name str
@@ -249,7 +249,7 @@ PoolFindFile :=
       protobuf: DescriptorPool::FindFileByName。
     }]
 
-PoolFindDefinition :=
+PoolFindDefinition =
     Result[VibaDefinitionDescriptor]
   <- $pool VibaPool
   <- $full_name str
@@ -257,7 +257,7 @@ PoolFindDefinition :=
       $full_name 是 '模块名.定义名'。protobuf: FindMessageTypeByName。
     }]
 
-PoolFindMember :=
+PoolFindMember =
     Result[VibaMemberDescriptor]
   <- $pool VibaPool
   <- $full_name str
@@ -267,7 +267,7 @@ PoolFindMember :=
       protobuf: FindFieldByName / FindEnumValueByName 合成一个。
     }]
 
-FileFindImportByLocalName :=
+FileFindImportByLocalName =
     Result[VibaImportDescriptor]
   <- $file VibaFileDescriptor
   <- $local_name str
@@ -275,16 +275,16 @@ FileFindImportByLocalName :=
       'c.Name' 里的 c 指哪个模块。protobuf 没有对应物。
     }]
 
-DefinitionMembers :=
+DefinitionMembers =
     Result[list[VibaMemberDescriptor]]
   <- $definition VibaDefinitionDescriptor
   <- Comments[{
       按 $member_index 升序，就是书写顺序；定义体既不是积也不是和时返回空表，
-      那是别名（A := int），不是错误。
+      那是别名（A = int），不是错误。
       protobuf: Descriptor::field(i) 与 enum_type() 合成一个。
     }]
 
-DefinitionFindMemberByTag :=
+DefinitionFindMemberByTag =
     Result[VibaMemberDescriptor]
   <- $definition VibaDefinitionDescriptor
   <- $tag str
@@ -292,7 +292,7 @@ DefinitionFindMemberByTag :=
       带标签的成员按 tag 对位。protobuf: Descriptor::FindFieldByName。
     }]
 
-DefinitionFindMemberByIndex :=
+DefinitionFindMemberByIndex =
     Result[VibaMemberDescriptor]
   <- $definition VibaDefinitionDescriptor
   <- $member_index int
@@ -300,14 +300,14 @@ DefinitionFindMemberByIndex :=
       不带标签的成员按位置对位，越界 Err。protobuf: Descriptor::FindFieldByNumber。
     }]
 
-DefinitionFile :=
+DefinitionFile =
     Result[VibaFileDescriptor]
   <- $definition VibaDefinitionDescriptor
   <- Comments[{
       顺着 $file_name 在 $pool 里回查。protobuf: Descriptor::file()。
     }]
 
-MemberTypeName :=
+MemberTypeName =
     Result[str]
   <- $member VibaMemberDescriptor
   <- Comments[{
@@ -316,7 +316,7 @@ MemberTypeName :=
       protobuf: FieldDescriptor::type_name()（那边 int32 这类也是空的）。
     }]
 
-MemberResolvedDefinition :=
+MemberResolvedDefinition =
     Result[VibaDefinitionDescriptor]
   <- $member VibaMemberDescriptor
   <- Comments[{
@@ -329,7 +329,7 @@ MemberResolvedDefinition :=
       protobuf: message_type() / enum_type()。
     }]
 
-MemberContainingDefinition :=
+MemberContainingDefinition =
     Result[VibaDefinitionDescriptor]
   <- $member VibaMemberDescriptor
   <- Comments[{

@@ -1,7 +1,7 @@
 import util
 
-Config0 :=
+Config0 =
   Object
   * $peer util.Node0
 
-Rule1 := $left int | $right str
+Rule1 = $left int | $right str

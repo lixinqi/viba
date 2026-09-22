@@ -1,4 +1,4 @@
-Node0 :=
+Node0 =
   Object
   * $ghost Missing
   * $mix list[Missing]

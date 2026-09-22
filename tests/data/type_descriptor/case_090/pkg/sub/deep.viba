@@ -1,17 +1,17 @@
 import util
 
-Plan0 :=
+Plan0 =
   Oneof
   | $left int
   | $right str
 
-Plan1 := $only int
+Plan1 = $only int
 
-Rule2 :=
+Rule2 =
   Object
   * $count int
   * $label str
 
-Report3 :=
+Report3 =
   Object
   * $peer util.Report2

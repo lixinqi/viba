@@ -1,20 +1,20 @@
 import util as m
 
-Plan0 :=
+Plan0 =
   Object
   * $peer m.Shape0
 
-Plan1 :=
+Plan1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Plan2 :=
+Plan2 =
   Object
   * $count int
   * $label str
 
-Plan3 :=
+Plan3 =
   Oneof
   | $left int
   | $right str

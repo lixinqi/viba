@@ -5,7 +5,7 @@ import fx.graph
 import pathlib as pathlib
 import torch.nn
 
-State1[V, E] :=
+State1[V, E] =
     (
         (
             Box['strict lazy', nil]
@@ -18,7 +18,7 @@ State1[V, E] :=
             )
     )
 
-Edge2[Out] :=
+Edge2[Out] =
     $input (
         (
             (
@@ -53,7 +53,7 @@ Edge2[Out] :=
             )
     )
 
-Map3[K] :=
+Map3[K] =
     (
         Output
             | 0
@@ -75,7 +75,7 @@ Map3[K] :=
                 | 6.4
         )
 
-Graph5[S, Out] :=
+Graph5[S, Out] =
     (
         (
             353
@@ -85,7 +85,7 @@ Graph5[S, Out] :=
             $idx 'strict auto slow'
         )
 
-Task7[In, V] :=
+Task7[In, V] =
     (
         $next (
             $a.b.c.d ()
@@ -98,7 +98,7 @@ Task7[In, V] :=
             $idx 480
         )
 
-Guarded8 :=
+Guarded8 =
     $lines float
     * Assert[{lines <= 498}]
     * MatchResult

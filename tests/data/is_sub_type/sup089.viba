@@ -1,1 +1,1 @@
-X := list[int]
+X = list[int]

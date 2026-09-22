@@ -30,12 +30,12 @@ check = checks.check
 labelled = checks.labelled
 
 ROLL = """
-roll :=
+roll =
 	int
 	<- $env Environment
 	<- $n int
 	<- { roll a die: not a pure function, so its answer is snapshotted }
-__ret__ := roll << $env environ << $n 1
+__ret__ = roll << $env environ << $n 1
 """
 
 
@@ -77,7 +77,7 @@ def _snapshots_and_replay(tmp: Path):
     snapshot = Path(environ.storage.store_root_dir) / snapshot_path(environ, "roll-1")
     check(snapshot.is_file(), f"the snapshot is a file: {snapshot}")
     text = snapshot.read_text()
-    check(text.startswith("value :="), f"and it is viba source: {text!r}")
+    check(text.startswith("value ="), f"and it is viba source: {text!r}")
     stored = viba_ast.parse(text).body[0].body
     check(isinstance(stored, viba_ast.Constant) and stored.value == first_value,
           f"carrying the value that was answered: {stored!r}")
@@ -124,10 +124,10 @@ def _store_text(tmp: Path):
 
     # 快照坏了：宿主抛，interpret 答 Err，不是崩
     broken = fresh_environ()
-    broken.storage.write_text(snapshot_path(broken, "roll-1"), "value := (")
+    broken.storage.write_text(snapshot_path(broken, "roll-1"), "value = (")
     labelled(interpret(source, broken), "raised", "a snapshot that does not parse -> Err")
     nameless = fresh_environ()
-    nameless.storage.write_text(snapshot_path(nameless, "roll-1"), "other := 1\n")
+    nameless.storage.write_text(snapshot_path(nameless, "roll-1"), "other = 1\n")
     labelled(interpret(source, nameless), "no value", "a snapshot with no value -> Err")
 
     # 子 storage 带着同一个 store root；read_text/write_text 是纯文本那一层
@@ -156,17 +156,17 @@ def _tmp_paths_never_replay(tmp: Path):
 
     compute = EnvironmentCompute(lambda path, func: roll if func == "roll" else None)
     write(tmp, "dice.viba", """
-roll :=
+roll =
 	int
 	<- $env Environment
 	<- $n int
 	<- { roll a die: not pure }
-__ret__ := roll << $env environ << $n 1
+__ret__ = roll << $env environ << $n 1
 """)
     named = write(tmp, "dice_named.viba",
-                  "import dice as d\n__ret__ := d << (environ.sub_env << \"dice\")\n")
+                  "import dice as d\n__ret__ = d << (environ.sub_env << \"dice\")\n")
     temporary = write(tmp, "dice_tmp.viba",
-                      "import dice as d\n__ret__ := d << (environ.tmp_sub_env << ())\n")
+                      "import dice as d\n__ret__ = d << (environ.tmp_sub_env << ())\n")
 
     def fresh_environ():
         return Environment(EnvironmentStorage("root", None, str(store)), compute)

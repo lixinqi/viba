@@ -1,13 +1,13 @@
 import top
 
-Plan0[T] :=
+Plan0[T] =
   $v T
 
-Plan1 :=
+Plan1 =
   Object
   * $peer top.Shape1
 
-Plan2 :=
+Plan2 =
   Object
   * $ghost Missing
   * $mix list[Missing]

@@ -1,4 +1,4 @@
-Shape0 :=
+Shape0 =
   Object
   * $ghost Missing
   * $mix list[Missing]

@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch as torch
 import numpy
 
-Plan1[T, E] :=
+Plan1[T, E] =
     (
         $src (
             (
@@ -25,7 +25,7 @@ line two'''
         )
     )
 
-Graph2[V] :=
+Graph2[V] =
     (
         $value (
             (
@@ -73,7 +73,7 @@ c'''
                 )
         )
 
-Graph3[In] :=
+Graph3[In] =
     Pair[
         (
             (
@@ -105,7 +105,7 @@ Graph3[In] :=
             * nil
     ]
 
-Config5 :=
+Config5 =
     never
         * torch.Tensor
         * 'viba lazy'

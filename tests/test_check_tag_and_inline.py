@@ -66,78 +66,78 @@ def design(source: str):
 # ----------------------------------------------------------------------
 
 CLEAN = {
-    "plain product": "Box := Object * $a int * $b str\n",
-    "a base with tags": "A := $x int * $y str\nB := A * $z bool\n",
-    "a chain three deep": "A := $x int\nB := A * $y int\nC := B * $z int\n",
-    "one base, two products": "A := $x int\nB := A * $y int\nC := A * $w int\n",
-    "units are not members": "Box := Object * Object * $a int\n",
-    "a name over the unit": "U := Object\nBox := U * $a int\n",
-    "a parameter of a tag": "Box[T] := $x T\nB := Box[int] * $y int\n",
+    "plain product": "Box = Object * $a int * $b str\n",
+    "a base with tags": "A = $x int * $y str\nB = A * $z bool\n",
+    "a chain three deep": "A = $x int\nB = A * $y int\nC = B * $z int\n",
+    "one base, two products": "A = $x int\nB = A * $y int\nC = A * $w int\n",
+    "units are not members": "Box = Object * Object * $a int\n",
+    "a name over the unit": "U = Object\nBox = U * $a int\n",
+    "a parameter of a tag": "Box[T] = $x T\nB = Box[int] * $y int\n",
     "a parameter that is a product": (
-        "Pair := $p int * $q str\nBox[T] := T * $a int\nB := Box[Pair] * $z bool\n"),
-    "a positional member": "Pos := int * $a int\n",
-    "recursion through a tag": "Chain := $head int * $tail Chain\n",
-    "recursion through two tags": "A := $a B\nB := $b A\n",
-    "recursion behind a tag's body": "A := $p (A * $x int)\n",
-    "a recursive generic": "Tree[T] := $leaf T * $kids list[Tree[T]]\nA := Tree[int] * $s str\n",
-    "a generic that only grows": "W[T] := W[list[T]]\nA := W[int] * $s str\n",
-    "a product inside a sum": "S := ($x int * $y str) | nil\n",
-    "a product inside a tuple": "Box := $p ($x int, $y str)\n",
+        "Pair = $p int * $q str\nBox[T] = T * $a int\nB = Box[Pair] * $z bool\n"),
+    "a positional member": "Pos = int * $a int\n",
+    "recursion through a tag": "Chain = $head int * $tail Chain\n",
+    "recursion through two tags": "A = $a B\nB = $b A\n",
+    "recursion behind a tag's body": "A = $p (A * $x int)\n",
+    "a recursive generic": "Tree[T] = $leaf T * $kids list[Tree[T]]\nA = Tree[int] * $s str\n",
+    "a generic that only grows": "W[T] = W[list[T]]\nA = W[int] * $s str\n",
+    "a product inside a sum": "S = ($x int * $y str) | nil\n",
+    "a product inside a tuple": "Box = $p ($x int, $y str)\n",
     "two instantiations, both fine": (
-        "Base := $a int\nPair := Base * $b str\nBox[T] := T * $x int\n"
-        "A := $p Box[int] * $q Box[Pair]\n"),
+        "Base = $a int\nPair = Base * $b str\nBox[T] = T * $x int\n"
+        "A = $p Box[int] * $q Box[Pair]\n"),
     "one body, one instantiation clean": (
-        "Pair := $z int\nBox[T] := $p (T * $y int)\n"
-        "A := $q Box[int] * $r Box[Pair]\n"),
+        "Pair = $z int\nBox[T] = $p (T * $y int)\n"
+        "A = $q Box[int] * $r Box[Pair]\n"),
     "nested generics": (
-        "Inner[T] := $i T\nOuter[T] := $o (Inner[list[T]])\nA := Outer[int] * $y int\n"),
-    "a source written with CRLF": "Box := int\r\nBox2 := str\r\n",
+        "Inner[T] = $i T\nOuter[T] = $o (Inner[list[T]])\nA = Outer[int] * $y int\n"),
+    "a source written with CRLF": "Box = int\r\nBox2 = str\r\n",
 }
 
 MALFORMED = {
-    "the same tag twice, written": ("Box := $x int * $x str\n", "does not compile"),
-    "the same tag twice, inlined": ("A := $x int\nB := A * $x str\n", "written twice"),
-    "one base inlined twice": ("A := $x int * $y int\nB := A * A\n", "written twice"),
-    "through an alias": ("A := $x int\nAlias := A\nB := Alias * $x str\n", "written twice"),
-    "through a generic": ("Box[T] := $x T\nB := Box[int] * $x str\n", "written twice"),
-    "inside a tagged body": ("Box := $p ($x int * $x str)\n", "written twice"),
-    "inside a container": ("Box := $p list[$x int * $x str]\n", "written twice"),
-    "inside a tuple": ("Box := $p ($x int * $x str, int)\n", "written twice"),
-    "inside a sum branch": ("Box := $p (($x int * $x str) | nil)\n", "written twice"),
+    "the same tag twice, written": ("Box = $x int * $x str\n", "does not compile"),
+    "the same tag twice, inlined": ("A = $x int\nB = A * $x str\n", "written twice"),
+    "one base inlined twice": ("A = $x int * $y int\nB = A * A\n", "written twice"),
+    "through an alias": ("A = $x int\nAlias = A\nB = Alias * $x str\n", "written twice"),
+    "through a generic": ("Box[T] = $x T\nB = Box[int] * $x str\n", "written twice"),
+    "inside a tagged body": ("Box = $p ($x int * $x str)\n", "written twice"),
+    "inside a container": ("Box = $p list[$x int * $x str]\n", "written twice"),
+    "inside a tuple": ("Box = $p ($x int * $x str, int)\n", "written twice"),
+    "inside a sum branch": ("Box = $p (($x int * $x str) | nil)\n", "written twice"),
     "one instantiation is bad": (
-        "Base := $a int\nPair := Base * $a str\nBox[T] := T * $x int\n"
-        "A := $p Box[int] * $q Box[Pair]\n", "written twice"),
+        "Base = $a int\nPair = Base * $a str\nBox[T] = T * $x int\n"
+        "A = $p Box[int] * $q Box[Pair]\n", "written twice"),
     "the same application twice": (
-        "Box[T] := $x T\nA := Box[int] * Box[str] * $z bool\n", "written twice"),
+        "Box[T] = $x T\nA = Box[int] * Box[str] * $z bool\n", "written twice"),
     "one instantiation of a body": (
-        "Pair := $y int\nBox[T] := $p (T * $y int)\nA := $q Box[Pair]\n", "written twice"),
+        "Pair = $y int\nBox[T] = $p (T * $y int)\nA = $q Box[Pair]\n", "written twice"),
     "the good instantiation first": (
-        "Pair := $y int\nBox[T] := $p (T * $y int)\n"
-        "A := $q Box[int] * $r Box[Pair]\n", "written twice"),
+        "Pair = $y int\nBox[T] = $p (T * $y int)\n"
+        "A = $q Box[int] * $r Box[Pair]\n", "written twice"),
     "the bad instantiation first": (
-        "Pair := $y int\nBox[T] := $p (T * $y int)\n"
-        "A := $q Box[Pair] * $r Box[int]\n", "written twice"),
+        "Pair = $y int\nBox[T] = $p (T * $y int)\n"
+        "A = $q Box[Pair] * $r Box[int]\n", "written twice"),
     "an instantiation behind a name": (
-        "Pair := $y int\nBox[T] := $p (T * $y int)\nAlias := Box[Pair]\n"
-        "A := $q Alias\n", "written twice"),
-    "an inline cycle": ("A := A * $x int\n", "comes back to 'A'"),
-    "an inline cycle through an alias": ("A := B * $x int\nB := A\n", "comes back to 'B'"),
-    "an inline cycle of two": ("A := B * $x int\nB := A * $y int\n", "comes back to 'B'"),
+        "Pair = $y int\nBox[T] = $p (T * $y int)\nAlias = Box[Pair]\n"
+        "A = $q Alias\n", "written twice"),
+    "an inline cycle": ("A = A * $x int\n", "comes back to 'A'"),
+    "an inline cycle through an alias": ("A = B * $x int\nB = A\n", "comes back to 'B'"),
+    "an inline cycle of two": ("A = B * $x int\nB = A * $y int\n", "comes back to 'B'"),
     "an inline ring of three": (
-        "A := B * $x int\nB := C * $y float\nC := A * $z bool\n", "comes back to 'B'"),
+        "A = B * $x int\nB = C * $y float\nC = A * $z bool\n", "comes back to 'B'"),
     "a generic that inlines itself": (
-        "Gen[T] := Gen[T] * $g int\nA := Gen[int] * $x int\n", "comes back to 'Gen'"),
+        "Gen[T] = Gen[T] * $g int\nA = Gen[int] * $x int\n", "comes back to 'Gen'"),
 }
 
 
 # 连词法都过不去的源：先报编译不了，轮不到 tag 与内联
 LEXICAL = {
-    "an illegal character": "Box := A @ B\n",
-    "a minus sign": "Box := -1\n",
-    "an unterminated code block": "Box := {never closed\n",
-    "a builtin container as a definition": "list := int\n",
-    "a builtin literal as a parameter": "W[ListLiteral] := int\n",
-    "a byte-order mark": "\ufeffBox := int\n",
+    "an illegal character": "Box = A @ B\n",
+    "a minus sign": "Box = -1\n",
+    "an unterminated code block": "Box = {never closed\n",
+    "a builtin container as a definition": "list = int\n",
+    "a builtin literal as a parameter": "W[ListLiteral] = int\n",
+    "a byte-order mark": "\ufeffBox = int\n",
 }
 
 
@@ -165,22 +165,22 @@ def pool_design(files):
 
 
 # 跨模块：名字按它自己那个模块的 import 表解析，摊进来的 tag 与环也跨文件
-BASE = ("base.viba", "base", "A := $x int * $y str\nU := Object\n")
+BASE = ("base.viba", "base", "A = $x int * $y str\nU = Object\n")
 CROSS = {
     "a product from another module is inlined": (
-        [BASE, ("main.viba", "main", "import base\nB := base.A * $z bool\n")], "Ok"),
+        [BASE, ("main.viba", "main", "import base\nB = base.A * $z bool\n")], "Ok"),
     "an import of an import is inlined": (
-        [BASE, ("mid.viba", "mid", "import base as b\nM := b.A\n"),
-         ("main.viba", "main", "import mid as m\nB := m.M * $z bool\n")], "Ok"),
+        [BASE, ("mid.viba", "mid", "import base as b\nM = b.A\n"),
+         ("main.viba", "main", "import mid as m\nB = m.M * $z bool\n")], "Ok"),
     "a tag repeated across modules": (
-        [BASE, ("main.viba", "main", "import base\nDup := base.A * $x int\n")],
+        [BASE, ("main.viba", "main", "import base\nDup = base.A * $x int\n")],
         "written twice"),
     "an inline ring across two files": (
-        [("other.viba", "other", "import ring\nCyc := ring.Ring * $c int\n"),
-         ("ring.viba", "ring", "import other\nRing := other.Cyc * $r int\n")],
+        [("other.viba", "other", "import ring\nCyc = ring.Ring * $c int\n"),
+         ("ring.viba", "ring", "import other\nRing = other.Cyc * $r int\n")],
         "comes back to"),
     "a unit from another module": (
-        [BASE, ("main.viba", "main", "import base\nUBox := base.U * $w int\n")], "Ok"),
+        [BASE, ("main.viba", "main", "import base\nUBox = base.U * $w int\n")], "Ok"),
 }
 
 
@@ -192,9 +192,9 @@ def run_cross_module_cases():
 def run_config_case():
     """换个词汇问同一件事：单位元是调用方点的名，写对的仍然 Ok，写错的仍然 Err——
     单位没有 tag，也不参与内联，所以 tag 的答案不由它决定。"""
-    source = ("Base := $x Box[int]\n"
-              "Bad := Unit * Base * $x Box[str]\n"
-              "Fine := Unit * $x Box[int] * $y Box[str]\n")
+    source = ("Base = $x Box[int]\n"
+              "Bad = Unit * Base * $x Box[str]\n"
+              "Fine = Unit * $x Box[int] * $y Box[str]\n")
     pool = empty_pool()
     parsed = parse_viba_file(pool, source, "units.viba", "units")
     built = pool_add_file(pool, parsed.ok_value).ok_value
@@ -204,7 +204,7 @@ def run_config_case():
     check("the same, asked with the caller's own units",
           check_tag_and_inline(built, unit_config), "written twice")
 
-    clean = "Fine := Unit * $x Box[int] * $y Box[str]\n"
+    clean = "Fine = Unit * $x Box[int] * $y Box[str]\n"
     pool = empty_pool()
     parsed = parse_viba_file(pool, clean, "fine.viba", "fine")
     built = pool_add_file(pool, parsed.ok_value).ok_value

@@ -121,7 +121,7 @@ def check_case(case_dir: Path):
     assert isinstance(pool_find_member(pool, "no.such.Definition.$x"), Err)
     assert isinstance(file_find_import_by_local_name(pool.file_name2file[first["file"]], "nope"), Err)
     assert isinstance(pool_add_file(pool, pool.files[0]), Err)  # 同一个文件加两次
-    elsewhere = parse_viba_file(empty_pool(), "X := int\n", "elsewhere.viba", "elsewhere")
+    elsewhere = parse_viba_file(empty_pool(), "X = int\n", "elsewhere.viba", "elsewhere")
     assert isinstance(pool_add_file(pool, elsewhere.ok_value), Err)  # 别的池子建出来的
 
     return len(expected["modules"]), checked_members
@@ -133,7 +133,7 @@ def run():
 
     # 文件名与模块名各由调用方给，两者不必同名
     pool = empty_pool()
-    named = parse_viba_file(pool, "A := int\n", "deep/dir/x.viba", "some.module")
+    named = parse_viba_file(pool, "A = int\n", "deep/dir/x.viba", "some.module")
     assert isinstance(named, Ok)
     assert named.ok_value.file_name == "deep/dir/x.viba"
     assert named.ok_value.module_name == "some.module"

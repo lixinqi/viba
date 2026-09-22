@@ -1,12 +1,12 @@
 import util as m
 
-Plan0 :=
+Plan0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Shape1 := $left int | $right str
+Shape1 = $left int | $right str
 
-Rule2 :=
+Rule2 =
   Object
   * $peer m.Plan1

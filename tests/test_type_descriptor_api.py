@@ -168,7 +168,7 @@ def _check_errors():
     assert isinstance(parsed, Ok)
     assert isinstance(pool_add_file(dup_pool, parsed.ok_value), Err)      # 全名撞车
     assert isinstance(pool_add_file(dup_pool, dup_pool.files[0]), Err)  # 文件重名
-    elsewhere = parse_viba_file(empty_pool(), "Z := int\n", "elsewhere.viba", "elsewhere")
+    elsewhere = parse_viba_file(empty_pool(), "Z = int\n", "elsewhere.viba", "elsewhere")
     assert isinstance(pool_add_file(dup_pool, elsewhere.ok_value), Err)   # 别的池子建出来的
 
     orphan_pool = load("errors", [("orphan.viba", "err.orphan")])
@@ -179,73 +179,73 @@ def _check_errors():
     assert isinstance(pool_find_member(orphan_pool, "err.orphan.Orphan.$nope"), Err)
 
     # 内建容器是形状，不是名字：等号左边出现就编不出来
-    for bad in ("ListLiteral := int\n",
-                "SetLiteral[T] := T\n",
-                "DictLiteral[K] := K\n",
-                "list := int\n",
-                "set[T] := T\n",
-                "dict[K, V] := K\n",
-                "X[ListLiteral] := int\n",
-                "X[K, SetLiteral] := K\n",
-                "X[DictLiteral, K] := K\n",
-                "X[list] := int\n",
-                "X[K, set] := K\n",
-                "X[dict, K] := K\n"):
+    for bad in ("ListLiteral = int\n",
+                "SetLiteral[T] = T\n",
+                "DictLiteral[K] = K\n",
+                "list = int\n",
+                "set[T] = T\n",
+                "dict[K, V] = K\n",
+                "X[ListLiteral] = int\n",
+                "X[K, SetLiteral] = K\n",
+                "X[DictLiteral, K] = K\n",
+                "X[list] = int\n",
+                "X[K, set] = K\n",
+                "X[dict, K] = K\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "literal.viba", "literal"), Err), bad
     # 差一点的名字照旧能编：只认完全同名的六个
-    for good in ("List := int\n",
-                 "lists[T] := T\n",
-                 "list2 := int\n",
-                 "ListLiteral2 := int\n",
-                 "mylist := int\n",
-                 "Set := int\n",
-                 "dicts[T] := T\n",
-                 "X[List] := int\n",
-                 "X[list2] := int\n",
-                 "X[list_literal] := int\n",
-                 "X[SetLiteral2] := int\n"):
+    for good in ("List = int\n",
+                 "lists[T] = T\n",
+                 "list2 = int\n",
+                 "ListLiteral2 = int\n",
+                 "mylist = int\n",
+                 "Set = int\n",
+                 "dicts[T] = T\n",
+                 "X[List] = int\n",
+                 "X[list2] = int\n",
+                 "X[list_literal] = int\n",
+                 "X[SetLiteral2] = int\n"):
         assert isinstance(parse_viba_file(empty_pool(), good, "near.viba", "near"), Ok), good
     # 出现在后面的定义里、或者第三个形参上，一样拦住
-    for bad in ("A := int\nlist := int\n",
-                "A := int\nX[B, C, set] := B\n",
-                "X[dict] := int\n"):
+    for bad in ("A = int\nlist = int\n",
+                "A = int\nX[B, C, set] = B\n",
+                "X[dict] = int\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "later.viba", "later"), Err), bad
     # 只在类型表达式里用的写法不受影响
-    for good in ("Y := ListLiteral[1]\n",
-                 "Y := set[dict[str, int]]\n",
-                 "Y := $items list[int] * $more set[str]\n",
-                 "Y := list\n",
-                 "Y := list[]\n",
-                 "import list\nY := int\n",          # 模块名可以叫 list
-                 "X := Object * $list list[int]\n"):  # tag 可以叫 $list
+    for good in ("Y = ListLiteral[1]\n",
+                 "Y = set[dict[str, int]]\n",
+                 "Y = $items list[int] * $more set[str]\n",
+                 "Y = list\n",
+                 "Y = list[]\n",
+                 "import list\nY = int\n",          # 模块名可以叫 list
+                 "X = Object * $list list[int]\n"):  # tag 可以叫 $list
         assert isinstance(parse_viba_file(empty_pool(), good, "uses.viba", "uses"), Ok), good
     # 空白的写法不影响判定
-    for bad in ("list [ T ] := T\n",
-                "list\n:= int\n",
-                "list := int  # note\n",
-                "X[ list ] := int\n"):
+    for bad in ("list [ T ] = T\n",
+                "list\n= int\n",
+                "list = int  # note\n",
+                "X[ list ] = int\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "space.viba", "space"), Err), bad
     # import 一个叫 list 的模块不会把内建容器顶掉
-    shadow = custom_module("import list\nZ := int\n")
+    shadow = custom_module("import list\nZ = int\n")
     assert isinstance(module_get_type(shadow, "list"), Ok), "list still resolves"
     # `<<` 给的不是函数：设计写错，编的时候就给 Err（不是留到判定）
-    for bad in ("P := (int * str) << $b str\n",
-                "S := (int | str) << $b str\n",
-                "L := 7 << $b str\n",
-                "N := int << $b str\n",
-                "M := (int <- $b str) << $c str\n"):
+    for bad in ("P = (int * str) << $b str\n",
+                "S = (int | str) << $b str\n",
+                "L = 7 << $b str\n",
+                "N = int << $b str\n",
+                "M = (int <- $b str) << $c str\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "partial.viba", "partial"), Err), bad
     # 给的那个参数得能坐进那一格：C <: B 才算合法
     assert isinstance(parse_viba_file(empty_pool(),
-                                      "W := (int <- $b (int | str)) << $b int\n",
+                                      "W = (int <- $b (int | str)) << $b int\n",
                                       "fit.viba", "fit"), Ok)
-    for bad in ("N := (int <- $b int) << $b (int | str)\n",):
+    for bad in ("N = (int <- $b int) << $b (int | str)\n",):
         assert isinstance(parse_viba_file(empty_pool(), bad, "unfit.viba", "unfit"), Err), bad
-    for good in ("G := (int <- $b str) << $b str\n",
-                 "H := (int <- $b str <- $c bool) << $c bool << $b str\n"):
+    for good in ("G = (int <- $b str) << $b str\n",
+                 "H = (int <- $b str <- $c bool) << $c bool << $b str\n"):
         assert isinstance(parse_viba_file(empty_pool(), good, "partial_ok.viba", "partial_ok"), Ok), good
     # 已知的分歧：点分定义名现在能编（builder 那边 `vb.a.b = …` 是拦的）
-    assert isinstance(parse_viba_file(empty_pool(), "a.b := int\n", "dotted.viba", "dotted"), Ok)
+    assert isinstance(parse_viba_file(empty_pool(), "a.b = int\n", "dotted.viba", "dotted"), Ok)
     # 不是模块的东西：问它要名字，说的是"不认识这种模块"，不是崩
     for not_a_module in ("not a module", None, 7):
         assert isinstance(module_get_type(not_a_module, "X"), Err), not_a_module

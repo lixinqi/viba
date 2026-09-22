@@ -1,10 +1,10 @@
 import top as m
 
-Node0 := $only int
+Node0 = $only int
 
-Shape1 := int * str * bool
+Shape1 = int * str * bool
 
-Plan2 :=
+Plan2 =
   Object
   * $items list[int]
   * $seen set[str]

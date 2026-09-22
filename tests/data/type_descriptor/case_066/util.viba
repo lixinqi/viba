@@ -1,11 +1,11 @@
-Shape0 := int * str
+Shape0 = int * str
 
-Shape1 :=
+Shape1 =
   Object
   * $count int
   * $label str
 
-Node2 :=
+Node2 =
   Object
   * $items list[int]
   * $seen set[str]

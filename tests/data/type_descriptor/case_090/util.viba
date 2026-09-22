@@ -1,20 +1,20 @@
 import top as m
 
-Rule0 :=
+Rule0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1 :=
+Shape1 =
   Object
   * $count int
   * $label str
 
-Report2 :=
+Report2 =
   Object
   * $peer m.Shape2
 
-Shape3[T] :=
+Shape3[T] =
   $v T

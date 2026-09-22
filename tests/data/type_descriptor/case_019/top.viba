@@ -1,1 +1,1 @@
-Shape0 := str * (int | nil)
+Shape0 = str * (int | nil)

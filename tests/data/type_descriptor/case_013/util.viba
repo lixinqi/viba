@@ -1,14 +1,14 @@
-Report0 :=
+Report0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1 :=
+Shape1 =
   Object
   * $count int
   * $label str
 
-Config2[T] :=
+Config2[T] =
   $v T

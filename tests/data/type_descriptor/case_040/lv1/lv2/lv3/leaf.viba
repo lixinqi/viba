@@ -1,15 +1,15 @@
 import util
 
-Plan0 :=
+Plan0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Node1[T] :=
+Node1[T] =
   $v T
 
-Config2 :=
+Config2 =
   Object
   * $peer util.Shape2

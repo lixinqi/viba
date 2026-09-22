@@ -35,8 +35,8 @@ The operators are the language's operators:
     vb.never     never
     ...          the ellipsis
     vb.Name      a written name, and the slot a definition lands in
-    vb.Name[T] = body           Name[T] := body
-    vb.Name = body              Name := body
+    vb.Name[T] = body           Name[T] = body
+    vb.Name = body              Name = body
     vb.Name[arg0, arg1]         Name[arg0, arg1], an application
     vb.Name[()]                 Name[], an application of nothing
     vb.a.b.Name                 a dotted name, e.g. an import's module
@@ -69,9 +69,10 @@ right away: `A ** tag.count(vb.T)` is `A <- $count T`, `A ** tag(B ** tag.p(C))`
 is `A <- (B <- $p C)`, and `A ** vb.T` is a TypeError — `**` is not a power
 here.
 
-Python has no `:=` for a subscript target, so a definition is always `=`:
-`vb.Name = body` and `vb.Name[Params] = body` are `Name := body` and
-`Name[Params] := body`.
+A definition is written `vb.Name = body` or `vb.Name[Params] = body`, and comes
+out as `Name = body` or `Name[Params] = body` — the same `=` in both places
+(Python has no `:=` for a subscript target, so there is no second spelling to
+remember).
 
 Associativity: the language's `|` and `*` are left-associative and Python's are
 too, so `A | B | C` grows the one chain and `A | (B | C)` keeps a branch — the
@@ -330,7 +331,7 @@ class _Name(_Expr):
         return _TypeApp(self.path, _items(key))
 
     def __setitem__(self, key, body) -> None:
-        """`vb.Name[T] = body` writes `Name[T] := body`."""
+        """`vb.Name[T] = body` writes `Name[T] = body`."""
         if self.owner is None:
             raise TypeError(f"{self.path!r} is a name, not a definition slot")
         params = [_param(p) for p in _items(key)]
@@ -572,7 +573,7 @@ class Builder:
         return _Branch(expr)
 
     def __setattr__(self, name: str, value) -> None:
-        """`vb.Name = body` writes `Name := body`."""
+        """`vb.Name = body` writes `Name = body`."""
         if name.startswith("_"):
             object.__setattr__(self, name, value)
             return

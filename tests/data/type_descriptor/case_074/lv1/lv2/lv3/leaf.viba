@@ -1,14 +1,14 @@
 import top as lib
 
-Rule0 :=
+Rule0 =
   Object
   * $peer lib.Node1
 
-Shape1 :=
+Shape1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Node2 := $only int
+Node2 = $only int

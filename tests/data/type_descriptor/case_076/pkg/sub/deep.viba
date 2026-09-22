@@ -1,7 +1,7 @@
 import util
 
-Shape0 :=
+Shape0 =
   Object
   * $peer util.Config1
 
-Plan1 := $left int | $right str
+Plan1 = $left int | $right str

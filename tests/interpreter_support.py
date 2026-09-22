@@ -158,21 +158,21 @@ class Host:
 
 # 三份常写的片段：一个只答 7 的函数、一个答文本的、一个两数相加的。
 LEAF = """
-leaf :=
+leaf =
 	int
 	<- $env Environment
 	<- { answer seven }
 """
 
 TEXT = """
-text :=
+text =
 	str
 	<- $env Environment
 	<- { answer some text }
 """
 
 ADD = """
-add :=
+add =
 	int
 	<- $env Environment
 	<- $a int

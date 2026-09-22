@@ -1,1 +1,1 @@
-Config0 := $only int
+Config0 = $only int

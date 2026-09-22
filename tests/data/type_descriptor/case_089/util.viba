@@ -1,4 +1,4 @@
-Config0 :=
+Config0 =
   Object
   * $count int
   * $label str

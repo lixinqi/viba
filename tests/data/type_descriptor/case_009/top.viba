@@ -1,11 +1,11 @@
 import top as up
 
-Shape0 := int * str * bool
+Shape0 = int * str * bool
 
-Config1[T] :=
+Config1[T] =
   $v T
 
-Report2 :=
+Report2 =
   Object
   * $items list[int]
   * $seen set[str]

@@ -1,18 +1,18 @@
 import top
 
-Node0[T] :=
+Node0[T] =
   $v T
 
-Shape1 :=
+Shape1 =
   Object
   * $peer top.Shape0
 
-Config2 :=
+Config2 =
   Object
   * $count int
   * $label str
 
-Report3 :=
+Report3 =
   Object
   * $items list[int]
   * $seen set[str]

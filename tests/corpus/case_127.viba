@@ -3,7 +3,7 @@
 
 import typing as typing
 
-Config1[U] :=
+Config1[U] =
     (
         (
             (
@@ -68,7 +68,7 @@ Config1[U] :=
             )
     )
 
-Config2[K, S] :=
+Config2[K, S] =
     (
         Sigma
             * fx.Graph
@@ -83,7 +83,7 @@ Config2[K, S] :=
         | 6.338
         | 498
 
-Rule3 :=
+Rule3 =
     (
         1.9
             | '''line one
@@ -111,7 +111,7 @@ c'''
             )
         )
 
-Guarded4 :=
+Guarded4 =
     $lines int
     * Assert[{lines <= 233}]
     * Input

@@ -53,7 +53,7 @@ def _round_trip(label, definition, access, node, design_source, design_name,
     if not isinstance(written, Ok):
         return
     source = written.ok_value
-    check(source.startswith("entry :="), f"{label}: the definition is named entry")
+    check(source.startswith("entry ="), f"{label}: the definition is named entry")
     check(source.endswith("\n"), f"{label}: one trailing newline")
 
     body = _entry_body(source)
@@ -110,7 +110,7 @@ def _design(pool_source: str, name: str):
     return pool, _definition_of(pool, f"design.{name}")
 
 
-DEMO_DESIGN = """Report :=
+DEMO_DESIGN = """Report =
   Object
   * $len int
   * $coverage (Object * $documented_lines int * $total_lines int)
@@ -118,7 +118,7 @@ DEMO_DESIGN = """Report :=
 """
 
 
-NODE1_DESIGN = """Node1 :=
+NODE1_DESIGN = """Node1 =
   Object
   * $items list[int]
   * $seen set[str]
@@ -170,7 +170,7 @@ def run_fixture_cases():
 
 
 def run_empty_container_cases():
-    source = """Box := Object * $xs list[int] * $ys set[str] * $zs dict[str, int]
+    source = """Box = Object * $xs list[int] * $ys set[str] * $zs dict[str, int]
 """
     pool, definition = _design(source, "Box")
     body = viba_ast.ProductChain([
@@ -191,7 +191,7 @@ def run_empty_container_cases():
 
 
 def run_nil_slot_cases():
-    source = """Maybe := Object * $a int * $b (int | nil)
+    source = """Maybe = Object * $a int * $b (int | nil)
 """
     pool, definition = _design(source, "Maybe")
     from viba.reflect import access
@@ -208,7 +208,7 @@ def run_nil_slot_cases():
 
 
 def run_set_order_cases():
-    source = """Box := Object * $seen set[str]
+    source = """Box = Object * $seen set[str]
 """
     pool, definition = _design(source, "Box")
     from viba.reflect import access
@@ -228,8 +228,8 @@ def run_set_order_cases():
 
 def run_exponent_cases():
     """指数字段：按设计写 never <- $not_operand (...)，值从材料里拿。"""
-    source = """Guard := Object * $no (never <- $not_operand Bad)
-Bad := $kill int | $steal int
+    source = """Guard = Object * $no (never <- $not_operand Bad)
+Bad = $kill int | $steal int
 """
     pool, definition = _design(source, "Guard")
     from viba.reflect import access
@@ -256,7 +256,7 @@ Bad := $kill int | $steal int
 
 def run_code_block_cases():
     """代码块没有格子取材料自己的文本，按约定写 nil。"""
-    source = """Guard := Object * $code {return 1}
+    source = """Guard = Object * $code {return 1}
 """
     pool, definition = _design(source, "Guard")
     from viba.reflect import access
@@ -318,66 +318,66 @@ def run_shape_corner_cases():
     for _ in range(6):
         depth_type, depth_body = (f"list[{depth_type}]",
                                   viba_ast.TypeApp("ListLiteral", [depth_body]))
-    _corner("depth 6", f"Box := Object * $a {depth_type}\n", "Box",
+    _corner("depth 6", f"Box = Object * $a {depth_type}\n", "Box",
             _product(_tagged("$a", depth_body)), expect="ListLiteral[ListLiteral[")
 
-    wide_source = ("Box := Object * "
+    wide_source = ("Box = Object * "
                    + " * ".join(f"$f{i} int" for i in range(20)) + "\n")
     _corner("width 20", wide_source, "Box",
             _product(*[_tagged(f"$f{i}", viba_ast.Constant(i)) for i in range(20)]),
             expect="* $f19 19")
 
     _corner("list of products",
-            "Box := Object * $a list[Inner]\nInner := Object * $x int\n", "Box",
+            "Box = Object * $a list[Inner]\nInner = Object * $x int\n", "Box",
             _product(_tagged("$a", viba_ast.TypeApp("ListLiteral", [
                 _product(_tagged("$x", viba_ast.Constant(1))),
                 _product(_tagged("$x", viba_ast.Constant(2)))]))),
             expect="ListLiteral[Object")
     _corner("nested product",
-            "Outer := Object * $inner Inner\nInner := Object * $a int\n", "Outer",
+            "Outer = Object * $inner Inner\nInner = Object * $a int\n", "Outer",
             _product(_tagged("$inner", _product(_tagged("$a", viba_ast.Constant(1))))),
             expect="* $inner(Object")
     _corner("product member beside a unit",
-            "Box := Object * $u Object * $a int\n", "Box",
+            "Box = Object * $u Object * $a int\n", "Box",
             _product(_tagged("$u", viba_ast.Nil()), _tagged("$a", viba_ast.Constant(1))),
             expect="* $u nil")
 
-    _corner("tuple of none", "T := Object * $t ()\n", "T",
+    _corner("tuple of none", "T = Object * $t ()\n", "T",
             _product(_tagged("$t", viba_ast.Tuple([]))), expect="* $t ()")
-    _corner("tuple of one", "T := Object * $t (int,)\n", "T",
+    _corner("tuple of one", "T = Object * $t (int,)\n", "T",
             _product(_tagged("$t", viba_ast.Tuple([viba_ast.Constant(1)]))),
             expect="* $t (1,)")
-    _corner("tuple nested", "T := Object * $t (int, (str, int))\n", "T",
+    _corner("tuple nested", "T = Object * $t (int, (str, int))\n", "T",
             _product(_tagged("$t", viba_ast.Tuple([
                 viba_ast.Constant(1),
                 viba_ast.Tuple([viba_ast.Constant("x"), viba_ast.Constant(3)])]))),
             expect='* $t (1, ("x", 3))')
 
-    _corner("aliases to the end", "A := B\nB := int\nBox := Object * $a A\n", "Box",
+    _corner("aliases to the end", "A = B\nB = int\nBox = Object * $a A\n", "Box",
             _product(_tagged("$a", viba_ast.Constant(7))), expect="* $a 7")
     _corner("generic pair",
-            "Pair[K, V] := Object * $fst K * $snd V\nBox := Object * $p Pair[int, str]\n",
+            "Pair[K, V] = Object * $fst K * $snd V\nBox = Object * $p Pair[int, str]\n",
             "Box",
             _product(_tagged("$p", _product(_tagged("$fst", viba_ast.Constant(1)),
                                             _tagged("$snd", viba_ast.Constant("x"))))),
             expect="* $fst 1")
     _corner("positional members beside tagged ones",
-            "Box := Object * int * $a int * str\n", "Box",
+            "Box = Object * int * $a int * str\n", "Box",
             viba_ast.ProductChain([viba_ast.TypeRef("Object"), viba_ast.Constant(1),
                                    _tagged("$a", viba_ast.Constant(2)),
                                    viba_ast.Constant("three")]),
             expect='* 1\n  * $a 2\n  * "three"')
 
-    _corner("zero-member product", "Only := Object\n", "Only", viba_ast.Nil(),
-            expect="entry :=\n  nil\n")
-    _corner("the head the material left out", "Box := Object * $a int\n", "Box",
+    _corner("zero-member product", "Only = Object\n", "Only", viba_ast.Nil(),
+            expect="entry =\n  nil\n")
+    _corner("the head the material left out", "Box = Object * $a int\n", "Box",
             viba_ast.ProductChain([_tagged("$a", viba_ast.Constant(1))]),
-            expect="entry :=\n  Object\n  * $a 1\n")
-    _corner("a member the design has no address for", "Box := Object * $a int\n", "Box",
+            expect="entry =\n  Object\n  * $a 1\n")
+    _corner("a member the design has no address for", "Box = Object * $a int\n", "Box",
             _product(_tagged("$a", viba_ast.Constant(1)),
                      _tagged("$b", viba_ast.Constant(2))),
             expect="* $a 1\n")
-    _corner("recursive product", "Loop := Object * $next (Loop | nil)\n", "Loop",
+    _corner("recursive product", "Loop = Object * $next (Loop | nil)\n", "Loop",
             _product(_tagged("$next", viba_ast.SumChain([
                 _product(_tagged("$next", viba_ast.Nil()))]))),
             expect="* $next(Object")
@@ -385,60 +385,60 @@ def run_shape_corner_cases():
 
 def run_sum_corner_cases():
     """和式的边角：挑中的那一支、带标签的支、名字里的和、nil 支。"""
-    _corner("sum: the int branch", "S := int | $a str\nBox := Object * $s S\n", "Box",
+    _corner("sum: the int branch", "S = int | $a str\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.SumChain([viba_ast.Constant(3)]))),
             expect="* $s 3", strict=False)
-    _corner("sum: the tagged branch", "S := int | $a str\nBox := Object * $s S\n", "Box",
+    _corner("sum: the tagged branch", "S = int | $a str\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.SumChain([
                 _tagged("$a", viba_ast.Constant("x"))]))),
             expect='* $s($a "x")')
     _corner("sum: reached through a name",
-            "X := int | str\nS := X | $a bool\nBox := Object * $s S\n", "Box",
+            "X = int | str\nS = X | $a bool\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.Constant("deep"))),
             expect='* $s "deep"')
-    _corner("sum: the nil branch", "S := nil | int\nBox := Object * $s S\n", "Box",
+    _corner("sum: the nil branch", "S = nil | int\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.Nil())), expect="* $s nil")
-    _corner("sum: nil written last", "S := int | nil\nBox := Object * $s S\n", "Box",
+    _corner("sum: nil written last", "S = int | nil\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.Nil())), expect="* $s nil")
 
 
 def run_leaf_corner_cases():
     """叶子的边角：转义、unicode、真假、小数、大整数、集合与字典的顺序。"""
-    _corner("leaf: unicode string", "Box := Object * $s str\n", "Box",
+    _corner("leaf: unicode string", "Box = Object * $s str\n", "Box",
             _product(_tagged("$s", viba_ast.Constant("中文🙂"))), expect='"中文🙂"')
-    _corner("leaf: a string with a double quote", "Box := Object * $s str\n", "Box",
+    _corner("leaf: a string with a double quote", "Box = Object * $s str\n", "Box",
             _product(_tagged("$s", viba_ast.Constant('say "hi" now'))),
             expect="'say \"hi\" now'")
     _corner("leaf: a string with a newline and both quotes",
-            "Box := Object * $s str\n", "Box",
+            "Box = Object * $s str\n", "Box",
             _product(_tagged("$s", viba_ast.Constant("a'b\"c\nd"))),
             expect="'''a'b\"c\nd'''")
-    _corner("leaf: a string ending in a backslash", "Box := Object * $s str\n", "Box",
+    _corner("leaf: a string ending in a backslash", "Box = Object * $s str\n", "Box",
             _product(_tagged("$s", viba_ast.Constant("trail\\"))),
             expect="'''trail\\'''")
-    _corner("leaf: false", "Box := Object * $b bool\n", "Box",
+    _corner("leaf: false", "Box = Object * $b bool\n", "Box",
             _product(_tagged("$b", viba_ast.Constant(False))), expect="* $b false")
-    _corner("leaf: a plain float", "Box := Object * $f float\n", "Box",
+    _corner("leaf: a plain float", "Box = Object * $f float\n", "Box",
             _product(_tagged("$f", viba_ast.Constant(0.5))), expect="* $f 0.5")
-    _corner("leaf: a big int", "Box := Object * $n int\n", "Box",
+    _corner("leaf: a big int", "Box = Object * $n int\n", "Box",
             _product(_tagged("$n", viba_ast.Constant(10 ** 30))),
             expect=f"* $n {10 ** 30}")
 
     _corner("set: the material's order, repeats and all",
-            "Box := Object * $seen set[str]\n", "Box",
+            "Box = Object * $seen set[str]\n", "Box",
             _product(_tagged("$seen", viba_ast.TypeApp("SetLiteral", [
                 viba_ast.Constant("b"), viba_ast.Constant("a"),
                 viba_ast.Constant("b")]))),
             expect='SetLiteral["b", "a", "b"]')
     _corner("dict: odd keys, in the material's order",
-            "Box := Object * $d dict[str, int]\n", "Box",
+            "Box = Object * $d dict[str, int]\n", "Box",
             _product(_tagged("$d", viba_ast.TypeApp("DictLiteral", [
                 viba_ast.Tuple([viba_ast.Constant(""), viba_ast.Constant(1)]),
                 viba_ast.Tuple([viba_ast.Constant('q"uote'), viba_ast.Constant(2)]),
                 viba_ast.Tuple([viba_ast.Constant("中文"), viba_ast.Constant(3)])]))),
             expect="""("", 1), ('q"uote', 2), ("中文", 3)""")
     _corner("code block: nil where its text cannot be read",
-            "Box := Object * $g list[{x}]\n", "Box",
+            "Box = Object * $g list[{x}]\n", "Box",
             _product(_tagged("$g", viba_ast.TypeApp("ListLiteral", [
                 viba_ast.CodeBlock("x")]))),
             expect="ListLiteral[nil]")
@@ -447,21 +447,21 @@ def run_leaf_corner_cases():
 def run_exponent_corner_cases():
     """指数链的边角：多个实参、nil 头、非单位头、装在容器里。"""
     _corner("exponent: two arguments",
-            "G := Object * $g (never <- $a int <- $b Bad)\nBad := $k int\n", "G",
+            "G = Object * $g (never <- $a int <- $b Bad)\nBad = $k int\n", "G",
             _product(_tagged("$g", viba_ast.ExponentChain([
                 viba_ast.Never(), _tagged("$a", viba_ast.Constant(1)),
                 _tagged("$b", viba_ast.SumChain([_tagged("$k", viba_ast.Constant(2))]))]))),
             expect="<- $a 1\n    <- $b($k 2)", resident=False)
-    _corner("exponent: nil head", "G := Object * $g (nil <- $a int)\n", "G",
+    _corner("exponent: nil head", "G = Object * $g (nil <- $a int)\n", "G",
             _product(_tagged("$g", viba_ast.ExponentChain([
                 viba_ast.Nil(), _tagged("$a", viba_ast.Constant(1))]))),
             expect="* $g(nil", resident=False)
-    _corner("exponent: a value in the result", "G := Object * $g (int <- $a int)\n", "G",
+    _corner("exponent: a value in the result", "G = Object * $g (int <- $a int)\n", "G",
             _product(_tagged("$g", viba_ast.ExponentChain([
                 viba_ast.Constant(5), _tagged("$a", viba_ast.Constant(1))]))),
             expect="* $g(5", resident=False)
     _corner("exponent: inside a container",
-            "G := Object * $g list[never <- $a int]\n", "G",
+            "G = Object * $g list[never <- $a int]\n", "G",
             _product(_tagged("$g", viba_ast.TypeApp("ListLiteral", [
                 viba_ast.ExponentChain([viba_ast.Never(),
                                         _tagged("$a", viba_ast.Constant(1))])]))),
@@ -470,33 +470,33 @@ def run_exponent_corner_cases():
 
 def run_more_gap_cases():
     """更多写不出来的边角：数字、字符串、never、名字当值。"""
-    _gap("gap: never inside a container", "Box := Object * $a list[never]\n", "Box",
+    _gap("gap: never inside a container", "Box = Object * $a list[never]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral", [viba_ast.Never()]))),
          "nothing resides in never")
-    _gap("gap: a negative int", "Box := Object * $i int\n", "Box",
+    _gap("gap: a negative int", "Box = Object * $i int\n", "Box",
          _product(_tagged("$i", viba_ast.Constant(-1))), "no literal for this number")
-    _gap("gap: a float with an exponent", "Box := Object * $f float\n", "Box",
+    _gap("gap: a float with an exponent", "Box = Object * $f float\n", "Box",
          _product(_tagged("$f", viba_ast.Constant(1e30))), "no literal for this number")
-    _gap("gap: a float that is not a number", "Box := Object * $f float\n", "Box",
+    _gap("gap: a float that is not a number", "Box = Object * $f float\n", "Box",
          _product(_tagged("$f", viba_ast.Constant(float("nan")))),
          "no literal for this number")
-    _gap("gap: a string no literal holds", "Box := Object * $s str\n", "Box",
+    _gap("gap: a string no literal holds", "Box = Object * $s str\n", "Box",
          _product(_tagged("$s", viba_ast.Constant("a'''b\nd"))),
          "no viba string literal holds this text")
-    _gap("gap: a name where a value goes", "Only := Object\n", "Only",
+    _gap("gap: a name where a value goes", "Only = Object\n", "Only",
          viba_ast.TypeRef("Object"), "cannot write this piece out")
 
 
 def run_never_and_key_cases():
     """never 没有居民；键不是 str 的 dict 没有写法。"""
     from viba.reflect import access
-    pool, definition = _design("Guard := Object * $a never\n", "Guard")
+    pool, definition = _design("Guard = Object * $a never\n", "Guard")
     node = access.root(definition, VibaData(viba_ast.ProductChain([
         viba_ast.TypeRef("Object"), viba_ast.Tagged("$a", viba_ast.Never())]))).ok_value
     written = serialize.serialize("entry", node)
     check(isinstance(written, Err), f"never slot: an Err ({written})")
 
-    pool2, definition2 = _design("Guard := Object * $t dict[int, str]\n", "Guard")
+    pool2, definition2 = _design("Guard = Object * $t dict[int, str]\n", "Guard")
     node2 = access.root(definition2, VibaData(viba_ast.ProductChain([
         viba_ast.TypeRef("Object"),
         viba_ast.Tagged("$t", viba_ast.TypeApp("DictLiteral", [
@@ -507,7 +507,7 @@ def run_never_and_key_cases():
 
 def run_gap_cases():
     """写不出来给 Err，不硬写。"""
-    source = """Box := Object * $a int * $b int
+    source = """Box = Object * $a int * $b int
 """
     pool, definition = _design(source, "Box")
     from viba.reflect import access
@@ -519,7 +519,7 @@ def run_gap_cases():
           f"gap: a tagged slot with no value and no nil is an Err ({written})")
 
     # 材料本身是空的：设计里的那个地址上什么都没有，就写成 gap，不硬编
-    pool2, definition2 = _design("not[A] := never <- $not_operand A\n", "not")
+    pool2, definition2 = _design("not[A] = never <- $not_operand A\n", "not")
     node2 = access.root(definition2, VibaData(viba_ast.Never())).ok_value
     written2 = serialize.serialize("entry", node2)
     check(isinstance(written2, Err), f"gap: an exponent is an Err ({written2})")
@@ -535,7 +535,7 @@ _STRINGS = [
     "", "a", "0", " ", "\n", "a\nb", "\r\n", "line\n", "\t", "\\", "a\\b",
     '"', '""', "'", "''", 'a"b', "a'b", 'a"b\'c', "中文", "🙂", "a b",
     "-1", "0.5", "nil", "never", "true", "Object", "$a", "$a.b", "a:b",
-    "(A, B)", "}", "{", "#", "|", "*", "<-", ":=", "a'''b", "'''",
+    "(A, B)", "}", "{", "#", "|", "*", "<-", "=", "a'''b", "'''",
     "ab'\ncd", "ab'\n", "a''\nb", "x" * 200, "中\n文",
 ]
 _INTS = [0, 1, 7, 42, 10 ** 9, 2 ** 63, 10 ** 40, 123456789012345678901234567890]
@@ -551,18 +551,18 @@ _UNSPELLABLE_STRINGS = ["a'''b\nc", "'''\n'''", "a'''b\"c'd"]
 def run_leaf_matrix():
     """叶子逐个过：写得出、读回来一模一样、还是那个类型的居民。"""
     for index, text in enumerate(_STRINGS):
-        _corner(f"leaf str[{index}]", "Box := Object * $s str\n", "Box",
+        _corner(f"leaf str[{index}]", "Box = Object * $s str\n", "Box",
                 _product(_tagged("$s", viba_ast.Constant(text))))
     for value in _INTS:
-        _corner(f"leaf int {value}", "Box := Object * $n int\n", "Box",
+        _corner(f"leaf int {value}", "Box = Object * $n int\n", "Box",
                 _product(_tagged("$n", viba_ast.Constant(value))),
                 expect=f"* $n {value}")
     for value in _FLOATS:
-        _corner(f"leaf float {value}", "Box := Object * $f float\n", "Box",
+        _corner(f"leaf float {value}", "Box = Object * $f float\n", "Box",
                 _product(_tagged("$f", viba_ast.Constant(value))),
                 expect=f"* $f {value}")
     for value in (True, False):
-        _corner(f"leaf bool {value}", "Box := Object * $b bool\n", "Box",
+        _corner(f"leaf bool {value}", "Box = Object * $b bool\n", "Box",
                 _product(_tagged("$b", viba_ast.Constant(value))),
                 expect=f"* $b {str(value).lower()}")
 
@@ -570,11 +570,11 @@ def run_leaf_matrix():
 def run_number_and_string_gaps():
     """写不出来的数字与文本：Err，不是"写成别的"。"""
     for value in _UNSPELLABLE_NUMBERS:
-        _gap(f"gap number {value}", "Box := Object * $f float\n", "Box",
+        _gap(f"gap number {value}", "Box = Object * $f float\n", "Box",
              _product(_tagged("$f", viba_ast.Constant(value))),
              "no literal for this number")
     for index, text in enumerate(_UNSPELLABLE_STRINGS):
-        _gap(f"gap string[{index}]", "Box := Object * $s str\n", "Box",
+        _gap(f"gap string[{index}]", "Box = Object * $s str\n", "Box",
              _product(_tagged("$s", viba_ast.Constant(text))),
              "no viba string literal holds this text")
 
@@ -583,7 +583,7 @@ def run_tag_matrix():
     """标签名：普通、带数字、下划线、点分路径。"""
     for tag in ("$a", "$ab", "$a_b", "$a1", "$a_1_b", "$agent_name2", "$A",
                 "$aB_c1", "$x.y", "$x.y.z", "$meta.id.hash", "$a.b.c.d.e"):
-        _corner(f"tag {tag}", f"Box := Object * {tag} int\n", "Box",
+        _corner(f"tag {tag}", f"Box = Object * {tag} int\n", "Box",
                 _product(_tagged(tag, viba_ast.Constant(1))),
                 expect=f"* {tag} 1")
 
@@ -595,11 +595,11 @@ def run_depth_and_width_ladders():
         for _ in range(depth):
             type_text = f"list[{type_text}]"
             body = viba_ast.TypeApp("ListLiteral", [body])
-        _corner(f"depth {depth}", f"Box := Object * $a {type_text}\n", "Box",
+        _corner(f"depth {depth}", f"Box = Object * $a {type_text}\n", "Box",
                 _product(_tagged("$a", body)),
                 expect="ListLiteral[" * min(depth, 2))
     for width in range(1, 9):
-        source = ("Box := Object * "
+        source = ("Box = Object * "
                   + " * ".join(f"$f{i} int" for i in range(width)) + "\n")
         _corner(f"width {width}", source, "Box",
                 _product(*[_tagged(f"$f{i}", viba_ast.Constant(i))
@@ -614,7 +614,7 @@ def run_absent_member_positions():
         members[position] = members[position].split()[0] + " (int | nil)"
         present = [i for i in range(3) if i != position]
         _corner(f"absent member at {position}",
-                "Box := Object * " + " * ".join(members) + "\n", "Box",
+                "Box = Object * " + " * ".join(members) + "\n", "Box",
                 _product(*[_tagged(f"${'abc'[i]}", viba_ast.Constant(i))
                            for i in present]),
                 expect=f"* ${'abc'[position]} nil")
@@ -623,10 +623,10 @@ def run_absent_member_positions():
 def run_alias_ladders():
     """别名链一路走到头：一层到五层。"""
     for length in range(1, 6):
-        lines = ["A0 := int"]
+        lines = ["A0 = int"]
         for step in range(1, length + 1):
-            lines.append(f"A{step} := A{step - 1}")
-        source = "\n".join(lines) + f"\nBox := Object * $a A{length}\n"
+            lines.append(f"A{step} = A{step - 1}")
+        source = "\n".join(lines) + f"\nBox = Object * $a A{length}\n"
         _corner(f"alias chain {length}", source, "Box",
                 _product(_tagged("$a", viba_ast.Constant(7))), expect="* $a 7")
 
@@ -641,8 +641,8 @@ def run_sum_ladders():
                 ("$f list[int]", _tagged("$f", viba_ast.TypeApp(
                     "ListLiteral", [viba_ast.Constant(1)])))]
     for count in range(2, len(branches) + 1):
-        source = ("S := " + " | ".join(text for text, _ in branches[:count])
-                  + "\nBox := Object * $s S\n")
+        source = ("S = " + " | ".join(text for text, _ in branches[:count])
+                  + "\nBox = Object * $s S\n")
         for chosen in range(count):
             _corner(f"sum {count} branches, branch {chosen}", source, "Box",
                     _product(_tagged("$s", viba_ast.SumChain(
@@ -654,18 +654,18 @@ def run_sum_ladders():
               ("$c bool", _tagged("$c", viba_ast.Constant(True))),
               ("$d float", _tagged("$d", viba_ast.Constant(0.5)))]
     for count in range(1, len(tagged) + 1):
-        source = ("S := " + " | ".join(text for text, _ in tagged[:count])
-                  + "\nBox := Object * $s S\n")
+        source = ("S = " + " | ".join(text for text, _ in tagged[:count])
+                  + "\nBox = Object * $s S\n")
         for chosen in range(count):
             _corner(f"tagged sum {count}, branch {chosen}", source, "Box",
                     _product(_tagged("$s", viba_ast.SumChain(
                         [tagged[chosen][1]]))))
 
 
-_CONTEXT = ("Inner := Object * $x int\n"
-            "A := int\n"
-            "S2 := $k int | $j str\n"
-            "W[V] := Object * $v V\n")
+_CONTEXT = ("Inner = Object * $x int\n"
+            "A = int\n"
+            "S2 = $k int | $j str\n"
+            "W[V] = Object * $v V\n")
 # 里面那一层：单位、字面量、产品、元组、别名、和式、容器、代码块、泛型应用。
 _INNER_SHAPES = [
     ("unit", "Object", viba_ast.Nil()),
@@ -704,31 +704,31 @@ def run_shape_matrix():
     for outer_name, outer_type, outer_body in _OUTER_SHAPES:
         for inner_name, inner_type, inner_body in _INNER_SHAPES:
             _corner(f"{outer_name} of {inner_name}",
-                    _CONTEXT + "Box := Object * " + outer_type(inner_type) + "\n",
+                    _CONTEXT + "Box = Object * " + outer_type(inner_type) + "\n",
                     "Box", _product(outer_body(inner_body)))
 
 
 def run_container_fills():
     """容器填满：12 个元素、40 个键、30 个集合成员，顺序照材料。"""
     twelve = [viba_ast.Constant(i) for i in range(12)]
-    _corner("list of 12", "Box := Object * $a list[int]\n", "Box",
+    _corner("list of 12", "Box = Object * $a list[int]\n", "Box",
             _product(_tagged("$a", viba_ast.TypeApp("ListLiteral", twelve))),
             expect="ListLiteral[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]")
     _corner("set of 12, back to front",
-            "Box := Object * $a set[int]\n", "Box",
+            "Box = Object * $a set[int]\n", "Box",
             _product(_tagged("$a", viba_ast.TypeApp("SetLiteral",
                                                     list(reversed(twelve))))),
             expect="SetLiteral[11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]")
     keys = [f"k{i}" for i in range(40)]
     pairs = [viba_ast.Tuple([viba_ast.Constant(key), viba_ast.Constant(i)])
              for i, key in enumerate(keys)]
-    _corner("dict of 40", "Box := Object * $a dict[str, int]\n", "Box",
+    _corner("dict of 40", "Box = Object * $a dict[str, int]\n", "Box",
             _product(_tagged("$a", viba_ast.TypeApp("DictLiteral", pairs))),
             expect='("k0", 0), ("k1", 1)')
-    _corner("string of 4000", "Box := Object * $a str\n", "Box",
+    _corner("string of 4000", "Box = Object * $a str\n", "Box",
             _product(_tagged("$a", viba_ast.Constant("中" * 2000))))
     _corner("a product of 40 members",
-            "Box := Object * " + " * ".join(f"$f{i} int" for i in range(40)) + "\n",
+            "Box = Object * " + " * ".join(f"$f{i} int" for i in range(40)) + "\n",
             "Box",
             _product(*[_tagged(f"$f{i}", viba_ast.Constant(i))
                        for i in range(40)]),
@@ -737,51 +737,51 @@ def run_container_fills():
 
 def run_never_positions():
     """never 出现在哪里都是 Err：容器里、元组里、别名背后。"""
-    _gap("gap never in list", "Box := Object * $a list[never]\n", "Box",
+    _gap("gap never in list", "Box = Object * $a list[never]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
                                                  [viba_ast.Never()]))),
          "nothing resides in never")
-    _gap("gap never in set", "Box := Object * $a set[never]\n", "Box",
+    _gap("gap never in set", "Box = Object * $a set[never]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("SetLiteral",
                                                  [viba_ast.Never()]))),
          "nothing resides in never")
-    _gap("gap never in a dict value", "Box := Object * $a dict[str, never]\n", "Box",
+    _gap("gap never in a dict value", "Box = Object * $a dict[str, never]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("DictLiteral", [
              viba_ast.Tuple([viba_ast.Constant("k"), viba_ast.Never()])]))),
          "nothing resides in never")
-    _gap("gap never in a tuple", "Box := Object * $a (int, never)\n", "Box",
+    _gap("gap never in a tuple", "Box = Object * $a (int, never)\n", "Box",
          _product(_tagged("$a", viba_ast.Tuple([viba_ast.Constant(1),
                                                 viba_ast.Never()]))),
          "nothing resides in never")
-    _gap("gap never behind an alias", "N := never\nBox := Object * $a list[N]\n", "Box",
+    _gap("gap never behind an alias", "N = never\nBox = Object * $a list[N]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
                                                  [viba_ast.Never()]))),
          "nothing resides in never")
-    _gap("gap never in a sum branch", "Box := Object * $a ($w never | int)\n", "Box",
+    _gap("gap never in a sum branch", "Box = Object * $a ($w never | int)\n", "Box",
          _product(_tagged("$a", viba_ast.SumChain([_tagged("$w", viba_ast.Never())]))),
          "nothing resides in never")
 
 
 def run_dict_key_aliases():
     """键类型是 str 的别名或泛型：还是 str，照样写得出来。"""
-    for label, source in (("an alias of str", "S := str\nBox := Object * $d dict[S, int]\n"),
+    for label, source in (("an alias of str", "S = str\nBox = Object * $d dict[S, int]\n"),
                           ("a generic landing on str",
-                           "G[V] := str\nBox := Object * $d dict[G[int], int]\n"),
+                           "G[V] = str\nBox = Object * $d dict[G[int], int]\n"),
                           ("a chain of aliases",
-                           "S := str\nT := S\nBox := Object * $d dict[T, int]\n")):
+                           "S = str\nT = S\nBox = Object * $d dict[T, int]\n")):
         pool = _pool(("m.viba", "m", source))
         material = _product(_tagged("$d", viba_ast.TypeApp("DictLiteral", [
             viba_ast.Tuple([viba_ast.Constant("k"), viba_ast.Constant(1)])])))
         _corner_in(f"dict keyed by {label}", pool, "m.Box", material,
                    expect='("k", 1)',
-                   resident_source="Box := Object * $d dict[str, int]\n")
+                   resident_source="Box = Object * $d dict[str, int]\n")
 
 
 def run_dict_key_gaps():
     """键不是 str 的 dict：int / float / bool / 容器键都没有写法。"""
     for key_type in ("int", "float", "bool", "list[int]"):
         _gap(f"gap dict keyed by {key_type}",
-             f"Box := Object * $a dict[{key_type}, str]\n", "Box",
+             f"Box = Object * $a dict[{key_type}, str]\n", "Box",
              _product(_tagged("$a", viba_ast.TypeApp("DictLiteral", [
                  viba_ast.Tuple([viba_ast.Constant("k"), viba_ast.Constant("v")])]))),
              "the protocol hands dict keys over as strings")
@@ -793,18 +793,18 @@ def run_positional_gaps():
         members = ["$a int", "$b int", "$c int"]
         present = [i for i in range(3) if i != position]
         _gap(f"gap absent member at {position}",
-             "Box := Object * " + " * ".join(members) + "\n", "Box",
+             "Box = Object * " + " * ".join(members) + "\n", "Box",
              _product(*[_tagged(f"${'abc'[i]}", viba_ast.Constant(i))
                         for i in present]),
              f"no value here: ${'abc'[position]}")
-    _gap("gap a wrong tag", "Box := Object * $a int\n", "Box",
+    _gap("gap a wrong tag", "Box = Object * $a int\n", "Box",
          _product(_tagged("$z", viba_ast.Constant(9))), "no value here: $a")
-    _gap("gap an empty product material", "Box := Object * $a int\n", "Box",
+    _gap("gap an empty product material", "Box = Object * $a int\n", "Box",
          viba_ast.ProductChain([]), "no value here: $a")
-    _gap("gap never as the whole material", "Box := Object * $a int\n", "Box",
+    _gap("gap never as the whole material", "Box = Object * $a int\n", "Box",
          viba_ast.Never(), "no value here: $a")
     _gap("gap a name where a container element goes",
-         "Box := Object * $a list[int]\n", "Box",
+         "Box = Object * $a list[int]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
                                                  [viba_ast.TypeRef("int")]))),
          "cannot write this piece out")
@@ -815,37 +815,37 @@ def run_unit_member_shapes():
 
     不带标签的单位元不是成员：不占位置，也不写出来（带标签的照写，只是没有值）。
     """
-    _corner("a unit member with no tag", "Box := Object * Object * $a int\n", "Box",
+    _corner("a unit member with no tag", "Box = Object * Object * $a int\n", "Box",
             _product(viba_ast.Nil(), _tagged("$a", viba_ast.Constant(1))),
-            expect="entry :=\n  Object\n  * $a 1\n")
+            expect="entry =\n  Object\n  * $a 1\n")
     _corner("two unit members, one tagged",
-            "Box := Object * Object * $u Object * $a int\n", "Box",
+            "Box = Object * Object * $u Object * $a int\n", "Box",
             _product(viba_ast.Nil(), _tagged("$u", viba_ast.Nil()),
                      _tagged("$a", viba_ast.Constant(1))),
             expect="* $u nil")
     _corner("a unit member behind an alias",
-            "U := Object\nBox := Object * $u U\n", "Box",
+            "U = Object\nBox = Object * $u U\n", "Box",
             _product(_tagged("$u", viba_ast.Nil())), expect="* $u nil")
 
 
 def run_code_block_positions():
     """代码块的每一处：成员位、容器元素、元组位、和式支、产品头。"""
     block = viba_ast.CodeBlock("x + 1")
-    _corner("code block as a member", "Box := Object * $c {x}\n", "Box",
+    _corner("code block as a member", "Box = Object * $c {x}\n", "Box",
             _product(_tagged("$c", block)), expect="* $c nil")
-    _corner("code block in a set", "Box := Object * $c set[{x}]\n", "Box",
+    _corner("code block in a set", "Box = Object * $c set[{x}]\n", "Box",
             _product(_tagged("$c", viba_ast.TypeApp("SetLiteral", [block]))),
             expect="SetLiteral[nil]")
-    _corner("code block in a dict value", "Box := Object * $c dict[str, {x}]\n", "Box",
+    _corner("code block in a dict value", "Box = Object * $c dict[str, {x}]\n", "Box",
             _product(_tagged("$c", viba_ast.TypeApp("DictLiteral", [
                 viba_ast.Tuple([viba_ast.Constant("k"), block])]))),
             expect='("k", nil)')
-    _corner("code block in a tuple", "Box := Object * $c ({x}, int)\n", "Box",
+    _corner("code block in a tuple", "Box = Object * $c ({x}, int)\n", "Box",
             _product(_tagged("$c", viba_ast.Tuple([block, viba_ast.Constant(1)]))),
             expect="(nil, 1)")
-    _corner("code block as a sum branch", "Box := Object * $c ({x} | int)\n", "Box",
+    _corner("code block as a sum branch", "Box = Object * $c ({x} | int)\n", "Box",
             _product(_tagged("$c", viba_ast.SumChain([block]))))
-    _corner("code block behind an alias", "K := {x}\nBox := Object * $c list[K]\n",
+    _corner("code block behind an alias", "K = {x}\nBox = Object * $c list[K]\n",
             "Box",
             _product(_tagged("$c", viba_ast.TypeApp("ListLiteral", [block]))),
             expect="ListLiteral[nil]")
@@ -855,36 +855,36 @@ def run_exponent_batteries():
     """指数链成批：结果位、实参位、嵌在容器与元组里、参数带标签。"""
     chain = lambda *elements: viba_ast.ExponentChain(list(elements))
     _corner("exponent: three arguments",
-            "G := Object * $g (never <- $a int <- $b int <- $c int)\n", "G",
+            "G = Object * $g (never <- $a int <- $b int <- $c int)\n", "G",
             _product(_tagged("$g", chain(viba_ast.Never(),
                                          _tagged("$a", viba_ast.Constant(1)),
                                          _tagged("$b", viba_ast.Constant(2)),
                                          _tagged("$c", viba_ast.Constant(3))))),
             expect="<- $a 1\n    <- $b 2\n    <- $c 3", resident=False)
     _corner("exponent: an untagged argument",
-            "G := Object * $g (never <- int)\n", "G",
+            "G = Object * $g (never <- int)\n", "G",
             _product(_tagged("$g", chain(viba_ast.Never(), viba_ast.Constant(4)))),
             expect="<- 4", resident=False)
     _corner("exponent: nested behind a tagged argument",
-            "G := Object * $g (never <- $b (never <- $a int))\n", "G",
+            "G = Object * $g (never <- $b (never <- $a int))\n", "G",
             _product(_tagged("$g", chain(viba_ast.Never(), _tagged("$b", chain(
                 viba_ast.Never(), _tagged("$a", viba_ast.Constant(5))))))),
             expect="<- $b(never", resident=False)
     _corner("exponent: inside a tuple",
-            "G := Object * $g ((never <- $a int), int)\n", "G",
+            "G = Object * $g ((never <- $a int), int)\n", "G",
             _product(_tagged("$g", viba_ast.Tuple([
                 chain(viba_ast.Never(), _tagged("$a", viba_ast.Constant(6))),
                 viba_ast.Constant(7)]))),
             expect="<- $a 6", resident=False)
     _corner("exponent: inside a dict value",
-            "G := Object * $g dict[str, (never <- $a int)]\n", "G",
+            "G = Object * $g dict[str, (never <- $a int)]\n", "G",
             _product(_tagged("$g", viba_ast.TypeApp("DictLiteral", [
                 viba_ast.Tuple([viba_ast.Constant("k"),
                                 chain(viba_ast.Never(),
                                       _tagged("$a", viba_ast.Constant(8)))])]))),
             expect="<- $a 8", resident=False)
     _corner("exponent: behind an alias",
-            "X := never <- $a int\nG := Object * $g X\n", "G",
+            "X = never <- $a int\nG = Object * $g X\n", "G",
             _product(_tagged("$g", chain(viba_ast.Never(),
                                          _tagged("$a", viba_ast.Constant(9))))),
             expect="* $g(never", resident=False)
@@ -893,48 +893,48 @@ def run_exponent_batteries():
 def run_name_alias_shapes():
     """名字背后的形状：单位、nil、以及各种别名当成员类型。"""
     _corner("a unit behind an alias as the head",
-            "H := Object\nBox := H * $a int\n", "Box",
+            "H = Object\nBox = H * $a int\n", "Box",
             _product(_tagged("$a", viba_ast.Constant(1))),
-            expect="entry :=\n  Object\n  * $a 1\n")
+            expect="entry =\n  Object\n  * $a 1\n")
     _corner("a unit behind an alias as a member",
-            "U := Object\nBox := Object * $u U * $a int\n", "Box",
+            "U = Object\nBox = Object * $u U * $a int\n", "Box",
             _product(_tagged("$u", viba_ast.Nil()),
                      _tagged("$a", viba_ast.Constant(1))),
             expect="* $u nil")
-    _corner("a unit behind two names", "U := Object\nV := U\nBox := Object * $u V\n",
+    _corner("a unit behind two names", "U = Object\nV = U\nBox = Object * $u V\n",
             "Box", _product(_tagged("$u", viba_ast.Nil())), expect="* $u nil")
     _corner("a generic landing on a unit",
-            "U[V] := Object\nBox := Object * $u U[int]\n", "Box",
+            "U[V] = Object\nBox = Object * $u U[int]\n", "Box",
             _product(_tagged("$u", viba_ast.Nil())), expect="* $u nil")
-    _corner("nil behind a name", "Z := nil\nBox := Object * $z Z\n", "Box",
+    _corner("nil behind a name", "Z = nil\nBox = Object * $z Z\n", "Box",
             _product(_tagged("$z", viba_ast.Nil())), expect="* $z nil")
     _corner("a never head behind a name",
-            "N := never\nG := Object * $g (N <- $a int)\n", "G",
+            "N = never\nG = Object * $g (N <- $a int)\n", "G",
             _product(_tagged("$g", viba_ast.ExponentChain([
                 viba_ast.Never(), _tagged("$a", viba_ast.Constant(1))]))),
             expect="* $g(never", resident=False)
 
-    _corner("an alias to a product", "P := Object * $x int\nBox := Object * $p P\n", "Box",
+    _corner("an alias to a product", "P = Object * $x int\nBox = Object * $p P\n", "Box",
             _product(_tagged("$p", _product(_tagged("$x", viba_ast.Constant(1))))),
             expect="* $p(Object")
-    _corner("an alias to a tuple", "T := (int, str)\nBox := Object * $t T\n", "Box",
+    _corner("an alias to a tuple", "T = (int, str)\nBox = Object * $t T\n", "Box",
             _product(_tagged("$t", viba_ast.Tuple([viba_ast.Constant(1),
                                                    viba_ast.Constant("s")]))),
             expect='* $t (1, "s")')
-    _corner("an alias to a sum", "S := $k int | $j str\nBox := Object * $s S\n", "Box",
+    _corner("an alias to a sum", "S = $k int | $j str\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.SumChain([
                 _tagged("$k", viba_ast.Constant(1))]))),
             expect="* $s($k 1)")
-    _corner("an alias to a list", "L := list[int]\nBox := Object * $l L\n", "Box",
+    _corner("an alias to a list", "L = list[int]\nBox = Object * $l L\n", "Box",
             _product(_tagged("$l", viba_ast.TypeApp("ListLiteral",
                                                      [viba_ast.Constant(1)]))),
             expect="* $l ListLiteral[1]")
     _corner("a generic landing on a list",
-            "G[V] := list[V]\nBox := Object * $g G[int]\n", "Box",
+            "G[V] = list[V]\nBox = Object * $g G[int]\n", "Box",
             _product(_tagged("$g", viba_ast.TypeApp("ListLiteral",
                                                      [viba_ast.Constant(1)]))),
             expect="* $g ListLiteral[1]")
-    _corner("an alias to a code block", "K := {x}\nBox := Object * $k K\n", "Box",
+    _corner("an alias to a code block", "K = {x}\nBox = Object * $k K\n", "Box",
             _product(_tagged("$k", viba_ast.CodeBlock("x"))), expect="* $k nil")
 
 
@@ -943,12 +943,12 @@ def run_name_gaps():
     for label, material in (("a value", viba_ast.Constant(1)),
                             ("never", viba_ast.Never())):
         _gap(f"gap never behind a name, material {label}",
-             "N := never\nBox := Object * $n N\n", "Box",
+             "N = never\nBox = Object * $n N\n", "Box",
              _product(_tagged("$n", material)), "nothing resides in never")
-    _gap("gap never behind two names", "M := never\nN := M\nBox := Object * $n N\n", "Box",
+    _gap("gap never behind two names", "M = never\nN = M\nBox = Object * $n N\n", "Box",
          _product(_tagged("$n", viba_ast.Constant(1))), "nothing resides in never")
     _gap("gap never behind a name in a container",
-         "N := never\nBox := Object * $n list[N]\n", "Box",
+         "N = never\nBox = Object * $n list[N]\n", "Box",
          _product(_tagged("$n", viba_ast.TypeApp("ListLiteral",
                                                   [viba_ast.Constant(1)]))),
          "nothing resides in never")
@@ -963,10 +963,10 @@ class _HostileString(str):
 
 def run_subclass_leaf_cases():
     """叶子就是那四个内建类型本身，子类不是：写不出 Err，不会被带出去。"""
-    _gap("gap a str subclass that formats elsewhere", "Box := Object * $s str\n",
+    _gap("gap a str subclass that formats elsewhere", "Box = Object * $s str\n",
          "Box", _product(_tagged("$s", viba_ast.Constant(_HostileString("plain")))),
          "no literal for")
-    _gap("gap a plain str subclass", "Box := Object * $s str\n", "Box",
+    _gap("gap a plain str subclass", "Box = Object * $s str\n", "Box",
          _product(_tagged("$s", viba_ast.Constant(type("S", (str,), {})("plain")))),
          "no literal for")
 
@@ -974,15 +974,15 @@ def run_subclass_leaf_cases():
 def run_more_gap_corners():
     """剩下的边角：和式的 nil 支、省略号、字面量容器当设计类型。"""
     _gap("gap a nil branch spelled as an element",
-         "S := nil | $a int\nBox := Object * $s S\n", "Box",
+         "S = nil | $a int\nBox = Object * $s S\n", "Box",
          _product(_tagged("$s", viba_ast.SumChain([viba_ast.Nil()]))),
          "no branch of this sum carries a value")
-    _gap("gap an ellipsis material", "Box := Object * $a int\n", "Box",
+    _gap("gap an ellipsis material", "Box = Object * $a int\n", "Box",
          _product(_tagged("$a", viba_ast.Ellipsis())), "no value here: $a")
-    _gap("gap an ellipsis design", "Box := Object * $a ...\n", "Box",
+    _gap("gap an ellipsis design", "Box = Object * $a ...\n", "Box",
          _product(_tagged("$a", viba_ast.Ellipsis())), "no value here: $a")
     _gap("gap a literal container as the design type",
-         "Box := Object * $a ListLiteral[int]\n", "Box",
+         "Box = Object * $a ListLiteral[int]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
                                                   [viba_ast.Constant(1)]))),
          "cannot write this piece out")
@@ -1048,7 +1048,7 @@ def _gap_in(label, pool, full_name, body, needle):
 
 
 _DEFS = ("defs.viba", "defs",
-         "U := Object\nP := Object * $x int\nW[V] := Object * $v V\nN := never\n")
+         "U = Object\nP = Object * $x int\nW[V] = Object * $v V\nN = never\n")
 
 
 def _main(body):
@@ -1061,79 +1061,79 @@ def run_cross_module_cases():
         return _pool(_DEFS, _main(body))
 
     _corner_in("a unit from another module as a member",
-               pool_of("Box := Object * $u d.U\n"), "main.Box",
+               pool_of("Box = Object * $u d.U\n"), "main.Box",
                _product(_tagged("$u", viba_ast.Nil())), expect="* $u nil",
-               resident_source="U := Object\nBox := Object * $u U\n")
+               resident_source="U = Object\nBox = Object * $u U\n")
     _corner_in("a unit from another module as the head",
-               pool_of("Box := d.U * $a int\n"), "main.Box",
+               pool_of("Box = d.U * $a int\n"), "main.Box",
                _product(_tagged("$a", viba_ast.Constant(1))),
-               expect="entry :=\n  Object\n  * $a 1\n",
-               resident_source="U := Object\nBox := U * $a int\n")
+               expect="entry =\n  Object\n  * $a 1\n",
+               resident_source="U = Object\nBox = U * $a int\n")
     _corner_in("a product from another module",
-               pool_of("Box := Object * $p d.P\n"), "main.Box",
+               pool_of("Box = Object * $p d.P\n"), "main.Box",
                _product(_tagged("$p", _product(_tagged("$x", viba_ast.Constant(1))))),
                expect="* $p(Object",
-               resident_source="P := Object * $x int\nBox := Object * $p P\n")
+               resident_source="P = Object * $x int\nBox = Object * $p P\n")
     _corner_in("a generic from another module",
-               pool_of("Box := Object * $w d.W[int]\n"), "main.Box",
+               pool_of("Box = Object * $w d.W[int]\n"), "main.Box",
                _product(_tagged("$w", _product(_tagged("$v", viba_ast.Constant(1))))),
                expect="* $w(Object",
-               resident_source="W[V] := Object * $v V\nBox := Object * $w W[int]\n")
+               resident_source="W[V] = Object * $v V\nBox = Object * $w W[int]\n")
     _corner_in("a never from another module",
-               pool_of("Box := Object * $n (d.N | int)\n"), "main.Box",
+               pool_of("Box = Object * $n (d.N | int)\n"), "main.Box",
                _product(_tagged("$n", viba_ast.SumChain([viba_ast.Constant(1)]))),
                expect="* $n 1",
-               resident_source="N := never\nBox := Object * $n (N | int)\n")
+               resident_source="N = never\nBox = Object * $n (N | int)\n")
     _corner_in("a module path used without an alias",
-               _pool(("pkg/util.viba", "pkg.util", "T := str\n"),
+               _pool(("pkg/util.viba", "pkg.util", "T = str\n"),
                      ("main.viba", "main",
-                      "import pkg.util\nBox := Object * $t util.T\n")),
+                      "import pkg.util\nBox = Object * $t util.T\n")),
                "main.Box",
                _product(_tagged("$t", viba_ast.Constant("x"))), expect='* $t "x"',
-               resident_source="T := str\nBox := Object * $t T\n")
+               resident_source="T = str\nBox = Object * $t T\n")
     _corner_in("an import of an import",
                _pool(_DEFS,
-                     ("mid.viba", "mid", "import defs as d\nM := d.U\n"),
+                     ("mid.viba", "mid", "import defs as d\nM = d.U\n"),
                      ("main.viba", "main",
-                      "import mid as m\nBox := Object * $m m.M\n")),
+                      "import mid as m\nBox = Object * $m m.M\n")),
                "main.Box", _product(_tagged("$m", viba_ast.Nil())), expect="* $m nil",
-               resident_source="U := Object\nBox := Object * $m U\n")
-    _gap_in("gap never from another module", pool_of("Box := Object * $n d.N\n"),
+               resident_source="U = Object\nBox = Object * $m U\n")
+    _gap_in("gap never from another module", pool_of("Box = Object * $n d.N\n"),
             "main.Box", _product(_tagged("$n", viba_ast.Constant(1))),
             "nothing resides in never")
 
     # 内联也跨模块：不带标签的成员是别的模块那个积时，它的 tag 一样摊进来
     _corner_in("a product from another module inlined",
-               pool_of("Box := d.P * $a int\n"), "main.Box",
+               pool_of("Box = d.P * $a int\n"), "main.Box",
                _product(_tagged("$x", viba_ast.Constant(1)),
                         _tagged("$a", viba_ast.Constant(2))),
-               expect="entry :=\n  $x 1\n  * $a 2\n",
-               resident_source="P := Object * $x int\nBox := P * $a int\n")
+               expect="entry =\n  $x 1\n  * $a 2\n",
+               resident_source="P = Object * $x int\nBox = P * $a int\n")
     _corner_in("a product from another module inlined behind a name",
-               pool_of("Q := d.P\nBox := Q * $a int\n"), "main.Box",
+               pool_of("Q = d.P\nBox = Q * $a int\n"), "main.Box",
                _product(_tagged("$x", viba_ast.Constant(1)),
                         _tagged("$a", viba_ast.Constant(2))),
-               expect="entry :=\n  $x 1\n  * $a 2\n",
-               resident_source="P := Object * $x int\nBox := P * $a int\n")
+               expect="entry =\n  $x 1\n  * $a 2\n",
+               resident_source="P = Object * $x int\nBox = P * $a int\n")
     _corner_in("an import of an import, inlined",
                _pool(_DEFS,
-                     ("mid.viba", "mid", "import defs as d\nM := d.P\n"),
+                     ("mid.viba", "mid", "import defs as d\nM = d.P\n"),
                      ("main.viba", "main",
-                      "import mid as m\nBox := m.M * $a int\n")),
+                      "import mid as m\nBox = m.M * $a int\n")),
                "main.Box",
                _product(_tagged("$x", viba_ast.Constant(1)),
                         _tagged("$a", viba_ast.Constant(2))),
-               expect="entry :=\n  $x 1\n  * $a 2\n",
-               resident_source="P := Object * $x int\nBox := P * $a int\n")
+               expect="entry =\n  $x 1\n  * $a 2\n",
+               resident_source="P = Object * $x int\nBox = P * $a int\n")
     _gap_in("a tag repeated across modules",
-            pool_of("Box := d.P * $x int\n"), "main.Box",
+            pool_of("Box = d.P * $x int\n"), "main.Box",
             _product(_tagged("$x", viba_ast.Constant(1)),
                      _tagged("$a", viba_ast.Constant(2))), "written twice")
     _gap_in("gap an inline ring across two files",
             _pool(("other.viba", "other",
-                   "import base\nA := base.B * $x int\n"),
+                   "import base\nA = base.B * $x int\n"),
                   ("base.viba", "base",
-                   "import other\nB := other.A * $y float\n")),
+                   "import other\nB = other.A * $y float\n")),
             "base.B",
             _product(_tagged("$x", viba_ast.Constant(1)),
                      _tagged("$y", viba_ast.Constant(2.5))), "comes back to")
@@ -1142,19 +1142,19 @@ def run_cross_module_cases():
 def run_cycle_cases():
     """池子里的环：名字对、自名、自指的泛型，都不转圈。"""
     _corner_in("a pair of names that point at each other",
-               _pool(("m.viba", "m", "A := B\nB := A\nBox := Object * $a A\n")),
+               _pool(("m.viba", "m", "A = B\nB = A\nBox = Object * $a A\n")),
                "m.Box", _product(_tagged("$a", viba_ast.Constant(1))),
                expect="* $a 1", resident=False)
     _corner_in("a name that points at itself",
-               _pool(("m.viba", "m", "A := A\nBox := Object * $a A\n")),
+               _pool(("m.viba", "m", "A = A\nBox = Object * $a A\n")),
                "m.Box", _product(_tagged("$a", viba_ast.Constant(1))),
                expect="* $a 1", resident=False)
     _corner_in("a generic that asks for itself",
-               _pool(("m.viba", "m", "W[T] := W[T]\nBox := Object * $w W[int]\n")),
+               _pool(("m.viba", "m", "W[T] = W[T]\nBox = Object * $w W[int]\n")),
                "m.Box", _product(_tagged("$w", viba_ast.Constant(1))),
                expect="* $w 1")
     _corner_in("a generic whose body only grows",
-               _pool(("m.viba", "m", "W[T] := W[list[T]]\nBox := Object * $w W[int]\n")),
+               _pool(("m.viba", "m", "W[T] = W[list[T]]\nBox = Object * $w W[int]\n")),
                "m.Box", _product(_tagged("$w", viba_ast.Constant(1))),
                expect="* $w 1", resident=False)
 
@@ -1162,16 +1162,16 @@ def run_cycle_cases():
 def run_material_root_cases():
     """材料本身不是一个产品：叶子、单个标签、和式、空链、nil。"""
     def design():
-        return _pool(("m.viba", "m", "Box := Object * $a int\n"))
+        return _pool(("m.viba", "m", "Box = Object * $a int\n"))
 
     _corner_in("a leaf where the whole product is",
-               design(), "m.Box", viba_ast.Constant(1), expect="entry :=\n  1\n",
+               design(), "m.Box", viba_ast.Constant(1), expect="entry =\n  1\n",
                resident=False)
     _corner_in("a lone tag where the product is",
                design(), "m.Box", _tagged("$a", viba_ast.Constant(1)),
-               expect="entry :=\n  Object\n  * $a 1\n")
+               expect="entry =\n  Object\n  * $a 1\n")
     _corner_in("nil where the whole product is",
-               design(), "m.Box", viba_ast.Nil(), expect="entry :=\n  nil\n",
+               design(), "m.Box", viba_ast.Nil(), expect="entry =\n  nil\n",
                resident=False)
     _gap_in("gap a sum chain where the product is", design(), "m.Box",
             viba_ast.SumChain([viba_ast.Constant(1)]), "no value here: $a")
@@ -1181,14 +1181,14 @@ def run_material_root_cases():
 
 def run_definition_name_cases():
     """serialize 的名字参数：普通名字写得出来，内建名与关键字写不出来。"""
-    pool = _pool(("m.viba", "m", "Box := Object * $a int\n"))
+    pool = _pool(("m.viba", "m", "Box = Object * $a int\n"))
     definition = pool_find_definition(pool, "m.Box").ok_value
     from viba.reflect import access
     node = access.root(definition, VibaData(
         _product(_tagged("$a", viba_ast.Constant(1))))).ok_value
     for name in ("entry", "Entry_2", "a", "中文"):
         written = serialize.serialize(name, node)
-        check(isinstance(written, Ok) and written.ok_value.startswith(f"{name} :="),
+        check(isinstance(written, Ok) and written.ok_value.startswith(f"{name} ="),
               f"definition name {name!r}: writes ({written})")
     for name in ("", "a.b", "a-b", "nil", "never", "void", "None", "true",
                  "false", "import", "as", "list", "set", "dict", "ListLiteral"):
@@ -1200,7 +1200,7 @@ def run_definition_name_cases():
 def run_alias_of_definition_cases():
     """定义自己的别名：写出来的源码跟写原定义时一样。"""
     from viba.reflect import access
-    pool = _pool(("m.viba", "m", "Box := Object * $a int\nAlias := Box\nDeeper := Alias\n"))
+    pool = _pool(("m.viba", "m", "Box = Object * $a int\nAlias = Box\nDeeper = Alias\n"))
     body = _product(_tagged("$a", viba_ast.Constant(1)))
     written = []
     for full_name in ("m.Box", "m.Alias", "m.Deeper"):
@@ -1215,7 +1215,7 @@ def run_alias_of_definition_cases():
 
 def run_sums_in_containers():
     """和式装在容器与元组里，每一格挑不同的支。"""
-    source = "S := int | $a str\nBox := Object * $xs list[S] * $ss set[S] * $t (S, S)\n"
+    source = "S = int | $a str\nBox = Object * $xs list[S] * $ss set[S] * $t (S, S)\n"
     pool = _pool(("m.viba", "m", source))
     material = _product(
         _tagged("$xs", viba_ast.TypeApp("ListLiteral", [
@@ -1247,7 +1247,7 @@ def run_exponent_argument_shapes():
     ]
     for index, (argument_type, argument, expect) in enumerate(cases):
         pool = _pool(("m.viba", "m",
-                      f"G := Object * $g (never <- $b {argument_type})\n"))
+                      f"G = Object * $g (never <- $b {argument_type})\n"))
         material = _product(_tagged("$g", viba_ast.ExponentChain([
             viba_ast.Never(), _tagged("$b", argument)])))
         _corner_in(f"exponent argument[{index}] {argument_type}", pool, "m.G",
@@ -1261,22 +1261,22 @@ def run_deep_stress():
         for _ in range(depth):
             type_text = f"list[{type_text}]"
             body = viba_ast.TypeApp("ListLiteral", [body])
-        pool = _pool(("m.viba", "m", f"Box := Object * $a {type_text}\n"))
+        pool = _pool(("m.viba", "m", f"Box = Object * $a {type_text}\n"))
         _corner_in(f"depth {depth}", pool, "m.Box",
                    _product(_tagged("$a", body)), expect="ListLiteral[")
-    pool = _pool(("m.viba", "m", "Box := Object * $a list[int]\n"))
+    pool = _pool(("m.viba", "m", "Box = Object * $a list[int]\n"))
     thousand = viba_ast.TypeApp("ListLiteral",
                                 [viba_ast.Constant(i) for i in range(1000)])
     _corner_in("a list of 1000", pool, "m.Box", _product(_tagged("$a", thousand)),
                expect="ListLiteral[0, 1, 2")
-    pool = _pool(("m.viba", "m", "Box := Object * $a dict[str, int]\n"))
+    pool = _pool(("m.viba", "m", "Box = Object * $a dict[str, int]\n"))
     pairs = [viba_ast.Tuple([viba_ast.Constant(f"k{i}"), viba_ast.Constant(i)])
              for i in range(100)]
     _corner_in("a dict of 100", pool, "m.Box",
                _product(_tagged("$a", viba_ast.TypeApp("DictLiteral", pairs))),
                expect='("k99", 99)]')
     pool = _pool(("m.viba", "m",
-                  "Box := Object * " + " * ".join(f"$f{i} int" for i in range(64)) + "\n"))
+                  "Box = Object * " + " * ".join(f"$f{i} int" for i in range(64)) + "\n"))
     _corner_in("a product of 64", pool, "m.Box",
                _product(*[_tagged(f"$f{i}", viba_ast.Constant(i))
                           for i in range(64)]), expect="* $f63 63")
@@ -1285,11 +1285,11 @@ def run_deep_stress():
 def run_head_written_as_unit():
     """产品头写成 nil：写出来的单位还是语言的那个 Object。"""
     _corner_in("the head written as nil",
-               _pool(("m.viba", "m", "Box := nil * $a int\n")), "m.Box",
+               _pool(("m.viba", "m", "Box = nil * $a int\n")), "m.Box",
                _product(_tagged("$a", viba_ast.Constant(1))),
-               expect="entry :=\n  Object\n  * $a 1\n")
+               expect="entry =\n  Object\n  * $a 1\n")
     _corner_in("two unit members and the head",
-               _pool(("m.viba", "m", "Box := Object * $u Object * $v Object\n")),
+               _pool(("m.viba", "m", "Box = Object * $u Object * $v Object\n")),
                "m.Box",
                _product(_tagged("$u", viba_ast.Nil()),
                         _tagged("$v", viba_ast.Nil())),
@@ -1300,62 +1300,62 @@ def run_inline_member_cases():
     """内联成员：第一个不带标签的成员摊进自己的成员，递归；单位元不算成员；
     重标签写不出来；内联环不转圈。"""
     _corner("an inline product member",
-            "A := $x int * $y int\nB := A * $z int\n", "B",
+            "A = $x int * $y int\nB = A * $z int\n", "B",
             _product(_tagged("$x", viba_ast.Constant(1)),
                      _tagged("$y", viba_ast.Constant(2)),
                      _tagged("$z", viba_ast.Constant(3))),
-            expect="entry :=\n  $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  $x 1\n  * $y 2\n  * $z 3\n")
     _corner("an inline chain two deep",
-            "A := $x int\nB := A * $y int\nC := B * $z int\n", "C",
+            "A = $x int\nB = A * $y int\nC = B * $z int\n", "C",
             _product(_tagged("$x", viba_ast.Constant(1)),
                      _tagged("$y", viba_ast.Constant(2)),
                      _tagged("$z", viba_ast.Constant(3))),
-            expect="entry :=\n  $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  $x 1\n  * $y 2\n  * $z 3\n")
     _corner("a member that is no product keeps its place",
-            "Box := int * $a int\n", "Box",
+            "Box = int * $a int\n", "Box",
             _product(viba_ast.Constant(7), _tagged("$a", viba_ast.Constant(1))),
-            expect="entry :=\n  7\n  * $a 1\n")
+            expect="entry =\n  7\n  * $a 1\n")
     _corner("an inline member after a positional one",
-            "A := $x int * $y int\nBox := int * A * $z int\n", "Box",
+            "A = $x int * $y int\nBox = int * A * $z int\n", "Box",
             _product(viba_ast.Constant(7),
                      _tagged("$x", viba_ast.Constant(1)),
                      _tagged("$y", viba_ast.Constant(2)),
                      _tagged("$z", viba_ast.Constant(3))),
-            expect="entry :=\n  7\n  * $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  7\n  * $x 1\n  * $y 2\n  * $z 3\n")
     _corner("a unit member between positional ones",
-            "Box := Object * int * Object * int * $a int\n", "Box",
+            "Box = Object * int * Object * int * $a int\n", "Box",
             _product(viba_ast.Constant(7), viba_ast.Nil(),
                      viba_ast.Constant(8), _tagged("$a", viba_ast.Constant(1))),
-            expect="entry :=\n  Object\n  * 7\n  * 8\n  * $a 1\n")
+            expect="entry =\n  Object\n  * 7\n  * 8\n  * $a 1\n")
     _corner("the head written as a name over the unit",
-            "U := Object\nBox := U * $a int\n", "Box",
+            "U = Object\nBox = U * $a int\n", "Box",
             _product(_tagged("$a", viba_ast.Constant(1))),
-            expect="entry :=\n  Object\n  * $a 1\n")
+            expect="entry =\n  Object\n  * $a 1\n")
     _corner("the member written as a name on the material side",
-            "Data := $x 1 * $y 2\nA := $x int * $y int\nB := A * $z int\n", "B",
+            "Data = $x 1 * $y 2\nA = $x int * $y int\nB = A * $z int\n", "B",
             _product(viba_ast.TypeRef("Data"), _tagged("$z", viba_ast.Constant(3))),
-            expect="entry :=\n  $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  $x 1\n  * $y 2\n  * $z 3\n")
     _corner("an inline member behind a generic application",
-            "Inner := $x int * $y int\nBox[T] := T * $z int\nB := Box[Inner]\n", "B",
+            "Inner = $x int * $y int\nBox[T] = T * $z int\nB = Box[Inner]\n", "B",
             _product(_tagged("$x", viba_ast.Constant(1)),
                      _tagged("$y", viba_ast.Constant(2)),
                      _tagged("$z", viba_ast.Constant(3))),
-            expect="entry :=\n  $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  $x 1\n  * $y 2\n  * $z 3\n")
     _gap("the same tag twice through an inline",
-         "A := $x int\nB := A * $x str\n", "B",
+         "A = $x int\nB = A * $x str\n", "B",
          _product(_tagged("$x", viba_ast.Constant(1))), "written twice")
     _gap("the same tag twice, one of them inlined",
-         "A := $x int * $y int\nB := A * $y str\n", "B",
+         "A = $x int * $y int\nB = A * $y str\n", "B",
          _product(_tagged("$x", viba_ast.Constant(1)),
                   _tagged("$y", viba_ast.Constant(2))), "written twice")
     _gap("a member that inlines itself",
-         "A := A * $x int\n", "A",
+         "A = A * $x int\n", "A",
          _product(_tagged("$x", viba_ast.Constant(1))), "comes back to 'A'")
     _gap("an alias that closes the loop",
-         "A := B * $x int\nB := A\n", "A",
+         "A = B * $x int\nB = A\n", "A",
          _product(_tagged("$x", viba_ast.Constant(1))), "comes back to 'B'")
     _gap("a cyclic member beside a repeated tag",
-         "A := $x int * A * $y int\n", "A",
+         "A = $x int * A * $y int\n", "A",
          _product(_tagged("$x", viba_ast.Constant(1)),
                   _tagged("$y", viba_ast.Constant(2))), "comes back to 'A'")
 

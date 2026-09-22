@@ -5,7 +5,7 @@ import typing
 import numpy as numpy
 import fx.graph
 
-Pair1 :=
+Pair1 =
     $dst (
         (
             Config
@@ -21,7 +21,7 @@ line two'''
             )
     )
 
-Config2[S, V] :=
+Config2[S, V] =
     (
         Handler
             <- State
@@ -35,14 +35,14 @@ Config2[S, V] :=
                 | GraphModule
         )
 
-Plan3 :=
+Plan3 =
     Option[
         {fn(x + 1)}
             | '''line one
 line two'''
     ]
 
-Config4[E, S] :=
+Config4[E, S] =
     $input (
         Box[
             $next (
@@ -77,7 +77,7 @@ line two'''
         ]
     )
 
-Handler6[Out] :=
+Handler6[Out] =
     Map[
         fx.Graph
             | Config
@@ -95,7 +95,7 @@ line two'''
             | Beta
     ]
 
-Stream7[S, U] :=
+Stream7[S, U] =
     Box[
         {fn(fn(x + 1))}
             <- '''a
@@ -106,7 +106,7 @@ c'''
         $value 2.2
     ]
 
-Guarded8 :=
+Guarded8 =
     $lines float
     * Assert[{lines <= 187}]
     * Beta

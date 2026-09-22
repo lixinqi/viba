@@ -1,9 +1,9 @@
 import util
 
-Config0 :=
+Config0 =
   Object
   * $peer util.Report1
 
-Plan1 := str * (int | nil)
+Plan1 = str * (int | nil)
 
-Config2 := $only int
+Config2 = $only int

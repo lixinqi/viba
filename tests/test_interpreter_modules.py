@@ -53,43 +53,43 @@ def _nested_modules(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    write(tmp, "inner.viba", ADD + "__ret__ := add << $env environ << $a 1 << $b 2\n")
+    write(tmp, "inner.viba", ADD + "__ret__ = add << $env environ << $a 1 << $b 2\n")
     outer = write(tmp, "outer.viba", """
 import inner as inner
-__ret__ := inner << (environ.sub_env << "inner")
+__ret__ = inner << (environ.sub_env << "inner")
 """)
     result = interpret(outer, environ)
     check(isinstance(result, Ok) and value_of(result) == 3,
           f"a module imported by a module: {result!r}")
 
     write(tmp, "pkg/mod.viba", """
-join :=
+join =
 	str
 	<- $env Environment
 	<- $a str
 	<- $b str
 	<- { join two strings }
-__ret__ := join << $env environ << $a "a" << $b "b"
+__ret__ = join << $env environ << $a "a" << $b "b"
 """)
     dotted = write(tmp, "dotted.viba", """
 import pkg.mod as mod
-__ret__ := mod << (environ.sub_env << "mod")
+__ret__ = mod << (environ.sub_env << "mod")
 """)
     result = interpret(dotted, environ)
     check(isinstance(result, Ok) and value_of(result) == "ab",
           f"a dotted import finds pkg/mod.viba: {result!r}")
 
-    write(tmp, "design_only.viba", "Only := $x int\n")
+    write(tmp, "design_only.viba", "Only = $x int\n")
     design = write(tmp, "use_design.viba", """
 import design_only as d
-__ret__ := d << (environ.sub_env << "d")
+__ret__ = d << (environ.sub_env << "d")
 """)
     labelled(interpret(design, environ), "has no __ret__",
              "calling a module that is design only -> Err")
 
-    write(tmp, "late_lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
     dotted_member = write(tmp, "dotted_member.viba",
-                          "import late_lib as lib\n__ret__ := lib.Only.More\n")
+                          "import late_lib as lib\n__ret__ = lib.Only.More\n")
     labelled(interpret(dotted_member, environ), "has no 'Only.More'",
              "a dotted rest that names no definition -> Err")
 
@@ -97,7 +97,7 @@ __ret__ := d << (environ.sub_env << "d")
     host.calls.clear()
     twice_module = write(tmp, "twice_module.viba", ADD + """
 import late_lib as lib
-__ret__ := add << $env environ
+__ret__ = add << $env environ
   << $a (lib << (environ.sub_env << "first"))
   << $b (lib << (environ.sub_env << "second"))
 """)
@@ -114,14 +114,14 @@ def _cycles(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    write(tmp, "loop.viba", "import loop as loop\n__ret__ := loop << environ\n")
+    write(tmp, "loop.viba", "import loop as loop\n__ret__ = loop << environ\n")
     labelled(interpret(str(tmp / "loop.viba"), environ), "already running",
              "a module that calls itself -> Err")
 
     write(tmp, "cycle_a.viba",
-          "import cycle_b as b\n__ret__ := b << (environ.sub_env << \"b\")\n")
+          "import cycle_b as b\n__ret__ = b << (environ.sub_env << \"b\")\n")
     write(tmp, "cycle_b.viba",
-          "import cycle_a as a\n__ret__ := a << (environ.sub_env << \"a\")\n")
+          "import cycle_a as a\n__ret__ = a << (environ.sub_env << \"a\")\n")
     labelled(interpret(str(tmp / "cycle_a.viba"), environ), "already running",
              "a module call cycle A->B->A -> Err")
 
@@ -130,18 +130,18 @@ def _storage_paths(tmp: Path):
     """模块调用的 storage 路径是它的身份：两次调用不可以用同一个。"""
     host = Host()
     environ = host.environ()
-    write(tmp, "lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    write(tmp, "lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
 
     # 主文件自己也占着它那个路径：直接拿 environ 调模块就是撞车
     same_env = write(tmp, "same_env.viba",
-                     "import lib as lib\n__ret__ := lib << environ\n")
+                     "import lib as lib\n__ret__ = lib << environ\n")
     labelled(interpret(same_env, environ), "storage path",
              "a module handed the caller's own environment -> Err")
 
     # 两次调用给同一个子环境（同名子环境就是同一个 storage）→ 第二次撞车
     repeated = write(tmp, "repeated_path.viba", ADD + """
 import lib as lib
-__ret__ := add << $env environ
+__ret__ = add << $env environ
   << $a (lib << (environ.sub_env << "one"))
   << $b (lib << (environ.sub_env << "one"))
 """)
@@ -149,11 +149,11 @@ __ret__ := add << $env environ
              "two calls to one storage path -> Err")
 
     # 两个不同的模块，用同一个名字的子环境 → 也撞车
-    write(tmp, "other.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    write(tmp, "other.viba", LEAF + "__ret__ = leaf << $env environ\n")
     two_modules = write(tmp, "two_modules.viba", ADD + """
 import lib as one
 import other as two
-__ret__ := add << $env environ
+__ret__ = add << $env environ
   << $a (one << (environ.sub_env << "m"))
   << $b (two << (environ.sub_env << "m"))
 """)
@@ -165,7 +165,7 @@ __ret__ := add << $env environ
     two_names = write(tmp, "two_names.viba", ADD + """
 import lib as one
 import other as two
-__ret__ := add << $env environ
+__ret__ = add << $env environ
   << $a (one << (environ.sub_env << "one"))
   << $b (two << (environ.sub_env << "two"))
 """)

@@ -1,10 +1,10 @@
 import top
 
-Rule0[T] :=
+Rule0[T] =
   $v T
 
-Node1 := $only int
+Node1 = $only int
 
-Report2 :=
+Report2 =
   Object
   * $peer top.Rule0

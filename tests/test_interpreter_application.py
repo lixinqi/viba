@@ -33,38 +33,38 @@ def _arguments(tmp: Path):
     host = Host()
     environ = host.environ()
     cases = [
-        ("__ret__ := add << $env environ << $a 1 << $b 2\n", None, "all three given"),
-        ("__ret__ := add << $env environ << $a 1\n",
+        ("__ret__ = add << $env environ << $a 1 << $b 2\n", None, "all three given"),
+        ("__ret__ = add << $env environ << $a 1\n",
          "waiting for arguments", "one argument short"),
-        ("__ret__ := add << $env environ << $a 1 << $b 2 << $b 3\n",
+        ("__ret__ = add << $env environ << $a 1 << $b 2 << $b 3\n",
          "is not a function", "one argument too many (the call already answered)"),
-        ("__ret__ := add << $env environ << $a 1 << $z 2\n",
+        ("__ret__ = add << $env environ << $a 1 << $z 2\n",
          "takes no $z", "an argument the function does not have"),
-        ("__ret__ := add << $env environ << $a 1 << $b 2 << { trailing note }\n", None,
+        ("__ret__ = add << $env environ << $a 1 << $b 2 << { trailing note }\n", None,
          "documentation after the arguments"),
-        ("__ret__ := add << $env environ << { a note } << $a 1 << $b 2\n", None,
+        ("__ret__ = add << $env environ << { a note } << $a 1 << $b 2\n", None,
          "documentation between the arguments"),
-        ("__ret__ := add\n", "waiting for arguments", "the function itself is not a value"),
-        ("__ret__ := { just a note }\n", "documentation", "a code block is not a value"),
-        ("__ret__ := Nope\n", "no definition named", "a name nothing defines"),
-        ("__ret__ := add << $env environ << $a { note } << $b 2\n", "documentation",
+        ("__ret__ = add\n", "waiting for arguments", "the function itself is not a value"),
+        ("__ret__ = { just a note }\n", "documentation", "a code block is not a value"),
+        ("__ret__ = Nope\n", "no definition named", "a name nothing defines"),
+        ("__ret__ = add << $env environ << $a { note } << $b 2\n", "documentation",
          "a tagged code block where an argument goes"),
-        ("__ret__ := 1 << $x 2\n", "is not a function", "giving an argument to a number"),
+        ("__ret__ = 1 << $x 2\n", "is not a function", "giving an argument to a number"),
     ]
     for index, (body, want, label) in enumerate(cases):
         path = write(tmp, f"apply{index}.viba", ADD + body)
         labelled(interpret(path, environ), want, label)
 
     two_steps = write(tmp, "two_steps.viba", ADD + """
-half := add << $env environ << $a 40
-__ret__ := half << $b 2
+half = add << $env environ << $a 40
+__ret__ = half << $b 2
 """)
     result = interpret(two_steps, environ)
     check(isinstance(result, Ok) and value_of(result) == 42,
           f"a partially applied function kept in a definition: {result!r}")
 
     positional = write(tmp, "positional.viba", ADD + """
-__ret__ := add << environ << 40 << 2
+__ret__ = add << environ << 40 << 2
 """)
     result = interpret(positional, environ)
     check(isinstance(result, Ok) and value_of(result) == 42,
@@ -77,7 +77,7 @@ def _order_and_slots(tmp: Path):
     environ = host.environ()
 
     out_of_order = write(tmp, "out_of_order.viba", ADD + """
-__ret__ := add << $b 2 << $env environ << $a 1
+__ret__ = add << $b 2 << $env environ << $a 1
 """)
     result = interpret(out_of_order, environ)
     check(isinstance(result, Ok) and value_of(result) == 3,
@@ -85,21 +85,21 @@ __ret__ := add << $b 2 << $env environ << $a 1
 
     # 一个参数位都没有的函数：不带 tag 的实参就是给多了
     no_slots = write(tmp, "no_slots.viba", """
-f :=
+f =
 	int
 	<- { a function with no argument slot }
-__ret__ := f << 1
+__ret__ = f << 1
 """)
     labelled(interpret(no_slots, environ), "takes no more arguments",
              "an untagged argument to a function with no slots -> Err")
 
     # 参数出错：那个函数根本不会被调用
     argument_boom = write(tmp, "argument_boom.viba", ADD + """
-explode :=
+explode =
 	int
 	<- $env Environment
 	<- { go }
-__ret__ := add << $env environ << $a (explode << $env environ) << $b 2
+__ret__ = add << $env environ << $a (explode << $env environ) << $b 2
 """)
     host.calls.clear()
     labelled(interpret(argument_boom, environ), "raised", "an argument that blows up -> Err")
@@ -113,7 +113,7 @@ def _long_chain(tmp: Path):
     environ = host.environ()
     many = "".join(f" << $a{i} {i}" for i in range(1, 21))
     long_chain = write(tmp, "long_chain.viba", """
-sum :=
+sum =
 	int
 	<- $env Environment
 	<- $a1 int <- $a2 int <- $a3 int <- $a4 int <- $a5 int
@@ -121,7 +121,7 @@ sum :=
 	<- $a11 int <- $a12 int <- $a13 int <- $a14 int <- $a15 int
 	<- $a16 int <- $a17 int <- $a18 int <- $a19 int <- $a20 int
 	<- { add them all }
-__ret__ := sum << $env environ""" + many + "\n")
+__ret__ = sum << $env environ""" + many + "\n")
     original = host.get_func
 
     def summing(path, func_name):

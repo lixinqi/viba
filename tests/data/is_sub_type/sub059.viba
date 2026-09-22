@@ -1,1 +1,1 @@
-X := $val 1 * $kids ($head ($val 'x' * $kids nil) * $tail nil)
+X = $val 1 * $kids ($head ($val 'x' * $kids nil) * $tail nil)

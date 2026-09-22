@@ -1,20 +1,20 @@
 import top
 
-Node0 :=
+Node0 =
   Object
   * $peer top.Report0
 
-Config1 :=
+Config1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Rule2 :=
+Rule2 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Report3[T] :=
+Report3[T] =
   $v T

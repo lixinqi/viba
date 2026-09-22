@@ -1,10 +1,10 @@
 import top as lib
 
-Config0[T] :=
+Config0[T] =
   $v T
 
-Config1 := int * str
+Config1 = int * str
 
-Plan2 :=
+Plan2 =
   Object
   * $peer lib.Config1

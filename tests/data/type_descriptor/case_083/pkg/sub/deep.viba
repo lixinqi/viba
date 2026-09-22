@@ -1,19 +1,19 @@
 import util as up
 
-Plan0 :=
+Plan0 =
   Object
   * $peer up.Plan0
 
-Config1 :=
+Config1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Config2 :=
+Config2 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Shape3 := int * str
+Shape3 = int * str

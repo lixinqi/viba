@@ -1,8 +1,8 @@
-Plan0 := $left int | $right str
+Plan0 = $left int | $right str
 
-Config1 :=
+Config1 =
   Object
   * $count int
   * $label str
 
-Rule2 := $only int
+Rule2 = $only int

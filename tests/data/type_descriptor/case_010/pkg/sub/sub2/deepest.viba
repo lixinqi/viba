@@ -1,13 +1,13 @@
 import util
 
-Plan0[T] :=
+Plan0[T] =
   $v T
 
-Plan1 :=
+Plan1 =
   Object
   * $count int
   * $label str
 
-Report2 :=
+Report2 =
   Object
   * $peer util.Shape0

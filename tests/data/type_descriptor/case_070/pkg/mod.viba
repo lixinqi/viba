@@ -1,8 +1,8 @@
 import top
 
-Rule0 :=
+Rule0 =
   Object
   * $peer top.Rule1
 
-Rule1[T] :=
+Rule1[T] =
   $v T

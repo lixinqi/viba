@@ -10,10 +10,10 @@
 # chose, fresh every call: `environ.tmp_sub_env << ()`. Its written argument
 # is ignored (a call gives one, and `()` is how "nothing" is written), so any
 # `()` does, and the shape says so by writing `()`.
-Environment :=
+Environment =
     Object
   * $viba_path str
   * $sub_env (Environment <- $sub_env_name str)
   * $tmp_sub_env (Environment <- ())
 
-environ := Environment
+environ = Environment

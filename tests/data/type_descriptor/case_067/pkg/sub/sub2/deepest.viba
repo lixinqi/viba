@@ -1,10 +1,10 @@
 import util as up
 
-Plan0 :=
+Plan0 =
   Object
   * $count int
   * $label str
 
-Node1 :=
+Node1 =
   Object
   * $peer up.Node2

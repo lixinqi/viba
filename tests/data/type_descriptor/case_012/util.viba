@@ -1,15 +1,15 @@
 import top
 
-Node0 :=
+Node0 =
   Object
   * $peer top.Plan1
 
-Report1 :=
+Report1 =
   Object
   * $count int
   * $label str
 
-Rule2 :=
+Rule2 =
   Object
   * $items list[int]
   * $seen set[str]

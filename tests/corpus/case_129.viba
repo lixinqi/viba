@@ -5,7 +5,7 @@ import a.b.c as c
 import pathlib as pathlib
 import fx.graph
 
-Option1[K, Out] :=
+Option1[K, Out] =
     $data (
         $name (
             Box[
@@ -17,7 +17,7 @@ Option1[K, Out] :=
         )
     )
 
-Tensor3 :=
+Tensor3 =
     (
         (
             Config
@@ -44,7 +44,7 @@ Tensor3 :=
             ]
         )
 
-Check4[T, In] :=
+Check4[T, In] =
     (
         (
             GraphModule
@@ -59,7 +59,7 @@ line two'''
                 <- $a.b.c.d ()
         )
 
-Edge6[E, In] :=
+Edge6[E, In] =
     $data (
         true
             | Beta
@@ -82,7 +82,7 @@ Edge6[E, In] :=
             )
     )
 
-Tensor7[In] :=
+Tensor7[In] =
     (
         (
             Box[State, 622, false]
@@ -102,7 +102,7 @@ Tensor7[In] :=
             | Beta
     )
 
-Guarded8 :=
+Guarded8 =
     $lines float
     * Assert[{lines <= 192}]
     * torch.Tensor

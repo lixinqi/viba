@@ -1,13 +1,13 @@
 import lv1.lv2.lv3.leaf
 
-Shape0[T] :=
+Shape0[T] =
   $v T
 
-Config1 :=
+Config1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Node2 :=
+Node2 =
   Object
   * $peer lv1.lv2.lv3.leaf.Plan1

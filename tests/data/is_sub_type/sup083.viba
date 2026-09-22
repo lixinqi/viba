@@ -1,1 +1,1 @@
-X := dict[str, str]
+X = dict[str, str]

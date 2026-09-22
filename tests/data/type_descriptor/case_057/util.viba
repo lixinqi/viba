@@ -1,15 +1,15 @@
 import top as dep
 
-Shape0 := $left int | $right str
+Shape0 = $left int | $right str
 
-Rule1 :=
+Rule1 =
   Object
   * $count int
   * $label str
 
-Config2 :=
+Config2 =
   Object
   * $peer dep.Config0
 
-Plan3[T] :=
+Plan3[T] =
   $v T

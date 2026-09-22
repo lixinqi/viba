@@ -1,17 +1,17 @@
 import top as base
 
-Config0 :=
+Config0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Config1 :=
+Config1 =
   Object
   * $peer base.Shape0
 
-Report2 :=
+Report2 =
   Object
   * $ghost Missing
   * $mix list[Missing]

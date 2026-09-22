@@ -1,1 +1,1 @@
-X := ListLiteral[int, str]
+X = ListLiteral[int, str]

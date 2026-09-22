@@ -1,14 +1,14 @@
 import util as up
 
-Plan0 :=
+Plan0 =
   Object
   * $count int
   * $label str
 
-Config1 :=
+Config1 =
   Object
   * $peer up.Node2
 
-Report2 := $only int
+Report2 = $only int
 
-Plan3 := $left int | $right str
+Plan3 = $left int | $right str

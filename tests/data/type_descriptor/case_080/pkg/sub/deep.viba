@@ -1,12 +1,12 @@
 import top as base
 
-Plan0[T] :=
+Plan0[T] =
   $v T
 
-Plan1 := $only int
+Plan1 = $only int
 
-Rule2 :=
+Rule2 =
   Object
   * $peer base.Config0
 
-Node3 := str * (int | nil)
+Node3 = str * (int | nil)

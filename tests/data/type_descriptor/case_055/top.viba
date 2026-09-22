@@ -1,6 +1,6 @@
-Plan0 := $only int
+Plan0 = $only int
 
-Plan1 :=
+Plan1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

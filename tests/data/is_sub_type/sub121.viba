@@ -1,2 +1,2 @@
-A := B * $x int
-B := A
+A = B * $x int
+B = A

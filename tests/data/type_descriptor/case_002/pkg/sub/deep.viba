@@ -1,18 +1,18 @@
 import util
 
-Rule0 :=
+Rule0 =
   Object
   * $count int
   * $label str
 
-Rule1 :=
+Rule1 =
   Object
   * $peer util.Rule0
 
-Report2[T] :=
+Report2[T] =
   $v T
 
-Shape3 :=
+Shape3 =
   Object
   * $items list[int]
   * $seen set[str]

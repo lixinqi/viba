@@ -1,18 +1,18 @@
 import pkg.mod as m
 
-Report0 :=
+Report0 =
   Oneof
   | $left int
   | $right str
 
-Node1[T] :=
+Node1[T] =
   $v T
 
-Config2 :=
+Config2 =
   Object
   * $peer m.Rule1
 
-Rule3 :=
+Rule3 =
   Object
   * $items list[int]
   * $seen set[str]

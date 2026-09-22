@@ -1,13 +1,13 @@
 import util as base
 
-Config0 := str * (int | nil)
+Config0 = str * (int | nil)
 
-Rule1 :=
+Rule1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Rule2[T] :=
+Rule2[T] =
   $v T

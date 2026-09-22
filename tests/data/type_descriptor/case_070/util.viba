@@ -1,8 +1,8 @@
 import util as m
 
-Rule0 := $only int
+Rule0 = $only int
 
-Config1 := int * str
+Config1 = int * str
 
-Node2[T] :=
+Node2[T] =
   $v T

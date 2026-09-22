@@ -1,11 +1,11 @@
 import top as base
 
-Report0 :=
+Report0 =
   Object
   * $count int
   * $label str
 
-Config1 :=
+Config1 =
   Object
   * $items list[int]
   * $seen set[str]

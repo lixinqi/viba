@@ -1,12 +1,12 @@
 import lv1.lv2.lv3.leaf
 
-Config0 := int * str
+Config0 = int * str
 
-Config1 :=
+Config1 =
   Object
   * $peer lv1.lv2.lv3.leaf.Rule0
 
-Node2 :=
+Node2 =
   Object
   * $items list[int]
   * $seen set[str]

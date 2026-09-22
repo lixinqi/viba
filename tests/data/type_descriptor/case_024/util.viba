@@ -1,4 +1,4 @@
-Rule0 :=
+Rule0 =
   Object
   * $items list[int]
   * $seen set[str]

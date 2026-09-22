@@ -7,12 +7,12 @@ A DSL for defining types using algebraic operations — sum (`|`), product (`*`)
 ### Syntax
 
 ```
-Name[T, U, ...] := body
+Name[T, U, ...] = body
 ```
 
 | Operator | Syntax | Meaning |
 |----------|--------|---------|
-| Assign | `Name := body` | Type definition |
+| Assign | `Name = body` | Type definition |
 | Sum | `A \| B` | Either A or B |
 | Product | `A * B` | Both A and B |
 | Exponent | `B <- A` | Function from A to B |
@@ -51,27 +51,27 @@ written function on the spot, and giving every argument leaves the result itself
 
 ```viba
 # Standard ADTs
-Option[T] := $some T | nil
-Result[T, E] := $ok T | $err E
+Option[T] = $some T | nil
+Result[T, E] = $ok T | $err E
 
 # Function types
-Map[A, B] := B <- A
-Curried := C <- B <- A
+Map[A, B] = B <- A
+Curried = C <- B <- A
 
 # Struct (product of tagged fields)
-MatchContext :=
+MatchContext =
   Object
   * $match_result MatchResult
   * $target fx.GraphModule
 
 # Open sum type
-Variadic := A | B | ...
+Variadic = A | B | ...
 
 # Literals
-Config := "fast" * 42 * 3.14
+Config = "fast" * 42 * 3.14
 
 # Code block
-Handler := {def forward(self, x): return x}
+Handler = {def forward(self, x): return x}
 ```
 
 ## Usage
@@ -79,7 +79,7 @@ Handler := {def forward(self, x): return x}
 ```python
 from viba import viba_ast
 
-tree = viba_ast.parse("Option[T] := $some T | nil")
+tree = viba_ast.parse("Option[T] = $some T | nil")
 print(viba_ast.dump(tree))
 print(viba_ast.unparse(tree))   # canonical chain-style source
 ```
@@ -106,28 +106,28 @@ python tests/corpus/generate_corpus.py --check   # 130-file corpus round-trip
 
 ```viba
 # Optional value
-Option[T] := $some T | nil
+Option[T] = $some T | nil
 
 # Result with error
-Result[T, E] := $ok T | $err E
+Result[T, E] = $ok T | $err E
 
 # Linked list
-List[T] := T * List[T] | nil
+List[T] = T * List[T] | nil
 
 # Dictionary entry
-Pair[K, V] := $key K * $value V
+Pair[K, V] = $key K * $value V
 
 # HTTP handler
-Handler := Response <- Request
+Handler = Response <- Request
 
 # Parse pipeline
-Parser := AST <- Tokens <- String
+Parser = AST <- Tokens <- String
 
 # 2D point
-Point := $x float * $y float
+Point = $x float * $y float
 
 # Color enum
-Color := $red int | $green int | $blue int
+Color = $red int | $green int | $blue int
 ```
 
 ## Docs

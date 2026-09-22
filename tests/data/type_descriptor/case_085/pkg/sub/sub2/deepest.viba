@@ -1,6 +1,6 @@
 import top as dep
 
-Rule0 :=
+Rule0 =
   Object
   * $count int
   * $label str

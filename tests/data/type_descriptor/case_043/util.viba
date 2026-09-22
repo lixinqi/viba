@@ -1,8 +1,8 @@
 import util as up
 
-Plan0 :=
+Plan0 =
   Oneof
   | $left int
   | $right str
 
-Plan1 := $only int
+Plan1 = $only int

@@ -1,14 +1,14 @@
 import util as base
 
-Rule0 := $only int
+Rule0 = $only int
 
-Config1 :=
+Config1 =
   Object
   * $peer base.Rule0
 
-Rule2 :=
+Rule2 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Node3 := int * str
+Node3 = int * str

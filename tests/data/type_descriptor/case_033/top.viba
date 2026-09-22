@@ -1,6 +1,6 @@
 import top as m
 
-Node0 :=
+Node0 =
   Object
   * $items list[int]
   * $seen set[str]

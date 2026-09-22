@@ -1,1 +1,1 @@
-Report0 := int * str * bool
+Report0 = int * str * bool

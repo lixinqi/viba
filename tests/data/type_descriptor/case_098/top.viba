@@ -1,17 +1,17 @@
 import util
 
-Rule0 :=
+Rule0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Report1 := str * (int | nil)
+Report1 = str * (int | nil)
 
-Rule2 :=
+Rule2 =
   Object
   * $peer util.Config0
 
-Report3 :=
+Report3 =
   Object
   * $items list[int]
   * $seen set[str]

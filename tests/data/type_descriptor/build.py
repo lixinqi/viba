@@ -58,14 +58,14 @@ def member(index, tag, type_name, kind, optional=False, resolved=None):
 
 
 def t_product_tagged(rng, name):
-    lines = [f"{name} :=", "  Object", "  * $count int", "  * $label str"]
+    lines = [f"{name} =", "  Object", "  * $count int", "  * $label str"]
     truth = [member(0, "$count", "int", "type_ref"), member(1, "$label", "str", "type_ref")]
     return lines, truth, [], None
 
 
 def t_product_positional(rng, name):
     written = rng.choice(["int * str * bool", "str * (int | nil)", "int * str"])
-    lines = [f"{name} := {written}"]
+    lines = [f"{name} = {written}"]
     if written == "int * str * bool":
         truth = [member(0, None, "int", "type_ref"),
                  member(1, None, "str", "type_ref"),
@@ -81,16 +81,16 @@ def t_product_positional(rng, name):
 
 def t_sum_tagged(rng, name):
     if rng.random() < 0.5:
-        lines = [f"{name} :=", "  Oneof", "  | $left int", "  | $right str"]
+        lines = [f"{name} =", "  Oneof", "  | $left int", "  | $right str"]
     else:
-        lines = [f"{name} := $left int | $right str"]
+        lines = [f"{name} = $left int | $right str"]
     truth = [member(0, "$left", "int", "type_ref"), member(1, "$right", "str", "type_ref")]
     return lines, truth, [], None
 
 
 def t_containers(rng, name):
     lines = [
-        f"{name} :=",
+        f"{name} =",
         "  Object",
         "  * $items list[int]",
         "  * $seen set[str]",
@@ -107,26 +107,26 @@ def t_containers(rng, name):
 
 
 def t_generic(rng, name):
-    lines = [f"{name}[T] :=", "  $v T"]
+    lines = [f"{name}[T] =", "  $v T"]
     truth = [member(0, "$v", "T", "type_ref")]
     return lines, truth, ["T"], None
 
 
 def t_single_tagged(rng, name):
-    lines = [f"{name} := $only int"]
+    lines = [f"{name} = $only int"]
     truth = [member(0, "$only", "int", "type_ref")]
     return lines, truth, [], None
 
 
 def t_foreign_ref(rng, name, foreign_module, foreign_def, local):
-    lines = [f"{name} :=", "  Object", f"  * $peer {local}.{foreign_def}"]
+    lines = [f"{name} =", "  Object", f"  * $peer {local}.{foreign_def}"]
     truth = [member(0, "$peer", f"{local}.{foreign_def}", "type_ref",
                     resolved=f"{foreign_module}.{foreign_def}")]
     return lines, truth, [], foreign_module
 
 
 def t_missing(rng, name):
-    lines = [f"{name} :=", "  Object", "  * $ghost Missing", "  * $mix list[Missing]"]
+    lines = [f"{name} =", "  Object", "  * $ghost Missing", "  * $mix list[Missing]"]
     truth = [
         member(0, "$ghost", "Missing", "type_ref"),
         member(1, "$mix", None, "type_app"),

@@ -80,7 +80,7 @@ def _unparse_type_definition(defn: TypeDefinition, indent: int, depth: int) -> s
     """Unparse a TypeDefinition (no generic parameters)."""
     prefix = " " * (indent * (depth + 1))
     body = _dedent(_unparse_type(defn.body, indent, depth + 1), prefix)
-    return f"{defn.name} :=\n{prefix}{body}"
+    return f"{defn.name} =\n{prefix}{body}"
 
 
 def _unparse_generic_definition(defn: GenericDefinition, indent: int, depth: int) -> str:
@@ -88,7 +88,7 @@ def _unparse_generic_definition(defn: GenericDefinition, indent: int, depth: int
     params = "[" + ", ".join(defn.generic_params) + "]"
     prefix = " " * (indent * (depth + 1))
     body = _dedent(_unparse_type(defn.body, indent, depth + 1), prefix)
-    return f"{defn.name}{params} :=\n{prefix}{body}"
+    return f"{defn.name}{params} =\n{prefix}{body}"
 
 
 def _unparse_import(import_node: Import) -> str:

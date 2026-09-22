@@ -1,12 +1,12 @@
 import util as lib
 
-Config0 := int * str
+Config0 = int * str
 
-Report1 :=
+Report1 =
   Object
   * $peer lib.Report0
 
-Report2 :=
+Report2 =
   Object
   * $count int
   * $label str

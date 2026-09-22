@@ -485,8 +485,8 @@ class VibaAccess:
         are no other exceptions.
 
         A definition already being unfolded stops the walk, since a pool may
-        write a cycle (`A := B` with `B := A`) or a generic that asks for
-        itself (`W[T] := W[T]`, or `W[T] := W[list[T]]`, whose body only grows);
+        write a cycle (`A = B` with `B = A`) or a generic that asks for
+        itself (`W[T] = W[T]`, or `W[T] = W[list[T]]`, whose body only grows);
         neither has a body to land on, so the piece stays the name it is."""
         return self._unfold_seen(descriptor, set() if seen is None else set(seen))[0]
 
@@ -682,7 +682,7 @@ class VibaAccess:
         is no member at all (that is what the head `Object` has always meant);
         anything else is one positional member, as written.
 
-        A definition the chain meets twice (`A := A * $x int`) has no expansion
+        A definition the chain meets twice (`A = A * $x int`) has no expansion
         to read: this layer still hands the member out as it stands — it cannot
         throw — and names it in ``cycles`` when a caller asks for the malformed
         design to be caught (see inline_cycle).
@@ -712,7 +712,7 @@ class VibaAccess:
         """The name a product's inline chain comes back to, or None.
 
         An untagged member is an inline slot, so a member that reaches a
-        definition already being inlined has no full expansion: `A := A * $x
+        definition already being inlined has no full expansion: `A = A * $x
         int` writes A as itself, and there is nothing to read. This layer still
         hands the member out (`member_steps` cannot throw), so a checker that
         needs a well-formed design asks here — `is_sub_type` and `serialize`
@@ -828,8 +828,8 @@ class VibaAccess:
         One rule on both sides (the design side works on descriptors, this one
         on syntax trees); a name resolves in the module the design piece comes
         from, hence the module carried by ``design``. A definition already
-        expanded stays as written, so a cycle (`A := B` with `B := A`) and a
-        body that only grows (`W[T] := W[list[T]]`) both terminate.
+        expanded stays as written, so a cycle (`A = B` with `B = A`) and a
+        body that only grows (`W[T] = W[list[T]]`) both terminate.
         """
         return self._expand_data_seen(data, design, set(), data_module)
 

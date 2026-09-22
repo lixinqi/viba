@@ -1,1 +1,1 @@
-X := ListLiteral[1, 2]
+X = ListLiteral[1, 2]

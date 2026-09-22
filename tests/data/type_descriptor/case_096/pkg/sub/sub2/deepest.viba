@@ -1,10 +1,10 @@
 import pkg.sub.deep
 
-Shape0 :=
+Shape0 =
   Object
   * $count int
   * $label str
 
-Config1 :=
+Config1 =
   Object
   * $peer pkg.sub.deep.Node1

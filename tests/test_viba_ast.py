@@ -104,7 +104,7 @@ def _parser_cases():
 
 
 def run_module_cases():
-    tree = parse("Option[T] := $some T | nil\nOther := int\n")
+    tree = parse("Option[T] = $some T | nil\nOther = int\n")
     check("parse answers a Module", isinstance(tree, Module))
     same("two definitions", [d.name for d in tree.body], ["Option", "Other"])
     check("the first is a generic definition",
@@ -115,7 +115,7 @@ def run_module_cases():
     same("parse of only spaces", parse("   \n\n").body, [])
 
     # canonical: 链式规范化后的 Module，原 Module 不动
-    plain = parse("X := A | B | C")
+    plain = parse("X = A | B | C")
     same("before canonical, still binary", type(plain.body[0].body).__name__, "Sum")
     chained = canonical(plain)
     check("canonical answers chains", isinstance(chained.body[0].body, SumChain))
@@ -124,11 +124,11 @@ def run_module_cases():
     # unparse: 写出规范源码（不带结尾换行）；空 Module 写出空串
     same("unparse of an empty module", unparse(parse("")), "")
     same("unparse writes canonical chains",
-         unparse(parse("X := A | B | C")), "X :=\n  A\n  | B\n  | C")
+         unparse(parse("X = A | B | C")), "X =\n  A\n  | B\n  | C")
     same("unparse of an import", unparse(parse("import a.b as c")), "import a.b as c")
 
     # unparse_type: 单个类型表达式，不带定义
-    same("unparse_type on a node", unparse_type(parse("X := A * B").body[0].body),
+    same("unparse_type on a node", unparse_type(parse("X = A * B").body[0].body),
          "A * B")
     same("unparse_type on a partial",
          unparse_type(Partial(TypeRef("F"), Tagged("$a", TypeRef("T")))),
@@ -137,7 +137,7 @@ def run_module_cases():
 
 def run_unparse_type_cases():
     """unparse_type 直接吃二元/链节点：括号该加的地方加上。"""
-    case = lambda source: unparse_type(parse(f"X := {source}").body[0].body)
+    case = lambda source: unparse_type(parse(f"X = {source}").body[0].body)
     same("a sum inside a product keeps its parentheses", case("(A | B) * C"), "(A | B) * C")
     same("and so does a sum on the right", case("A * (B | C)"), "A * (B | C)")
     same("a sum inside a sum needs none", case("(A | B) | C"), "A | B | C")
@@ -176,7 +176,7 @@ def viba_code(text: str):
     return CodeBlock(text[1:-1])
 
     # dump: 带字段名 / 不带 / 缩进 / 没有字段的节点
-    node = parse("X := $a int").body[0]
+    node = parse("X = $a int").body[0]
     same("dump with fields", dump(node),
          "TypeDefinition(name='X', body=Tagged(tag='$a', type=TypeRef(name='int')))")
     same("dump without fields", dump(node, annotate_fields=False),
@@ -187,7 +187,7 @@ def viba_code(text: str):
          dump(node, indent=1),
          "TypeDefinition(\n name='X',\n body=Tagged(\n   tag='$a',\n"
          "   type=TypeRef(\n     name='int',\n    ),\n  ),\n)")
-    same("dump of a list field", dump(parse("X := (A, B)").body[0]),
+    same("dump of a list field", dump(parse("X = (A, B)").body[0]),
          "TypeDefinition(name='X', body=Tuple(elements=[TypeRef(name='A'), "
          "TypeRef(name='B')]))")
 
@@ -222,7 +222,7 @@ def run_corpus_cases():
 
 
 def run_traversal_cases():
-    tree = parse("X := A * B")
+    tree = parse("X = A * B")
     same("walk is breadth-first",
          [node.__class__.__name__ for node in walk(tree)],
          ["Module", "TypeDefinition", "Product", "TypeRef", "TypeRef"])
@@ -245,7 +245,7 @@ def run_visitor_cases():
             seen.append(node.__class__.__name__)
             super().generic_visit(node)
 
-    Kinds().visit(parse("X := A * B"))
+    Kinds().visit(parse("X = A * B"))
     same("generic_visit sees every node", seen,
          ["Module", "TypeDefinition", "Product", "TypeRef", "TypeRef"])
 
@@ -258,7 +258,7 @@ def run_visitor_cases():
         def visit_TypeRef(self, node):
             reached.append(node.name)
 
-    Shallow().visit(parse("X := A * B"))
+    Shallow().visit(parse("X = A * B"))
     same("a visit method may stop the recursion", reached, ["product"])
 
     replaced = []
@@ -267,7 +267,7 @@ def run_visitor_cases():
         def visit_TypeRef(self, node):
             replaced.append(node.name)
 
-    Names().visit(parse("X := $a (A * B) | C"))
+    Names().visit(parse("X = $a (A * B) | C"))
     same("visit_<Class> dispatches by class name", replaced, ["A", "B", "C"])
 
 
@@ -278,15 +278,15 @@ def run_transformer_cases():
                 node.name = "Z"
             return node
 
-    tree = Rename().visit(parse("X := A * (B <- A)"))
+    tree = Rename().visit(parse("X = A * (B <- A)"))
     same("a transformer rewrites in place",
-         unparse(tree), unparse(parse("X := Z * (B <- Z)")))
+         unparse(tree), unparse(parse("X = Z * (B <- Z)")))
 
     class DropDefs(NodeTransformer):
         def visit_TypeDefinition(self, node):
             return None if node.name == "Drop" else node
 
-    tree = DropDefs().visit(parse("Keep := int\nDrop := str\n"))
+    tree = DropDefs().visit(parse("Keep = int\nDrop = str\n"))
     same("returning None drops a list item", [d.name for d in tree.body], ["Keep"])
 
     class DropArg(NodeTransformer):
@@ -294,14 +294,14 @@ def run_transformer_cases():
             node.args = []
             return node
 
-    tree = DropArg().visit(parse("X := list[A, B]"))
+    tree = DropArg().visit(parse("X = list[A, B]"))
     same("a transformer may empty a list field", tree.body[0].body.args, [])
 
     class DropField(NodeTransformer):
         def visit_TypeRef(self, node):
             return None
 
-    tree = DropField().visit(parse("X := A <- B"))
+    tree = DropField().visit(parse("X = A <- B"))
     check("returning None in a single-slot field sets it to None",
           tree.body[0].body.result is None and tree.body[0].body.argument is None)
 
@@ -310,14 +310,14 @@ def run_transformer_cases():
             return "not a node"
 
     raises("a visit method must answer a node or None", "must return an AST node",
-           Bad().visit, parse("X := A * B"))
+           Bad().visit, parse("X = A * B"))
 
     class BadInList(NodeTransformer):
         def visit_TypeDefinition(self, node):
             return 7
 
     raises("and the same holds inside a list", "must return an AST node",
-           BadInList().visit, parse("X := int\n"))
+           BadInList().visit, parse("X = int\n"))
 
     class TouchNothing(NodeTransformer):
         def visit_TypeRef(self, node):
@@ -330,9 +330,9 @@ def run_transformer_cases():
         def visit_Nil(self, node):
             return TypeRef("nil")
 
-    tree = TupleExtending().visit(parse("X := (A, nil)"))
+    tree = TupleExtending().visit(parse("X = (A, nil)"))
     same("a transformer reaches tuple members",
-         unparse(tree), "X :=\n  (A, nil)")
+         unparse(tree), "X =\n  (A, nil)")
 
 
 # ----------------------------------------------------------------------
@@ -344,45 +344,45 @@ def run_chain_cases():
     def chain(source):
         return convert_to_chain_style(body_of(source))
 
-    flattened = chain("X := A * B * C")
+    flattened = chain("X = A * B * C")
     check("a written run is one chain", isinstance(flattened, ProductChain))
     same("with its elements in order",
          [type(e).__name__ for e in flattened.elements],
          ["TypeRef", "TypeRef", "TypeRef"])
 
-    grouped = chain("X := A * (B * C)")
+    grouped = chain("X = A * (B * C)")
     same("grouping stays: two elements, the second a chain",
          [type(e).__name__ for e in grouped.elements],
          ["TypeRef", "ProductChain"])
 
-    sums = chain("X := A | B | C")
+    sums = chain("X = A | B | C")
     check("sum runs chain too", isinstance(sums, SumChain))
 
-    exponents = chain("X := A <- B <- C")
+    exponents = chain("X = A <- B <- C")
     check("exponent runs chain in written order", isinstance(exponents, ExponentChain))
     same("result first, then the arguments",
          [type(e).__name__ for e in exponents.elements],
          ["TypeRef", "TypeRef", "TypeRef"])
     same("a parenthesised exponent is a branch",
-         [type(e).__name__ for e in chain("X := A <- (B <- C)").elements],
+         [type(e).__name__ for e in chain("X = A <- (B <- C)").elements],
          ["TypeRef", "ExponentChain"])
 
-    tagged = chain("X := $a (A * B)")
+    tagged = chain("X = $a (A * B)")
     check("tags keep their body", isinstance(tagged, Tagged))
     check("and the body is chained", isinstance(tagged.type, ProductChain))
-    applied = chain("X := list[A * B]")
+    applied = chain("X = list[A * B]")
     check("applications chain their arguments",
           isinstance(applied.args[0], ProductChain))
-    tuples = chain("X := (A * B, C)")
+    tuples = chain("X = (A * B, C)")
     check("tuples chain their elements", isinstance(tuples.elements[0], ProductChain))
-    partial = chain("X := (F <- $a A) << $a (B * C)")
+    partial = chain("X = (F <- $a A) << $a (B * C)")
     check("a partial chains both sides",
           isinstance(partial, Partial)
           and isinstance(partial.function, ExponentChain)
           and isinstance(partial.argument, Tagged)
           and isinstance(partial.argument.type, ProductChain))
 
-    definition = convert_to_chain_style(parse("G[T] := A * B").body[0])
+    definition = convert_to_chain_style(parse("G[T] = A * B").body[0])
     check("definitions are chained through",
           isinstance(definition.body, ProductChain) and definition.generic_params == ["T"])
 
@@ -430,7 +430,7 @@ def run_chain_cases():
 
 
 def run_match_cases():
-    node = parse("X := A * B").body[0].body
+    node = parse("X = A * B").body[0].body
     same("dispatch by class name",
          viba_type_match(node, Product=lambda p: "product", _=lambda n: "other"),
          "product")

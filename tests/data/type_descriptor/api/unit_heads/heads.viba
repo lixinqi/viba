@@ -1,13 +1,13 @@
-Rule :=
+Rule =
   Object
   * $a int
   * str
 
-Color :=
+Color =
   Oneof
   | $red int
   | $blue str
 
-Bare := $only int
+Bare = $only int
 
-Alias := int
+Alias = int

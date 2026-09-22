@@ -1,2 +1,2 @@
-Chain2 := $head int * $tail Chain2 | nil
-X := Chain2 <- int
+Chain2 = $head int * $tail Chain2 | nil
+X = Chain2 <- int

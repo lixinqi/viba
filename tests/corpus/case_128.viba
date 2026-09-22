@@ -4,7 +4,7 @@
 import pandas
 import fx.graph
 
-Graph1[In, K] :=
+Graph1[In, K] =
     $data (
         $value (
             (
@@ -19,7 +19,7 @@ Graph1[In, K] :=
         )
     )
 
-Pair2[V, In] :=
+Pair2[V, In] =
     (
         (
             $cfg (
@@ -47,7 +47,7 @@ Pair2[V, In] :=
             )
         )
 
-List4 :=
+List4 =
     (
         (
             640
@@ -63,7 +63,7 @@ List4 :=
             )
     )
 
-Node5[Out, In] :=
+Node5[Out, In] =
     $dst (
         (
             Gamma
@@ -87,14 +87,14 @@ Node5[Out, In] :=
             )
     )
 
-Option7[Out, In] :=
+Option7[Out, In] =
     (
         (
             $value true
         )
     )
 
-Rule8 :=
+Rule8 =
     (
         never
             | GraphModule

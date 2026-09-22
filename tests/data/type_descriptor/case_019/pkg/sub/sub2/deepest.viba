@@ -1,15 +1,15 @@
 import pkg.sub.sub2.deepest as up
 
-Rule0 :=
+Rule0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Plan1 :=
+Plan1 =
   Object
   * $count int
   * $label str
 
-Node2 :=
+Node2 =
   Object
   * $peer up.Rule0

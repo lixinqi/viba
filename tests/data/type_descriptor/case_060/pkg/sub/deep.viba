@@ -1,10 +1,10 @@
 import util
 
-Plan0 :=
+Plan0 =
   Object
   * $peer util.Node1
 
-Shape1 :=
+Shape1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

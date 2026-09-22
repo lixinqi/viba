@@ -1,1 +1,1 @@
-X := DictLiteral[(int, str)]
+X = DictLiteral[(int, str)]

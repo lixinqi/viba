@@ -1,9 +1,9 @@
 import util as base
 
-Config0[T] :=
+Config0[T] =
   $v T
 
-Shape1 :=
+Shape1 =
   Oneof
   | $left int
   | $right str

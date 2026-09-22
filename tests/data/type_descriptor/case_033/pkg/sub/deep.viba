@@ -1,12 +1,12 @@
 import pkg.mod
 
-Config0 :=
+Config0 =
   Object
   * $peer pkg.mod.Config1
 
-Shape1 := $left int | $right str
+Shape1 = $left int | $right str
 
-Plan2 :=
+Plan2 =
   Object
   * $items list[int]
   * $seen set[str]

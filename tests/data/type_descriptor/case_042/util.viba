@@ -1,20 +1,20 @@
 import top
 
-Node0 :=
+Node0 =
   Object
   * $peer top.Shape1
 
-Report1 :=
+Report1 =
   Oneof
   | $left int
   | $right str
 
-Config2 :=
+Config2 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Report3[T] :=
+Report3[T] =
   $v T

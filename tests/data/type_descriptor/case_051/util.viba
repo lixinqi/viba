@@ -1,9 +1,9 @@
-Node0 :=
+Node0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Rule1 :=
+Rule1 =
   Object
   * $items list[int]
   * $seen set[str]

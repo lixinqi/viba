@@ -1,1 +1,1 @@
-Expr := $num int | $plus ($l Expr * $r Expr)
+Expr = $num int | $plus ($l Expr * $r Expr)

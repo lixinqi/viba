@@ -1,1 +1,1 @@
-X := int * $a int
+X = int * $a int

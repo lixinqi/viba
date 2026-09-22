@@ -1,1 +1,1 @@
-X := nil * $a int
+X = nil * $a int

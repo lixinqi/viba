@@ -1,15 +1,15 @@
 import util as base
 
-Rule0[T] :=
+Rule0[T] =
   $v T
 
-Report1 := $left int | $right str
+Report1 = $left int | $right str
 
-Report2 :=
+Report2 =
   Object
   * $peer base.Config0
 
-Rule3 :=
+Rule3 =
   Object
   * $items list[int]
   * $seen set[str]

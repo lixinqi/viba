@@ -1,17 +1,17 @@
 import pkg.sub.deep as m
 
-Report0 := int * str
+Report0 = int * str
 
-Node1 :=
+Node1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Rule2 :=
+Rule2 =
   Object
   * $peer m.Node1
 
-Report3 :=
+Report3 =
   Object
   * $count int
   * $label str

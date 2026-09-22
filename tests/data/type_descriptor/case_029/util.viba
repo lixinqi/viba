@@ -1,9 +1,9 @@
-Shape0 :=
+Shape0 =
   Oneof
   | $left int
   | $right str
 
-Plan1 :=
+Plan1 =
   Object
   * $count int
   * $label str

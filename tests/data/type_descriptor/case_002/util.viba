@@ -1,1 +1,1 @@
-Rule0 := $only int
+Rule0 = $only int

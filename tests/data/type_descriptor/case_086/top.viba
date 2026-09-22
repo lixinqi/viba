@@ -1,15 +1,15 @@
 import util
 
-Report0 :=
+Report0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Report1[T] :=
+Report1[T] =
   $v T
 
-Node2 :=
+Node2 =
   Object
   * $peer util.Report0

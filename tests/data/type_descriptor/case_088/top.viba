@@ -1,7 +1,7 @@
 import util as up
 
-Shape0 :=
+Shape0 =
   Object
   * $peer up.Shape0
 
-Node1 := $left int | $right str
+Node1 = $left int | $right str

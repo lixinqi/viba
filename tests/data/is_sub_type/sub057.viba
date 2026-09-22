@@ -1,1 +1,1 @@
-X := $val 1 * $left ($val 'x' * $left nil * $right nil) * $right nil
+X = $val 1 * $left ($val 'x' * $left nil * $right nil) * $right nil

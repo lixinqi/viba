@@ -1,1 +1,1 @@
-A := A * $x int
+A = A * $x int

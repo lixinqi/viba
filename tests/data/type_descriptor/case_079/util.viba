@@ -1,7 +1,7 @@
-Rule0[T] :=
+Rule0[T] =
   $v T
 
-Node1 :=
+Node1 =
   Object
   * $items list[int]
   * $seen set[str]

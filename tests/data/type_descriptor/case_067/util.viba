@@ -1,11 +1,11 @@
-Shape0 :=
+Shape0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Report1[T] :=
+Report1[T] =
   $v T
 
-Node2 := $left int | $right str
+Node2 = $left int | $right str

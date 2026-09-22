@@ -1,8 +1,8 @@
 import top as up
 
-Shape0 :=
+Shape0 =
   Object
   * $count int
   * $label str
 
-Rule1 := str * (int | nil)
+Rule1 = str * (int | nil)

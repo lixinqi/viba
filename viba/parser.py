@@ -51,7 +51,7 @@ tokens = (
     "SINGLE_STRING",
     "TRIPLE_STRING",
     "BOOLEAN",
-    "ASSIGN",  # :=
+    "ASSIGN",  # =
     "SUM_OP",  # |
     "PROD_OP",  # *
     "EXP_OP",  # <-
@@ -72,7 +72,7 @@ tokens = (
     "CODE_BLOCK",  # { ... }
 )
 
-t_ASSIGN = r":="
+t_ASSIGN = r"="
 t_SUM_OP = r"\|"
 t_PROD_OP = r"\*"
 # `<<` is listed first: PLY takes same-length tokens in definition order.
@@ -205,6 +205,10 @@ def t_error(t):
     """Raise on an illegal character, like `p_error` does on a bad token: a
     character the grammar has no word for means this source does not compile.
     Skipping it would parse `-5` as `5`, and the caller would never know."""
+    if t.value.startswith(":" + "="):
+        raise SyntaxError(
+            f"Viba parse error: a definition is written `=`, not `:=` "
+            f"(line {t.lexer.lineno})")
     raise SyntaxError(
         f"Viba parse error: illegal character {t.value[0]!r} at line {t.lexer.lineno}")
 
@@ -265,7 +269,7 @@ def _reject_builtin_name(name: str, position: str) -> None:
 
 
 def check_definition_names(definitions) -> None:
-    """Refuse a builtin type name on the left of `:=`."""
+    """Refuse a builtin type name on the left of `=`."""
     for node in definitions:
         if isinstance(node, TypeDefinition):
             _reject_builtin_name(node.name, "a definition name")
@@ -493,175 +497,175 @@ def parse_source(source: str):
 if __name__ == "__main__":
     test_cases = [
         # 1-5: Basic Algebraic Identities & Atomic Types
-        ("IdentitySum := A | never", "Sum with identity zero"),
-        ("IdentityProd := A * nil", "Product with identity unit"),
-        ("UnitOnly := nil", "Pure unit type"),
-        ("BottomOnly := never", "Pure bottom type"),
-        ("Variadic := A | B | ...", "Open sum type with ellipsis"),
+        ("IdentitySum = A | never", "Sum with identity zero"),
+        ("IdentityProd = A * nil", "Product with identity unit"),
+        ("UnitOnly = nil", "Pure unit type"),
+        ("BottomOnly = never", "Pure bottom type"),
+        ("Variadic = A | B | ...", "Open sum type with ellipsis"),
         # 6-10: Literals & Constants
-        ("ConfigInt := 42", "Integer literal"),
-        ("ConfigFloat := 3.1415", "Float literal"),
-        ("ConfigBool := true * false", "Boolean literals in product"),
-        ('ConfigStr := "viba_v1" * 1.0', "Mixed string and float"),
-        ("ComplexLiteral := 0.5 * nil | never", "Mixed literals and identities"),
+        ("ConfigInt = 42", "Integer literal"),
+        ("ConfigFloat = 3.1415", "Float literal"),
+        ("ConfigBool = true * false", "Boolean literals in product"),
+        ('ConfigStr = "viba_v1" * 1.0', "Mixed string and float"),
+        ("ComplexLiteral = 0.5 * nil | never", "Mixed literals and identities"),
         # 10a-10e: String literals the unparser has to spell back out
-        ("""QuotedStr := 'say "hi" now'""", "Single-quoted string with a double quote"),
-        ('ApostropheStr := "it\'s fine"', "Double-quoted string with an apostrophe"),
-        ('UnicodeStr := "中文🙂"', "Unicode string literal"),
-        ("MultilineStr := '''one\ntwo'''", "Triple-quoted string spanning lines"),
-        ("TrailingSlashStr := '''trail\\'''", "Triple-quoted string ending in a backslash"),
+        ("""QuotedStr = 'say "hi" now'""", "Single-quoted string with a double quote"),
+        ('ApostropheStr = "it\'s fine"', "Double-quoted string with an apostrophe"),
+        ('UnicodeStr = "中文🙂"', "Unicode string literal"),
+        ("MultilineStr = '''one\ntwo'''", "Triple-quoted string spanning lines"),
+        ("TrailingSlashStr = '''trail\\'''", "Triple-quoted string ending in a backslash"),
         # 10i-10j: the top type
-        ("Top := Any", "The top type"),
-        ("TopSum := Any | int * str", "The top inside a sum and a product"),
+        ("Top = Any", "The top type"),
+        ("TopSum = Any | int * str", "The top inside a sum and a product"),
         # 10f-10h: partial computation, `<<`
-        ("Partial := (A <- $b B <- $c C) << $b B",
+        ("Partial = (A <- $b B <- $c C) << $b B",
          "Function with one argument given"),
-        ("PartialAll := T << $c C << $b B",
+        ("PartialAll = T << $c C << $b B",
          "Arguments given in the other order"),
-        ("PartialNested := M << $b (P * Q)",
+        ("PartialNested = M << $b (P * Q)",
          "The given argument is a product"),
-        ("PartialGrouped := M << (N << $a P)",
+        ("PartialGrouped = M << (N << $a P)",
          "A `<<` given as the argument keeps its grouping"),
         # 11-15: Semantic Paths & Tagging
-        ("SimpleTag := $target Output", "Basic tagged type"),
-        ("NestedPath := $meta.id.hash STRING", "Nested semantic path ($a.b.c)"),
-        ("TagChain := $src In * $dst Out", "Multiple tags in product"),
-        ("DeepPath := $a.b.c.d.e INT", "Very deep semantic path"),
+        ("SimpleTag = $target Output", "Basic tagged type"),
+        ("NestedPath = $meta.id.hash STRING", "Nested semantic path ($a.b.c)"),
+        ("TagChain = $src In * $dst Out", "Multiple tags in product"),
+        ("DeepPath = $a.b.c.d.e INT", "Very deep semantic path"),
         (
-            "TaggedParens := ($res Result <- $arg Input)",
+            "TaggedParens = ($res Result <- $arg Input)",
             "Tagged exponent in parentheses",
         ),
         # 16-20: Exponents & Currying (Higher-order types)
-        ("MapType := B <- A", "Simple function/exponent"),
-        ("Curried := C <- B <- A", "Nested currying (Left-associative)"),
+        ("MapType = B <- A", "Simple function/exponent"),
+        ("Curried = C <- B <- A", "Nested currying (Left-associative)"),
         (
-            "ComplexExponent := (Out | Error) <- In * Config",
+            "ComplexExponent = (Out | Error) <- In * Config",
             "Product argument to sum result",
         ),
         (
-            "CurriedParens := ($ret Ret <- ($p1 A) <- ($p2 B))",
+            "CurriedParens = ($ret Ret <- ($p1 A) <- ($p2 B))",
             "Nested parenthesized currying",
         ),
         (
-            "AutoEncoder := ($output Out <- $input In <- $intent Intent)",
+            "AutoEncoder = ($output Out <- $input In <- $intent Intent)",
             "AE style currying",
         ),
         # 21-25: Generics & Combinations
-        ("List[T] := T * List[T] | nil", "Recursive generic list"),
-        ("Pair[K, V] := K * V", "Multi-parameter generic"),
-        ("Option[T] := T | nil", "Standard Option type"),
-        ("Result[T, E] := $ok T | $err E", "Tagged result sum type"),
-        ("HLSegment[T] := $data T * $next ...", "Generic with variadic tail"),
+        ("List[T] = T * List[T] | nil", "Recursive generic list"),
+        ("Pair[K, V] = K * V", "Multi-parameter generic"),
+        ("Option[T] = T | nil", "Standard Option type"),
+        ("Result[T, E] = $ok T | $err E", "Tagged result sum type"),
+        ("HLSegment[T] = $data T * $next ...", "Generic with variadic tail"),
         # 26: The "Final Boss" case
         (
-            'FinalBoss[In, Out] := ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99',
+            'FinalBoss[In, Out] = ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99',
             "Comprehensive stress test",
         ),
-        ("EmptyTuple := ()", "Empty tuple: its own node, |()| = 1"),
-        ("MixedNil := A | () | nil", "Mixing empty tuple and nil in sum"),
-        ("VoidAlias := void", "void is an alias of nil"),
-        ("NoneAlias := None", "None is an alias of nil"),
-        ("AliasMix := A * void | None", "void and None alias mix"),
-        ("AE_ReturnUnit := () <- Input", "Using () as return type"),
-        ("IdentitySum := A | never", "Sum with identity zero"),
-        ("IdentityProd := A * nil", "Product with identity unit"),
-        ("Variadic := A | B | ...", "Open sum type with ellipsis"),
-        ("ConfigInt := 42", "Integer literal"),
-        ("ConfigFloat := 3.1415", "Float literal"),
-        ("ConfigBool := true * false", "Boolean literals"),
-        ('ConfigStr := "viba_v1" * 1.0', "Mixed string and float"),
-        ("SimpleTag := $target Output", "Basic tagged type"),
-        ("NestedPath := $meta.id.hash STRING", "Nested semantic path"),
-        ("TagChain := $src In * $dst Out", "Multiple tags"),
-        ("DeepPath := $a.b.c.d.e INT", "Deep semantic path"),
-        ("TaggedParens := ($res Result <- $arg Input)", "Tagged exponent"),
-        ("MapType := B <- A", "Simple exponent"),
-        ("Curried := C <- B <- A", "Nested currying"),
-        ("AutoEncoder := ($output Out <- $input In <- $intent Intent)", "AE currying"),
-        ("List[T] := T * List[T] | ()", "Recursive list with ()"),
-        ("Result[T, E] := $ok T | $err E", "Tagged result"),
+        ("EmptyTuple = ()", "Empty tuple: its own node, |()| = 1"),
+        ("MixedNil = A | () | nil", "Mixing empty tuple and nil in sum"),
+        ("VoidAlias = void", "void is an alias of nil"),
+        ("NoneAlias = None", "None is an alias of nil"),
+        ("AliasMix = A * void | None", "void and None alias mix"),
+        ("AE_ReturnUnit = () <- Input", "Using () as return type"),
+        ("IdentitySum = A | never", "Sum with identity zero"),
+        ("IdentityProd = A * nil", "Product with identity unit"),
+        ("Variadic = A | B | ...", "Open sum type with ellipsis"),
+        ("ConfigInt = 42", "Integer literal"),
+        ("ConfigFloat = 3.1415", "Float literal"),
+        ("ConfigBool = true * false", "Boolean literals"),
+        ('ConfigStr = "viba_v1" * 1.0', "Mixed string and float"),
+        ("SimpleTag = $target Output", "Basic tagged type"),
+        ("NestedPath = $meta.id.hash STRING", "Nested semantic path"),
+        ("TagChain = $src In * $dst Out", "Multiple tags"),
+        ("DeepPath = $a.b.c.d.e INT", "Deep semantic path"),
+        ("TaggedParens = ($res Result <- $arg Input)", "Tagged exponent"),
+        ("MapType = B <- A", "Simple exponent"),
+        ("Curried = C <- B <- A", "Nested currying"),
+        ("AutoEncoder = ($output Out <- $input In <- $intent Intent)", "AE currying"),
+        ("List[T] = T * List[T] | ()", "Recursive list with ()"),
+        ("Result[T, E] = $ok T | $err E", "Tagged result"),
         (
-            'FinalBoss[In, Out] := ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99',
+            'FinalBoss[In, Out] = ($res.val Out | $res.err never) <- $cfg.mode "fast" * In * 0.99',
             "Comprehensive test",
         ),
         # ====== TRIPLE-QUOTED STRING TESTS (20 cases) ======
-        ("TripleSimple := '''a b c'''", "Simple triple-quoted string"),
-        ("TripleSingleWord := '''hello'''", "Triple-quoted with single word"),
-        ("TripleMultiLine := '''line1\nline2\nline3'''", "Triple-quoted with newlines"),
-        ("TripleSpaces := '''  multiple   spaces  '''", "Triple-quoted with spaces"),
-        ("TripleProduct := '''text1''' * '''text2'''", "Triple-quoted strings in product"),
-        ("TripleSum := '''option1''' | '''option2'''", "Triple-quoted strings in sum"),
-        ("TripleExponent := '''result''' <- '''input'''", "Triple-quoted in exponent"),
-        ("TripleWithTags := $tag '''value'''", "Triple-quoted with semantic tag"),
-        ("TripleTuple := ('''first''', '''second''')", "Triple-quoted in tuple"),
-        ("TripleNested := ('''a''' * '''b''') | '''c'''", "Nested triple-quoted expressions"),
-        ("TripleGeneric := List['''item''']", "Triple-quoted as generic argument"),
-        ("TripleWithNil := '''data''' * nil", "Triple-quoted with nil identity"),
-        ("TripleWithNever := '''text''' | never", "Triple-quoted with never identity"),
-        ("TripleEllipsis := '''base''' | ...", "Triple-quoted with ellipsis"),
-        ("TripleEllipsisTail := '''head''' * ...", "Triple-quoted product with ellipsis"),
-        ("TripleComplex := ($res '''OK''' | $err '''Error''') <- '''input'''", "Complex triple-quoted expression"),
-        ("TripleCurried := '''C''' <- '''B''' <- '''A'''", "Triple-quoted currying"),
-        ("TripleRecursive := '''item''' * TripleRecursive | nil", "Recursive with triple-quoted"),
-        ("TripleVariadic := '''a''' | '''b''' | '''c''' | ...", "Multiple triple-quoted sum with ellipsis"),
-        ("TripleFinal := ('''x''' * '''y''', '''z''')", "Triple-quoted in nested tuple"),
+        ("TripleSimple = '''a b c'''", "Simple triple-quoted string"),
+        ("TripleSingleWord = '''hello'''", "Triple-quoted with single word"),
+        ("TripleMultiLine = '''line1\nline2\nline3'''", "Triple-quoted with newlines"),
+        ("TripleSpaces = '''  multiple   spaces  '''", "Triple-quoted with spaces"),
+        ("TripleProduct = '''text1''' * '''text2'''", "Triple-quoted strings in product"),
+        ("TripleSum = '''option1''' | '''option2'''", "Triple-quoted strings in sum"),
+        ("TripleExponent = '''result''' <- '''input'''", "Triple-quoted in exponent"),
+        ("TripleWithTags = $tag '''value'''", "Triple-quoted with semantic tag"),
+        ("TripleTuple = ('''first''', '''second''')", "Triple-quoted in tuple"),
+        ("TripleNested = ('''a''' * '''b''') | '''c'''", "Nested triple-quoted expressions"),
+        ("TripleGeneric = List['''item''']", "Triple-quoted as generic argument"),
+        ("TripleWithNil = '''data''' * nil", "Triple-quoted with nil identity"),
+        ("TripleWithNever = '''text''' | never", "Triple-quoted with never identity"),
+        ("TripleEllipsis = '''base''' | ...", "Triple-quoted with ellipsis"),
+        ("TripleEllipsisTail = '''head''' * ...", "Triple-quoted product with ellipsis"),
+        ("TripleComplex = ($res '''OK''' | $err '''Error''') <- '''input'''", "Complex triple-quoted expression"),
+        ("TripleCurried = '''C''' <- '''B''' <- '''A'''", "Triple-quoted currying"),
+        ("TripleRecursive = '''item''' * TripleRecursive | nil", "Recursive with triple-quoted"),
+        ("TripleVariadic = '''a''' | '''b''' | '''c''' | ...", "Multiple triple-quoted sum with ellipsis"),
+        ("TripleFinal = ('''x''' * '''y''', '''z''')", "Triple-quoted in nested tuple"),
         # ====== SINGLE-QUOTED STRING TESTS (20 cases) ======
-        ("SingleSimple := 'a b c'", "Simple single-quoted string"),
-        ("SingleWord := 'hello'", "Single word in single quotes"),
-        ("SingleSpaces := '  multiple   spaces  '", "Single-quoted with spaces"),
-        ("SingleProduct := 'text1' * 'text2'", "Single-quoted strings in product"),
-        ("SingleSum := 'option1' | 'option2'", "Single-quoted strings in sum"),
-        ("SingleExponent := 'result' <- 'input'", "Single-quoted in exponent"),
-        ("SingleWithTags := $tag 'value'", "Single-quoted with semantic tag"),
-        ("SingleTuple := ('first', 'second')", "Single-quoted in tuple"),
-        ("SingleNested := ('a' * 'b') | 'c'", "Nested single-quoted expressions"),
-        ("SingleGeneric := List['item']", "Single-quoted as generic argument"),
-        ("SingleWithNil := 'data' * nil", "Single-quoted with nil identity"),
-        ("SingleWithNever := 'text' | never", "Single-quoted with never identity"),
-        ("SingleEllipsis := 'base' | ...", "Single-quoted with ellipsis"),
-        ("SingleEllipsisTail := 'head' * ...", "Single-quoted product with ellipsis"),
-        ("SingleComplex := ($res 'OK' | $err 'Error') <- 'input'", "Complex single-quoted expression"),
-        ("SingleCurried := 'C' <- 'B' <- 'A'", "Single-quoted currying"),
-        ("SingleRecursive := 'item' * SingleRecursive | nil", "Recursive with single-quoted"),
-        ("SingleVariadic := 'a' | 'b' | 'c' | ...", "Multiple single-quoted sum with ellipsis"),
-        ("SingleFinal := ('x' * 'y', 'z')", "Single-quoted in nested tuple"),
+        ("SingleSimple = 'a b c'", "Simple single-quoted string"),
+        ("SingleWord = 'hello'", "Single word in single quotes"),
+        ("SingleSpaces = '  multiple   spaces  '", "Single-quoted with spaces"),
+        ("SingleProduct = 'text1' * 'text2'", "Single-quoted strings in product"),
+        ("SingleSum = 'option1' | 'option2'", "Single-quoted strings in sum"),
+        ("SingleExponent = 'result' <- 'input'", "Single-quoted in exponent"),
+        ("SingleWithTags = $tag 'value'", "Single-quoted with semantic tag"),
+        ("SingleTuple = ('first', 'second')", "Single-quoted in tuple"),
+        ("SingleNested = ('a' * 'b') | 'c'", "Nested single-quoted expressions"),
+        ("SingleGeneric = List['item']", "Single-quoted as generic argument"),
+        ("SingleWithNil = 'data' * nil", "Single-quoted with nil identity"),
+        ("SingleWithNever = 'text' | never", "Single-quoted with never identity"),
+        ("SingleEllipsis = 'base' | ...", "Single-quoted with ellipsis"),
+        ("SingleEllipsisTail = 'head' * ...", "Single-quoted product with ellipsis"),
+        ("SingleComplex = ($res 'OK' | $err 'Error') <- 'input'", "Complex single-quoted expression"),
+        ("SingleCurried = 'C' <- 'B' <- 'A'", "Single-quoted currying"),
+        ("SingleRecursive = 'item' * SingleRecursive | nil", "Recursive with single-quoted"),
+        ("SingleVariadic = 'a' | 'b' | 'c' | ...", "Multiple single-quoted sum with ellipsis"),
+        ("SingleFinal = ('x' * 'y', 'z')", "Single-quoted in nested tuple"),
         # ====== MIXED STRING TYPE TESTS (10 cases) ======
-        ("MixedSingleDouble := 'single' * \"double\"", "Single and double quotes together"),
-        ("MixedDoubleSingle := \"double\" | 'single'", "Double and single quotes together"),
-        ("MixedTripleSingle := '''triple''' * 'single'", "Triple and single quotes together"),
-        ("MixedAll := 'one' * \"two\" | '''three'''", "All three string types together"),
-        ("MixedWithTypes := 'text' * 42 * 3.14 * \"str\"", "Mixed with number literals"),
-        ("MixedInTuple := ('first', \"second\", 'third')", "Mixed quotes in tuple"),
-        ("MixedInSum := 'a' | \"b\" | 'c'", "Mixed quotes in sum"),
-        ("MixedInExponent := 'result' <- (\"input1\" * 'input2')", "Mixed quotes in exponent"),
-        ("MixedTagged := $tag 'val' * $other \"val2\"", "Mixed quotes with tags"),
-        ("MixedComplex := ('''A''' | 'B') <- (\"x\" * 'y' * '''z''')", "Complex mixed quotes"),
+        ("MixedSingleDouble = 'single' * \"double\"", "Single and double quotes together"),
+        ("MixedDoubleSingle = \"double\" | 'single'", "Double and single quotes together"),
+        ("MixedTripleSingle = '''triple''' * 'single'", "Triple and single quotes together"),
+        ("MixedAll = 'one' * \"two\" | '''three'''", "All three string types together"),
+        ("MixedWithTypes = 'text' * 42 * 3.14 * \"str\"", "Mixed with number literals"),
+        ("MixedInTuple = ('first', \"second\", 'third')", "Mixed quotes in tuple"),
+        ("MixedInSum = 'a' | \"b\" | 'c'", "Mixed quotes in sum"),
+        ("MixedInExponent = 'result' <- (\"input1\" * 'input2')", "Mixed quotes in exponent"),
+        ("MixedTagged = $tag 'val' * $other \"val2\"", "Mixed quotes with tags"),
+        ("MixedComplex = ('''A''' | 'B') <- (\"x\" * 'y' * '''z''')", "Complex mixed quotes"),
         # ====== CODE BLOCK TESTS ======
-        ("CodeBlockBasic := {hello}", "Simple code block"),
-        ("CodeBlockWithSpaces := {  some text  }", "Code block with spaces"),
-        ("CodeBlockMultiLine := {line1\nline2\nline3}", "Code block with newlines"),
-        ("CodeBlockNested := {outer {inner} end}", "Nested code block"),
-        ("CodeBlockDeepNested := {a {b {c {d} c} b} a}", "Deeply nested code block"),
-        ("CodeBlockInProduct := {fn} * {config}", "Code blocks in product"),
-        ("CodeBlockInSum := {opt1} | {opt2}", "Code blocks in sum"),
-        ("CodeBlockInExponent := {result} <- {input}", "Code blocks in exponent"),
-        ("CodeBlockTagged := $tag {value}", "Tagged code block"),
-        ("CodeBlockMixed := {code} * nil | never", "Code block with identities"),
-        ("CodeBlockWithTuple := ({a}, {b})", "Code blocks in tuple"),
-        ("CodeBlockGeneric := List[{item}]", "Code block as generic arg"),
-        ("EmptyApp := ListLiteral[]", "Application of no arguments"),
-        ("EmptyAppInSum := ListLiteral[] | nil", "Empty application in a sum"),
-        ("CodeBlockComplex := ({res {OK} | {err}} <- {inp})", "Complex code block expression"),
+        ("CodeBlockBasic = {hello}", "Simple code block"),
+        ("CodeBlockWithSpaces = {  some text  }", "Code block with spaces"),
+        ("CodeBlockMultiLine = {line1\nline2\nline3}", "Code block with newlines"),
+        ("CodeBlockNested = {outer {inner} end}", "Nested code block"),
+        ("CodeBlockDeepNested = {a {b {c {d} c} b} a}", "Deeply nested code block"),
+        ("CodeBlockInProduct = {fn} * {config}", "Code blocks in product"),
+        ("CodeBlockInSum = {opt1} | {opt2}", "Code blocks in sum"),
+        ("CodeBlockInExponent = {result} <- {input}", "Code blocks in exponent"),
+        ("CodeBlockTagged = $tag {value}", "Tagged code block"),
+        ("CodeBlockMixed = {code} * nil | never", "Code block with identities"),
+        ("CodeBlockWithTuple = ({a}, {b})", "Code blocks in tuple"),
+        ("CodeBlockGeneric = List[{item}]", "Code block as generic arg"),
+        ("EmptyApp = ListLiteral[]", "Application of no arguments"),
+        ("EmptyAppInSum = ListLiteral[] | nil", "Empty application in a sum"),
+        ("CodeBlockComplex = ({res {OK} | {err}} <- {inp})", "Complex code block expression"),
         # ====== IMPORT TESTS ======
         ("import numpy", "Plain import"),
         ("import fx.graph", "Dotted module import"),
         ("import torch as t", "Aliased import"),
         ("import a.b.c as abc", "Dotted aliased import"),
         (
-            "import numpy\nimport torch as t\nTensor := t.Tensor * numpy.ndarray",
+            "import numpy\nimport torch as t\nTensor = t.Tensor * numpy.ndarray",
             "Imports before definitions",
         ),
-        ("Crlf := int\r\nCrlf2 := str\r\n", "A source written with CRLF line endings"),
+        ("Crlf = int\r\nCrlf2 = str\r\n", "A source written with CRLF line endings"),
     ]
 
     # Sources that must not compile: a caller has to be able to tell. The name
@@ -669,18 +673,19 @@ if __name__ == "__main__":
     # run here too, the way `viba_ast.parse` runs it.
 
     error_cases = [
-        ("X := (A * B", "An unclosed parenthesis"),
-        ("X := A |", "A sum with no right side"),
-        ("X :=", "A definition with no body"),
-        ("X := -5", "A minus sign: there is no unary minus"),
-        ("X := A @ B", "An illegal character"),
-        ("X := {never closed", "A code block that never closes"),
+        ("X = (A * B", "An unclosed parenthesis"),
+        ("X = A |", "A sum with no right side"),
+        ("X =", "A definition with no body"),
+        ("X = -5", "A minus sign: there is no unary minus"),
+        ("X = A @ B", "An illegal character"),
+        ("X := int", "An old-style := definition: the operator is ="),
+        ("X = {never closed", "A code block that never closes"),
         ("import", "An import with no module name"),
-        ("X := $x int $y", "Two tags with no operator between them"),
-        ("X := A B", "Two names with no operator between them"),
-        ("X := 1.2.3", "A malformed float"),
-        ("list := int", "A builtin container as a definition name"),
-        ("W[list] := int", "A builtin container as a generic parameter"),
+        ("X = $x int $y", "Two tags with no operator between them"),
+        ("X = A B", "Two names with no operator between them"),
+        ("X = 1.2.3", "A malformed float"),
+        ("list = int", "A builtin container as a definition name"),
+        ("W[list] = int", "A builtin container as a generic parameter"),
     ]
 
     print(f"{'TEST CASE':<50} | {'STATUS'}")
@@ -714,9 +719,9 @@ if __name__ == "__main__":
 
     # The line count starts over with each source: a fresh one-line file says
     # line 1, whatever the file parsed before it ended on.
-    parse_source("A := int\nB := int\nC := int\n")
+    parse_source("A = int\nB = int\nC = int\n")
     try:
-        parse_source("X := -5")
+        parse_source("X = -5")
         print(f"{'a fresh source counts from line 1':<50} | DID NOT RAISE")
     except SyntaxError as e:
         if "line 1" in str(e):

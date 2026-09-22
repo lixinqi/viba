@@ -1,10 +1,10 @@
 import util as m
 
-Node0 :=
+Node0 =
   Oneof
   | $left int
   | $right str
 
-Report1 :=
+Report1 =
   Object
   * $peer m.Shape0

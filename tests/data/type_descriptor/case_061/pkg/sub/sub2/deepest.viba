@@ -1,14 +1,14 @@
 import top
 
-Rule0 :=
+Rule0 =
   Object
   * $peer top.Node0
 
-Config1 :=
+Config1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Plan2 := $only int
+Plan2 = $only int

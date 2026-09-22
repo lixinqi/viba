@@ -1,5 +1,5 @@
 import top as m
 
-Rule0 := $left int | $right str
+Rule0 = $left int | $right str
 
-Plan1 := $only int
+Plan1 = $only int

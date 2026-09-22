@@ -1,10 +1,10 @@
 import top as lib
 
-Report0 :=
+Report0 =
   Object
   * $peer lib.Report1
 
-Shape1 :=
+Shape1 =
   Object
   * $items list[int]
   * $seen set[str]

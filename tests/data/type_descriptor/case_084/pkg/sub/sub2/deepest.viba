@@ -1,8 +1,8 @@
 import pkg.sub.sub2.deepest as m
 
-Rule0 := int * str * bool
+Rule0 = int * str * bool
 
-Plan1 :=
+Plan1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

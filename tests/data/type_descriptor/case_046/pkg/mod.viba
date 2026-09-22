@@ -1,7 +1,7 @@
-Report0[T] :=
+Report0[T] =
   $v T
 
-Plan1 :=
+Plan1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

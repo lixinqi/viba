@@ -1,4 +1,4 @@
-C := str
-B := C
-A := B
-X := A
+C = str
+B = C
+A = B
+X = A

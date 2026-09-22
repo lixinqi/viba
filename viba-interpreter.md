@@ -46,7 +46,7 @@ interpret("main.viba", environ, get_file=files.get)   # 一次运行全在内存
 
 ```viba
 # file name: add_demo.viba
-add :=
+add =
 	int
 	<- $env Environment
 	<- $a int
@@ -55,7 +55,7 @@ add :=
 		add two integer
 	}
 
-print :=
+print =
 	void
 	<- $env Environment
 	<- $x Any
@@ -63,7 +63,7 @@ print :=
 		print to stdout
 	}
 
-__ret__ :=
+__ret__ =
 	add
 	<< $env environ
 	<< $a 999999
@@ -85,9 +85,9 @@ __ret__ :=
 ```viba
 import add_demo as demo
 
-ret := demo << (environ.sub_env << "add_demo")
+ret = demo << (environ.sub_env << "add_demo")
 
-__ret__ := demo.print << environ << ret
+__ret__ = demo.print << environ << ret
 ```
 
 - `demo` 是模块，当函数用：给它一个 environment，它跑完给出它的 `__ret__`。
@@ -133,7 +133,7 @@ lib << (environ.tmp_sub_env << ())
 （`viba/builtin.viba`）：模块的 `$env` 那一格要的就是它，`environ` 也是它。
 
 ```viba
-Environment :=
+Environment =
     Object
   * $viba_path str
   * $sub_env (Environment <- $sub_env_name str)
@@ -204,20 +204,20 @@ def roll(env, n):
 - **要回放就要一条稳定的路径**：跨两次运行能命中，靠的是两次运行里那条路径一样。用
   `sub_env << "稳定的名字"` 就是稳定的；`tmp_sub_env` 每条路径都是新的，挂在它底下的调用不适合
   保存要回放的东西（上一节：这正是它给出的"该显名保存了"的信号）。
-- **快照是序列化的 viba 数据**（`viba.serialize` 写出来的 `value := …`），不是 pickle：存下来
+- **快照是序列化的 viba 数据**（`viba.serialize` 写出来的 `value = …`），不是 pickle：存下来
   的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回材料，叶子和原来一样。
 - **存不了、回放不出来就是错**：`Err`（宿主抛出来，interpret 转成 `Err`），不会静默给个默认值。
 
 于是"随机"也能回放：
 
 ```viba
-roll :=
+roll =
 	int
 	<- $env Environment
 	<- $n int
 	<- { roll a die: not a pure function, so its answer is snapshotted }
 
-__ret__ := roll << $env environ << $n 1
+__ret__ = roll << $env environ << $n 1
 ```
 
 第一次跑算出 731204 并存进 `store_root/root/roll-1.viba`；第二次跑读到它，那条不纯的路一次
@@ -236,7 +236,7 @@ __ret__ <- $env Environment
 所以下面这几条都成立（`tests/test_is_sub_type.py` 里有用例）：
 
 ```viba
-demo := import add_demo as demo         # 概念上
+demo = import add_demo as demo         # 概念上
 demo << $env environ  <:  int           # 就是 __ret__ 的类型
 int <: demo << $env environ             # 反过来也成立：两者同型
 demo.add <: int <- $env Environment <- $a int <- $b int

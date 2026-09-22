@@ -7,10 +7,10 @@
 - **设计**：`.viba` 源码，写清了要什么结构。比如
 
   ```viba
-  Len := int
-  Checked[T] := $value T * $assertion {what has to hold of it}
+  Len = int
+  Checked[T] = $value T * $assertion {what has to hold of it}
 
-  Report :=
+  Report =
       Object
     * $len Len
     * $check Checked[{len under 50}]
@@ -66,14 +66,14 @@ root.try_get_missing()                 # Ok(None)：实现那边没有这一段
 ## 4. 地址
 
 ```viba
-VibaStep :=
+VibaStep =
     Oneof
   | $by_tag str
   | $by_field_index int
   | $at_index int
   | $at_key str
 
-VibaPath := list[VibaStep]
+VibaPath = list[VibaStep]
 ```
 
 | step | 含义 |
@@ -91,12 +91,12 @@ VibaPath := list[VibaStep]
 - **泛型应用**：构造子指向一个泛型定义时，把实参代进形参，落到实例化的体上。材料那边写成同一个名字或同一个应用时，也按同一条规矩展开——设计里的成员与材料里的那一段因此一一对得上。
 - **和 / 积 / 指数**：三种链一个形状，成员就是 `$elements`；链头是单位元就不算成员。
   设计里写了 `<<`（部分计算）的，先给掉再看形状：读到的地址是给完之后的。指数的 `$elements[0]` 是结果，其余是参数，例如：`never <- $not_operand A` 的成员就是被禁止的那个操作数，`by_tag not_operand` / `get_not_operand()` 取到的就是它。
-- **积的无标签成员是内联位**：一个不带标签的成员展开后是积（或一整条带标签的字段）时，它的成员就摊在这里，摊进来的 tag 直接当这一层的成员——`A := $x int * $y int` 时，`B := A * $z int` 的成员就是 `$x` / `$y` / `$z`，没有多出来的一跳；摊完还是一样的规矩，可以一直摊下去。展开后是单位元（`Object` / `nil`，或落在它们上的名字）时它根本不是成员；其它不带标签的成员照旧按位置对位。同一个积里同一个 tag 出现两次是写错，判定与 `serialize` 都给 `Err`。
-- **内联要摊到底**：链绕回一个正在摊的定义时没有形状可落——`A := A * $x int` 是把 A 写成它自己，绕别名（`B := A`）或两个定义互指都算。这种设计是写错，判定与 `serialize` 都给 `Err`；地址层自己不抛（第 5.1 节那些格子不能抛），照原样把那一个成员交出来，要不要拒绝由查的人问 `VibaAccess.inline_cycle`（返回绕回的那个定义名，摊得开则返回 `nil`）。
+- **积的无标签成员是内联位**：一个不带标签的成员展开后是积（或一整条带标签的字段）时，它的成员就摊在这里，摊进来的 tag 直接当这一层的成员——`A = $x int * $y int` 时，`B = A * $z int` 的成员就是 `$x` / `$y` / `$z`，没有多出来的一跳；摊完还是一样的规矩，可以一直摊下去。展开后是单位元（`Object` / `nil`，或落在它们上的名字）时它根本不是成员；其它不带标签的成员照旧按位置对位。同一个积里同一个 tag 出现两次是写错，判定与 `serialize` 都给 `Err`。
+- **内联要摊到底**：链绕回一个正在摊的定义时没有形状可落——`A = A * $x int` 是把 A 写成它自己，绕别名（`B = A`）或两个定义互指都算。这种设计是写错，判定与 `serialize` 都给 `Err`；地址层自己不抛（第 5.1 节那些格子不能抛），照原样把那一个成员交出来，要不要拒绝由查的人问 `VibaAccess.inline_cycle`（返回绕回的那个定义名，摊得开则返回 `nil`）。
 - **在这之前先查一遍**：上面两条（重标签、内联成环）是设计自己的事，跟材料无关，所以有一份一元检查（`viba/check_tag_and_inline.py`，函数同名）：它从每个定义出发走一遍，碰到的每个积都查，不受"这次拿它跟谁比"影响。判定与 `serialize` 里那两条 `Err` 是兜底，不是发现它的地方。
 
   ```viba
-  CheckTagAndInline :=
+  CheckTagAndInline =
       Result[nil]
     <- $design VibaPool
     <- $config VibaReflectConfig
@@ -119,7 +119,7 @@ VibaPath := list[VibaStep]
 ### 5.1 接口
 
 ```viba
-VibaNode[Data] :=
+VibaNode[Data] =
     Object
   * $descriptor VibaTypeDescriptor
   * $data Data
@@ -134,46 +134,46 @@ VibaNode[Data] :=
   * $len int
   * $keys list[str]
 
-VibaReflectConfig :=
+VibaReflectConfig =
 		Object
 	* $never_equivalent_terminators set[str]
 	* $nil_equivalent_terminators set[str]
 
-Result[T] :=
+Result[T] =
 		Oneof
 	| $ok ($ok_value T)
 	| $err ($err_msg str)
 
-VibaRoot[Data] :=
+VibaRoot[Data] =
     Result[VibaNode[Data]]
   <- $config VibaReflectConfig
   <- $definition VibaDefinitionDescriptor
   <- $data Data
 
 
-VibaHas[Data] :=
+VibaHas[Data] =
     Result[bool]
   <- $config VibaReflectConfig
   <- $node VibaNode[Data]
   <- $step VibaStep
 
-VibaGet[Data] :=
+VibaGet[Data] =
     Result[VibaNode[Data]]
   <- $config VibaReflectConfig
   <- $node VibaNode[Data]
   <- $step VibaStep
 
-VibaLeaf[Data] :=
+VibaLeaf[Data] =
     Result[VibaConstant]
   <- $config VibaReflectConfig
   <- $node VibaNode[Data]
 
-VibaLength[Data] :=
+VibaLength[Data] =
     Result[int]
   <- $config VibaReflectConfig
   <- $node VibaNode[Data]
 
-VibaKeys[Data] :=
+VibaKeys[Data] =
     Result[list[str]]
   <- $config VibaReflectConfig
   <- $node VibaNode[Data]
@@ -197,19 +197,19 @@ VibaKeys[Data] :=
 ### 5.2 便利函数
 
 ```viba
-VibaResolve[Data] :=
+VibaResolve[Data] =
     Result[VibaNode[Data]]
   <- $config VibaReflectConfig
   <- $node VibaNode[Data]
   <- $path VibaPath
 
-VibaGetByPath[Data] :=
+VibaGetByPath[Data] =
     Result[VibaConstant]
   <- $config VibaReflectConfig
   <- $node VibaNode[Data]
   <- $path VibaPath
 
-VibaListFields[Data] :=
+VibaListFields[Data] =
     Result[list[VibaNode[Data]]]
   <- $config VibaReflectConfig
   <- $node VibaNode[Data]
@@ -226,7 +226,7 @@ VibaListFields[Data] :=
 ### 5.3 实现方交付的类型
 
 ```viba
-VibaAccess[Data] :=
+VibaAccess[Data] =
     Object
   * $root (Result[VibaNode[Data]] <- $definition VibaDefinitionDescriptor <- $data Data)
   * $has (Result[bool] <- $node VibaNode[Data] <- $step VibaStep)

@@ -1,9 +1,9 @@
-Rule0 :=
+Rule0 =
   Oneof
   | $left int
   | $right str
 
-Rule1 :=
+Rule1 =
   Object
   * $count int
   * $label str

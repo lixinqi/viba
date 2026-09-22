@@ -1,1 +1,1 @@
-X := $nice int * $good str * $find bool
+X = $nice int * $good str * $find bool

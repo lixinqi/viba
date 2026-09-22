@@ -1,15 +1,15 @@
 import top
 
-Plan0 :=
+Plan0 =
   Object
   * $peer top.Shape0
 
-Node1[T] :=
+Node1[T] =
   $v T
 
-Node2 := $only int
+Node2 = $only int
 
-Shape3 :=
+Shape3 =
   Oneof
   | $left int
   | $right str

@@ -1,10 +1,10 @@
 import top as base
 
-Shape0 := $only int
+Shape0 = $only int
 
-Report1 := str * (int | nil)
+Report1 = str * (int | nil)
 
-Config2 :=
+Config2 =
   Object
   * $items list[int]
   * $seen set[str]

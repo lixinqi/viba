@@ -1,1 +1,1 @@
-X := $l int * $x int * $y float
+X = $l int * $x int * $y float

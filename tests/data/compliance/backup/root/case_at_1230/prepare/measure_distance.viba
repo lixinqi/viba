@@ -2,7 +2,7 @@
 # are fixed, the result is declared, and it already carries what it measured.
 # A run handed this directory as its prepare backup replays the 5 instead of
 # measuring again.
-value :=
+value =
     $call (
         $victim ($x 0 * $y 0)
       * $suspect ($x 3 * $y 4)

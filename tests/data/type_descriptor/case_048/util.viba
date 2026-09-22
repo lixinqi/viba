@@ -1,10 +1,10 @@
 import util as up
 
-Node0 :=
+Node0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Node1 := int * str * bool
+Node1 = int * str * bool

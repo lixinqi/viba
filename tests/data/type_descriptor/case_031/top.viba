@@ -1,15 +1,15 @@
 import top as dep
 
-Shape0 :=
+Shape0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Config1 :=
+Config1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Node2 := $left int | $right str
+Node2 = $left int | $right str

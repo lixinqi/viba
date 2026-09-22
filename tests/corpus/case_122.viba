@@ -3,7 +3,7 @@
 
 import fx.graph
 
-Stream1[E] :=
+Stream1[E] =
     (
         List[
             nil
@@ -37,7 +37,7 @@ Stream1[E] :=
             )
     )
 
-Check3[V] :=
+Check3[V] =
     Pair[
         (
             $meta.id ()
@@ -54,7 +54,7 @@ Check3[V] :=
         )
     ]
 
-Stream5[K, T] :=
+Stream5[K, T] =
     (
         (
             $input 'strict'
@@ -101,7 +101,7 @@ c''',
             )
         )
 
-Guarded6 :=
+Guarded6 =
     $lines float
     * Assert[{lines <= 203}]
     * Config

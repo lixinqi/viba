@@ -47,13 +47,13 @@ class Module(AST):
 
 
 class TypeDefinition(AST):
-    """name := body — a definition without generic parameters."""
+    """name = body — a definition without generic parameters."""
 
     _fields = ("name", "body")
 
 
 class GenericDefinition(AST):
-    """name[T, U] := body — a definition with generic parameters."""
+    """name[T, U] = body — a definition with generic parameters."""
 
     _fields = ("name", "generic_params", "body")
 

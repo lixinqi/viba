@@ -1,13 +1,13 @@
-Shape0 :=
+Shape0 =
   Object
   * $count int
   * $label str
 
-Rule1 :=
+Rule1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Plan2 := $only int
+Plan2 = $only int

@@ -1,15 +1,15 @@
 import top as base
 
-Node0 :=
+Node0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Report1 :=
+Report1 =
   Object
   * $count int
   * $label str
 
-Report2 :=
+Report2 =
   Object
   * $peer base.Config0

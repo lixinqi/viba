@@ -1,1 +1,1 @@
-Plan0 := str * (int | nil)
+Plan0 = str * (int | nil)

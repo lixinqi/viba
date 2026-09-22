@@ -1,7 +1,7 @@
 import top as up
 
-Node0 := str * (int | nil)
+Node0 = str * (int | nil)
 
-Config1 :=
+Config1 =
   Object
   * $peer up.Plan0

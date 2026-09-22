@@ -86,7 +86,7 @@ def _judge(tmp: Path):
 
     # 另一个案子：12:10 那一刻嫌疑人只在 (0,3)，量出来 3，判定为假
     write(tmp, "case_at_1210.viba", """
-__ret__ :=
+__ret__ =
     $victim ($x 0 * $y 0)
   * $suspect ($x 0 * $y 3)
   * $at "12:10"
@@ -94,28 +94,28 @@ __ret__ :=
     near_rule = write(tmp, "rule_distance_at_1210.viba", """
 import case_at_1210 as case_at_1210
 
-Point := $x int * $y int
-Case := $victim Point * $suspect Point * $at str
+Point = $x int * $y int
+Case = $victim Point * $suspect Point * $at str
 
-measure_distance :=
+measure_distance =
 	int
 	<- $env Environment
 	<- $evidence Environment
 	<- $case Case
 	<- { measure }
 
-distance_ge :=
+distance_ge =
 	bool
 	<- $env Environment
 	<- $d int
 	<- $threshold int
 	<- { at least the threshold? }
 
-case_env := environ.sub_env << "case_at_1210"
-the_case := case_at_1210 << case_env
-distance := measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
-threshold := 5
-__ret__ := distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold
+case_env = environ.sub_env << "case_at_1210"
+the_case = case_at_1210 << case_env
+distance = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
+threshold = 5
+__ret__ = distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold
 """)
     env, host = environ_for(tmp / "near-store")
     verdict = is_compliant(near_rule, env)
@@ -143,7 +143,7 @@ def _prepare_and_record(tmp: Path):
     recorded_file = backup / "root" / "case_at_1230" / "prepare" / "measure_distance.viba"
     check(recorded_file.is_file(), f"the backup now holds the Prepare: {recorded_file}")
     text = recorded_file.read_text()
-    check(text.startswith("value :="), f"as viba source: {text!r}")
+    check(text.startswith("value ="), f"as viba source: {text!r}")
     check("* $measured 5" in text, f"carrying what was measured: {text!r}")
 
 
@@ -207,8 +207,8 @@ def _storage(tmp: Path):
 
     # 没有备份的 storage：Prepare 路径就是普通路径
     plain = PreparedStorage("root", None, str(tmp / "plain-only"))
-    plain.write_text("prepare/x.viba", "value := 1\n")
-    check(plain.read_text("prepare/x.viba") == "value := 1\n",
+    plain.write_text("prepare/x.viba", "value = 1\n")
+    check(plain.read_text("prepare/x.viba") == "value = 1\n",
           "without a backup a Prepare is just a file in the store")
 
 
@@ -216,32 +216,32 @@ def _refusals(tmp: Path):
     """判定与 Prepare 的错：不是 bool、没有 __ret__、编不过、记不进备份。"""
     env, host = environ_for(tmp / "refuse-store")
 
-    not_a_verdict = write(tmp, "not_a_verdict.viba", '__ret__ := "yes"\n')
+    not_a_verdict = write(tmp, "not_a_verdict.viba", '__ret__ = "yes"\n')
     labelled(is_compliant(not_a_verdict, env), "a verdict is a bool",
              "a rule that answers a string -> Err")
 
-    design = write(tmp, "design_only.viba", "Only := $x int\n")
+    design = write(tmp, "design_only.viba", "Only = $x int\n")
     labelled(is_compliant(design, env), "has no __ret__",
              "a rule that is not a program -> Err")
 
-    broken = write(tmp, "broken.viba", "__ret__ := -1\n")
+    broken = write(tmp, "broken.viba", "__ret__ = -1\n")
     labelled(is_compliant(broken, env), "cannot parse",
              "a rule that does not compile -> Err")
 
-    write(tmp, "boom_case.viba", "__ret__ := $victim ($x 0 * $y 0) * $at \"12:30\"\n")
+    write(tmp, "boom_case.viba", "__ret__ = $victim ($x 0 * $y 0) * $at \"12:30\"\n")
     boom_rule = write(tmp, "boom_rule.viba", """
 import boom_case as boom_case
 
-measure_distance :=
+measure_distance =
 	int
 	<- $env Environment
 	<- $evidence Environment
 	<- $case Any
 	<- { measure }
 
-case_env := environ.sub_env << "boom_case"
-the_case := boom_case << case_env
-__ret__ := measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
+case_env = environ.sub_env << "boom_case"
+the_case = boom_case << case_env
+__ret__ = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 """)
     labelled(is_compliant(boom_rule, env), "raised",
              "a measurement that blows up -> Err")

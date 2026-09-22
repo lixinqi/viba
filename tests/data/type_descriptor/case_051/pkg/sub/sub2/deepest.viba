@@ -1,12 +1,12 @@
 import util as dep
 
-Report0 := int * str
+Report0 = int * str
 
-Config1 :=
+Config1 =
   Object
   * $peer dep.Node0
 
-Rule2[T] :=
+Rule2[T] =
   $v T
 
-Node3 := $left int | $right str
+Node3 = $left int | $right str

@@ -1,9 +1,9 @@
 import lv1.lv2.lv3.leaf
 
-Shape0 :=
+Shape0 =
   Object
   * $peer lv1.lv2.lv3.leaf.Report0
 
-Config1 := str * (int | nil)
+Config1 = str * (int | nil)
 
-Node2 := $left int | $right str
+Node2 = $left int | $right str

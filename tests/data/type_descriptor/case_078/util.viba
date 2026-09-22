@@ -1,17 +1,17 @@
 import top
 
-Config0 := str * (int | nil)
+Config0 = str * (int | nil)
 
-Shape1 :=
+Shape1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Node2 :=
+Node2 =
   Oneof
   | $left int
   | $right str
 
-Shape3 :=
+Shape3 =
   Object
   * $peer top.Node0

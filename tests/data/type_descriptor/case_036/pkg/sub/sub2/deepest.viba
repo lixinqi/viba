@@ -1,7 +1,7 @@
 import pkg.sub.deep as base
 
-Report0 :=
+Report0 =
   Object
   * $peer base.Report2
 
-Config1 := int * str * bool
+Config1 = int * str * bool

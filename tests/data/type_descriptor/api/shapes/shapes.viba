@@ -1,4 +1,4 @@
-Shapes :=
+Shapes =
   Object
   * $items list[int]
   * $seen set[str]

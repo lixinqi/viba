@@ -1,19 +1,19 @@
 import top
 
-Report0 :=
+Report0 =
   Object
   * $peer top.Report0
 
-Shape1 :=
+Shape1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Rule2 := int * str * bool
+Rule2 = int * str * bool
 
-Shape3 :=
+Shape3 =
   Object
   * $ghost Missing
   * $mix list[Missing]

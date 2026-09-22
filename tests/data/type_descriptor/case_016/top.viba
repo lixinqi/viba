@@ -1,19 +1,19 @@
 import util as lib
 
-Shape0 :=
+Shape0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1 :=
+Shape1 =
   Object
   * $peer lib.Node2
 
-Shape2 := str * (int | nil)
+Shape2 = str * (int | nil)
 
-Plan3 :=
+Plan3 =
   Object
   * $count int
   * $label str

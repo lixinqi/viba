@@ -1,11 +1,11 @@
 import util as dep
 
-Report0 :=
+Report0 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Shape1[T] :=
+Shape1[T] =
   $v T

@@ -1,3 +1,3 @@
-A := B * $x int
-B := C * $y float
-C := A * $z bool
+A = B * $x int
+B = C * $y float
+C = A * $z bool

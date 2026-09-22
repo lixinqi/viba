@@ -1,19 +1,19 @@
 import lv1.lv2.lv3.leaf
 
-Node0 := int * str * bool
+Node0 = int * str * bool
 
-Report1 :=
+Report1 =
   Object
   * $count int
   * $label str
 
-Shape2 :=
+Shape2 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Rule3 :=
+Rule3 =
   Object
   * $peer lv1.lv2.lv3.leaf.Shape1

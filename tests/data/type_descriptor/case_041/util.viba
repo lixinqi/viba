@@ -1,9 +1,9 @@
-Report0 :=
+Report0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Config1 := str * (int | nil)
+Config1 = str * (int | nil)
 
-Rule2[T] :=
+Rule2[T] =
   $v T

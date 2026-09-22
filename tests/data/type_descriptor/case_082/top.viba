@@ -1,9 +1,9 @@
-Report0 :=
+Report0 =
   Object
   * $count int
   * $label str
 
-Config1 :=
+Config1 =
   Object
   * $ghost Missing
   * $mix list[Missing]

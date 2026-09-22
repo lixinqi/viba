@@ -1,8 +1,8 @@
 import top as lib
 
-Node0 :=
+Node0 =
   Object
   * $peer lib.Node1
 
-Report1[T] :=
+Report1[T] =
   $v T

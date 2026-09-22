@@ -1,1 +1,1 @@
-Broken := $head str * $tail Broken | nil
+Broken = $head str * $tail Broken | nil

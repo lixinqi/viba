@@ -1,10 +1,10 @@
-Config0 := $only int
+Config0 = $only int
 
-Report1 :=
+Report1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Rule2 := int * str * bool
+Rule2 = int * str * bool

@@ -1,15 +1,15 @@
 import util as base
 
-Rule0 :=
+Rule0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Plan1 :=
+Plan1 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Rule2 := $only int
+Rule2 = $only int

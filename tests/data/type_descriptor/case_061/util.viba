@@ -1,4 +1,4 @@
-Report0 :=
+Report0 =
   Object
   * $items list[int]
   * $seen set[str]

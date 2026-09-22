@@ -1,8 +1,8 @@
 import lv1.lv2.lv3.leaf as base
 
-Plan0 := $left int | $right str
+Plan0 = $left int | $right str
 
-Report1 :=
+Report1 =
   Object
   * $count int
   * $label str

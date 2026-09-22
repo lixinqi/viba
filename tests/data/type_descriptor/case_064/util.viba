@@ -1,12 +1,12 @@
 import top as dep
 
-Plan0 :=
+Plan0 =
   Object
   * $peer dep.Report0
 
-Shape1 := $left int | $right str
+Shape1 = $left int | $right str
 
-Plan2 :=
+Plan2 =
   Object
   * $ghost Missing
   * $mix list[Missing]

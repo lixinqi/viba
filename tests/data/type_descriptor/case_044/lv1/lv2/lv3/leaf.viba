@@ -1,12 +1,12 @@
 import util as dep
 
-Shape0 :=
+Shape0 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Plan1 :=
+Plan1 =
   Object
   * $peer dep.Report0
 
-Plan2 := str * (int | nil)
+Plan2 = str * (int | nil)

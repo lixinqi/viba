@@ -1,4 +1,4 @@
-Plan0 :=
+Plan0 =
   Oneof
   | $left int
   | $right str

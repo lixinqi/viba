@@ -1,1 +1,1 @@
-Report0 := $left int | $right str
+Report0 = $left int | $right str

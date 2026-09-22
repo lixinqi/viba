@@ -1,10 +1,10 @@
 import util as base
 
-Report0 :=
+Report0 =
   Oneof
   | $left int
   | $right str
 
-Shape1 :=
+Shape1 =
   Object
   * $peer base.Report0

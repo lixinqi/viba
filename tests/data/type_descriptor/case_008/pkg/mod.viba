@@ -1,12 +1,12 @@
 import lv1.lv2.lv3.leaf as lib
 
-Plan0 :=
+Plan0 =
   Object
   * $count int
   * $label str
 
-Node1 :=
+Node1 =
   Object
   * $peer lib.Shape1
 
-Plan2 := int * str * bool
+Plan2 = int * str * bool

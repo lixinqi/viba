@@ -1,2 +1,2 @@
-B := $y A | nil
-A := $x B | nil
+B = $y A | nil
+A = $x B | nil

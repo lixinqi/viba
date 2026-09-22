@@ -1,10 +1,10 @@
 import top as lib
 
-Node0 :=
+Node0 =
   Object
   * $peer lib.Node2
 
-Plan1 :=
+Plan1 =
   Oneof
   | $left int
   | $right str

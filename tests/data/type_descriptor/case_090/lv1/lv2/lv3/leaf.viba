@@ -1,22 +1,22 @@
 import pkg.sub.deep
 
-Node0 :=
+Node0 =
   Object
   * $count int
   * $label str
 
-Rule1 :=
+Rule1 =
   Object
   * $ghost Missing
   * $mix list[Missing]
 
-Node2 :=
+Node2 =
   Object
   * $items list[int]
   * $seen set[str]
   * $table dict[str, int]
   * $maybe (int | nil)
 
-Rule3 :=
+Rule3 =
   Object
   * $peer pkg.sub.deep.Report3

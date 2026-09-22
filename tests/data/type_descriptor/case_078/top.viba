@@ -1,6 +1,6 @@
-Node0 := $only int
+Node0 = $only int
 
-Plan1 :=
+Plan1 =
   Object
   * $items list[int]
   * $seen set[str]

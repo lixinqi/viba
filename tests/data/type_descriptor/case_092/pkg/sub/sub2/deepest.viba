@@ -1,13 +1,13 @@
 import top as lib
 
-Rule0 := $only int
+Rule0 = $only int
 
-Shape1 :=
+Shape1 =
   Oneof
   | $left int
   | $right str
 
-Config2 :=
+Config2 =
   Object
   * $ghost Missing
   * $mix list[Missing]

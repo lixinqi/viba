@@ -1,15 +1,15 @@
 import top as lib
 
-Config0[T] :=
+Config0[T] =
   $v T
 
-Shape1 :=
+Shape1 =
   Object
   * $peer lib.Plan0
 
-Report2 := int * str
+Report2 = int * str
 
-Plan3 :=
+Plan3 =
   Object
   * $ghost Missing
   * $mix list[Missing]

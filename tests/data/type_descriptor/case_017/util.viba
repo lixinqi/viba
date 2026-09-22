@@ -1,1 +1,1 @@
-Shape0 := $left int | $right str
+Shape0 = $left int | $right str

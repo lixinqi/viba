@@ -1,12 +1,12 @@
 import util
 
-Node0 := $only int
+Node0 = $only int
 
-Shape1 :=
+Shape1 =
   Object
   * $peer util.Rule0
 
-Report2 :=
+Report2 =
   Object
   * $items list[int]
   * $seen set[str]

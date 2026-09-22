@@ -1,12 +1,12 @@
 import lv1.lv2.lv3.leaf as base
 
-Plan0 := $only int
+Plan0 = $only int
 
-Rule1 :=
+Rule1 =
   Object
   * $peer base.Plan0
 
-Node2 :=
+Node2 =
   Object
   * $ghost Missing
   * $mix list[Missing]

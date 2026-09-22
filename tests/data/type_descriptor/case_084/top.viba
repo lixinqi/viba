@@ -1,8 +1,8 @@
-Shape0 := $only int
+Shape0 = $only int
 
-Rule1 := int * str
+Rule1 = int * str
 
-Rule2 :=
+Rule2 =
   Object
   * $count int
   * $label str

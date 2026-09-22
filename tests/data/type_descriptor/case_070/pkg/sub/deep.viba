@@ -1,14 +1,14 @@
 import top
 
-Config0 := $only int
+Config0 = $only int
 
-Config1 :=
+Config1 =
   Object
   * $peer top.Shape0
 
-Node2 := $left int | $right str
+Node2 = $left int | $right str
 
-Shape3 :=
+Shape3 =
   Object
   * $count int
   * $label str

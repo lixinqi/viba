@@ -173,7 +173,7 @@ def _env_serving(target, wanted: str):
 
 def run_env_cases():
     """Module environment: Err paths and mixed resolution."""
-    target = custom_module("Ext := $x int")
+    target = custom_module("Ext = $x int")
     hard = custom_module("", environment=_err_env)
     t_here = entry_type("T", hard)
     t_there = entry_type("T", custom_module(""))
@@ -181,21 +181,21 @@ def run_env_cases():
     check_result(is_sub_type(t_here, t_there), "error", "env Err: unresolved either side")
     u_here = entry_type("U", hard)
     check_result(is_sub_type(t_here, u_here), "error", "env Err: names differ, still Err")
-    mixed = custom_module("Local := $y str", environment=_env_serving(target, "Ext"))
+    mixed = custom_module("Local = $y str", environment=_env_serving(target, "Ext"))
     ext = entry_type("Ext", mixed)
-    ext_again = entry_type("Ext", custom_module("Ext := $x int"))
+    ext_again = entry_type("Ext", custom_module("Ext = $x int"))
     check_result(is_sub_type(ext, ext_again), True, "env Ok: resolves, structural")
-    wrap = custom_module("Wrap := $w Missing", environment=_err_env)
+    wrap = custom_module("Wrap = $w Missing", environment=_err_env)
     wrap_a = entry_type("Wrap", wrap)
-    wrap_b = entry_type("Wrap", custom_module("Wrap := $w Missing"))
+    wrap_b = entry_type("Wrap", custom_module("Wrap = $w Missing"))
     check_result(is_sub_type(wrap_a, wrap_b), "error", "env Err inside body: Err")
     check_generic_env_case()
 
 
 def check_generic_env_case():
-    g_target = custom_module("G[T] := $v T")
+    g_target = custom_module("G[T] = $v T")
     g_source = custom_module("", environment=_env_serving(g_target, "G"))
-    g_local = custom_module("G[T] := $v T")
+    g_local = custom_module("G[T] = $v T")
     sub = entry_type("G[int]", g_source)
     sup = entry_type("G[int]", g_local)
     check_result(is_sub_type(sub, sup), True, "generic env vs local: same body")
@@ -221,7 +221,7 @@ def run_env_get_cases():
     bound = entry_with_env("$x T", env_int)
     res = is_sub_type(bound, entry_type("$x int"))
     check_result(res, True, "env_get binds free name -> True")
-    local = custom_module("T := $t str")
+    local = custom_module("T = $t str")
     over = entry_with_env("$x T", env_int, local)
     res = is_sub_type(over, entry_type("$x str", local))
     check_result(res, True, "module definition wins over env_get")
@@ -250,15 +250,15 @@ def run_env_get_scope_cases():
 
 def run_applied_generic_cases():
     """The driver: one-side TypeApp unfolds, params bound via env_get."""
-    box_mod = custom_module("Box[T] := $v T")
+    box_mod = custom_module("Box[T] = $v T")
     free = entry_with_env("Box[T]", _type_serving(IntType(), "T"), box_mod)
     res = is_sub_type(entry_type("$v 3"), free)
     check_result(res, True, "free actual resolves through env_get at unfold")
-    pair_mod = custom_module("Pair[T] := $left T * $right T")
+    pair_mod = custom_module("Pair[T] = $left T * $right T")
     pair = entry_type("Pair[int]", pair_mod)
     res = is_sub_type(entry_type("$left 3 * $right 4"), pair)
     check_result(res, True, "generic product body unfolds against a product witness")
-    loop_mod = custom_module("Loop[T] := $l Loop[int]")
+    loop_mod = custom_module("Loop[T] = $l Loop[int]")
     looping = entry_type("Loop[int]", loop_mod)
     res = is_sub_type(looping, entry_type("$l 'x'"))
     check_result(res, True, "self-referencing application terminates")
@@ -267,13 +267,13 @@ def run_applied_generic_cases():
 def run_literal_alias_cases():
     """A literal sub is structural: an alias of a container unfolds."""
     module = custom_module("""
-AppendOnlyList[T] := list[T]
-ReadOnlyList[T] := list[T]
-AppendOnlyDict[K, V] := dict[K, V]
-MaybeList[T] := list[T] | nil
-Layer[T] := AppendOnlyList[T]
-Box[T] := $v T
-Loop[T] := Loop[T]
+AppendOnlyList[T] = list[T]
+ReadOnlyList[T] = list[T]
+AppendOnlyDict[K, V] = dict[K, V]
+MaybeList[T] = list[T] | nil
+Layer[T] = AppendOnlyList[T]
+Box[T] = $v T
+Loop[T] = Loop[T]
 """)
 
     def judge(sub, sup):
@@ -316,17 +316,17 @@ Loop[T] := Loop[T]
 def run_recursive_generic_cases():
     """Equi-recursive: a definition is its own unfolding, coinductively."""
     module = custom_module("""
-Tree[T] := $leaf T * $kids list[Tree[T]]
-Other[T] := $leaf T * $kids list[Other[T]]
-MyList[T] := $head T * $tail MyList[T] | nil
-List[T] := $head T * $tail List[T] | nil
-A[T] := B[T]
-B[T] := A[T]
-Loop[T] := Loop[T]
-Box[T] := $v T
-H[T] := str <- $in H[T]
-H2[T] := str <- $in H2[list[T]]
-SumRec[T] := $a T | $b SumRec[T]
+Tree[T] = $leaf T * $kids list[Tree[T]]
+Other[T] = $leaf T * $kids list[Other[T]]
+MyList[T] = $head T * $tail MyList[T] | nil
+List[T] = $head T * $tail List[T] | nil
+A[T] = B[T]
+B[T] = A[T]
+Loop[T] = Loop[T]
+Box[T] = $v T
+H[T] = str <- $in H[T]
+H2[T] = str <- $in H2[list[T]]
+SumRec[T] = $a T | $b SumRec[T]
 """)
 
     def judge(sub, sup):
@@ -361,19 +361,19 @@ SumRec[T] := $a T | $b SumRec[T]
 def run_structural_generic_cases():
     """No nominal generics: every name is an alias of its body."""
     module = custom_module("""
-Num := int | float
-Handler[T] := str <- $in T
-DeepHandler[T] := Handler[T]
-Putter[T] := $out T
-Pair[K, V] := $key K * $value V
-Alpha[T] := $v T
-Beta[T] := $v T
-Box[T] := $v T
-AliasOfBox[T] := Box[T]
-MissingAlias[T] := Missing
-Wrap[T] := $value T
-Shape[Cond, Code] := $head Cond * $tail Code
-Odd[T, Msg] := $__odd_original T * $__odd_msg Msg
+Num = int | float
+Handler[T] = str <- $in T
+DeepHandler[T] = Handler[T]
+Putter[T] = $out T
+Pair[K, V] = $key K * $value V
+Alpha[T] = $v T
+Beta[T] = $v T
+Box[T] = $v T
+AliasOfBox[T] = Box[T]
+MissingAlias[T] = Missing
+Wrap[T] = $value T
+Shape[Cond, Code] = $head Cond * $tail Code
+Odd[T, Msg] = $__odd_original T * $__odd_msg Msg
 """)
 
     def judge(sub, sup):
@@ -426,19 +426,19 @@ Odd[T, Msg] := $__odd_original T * $__odd_msg Msg
 def run_unit_alias_cases():
     """An alias of nil or never is that unit: the sub unfolds first."""
     module = custom_module("""
-MyNil[T] := nil
-MyNever[T] := never
-Nil2 := nil
-Never2 := never
-Box[T] := $v T
-Pair[K, V] := $key K * $value V
+MyNil[T] = nil
+MyNever[T] = never
+Nil2 = nil
+Never2 = never
+Box[T] = $v T
+Pair[K, V] = $key K * $value V
 """)
 
     def judge(sub, sup):
         return is_sub_type(entry_type(sub, module), entry_type(sup, module))
 
     check_result(judge("MyNil[int]", "nil"), True,
-                 "X[T] := nil against nil")
+                 "X[T] = nil against nil")
     check_result(judge("MyNil[int]", "Nil2"), True,
                  "the same against a plain alias of nil")
     check_result(judge("nil", "MyNil[int]"), True,
@@ -450,7 +450,7 @@ Pair[K, V] := $key K * $value V
     check_result(judge("Box[int]", "MyNil[int]"), False,
                  "and a product is not nil")
     check_result(judge("MyNever[int]", "never"), True,
-                 "X[T] := never against never")
+                 "X[T] = never against never")
     check_result(judge("MyNever[int]", "Never2"), True,
                  "the same against a plain alias of never")
     check_result(judge("never", "MyNever[int]"), True,
@@ -466,32 +466,32 @@ def run_inline_member_cases():
     members over (recursively), the product unit disappears, and the same tag
     twice — inlined or written — is malformed input."""
     module = custom_module("""
-A := $x int * $y str
-B := A * $z bool
-C := B * $w float
-Unit := Object
-UBox := Unit * $a int
-Pos := int * $a int
-Inner := $p int * $q str
-Wrap[T] := T * $a int
-Applied := Wrap[Inner]
-MyNil[T] := nil
-MyUnit[T] := T
-Dup := A * $x bool
-Cycle := Cycle * $c int
-AliasCycle := AliasTail * $x int
-AliasTail := AliasCycle
-Mutual := Other * $m int
-Other := Mutual * $o int
-Tagged[T] := $x T
-TaggedBox := Tagged[int] * $y int
-BareBox[T] := T * $x int
-BareInt := BareBox[int] * $y int
-Nested[T] := $x (Tagged[T])
-NestedBox := Nested[int] * $z bool
-First[T] := $f T
-Second[T] := $s T
-TwoParams := First[int] * Second[str] * $z bool
+A = $x int * $y str
+B = A * $z bool
+C = B * $w float
+Unit = Object
+UBox = Unit * $a int
+Pos = int * $a int
+Inner = $p int * $q str
+Wrap[T] = T * $a int
+Applied = Wrap[Inner]
+MyNil[T] = nil
+MyUnit[T] = T
+Dup = A * $x bool
+Cycle = Cycle * $c int
+AliasCycle = AliasTail * $x int
+AliasTail = AliasCycle
+Mutual = Other * $m int
+Other = Mutual * $o int
+Tagged[T] = $x T
+TaggedBox = Tagged[int] * $y int
+BareBox[T] = T * $x int
+BareInt = BareBox[int] * $y int
+Nested[T] = $x (Tagged[T])
+NestedBox = Nested[int] * $z bool
+First[T] = $f T
+Second[T] = $s T
+TwoParams = First[int] * Second[str] * $z bool
 """)
 
     def judge(sub, sup):
@@ -561,12 +561,12 @@ def run_inline_cycle_guard_cases():
     """成环的内联在每条路上都是 Err，不是崩：普通判定、带终止子的禁止链
     （禁止链要先问 sub 的字段，那条路以前会 RecursionError）。"""
     module = custom_module("""
-H := int
-Odd := $a int
-notcrimes := never <- $not_operand ($h H | $a A)
-A := A * $x int
-Sub := A * $x int * $h H
-Loop := Loop * $c int
+H = int
+Odd = $a int
+notcrimes = never <- $not_operand ($h H | $a A)
+A = A * $x int
+Sub = A * $x int * $h H
+Loop = Loop * $c int
 """)
     terminators = frozenset({"Odd"})
     check_result(is_sub_type(entry_type("Loop", module), entry_type("Loop", module)),
@@ -577,10 +577,10 @@ Loop := Loop * $c int
     check(isinstance(judged, Err) and "comes back to 'A'" in judged.err_msg, True,
           "and names the chain that comes back")
     sums = custom_module("""
-H := int
-Odd := $a int
-notcrimes := never <- $not_operand (S | $h H)
-S := S | $a int
+H = int
+Odd = $a int
+notcrimes = never <- $not_operand (S | $h H)
+S = S | $a int
 """)
     check_result(is_sub_type(entry_type("S", sums), entry_type("notcrimes", sums),
                              terminators=terminators), False,
@@ -592,18 +592,18 @@ def run_cross_module_inline_cases():
     判定这边没有池子，所以模块从池子里的定义取（那份容器模块）再比。"""
     pool = empty_pool()
     for file_name, module_name, source in (
-            ("base.viba", "base", "A := $x int * $y str\nU := Object\n"),
+            ("base.viba", "base", "A = $x int * $y str\nU = Object\n"),
             ("main.viba", "main",
-             "import base\nB := base.A * $z bool\nUBox := base.U * $w int\n"
-             "Dup := base.A * $x int\n"),
-            ("other.viba", "other", "import ring\nCyc := ring.Ring * $c int\n"),
-            ("ring.viba", "ring", "import other\nRing := other.Cyc * $r int\n"),
-            ("mid.viba", "pkg.mod", "Mid := int\n"),
+             "import base\nB = base.A * $z bool\nUBox = base.U * $w int\n"
+             "Dup = base.A * $x int\n"),
+            ("other.viba", "other", "import ring\nCyc = ring.Ring * $c int\n"),
+            ("ring.viba", "ring", "import other\nRing = other.Cyc * $r int\n"),
+            ("mid.viba", "pkg.mod", "Mid = int\n"),
             ("deepest.viba", "pkg.mod.sub",
-             "import pkg.mod\nDeep := Object * $m pkg.mod.Mid * $k int\n"),
+             "import pkg.mod\nDeep = Object * $m pkg.mod.Mid * $k int\n"),
             ("user.viba", "user",
              "import pkg.mod\nimport pkg.mod.sub\n"
-             "Long := pkg.mod.sub.Deep\nShort := pkg.mod.Mid\nOld := mod.Mid\n")):
+             "Long = pkg.mod.sub.Deep\nShort = pkg.mod.Mid\nOld = mod.Mid\n")):
         parsed = parse_viba_file(pool, source, file_name, module_name)
         assert isinstance(parsed, Ok), parsed
         pool = pool_add_file(pool, parsed.ok_value).ok_value
@@ -642,15 +642,15 @@ def run_module_as_function_cases():
     """模块当函数（类型层）：import 绑定的名字读成 `__ret__ <- $env Environment`，
     `module.Name` 照旧是那个模块里的定义，没有 `__ret__` 的模块不是程序。"""
     sources = {
-        "program": ("add := int <- $env Environment <- $a int <- $b int <- { add }\n"
-                    "__ret__ := add << $env environ << $a 1 << $b 2\n"),
-        "design_only": "Only := $x int\n",
+        "program": ("add = int <- $env Environment <- $a int <- $b int <- { add }\n"
+                    "__ret__ = add << $env environ << $a 1 << $b 2\n"),
+        "design_only": "Only = $x int\n",
         "caller": ("import program as program\n"
                    "import design_only\n"
-                   "Program := program << $env environ\n"
-                   "Half := program.add << $env environ << $a 1\n"
-                   "Dotted := design_only.Only\n"
-                   "NotAProgram := design_only << $env environ\n"),
+                   "Program = program << $env environ\n"
+                   "Half = program.add << $env environ << $a 1\n"
+                   "Dotted = design_only.Only\n"
+                   "NotAProgram = design_only << $env environ\n"),
     }
     built = {}
 
@@ -777,8 +777,8 @@ def run_config_cases():
     """config：哪些写下来的名字算单位元，裸名与应用同名同权。调用方把说明块
     `Assert[{...}]` 说成单位，判定就该当单位读，而不是去解析那个名字。"""
     module = custom_module("""
-Result[T] := Oneof | $ok T | $err str
-JsonLike :=
+Result[T] = Oneof | $ok T | $err str
+JsonLike =
     Oneof
   | nil
   | bool
@@ -788,11 +788,11 @@ JsonLike :=
   | list[JsonLike]
   | set[JsonLike]
   | dict[str, JsonLike]
-Interface := Result[JsonLike] <- never
-Point := ($x int * $y int)
-Read := Result[int] <- Point <- Point
-Anchor := Object * $__anchor_yanatuttn__ nil  # yanatuttn = you_are_not_allowed_to_use_this_tag_name
-Boxed[CoreFunc] :=
+Interface = Result[JsonLike] <- never
+Point = ($x int * $y int)
+Read = Result[int] <- Point <- Point
+Anchor = Object * $__anchor_yanatuttn__ nil  # yanatuttn = you_are_not_allowed_to_use_this_tag_name
+Boxed[CoreFunc] =
     Anchor
   * $func CoreFunc
   * Assert[{
@@ -867,20 +867,20 @@ def run_apply_cases():
     """`<<`：部分计算。给出一个参数，剩下的就是函数；给全了就是结果本身。
     给函数没有的参数、或者给一个不是函数的东西，都是不合法输入（Err）。"""
     module = custom_module("""
-A := int
-B := str
-C := bool
-Num := int | str
-Int := int
-Wide := (A <- $b Num) << $b Int
-Narrow := (A <- $b Int) << $b Num
-Given := (A <- $b B <- $c C) << $b B
-GivenTail := (A <- $b B <- $c C) << $c C
-GivenAll := (A <- $b B <- $c C) << $c C << $b B
-GivenAllOther := (A <- $b B <- $c C) << $b B << $c C
-Named := Box << $b B
-Box := A <- $b B
-Loop := Loop
+A = int
+B = str
+C = bool
+Num = int | str
+Int = int
+Wide = (A <- $b Num) << $b Int
+Narrow = (A <- $b Int) << $b Num
+Given = (A <- $b B <- $c C) << $b B
+GivenTail = (A <- $b B <- $c C) << $c C
+GivenAll = (A <- $b B <- $c C) << $c C << $b B
+GivenAllOther = (A <- $b B <- $c C) << $b B << $c C
+Named = Box << $b B
+Box = A <- $b B
+Loop = Loop
 """)
 
     def judge(sub, sup):
@@ -924,12 +924,12 @@ def run_any_cases():
     """Any 是所有类型的上界：T <: Any 恒真，反过来只有落在 Any（或等价于 Any 的
     形状，如 Any | int、Any * nil）上才真。"""
     module = custom_module("""
-A := int
-B := $x int * $y str
-C := int | str
-D := int <- $x str
-E := (int, str)
-Box[T] := $v T
+A = int
+B = $x int * $y str
+C = int | str
+D = int <- $x str
+E = (int, str)
+Box[T] = $v T
 """)
 
     def judge(sub, sup):
@@ -954,8 +954,8 @@ Box[T] := $v T
 def run_never_head_cases():
     """Without terminators named, a never-headed chain is just an exponent."""
     module = custom_module("""
-not[A] := never <- $not_operand A
-P := int
+not[A] = never <- $not_operand A
+P = int
 """)
 
     def judge(sub, sup):
@@ -975,7 +975,7 @@ P := int
 
 def run_code_block_cases():
     """A code block has no members: the unit is its resident."""
-    module = custom_module("Guard := Object * $a {return 1}\n")
+    module = custom_module("Guard = Object * $a {return 1}\n")
 
     def judge(sub, sup):
         return is_sub_type(entry_type(sub, module), entry_type(sup, module))
@@ -995,7 +995,7 @@ def run_canonical_chain_cases():
     所以 A * (B * C) 与 A * B * C 不同形——指数的分组更是不能丢。
     """
     def canon(text: str) -> str:
-        module = custom_module(f"__entry__ := {text}")
+        module = custom_module(f"__entry__ = {text}")
         body = {d.name: d for d in module.module.body}["__entry__"].body
         tree = viba_ast.Module([viba_ast.TypeDefinition(
             "x", viba_ast.convert_to_chain_style(body))])

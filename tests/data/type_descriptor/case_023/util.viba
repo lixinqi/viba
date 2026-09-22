@@ -1,1 +1,1 @@
-Node0 := $only int
+Node0 = $only int

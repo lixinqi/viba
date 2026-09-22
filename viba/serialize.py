@@ -5,7 +5,7 @@
 
     root = access.root(definition, VibaData(material))
     serialize.serialize("entry", root.ok_value)
-    # -> Ok('entry :=\n  Object\n  * $left 1\n  * $right 2\n')
+    # -> Ok('entry =\n  Object\n  * $left 1\n  * $right 2\n')
 
 Every value is asked for through the protocol's cells — the same ones a reader
 uses — so this knows nothing about a design beyond its shape, and nothing about
@@ -260,8 +260,8 @@ def _emit_container(access: VibaAccess, node: VibaNode, container: str, shape):
     """
     if container == "dict":
         keys = access.keys(node)
-        # The written key type, through however many names: `S := str` and
-        # `G[V] := str` are the str the protocol hands keys over as.
+        # The written key type, through however many names: `S = str` and
+        # `G[V] = str` are the str the protocol hands keys over as.
         key_type = (access.unfold(shape.payload.args[0])
                     if shape.payload.args else None)
         if not (key_type is not None and key_type.kind == TYPE_REF

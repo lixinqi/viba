@@ -11,16 +11,16 @@ Err.
 Semantics (per design): there are no nominal types — a name is an
 alias of what it is written as, and judgment is structural throughout.
 - Every definition unfolds to its body and is compared structurally
-  (B := A * $find bool <: A, and X[T] := list[T] gives X[int] the
+  (B = A * $find bool <: A, and X[T] = list[T] gives X[int] the
   shape of list[int]). A definition reference that cannot be unfolded
   — a bare generic name, whose parameters have no actuals — compares
   by name, which is all that is left of it.
 - Cycles are read coinductively (equi-recursive types), and the
   assumption is the greatest fixed point: a (sub, sup) pair already in
-  flight is true. `Tree[T] := $leaf T * $kids list[Tree[T]]` is
-  therefore its own unfolding, `MyList[T] := $head T * $tail MyList[T]
+  flight is true. `Tree[T] = $leaf T * $kids list[Tree[T]]` is
+  therefore its own unfolding, `MyList[T] = $head T * $tail MyList[T]
   | nil` and the same shape under another name are each other's
-  subtype, and a definition that reaches only itself (`Loop[T] :=
+  subtype, and a definition that reaches only itself (`Loop[T] =
   Loop[T]`) is the largest type: it is both a subtype and a supertype
   of anything it is compared with: whoever writes such a definition
   gives their design a type everything fits.
@@ -40,7 +40,7 @@ alias of what it is written as, and judgment is structural throughout.
   side's positionals in order. Tags hold the members together, so the
   same tag twice in one product (inlined or written) is malformed
   input: Err. So is a chain that never reaches a shape because it
-  comes back to a definition it is already expanding — `A := A * $x
+  comes back to a definition it is already expanding — `A = A * $x
   int` writes A as itself, and an alias or a generic can close the
   same loop.
 - TypeRef resolves through module_get_type in its own container
@@ -330,8 +330,8 @@ class _Checker:
         # what the layer said it is, so it answers before anything unfolds.
         sn = self._config_unit_node(sn)
         sp = self._config_unit_node(sp)
-        # Names unfold, `<<` is given, and both can hand the other work (`A := B`
-        # with `B := X << Y`): run them until neither has anything left.
+        # Names unfold, `<<` is given, and both can hand the other work (`A = B`
+        # with `B = X << Y`): run them until neither has anything left.
         sn, s_mod = self._normalize(sn, s_mod, "sub")
         sp, p_mod = self._normalize(sp, p_mod, "sup")
         sn = self._config_unit_node(sn)
@@ -355,9 +355,9 @@ class _Checker:
         product, exponent, tag, tuple) unfolds to that structure.
 
         A name whose body is another name is still an alias of that name's
-        body (`A := B` with `B := int` makes A int), so the unfolding runs to
+        body (`A = B` with `B = int` makes A int), so the unfolding runs to
         the end of the chain. Names already visited pin the walk down, which
-        leaves a cycle (`A := B` with `B := A`) standing as the name it is."""
+        leaves a cycle (`A = B` with `B = A`) standing as the name it is."""
         seen = set()
         while isinstance(node, viba_ast.TypeRef):
             if node.name in seen:
@@ -393,7 +393,7 @@ class _Checker:
             if sub_leaf is not None and sup_leaf is not None:
                 return type(sub_leaf) is type(sup_leaf)
             if isinstance(sn, viba_ast.TypeApp):
-                # 应用形的 sub 一样要展开：X[T] := nil 的居民就是 nil。
+                # 应用形的 sub 一样要展开：X[T] = nil 的居民就是 nil。
                 return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
             if isinstance(sn, viba_ast.CodeBlock) and isinstance(sp, viba_ast.Nil):
                 return True                     # 代码块是单位，nil 收得下
@@ -535,7 +535,7 @@ class _Checker:
         """[(tag, body, module)] for the operand of a never-headed chain;
         None when a branch is untagged, since only a tag can hold one.
 
-        A sum written as a cycle (`S := S | $a int`) has no finite branch list
+        A sum written as a cycle (`S = S | $a int`) has no finite branch list
         to read: the walk stops where it would meet a definition twice and
         answers None, which leaves the branches unsettled rather than spinning.
         """
@@ -568,7 +568,7 @@ class _Checker:
 
         The same tag twice is malformed input, here as everywhere, and so is an
         inline chain that comes back to a definition it is already walking: an
-        untagged member is an inline slot, so `A := A * $x int` has no expansion
+        untagged member is an inline slot, so `A = A * $x int` has no expansion
         to read (and asking for its fields must not spin).
         """
         target = self._inlining_key(node, module, "sub")
@@ -774,7 +774,7 @@ class _Checker:
         all be present in sub (width). An untagged member that unfolds
         to a product is inlined, one that unfolds to the product unit
         disappears, and the rest pair in order. Bare TypeRefs to plain
-        TypeDefinitions unfold so their tags participate (B := A * $find
+        TypeDefinitions unfold so their tags participate (B = A * $find
         bool carries A's tags)."""
         sub_tagged, sub_bare = self._split_product(sn, s_mod, "sub")
         sup_tagged, sup_bare = self._split_product(sp, p_mod, "sup")
@@ -830,7 +830,7 @@ class _Checker:
         A member is ``(node, module, env)``: what it is written as, the module
         its other names resolve in, and the bindings it was written under. The
         bindings travel with the member because an inlined generic hands its
-        own body over — with `Box[T] := $x T`, what B := Box[int] carries as
+        own body over — with `Box[T] = $x T`, what B = Box[int] carries as
         `$x`'s body is the written `T`, which only means `int` under Box's
         binder. A binder resolves its actuals where it is built, so the
         innermost one is all a member needs.
@@ -842,7 +842,7 @@ class _Checker:
         was written.
 
         An inline chain has to bottom out: a definition the chain meets twice
-        never reaches a shape, so the design is malformed input — `A := A * $x
+        never reaches a shape, so the design is malformed input — `A = A * $x
         int` says A is written as itself. Refusing it is what keeps the walk
         finite as well.
         """
@@ -909,7 +909,7 @@ class _Checker:
         """(key, written name) of the definition an untagged member names, or
         None when it names no definition of its own. The key is the definition's
         identity, so a chain that meets it twice is caught — the alias case
-        included: with `B := A` and `A := B * $x int`, walking into B is walking
+        included: with `B = A` and `A = B * $x int`, walking into B is walking
         into A."""
         if not isinstance(node, viba_ast.TypeRef):
             return None

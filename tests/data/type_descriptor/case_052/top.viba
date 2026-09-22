@@ -1,4 +1,4 @@
-Config0 :=
+Config0 =
   Oneof
   | $left int
   | $right str
