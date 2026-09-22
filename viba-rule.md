@@ -6,6 +6,7 @@
 >
 > 取代它的是**可执行模块**：一份 .viba 文件既是类型又是程序，规则、证据与度量
 > 直接写成会被跑起来的模块，判定交给 `<<` 与 `interpret`，见 `viba-interpreter.md`。
+> 重做后的规则与呈证在 `viba/compliance/`，故事与 API 见 `viba-compliance.md`。
 >
 > 下面保留原文，只作参考。
 

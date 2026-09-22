@@ -132,9 +132,11 @@ class EnvironmentStorage:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
 
-    def _store_path(self, file_path: str) -> Path:
+    def _store_path(self, file_path: str, root_dir: Optional[str] = None) -> Path:
+        """`file_path` read under the store root (or another root of the same
+        shape): the parts are taken as written, so a path never escapes it."""
         relative = Path(*[part for part in str(file_path).split("/") if part])
-        return Path(self.store_root_dir) / relative
+        return Path(root_dir or self.store_root_dir) / relative
 
 
 class EnvironmentCompute:
@@ -207,7 +209,7 @@ def read_snapshot(environ: Environment, name: str = SNAPSHOT_NAME):
 def write_snapshot(environ: Environment, value, name: str = SNAPSHOT_NAME) -> None:
     """Store `value` as this call's snapshot: serialized viba data, so it can
     be read back and played again."""
-    written = serialize.serialize(SNAPSHOT_NAME, _material(value))
+    written = serialize.serialize(SNAPSHOT_NAME, material(value))
     if isinstance(written, Err):
         raise RuntimeError(f"cannot snapshot this value: {written.err_msg}")
     _storage(environ).write_text(snapshot_path(environ, name), written.ok_value)
@@ -234,13 +236,20 @@ def _storage(environ: Environment) -> EnvironmentStorage:
     return storage
 
 
-def _material(value) -> VibaNode:
-    """A host value as material: a node as it is, a scalar as its leaf."""
+def material(value) -> VibaNode:
+    """A host value as material.
+
+    A `VibaNode` as it is; an AST piece a host built (a product of tags and
+    literals, say) gets the design written on it; a scalar becomes its leaf.
+    """
     if isinstance(value, VibaNode):
         return value
+    if isinstance(value, viba_ast.AST):
+        return VibaNode(reflect_access,
+                        descriptor_of(AstNodeType(value, _NO_MODULE)), value)
     if value is not None and not isinstance(value, (bool, int, float, str)):
-        raise RuntimeError(f"cannot snapshot {type(value).__name__}: "
-                           f"only a VibaNode, a scalar, or None")
+        raise RuntimeError(f"cannot take {type(value).__name__} as material: "
+                           f"only a VibaNode, an AST piece, a scalar, or None")
     node = viba_ast.Nil() if value is None else viba_ast.Constant(value)
     return VibaNode(reflect_access, descriptor_of(AstNodeType(node, _NO_MODULE)), node)
 
@@ -505,12 +514,17 @@ class _Activation:
     # ---- expressions ----
 
     def evaluate(self, node):
-        """Result: the value this piece writes."""
+        """Result: the value this piece writes.
+
+        A piece of data written where a value goes is material as it stands:
+        a literal or a unit, a tuple, and a product of tags and literals —
+        `$victim ($x 0 * $y 0) * $at "12:30"` is a witness, the same spelling
+        its type would have. Its members are data, not calls, so nothing in
+        them is evaluated. A sum is not: which branch would it be.
+        """
         if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never,
-                             viba_ast.Any, viba_ast.Tuple)):
-            # A tuple written here is material as it stands (its elements are
-            # data, not calls) — `()` is how a call that wants no argument is
-            # written, e.g. `environ.tmp_sub_env << ()`.
+                             viba_ast.Any, viba_ast.Tuple, viba_ast.Tagged,
+                             viba_ast.Product, viba_ast.ProductChain)):
             return Ok(_Material(VibaNode(reflect_access, self._descriptor(node), node)))
         if isinstance(node, viba_ast.Partial):
             return self._apply_chain(node)
@@ -819,4 +833,4 @@ def _elements(node):
 
 
 __all__ = ["interpret", "Environment", "EnvironmentStorage", "EnvironmentCompute",
-           "snapshot_path", "read_snapshot", "write_snapshot", "replayed"]
+           "material", "snapshot_path", "read_snapshot", "write_snapshot", "replayed"]

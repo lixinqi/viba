@@ -80,6 +80,7 @@ Handler := {def forward(self, x): return x}
 |----------|---------|
 | `viba-reflect.md` | The reflection protocol: addressing a design, reading a material |
 | `viba-interpreter.md` | Running a module: `environ` in, `__ret__` out — the executable reading |
+| `viba-compliance.md` | Rules and witnesses as programs: judging, Prepare, replay |
 | `viba_builder.md` | Writing .viba source from Python expressions |
 | `contract-enough.md` | What "the implementation is enough" means |
 | `viba-rule.md` | **Deprecated** — the old rule layer: rules, witnesses, judgment |
@@ -102,6 +103,7 @@ intermediate representation.
 | `partial.py` | Reduces `T << X`: the function with that written argument given |
 | `interpreter.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — the environment shapes among them |
+| `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 | `api.viba` | The package's top-level API, as viba signatures |
 
 `viba/rule/` is the old rule layer — a Viba application built on the core. It is

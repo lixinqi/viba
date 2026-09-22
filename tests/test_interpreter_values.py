@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from interpreter_support import ADD, LEAF, Checks, Host, value_of, write
 
 from viba.interpreter import interpret
+from viba.reflect import access as reflect_access
 from viba.type import Err, Ok
 
 checks = Checks("interpreter_values")
@@ -155,7 +156,7 @@ def _written_as_ret(tmp: Path):
         path = write(tmp, f"unit_{label}.viba", f"__ret__ := {body}\n")
         result = interpret(path, environ)
         check(isinstance(result, Ok), f"__ret__ written as {label}: {result!r}")
-    for body, label in (("(1 | 2)", "a sum"), ("(1 * 2)", "a product"),
+    for body, label in (("(1 | 2)", "a sum"),
                         ("list[int]", "a generic application"),
                         ("int <- $x int", "an exponent")):
         path = write(tmp, f"shape_{label.split()[-1]}.viba", f"__ret__ := {body}\n")
@@ -174,7 +175,7 @@ def _written_as_ret(tmp: Path):
 
 
 def _shapes(tmp: Path):
-    """元组是材料（空元组也是一个值）。"""
+    """写在值位置上的数据就是材料：元组、tag、积。"""
     host = Host()
     environ = host.environ()
     for body, want, label in (("(1, 2)", 2, "a tuple of two"),
@@ -183,6 +184,17 @@ def _shapes(tmp: Path):
         result = interpret(path, environ)
         check(isinstance(result, Ok) and len(result.ok_value) == want,
               f"__ret__ written as {label} is material: {result!r}")
+
+    # 一份 witness 的写法：tag 与积是材料，和它的类型写法一样
+    witness = write(tmp, "witness.viba",
+                    '__ret__ := $victim ($x 0 * $y 0) * $suspect ($x 3 * $y 4)\n')
+    result = interpret(witness, environ)
+    check(isinstance(result, Ok), f"a witness written as tags and a product: {result!r}")
+    if isinstance(result, Ok):
+        node = result.ok_value
+        check(reflect_access.leaf(node.by_tag("victim").by_tag("x")).ok_value == 0 and
+              reflect_access.leaf(node.by_tag("suspect").by_tag("y")).ok_value == 4,
+              f"and its members read back: {node!r}")
 
 
 def _names_and_repeats(tmp: Path):

@@ -1,0 +1,183 @@
+"""Running a rule: compliance is what the program answers.
+
+A rule is a viba program — `environ` in, a verdict out. Running it *is* the
+judgment, so there is no judgment layer here: `is_compliant` runs the file and
+reads the `bool` it answered.
+
+What a rule cannot do by itself is the impure part: a measurement reads a clock,
+a service, a die. That goes through `measure`, which is where the *Prepare*
+lives:
+
+    value = measure(environ, "distance", call, compute)
+
+- the call it measures is a Prepare — the arguments fixed, the result declared —
+  kept as a file in the storage (`viba/compliance/storage.py`);
+- a Prepare that already carries a measured value is **replayed**: `compute` is
+  not called at all;
+- one that does not is measured now, and the value is written into this run's
+  store, where the next run finds it.
+
+`prepare_run` is the other direction: run a rule and *record* the Prepares it
+measured into the backup, which is how a case comes to be prepared once and
+judged as often as wanted.
+"""
+
+from pathlib import Path
+
+from viba import viba_ast
+from viba.interpreter import (Environment, Err, Result, interpret, material,
+                              read_snapshot, write_snapshot)
+from viba.reflect import VibaNode, access as reflect_access, by_tag
+from viba.compliance.storage import PREPARE_PREFIX, PREPARE_SEGMENT
+
+CALL_TAG = "$call"
+MEASURED_TAG = "$measured"
+
+__all__ = ["is_compliant", "measure", "prepare_material", "prepare_path", "prepare_run",
+           "read_prepare", "record_prepare", "measured_of", "call_of",
+           "CALL_TAG", "MEASURED_TAG"]
+
+
+# ----------------------------------------------------------------------
+# Judging
+# ----------------------------------------------------------------------
+
+
+def is_compliant(rule_file: str, environ: Environment) -> Result:
+    """Result[bool]: run the rule and read its verdict."""
+    answer = interpret(rule_file, environ)
+    if isinstance(answer, Err):
+        return answer
+    leaf = reflect_access.leaf(answer.ok_value)
+    if isinstance(leaf, Err):
+        return Err(f"the rule answered no verdict: {leaf.err_msg}")
+    if not isinstance(leaf.ok_value, bool):
+        return Err(f"the rule answered {type(leaf.ok_value).__name__}, "
+                   f"and a verdict is a bool")
+    return leaf
+
+
+# ----------------------------------------------------------------------
+# The Prepare: the call, and what it measured
+# ----------------------------------------------------------------------
+
+
+def prepare_path(name: str) -> str:
+    """Where a Prepare lives in the store."""
+    return f"{PREPARE_PREFIX}{name}"
+
+
+def read_prepare(environ: Environment, name: str):
+    """The stored Prepare `name` as material, or None when there is none."""
+    return read_snapshot(environ, prepare_path(name))
+
+
+def prepare_material(call, measured=None):
+    """A Prepare: `$call` is the prepared call, `$measured` what it answered.
+
+    Unmeasured is written `nil`, so a Prepare has one shape whether or not the
+    measurement happened yet."""
+    return viba_ast.ProductChain([
+        viba_ast.Tagged(CALL_TAG, _piece(call)),
+        viba_ast.Tagged(MEASURED_TAG,
+                        _piece(measured) if measured is not None else viba_ast.Nil()),
+    ])
+
+
+def record_prepare(environ: Environment, name: str, call, measured=None) -> None:
+    """Write the Prepare into this run's store."""
+    write_snapshot(environ, prepare_material(call, measured), prepare_path(name))
+
+
+def call_of(prepare):
+    """The prepared call of a stored Prepare, or None."""
+    return _member(prepare, CALL_TAG)
+
+
+def measured_of(prepare):
+    """(value, True) when this Prepare carries a measurement, else (None, False)."""
+    node = _member(prepare, MEASURED_TAG)
+    if node is None:
+        return None, False
+    leaf = reflect_access.leaf(node)
+    if isinstance(leaf, Err) or leaf.ok_value is None:
+        return None, False
+    return leaf.ok_value, True
+
+
+def measure(environ: Environment, name: str, call, compute):
+    """The measured value of the prepared call `name`.
+
+    Replayed when the Prepare carries one; measured by `compute(call)` — the
+    impure step — only when there is nothing to replay, and then written into
+    this run's store. The call the Prepare names wins over the one written here:
+    the prepared call is the one that was fixed."""
+    prepare = read_prepare(environ, name)
+    value, recorded = measured_of(prepare)
+    if recorded:
+        return value
+    prepared = call_of(prepare)
+    if prepared is None:
+        prepared = material(call)
+    value = compute(prepared)
+    record_prepare(environ, name, prepared, value)
+    return value
+
+
+# ----------------------------------------------------------------------
+# Preparing: a run whose Prepares are recorded as the backup
+# ----------------------------------------------------------------------
+
+
+def prepare_run(rule_file: str, environ: Environment) -> Result:
+    """Run the rule, recording into the backup every Prepare it measured."""
+    storage = getattr(environ, "storage", None)
+    record = getattr(storage, "record_text", None)
+    if record is None or getattr(storage, "prepare_root_dir", None) is None:
+        return Err("this storage cannot record a Prepare: give a PreparedStorage "
+                   "with a prepare_root_dir")
+    answer = is_compliant(rule_file, environ)
+    if isinstance(answer, Err):
+        return answer
+    for path in _run_prepares(storage):
+        text = storage.read_text(path)
+        if text is not None:
+            record(path, text)
+    return answer
+
+
+def _run_prepares(storage):
+    """The store paths of the Prepares this run wrote, `.viba` and all.
+
+    A store path is what `storage.read_text` takes: `<storage path>/prepare/...`,
+    relative to the store root."""
+    store = Path(storage.store_root_dir)
+    root = store / Path(*[part for part in str(storage.cur_storage_path).split("/") if part])
+    if not root.is_dir():
+        return []
+    return [str(path.relative_to(store)) for path in sorted(root.rglob("*.viba"))
+            if PREPARE_SEGMENT in path.parts]
+
+
+# ----------------------------------------------------------------------
+# Small helpers
+# ----------------------------------------------------------------------
+
+
+def _member(node, tag):
+    if node is None:
+        return None
+    given = reflect_access.get(node, by_tag(tag))
+    if isinstance(given, Err) or given.ok_value is None:
+        return None
+    return given.ok_value
+
+
+def _data(value):
+    """The AST piece under a material (or the piece itself)."""
+    return value.data if isinstance(value, VibaNode) else value
+
+
+def _piece(value):
+    """A host value as an AST piece of material (a scalar becomes its leaf)."""
+    return _data(material(value))

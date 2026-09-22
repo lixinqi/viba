@@ -1,0 +1,36 @@
+# The rule of the demo: were they at least 5 apart at that moment?
+#
+# A rule is a program: `environ` in, a bool verdict out. Everything it needs
+# that is not in the witness comes through its own functions — and the one that
+# *measures* is not pure, so it goes through `measure` and its answer is a
+# Prepare in the storage (see viba-compliance.md).
+
+import case_points as witness
+
+Point := $x int * $y int
+Case := $victim Point * $suspect Point * $at str
+
+measure_distance :=
+	int
+	<- $env Environment
+	<- $case Case
+	<- {
+		how far apart they were: not a pure function, so the answer is prepared
+	}
+
+distance_at_least_5 :=
+	bool
+	<- $env Environment
+	<- $d int
+	<- {
+		is that at least 5?
+	}
+
+__ret__ :=
+	distance_at_least_5
+	<< $env environ
+	<< $d (
+		measure_distance
+		<< $env environ
+		<< $case (witness << (environ.sub_env << "witness"))
+	)

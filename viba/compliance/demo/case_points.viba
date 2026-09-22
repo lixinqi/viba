@@ -1,0 +1,9 @@
+# The witness of the demo: the facts this case is about, as material.
+#
+# A witness is a program too — `environ` in, the material out. Written here the
+# way its design would be written: a tagged product of literals.
+
+__ret__ :=
+    $victim ($x 0 * $y 0)
+  * $suspect ($x 3 * $y 4)
+  * $at "12:30"
