@@ -88,7 +88,7 @@ __ret__ := plain << (environ.sub_env << "plain")
 
 
 def _paths(tmp: Path):
-    """VIBA_PATH：按顺序找，import 旁边的先赢；点分名与相对路径。"""
+    """VIBA_PATH：它挂在 environment 上，按顺序找，import 旁边的先赢。"""
     host = Host()
     environ = host.environ()
     first = tmp / "one"
@@ -98,15 +98,16 @@ def _paths(tmp: Path):
     write(first, "lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
     write(second, "lib.viba", TEXT + "__ret__ := text << $env environ\n")
 
+    on_path = host.environ(viba_path=f"{first}:{second}")
     user = write(tmp, "uses_path.viba",
                  "import lib as lib\n__ret__ := lib << (environ.sub_env << \"lib\")\n")
-    result = interpret(user, environ, viba_path=f"{first}:{second}")
+    result = interpret(user, on_path)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"the first directory on VIBA_PATH wins: {result!r}")
 
     near = write(second, "near.viba",
                  "import lib as lib\n__ret__ := lib << (environ.sub_env << \"lib\")\n")
-    result = interpret(near, environ, viba_path=f"{first}:{second}")
+    result = interpret(near, on_path)
     check(isinstance(result, Ok) and value_of(result) == "hi",
           f"a module next to the importer beats VIBA_PATH: {result!r}")
 
@@ -118,30 +119,30 @@ def _paths(tmp: Path):
     dotted = write(tmp, "dotted.viba",
                    "import pkg.inner\n"
                    "__ret__ := pkg.inner << (environ.sub_env << \"inner\")\n")
-    result = interpret(dotted, environ, viba_path=ragged)
+    result = interpret(dotted, host.environ(viba_path=ragged))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a dotted module found on VIBA_PATH, empty and missing entries skipped: {result!r}")
 
     aliased = write(tmp, "aliased.viba",
                     "import pkg.inner as inner\n"
                     "__ret__ := inner << (environ.sub_env << \"inner\")\n")
-    result = interpret(aliased, environ, viba_path=ragged)
+    result = interpret(aliased, host.environ(viba_path=ragged))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"the same module under an alias: {result!r}")
 
     # 相对路径按当前目录算
     relative = os.path.relpath(str(flat), os.getcwd())
-    result = interpret(dotted, environ, viba_path=relative)
+    result = interpret(dotted, host.environ(viba_path=relative))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a relative VIBA_PATH entry: {result!r}")
 
     # 仓库里现成的两份 .viba：main.viba 旁边没有 pkg/，模块只在给进来的目录里
     paths_case = CASES / "paths"
     main_file = str(paths_case / "main.viba")
-    result = interpret(main_file, environ, viba_path=paths_case / "elsewhere")
+    result = interpret(main_file, host.environ(viba_path=paths_case / "elsewhere"))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a dotted module on a VIBA_PATH that is one Path: {result!r}")
-    labelled(interpret(main_file, environ, viba_path=7), "viba_path is a string",
+    labelled(interpret(main_file, host.environ(viba_path=7)), "viba_path is a string",
              "a VIBA_PATH that is not a string or a path -> Err")
     labelled(interpret(main_file, environ), "not found",
              "the same module with no VIBA_PATH at all -> Err")
@@ -154,7 +155,7 @@ def _paths(tmp: Path):
     both = write(tmp, "both_dotted.viba",
                  "import a.b\nimport a.b.c\n"
                  "__ret__ := a.b.c << (environ.sub_env << \"c\")\n")
-    result = interpret(both, environ, viba_path=str(dotted_dir))
+    result = interpret(both, host.environ(viba_path=str(dotted_dir)))
     check(isinstance(result, Ok) and value_of(result) == 2,
           f"the longest import prefix wins: {result!r}")
 
@@ -165,7 +166,7 @@ def _paths(tmp: Path):
     flat_use = write(tmp, "flat_dotted.viba",
                      "import pkg.inner\n"
                      "__ret__ := pkg.inner << (environ.sub_env << \"inner\")\n")
-    result = interpret(flat_use, environ, viba_path=str(flat_dir))
+    result = interpret(flat_use, host.environ(viba_path=str(flat_dir)))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a dotted import that is one file named pkg.inner.viba: {result!r}")
 
@@ -197,6 +198,9 @@ def _paths(tmp: Path):
     result = interpret(str(depth / "leaf1.viba"), environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a five-deep import chain: {result!r}")
+    check(on_path.sub_env("child").viba_path == on_path.viba_path and
+          on_path.tmp_sub_env().viba_path == on_path.viba_path,
+          "a child environment keeps the parent's module search path")
 
 
 def _virtual_files(tmp: Path):

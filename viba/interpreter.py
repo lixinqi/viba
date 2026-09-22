@@ -26,9 +26,9 @@ moves on to the next place.
 
 The host side, spelled out:
 
-    EnvironmentStorage(cur_storage_path, sub_storage=None)
-        where a module's files and sub-modules live; `sub(name)` hands out a
-        child, made on demand, whose path is `<cur>/<name>`.
+    EnvironmentStorage(cur_storage_path, sub_storage=None, store_root_dir=None)
+        where a module's files, sub-modules and snapshots live; `sub(name)`
+        hands out a child, made on demand, whose path is `<cur>/<name>`.
 
     EnvironmentCompute(get_func)
         the implementations: `get_func(module_path, func_name)` returns a
@@ -36,9 +36,9 @@ The host side, spelled out:
         the storage path of the environment the module was given, so the host
         can tell one module's `add` from another's.
 
-    Environment(storage, compute)
-        the two together, and `sub_env(name)` for a child — which keeps the
-        parent's compute.
+    Environment(storage, compute, viba_path=None)
+        the three together, and `sub_env(name)` / `tmp_sub_env()` for a child —
+        which keeps the parent's compute and its module search path.
 
 A host function is called with the arguments already evaluated, in the order
 they are written: a piece of material arrives as a `viba.reflect.VibaNode`,
@@ -149,13 +149,19 @@ class EnvironmentCompute:
 
 
 class Environment:
-    """Storage and compute, and the sub-environments under it."""
+    """Storage, compute and the module search path, and the children under it."""
 
-    __slots__ = ("storage", "compute")
+    __slots__ = ("storage", "compute", "viba_path")
 
-    def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute):
+    def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute,
+                 viba_path=None):
         self.storage = storage
         self.compute = compute
+        # Where modules are looked up, like PYTHONPATH: a string of directories,
+        # or one path. A module runs under the environment it was handed, so its
+        # own imports are looked up where that environment says — which is how a
+        # sub-environment keeps the parent's search path along with its compute.
+        self.viba_path = viba_path
 
     def sub_env(self, name) -> "Environment":
         """A child environment: its own storage, the parent's compute.
@@ -166,14 +172,14 @@ class Environment:
         """
         if isinstance(name, VibaNode):
             name = name.value
-        return Environment(self.storage.sub(str(name)), self.compute)
+        return Environment(self.storage.sub(str(name)), self.compute, self.viba_path)
 
     def tmp_sub_env(self, ignored=None) -> "Environment":
         """A child environment under a name of its own, fresh every time:
         `environ.tmp_sub_env << ()` — no name to pick, and no two calls share a
         storage path. The written argument is ignored; it is there because a
         call gives one, and `()` is the way to write "nothing"."""
-        return Environment(self.storage.tmp(), self.compute)
+        return Environment(self.storage.tmp(), self.compute, self.viba_path)
 
 
 # ----------------------------------------------------------------------
@@ -319,14 +325,14 @@ def _given_value(value):
 # ----------------------------------------------------------------------
 
 
-def interpret(viba_main_file: str, environ: Environment,
-              viba_path: Optional[str] = None, get_file=None) -> Result:
+def interpret(viba_main_file: str, environ: Environment, get_file=None) -> Result:
     """Run `viba_main_file` with `environ`; Result[VibaNode] is its `__ret__`.
 
-    `viba_path` is where modules are looked up, like PYTHONPATH: the
-    directories are searched in order for `<name>.viba` (a dotted name as a
-    path), and the directory of the file that wrotes the import is searched
-    first. It is written as a string of directories, or given as one path.
+    Where modules are looked up is the environment's business
+    (`Environment.viba_path`): the directories are searched in order for
+    `<name>.viba` (a dotted name as a path), and the directory of the file that
+    wrote the import is searched first. A child environment keeps the parent's
+    search path, so a module's own imports are looked up where the run says.
 
     `get_file` is where the source of a file comes from:
     `Optional[str <- $file_path str]`, the file's text for a path, `None` (or
@@ -336,12 +342,13 @@ def interpret(viba_main_file: str, environ: Environment,
     """
     if not isinstance(environ, Environment):
         return Err("interpret needs an Environment")
-    if viba_path is not None and not isinstance(viba_path, (str, os.PathLike)):
+    if environ.viba_path is not None and not isinstance(environ.viba_path,
+                                                       (str, os.PathLike)):
         return Err(f"viba_path is a string of directories (or one path), "
-                   f"not {type(viba_path).__name__}")
+                   f"not {type(environ.viba_path).__name__}")
     if get_file is not None and not callable(get_file):
         return Err(f"get_file is a function (or None), not {type(get_file).__name__}")
-    return _Runner(viba_path, get_file).run_file(viba_main_file, environ)
+    return _Runner(environ.viba_path, get_file).run_file(viba_main_file, environ)
 
 
 class _Runner:

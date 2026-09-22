@@ -39,12 +39,11 @@ FromChain := AST <- $node AST
 # Running a module: viba.interpreter
 # ----------------------------------------------------------------------
 
-# interpret(viba_main_file, environ, viba_path=None, get_file=None) -> Result[VibaNode]
+# interpret(viba_main_file, environ, get_file=None) -> Result[VibaNode]
 Interpret :=
     Result[VibaNode]
   <- $viba_main_file str
   <- $environ Environment
-  <- $viba_path str
   <- $get_file Optional[$file_content str <- $file_path str]
   <- Comments[{
       模块就是函数：environ 进，__ret__ 出。没有 __ret__ 的文件是设计，不是程序。
@@ -52,6 +51,7 @@ Interpret :=
       （get_func(module_path, func_name)），而且每个可执行函数都要依赖 environ。
       get_file 是源的来处：留空就读文件系统；给了就一律走它——返回文件的文本，
       那个路径上没有文件就返回 nil（或抛 FileNotFoundError）。路径按字符串给。
+      模块在哪里找属于 environ：它的 viba_path 就是搜索路径（子环境带着父级那条）。
       每次模块调用要有自己的 storage 路径（它的身份），两次调用不许撞车：
       模块调用给一个子环境，environ.sub_env << ...；不想起名字就
       environ.tmp_sub_env << ()，每次一个新的。

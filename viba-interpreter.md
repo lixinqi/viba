@@ -134,6 +134,7 @@ lib << (environ.tmp_sub_env << ())
 ```viba
 Environment :=
     Object
+  * $viba_path str
   * $sub_env (Environment <- $sub_env_name str)
   * $tmp_sub_env (Environment <- ())
 
@@ -163,8 +164,11 @@ Python 侧就是这三个类（`viba.interpreter`）：
 ```python
 EnvironmentStorage(cur_storage_path, sub_storage=None, store_root_dir=None)
 EnvironmentCompute(get_func)                             # get_func(module_path, func_name)
-Environment(storage, compute)                            # sub_env / tmp_sub_env 给子环境
+Environment(storage, compute, viba_path=None)            # sub_env / tmp_sub_env 给子环境
 ```
+
+`viba_path` 是模块的搜索路径：一次运行里它跟着 environment 走，`sub_env`/`tmp_sub_env` 把父级的
+那条原样交给孩子，于是"这个模块的 import 去哪里找"就是它被交给的那个 environment 说了算。
 
 `EnvironmentStorage` 面朝 viba 的那几个概念：`cur_storage_path`（这条路径就是这次调用的
 身份）、`sub(name)`（子 storage，`sub_env` 用它）、`store_root_dir`（快照放在哪个目录下，

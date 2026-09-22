@@ -151,8 +151,9 @@ class Host:
             return interrupt
         return None
 
-    def environ(self, path="root"):
-        return Environment(EnvironmentStorage(path), EnvironmentCompute(self.get_func))
+    def environ(self, path="root", viba_path=None, store_root_dir=None):
+        return Environment(EnvironmentStorage(path, None, store_root_dir),
+                           EnvironmentCompute(self.get_func), viba_path)
 
 
 # 三份常写的片段：一个只答 7 的函数、一个答文本的、一个两数相加的。
