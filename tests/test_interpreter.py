@@ -918,6 +918,24 @@ __ret__ := add << $env environ << $a (lib << environ) << $b (lib << environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a main file named by a relative path: {result!r}")
 
+    # 主文件也可以直接给一个 Path
+    result = interpret(Path(tmp) / "relative_main.viba", environ)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a main file given as a Path: {result!r}")
+
+    # 环境上的成员：宿主给自己的 Environment 加方法，viba 那边就能调
+    class Shouting(Environment):
+        __slots__ = ()
+
+        def shout(self, x):
+            return f"{x.value}!"
+
+    shouting = Shouting(EnvironmentStorage("root"), EnvironmentCompute(host.get_func))
+    said = _write(tmp, "shout.viba", "__ret__ := environ.shout << \"hi\"\n")
+    result = interpret(said, shouting)
+    check(isinstance(result, Ok) and value_of(result) == "hi!",
+          f"a method the host hung on its environment: {result!r}")
+
 
 def _paths(tmp: Path):
     """VIBA_PATH：按顺序找，import 旁边的先赢。"""

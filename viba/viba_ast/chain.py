@@ -25,6 +25,7 @@ from viba.viba_ast.nodes import (
     TypeApp,
     Tuple,
     Nil,
+    Never,
     Any,
     SumChain,
     ProductChain,
@@ -141,6 +142,8 @@ def _reconstruct_product(chain: ProductChain) -> AST:
 
 
 def _reconstruct_exponent(chain: ExponentChain) -> AST:
+    if not chain.elements:
+        return Never()      # no result to head it: the empty function is bottom
     result = convert_from_chain_style(chain.elements[0])
     for arg in chain.elements[1:]:
         result = Exponent(result, convert_from_chain_style(arg))
