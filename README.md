@@ -74,40 +74,6 @@ Config := "fast" * 42 * 3.14
 Handler := {def forward(self, x): return x}
 ```
 
-## Docs
-
-| Document | Subject |
-|----------|---------|
-| [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a design, reading a material |
-| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `environ` in, `__ret__` out — the executable reading |
-| [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
-| [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
-| [`contract-enough.md`](contract-enough.md) | What "the implementation is enough" means |
-
-## Modules
-
-`viba/` is the package: the syntax layer, the type model and the judgment over it, and the
-tools built on those.
-
-| Module | Summary |
-|--------|---------|
-| `viba_ast/` | Node classes, chain canonicalization, unparse, visitors, `dump` |
-| `type.py` | The Type model, the builtin names, `module_get_type` |
-| `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) |
-| `viba_type_descriptor.py` | The descriptor side: files, definitions, members, type expressions |
-| `reflect.py` | The reflection protocol: addressing a design, reading a material |
-| `serialize.py` | Writes a piece of material back out as viba source |
-| `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
-| `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
-| `is_complete.py` | Whether a design can be reflected through |
-| `interpret.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
-| `builtin.viba` | Builtin vocabulary visible from every module — the environment shapes among them |
-| `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
-
-Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY
-grammar behind `viba_ast.parse`, with a self-test at the bottom) and `partial.py` (the
-reduction `<<` goes through, used by the judgment).
-
 ## Usage
 
 ```python
@@ -163,3 +129,38 @@ Point := $x float * $y float
 # Color enum
 Color := $red int | $green int | $blue int
 ```
+
+## Docs
+
+| Document | Subject |
+|----------|---------|
+| [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a design, reading a material |
+| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `environ` in, `__ret__` out — the executable reading |
+| [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
+| [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
+| [`contract-enough.md`](contract-enough.md) | What "the implementation is enough" means |
+
+## Modules
+
+`viba/` is the package: the syntax layer, the type model and the judgment over it, and the
+tools built on those.
+
+| Module | Summary |
+|--------|---------|
+| `viba_ast/` | Node classes, chain canonicalization, unparse, visitors, `dump` |
+| `type.py` | The Type model, the builtin names, `module_get_type` |
+| `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) |
+| `viba_type_descriptor.py` | The descriptor side: files, definitions, members, type expressions |
+| `reflect.py` | The reflection protocol: addressing a design, reading a material |
+| `serialize.py` | Writes a piece of material back out as viba source |
+| `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
+| `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
+| `is_complete.py` | Whether a design can be reflected through |
+| `interpret.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
+| `builtin.viba` | Builtin vocabulary visible from every module — the environment shapes among them |
+| `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
+
+Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY
+grammar behind `viba_ast.parse`, with a self-test at the bottom) and `partial.py` (the
+reduction `<<` goes through, used by the judgment).
+
