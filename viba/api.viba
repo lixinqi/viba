@@ -232,6 +232,10 @@ MemberContaining := Result[VibaDefinitionDescriptor] <- $member VibaMemberDescri
 
 # ----------------------------------------------------------------------
 # The rule layer: viba.rule
+#
+# Deprecated, no longer maintained: nothing in the core depends on it and it
+# does not follow the core as it moves. The replacement is the executable
+# reading of the same files (viba-interpreter.md). Kept for reference only.
 # ----------------------------------------------------------------------
 
 # generate_witnesses(rule, count, seed=None, fail_prob=0.1) -> list[AstNodeType]

@@ -1,5 +1,14 @@
 # Viba.Rule 使用
 
+> **已废弃，不再维护。** 规则层与度量层（`viba/rule/`、本文、`viba/rule/metric.md`，
+> 以及 `builtin.viba` 里的 `RuleObject` / `Predicate` / `Metric` /
+> `PredicationFailed` / `not`）到此为止：不再改它，也不再跟着核心演进。
+>
+> 取代它的是**可执行模块**：一份 .viba 文件既是类型又是程序，规则、证据与度量
+> 直接写成会被跑起来的模块，判定交给 `<<` 与 `interpret`，见 `viba-interpreter.md`。
+>
+> 下面保留原文，只作参考。
+
 ## 1. 引言
 
 Rule 不是 Viba 的新机制，只是 Viba 类型的一个应用。

@@ -1,5 +1,12 @@
 """The rule layer: a Viba application for declaring and judging rules.
 
+DEPRECATED, no longer maintained. Nothing in the core depends on this
+package, and it does not follow the core as it moves; the replacement is
+the executable reading of the same files (viba.interpreter, see
+viba-interpreter.md) — a rule, its evidence and its metric are written as
+a module that runs, and judgment is `<<` plus the type check. The
+contents below are kept for reference only.
+
 The core stays in viba — is_sub_type over the Type model, the AST and
 the parser. The rule vocabulary (RuleObject, Predicate,
 Metric, PredicationFailed, not) lives in viba/builtin.viba, and these

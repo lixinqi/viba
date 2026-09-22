@@ -79,9 +79,10 @@ Handler := {def forward(self, x): return x}
 | Document | Subject |
 |----------|---------|
 | `viba-reflect.md` | The reflection protocol: addressing a design, reading a material |
-| `viba-rule.md` | The rule layer: rules, witnesses, judgment |
+| `viba-interpreter.md` | Running a module: `environ` in, `__ret__` out — the executable reading |
 | `viba_builder.md` | Writing .viba source from Python expressions |
 | `contract-enough.md` | What "the implementation is enough" means |
+| `viba-rule.md` | **Deprecated** — the old rule layer: rules, witnesses, judgment |
 
 ## Modules
 
@@ -100,10 +101,17 @@ intermediate representation.
 | `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
 | `partial.py` | Reduces `T << X`: the function with that written argument given |
 | `interpreter.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
-| `environ.viba` | The environment shapes the interpreter is handed |
+| `builtin.viba` | Builtin vocabulary visible from every module — the environment shapes among them |
 | `api.viba` | The package's top-level API, as viba signatures |
 
-`viba/rule/` is the rule layer — a Viba application built on the core.
+`viba/rule/` is the old rule layer — a Viba application built on the core. It is
+**deprecated and no longer maintained**: nothing in the core depends on it, it is
+not the way to write rules any more, and it does not follow the core as it moves.
+The replacement is the executable reading of the same files (`interpreter.py`,
+`viba-interpreter.md`): a rule, its evidence and its metric are written as a module
+that runs, and judgment is `<<` plus the type check. The vocabulary below stays in
+the tree for reference only.
+
 The rule vocabulary (`RuleObject`, `Predicate`, `Metric`,
 `PredicationFailed`, `not`) lives in `builtin.viba`; these modules carry
 the accumulated API:
