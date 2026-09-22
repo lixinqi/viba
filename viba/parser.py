@@ -479,6 +479,113 @@ def p_error(p):
 
 parser = yacc.yacc()
 
+# ================================================================= #
+# 3. THE GRAMMAR, AS SOURCE
+# ================================================================= #
+
+# The productions as a reader should meet them: `program` down to the
+# literal, each layer above the next. PLY does not care for the order, the
+# README does. `epsilon` is left out: it is the empty production, not a
+# syntactic category.
+GRAMMAR_ORDER = (
+    "program",
+    "statement_list",
+    "statement",
+    "definition",
+    "type_definition",
+    "generic_definition",
+    "type_param_list",
+    "import_stmt",
+    "optional_alias",
+    "partial_expr",
+    "adt_expr",
+    "product_expr",
+    "exponent_expr",
+    "unary_expr",
+    "type_app_expr",
+    "optional_type_args",
+    "adt_arg_list",
+    "primary_expr",
+    "adt_expr_list",
+    "literal",
+)
+
+
+def _productions():
+    """`{name: [alternative, ...]}` from the `p_*` docstrings, in the order
+    the rules were written. A docstring that does not open with `name :` is
+    not a production (the error handler has one)."""
+    found = {}
+    for func_name, value in list(globals().items()):
+        if not func_name.startswith("p_") or not callable(value):
+            continue
+        doc = (value.__doc__ or "").strip()
+        head, sep, rhs = doc.partition(":")
+        head = head.strip()
+        if not sep or not head or not all(c.isalnum() or c == "_" for c in head):
+            continue
+        found.setdefault(head, []).extend(part.strip() for part in rhs.split("|"))
+    return found
+
+
+def grammar_text() -> str:
+    """The grammar, one production per line, empty productions spelled
+    `(empty)`.
+
+    The README's Syntax section has to be this text: the self-test at the
+    bottom reads the file back and compares, so a rule added here cannot
+    leave the manual behind.
+    """
+    found = _productions()
+    extra = sorted(set(found) - set(GRAMMAR_ORDER) - {"epsilon"})
+    absent = sorted(set(GRAMMAR_ORDER) - set(found))
+    if extra or absent:
+        raise RuntimeError(
+            f"GRAMMAR_ORDER is out of step with the rules: "
+            f"unlisted {extra}, missing {absent}")
+
+    lines = []
+    for name in GRAMMAR_ORDER:
+        alternatives = []
+        for alternative in found[name]:
+            written = " ".join(alternative.split()) or "(empty)"
+            if written == "epsilon":
+                written = "(empty)"
+            if written not in alternatives:
+                alternatives.append(written)
+        lines.append(f"{name} : " + " | ".join(alternatives))
+    return "\n".join(lines)
+
+
+def _readme_blocks(text: str, language: str) -> list:
+    """Every fenced block in `text` labelled `language`, verbatim."""
+    blocks = []
+    inside = False
+    wanted = False
+    current = []
+    for line in text.splitlines():
+        if line.startswith("```"):
+            if inside:
+                if wanted:
+                    blocks.append("\n".join(current))
+                inside = wanted = False
+                current = []
+            else:
+                inside = True
+                wanted = line[3:].strip() == language
+            continue
+        if inside:
+            current.append(line)
+    return blocks
+
+
+def _readme_grammar(text: str) -> str:
+    """The fenced block in `text` that spells the productions, verbatim."""
+    for block in _readme_blocks(text, "ebnf"):
+        if block.startswith("program :"):
+            return block
+    raise SyntaxError("no ```ebnf block opening with `program :` in the README")
+
 
 def parse_source(source: str):
     """Parse one source, counting its lines from one.
@@ -491,7 +598,7 @@ def parse_source(source: str):
     return parser.parse(source)
 
 # ================================================================= #
-# 3. TEST RUN
+# 4. TEST RUN
 # ================================================================= #
 
 if __name__ == "__main__":
@@ -728,6 +835,49 @@ if __name__ == "__main__":
             error_count += 1
         print(f"{'a fresh source counts from line 1':<50} | {e}")
 
+    # The README's Syntax section is this module's grammar: it spells the
+    # productions out, or it is telling a reader something else. Its samples
+    # are sources too, and a sample that does not compile teaches a mistake.
+    print("-" * 65)
+    doc_count = 0
+    readme = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "README.md")
+    try:
+        with open(readme, encoding="utf-8") as handle:
+            manual = handle.read()
+    except OSError as e:
+        manual = None
+        print(f"{'the README is readable':<50} | {type(e).__name__}: {e}")
+
+    if manual is not None:
+        try:
+            written = _readme_grammar(manual)
+            expected = grammar_text()
+            if written == expected:
+                doc_count += 1
+                print(f"{'the README spells this grammar':<50} | OK "
+                      f"({len(expected.splitlines())} productions)")
+            else:
+                print(f"{'the README spells this grammar':<50} | OUT OF DATE")
+                print("--- the grammar in viba/parser.py ---")
+                print(expected)
+                print("--- the grammar in README.md ---")
+                print(written)
+        except Exception as e:                      # a stale GRAMMAR_ORDER, no block
+            print(f"{'the README spells this grammar':<50} | {type(e).__name__}: {e}")
+
+        try:
+            samples = _readme_blocks(manual, "viba")
+            for sample in samples:
+                check_definition_names(parse_source(sample) or [])
+            doc_count += 1
+            print(f"{'every .viba sample in the README compiles':<50} | OK "
+                  f"({len(samples)} blocks)")
+        except Exception as e:
+            print(f"{'every .viba sample in the README compiles':<50} | "
+                  f"{type(e).__name__}: {e}")
+
     print("-" * 65)
     print(f"Passed {success_count}/{len(test_cases)} tests, "
-          f"{error_count}/{len(error_cases) + 1} error tests.")
+          f"{error_count}/{len(error_cases) + 1} error tests, "
+          f"{doc_count}/2 documentation checks.")

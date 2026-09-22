@@ -75,7 +75,8 @@ __ret__ = distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $thr
   `$threshold` 给——`threshold = 5` 是这条规则自己的选择，换个案子换个门槛，写的还是同一个
   函数。规则想有几个条件、想怎么组合（`<<` 给参数、定义复用、模块拆开），都是写程序的事。
 - **函数体里的 `{...}` 是说明**：实现来自宿主的 `get_func(module_path, func_name)`（见
-  [`viba-interpreter.md`](viba-interpreter.md)），interpret 不带任何库函数。
+  [`viba-interpreter.md`](viba-interpreter.md)），interpret 不带任何库函数——提示写给的正是要
+  照着它把实现补出来的 agent。
 - **每个可执行函数都要 `$env Environment`**：这是 interpreter 的规矩，规则也不例外。
 
 ## 2. 呈证是材料
@@ -234,7 +235,8 @@ record_text(file_path, content)          # 写进备份本身（prepare_run 用�
 2. **写呈证**：一个模块（`<案子>.viba`），`__ret__` 是材料（tag、积、字面量、元组都行）。
 3. **写规则**：一个模块，`__ret__` 是 `bool`；一步一个定义（案子的地址、呈证、测量、判定），
    别把调用套进调用里；条件写成它自己的函数，每个函数带 `$env Environment`。
-4. **实现宿主那侧**：`get_func(module_path, func_name)` 给出这些函数的实现；纯的照常写，
+4. **实现宿主那侧**：这一步是交给 agent 的——照着文件里 `{...}` 的提示，把每个函数写出来。
+   `get_func(module_path, func_name)` 给出这些函数的实现；纯的照常写，
    不纯的用 `measure` 包住，名字取"量的是什么"（它也是 Prepare 的文件名），并收一格
    `$evidence Environment`——它是案子的地址，证据记在那里。
 5. **跑判定**：给一个 `Environment`（storage + compute）。要留证据就 `prepare_run` 一次，
