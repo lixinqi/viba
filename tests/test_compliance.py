@@ -153,12 +153,15 @@ def _written(node):
 
 
 def _judge(tmp: Path):
-    """跑一个规则：判定就是 __ret__，材料是 witness 那个程序给的。"""
+    """跑一个规则：判定就是 __ret__，材料是 witness 那个程序问来的。"""
     store = tmp / "judge-store"
     env, host = environ_for(store)
     verdict = is_compliant(str(RULE), env)
     check(isinstance(verdict, Ok) and verdict.ok_value is True,
           f"the rule answered true: {verdict!r}")
+    check(host.witnessed == ["12:30"],
+          f"the witness asked the host for its facts, it did not write them in: "
+          f"{host.witnessed}")
     check(host.judged == [5], f"its predicate saw the measured value: {host.judged}")
     check(host.measured == [((0, 0), (3, 4))],
           f"and the measurement ran once: {host.measured}")

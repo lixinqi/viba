@@ -1,7 +1,8 @@
 """Compliance: rules and witnesses, as executable viba modules.
 
 A rule is a program (`environ` in, a `bool` verdict out) and a witness is the
-material it judges, so a judgment is a run — `is_compliant(rule_file, environ)`.
+program that answers the material it judges, so a judgment is a run —
+`is_compliant(rule_file, environ)`.
 The impure part of a rule (measuring something) goes through `measure`, which
 replays a **Prepare** that was backed up before the run and records one that was
 not (see `viba/compliance/storage.py`).
