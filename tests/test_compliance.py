@@ -104,16 +104,18 @@ measure_distance :=
 	<- $case Case
 	<- { measure }
 
-distance_at_least_5 :=
+distance_ge :=
 	bool
 	<- $env Environment
 	<- $d int
-	<- { at least 5? }
+	<- $threshold int
+	<- { at least the threshold? }
 
 case_env := environ.sub_env << "case_at_1210"
 the_case := case_at_1210 << case_env
 distance := measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
-__ret__ := distance_at_least_5 << $env (environ.tmp_sub_env << ()) << $d distance
+threshold := 5
+__ret__ := distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold
 """)
     env, host = environ_for(tmp / "near-store")
     verdict = is_compliant(near_rule, env)

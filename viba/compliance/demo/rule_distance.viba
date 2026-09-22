@@ -24,12 +24,13 @@ measure_distance :=
 		so the answer is prepared
 	}
 
-distance_at_least_5 :=
+distance_ge :=
 	bool
 	<- $env Environment
 	<- $d int
+	<- $threshold int
 	<- {
-		were they at least 5 apart?
+		is that distance at least the threshold?
 	}
 
 # the address of this case: the witness is read under it, and this is where the
@@ -44,5 +45,7 @@ the_case := case_at_1230 << case_env
 # goes: this case's address. Not pure, so what it answers becomes the Prepare.
 distance := measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 
-# the rule's question, answered on the measurement; a call like any other
-__ret__ := distance_at_least_5 << $env (environ.tmp_sub_env << ()) << $d distance
+# the rule's question: at least this far apart?
+threshold := 5
+
+__ret__ := distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold

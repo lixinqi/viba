@@ -31,8 +31,8 @@ class DistanceHost:
     def get_func(self, module_path, func_name):
         if func_name == "measure_distance":
             return self.measure_distance
-        if func_name == "distance_at_least_5":
-            return self.distance_at_least_5
+        if func_name == "distance_ge":
+            return self.distance_ge
         return None
 
     def measure_distance(self, env, evidence, case):
@@ -52,10 +52,10 @@ class DistanceHost:
                               + (victim[1] - suspect[1]) ** 2) ** 0.5))
         return measure(env, "measure_distance", case, compute, evidence=evidence)
 
-    def distance_at_least_5(self, env, d):
+    def distance_ge(self, env, d, threshold):
         """The predicate: pure, so it runs on every judgment."""
         self.judged.append(d.value)
-        return d.value >= 5
+        return d.value >= threshold.value
 
 
 def _point(node, tag):

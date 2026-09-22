@@ -30,12 +30,13 @@ measure_distance :=
 		so the answer is prepared
 	}
 
-distance_at_least_5 :=
+distance_ge :=
 	bool
 	<- $env Environment
 	<- $d int
+	<- $threshold int
 	<- {
-		were they at least 5 apart?
+		is that distance at least the threshold?
 	}
 
 # the address of this case: the witness is read under it, and this is where the
@@ -50,8 +51,10 @@ the_case := case_at_1230 << case_env
 # goes: this case's address. Not pure, so what it answers becomes the Prepare.
 distance := measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 
-# the rule's question, answered on the measurement; a call like any other
-__ret__ := distance_at_least_5 << $env (environ.tmp_sub_env << ()) << $d distance
+# the rule's question: at least this far apart?
+threshold := 5
+
+__ret__ := distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold
 ```
 
 读法：
@@ -68,9 +71,9 @@ __ret__ := distance_at_least_5 << $env (environ.tmp_sub_env << ()) << $d distanc
   两者分开，规则里才没有人把随便哪次调用钉到案子的地址上。
 - **`__ret__` 是判定**。它是 `bool`，跑完就是答案：真合规、假不合规。这条规则跑出来是
   `Ok(true)`——量出来恰好 5，够门槛。
-- **条件是它自己的函数**。`distance_at_least_5` 就是这条规则要问的那件事；规则想有几个条件、
-  想怎么组合（`<<` 给参数、定义复用、模块拆开），都是写程序的事。规则能表达任何算得出来的
-  条件——换个门槛、加一条"且当时在现场"，都只是多写一个函数。
+- **条件是它自己的函数，判据是它的参数**。`distance_ge` 问的是"距离至少到没到门槛"，门槛由
+  `$threshold` 给——`threshold := 5` 是这条规则自己的选择，换个案子换个门槛，写的还是同一个
+  函数。规则想有几个条件、想怎么组合（`<<` 给参数、定义复用、模块拆开），都是写程序的事。
 - **函数体里的 `{...}` 是说明**：实现来自宿主的 `get_func(module_path, func_name)`（见
   [`viba-interpreter.md`](viba-interpreter.md)），interpret 不带任何库函数。
 - **每个可执行函数都要 `$env Environment`**：这是 interpreter 的规矩，规则也不例外。
