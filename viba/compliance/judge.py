@@ -105,14 +105,21 @@ def measured_of(prepare):
     return leaf.ok_value, True
 
 
-def measure(environ: Environment, name: str, call, compute):
+def measure(environ: Environment, name: str, call, compute, evidence: Environment = None):
     """The measured value of the prepared call `name`.
 
-    Replayed when the Prepare carries one; measured by `compute(call)` — the
+    `environ` is the environment the call runs under: any environment does, a
+    temporary one included, because a call has no address of its own. `evidence`
+    is the environment the Prepare belongs to — the case's, whose path is stable
+    — and without it the Prepare goes under the call's path, where a temporary
+    one can never be found again.
+
+    Replayed when the Prepare carries a value; measured by `compute(call)` — the
     impure step — only when there is nothing to replay, and then written into
     this run's store. The call the Prepare names wins over the one written here:
     the prepared call is the one that was fixed."""
-    prepare = read_prepare(environ, name)
+    home = evidence if isinstance(evidence, Environment) else environ
+    prepare = read_prepare(home, name)
     value, recorded = measured_of(prepare)
     if recorded:
         return value
@@ -120,7 +127,7 @@ def measure(environ: Environment, name: str, call, compute):
     if prepared is None:
         prepared = material(call)
     value = compute(prepared)
-    record_prepare(environ, name, prepared, value)
+    record_prepare(home, name, prepared, value)
     return value
 
 

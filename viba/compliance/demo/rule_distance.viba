@@ -17,6 +17,7 @@ Case := $victim Point * $suspect Point * $at str
 measure_distance :=
 	int
 	<- $env Environment
+	<- $evidence Environment
 	<- $case Case
 	<- {
 		how far apart the victim and the suspect were: not a pure function,
@@ -31,16 +32,17 @@ distance_at_least_5 :=
 		were they at least 5 apart?
 	}
 
-# the address of this case: the sub-environment is named after it, and
-# everything it costs — its witness, its measurement, its Prepare — happens
-# there, so the evidence says which case it belongs to
+# the address of this case: the witness is read under it, and this is where the
+# case's evidence — its Prepare — is kept
 case_env := environ.sub_env << "case_at_1230"
 
 # the witness: the three facts of that moment
 the_case := case_at_1230 << case_env
 
-# the measurement of those facts: not pure, so its answer is this case's Prepare
-distance := measure_distance << $env case_env << $case the_case
+# the measurement of those facts. The call itself runs under a temporary
+# environment (a call has no address of its own), and is told where the evidence
+# goes: this case's address. Not pure, so what it answers becomes the Prepare.
+distance := measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 
-# the rule's question, answered on the measurement
-__ret__ := distance_at_least_5 << $env case_env << $d distance
+# the rule's question, answered on the measurement; a call like any other
+__ret__ := distance_at_least_5 << $env (environ.tmp_sub_env << ()) << $d distance

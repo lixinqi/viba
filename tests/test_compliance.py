@@ -100,6 +100,7 @@ Case := $victim Point * $suspect Point * $at str
 measure_distance :=
 	int
 	<- $env Environment
+	<- $evidence Environment
 	<- $case Case
 	<- { measure }
 
@@ -111,8 +112,8 @@ distance_at_least_5 :=
 
 case_env := environ.sub_env << "case_at_1210"
 the_case := case_at_1210 << case_env
-distance := measure_distance << $env case_env << $case the_case
-__ret__ := distance_at_least_5 << $env case_env << $d distance
+distance := measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
+__ret__ := distance_at_least_5 << $env (environ.tmp_sub_env << ()) << $d distance
 """)
     env, host = environ_for(tmp / "near-store")
     verdict = is_compliant(near_rule, env)
@@ -232,12 +233,13 @@ import boom_case as boom_case
 measure_distance :=
 	int
 	<- $env Environment
+	<- $evidence Environment
 	<- $case Any
 	<- { measure }
 
 case_env := environ.sub_env << "boom_case"
 the_case := boom_case << case_env
-__ret__ := measure_distance << $env case_env << $case the_case
+__ret__ := measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 """)
     labelled(is_compliant(boom_rule, env), "raised",
              "a measurement that blows up -> Err")

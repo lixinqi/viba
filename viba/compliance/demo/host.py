@@ -35,12 +35,14 @@ class DistanceHost:
             return self.distance_at_least_5
         return None
 
-    def measure_distance(self, env, case):
+    def measure_distance(self, env, evidence, case):
         """How far apart the two were: the impure step, through `measure`.
 
-        The Prepare is named after this function, and lands under the storage
-        path of the case it was measured for — `root/case_at_1230/prepare/
-        measure_distance.viba` — so the evidence says which case it belongs to.
+        `env` is the environment the call runs under — the rule hands a
+        temporary one, since a call has no address of its own. `evidence` is the
+        case's environment, and that is where the Prepare is kept, so the
+        evidence says which case it belongs to: `root/case_at_1230/prepare/
+        measure_distance.viba`.
         """
         def compute(prepared):
             victim = _point(prepared, "victim")
@@ -48,7 +50,7 @@ class DistanceHost:
             self.measured.append((victim, suspect))
             return int(round(((victim[0] - suspect[0]) ** 2
                               + (victim[1] - suspect[1]) ** 2) ** 0.5))
-        return measure(env, "measure_distance", case, compute)
+        return measure(env, "measure_distance", case, compute, evidence=evidence)
 
     def distance_at_least_5(self, env, d):
         """The predicate: pure, so it runs on every judgment."""
