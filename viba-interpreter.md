@@ -125,7 +125,7 @@ lib << (environ.tmp_sub_env << ())
 需要快照、要靠回放才幂等的函数如果挂在它底下，回放自然命中不了——每次的路径都是新的，快照会
 一次次写进不同的 `tmp_` 目录（`store_root/root/tmp_xxxx/…viba`），那条不纯的路于是每次都重走，
 **幂等检查会失败**。这不是缺陷，而是它给出的信号：这个函数需要显名保存，应该换到
-`environ.sub_env << "一个稳定的名字"` 上去。`tests/test_interpreter.py` 里两半都有用例：
+`environ.sub_env << "一个稳定的名字"` 上去。`tests/test_interpreter_idempotence.py` 里两半都有用例：
 显名路径第二次跑就回放，临时路径两次都重算、并且留下两份快照。
 
 ## 宿主侧：Environment
@@ -236,7 +236,7 @@ __ret__ := roll << $env environ << $n 1
 ```
 
 第一次跑算出 731204 并存进 `store_root/root/roll-1.viba`；第二次跑读到它，那条不纯的路一次
-都不走，结果还是 731204。`tests/test_interpreter.py` 里就是这么验的：同一个 store 跑两遍值
+都不走，结果还是 731204。`tests/test_interpreter_idempotence.py` 里就是这么验的：同一个 store 跑两遍值
 相同、不纯函数只被调用一次；换一个 store 才会重新算。
 
 ## 类型层的模块
