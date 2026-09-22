@@ -121,6 +121,7 @@ def run() -> int:
         _names_and_sources(tmp)
         _higher_order_and_answers(tmp)
         _shapes_and_scale(tmp)
+        _caching_and_repeats(tmp)
         _paths(tmp)
     finally:
         for leftover in sorted(tmp.rglob("*"), reverse=True):
@@ -578,6 +579,47 @@ __ret__ := sum << $env environ""" + many + "\n")
     result = interpret(str(depth / "leaf1.viba"), environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a five-deep import chain: {result!r}")
+
+
+def _caching_and_repeats(tmp: Path):
+    """一个文件只编一次；同一个 tag 给两次，后给的算。"""
+    import viba.interpreter as interpreter_module
+
+    host = Host()
+    environ = host.environ()
+
+    _write(tmp, "shared.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    _write(tmp, "left.viba", "import shared as s\n__ret__ := s << environ\n")
+    _write(tmp, "right.viba", "import shared as r\n__ret__ := r << environ\n")
+    top = _write(tmp, "top.viba", ADD + """
+import left as l
+import right as r
+__ret__ := add << $env environ << $a (l << environ) << $b (r << environ)
+""")
+
+    parsed = []
+    original = interpreter_module.custom_module
+
+    def counting(source):
+        parsed.append(1)
+        return original(source)
+
+    interpreter_module.custom_module = counting
+    try:
+        result = interpret(top, environ)
+    finally:
+        interpreter_module.custom_module = original
+    check(isinstance(result, Ok) and value_of(result) == 14,
+          f"one module reached by two importers runs for both: {result!r}")
+    check(len(parsed) == 4,
+          f"each file is parsed once, however many importers it has: {len(parsed)}")
+
+    twice = _write(tmp, "twice_tag.viba", ADD + """
+__ret__ := add << $env environ << $a 1 << $a 2 << $b 3
+""")
+    result = interpret(twice, environ)
+    check(isinstance(result, Ok) and value_of(result) == 5,
+          f"a tag given twice: the later value stands: {result!r}")
 
 
 def _paths(tmp: Path):

@@ -47,6 +47,10 @@ from viba.reflect import VibaNode, access as reflect_access
 from viba.type import AstNodeType, Err, ModuleType, Ok, Result, custom_module
 from viba.viba_type_descriptor import descriptor_of
 
+# A scalar a host answers belongs to no file: its leaf gets an empty module.
+# Parsed once, not once per answer.
+_NO_MODULE = custom_module("")
+
 RET_NAME = "__ret__"
 ENVIRON_NAME = "environ"
 ENVIRON_TAG = "$env"
@@ -563,7 +567,7 @@ def _answer(name, answer):
                    f"which is no leaf: answer a VibaNode, a scalar, or None")
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
     return Ok(_Material(VibaNode(reflect_access,
-                                 descriptor_of(AstNodeType(node, custom_module(""))), node)))
+                                 descriptor_of(AstNodeType(node, _NO_MODULE)), node)))
 
 
 def _elements(node):
