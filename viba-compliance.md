@@ -5,8 +5,9 @@
 
 ## 1. 一个规则是一个程序
 
-先看情景。一起案子：**受害人与嫌疑人各有一个当时的坐标，还有一个时刻**。12:30 那一刻，受害
-人在 (0,0)，嫌疑人在 (3,4)。要问的是一件事——**那一刻两人是不是至少隔了 5**。
+先看情景（完整的例子在 [`viba/compliance/demo/`](viba/compliance/demo/)）。一起案子：**受害人与
+嫌疑人各有一个当时的坐标，还有一个时刻**。12:30 那一刻，受害人在 (0,0)，嫌疑人在 (3,4)。要问
+的是一件事——**那一刻两人是不是至少隔了 5**。
 
 这条规则读的就是呈证（第 2 节）里的三个事实：`$victim`、`$suspect`、`$at`，然后把它问的那
 件事答成 `bool`。规则就是一个 viba 程序：`environ` 进、`bool` 出；判定不是另一套推理，就是
@@ -56,11 +57,13 @@ __ret__ := distance_at_least_5 << $env (environ.tmp_sub_env << ()) << $d distanc
 读法：
 
 - **一步一个定义**：案子的地址、呈证、测量、判定各是一行，没有把调用套在调用里面。定义在
-  一次运行里只算一次（`viba-interpreter.md`），所以 `the_case` 就是那份材料本身。
+  一次运行里只算一次（[`viba-interpreter.md`](viba-interpreter.md)），所以 `the_case` 就是那份
+  材料本身。
 - **`case_env` 是这个案子的地址**：`case_at_1230` 这个名字同时是模块名、子环境名，也落在
   storage 路径上（`root/case_at_1230`）。读呈证用它，这个案子的证据也存在它下面。
 - **调用用临时环境，证据才要地址**。函数调用给 `(environ.tmp_sub_env << ())`：一次调用没有
-  自己的地址，也不该占一个（`tmp_sub_env` 每次都是新的，见 `viba-interpreter.md`）。要给
+  自己的地址，也不该占一个（`tmp_sub_env` 每次都是新的，见
+  [`viba-interpreter.md`](viba-interpreter.md)）。要给
   证据落地址的是**测量**：它多收一格 `$evidence Environment`，明说"这次测量属于哪个案子"。
   两者分开，规则里才没有人把随便哪次调用钉到案子的地址上。
 - **`__ret__` 是判定**。它是 `bool`，跑完就是答案：真合规、假不合规。这条规则跑出来是
@@ -69,7 +72,7 @@ __ret__ := distance_at_least_5 << $env (environ.tmp_sub_env << ()) << $d distanc
   想怎么组合（`<<` 给参数、定义复用、模块拆开），都是写程序的事。规则能表达任何算得出来的
   条件——换个门槛、加一条"且当时在现场"，都只是多写一个函数。
 - **函数体里的 `{...}` 是说明**：实现来自宿主的 `get_func(module_path, func_name)`（见
-  `viba-interpreter.md`），interpret 不带任何库函数。
+  [`viba-interpreter.md`](viba-interpreter.md)），interpret 不带任何库函数。
 - **每个可执行函数都要 `$env Environment`**：这是 interpreter 的规矩，规则也不例外。
 
 ## 2. 呈证是材料
@@ -89,15 +92,17 @@ __ret__ :=
 两个坐标就是两个点：受害人 (0,0)，嫌疑人 (3,4)——横竖各差 3 与 4，于是相距 5，正好压在规则
 的门槛上。这条呈证给的是**事实**（谁在哪、什么时候），不是结论。
 
-呈证的文件名就是案子的名字（`case_at_1230`：那一刻），规则按这个名字调它：
+呈证的文件名就是案子的名字（[`case_at_1230.viba`](viba/compliance/demo/case_at_1230.viba)：
+那一刻），规则按这个名字调它：
 
 ```viba
 the_case := case_at_1230 << case_env
 ```
 
 呈证是材料，规则要按地址读它：`$victim`、`$suspect`、`$at` 是地址，`$x`/`$y` 再往下一层。读的
-工具在宿主侧，是 `viba.reflect`（`viba-reflect.md`）——上面那段 `host.py` 里的 `_point` 就是
-这么读的（`prepared.by_tag("victim").by_tag("x").leaf`）。呈证不必长得像规则：它就是事实。
+工具在宿主侧，是 [`viba/reflect.py`](viba/reflect.py)（[`viba-reflect.md`](viba-reflect.md)）：
+上面那段 [`host.py`](viba/compliance/demo/host.py) 里的 `_point` 就是按地址读的
+（`prepared.by_tag("victim").by_tag("x").leaf`）。呈证不必长得像规则：它就是事实。
 
 ## 3. 判定
 
@@ -110,7 +115,8 @@ verdict = is_compliant("rule_distance.viba", environ)   # -> Result[bool]
 - 规则答 `bool`，判定就是它：`Ok(True)` / `Ok(False)`。
 - 答的不是 `bool`，是 `Err`（"a verdict is a bool"）。
 - 规则编不过、没有 `__ret__`、`$env` 没给、宿主函数抛了……都是 `Err`，说明哪一步不行。
-- 一次运行的环境（`Environment`、storage、`get_func`）怎么给，见 `viba-interpreter.md`：
+- 一次运行的环境（`Environment`、storage、`get_func`）怎么给，见
+  [`viba-interpreter.md`](viba-interpreter.md)：
   `is_compliant` 就是 `interpret` 加"读出那个 bool"。
 
 ## 4. 不纯的那一步：Prepare
@@ -158,7 +164,8 @@ value :=
 
 ## 5. 备份与回放
 
-一次运行读 Prepare 的规矩在 `viba/compliance/storage.py` 的 `PreparedStorage`：
+一次运行读 Prepare 的规矩在 [`viba/compliance/storage.py`](viba/compliance/storage.py) 的
+`PreparedStorage`：
 
 - **读：先看本轮 store，再看备份**（`prepare_root_dir`）。备份是运行之前就存好的证据。
 - **写：只进本轮 store，永不写备份**。运行不许改证据。
@@ -179,9 +186,9 @@ from viba.compliance import prepare_run
 prepare_run("rule_distance.viba", environ)   # 跑一遍，把它量过的 Prepare 记进备份
 ```
 
-`tests/data/compliance/backup/` 里放着一份事先备份好的 Prepare（
-`root/case_at_1230/prepare/measure_distance.viba`）：拿它当 `prepare_root_dir` 运行，那条不纯
-的路一次都不走，判定仍是同一个。
+[`tests/data/compliance/backup/`](tests/data/compliance/backup/) 里放着一份事先备份好的
+Prepare（`root/case_at_1230/prepare/measure_distance.viba`）：拿它当 `prepare_root_dir` 运行，
+那条不纯的路一次都不走，判定仍是同一个。
 
 **换一个案子**（比如 12:10 那一刻，嫌疑人在 (0,3)）：呈证写成 `case_at_1210.viba`，规则里
 `case_env` 换成 `environ.sub_env << "case_at_1210"`——量出来 3，判定 `Ok(false)`。名字换了，
@@ -189,7 +196,7 @@ prepare_run("rule_distance.viba", environ)   # 跑一遍，把它量过的 Prepa
 
 ## 6. 句柄一览
 
-判定与准备（`viba/compliance/judge.py`）：
+判定与准备（[`viba/compliance/judge.py`](viba/compliance/judge.py)）：
 
 ```python
 is_compliant(rule_file, environ) -> Result[bool]   # 跑规则，读它的判定
@@ -230,8 +237,8 @@ record_text(file_path, content)          # 写进备份本身（prepare_run 用�
 5. **跑判定**：给一个 `Environment`（storage + compute）。要留证据就 `prepare_run` 一次，
    之后每次 `is_compliant` 都读备份。规则里的函数调用给临时环境，只有读呈证与记证据才用
    案子的地址。
-6. **要检查材料**：用 `viba.reflect` 的地址与叶子读（`viba-reflect.md`），或 `read_prepare`
-   直接读存档。
+6. **要检查材料**：用 [`viba/reflect.py`](viba/reflect.py) 的地址与叶子读
+   （[`viba-reflect.md`](viba-reflect.md)），或 `read_prepare` 直接读存档。
 
-`tests/test_compliance.py` 是一份可以照抄的完整例子；`viba/compliance/demo/` 是上面这套的
-最小可运行版本。
+[`tests/test_compliance.py`](tests/test_compliance.py) 是一份可以照抄的完整例子；
+[`viba/compliance/demo/`](viba/compliance/demo/) 是上面这套的最小可运行版本。

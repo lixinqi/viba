@@ -78,11 +78,11 @@ Handler := {def forward(self, x): return x}
 
 | Document | Subject |
 |----------|---------|
-| `viba-reflect.md` | The reflection protocol: addressing a design, reading a material |
-| `viba-interpreter.md` | Running a module: `environ` in, `__ret__` out — the executable reading |
-| `viba-compliance.md` | Rules and witnesses as programs: judging, Prepare, replay |
-| `viba_builder.md` | Writing .viba source from Python expressions |
-| `contract-enough.md` | What "the implementation is enough" means |
+| [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a design, reading a material |
+| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `environ` in, `__ret__` out — the executable reading |
+| [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
+| [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
+| [`contract-enough.md`](contract-enough.md) | What "the implementation is enough" means |
 
 ## Modules
 
