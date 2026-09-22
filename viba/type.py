@@ -16,7 +16,7 @@ from viba import viba_ast
 
 
 # ----------------------------------------------------------------------
-# Result (cf. Result[T] = Oneof | $ok T | $err str)
+# Result (cf. Result[T] = Oneof | $ok T | $viba_program_err str)
 # ----------------------------------------------------------------------
 
 class Ok:
@@ -29,17 +29,22 @@ class Ok:
         return f"Ok({self.ok_value!r})"
 
 
-class Err:
-    """The $err branch: its payload is err_msg."""
+class VibaProgramErr:
+    """`$viba_program_err str`: the program or the environment is at fault.
+
+    The source does not compile, a name resolves to nothing, a module has no
+    `__ret__`, the environment cannot run the file: `err_msg` says which. It
+    names no step — that is what `UnderlyingVibaOpFailed` is for.
+    """
 
     def __init__(self, err_msg: str):
         self.err_msg = err_msg
 
     def __repr__(self):
-        return f"Err({self.err_msg!r})"
+        return f"VibaProgramErr({self.err_msg!r})"
 
 
-Result = Union[Ok, Err]
+Result = Union[Ok, VibaProgramErr]
 
 
 class Step:
@@ -70,8 +75,8 @@ class Step:
         return f"Step({self.module_path!r}, {self.func_name!r})"
 
 
-class Failed(Exception):
-    """`$failed Failure`: the implementation of this step went wrong.
+class UnderlyingVibaOpFailed(Exception):
+    """`$underlying_viba_op_failed Failure`: this step's implementation broke.
 
         Failure =
             Object
@@ -91,7 +96,7 @@ class Failed(Exception):
         self.reason = reason
 
     def __repr__(self):
-        return f"Failed({self.msg!r}, {self.step!r}, {self.reason!r})"
+        return f"UnderlyingVibaOpFailed({self.msg!r}, {self.step!r}, {self.reason!r})"
 
 
 class NotMyDutyException(Exception):
@@ -142,14 +147,14 @@ REASON_NO_LEAF = "no leaf"                       # it answered something with no
 # What `interpret` answers, its branches written out:
 #
 #     Result[T] =
-#       Oneof
-#     | $ok T
-#     | $err str
-#     | $failed Failure
-#     | $not_my_duty_exception Duty
+#         Oneof
+#       | $ok T
+#       | $viba_program_err str                    # the program or environment
+#       | $underlying_viba_op_failed Failure       # a host implementation broke
+#       | $not_my_duty_exception Duty              # not this host's step
 #
 # The other APIs keep the two-branch `Result`: their work is all here.
-InterpretResult = Union[Ok, Err, Failed, NotMyDutyException]
+InterpretResult = Union[Ok, VibaProgramErr, UnderlyingVibaOpFailed, NotMyDutyException]
 
 
 # ----------------------------------------------------------------------
@@ -264,7 +269,7 @@ class BuiltinModuleType(ModuleType):
         if type_name in self._library:
             node = self._library[type_name]
             return Ok(AstNodeType(node, BUILTIN_MODULE))
-        return Err(f"no built-in type named {type_name!r}")
+        return VibaProgramErr(f"no built-in type named {type_name!r}")
 
 
 def _load_builtin_library() -> dict:
@@ -283,7 +288,7 @@ class CustomModuleType(ModuleType):
     """A user module: parsed definitions + a lazy environment.
 
     $module_environment answers `module_name -> Result[ModuleType]`
-    for cross-module references; returning Err ends resolution.
+    for cross-module references; returning VibaProgramErr ends resolution.
 
     $imports maps a file's import local name to the module it names, so a
     written name that carries an import prefix (`d.Report` under
@@ -298,7 +303,7 @@ class CustomModuleType(ModuleType):
     ):
         self.module = module
         if module_environment is None:
-            module_environment = lambda name: Err(f"module {name!r} not found")
+            module_environment = lambda name: VibaProgramErr(f"module {name!r} not found")
         self.module_environment = module_environment
         self.imports = dict(imports or {})
 
@@ -324,10 +329,10 @@ class CustomModuleType(ModuleType):
             if prefix not in self.imports:
                 continue
             imported = self.module_environment(self.imports[prefix])
-            if isinstance(imported, Err):
-                return Err(f"{prefix!r} names {self.imports[prefix]!r}: {imported.err_msg}")
+            if isinstance(imported, VibaProgramErr):
+                return VibaProgramErr(f"{prefix!r} names {self.imports[prefix]!r}: {imported.err_msg}")
             return imported.ok_value.lookup_local(".".join(parts[cut:]))
-        return Err(f"no type named {type_name!r} in module")
+        return VibaProgramErr(f"no type named {type_name!r} in module")
 
 
 def _is_definition(node) -> bool:
@@ -397,7 +402,7 @@ def module_get_type(module: ModuleType, type_name: str, _seen=None) -> Result:
         return module.lookup(type_name)
     if isinstance(module, CustomModuleType):
         return _lookup_custom(module, type_name, set() if _seen is None else _seen)
-    return Err(f"unknown module kind: {module!r}")
+    return VibaProgramErr(f"unknown module kind: {module!r}")
 
 
 def _lookup_custom(module: CustomModuleType, type_name: str, seen) -> Result:
@@ -413,8 +418,8 @@ def _lookup_custom(module: CustomModuleType, type_name: str, seen) -> Result:
     builtin = BUILTIN_MODULE.lookup(type_name)
     if isinstance(builtin, Ok):
         return builtin
-    note = via_env.err_msg if isinstance(via_env, Err) else "it names a module already met"
-    return Err(f"type {type_name!r} unresolved: {local.err_msg}; {note}")
+    note = via_env.err_msg if isinstance(via_env, VibaProgramErr) else "it names a module already met"
+    return VibaProgramErr(f"type {type_name!r} unresolved: {local.err_msg}; {note}")
 
 
 # ----------------------------------------------------------------------

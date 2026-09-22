@@ -31,7 +31,7 @@ viba 是本体论：定义说的是"世界里有什么、怎么寻址"，不说�
 时间那一轴真正的收获在材料本身：快照是 `serialize` 写出的 viba 源码（`Name = …`），不是二进制
 日志——当初跑它的代码没了，人也读得懂，模型也读得懂，类型层还能再判一遍。
 
-"谁去算"在语言里已经有了位置：`interpret` 的答案有四支——`$ok`、`$err`、`$failed Failure`，
+"谁去算"在语言里已经有了位置：`interpret` 的答案有四支——`$ok`、`$viba_program_err`、`$underlying_viba_op_failed Failure`，
 以及 `$not_my_duty_exception Duty`。后两支都带着 `$step`（哪条路径上的哪个定义），递延还带着
 `$call`（它拿到的材料）；`$not_my_duty_exception` 就是"这一步不在这台机器上作答"，它让"跑到一半"
 成为一个正常的答案，而不是一次失败（[`viba-interpreter.md`](viba-interpreter.md)）。
@@ -79,7 +79,7 @@ viba 是本体论：定义说的是"世界里有什么、怎么寻址"，不说�
 
 **一、自动递延只对"我没有这个能力"安全，不能对"我有、但我失败了"生效。** 两者在 interpret 里是
 分开的两支：`get_func` 返回 `None`（或它自己抛递延）是"不是我的"，answer 是
-`$not_my_duty_exception Duty`；宿主抛别的异常是"是我的、坏了"，answer 是 `$failed Failure`。
+`$not_my_duty_exception Duty`；宿主抛别的异常是"是我的、坏了"，answer 是 `$underlying_viba_op_failed Failure`。
 两支都带着 `$step`，所以递延可以放心自动传下去，失败则不必。守住这条线，才不会把一次真失败变成
 "换台机器重做一次副作用"。
 

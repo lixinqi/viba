@@ -15,7 +15,7 @@ underscore.
     VibaPath                          VibaPath (= list[VibaStep])
     VibaNode[Data]                    VibaNode
     VibaReflectConfig                 Config
-    Result[T]                         Ok / Err (viba.type)
+    Result[T]                         Ok / VibaProgramErr (viba.type)
     VibaConstant                      the naked value (bool / int / float / str / None)
     VibaAccess[Data]                  VibaAccess, built with a Config
     VibaRoot / VibaHas / VibaGet      VibaAccess.root / has / get / leaf /
@@ -36,7 +36,7 @@ Two rules from the protocol:
 * ``has`` answers true or false only: no such address in the design and no
   such piece in the material are both ``False``. In ``get``, "the material has
   no such piece" is ``Ok(nil)`` and only "the map has no such address" is
-  ``Err``; ``leaf`` / ``length`` / ``keys`` give ``Err`` when they cannot.
+  ``VibaProgramErr``; ``leaf`` / ``length`` / ``keys`` give ``VibaProgramErr`` when they cannot.
 
 The config is the one thing an implementation is told and this module is not:
 which written names stand for the units ``nil`` and ``never``. Every accessor
@@ -55,7 +55,7 @@ import copy
 from typing import Iterable, List, Optional, Sequence
 
 from viba import viba_ast
-from viba.type import AstNodeType, Err, Ok, Result, module_get_type
+from viba.type import AstNodeType, VibaProgramErr, Ok, Result, module_get_type
 from viba.viba_type_descriptor import (
     CODE_BLOCK,
     ELLIPSIS,
@@ -85,7 +85,7 @@ LITERAL_CTORS = ("ListLiteral", "SetLiteral", "DictLiteral")
 
 
 class VibaReflectError(Exception):
-    """Thrown when the taking path fails; it carries the protocol's ``Err`` text.
+    """Thrown when the taking path fails; it carries the protocol's ``VibaProgramErr`` text.
 
     Section 5.4 says "throw" without naming the exception; the name is this
     layer's.
@@ -375,13 +375,13 @@ class VibaAccess:
 
     def get(self, node: VibaNode, step: VibaStep) -> Result:
         """VibaGet: take one step. A piece the material lacks is Ok(nil); an
-        address the map lacks is Err."""
+        address the map lacks is VibaProgramErr."""
         slots = self.members(node)
         if not self._knows(node, step, slots):
-            return Err(f"the design has no such address: {step} ({node!r})")
+            return VibaProgramErr(f"the design has no such address: {step} ({node!r})")
         descriptor = self.target_of(node, step, slots)
         if descriptor is None:
-            return Err(f"the design has no such address: {step} ({node!r})")
+            return VibaProgramErr(f"the design has no such address: {step} ({node!r})")
         piece = self._value_at(node.data, step, node.descriptor, node.data_module)
         if piece is None:
             return Ok(None)
@@ -394,22 +394,22 @@ class VibaAccess:
             return Ok(data.value)
         if isinstance(data, viba_ast.Nil):
             return Ok(None)
-        return Err(f"this piece is not a leaf: {node!r}")
+        return VibaProgramErr(f"this piece is not a leaf: {node!r}")
 
     def length(self, node: VibaNode) -> Result:
         elements = self._elements_of(node.data)
         if elements is None:
-            return Err(f"this piece is not a container: {node!r}")
+            return VibaProgramErr(f"this piece is not a container: {node!r}")
         return Ok(len(elements))
 
     def keys(self, node: VibaNode) -> Result:
         if not isinstance(node.data, viba_ast.TypeApp) or node.data.constructor != "DictLiteral":
-            return Err(f"this piece is not a dict: {node!r}")
+            return VibaProgramErr(f"this piece is not a dict: {node!r}")
         out = []
         for pair in node.data.args:
             key = self._key_of(pair)
             if key is None:
-                return Err(f"this dict key is not a literal: {node!r}")
+                return VibaProgramErr(f"this dict key is not a literal: {node!r}")
             out.append(_key_text(key))
         return Ok(out)
 
@@ -419,15 +419,15 @@ class VibaAccess:
         """VibaResolve: walk the path with VibaGet, one step at a time.
 
         Walking onto "the material has no such piece" (``Ok(nil)``) is as far
-        as it goes: with steps left that is an Err; with no steps left, the
+        as it goes: with steps left that is a VibaProgramErr; with no steps left, the
         ``Ok(nil)`` is handed out.
         """
         current = node
         for step in path:
             if current is None:
-                return Err("this step has no value")
+                return VibaProgramErr("this step has no value")
             given = self.get(current, step)
-            if isinstance(given, Err):
+            if isinstance(given, VibaProgramErr):
                 return given
             current = given.ok_value
         return Ok(current)
@@ -435,10 +435,10 @@ class VibaAccess:
     def get_by_path(self, node: VibaNode, path: Sequence[VibaStep]) -> Result:
         """VibaGetByPath: VibaResolve first, then VibaLeaf."""
         resolved = self.resolve(node, path)
-        if isinstance(resolved, Err):
+        if isinstance(resolved, VibaProgramErr):
             return resolved
         if resolved.ok_value is None:
-            return Err("this step has no value")
+            return VibaProgramErr("this step has no value")
         return self.leaf(resolved.ok_value)
 
     def list_fields(self, node: VibaNode, definition: VibaDefinitionDescriptor) -> Result:
@@ -464,10 +464,10 @@ class VibaAccess:
                 out.append(given.ok_value)
         return Ok(out)
 
-    # ---- private: the taking path (Err and Ok(nil) both throw) ----
+    # ---- private: the taking path (VibaProgramErr and Ok(nil) both throw) ----
 
     def _unwrap(self, given: Result):
-        if isinstance(given, Err):
+        if isinstance(given, VibaProgramErr):
             raise VibaReflectError(given.err_msg)
         if given.ok_value is None:
             raise VibaReflectError("this piece has no value")
@@ -543,7 +543,7 @@ class VibaAccess:
         if resolvable is None:
             return None
         resolved = module_get_type(resolvable.container_module, written)
-        if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
+        if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
             return None
         return resolved.ok_value
 
@@ -1044,7 +1044,7 @@ class VibaAccess:
         chain; None when it is not a name over a definition."""
         if isinstance(data, viba_ast.TypeRef):
             resolved = module_get_type(module, data.name)
-            if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
+            if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
                 return None
             node = resolved.ok_value.ast_node
             if isinstance(node, viba_ast.TypeDefinition):
@@ -1149,7 +1149,7 @@ def _written_name(descriptor) -> str:
 def _definition_body(module, name):
     """The plain definition body that name points at; None when it is not one."""
     resolved = module_get_type(module, name)
-    if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
+    if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
         return None
     node = resolved.ok_value.ast_node
     return node.body if isinstance(node, viba_ast.TypeDefinition) else None
@@ -1158,7 +1158,7 @@ def _definition_body(module, name):
 def _generic_definition(module, name):
     """The generic definition that name points at; None when it is not one."""
     resolved = module_get_type(module, name)
-    if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
+    if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
         return None
     node = resolved.ok_value.ast_node
     return node if isinstance(node, viba_ast.GenericDefinition) else None

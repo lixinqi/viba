@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.type import Err, Ok
+from viba.type import VibaProgramErr, Ok
 from viba.viba_type_descriptor import (
     definition_file,
     definition_find_member_by_index,
@@ -92,13 +92,13 @@ def check_case(case_dir: Path):
 
                 written = member_type_name(member)
                 if truth["type_name"] is None:
-                    assert isinstance(written, Err), (case_dir, truth, written)
+                    assert isinstance(written, VibaProgramErr), (case_dir, truth, written)
                 else:
                     assert isinstance(written, Ok) and written.ok_value == truth["type_name"], (case_dir, truth)
 
                 resolved = member_resolved_definition(member)
                 if truth["resolved"] is None:
-                    assert isinstance(resolved, Err), (case_dir, truth, resolved)
+                    assert isinstance(resolved, VibaProgramErr), (case_dir, truth, resolved)
                 else:
                     assert isinstance(resolved, Ok) and resolved.ok_value.full_name == truth["resolved"], \
                         (case_dir, truth, resolved)
@@ -110,19 +110,19 @@ def check_case(case_dir: Path):
                     assert pool_find_member(pool, full).ok_value is member
                 checked_members += 1
 
-            assert isinstance(definition_find_member_by_tag(definition, "$nope"), Err)
-            assert isinstance(definition_find_member_by_index(definition, len(members) + 5), Err)
-            assert isinstance(definition_find_member_by_index(definition, -1), Err)
+            assert isinstance(definition_find_member_by_tag(definition, "$nope"), VibaProgramErr)
+            assert isinstance(definition_find_member_by_index(definition, len(members) + 5), VibaProgramErr)
+            assert isinstance(definition_find_member_by_index(definition, -1), VibaProgramErr)
 
     # 池子上的反例
     first = expected["modules"][0]
-    assert isinstance(pool_find_file(pool, "no/such/file.viba"), Err)
-    assert isinstance(pool_find_definition(pool, "no.such.Definition"), Err)
-    assert isinstance(pool_find_member(pool, "no.such.Definition.$x"), Err)
-    assert isinstance(file_find_import_by_local_name(pool.file_name2file[first["file"]], "nope"), Err)
-    assert isinstance(pool_add_file(pool, pool.files[0]), Err)  # 同一个文件加两次
+    assert isinstance(pool_find_file(pool, "no/such/file.viba"), VibaProgramErr)
+    assert isinstance(pool_find_definition(pool, "no.such.Definition"), VibaProgramErr)
+    assert isinstance(pool_find_member(pool, "no.such.Definition.$x"), VibaProgramErr)
+    assert isinstance(file_find_import_by_local_name(pool.file_name2file[first["file"]], "nope"), VibaProgramErr)
+    assert isinstance(pool_add_file(pool, pool.files[0]), VibaProgramErr)  # 同一个文件加两次
     elsewhere = parse_viba_file(empty_pool(), "X = int\n", "elsewhere.viba", "elsewhere")
-    assert isinstance(pool_add_file(pool, elsewhere.ok_value), Err)  # 别的池子建出来的
+    assert isinstance(pool_add_file(pool, elsewhere.ok_value), VibaProgramErr)  # 别的池子建出来的
 
     return len(expected["modules"]), checked_members
 

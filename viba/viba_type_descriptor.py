@@ -32,7 +32,7 @@ from viba.type import (
     PartialError,
     AstNodeType,
     CustomModuleType,
-    Err,
+    VibaProgramErr,
     ModuleType,
     Ok,
     Result,
@@ -286,13 +286,13 @@ def empty_pool() -> VibaPool:
 
 
 def _environment(pool: VibaPool) -> Callable[[str], Result]:
-    """模块名换模块：在池子里按 $module_name 找，找不到就是 Err。"""
+    """模块名换模块：在池子里按 $module_name 找，找不到就是 VibaProgramErr。"""
     def environment(module_name: str) -> Result:
         matches = [f for f in pool.files if f.module_name == module_name]
         if not matches:
-            return Err(f"no module named {module_name!r} in pool")
+            return VibaProgramErr(f"no module named {module_name!r} in pool")
         if len(matches) > 1:
-            return Err(f"module {module_name!r} is served by {len(matches)} files")
+            return VibaProgramErr(f"module {module_name!r} is served by {len(matches)} files")
         return Ok(CustomModuleType(matches[0]._tree, pool.module_environment,
                                    _import_locals(matches[0])))
     return environment
@@ -321,13 +321,13 @@ def parse_viba_file(pool: VibaPool, source: str, file_name: str, module_name: st
     text = _normalize_source(source)
     try:
         tree = viba_ast.canonical(viba_ast.parse(text))
-    except Exception as exc:  # syntax error: the parser raises, turn it into Err
-        return Err(f"cannot parse: {exc!r}")
+    except Exception as exc:  # syntax error: the parser raises, turn it into VibaProgramErr
+        return VibaProgramErr(f"cannot parse: {exc!r}")
     file_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
     try:
         return Ok(_build_file(pool, tree, file_name, module_name, file_hash))
     except PartialError as exc:  # a design mistake, like a duplicate tag
-        return Err(str(exc))
+        return VibaProgramErr(str(exc))
 
 
 def _build_file(pool: VibaPool, tree, file_name: str, module_name: str, file_hash: str) -> VibaFileDescriptor:
@@ -518,9 +518,9 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
 def pool_add_file(pool: VibaPool, file: VibaFileDescriptor) -> Result:
     """得到一份多了一个文件的池子；池子里的描述符重新绑到新池子上。"""
     if file.pool is not pool:
-        return Err("the file was not built into this pool")
+        return VibaProgramErr("the file was not built into this pool")
     if file.file_name in pool.file_name2file:
-        return Err(f"duplicate file {file.file_name!r}")
+        return VibaProgramErr(f"duplicate file {file.file_name!r}")
     new_pool = VibaPool(
         files=[],
         file_name2file={},
@@ -534,38 +534,38 @@ def pool_add_file(pool: VibaPool, file: VibaFileDescriptor) -> Result:
     for old in stored:
         fresh = _build_file(new_pool, old._tree, old.file_name, old.module_name, old.file_hash)
         if fresh.file_name in new_pool.file_name2file:
-            return Err(f"duplicate file {fresh.file_name!r}")
+            return VibaProgramErr(f"duplicate file {fresh.file_name!r}")
         new_pool.files.append(fresh)
         new_pool.file_name2file[fresh.file_name] = fresh
         rebuilt.append(fresh)
     for fresh in rebuilt:
         for definition in fresh.definitions:
             if definition.full_name in new_pool.full_name2definition:
-                return Err(f"duplicate definition {definition.full_name!r}")
+                return VibaProgramErr(f"duplicate definition {definition.full_name!r}")
             new_pool.full_name2definition[definition.full_name] = definition
             for member in definition.members:
                 if member.tag is None:
                     continue
                 full = f"{definition.full_name}.{member.tag}"
                 if full in new_pool.full_name2member:
-                    return Err(f"duplicate member {full!r}")
+                    return VibaProgramErr(f"duplicate member {full!r}")
                 new_pool.full_name2member[full] = member
     return Ok(new_pool)
 
 
 def pool_find_file(pool: VibaPool, file_name: str) -> Result:
     found = pool.file_name2file.get(file_name)
-    return Ok(found) if found is not None else Err(f"no file named {file_name!r}")
+    return Ok(found) if found is not None else VibaProgramErr(f"no file named {file_name!r}")
 
 
 def pool_find_definition(pool: VibaPool, full_name: str) -> Result:
     found = pool.full_name2definition.get(full_name)
-    return Ok(found) if found is not None else Err(f"no definition named {full_name!r}")
+    return Ok(found) if found is not None else VibaProgramErr(f"no definition named {full_name!r}")
 
 
 def pool_find_member(pool: VibaPool, full_name: str) -> Result:
     found = pool.full_name2member.get(full_name)
-    return Ok(found) if found is not None else Err(f"no member named {full_name!r}")
+    return Ok(found) if found is not None else VibaProgramErr(f"no member named {full_name!r}")
 
 
 # ----------------------------------------------------------------------
@@ -577,7 +577,7 @@ def file_find_import_by_local_name(file: VibaFileDescriptor, local_name: str) ->
     for import_ in file.imports:
         if import_.local_name == local_name:
             return Ok(import_)
-    return Err(f"file {file.file_name!r} has no import named {local_name!r}")
+    return VibaProgramErr(f"file {file.file_name!r} has no import named {local_name!r}")
 
 
 # ----------------------------------------------------------------------
@@ -593,13 +593,13 @@ def definition_find_member_by_tag(definition: VibaDefinitionDescriptor, tag: str
     for member in definition.members:
         if member.tag == tag:
             return Ok(member)
-    return Err(f"definition {definition.full_name!r} has no member tagged {tag!r}")
+    return VibaProgramErr(f"definition {definition.full_name!r} has no member tagged {tag!r}")
 
 
 def definition_find_member_by_index(definition: VibaDefinitionDescriptor, member_index: int) -> Result:
     if 0 <= member_index < len(definition.members):
         return Ok(definition.members[member_index])
-    return Err(f"definition {definition.full_name!r} has no member at {member_index}")
+    return VibaProgramErr(f"definition {definition.full_name!r} has no member at {member_index}")
 
 
 def definition_file(definition: VibaDefinitionDescriptor) -> Result:
@@ -614,21 +614,21 @@ def definition_file(definition: VibaDefinitionDescriptor) -> Result:
 def member_type_name(member: VibaMemberDescriptor) -> Result:
     if member.member_type.kind == TYPE_REF:
         return Ok(member.member_type.payload.type_name)
-    return Err(f"member {member.tag!r} is not written as a name")
+    return VibaProgramErr(f"member {member.tag!r} is not written as a name")
 
 
 def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
     """把成员类型里的名字落到定义：先切 import 前缀（带 as 是别名，不带 as 是
     模块全名，最长的匹配优先），再交给 ModuleGetType。"""
     name = member_type_name(member)
-    if isinstance(name, Err):
+    if isinstance(name, VibaProgramErr):
         return name
     pool = member.pool
     containing = pool_find_definition(pool, member.containing_full_name)
-    if isinstance(containing, Err):
+    if isinstance(containing, VibaProgramErr):
         return containing
     file = pool_find_file(pool, containing.ok_value.file_name)
-    if isinstance(file, Err):
+    if isinstance(file, VibaProgramErr):
         return file
     written = name.ok_value
     parts = written.split(".")
@@ -642,20 +642,20 @@ def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
             break
     if module_name is None:
         if len(parts) > 1:
-            return Err(f"{parts[0]!r} is neither an import nor a module of this file")
+            return VibaProgramErr(f"{parts[0]!r} is neither an import nor a module of this file")
         module_name = file.ok_value.module_name
         target_name = written
     module = pool.module_environment(module_name)
-    if isinstance(module, Err):
+    if isinstance(module, VibaProgramErr):
         return module
     resolved = module_get_type(module.ok_value, target_name)
-    if isinstance(resolved, Err):
+    if isinstance(resolved, VibaProgramErr):
         return resolved
     node = getattr(resolved.ok_value, "ast_node", None)
     if not isinstance(node, (ast_nodes.TypeDefinition, ast_nodes.GenericDefinition)):
-        return Err(f"{written!r} is not a definition")
+        return VibaProgramErr(f"{written!r} is not a definition")
     if node.name != target_name:
-        return Err(f"{written!r} does not name a definition of {module_name!r}")
+        return VibaProgramErr(f"{written!r} does not name a definition of {module_name!r}")
     return pool_find_definition(pool, f"{module_name}.{node.name}")
 
 

@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from interpreter_support import ADD, CASES, LEAF, TEXT, Checks, Host, value_of, write
 
 from viba.interpret import interpret
-from viba.type import Err, Ok
+from viba.type import VibaProgramErr, Ok
 
 checks = Checks("interpreter_imports")
 check = checks.check
@@ -47,12 +47,12 @@ def _names(tmp: Path):
             ("nope << $env environ", "no definition named", "a name nobody defined")):
         path = write(tmp, f"names_{abs(hash(body))}.viba",
                      f"import design_two as d\n__ret__ = {body}\n")
-        labelled(interpret(path, environ), want, f"{label} -> Err")
+        labelled(interpret(path, environ), want, f"{label} -> VibaProgramErr")
 
     write(tmp, "plain_two.viba", LEAF + "__ret__ = leaf << $env environ\n")
     wrong = write(tmp, "wrong_arg.viba", "import plain_two as p\n__ret__ = p << 7\n")
     labelled(interpret(wrong, environ), "needs an Environment",
-             "a module called without an Environment -> Err")
+             "a module called without an Environment -> VibaProgramErr")
 
     # import 没写 as：绑定的就是模块全名
     write(tmp, "plain.viba", LEAF + "__ret__ = leaf << $env environ\n")
@@ -81,10 +81,10 @@ __ret__ = plain << (environ.sub_env << "plain")
 
     missing = write(tmp, "missing_import.viba",
                     "import nope as n\n__ret__ = n << environ\n")
-    labelled(interpret(missing, environ), "not found", "an import that names no file -> Err")
+    labelled(interpret(missing, environ), "not found", "an import that names no file -> VibaProgramErr")
 
     labelled(interpret(str(tmp / "nothing_here.viba"), environ), "no such file",
-             "a main file that is not there -> Err")
+             "a main file that is not there -> VibaProgramErr")
 
 
 def _paths(tmp: Path):
@@ -143,9 +143,9 @@ def _paths(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a dotted module on a VIBA_PATH that is one Path: {result!r}")
     labelled(interpret(main_file, host.environ(viba_path=7)), "viba_path is a string",
-             "a VIBA_PATH that is not a string or a path -> Err")
+             "a VIBA_PATH that is not a string or a path -> VibaProgramErr")
     labelled(interpret(main_file, environ), "not found",
-             "the same module with no VIBA_PATH at all -> Err")
+             "the same module with no VIBA_PATH at all -> VibaProgramErr")
 
     # 点分 import 的最长前缀赢：a.b 与 a.b.c 各是各的模块
     dotted_dir = tmp / "dotted"
@@ -265,12 +265,12 @@ def _virtual_files(tmp: Path):
              "a hook that raises FileNotFoundError -> not found")
     labelled(interpret(missing, environ, get_file=with_main(
         lambda path: (_ for _ in ()).throw(ValueError("数据库连不上")))), "raised",
-        "a hook that raises something else -> Err")
+        "a hook that raises something else -> VibaProgramErr")
     labelled(interpret(missing, environ, get_file=with_main(lambda path: b"bytes")),
-             "not the file's text", "a hook that answers bytes -> Err")
+             "not the file's text", "a hook that answers bytes -> VibaProgramErr")
     labelled(interpret(missing, environ, get_file=with_main(lambda path: "X = (")),
              "cannot parse",
-             "a hook that answers something that does not compile -> Err")
+             "a hook that answers something that does not compile -> VibaProgramErr")
 
     # 主文件也要走 hook
     labelled(interpret("/vfs/nowhere.viba", environ, get_file=get_file), "no such file",
@@ -285,7 +285,7 @@ def _virtual_files(tmp: Path):
           f"get_file wins over the filesystem: {result!r}")
 
     labelled(interpret(missing, environ, get_file=7), "get_file is a function",
-             "a get_file that is not callable -> Err")
+             "a get_file that is not callable -> VibaProgramErr")
 
 
 def _bad_sources(tmp: Path):
@@ -295,17 +295,17 @@ def _bad_sources(tmp: Path):
 
     broken = write(tmp, "broken.viba", "add =\n\tint\n\t<- )\n")
     labelled(interpret(broken, environ), "cannot parse",
-             "a main file that does not compile -> Err")
+             "a main file that does not compile -> VibaProgramErr")
     bad_import = write(tmp, "bad_import.viba", "import broken as b\n__ret__ = b << environ\n")
     labelled(interpret(bad_import, environ), "cannot parse",
-             "an imported module that does not compile -> Err")
+             "an imported module that does not compile -> VibaProgramErr")
 
     # 词法上就没有这个词：'-' 不能被悄悄跳过，否则 -5 会跑成 5
     negative = write(tmp, "negative.viba", "__ret__ = -5\n")
     result = interpret(negative, environ)
-    check(isinstance(result, Err) and "cannot parse" in result.err_msg
+    check(isinstance(result, VibaProgramErr) and "cannot parse" in result.err_msg
           and "illegal character" in result.err_msg,
-          f"a character with no token of its own -> Err: {result!r}")
+          f"a character with no token of its own -> VibaProgramErr: {result!r}")
 
     # CRLF 只是行尾：写得跟 LF 一样读
     crlf = write(tmp, "crlf.viba",
@@ -317,11 +317,11 @@ def _bad_sources(tmp: Path):
     # 老写法 := 现在给的不是"非法字符"而已，它说清了定义该怎么写
     old_style = write(tmp, "old_style.viba", "__ret__ := 5\n")
     result = interpret(old_style, environ)
-    check(isinstance(result, Err) and "not `:=`" in result.err_msg,
-          f"an old-style := definition -> Err naming the operator: {result!r}")
+    check(isinstance(result, VibaProgramErr) and "not `:=`" in result.err_msg,
+          f"an old-style := definition -> VibaProgramErr naming the operator: {result!r}")
 
-    labelled(interpret(str(tmp), environ), "cannot read", "the main path is a directory -> Err")
-    labelled(interpret(str(tmp / "gone.viba"), environ), "no such file", "no such file -> Err")
+    labelled(interpret(str(tmp), environ), "cannot read", "the main path is a directory -> VibaProgramErr")
+    labelled(interpret(str(tmp / "gone.viba"), environ), "no such file", "no such file -> VibaProgramErr")
 
     bad = Host()
     bad.get_func = lambda p, n: "not callable"

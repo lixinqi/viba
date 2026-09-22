@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.type import Err, Ok, custom_module, module_get_type
+from viba.type import VibaProgramErr, Ok, custom_module, module_get_type
 from viba.viba_type_descriptor import (
     definition_file,
     definition_find_member_by_index,
@@ -71,8 +71,8 @@ def _check_alias_and_depth():
     # 单段模块名：import top 绑的就是 top，top.Base 解析得到
     assert member_resolved_definition(_member(pool, deep.full_name, "$root")).ok_value.full_name == "top.Base"
     # mod 是别名，写成 pkg.mod.Mid 不是别名，解析不了
-    assert isinstance(member_resolved_definition(_member(pool, deep.full_name, "$bad")), Err)
-    assert isinstance(file_find_import_by_local_name(file, "nope"), Err)
+    assert isinstance(member_resolved_definition(_member(pool, deep.full_name, "$bad")), VibaProgramErr)
+    assert isinstance(file_find_import_by_local_name(file, "nope"), VibaProgramErr)
 
 
 def _check_import_binding():
@@ -97,10 +97,10 @@ def _check_import_binding():
     assert member_resolved_definition(
         _member(pool, user.full_name, "$root")).ok_value.full_name == "top.Base"
     # 没有 as，最后一段不算绑定：mod.Mid 与 sub.Deep 都解析不了
-    assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$old")), Err)
-    assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$first")), Err)
+    assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$old")), VibaProgramErr)
+    assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$first")), VibaProgramErr)
     # 模块路径的前缀也不是模块：pkg.Mid 解析不了
-    assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$partial")), Err)
+    assert isinstance(member_resolved_definition(_member(pool, user.full_name, "$partial")), VibaProgramErr)
 
 
 def _check_members():
@@ -116,11 +116,11 @@ def _check_members():
                                                      "literal", "code_block", "exponent",
                                                      "any"]
     # 只有写成名字的成员才有 type_name；内联结构没有
-    assert isinstance(member_type_name(members[0]), Err)
-    assert isinstance(member_type_name(members[5]), Err)
+    assert isinstance(member_type_name(members[0]), VibaProgramErr)
+    assert isinstance(member_type_name(members[5]), VibaProgramErr)
     assert member_containing_definition(members[0]).ok_value.full_name == "members.Members"
     # 内建构造器不是定义，解析不了
-    assert isinstance(member_resolved_definition(members[0]), Err)
+    assert isinstance(member_resolved_definition(members[0]), VibaProgramErr)
 
 
 def _check_generics():
@@ -134,8 +134,8 @@ def _check_generics():
 
     use = pool_find_definition(pool, "generics.Use").ok_value
     assert member_type_name(_member(pool, use.full_name, "$param")).ok_value == "T"
-    assert isinstance(member_resolved_definition(_member(pool, use.full_name, "$param")), Err)
-    assert isinstance(member_resolved_definition(_member(pool, use.full_name, "$unknown")), Err)
+    assert isinstance(member_resolved_definition(_member(pool, use.full_name, "$param")), VibaProgramErr)
+    assert isinstance(member_resolved_definition(_member(pool, use.full_name, "$unknown")), VibaProgramErr)
     assert _member(pool, use.full_name, "$box").member_type.kind == "type_app"
 
 
@@ -152,31 +152,31 @@ def _check_unit_heads():
     assert [(m.member_index, m.tag) for m in color.members] == [(0, "$red"), (1, "$blue")]
     assert [m.tag for m in bare.members] == ["$only"]      # 体是一整个带标签类型
     assert alias.members == []                              # 体是别名，没有成员
-    assert isinstance(definition_find_member_by_index(rule, 2), Err)
+    assert isinstance(definition_find_member_by_index(rule, 2), VibaProgramErr)
 
 
 def _check_errors():
     """反例：重名文件、重名全名、模块名撞车、import 指向的模块不在池子里。"""
     pool = load("errors", [("amb_a.viba", "err.amb"), ("amb_b.viba", "err.amb")])
     # 同一个模块名由两份文件供着：环境答不了
-    assert isinstance(pool.module_environment("err.amb"), Err)
-    assert isinstance(pool.module_environment("err.missing"), Err)
+    assert isinstance(pool.module_environment("err.amb"), VibaProgramErr)
+    assert isinstance(pool.module_environment("err.missing"), VibaProgramErr)
 
     dup_pool = load("errors", [("dup1.viba", "err.dup")])
     parsed = parse_viba_file(dup_pool, (MATERIAL / "errors" / "dup2.viba").read_text(),
                              "dup2.viba", "err.dup")
     assert isinstance(parsed, Ok)
-    assert isinstance(pool_add_file(dup_pool, parsed.ok_value), Err)      # 全名撞车
-    assert isinstance(pool_add_file(dup_pool, dup_pool.files[0]), Err)  # 文件重名
+    assert isinstance(pool_add_file(dup_pool, parsed.ok_value), VibaProgramErr)      # 全名撞车
+    assert isinstance(pool_add_file(dup_pool, dup_pool.files[0]), VibaProgramErr)  # 文件重名
     elsewhere = parse_viba_file(empty_pool(), "Z = int\n", "elsewhere.viba", "elsewhere")
-    assert isinstance(pool_add_file(dup_pool, elsewhere.ok_value), Err)   # 别的池子建出来的
+    assert isinstance(pool_add_file(dup_pool, elsewhere.ok_value), VibaProgramErr)   # 别的池子建出来的
 
     orphan_pool = load("errors", [("orphan.viba", "err.orphan")])
     orphan = pool_find_definition(orphan_pool, "err.orphan.Orphan").ok_value
     member = _member(orphan_pool, orphan.full_name, "$p")
     assert member_type_name(member).ok_value == "g.Thing"
-    assert isinstance(member_resolved_definition(member), Err)          # gone.mod 不在池子里
-    assert isinstance(pool_find_member(orphan_pool, "err.orphan.Orphan.$nope"), Err)
+    assert isinstance(member_resolved_definition(member), VibaProgramErr)          # gone.mod 不在池子里
+    assert isinstance(pool_find_member(orphan_pool, "err.orphan.Orphan.$nope"), VibaProgramErr)
 
     # 内建容器不是名字，是内建写法：等号左边出现就编不出来
     for bad in ("ListLiteral = int\n",
@@ -191,7 +191,7 @@ def _check_errors():
                 "X[list] = int\n",
                 "X[K, set] = K\n",
                 "X[dict, K] = K\n"):
-        assert isinstance(parse_viba_file(empty_pool(), bad, "literal.viba", "literal"), Err), bad
+        assert isinstance(parse_viba_file(empty_pool(), bad, "literal.viba", "literal"), VibaProgramErr), bad
     # 差一点的名字照旧能编：只认完全同名的六个
     for good in ("List = int\n",
                  "lists[T] = T\n",
@@ -209,7 +209,7 @@ def _check_errors():
     for bad in ("A = int\nlist = int\n",
                 "A = int\nX[B, C, set] = B\n",
                 "X[dict] = int\n"):
-        assert isinstance(parse_viba_file(empty_pool(), bad, "later.viba", "later"), Err), bad
+        assert isinstance(parse_viba_file(empty_pool(), bad, "later.viba", "later"), VibaProgramErr), bad
     # 只在类型表达式里用的写法不受影响
     for good in ("Y = ListLiteral[1]\n",
                  "Y = set[dict[str, int]]\n",
@@ -224,23 +224,23 @@ def _check_errors():
                 "list\n= int\n",
                 "list = int  # note\n",
                 "X[ list ] = int\n"):
-        assert isinstance(parse_viba_file(empty_pool(), bad, "space.viba", "space"), Err), bad
+        assert isinstance(parse_viba_file(empty_pool(), bad, "space.viba", "space"), VibaProgramErr), bad
     # import 一个叫 list 的模块不会把内建容器顶掉
     shadow = custom_module("import list\nZ = int\n")
     assert isinstance(module_get_type(shadow, "list"), Ok), "list still resolves"
-    # `<<` 给的不是函数：设计写错，编的时候就给 Err（不是留到判定）
+    # `<<` 给的不是函数：设计写错，编的时候就给 VibaProgramErr（不是留到判定）
     for bad in ("P = (int * str) << $b str\n",
                 "S = (int | str) << $b str\n",
                 "L = 7 << $b str\n",
                 "N = int << $b str\n",
                 "M = (int <- $b str) << $c str\n"):
-        assert isinstance(parse_viba_file(empty_pool(), bad, "partial.viba", "partial"), Err), bad
+        assert isinstance(parse_viba_file(empty_pool(), bad, "partial.viba", "partial"), VibaProgramErr), bad
     # 给的那个参数得能坐进那一格：C <: B 才算合法
     assert isinstance(parse_viba_file(empty_pool(),
                                       "W = (int <- $b (int | str)) << $b int\n",
                                       "fit.viba", "fit"), Ok)
     for bad in ("N = (int <- $b int) << $b (int | str)\n",):
-        assert isinstance(parse_viba_file(empty_pool(), bad, "unfit.viba", "unfit"), Err), bad
+        assert isinstance(parse_viba_file(empty_pool(), bad, "unfit.viba", "unfit"), VibaProgramErr), bad
     for good in ("G = (int <- $b str) << $b str\n",
                  "H = (int <- $b str <- $c bool) << $c bool << $b str\n"):
         assert isinstance(parse_viba_file(empty_pool(), good, "partial_ok.viba", "partial_ok"), Ok), good
@@ -248,7 +248,7 @@ def _check_errors():
     assert isinstance(parse_viba_file(empty_pool(), "a.b = int\n", "dotted.viba", "dotted"), Ok)
     # 不是模块的东西：问它要名字，说的是"不认识这种模块"，不是崩
     for not_a_module in ("not a module", None, 7):
-        assert isinstance(module_get_type(not_a_module, "X"), Err), not_a_module
+        assert isinstance(module_get_type(not_a_module, "X"), VibaProgramErr), not_a_module
 
 
 def _check_reprs():

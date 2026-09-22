@@ -16,7 +16,7 @@ from interpreter_support import ADD, LEAF, Checks, Host, value_of, write
 
 from viba.interpret import interpret
 from viba.reflect import access as reflect_access
-from viba.type import Err, NotMyDutyException, Ok, Step
+from viba.type import VibaProgramErr, NotMyDutyException, Ok, Step
 
 checks = Checks("interpreter_values")
 check = checks.check
@@ -32,7 +32,7 @@ def run(tmp: Path):
 
 
 def _host_answers(tmp: Path):
-    """宿主返回什么，__ret__ 就是什么；宿主出错就是 Err，不是崩。"""
+    """宿主返回什么，__ret__ 就是什么；宿主出错就是 VibaProgramErr，不是崩。"""
     host = Host()
     environ = host.environ()
     for func, want, label in (("leaf", 7, "an int"), ("text", "hi", "a str"),
@@ -99,9 +99,9 @@ __ret__ = ghost << $env environ
 """)
     stopped = interpret(missing, environ)
     check(isinstance(stopped, NotMyDutyException),
-          "get_func says None: the run stops with the deferral, not an Err")
-    check(not isinstance(stopped, Err),
-          "and that deferral is not an Err: it says 'not mine', not 'broke'")
+          "get_func says None: the run stops with the deferral, not a VibaProgramErr")
+    check(not isinstance(stopped, VibaProgramErr),
+          "and that deferral is not a VibaProgramErr: it says 'not mine', not 'broke'")
     check(stopped.step == Step("root", "ghost") and stopped.reason == "no implementation",
           f"the deferral names the step and why: {stopped!r}")
     check(stopped.call is None,
@@ -172,17 +172,17 @@ def _written_as_ret(tmp: Path):
                         ("int <- $x int", "an exponent")):
         path = write(tmp, f"written_{label.split()[-1]}.viba", f"__ret__ = {body}\n")
         labelled(interpret(path, environ), "cannot compute",
-                 f"__ret__ written as {label} -> Err")
+                 f"__ret__ written as {label} -> VibaProgramErr")
 
     write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
     module_value = write(tmp, "module_value.viba",
                          "import late_lib as lib\n__ret__ = lib\n")
     labelled(interpret(module_value, environ), "still waiting for arguments",
-             "__ret__ written as a module -> Err")
+             "__ret__ written as a module -> VibaProgramErr")
 
     builtin_value = write(tmp, "builtin_value.viba", "__ret__ = str\n")
     labelled(interpret(builtin_value, environ), "no definition named",
-             "a builtin type name used as a value -> Err")
+             "a builtin type name used as a value -> VibaProgramErr")
 
 
 def _written(tmp: Path):
@@ -249,7 +249,7 @@ __ret__ = add << $env environ << $a half << $b half
 
 
 def _crossing_the_host_boundary(tmp: Path):
-    """宿主手里拿到 viba 函数：能调、给多了是 Err、喂不进没叶子的东西。"""
+    """宿主手里拿到 viba 函数：能调、给多了是 VibaProgramErr、喂不进没叶子的东西。"""
     host = Host()
     environ = host.environ()
 

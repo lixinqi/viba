@@ -227,7 +227,7 @@ ParseVibaFile =
       一份 .viba 源码编进这个描述符池，产出文件描述符。protobuf: protoc / BuildFile。
       $file_name 与 $module_name 都由调用方给：文件是哪一个、它算哪个模块。
       .viba 里没有 package 声明，两者不必同名。
-      语法错就是 Err；产出是规范化（链式）形式，并按源码记账 $file_hash。
+      语法错就是 $viba_program_err；产出是规范化（链式）形式，并按源码记账 $file_hash。
     }]
 
 PoolAddFile =
@@ -236,8 +236,8 @@ PoolAddFile =
   <- $file VibaFileDescriptor
   <- Comments[{
       得到一份多了一个文件的描述符池（没有可变状态，不是往里塞）。
-      $file 必须是这个描述符池建出来的（$file.$pool 就是它），否则 Err。
-      文件重名（哈希不同也算重名）或全名撞车就是 Err。
+      $file 必须是这个描述符池建出来的（$file.$pool 就是它），否则 $viba_program_err。
+      文件重名（哈希不同也算重名）或全名撞车就是 $viba_program_err。
       protobuf: DescriptorPool::BuildFile。
     }]
 
@@ -297,7 +297,7 @@ DefinitionFindMemberByIndex =
   <- $definition VibaDefinitionDescriptor
   <- $member_index int
   <- Comments[{
-      不带标签的成员按位置对位，越界 Err。protobuf: Descriptor::FindFieldByNumber。
+      不带标签的成员按位置对位，越界 $viba_program_err。protobuf: Descriptor::FindFieldByNumber。
     }]
 
 DefinitionFile =
@@ -312,7 +312,7 @@ MemberTypeName =
   <- $member VibaMemberDescriptor
   <- Comments[{
       只在成员类型写成一个名字时有值（int、fx.Graph、T）；
-      类型是内联结构（(int | str)、$t int、list[int]）时 Err。
+      类型是内联结构（(int | str)、$t int、list[int]）时 $viba_program_err。
       protobuf: FieldDescriptor::type_name()（那边 int32 这类也是空的）。
     }]
 
@@ -324,8 +324,8 @@ MemberResolvedDefinition =
         前缀是某条 import 的 $local_name -> 用 $pool.$module_environment 取那个模块
         没有前缀                        -> 本模块
       再在那个模块里交给 type.ModuleGetType 查（内建那一跳由它兜）；
-      解析出来的东西对应一个定义，就返回它的描述符，否则 Err。
-      Err 三种：类型不是引用、描述符池里没有这个定义、名字指向的不是定义。
+      解析出来的东西对应一个定义，就返回它的描述符，否则 $viba_program_err。
+      三种 $viba_program_err：类型不是引用、描述符池里没有这个定义、名字指向的不是定义。
       protobuf: message_type() / enum_type()。
     }]
 

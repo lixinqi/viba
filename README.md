@@ -141,7 +141,7 @@ print(viba_ast.unparse(tree))   # canonical chain-style source
 
 The same file is also a program: a module is a function whose input is `environ`
 and whose answer is `__ret__`. A file with no `__ret__` is a design, not a
-program, and running it is an `Err`.
+program, and running it is a `VibaProgramErr`.
 
 ```viba
 # add_demo.viba
@@ -187,15 +187,16 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
 - An executable function takes `$env Environment` as one of its slots, and every
   call gives it: `environ` is the builtin standing for the environment the run
   was handed. A function without that slot, or a call that leaves it out, is an
-  `Err`.
+  `VibaProgramErr`.
 - A written argument arrives at the host as a piece of material — the literal
   `999999` lands as a node, whose `.value` is the bare number — while the
   environment arrives as itself.
 - `interpret` ships no library of its own: every implementation a run can reach is
   one `get_func` answered for, written from the hints the file carries.
-- What comes back is `Ok(node)`, `Err(message)`, `Failed` (`$failed Failure`, when a
-  step's implementation broke) or `NotMyDutyException` (`$not_my_duty_exception Duty`,
-  when the run reached a step this host does not implement). Both of the last two name
+- What comes back is `Ok(node)`, `VibaProgramErr(message)`, `UnderlyingVibaOpFailed`
+  (`$underlying_viba_op_failed Failure`, when a step's implementation broke) or
+  `NotMyDutyException` (`$not_my_duty_exception Duty`, when the run reached a step
+  this host does not implement). Both of the last two name
   the `step`; the deferral also carries the `call` material, so the run can be written
   up as a work order and handed on — what [`roadmap.md`](roadmap.md) builds on.
   `node.value` is the answer when it landed on a literal; a product or a sum is walked
@@ -212,10 +213,10 @@ __ret__ = demo << (environ.sub_env << "add_demo")
 A module is called with the environment it should run under: the name given to
 `environ.sub_env` is what `get_func` sees as `module_path`, and the storage path
 is the call's identity. So no two module calls in one run may share a path, and
-saying it twice is an `Err` that spells the fix out:
+saying it twice is a `VibaProgramErr` that spells the fix out:
 
 ```
-Err("module 'add_demo' was handed the storage path 'root', which another module call
+VibaProgramErr("module 'add_demo' was handed the storage path 'root', which another module call
 already used: give each module call a sub-environment of its own (environ.sub_env << ...)")
 ```
 

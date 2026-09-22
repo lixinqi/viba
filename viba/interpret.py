@@ -7,15 +7,16 @@ runnable defines `__ret__`; a file that does not is design only.
 
     from viba.interpret import interpret
 
-    interpret("add_demo.viba", environ)          # -> Ok(VibaNode) | Err(str) | deferral
+    interpret("add_demo.viba", environ)  # -> Ok(VibaNode) | VibaProgramErr(str) | a stop
     interpret("main.viba", environ, get_file=files.get)   # sources from anywhere
 
 A function the compute side does not implement is not a failure: the run stops
 and answers `NotMyDutyException` — `$not_my_duty_exception Duty` — the deferral
 that says this host is not the one to finish it, and carries the step, the
 material it was given and why (`roadmap.md`). A step whose implementation broke
-answers `Failed` — `$failed Failure` — with the same step in it. What is left is
-`Ok(node)`, for the `__ret__` that came out, and `Err(message)` for a source or
+answers `UnderlyingVibaOpFailed` — `$underlying_viba_op_failed Failure` — with
+the same step in it. What is left is `Ok(node)`, for the `__ret__` that came
+out, and `VibaProgramErr(message)` — `$viba_program_err str` — for a program or
 an environment that cannot run at all.
 
 The interpreter is coupled to no function at all: viba ships with no library
@@ -71,7 +72,7 @@ from typing import Optional
 from viba import serialize, viba_ast
 from viba.reflect import VibaNode, access as reflect_access
 from viba.type import (REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
-                       REASON_RAISED, REASON_REFUSED, AstNodeType, Err, Failed,
+                       REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
                        InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
                        custom_module)
 from viba.viba_type_descriptor import descriptor_of
@@ -210,7 +211,7 @@ def read_snapshot(environ: Environment, name: str = SNAPSHOT_NAME):
 
     A snapshot is serialized viba data: it is parsed and rooted again, so it
     comes back as the material it was. What cannot be read raises — a host
-    function's exception is the `Err` the caller sees.
+    function's exception is the `VibaProgramErr` the caller sees.
     """
     text = _storage(environ).read_text(snapshot_path(environ, name))
     if text is None:
@@ -227,7 +228,7 @@ def write_snapshot(environ: Environment, value, name: str = SNAPSHOT_NAME) -> No
     """Store `value` as this call's snapshot: serialized viba data, so it can
     be read back and played again."""
     written = serialize.serialize(SNAPSHOT_NAME, material(value))
-    if isinstance(written, Err):
+    if isinstance(written, VibaProgramErr):
         raise RuntimeError(f"cannot snapshot this value: {written.err_msg}")
     _storage(environ).write_text(snapshot_path(environ, name), written.ok_value)
 
@@ -326,15 +327,15 @@ def _given_value(value):
     if isinstance(value, _Material):
         return value
     answer = _answer("a host argument", value)
-    if isinstance(answer, Err):
+    if isinstance(answer, VibaProgramErr):
         raise RuntimeError(answer.err_msg)
     return answer.ok_value
 
 
 def _stopped(result) -> bool:
-    """True when a step carried no value on: an `Err`, or the deferral.
+    """True when a step carried no value on: a `VibaProgramErr`, or the deferral.
 
-    `Err` says this run failed; `NotMyDutyException` says this run is asking for
+    `VibaProgramErr` says this run failed; `NotMyDutyException` says this run is asking for
     an implementation it does not have. Both stop the chain, and both travel
     back to the caller as they are.
     """
@@ -373,7 +374,9 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None) -> Inter
     step that stopped: `$not_my_duty_exception Duty`, when the compute side does
     not implement that step (a deferral, not a failure — the caller hands it on,
     and the duty carries the step, the material it was given and why), and
-    `$failed Failure`, when the implementation of that step broke.
+    `$underlying_viba_op_failed Failure`, when that step's implementation broke.
+    `$viba_program_err str` is the rest: a program or an environment that cannot
+    run at all.
 
     Where modules are looked up is the environment's business
     (`Environment.viba_path`): the directories are searched in order for
@@ -388,13 +391,13 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None) -> Inter
     run out of memory, a database, or anything else.
     """
     if not isinstance(environ, Environment):
-        return Err("interpret needs an Environment")
+        return VibaProgramErr("interpret needs an Environment")
     if environ.viba_path is not None and not isinstance(environ.viba_path,
                                                        (str, os.PathLike)):
-        return Err(f"viba_path is a string of directories (or one path), "
+        return VibaProgramErr(f"viba_path is a string of directories (or one path), "
                    f"not {type(environ.viba_path).__name__}")
     if get_file is not None and not callable(get_file):
-        return Err(f"get_file is a function (or None), not {type(get_file).__name__}")
+        return VibaProgramErr(f"get_file is a function (or None), not {type(get_file).__name__}")
     return _Runner(environ.viba_path, get_file).run_file(viba_main_file, environ)
 
 
@@ -415,9 +418,9 @@ class _Runner:
         path = Path(file)
         source, problem = self._source(path)
         if problem is not None:
-            return Err(problem)
+            return VibaProgramErr(problem)
         if source is None:
-            return Err(f"no such file: {file}")
+            return VibaProgramErr(f"no such file: {file}")
         module = self._file_of(path, path.stem, source)
         if _stopped(module):
             return module
@@ -464,7 +467,7 @@ class _Runner:
             try:
                 self.by_path[key] = custom_module(source)
             except SyntaxError as exc:
-                return Err(f"cannot parse {path}: {exc}")
+                return VibaProgramErr(f"cannot parse {path}: {exc}")
         return self._bind(self.by_path[key], path, name)
 
     def _bind(self, module, path: Path, name: str):
@@ -482,11 +485,11 @@ class _Runner:
                 return self._bind(cached, place, name)
             source, problem = self._source(place)
             if problem is not None:
-                return Err(problem)
+                return VibaProgramErr(problem)
             if source is None:
                 continue                    # no file here: the next place
             return self._file_of(place, name, source)
-        return Err(f"module {name!r} not found (next to {near} and on VIBA_PATH)")
+        return VibaProgramErr(f"module {name!r} not found (next to {near} and on VIBA_PATH)")
 
     def _places(self, name: str, near: Optional[str]) -> list:
         """Where `name` may be, in the order it is looked for: next to the
@@ -519,12 +522,12 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
         file = runner.path_of.get(name)     # a module called through an import
     ret = _definition(module, RET_NAME)
     if ret is None:
-        return Err(f"module {name!r} has no {RET_NAME}: it is design, not a program")
+        return VibaProgramErr(f"module {name!r} has no {RET_NAME}: it is design, not a program")
     if name in runner.running:
-        return Err(f"module {name!r} is already running: a module call cycle")
+        return VibaProgramErr(f"module {name!r} is already running: a module call cycle")
     path = _storage_path(environ)
     if path in runner.used_paths:
-        return Err(f"module {name!r} was handed the storage path {path!r}, which "
+        return VibaProgramErr(f"module {name!r} was handed the storage path {path!r}, which "
                    f"another module call already used: give each module call a "
                    f"sub-environment of its own (environ.sub_env << ...)")
     runner.used_paths.add(path)
@@ -536,7 +539,7 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     if _stopped(value):
         return value
     if not isinstance(value.ok_value, (_Material, _Host)):
-        return Err(f"{name}.{RET_NAME} is a function still waiting for arguments")
+        return VibaProgramErr(f"{name}.{RET_NAME} is a function still waiting for arguments")
     return Ok(_argument_value(value.ok_value))
 
 
@@ -569,7 +572,7 @@ class _Activation:
 
     def evaluate(self, node):
         """Result: the value this piece writes — or why the chain stopped: an
-        `Err`, or the deferral of a step nobody here implements.
+        `VibaProgramErr`, or the deferral of a step nobody here implements.
 
         A piece of data written where a value goes is material as it stands:
         a literal or a unit, a tuple, and a product of tags and literals —
@@ -586,8 +589,8 @@ class _Activation:
         if isinstance(node, viba_ast.TypeRef):
             return self._resolve(node.name)
         if isinstance(node, viba_ast.CodeBlock):
-            return Err("a code block is documentation: it is not a value")
-        return Err(f"cannot compute {type(node).__name__}")
+            return VibaProgramErr("a code block is documentation: it is not a value")
+        return VibaProgramErr(f"cannot compute {type(node).__name__}")
 
     def _descriptor(self, node):
         return descriptor_of(AstNodeType(node, self.module))
@@ -616,7 +619,7 @@ class _Activation:
             if rest:
                 return self._member_of(imported.ok_value, module_name, rest)
             return Ok(_ModuleFunc(self.runner, imported.ok_value, module_name))
-        return Err(f"no definition named {name!r} in module {self.name!r}")
+        return VibaProgramErr(f"no definition named {name!r} in module {self.name!r}")
 
     def _imported_name(self, name: str):
         """(module name, rest) when `name` is written through an import."""
@@ -643,7 +646,7 @@ class _Activation:
         """`demo.print`: a function of an imported module."""
         definition = _definition(module, rest)
         if definition is None:
-            return Err(f"module {module_name!r} has no {rest!r}")
+            return VibaProgramErr(f"module {module_name!r} has no {rest!r}")
         other = _Activation(self.runner, module, self.environ, module_name,
                             self.runner.path_of.get(module_name))
         return other._defined(rest, definition)
@@ -651,7 +654,7 @@ class _Activation:
     def _environ_member(self, rest: str):
         member = getattr(self.environ, rest, None)
         if not callable(member):
-            return Err(f"the environment has no {rest!r}")
+            return VibaProgramErr(f"the environment has no {rest!r}")
         return Ok(_HostFunction(rest, member, slots=1,
                                 module_path=_storage_path(self.environ)))
 
@@ -709,10 +712,10 @@ def _give(function, item):
     if isinstance(function, (_VibaFunc, _HostFunction, _ModuleFunc)):
         return function.give(item)
     if isinstance(function, _Material):
-        return Err(f"{function.node!r} is not a function: it is a value")
+        return VibaProgramErr(f"{function.node!r} is not a function: it is a value")
     if isinstance(function, _Host):
-        return Err(f"{type(function.obj).__name__} is not a function")
-    return Err(f"{type(function).__name__} is not a function")
+        return VibaProgramErr(f"{type(function.obj).__name__} is not a function")
+    return VibaProgramErr(f"{type(function).__name__} is not a function")
 
 
 class _Callable:
@@ -724,7 +727,7 @@ class _Callable:
 
         A call that runs into a missing implementation crosses as the deferral
         itself, so a host can tell "not mine" from "broke" the same way the run
-        does; an `Err` raises, since there is nothing to carry on with.
+        does; a `VibaProgramErr` raises, since there is nothing to carry on with.
         """
         def call(*values):
             current = self
@@ -732,9 +735,9 @@ class _Callable:
                 given = _give(current, _Given(None, _given_value(value)))
                 if isinstance(given, NotMyDutyException):
                     raise given
-                if isinstance(given, Failed):
+                if isinstance(given, UnderlyingVibaOpFailed):
                     raise given
-                if isinstance(given, Err):
+                if isinstance(given, VibaProgramErr):
                     raise RuntimeError(given.err_msg)
                 current = given.ok_value
             return _argument_value(current)
@@ -769,14 +772,14 @@ class _VibaFunc(_Callable):
         given = dict(self.given)
         if item.tag is not None:
             if item.tag not in slots:
-                return Err(f"{self.name} takes no {item.tag} argument")
+                return VibaProgramErr(f"{self.name} takes no {item.tag} argument")
             given[slots.index(item.tag)] = item.value
         else:
             # An argument written without a tag is the next slot that is free:
             # the caller did not say which one, and the order is the design's.
             free = [index for index in range(len(slots)) if index not in given]
             if not free:
-                return Err(f"{self.name} takes no more arguments")
+                return VibaProgramErr(f"{self.name} takes no more arguments")
             given[free[0]] = item.value
         if all(index in given for index in range(len(slots))):
             return self.call(given)
@@ -786,11 +789,11 @@ class _VibaFunc(_Callable):
         """Every slot is filled: the environment's compute side implements it."""
         problem = self._environ_problem(given)
         if problem is not None:
-            return Err(problem)
+            return VibaProgramErr(problem)
         environ = given[self.slots.index(ENVIRON_TAG)].obj
         compute = getattr(environ, "compute", None)
         if compute is None:
-            return Err(f"{self.name}: the environment carries no compute side")
+            return VibaProgramErr(f"{self.name}: the environment carries no compute side")
         module_path = _storage_path(environ)
         step = Step(module_path, self.name)
         try:
@@ -798,7 +801,7 @@ class _VibaFunc(_Callable):
         except NotMyDutyException as deferred:   # the host refuses this call
             return _refused(deferred, step, self._call_material(given))
         except Exception as exc:            # the host is the host's business
-            return Failed(f"get_func({module_path!r}, {self.name!r}) raised {exc!r}",
+            return UnderlyingVibaOpFailed(f"get_func({module_path!r}, {self.name!r}) raised {exc!r}",
                           step, REASON_GET_FUNC_RAISED)
         if host is None:
             return _no_implementation(step, self._call_material(given))
@@ -807,10 +810,10 @@ class _VibaFunc(_Callable):
             answer = host(*args)
         except NotMyDutyException as deferred:   # a viba call inside deferred
             return deferred
-        except Failed as failure:                # ... or failed inside
+        except UnderlyingVibaOpFailed as failure:                # ... or failed inside
             return failure
         except Exception as exc:
-            return Failed(f"{self.name} raised {exc!r}", step, REASON_RAISED)
+            return UnderlyingVibaOpFailed(f"{self.name} raised {exc!r}", step, REASON_RAISED)
         return _answer(self.name, answer, step)
 
     def _call_material(self, given):
@@ -873,10 +876,10 @@ class _HostFunction(_Callable):
             answer = self.func(*values)
         except NotMyDutyException as deferred:
             return _refused(deferred, step, None)
-        except Failed as failure:
+        except UnderlyingVibaOpFailed as failure:
             return failure
         except Exception as exc:
-            return Failed(f"environ.{self.name} raised {exc!r}", step, REASON_RAISED)
+            return UnderlyingVibaOpFailed(f"environ.{self.name} raised {exc!r}", step, REASON_RAISED)
         return _answer(f"environ.{self.name}", answer, step)
 
 
@@ -895,7 +898,7 @@ class _ModuleFunc(_Callable):
             return Ok(_ModuleFunc(self.runner, self.module, self.name))
         environ = values[0].obj if isinstance(values[0], _Host) else None
         if not isinstance(environ, Environment):
-            return Err(f"module {self.name!r} needs an Environment")
+            return VibaProgramErr(f"module {self.name!r} needs an Environment")
         answer = _run_module(self.runner, self.module, environ, self.name, None)
         if _stopped(answer):
             return answer
@@ -914,7 +917,7 @@ def _answer(name, answer, step: Step = None):
     object has no leaf to be, and guessing one would put a piece into the
     material that no design asked for. Given a `step`, that refusal is a
     failure of it; without one — a value a host is handing back into a call —
-    it is a plain `Err`.
+    it is a plain `VibaProgramErr`.
     """
     if isinstance(answer, VibaNode):
         return Ok(_Material(answer))
@@ -924,8 +927,8 @@ def _answer(name, answer, step: Step = None):
         msg = (f"{name} answered {type(answer).__name__}, "
                f"which is no leaf: answer a VibaNode, a scalar, or None")
         if step is not None:
-            return Failed(msg, step, REASON_NO_LEAF)
-        return Err(msg)
+            return UnderlyingVibaOpFailed(msg, step, REASON_NO_LEAF)
+        return VibaProgramErr(msg)
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
     return Ok(_Material(VibaNode(reflect_access,
                                  descriptor_of(AstNodeType(node, _NO_MODULE)), node)))

@@ -12,7 +12,7 @@ uses — so this knows nothing about a design beyond what is written, and nothin
 how Data is bound. What comes out is canonical viba source (it goes through
 viba.builder), and `builder.check` reads it back before it is handed over.
 
-A piece the design has no spelling for gives Err rather than a wrong spelling:
+A piece the design has no spelling for gives VibaProgramErr rather than a wrong spelling:
 that is a material the design cannot carry, and the caller decides what to do
 about it.
 """
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from viba import builder
 from viba.reflect import VibaAccess, VibaNode, at_index, at_key
-from viba.type import Err, Ok, Result
+from viba.type import VibaProgramErr, Ok, Result
 from viba.viba_type_descriptor import (
     CODE_BLOCK,
     EXPONENT,
@@ -59,9 +59,9 @@ def serialize(name: str, node: VibaNode) -> Result:
         setattr(vb, name, expression)
         builder.check(vb)               # read the written source back
     except SerializeGap as gap:
-        return Err(str(gap))
+        return VibaProgramErr(str(gap))
     except (TypeError, ValueError) as error:
-        return Err(str(error))
+        return VibaProgramErr(str(error))
     return Ok(str(vb))
 
 
@@ -184,7 +184,7 @@ def _emit_product(access: VibaAccess, node: VibaNode, unfolded):
 def _emit_tuple(access: VibaAccess, node: VibaNode):
     """Tuple: a product by position, written as the tuple it is."""
     length = access.length(node)
-    if isinstance(length, Err):
+    if isinstance(length, VibaProgramErr):
         raise SerializeGap(length.err_msg)
     return tuple(_emit(access, _child(access, node, at_index(index)))
                  for index in range(length.ok_value))
@@ -268,13 +268,13 @@ def _emit_container(access: VibaAccess, node: VibaNode, container: str, unfolded
                 and key_type.payload.type_name == "str"):
             raise SerializeGap("the protocol hands dict keys over as strings; "
                                "this one is written with another key type")
-        if isinstance(keys, Err):
+        if isinstance(keys, VibaProgramErr):
             raise SerializeGap(keys.err_msg)
         pairs = tuple((key, _emit(access, _child(access, node, at_key(key))))
                       for key in keys.ok_value)
         return _NAMES.DictLiteral[pairs]
     length = access.length(node)
-    if isinstance(length, Err):
+    if isinstance(length, VibaProgramErr):
         raise SerializeGap(length.err_msg)
     payloads = tuple(_emit(access, _child(access, node, at_index(index)))
                      for index in range(length.ok_value))

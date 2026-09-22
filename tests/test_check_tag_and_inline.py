@@ -190,7 +190,7 @@ def run_cross_module_cases():
 
 
 def run_config_case():
-    """换个词汇问同一件事：单位元是调用方点的名，写对的仍然 Ok，写错的仍然 Err——
+    """换个词汇问同一件事：单位元是调用方点的名，写对的仍然 Ok，写错的仍然 VibaProgramErr——
     单位没有 tag，也不参与内联，所以 tag 的答案不由它决定。"""
     source = ("Base = $x Box[int]\n"
               "Bad = Unit * Base * $x Box[str]\n"

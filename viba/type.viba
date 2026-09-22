@@ -50,7 +50,7 @@ IsSubType =
     内部会用到 ModuleGetType：TypeRef 先经它在本模块解析；失败再
     沿 $env_get（自由名通道，内层绑定优先）查找——泛型实参等自由
     名的意义由此获得。两路都失败才是契约书写错误，整个判定
-    Err（UnresolvedTypeError 在边界转为 Err）。
+    $viba_program_err（UnresolvedTypeError 在边界转为 $viba_program_err）。
     指数参数交换模块时 env 随之交换：自由名永远经自己语法一侧的
     env_get 解析。
     Any 是顶：T <: Any 恒真（sub 是不是 never 都一样）。反过来 Any <: T 只在 T 落成
@@ -65,7 +65,7 @@ IsSubType =
     设计里的 `<<` 先给掉再比：(A <- $b B <- $c C) << $b B 与 A <- $c C 是同一条链，
     给全了就是结果本身（链没了，不是空链；末尾的文档块不算参数）。给的那个参数还得
     坐得进那一格——(A <- $b B) << $b C 要 C <: B ——给函数没有的参数、给的东西不合法、
-    或给一个不是函数的东西，是设计写错，整个判定 Err。
+    或给一个不是函数的东西，是设计写错，整个判定 $viba_program_err。
     链长不等时先把 sub 弄到 sup 的长度（sup 不动）：sub 短了就在自己末尾补 never
     （谁都没法提供的那个参数），补上来的 never 要对得上 sup 多要的那一格——所以
     (int <- $a int) <: (int <- $a int <- never) 成立，sup 多要的是 bool 就不成立；
@@ -98,6 +98,6 @@ IsSubType =
     DictLiteral 之间是居民关系而非同名相等：ListLiteral[a, b, c]
     是 list[a | b | c] 的居民（每个元素入席元素的并）；DictLiteral
     的 (k, v) 对分别入席键的并与值的并。反向与跨家族均为假。
-    Ok(true/false) 是判定；Err 说明输入不合法：任何一侧出现
+    Ok(true/false) 是判定；$viba_program_err 说明输入不合法：任何一侧出现
     ellipsis。
   }]

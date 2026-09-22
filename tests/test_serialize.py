@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from viba import builder, serialize, viba_ast
 from viba.is_sub_type import is_sub_type
-from viba.type import AstNodeType, Err, Ok, custom_module
+from viba.type import AstNodeType, VibaProgramErr, Ok, custom_module
 from viba.viba_type_descriptor import (empty_pool, parse_viba_file,
                                         pool_add_file, pool_find_definition)
 from viba.reflect import VibaData
@@ -300,7 +300,7 @@ def _corner(label, source, name, body, expect=None, resident=True, strict=True):
 
 
 def _gap(label, source, name, body, needle):
-    """写不出来：Err，且说的是那件事。"""
+    """写不出来：VibaProgramErr，且说的是那件事。"""
     from viba.reflect import access
     pool, definition = _design(source, name)
     rooted = access.root(definition, VibaData(body))
@@ -308,8 +308,8 @@ def _gap(label, source, name, body, needle):
     if not isinstance(rooted, Ok):
         return
     written = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(written, Err) and needle in written.err_msg,
-          f"{label}: an Err saying {needle!r} ({written})")
+    check(isinstance(written, VibaProgramErr) and needle in written.err_msg,
+          f"{label}: a VibaProgramErr saying {needle!r} ({written})")
 
 
 def run_member_corner_cases():
@@ -494,7 +494,7 @@ def run_never_and_key_cases():
     node = access.root(definition, VibaData(viba_ast.ProductChain([
         viba_ast.TypeRef("Object"), viba_ast.Tagged("$a", viba_ast.Never())]))).ok_value
     written = serialize.serialize("entry", node)
-    check(isinstance(written, Err), f"never slot: an Err ({written})")
+    check(isinstance(written, VibaProgramErr), f"never slot: a VibaProgramErr ({written})")
 
     pool2, definition2 = _design("Guard = Object * $t dict[int, str]\n", "Guard")
     node2 = access.root(definition2, VibaData(viba_ast.ProductChain([
@@ -502,11 +502,11 @@ def run_never_and_key_cases():
         viba_ast.Tagged("$t", viba_ast.TypeApp("DictLiteral", [
             viba_ast.Tuple([viba_ast.Constant(7), viba_ast.Constant("x")])]))]))).ok_value
     written2 = serialize.serialize("entry", node2)
-    check(isinstance(written2, Err), f"int-keyed dict: an Err ({written2})")
+    check(isinstance(written2, VibaProgramErr), f"int-keyed dict: a VibaProgramErr ({written2})")
 
 
 def run_gap_cases():
-    """写不出来给 Err，不硬写。"""
+    """写不出来给 VibaProgramErr，不硬写。"""
     source = """Box = Object * $a int * $b int
 """
     pool, definition = _design(source, "Box")
@@ -515,14 +515,14 @@ def run_gap_cases():
                                     viba_ast.Tagged("$a", viba_ast.Constant(1))])
     node = access.root(definition, VibaData(sparse)).ok_value
     written = serialize.serialize("entry", node)
-    check(isinstance(written, Err) and "no value here" in written.err_msg,
-          f"gap: a tagged slot with no value and no nil is an Err ({written})")
+    check(isinstance(written, VibaProgramErr) and "no value here" in written.err_msg,
+          f"gap: a tagged slot with no value and no nil is a VibaProgramErr ({written})")
 
     # 材料本身是空的：设计里的那个地址上什么都没有，就写成 gap，不硬编
     pool2, definition2 = _design("not[A] = never <- $not_operand A\n", "not")
     node2 = access.root(definition2, VibaData(viba_ast.Never())).ok_value
     written2 = serialize.serialize("entry", node2)
-    check(isinstance(written2, Err), f"gap: an exponent is an Err ({written2})")
+    check(isinstance(written2, VibaProgramErr), f"gap: an exponent is a VibaProgramErr ({written2})")
 
 
 # ---------------------------------------------------------------------------
@@ -568,7 +568,7 @@ def run_leaf_matrix():
 
 
 def run_number_and_string_gaps():
-    """写不出来的数字与文本：Err，不是"写成别的"。"""
+    """写不出来的数字与文本：VibaProgramErr，不是"写成别的"。"""
     for value in _UNSPELLABLE_NUMBERS:
         _gap(f"gap number {value}", "Box = Object * $f float\n", "Box",
              _product(_tagged("$f", viba_ast.Constant(value))),
@@ -736,7 +736,7 @@ def run_container_fills():
 
 
 def run_never_positions():
-    """never 出现在哪里都是 Err：容器里、元组里、别名背后。"""
+    """never 出现在哪里都是 VibaProgramErr：容器里、元组里、别名背后。"""
     _gap("gap never in list", "Box = Object * $a list[never]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
                                                  [viba_ast.Never()]))),
@@ -939,7 +939,7 @@ def run_name_alias_members():
 
 
 def run_name_gaps():
-    """名字背后的 never：材料里放什么都是 Err。"""
+    """名字背后的 never：材料里放什么都是 VibaProgramErr。"""
     for label, material in (("a value", viba_ast.Constant(1)),
                             ("never", viba_ast.Never())):
         _gap(f"gap never behind a name, material {label}",
@@ -962,7 +962,7 @@ class _HostileString(str):
 
 
 def run_subclass_leaf_cases():
-    """叶子就是那四个内建类型本身，子类不是：写不出 Err，不会被带出去。"""
+    """叶子就是那四个内建类型本身，子类不是：写不出 VibaProgramErr，不会被带出去。"""
     _gap("gap a str subclass that formats elsewhere", "Box = Object * $s str\n",
          "Box", _product(_tagged("$s", viba_ast.Constant(_HostileString("plain")))),
          "no literal for")
@@ -1043,8 +1043,8 @@ def _gap_in(label, pool, full_name, body, needle):
     if not isinstance(rooted, Ok):
         return
     written = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(written, Err) and needle in written.err_msg,
-          f"{label}: an Err saying {needle!r} ({written})")
+    check(isinstance(written, VibaProgramErr) and needle in written.err_msg,
+          f"{label}: a VibaProgramErr saying {needle!r} ({written})")
 
 
 _DEFS = ("defs.viba", "defs",
@@ -1193,8 +1193,8 @@ def run_definition_name_cases():
     for name in ("", "a.b", "a-b", "nil", "never", "void", "None", "true",
                  "false", "import", "as", "list", "set", "dict", "ListLiteral"):
         written = serialize.serialize(name, node)
-        check(isinstance(written, Err),
-              f"definition name {name!r}: an Err ({written})")
+        check(isinstance(written, VibaProgramErr),
+              f"definition name {name!r}: a VibaProgramErr ({written})")
 
 
 def run_alias_of_definition_cases():

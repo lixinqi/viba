@@ -25,7 +25,7 @@ judged as often as wanted.
 from pathlib import Path
 
 from viba import viba_ast
-from viba.interpret import (Environment, Err, InterpretResult, Ok, interpret,
+from viba.interpret import (Environment, VibaProgramErr, InterpretResult, Ok, interpret,
                               material, read_snapshot, write_snapshot)
 from viba.reflect import VibaNode, access as reflect_access, by_tag
 from viba.compliance.storage import PREPARE_PREFIX, PREPARE_SEGMENT
@@ -53,10 +53,10 @@ def is_compliant(rule_file: str, environ: Environment) -> InterpretResult:
     if not isinstance(answer, Ok):
         return answer
     leaf = reflect_access.leaf(answer.ok_value)
-    if isinstance(leaf, Err):
-        return Err(f"the rule answered no verdict: {leaf.err_msg}")
+    if isinstance(leaf, VibaProgramErr):
+        return VibaProgramErr(f"the rule answered no verdict: {leaf.err_msg}")
     if not isinstance(leaf.ok_value, bool):
-        return Err(f"the rule answered {type(leaf.ok_value).__name__}, "
+        return VibaProgramErr(f"the rule answered {type(leaf.ok_value).__name__}, "
                    f"and a verdict is a bool")
     return leaf
 
@@ -104,7 +104,7 @@ def measured_of(prepare):
     if node is None:
         return None, False
     leaf = reflect_access.leaf(node)
-    if isinstance(leaf, Err) or leaf.ok_value is None:
+    if isinstance(leaf, VibaProgramErr) or leaf.ok_value is None:
         return None, False
     return leaf.ok_value, True
 
@@ -149,7 +149,7 @@ def prepare_run(rule_file: str, environ: Environment) -> InterpretResult:
     storage = getattr(environ, "storage", None)
     record = getattr(storage, "record_text", None)
     if record is None or getattr(storage, "prepare_root_dir", None) is None:
-        return Err("this storage cannot record a Prepare: give a PreparedStorage "
+        return VibaProgramErr("this storage cannot record a Prepare: give a PreparedStorage "
                    "with a prepare_root_dir")
     answer = is_compliant(rule_file, environ)
     if not isinstance(answer, Ok):
@@ -183,7 +183,7 @@ def _member(node, tag):
     if node is None:
         return None
     given = reflect_access.get(node, by_tag(tag))
-    if isinstance(given, Err) or given.ok_value is None:
+    if isinstance(given, VibaProgramErr) or given.ok_value is None:
         return None
     return given.ok_value
 

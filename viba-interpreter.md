@@ -20,7 +20,7 @@ interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 按顺序找 `<name>.viba`，dotted 名当路径走；空条目和不存在的目录跳过）；import 的那个文件所在的目录总是
 先找——**被 import 进来、又在自己的文件里 import 的模块，也按它自己的文件找**（链多深都一样）。
 写了 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
-`viba_path` 也可以直接给一个路径（`Path`）；给了别的类型是 `Err`，不是把 `AttributeError` 抛出来。
+`viba_path` 也可以直接给一个路径（`Path`）；给了别的类型是 `VibaProgramErr`，不是把 `AttributeError` 抛出来。
 
 ## 源从哪来：get_file
 
@@ -38,7 +38,7 @@ interpret("main.viba", environ, get_file=files.get)   # 一次运行全在内存
 - **"这个路径上没有文件"说三样都算**：返回 `None`、或者抛 `FileNotFoundError`——于是查找继续
   去下一个地方（先 import 旁边，再 `viba_path` 按顺序），全都说没有就是
   `module 'x' not found (...)`。主文件说没有就是 `no such file: ...`。
-- **返回非字符串、或者抛别的异常，是 `Err`**（`get_file(...) raised ...` / `... not the file's text`），
+- **返回非字符串、或者抛别的异常，是 `VibaProgramErr`**（`get_file(...) raised ...` / `... not the file's text`），
   不是把异常扔给调用方；源编不过照旧是 `cannot parse ...`。
 - **同一个文件只问一次**：模块按路径认，已经加载过的（哪怕换了别名）不会再问第二次。
 
@@ -72,15 +72,15 @@ __ret__ =
 
 规则：
 
-- **没有 `__ret__` 的文件是设计，不是程序**：跑它给 `Err`。
+- **没有 `__ret__` 的文件是设计，不是程序**：跑它给 `VibaProgramErr`。
 - **`environ` 是内建变量**：类型推导时它是 `Environment` 类型，计算时是真实的那个环境。
 - **函数体里的 `{...}` 是说明**：它不是参数，`<<` 给完真参数之后链就落到结果上——
   `(B <- $a A) << $a A` 就是 `B`。
 - **`{...}` 只给提示，不给实现**：提示只说这一步要实现什么，主要逻辑得有人照着它写出来，再交到
   `get_func` 上。写这些函数的是 agent（见下"宿主侧"），viba 一个都不带。
 - **每个可执行函数都要依赖 environ**：签名里必须有 `$env Environment` 这一格，调用时也必须给；
-  否则 `Err`（不是猜一个默认值）。
-- `__ret__` 必须是值。还差参数没给全的函数不是值，`Err`。
+  否则 `VibaProgramErr`（不是猜一个默认值）。
+- `__ret__` 必须是值。还差参数没给全的函数不是值，`VibaProgramErr`。
 
 ## 调用别的模块
 
@@ -100,7 +100,7 @@ __ret__ = demo.print << environ << ret
 **每次模块调用都要有自己的 storage 路径**：那条路径是这次调用的身份——宿主拿到的
 `get_func(module_path, func_name)` 里的 `module_path` 就是它，两次激活落在同一条路径上，宿主就
 分不出谁是谁（`root` 下主文件自己的 `add` 与某个模块的 `add` 会看成一个）。所以一次运行里
-**任何两次模块调用不许用同一条路径**，重复就是 `Err`，并且把正确写法写在错误里：
+**任何两次模块调用不许用同一条路径**，重复就是 `VibaProgramErr`，并且把正确写法写在错误里：
 
 ```
 module 'lib' was handed the storage path 'root', which another module call already
@@ -162,7 +162,7 @@ content)`（在 store root 底下的纯文本读写，读不到返回 `None`）�
 
 `get_func(module_path, func_name)` 返回一个可调用对象；没有就返回 `None`，于是这次调用是递延
 （`$not_my_duty_exception Duty`，见最后一节）——它也可以直接抛 `NotMyDutyException`，那是一个
-路由在说"这条差事不归我"；它自己抛别的异常，则是这一步的 `$failed`。
+路由在说"这条差事不归我"；它自己抛别的异常，则是这一步的 `$underlying_viba_op_failed`。
 `module_path` 是**调用时那个 environment 的 storage 路径**——所以同一个 `add`，从
 `root/add_demo` 进来和从 `root` 进来，宿主看到的是不同的路径，可以路由到不同的实现；也正是
 这个路径，加上 `func_name`，构成了答案里那个 `$step`。
@@ -212,7 +212,7 @@ def roll(env, n):
   保存要回放的东西（上一节：这正是它给出的"该显名保存了"的信号）。
 - **快照是序列化的 viba 数据**（`viba.serialize` 写出来的 `value = …`），不是 pickle：存下来
   的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回材料，叶子和原来一样。
-- **存不了、回放不出来就是错**：`Err`（宿主抛出来，interpret 转成 `Err`），不会静默给个默认值。
+- **存不了、回放不出来就是错**：`VibaProgramErr`（宿主抛出来，interpret 转成 `VibaProgramErr`），不会静默给个默认值。
 
 于是"随机"也能回放：
 
@@ -251,7 +251,7 @@ design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
 
 - 只认 **import 绑定的那个名字**（`import a.b as c` 的 `c`，`import a.b` 的 `a.b`）。`module.Name`
   仍然是那个模块里的定义，和以前一样按最长的前缀解析。
-- 没有 `__ret__` 的模块不是程序：`demo << $env environ` 在类型层也是 `Err`。
+- 没有 `__ret__` 的模块不是程序：`demo << $env environ` 在类型层也是 `VibaProgramErr`。
 - `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
   这一格在类型上也对得上。
 
@@ -261,11 +261,11 @@ design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
 
 ```viba
 Result[T] =
-  Oneof
-| $ok T
-| $err str
-| $failed Failure
-| $not_my_duty_exception Duty
+    Oneof
+  | $ok T
+  | $viba_program_err str                  # 关于程序或环境，不指某一步
+  | $underlying_viba_op_failed Failure     # 某个宿主实现自己坏了
+  | $not_my_duty_exception Duty            # 这一步不归这个宿主
 
 Step =
     Object
@@ -286,11 +286,12 @@ Duty =
 ```
 
 - `Ok(VibaNode)` 是 `__ret__` 的值；
-- `Err(str)` 说的是这一份**程序或环境**不行：编不过、文件不在、没有 `__ret__`、`$env` 没给……
-  它不说"哪一步的实现坏了"，所以不带步名；
-- `$failed Failure`：**某一步的实现坏了**，或者它答了没有叶子的东西。`$msg` 给人读，
-  `$step` 与 `$reason` 给程序读——"哪一步"是个字段，不是嵌在句子里的；
-- `$not_my_duty_exception Duty`：**这一步不在这台机器上作答**。这不是失败，是递延——程序停在
+- `$viba_program_err str`（Python 侧是 `VibaProgramErr`）说的是这一份**程序或环境**不行：编不过、
+  文件不在、没有 `__ret__`、`$env` 没给……它不说"哪一步的实现坏了"，所以不带步名；
+- `$underlying_viba_op_failed Failure`（`UnderlyingVibaOpFailed`）：**某一步的实现坏了**，或者它
+  答了没有叶子的东西。`$msg` 给人读，`$step` 与 `$reason` 给程序读——"哪一步"是个字段，不是嵌在
+  句子里的；
+- `$not_my_duty_exception Duty`（`NotMyDutyException`）：**这一步不在这台机器上作答**。这不是失败，是递延——程序停在
   那儿，等有实现的一方接着做（[`roadmap.md`](roadmap.md)）。`interpret` 不带库函数，所以"没有
   实现"是常态，不是错误。
 
@@ -312,7 +313,7 @@ environment）不是材料，不随 `$call` 走：接手的那一侧自己造环
 调用对象时也一样。`get_func` 抛递延时，run 会把缺的补上：步名与 `$call` 用它知道的这次调用，
 `$reason` 留着宿主自己说的（没说就是 `refused`）。
 
-`Err` 的那句话长这样：
+`$viba_program_err` 的那句话（`err_msg` 一栏）长这样：
 
 ```
 no such file: ...                     文件不在
@@ -333,7 +334,7 @@ viba_path is a string ...             viba_path 给错了类型
 get_file is a function ...            get_file 给错了类型
 ```
 
-`$failed` 的那句话长这样（`$msg` 一栏，`$step` 与 `$reason` 是另外两个字段）：
+`$underlying_viba_op_failed` 的那句话（`$msg` 一栏，`$step` 与 `$reason` 是另外两个字段）：
 
 ```
 get_func('root', 'add') raised ...    get_func 自己坏了

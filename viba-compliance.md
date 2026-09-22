@@ -117,12 +117,12 @@ verdict = is_compliant("rule_distance.viba", environ)   # -> Result[bool]
 ```
 
 - 规则答 `bool`，判定就是它：`Ok(True)` / `Ok(False)`。
-- 答的不是 `bool`，是 `Err`（"a verdict is a bool"）。
+- 答的不是 `bool`，是 `VibaProgramErr`（"a verdict is a bool"）。
 - 规则里某一步没人实现，则是**递延**（`$not_my_duty_exception Duty`）：判定还没发生，这次规则
   不归这台机器跑完。递延带着 `$step`（哪条模块路径上的哪个定义）与 `$call`——`$call` 就是一份
   Prepare 要固定的那份材料，所以工单可以照它直接写出来，不必再跑一次。`prepare_run` 在这种情形
   下什么都不记进备份——没发生的判定不准备案子。
-- 规则编不过、没有 `__ret__`、`$env` 没给、宿主函数抛了……都是 `Err`，说明哪一步不行。
+- 规则编不过、没有 `__ret__`、`$env` 没给、宿主函数抛了……都是 `VibaProgramErr`，说明哪一步不行。
 - 一次运行的环境（`Environment`、storage、`get_func`）怎么给，见
   [`viba-interpreter.md`](viba-interpreter.md)：
   `is_compliant` 就是 `interpret` 加"读出那个 bool"。

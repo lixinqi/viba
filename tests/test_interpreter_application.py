@@ -1,6 +1,6 @@
 """`<<`：给参数这一件事——给几个、给谁、什么时候算。
 
-写出来的实参按书写顺序算；说明块不是实参；给多了、给错了、给的不是函数都是 Err。
+写出来的实参按书写顺序算；说明块不是实参；给多了、给错了、给的不是函数都是 VibaProgramErr。
 
     python3 tests/test_interpreter_application.py
 """
@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from interpreter_support import ADD, Checks, Host, value_of, write
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Err, Ok, Step
+from viba.type import VibaProgramErr, Ok, Step
 
 checks = Checks("interpreter_application")
 check = checks.check
@@ -91,7 +91,7 @@ f =
 __ret__ = f << 1
 """)
     labelled(interpret(no_slots, environ), "takes no more arguments",
-             "an untagged argument to a function with no slots -> Err")
+             "an untagged argument to a function with no slots -> VibaProgramErr")
 
     # 参数出错：那个函数根本不会被调用
     argument_boom = write(tmp, "argument_boom.viba", ADD + """

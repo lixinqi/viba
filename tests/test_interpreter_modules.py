@@ -16,7 +16,7 @@ from interpreter_support import ADD, CASES, LEAF, Checks, Host, value_of, write
 
 from viba import serialize
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Err, NotMyDutyException, Ok, Step
+from viba.type import VibaProgramErr, NotMyDutyException, Ok, Step
 
 checks = Checks("interpreter_modules")
 check = checks.check
@@ -146,13 +146,13 @@ import design_only as d
 __ret__ = d << (environ.sub_env << "d")
 """)
     labelled(interpret(design, environ), "has no __ret__",
-             "calling a module that is design only -> Err")
+             "calling a module that is design only -> VibaProgramErr")
 
     write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
     dotted_member = write(tmp, "dotted_member.viba",
                           "import late_lib as lib\n__ret__ = lib.Only.More\n")
     labelled(interpret(dotted_member, environ), "has no 'Only.More'",
-             "a dotted rest that names no definition -> Err")
+             "a dotted rest that names no definition -> VibaProgramErr")
 
     # 同一个模块两次调用：两条自己的路径，跑两次
     host.calls.clear()
@@ -177,14 +177,14 @@ def _cycles(tmp: Path):
 
     write(tmp, "loop.viba", "import loop as loop\n__ret__ = loop << environ\n")
     labelled(interpret(str(tmp / "loop.viba"), environ), "already running",
-             "a module that calls itself -> Err")
+             "a module that calls itself -> VibaProgramErr")
 
     write(tmp, "cycle_a.viba",
           "import cycle_b as b\n__ret__ = b << (environ.sub_env << \"b\")\n")
     write(tmp, "cycle_b.viba",
           "import cycle_a as a\n__ret__ = a << (environ.sub_env << \"a\")\n")
     labelled(interpret(str(tmp / "cycle_a.viba"), environ), "already running",
-             "a module call cycle A->B->A -> Err")
+             "a module call cycle A->B->A -> VibaProgramErr")
 
 
 def _storage_paths(tmp: Path):
@@ -197,7 +197,7 @@ def _storage_paths(tmp: Path):
     same_env = write(tmp, "same_env.viba",
                      "import lib as lib\n__ret__ = lib << environ\n")
     labelled(interpret(same_env, environ), "storage path",
-             "a module handed the caller's own environment -> Err")
+             "a module handed the caller's own environment -> VibaProgramErr")
 
     # 两次调用给同一个子环境（同名子环境就是同一个 storage）→ 第二次撞车
     repeated = write(tmp, "repeated_path.viba", ADD + """
@@ -207,7 +207,7 @@ __ret__ = add << $env environ
   << $b (lib << (environ.sub_env << "one"))
 """)
     labelled(interpret(repeated, environ), "storage path",
-             "two calls to one storage path -> Err")
+             "two calls to one storage path -> VibaProgramErr")
 
     # 两个不同的模块，用同一个名字的子环境 → 也撞车
     write(tmp, "other.viba", LEAF + "__ret__ = leaf << $env environ\n")
@@ -219,7 +219,7 @@ __ret__ = add << $env environ
   << $b (two << (environ.sub_env << "m"))
 """)
     labelled(interpret(two_modules, environ), "storage path",
-             "two modules under one storage path -> Err")
+             "two modules under one storage path -> VibaProgramErr")
 
     # 各给各的名字：两次都跑得起来，宿主看到两个路径，按书写顺序
     host.calls.clear()
@@ -244,7 +244,7 @@ __ret__ = add << $env environ
 
     # 撞车的错误说得清楚：给每次调用一个自己的子环境
     result = interpret(same_env, environ)
-    check(isinstance(result, Err) and "sub_env" in result.err_msg,
+    check(isinstance(result, VibaProgramErr) and "sub_env" in result.err_msg,
           f"and the message says what to do: {result!r}")
 
 

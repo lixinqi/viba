@@ -2,10 +2,10 @@
 
 check_tag_and_inline(design, config) -> Result[None]. Ok(None) when every
 product the design writes has all its tags different once the inline chains are
-spread, and every inline chain ends; Err names the first mistake.
+spread, and every inline chain ends; VibaProgramErr names the first mistake.
 
     from viba.check_tag_and_inline import check_tag_and_inline
-    check_tag_and_inline(pool)       # -> Ok(None), or Err(the first mistake)
+    check_tag_and_inline(pool)       # -> Ok(None), or VibaProgramErr(the first mistake)
 
 A product's untagged members are inline slots (viba-reflect.md section 4): the
 members of the definition written there spread into the product that names it.
@@ -17,7 +17,7 @@ properties of the design alone — no material is involved:
 - an inline chain that comes back to a definition it is already spreading
   (`A = A * $x int`), which has no expansion to read at all.
 
-Both are Err here, before anything judges the design, so the answer does not
+Both are VibaProgramErr here, before anything judges the design, so the answer does not
 depend on what the design is later compared with. `is_sub_type` and `serialize`
 refuse them too, but only where their walk happens to reach them: a product
 nested in a tagged body or in a container element is read only when the
@@ -41,7 +41,7 @@ inlines — but saying what you mean costs nothing.
 from __future__ import annotations
 
 from viba.reflect import Config, VibaAccess, language_config
-from viba.type import DuplicateTagError, Err, InlineCycleError, Ok, Result
+from viba.type import DuplicateTagError, VibaProgramErr, InlineCycleError, Ok, Result
 from viba.viba_type_descriptor import (
     EXPONENT,
     PRODUCT,
@@ -59,7 +59,7 @@ def check_tag_and_inline(design: VibaPool,
                          config: Config = language_config) -> Result:
     """Result[None]: Ok(None) when every product this design writes has all its
     tags different once the inline chains are spread, and every inline chain
-    ends; Err names the first mistake, in the order the definitions are
+    ends; VibaProgramErr names the first mistake, in the order the definitions are
     written.
 
     ``config`` says which written names stand for the units (VibaReflectConfig);
@@ -69,7 +69,7 @@ def check_tag_and_inline(design: VibaPool,
     try:
         _Checker(VibaAccess(config)).check(design)
     except (DuplicateTagError, InlineCycleError) as mistake:
-        return Err(str(mistake))
+        return VibaProgramErr(str(mistake))
     return Ok(None)
 
 

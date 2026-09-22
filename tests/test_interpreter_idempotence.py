@@ -22,7 +22,7 @@ from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, read_snapshot, replayed, snapshot_path,
                               write_snapshot)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import AstNodeType, Err, Ok, custom_module
+from viba.type import AstNodeType, VibaProgramErr, Ok, custom_module
 from viba.viba_type_descriptor import descriptor_of
 
 checks = Checks("interpreter_idempotence")
@@ -122,7 +122,7 @@ def _store_text(tmp: Path):
           reflect_access.leaf(again.by_tag("b")).ok_value == "x",
           f"a material goes out and comes back: {again!r}")
 
-    # 快照坏了：宿主抛，interpret 答 Err，不是崩
+    # 快照坏了：宿主抛，interpret 答 VibaProgramErr，不是崩
     broken = fresh_environ()
     broken.storage.write_text(snapshot_path(broken, "roll-1"), "value = (")
     checks.failed(interpret(source, broken), "raised", "a snapshot that does not parse")

@@ -3,7 +3,7 @@
 Layout:  tests/data/is_sub_type/{sub,sup}NNN.viba  +  expected.txt
 Each .viba file is a module whose LAST definition is the entry
 (earlier ones provide context: aliases, generics, recursion).
-expected.txt maps NNN -> true | false | error (an Err result).
+expected.txt maps NNN -> true | false | error (a VibaProgramErr result).
 
 Run directly:  python3 tests/test_is_sub_type.py
 """
@@ -21,7 +21,7 @@ from viba.type import (
     CustomModuleType,
     BUILTIN_MODULE,
     AstNodeType,
-    Err,
+    VibaProgramErr,
     IntType,
     Ok,
     StrType,
@@ -47,14 +47,14 @@ def check(got: bool, expected: bool, label: str):
 
 
 def check_result(result, want, label: str):
-    """want: True / False as Ok verdicts, or "error" for an Err."""
+    """want: True / False as Ok verdicts, or "error" for a VibaProgramErr."""
     global PASS, FAIL
     if want == "error":
-        ok, got = isinstance(result, Err), type(result).__name__
+        ok, got = isinstance(result, VibaProgramErr), type(result).__name__
     elif isinstance(result, Ok):
         ok, got = result.ok_value is want, repr(result.ok_value)
     else:
-        ok, got = False, f"Err({result.err_msg!r})"
+        ok, got = False, f"VibaProgramErr({result.err_msg!r})"
     if ok:
         PASS += 1
     else:
@@ -156,31 +156,31 @@ def run_py_side_cases():
     """What data files cannot express: lint verdicts, env behavior."""
     check_result(is_sub_type(entry_type("42"), entry_type("int")), True, "42 <: int")
     sup_ellipsis = is_sub_type(entry_type("42"), entry_type("..."))
-    check_result(sup_ellipsis, "error", "ellipsis on sup side -> Err")
+    check_result(sup_ellipsis, "error", "ellipsis on sup side -> VibaProgramErr")
     sub_ellipsis = is_sub_type(entry_type("..."), entry_type("int"))
-    check_result(sub_ellipsis, "error", "ellipsis on sub side -> Err")
+    check_result(sub_ellipsis, "error", "ellipsis on sub side -> VibaProgramErr")
 
 
 def _err_env(name):
-    return Err(f"no module {name!r}")
+    return VibaProgramErr(f"no module {name!r}")
 
 
 def _env_serving(target, wanted: str):
     def env(name):
-        return Ok(target) if name == wanted else Err("?")
+        return Ok(target) if name == wanted else VibaProgramErr("?")
     return env
 
 
 def run_env_cases():
-    """Module environment: Err paths and mixed resolution."""
+    """Module environment: VibaProgramErr paths and mixed resolution."""
     target = custom_module("Ext = $x int")
     hard = custom_module("", environment=_err_env)
     t_here = entry_type("T", hard)
     t_there = entry_type("T", custom_module(""))
-    check_result(is_sub_type(t_here, t_here), "error", "env Err: unresolved -> Err")
-    check_result(is_sub_type(t_here, t_there), "error", "env Err: unresolved either side")
+    check_result(is_sub_type(t_here, t_here), "error", "env VibaProgramErr: unresolved -> VibaProgramErr")
+    check_result(is_sub_type(t_here, t_there), "error", "env VibaProgramErr: unresolved either side")
     u_here = entry_type("U", hard)
-    check_result(is_sub_type(t_here, u_here), "error", "env Err: names differ, still Err")
+    check_result(is_sub_type(t_here, u_here), "error", "env VibaProgramErr: names differ, still VibaProgramErr")
     mixed = custom_module("Local = $y str", environment=_env_serving(target, "Ext"))
     ext = entry_type("Ext", mixed)
     ext_again = entry_type("Ext", custom_module("Ext = $x int"))
@@ -188,7 +188,7 @@ def run_env_cases():
     wrap = custom_module("Wrap = $w Missing", environment=_err_env)
     wrap_a = entry_type("Wrap", wrap)
     wrap_b = entry_type("Wrap", custom_module("Wrap = $w Missing"))
-    check_result(is_sub_type(wrap_a, wrap_b), "error", "env Err inside body: Err")
+    check_result(is_sub_type(wrap_a, wrap_b), "error", "env VibaProgramErr inside body: VibaProgramErr")
     check_generic_env_case()
 
 
@@ -203,7 +203,7 @@ def check_generic_env_case():
 
 def _type_serving(target, wanted: str):
     def env(name):
-        return Ok(target) if name == wanted else Err("?")
+        return Ok(target) if name == wanted else VibaProgramErr("?")
     return env
 
 
@@ -412,7 +412,7 @@ Odd[T, Msg] = $__odd_original T * $__odd_msg Msg
     check_result(judge("Box", "AliasOfBox"), False,
                  "two bare names that differ do not")
     check_result(judge("Box[int]", "MissingAlias[int]"), "error",
-                 "unfolding an alias whose body names nothing is an Err")
+                 "unfolding an alias whose body names nothing is a VibaProgramErr")
     check_result(judge("Box[int]", "Missing"), "error",
                  "the same when the missing name is the whole body")
     check_result(judge("Wrap[int]", "Wrap[Num]"), True,
@@ -524,10 +524,10 @@ TwoParams = First[int] * Second[str] * $z bool
     check_result(judge("Wrap[Inner] * $z bool", "$p int * $q str * $a int * $z bool"), True,
                  "as an untagged member inside another product")
     check_result(judge("Cycle", "Cycle"), "error",
-                 "a member that inlines itself has no expansion: an Err, not a hang")
+                 "a member that inlines itself has no expansion: a VibaProgramErr, not a hang")
     cycle = is_sub_type(entry_type("Cycle", module), entry_type("Cycle", module))
-    check(isinstance(cycle, Err) and "comes back to 'Cycle'" in cycle.err_msg, True,
-          "and the Err says which chain comes back")
+    check(isinstance(cycle, VibaProgramErr) and "comes back to 'Cycle'" in cycle.err_msg, True,
+          "and the VibaProgramErr says which chain comes back")
     check_result(judge("AliasCycle", "AliasCycle"), "error",
                  "an alias can close the same loop")
     check_result(judge("Mutual", "Mutual"), "error",
@@ -549,16 +549,16 @@ TwoParams = First[int] * Second[str] * $z bool
     check_result(judge("TwoParams", "$f str * $s int * $z bool"), False,
                  "each member keeps the binding it was written under")
     check_result(judge("Dup", "$x int"), "error",
-                 "the same tag twice through an inline -> Err")
+                 "the same tag twice through an inline -> VibaProgramErr")
     check_result(judge("$a int * $a str", "$a int"), "error",
-                 "written twice at one level -> Err")
+                 "written twice at one level -> VibaProgramErr")
     dup = is_sub_type(entry_type("Dup", module), entry_type("$x int", module))
-    check(isinstance(dup, Err) and "$x" in dup.err_msg, True,
-          "the Err names the tag that repeats")
+    check(isinstance(dup, VibaProgramErr) and "$x" in dup.err_msg, True,
+          "the VibaProgramErr names the tag that repeats")
 
 
 def run_inline_cycle_guard_cases():
-    """成环的内联在每条路上都是 Err，不是崩：普通判定、带终止子的禁止链
+    """成环的内联在每条路上都是 VibaProgramErr，不是崩：普通判定、带终止子的禁止链
     （禁止链要先问 sub 的字段，那条路以前会 RecursionError）。"""
     module = custom_module("""
 H = int
@@ -574,7 +574,7 @@ Loop = Loop * $c int
     judged = is_sub_type(entry_type("Sub", module), entry_type("notcrimes", module),
                          terminators=terminators)
     check_result(judged, "error", "the never-headed path says so too, instead of spinning")
-    check(isinstance(judged, Err) and "comes back to 'A'" in judged.err_msg, True,
+    check(isinstance(judged, VibaProgramErr) and "comes back to 'A'" in judged.err_msg, True,
           "and names the chain that comes back")
     sums = custom_module("""
 H = int
@@ -621,11 +621,11 @@ def run_cross_module_inline_cases():
     check_result(judge("main.UBox", "$w int"), True,
                  "a unit from another module is no member")
     check_result(judge("main.Dup", "$x int"), "error",
-                 "a tag repeated across modules -> Err")
+                 "a tag repeated across modules -> VibaProgramErr")
     check_result(judge("ring.Ring", "Ring"), "error",
-                 "an inline ring across two files -> Err")
+                 "an inline ring across two files -> VibaProgramErr")
     ringed = judge("ring.Ring", "Ring")
-    check(isinstance(ringed, Err) and "comes back to" in ringed.err_msg, True,
+    check(isinstance(ringed, VibaProgramErr) and "comes back to" in ringed.err_msg, True,
           "and it names the chain")
     check_result(judge("user.Long", "$m int * $k int"), True,
                  "import pkg.mod without as binds pkg.mod, so pkg.mod.sub.Deep resolves")
@@ -655,7 +655,7 @@ def run_module_as_function_cases():
     built = {}
 
     def environment(name):
-        return Ok(built[name]) if name in built else Err(f"module {name!r} not found")
+        return Ok(built[name]) if name in built else VibaProgramErr(f"module {name!r} not found")
 
     for name in ("program", "design_only", "caller"):
         tree = viba_ast.parse(sources[name])
@@ -865,7 +865,7 @@ Boxed[CoreFunc] =
 
 def run_apply_cases():
     """`<<`：部分计算。给出一个参数，剩下的就是函数；给全了就是结果本身。
-    给函数没有的参数、或者给一个不是函数的东西，都是不合法输入（Err）。"""
+    给函数没有的参数、或者给一个不是函数的东西，都是不合法输入（VibaProgramErr）。"""
     module = custom_module("""
 A = int
 B = str
@@ -903,9 +903,9 @@ Loop = Loop
     check_result(judge("$x ((A <- $b B) << $b B)", "$x A"), True,
                  "a member of a product is reduced too")
     check_result(judge("(A <- $b B) << $c C", "never"), "error",
-                 "an argument the function does not have -> Err")
+                 "an argument the function does not have -> VibaProgramErr")
     check_result(judge("(A * B) << $b B", "never"), "error",
-                 "an argument given to something that is no function -> Err")
+                 "an argument given to something that is no function -> VibaProgramErr")
     check_result(judge("Wide", "A"), True,
                  "the given argument has to fit the slot: Int <: Num holds")
     check_result(judge("Narrow", "A"), "error",
@@ -913,11 +913,11 @@ Loop = Loop
     check_result(judge("(A <- B) << B", "A"), True,
                  "an argument written without a tag matches the slot written the same way")
     check_result(judge("(A <- B) << C", "A"), "error",
-                 "and one written differently finds no slot -> Err")
+                 "and one written differently finds no slot -> VibaProgramErr")
     check_result(judge("Nope << $b B", "never"), "error",
-                 "a function name that resolves to nothing -> Err")
+                 "a function name that resolves to nothing -> VibaProgramErr")
     check_result(judge("Loop << $b B", "never"), "error",
-                 "a function name that only comes back to itself -> Err")
+                 "a function name that only comes back to itself -> VibaProgramErr")
 
 
 def run_any_cases():
@@ -1057,7 +1057,7 @@ def run_suite_reflexivity():
             continue
         t = load_entry(text)
         result = is_sub_type(t, t)
-        if isinstance(result, Err):
+        if isinstance(result, VibaProgramErr):
             skipped += 1  # parser cases need not be closed judgments
             continue
         check(result.ok_value, True, f"suite reflexive {src!r}")

@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba import viba_ast
 from viba.reflect import (Config, VibaData, VibaReflectError, _key_text, _scalar_name,
                           _type_name, access, at_key, by_field_index, by_tag)
-from viba.type import Err, Ok
+from viba.type import VibaProgramErr, Ok
 from viba.viba_type_descriptor import (empty_pool, parse_viba_file, pool_add_file,
                                        pool_find_definition)
 
@@ -38,8 +38,8 @@ def same(label: str, got, want):
 
 
 def is_err(label: str, result, needle: str):
-    check(isinstance(result, Err) and needle in result.err_msg,
-          f"{label}: wanted Err({needle!r}), got {result!r}")
+    check(isinstance(result, VibaProgramErr) and needle in result.err_msg,
+          f"{label}: wanted VibaProgramErr({needle!r}), got {result!r}")
 
 
 BOX = """Box = Object * $a int * $b str * $xs list[int] * $d dict[str, int]
@@ -104,7 +104,7 @@ def run_name_helpers():
 
 
 def run_access_edges():
-    """设计里没有这个地址是 Err；材料里没有那一块是 Ok(nil)/False。"""
+    """设计里没有这个地址是 VibaProgramErr；材料里没有那一块是 Ok(nil)/False。"""
     definition = _definition(BOX, "Box")
     full = _product([
         viba_ast.Tagged("$a", viba_ast.Constant(1)),
@@ -146,7 +146,7 @@ def run_access_edges():
 
 
 def run_dynamic_accessors():
-    """`node.get_a()` 这类动态取值：取不到就抛，不是给 Err；try_ 那一族给 Err。"""
+    """`node.get_a()` 这类动态取值：取不到就抛，不是给 VibaProgramErr；try_ 那一族给 VibaProgramErr。"""
     definition = _definition(BOX, "Box")
     root = _root(definition, _product([
         viba_ast.Tagged("$a", viba_ast.Constant(1)),
@@ -172,7 +172,7 @@ def run_dynamic_accessors():
     except VibaReflectError as error:
         check("no such address" in str(error),
               f"a missing tag raises from the dynamic accessor: {error}")
-    is_err("try_get_ answers Err instead", root.try_get_nope(), "no such address")
+    is_err("try_get_ answers VibaProgramErr instead", root.try_get_nope(), "no such address")
     same("dir() lists the accessors it answers to", "get_a" in dir(root), True)
 
     # 位置成员：按位置的那一族叫 get_field_<i>
@@ -182,7 +182,7 @@ def run_dynamic_accessors():
     same("a positional member reads by index", access.leaf(pos.get_field_0()).ok_value, 5)
     same("has_field answers a bool", pos.has_field_0(), True)
     check("dir() names positional accessors too", "get_field_0" in dir(pos))
-    is_err("try_get_field_ answers Err for one that is not there",
+    is_err("try_get_field_ answers VibaProgramErr for one that is not there",
            pos.try_get_field_9(), "no such address")
     same("and the tag still reads by name", access.leaf(pos.get_a()).ok_value, 6)
 

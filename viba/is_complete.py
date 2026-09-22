@@ -45,7 +45,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from viba import viba_ast
-from viba.type import BUILTIN_MODULE, AstNodeType, Err, Ok
+from viba.type import BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
 from viba.viba_type_descriptor import (
     empty_pool,
     file_find_import_by_local_name,
@@ -90,10 +90,10 @@ def _add_file(pool, file_name: str, module_name: str, source: str):
     """Compile one file into the pool; None when it does not compile or the
     module name is taken."""
     parsed = parse_viba_file(pool, source, file_name, module_name)
-    if isinstance(parsed, Err):
+    if isinstance(parsed, VibaProgramErr):
         return None
     added = pool_add_file(pool, parsed.ok_value)
-    if isinstance(added, Err):
+    if isinstance(added, VibaProgramErr):
         return None
     return added.ok_value
 
@@ -162,7 +162,7 @@ class _Checker:
         if module_name == BUILTIN_MODULE_NAME:
             return {}  # builtin definitions go through BUILTIN_MODULE.lookup
         module = self.pool.module_environment(module_name)
-        if isinstance(module, Err):
+        if isinstance(module, VibaProgramErr):
             return {}
         return {node.name: node for node in module.ok_value.module.body
                 if _is_definition(node)}
@@ -184,7 +184,7 @@ class _Checker:
                 break
             local = ".".join(parts[:cut])
             imported = file_find_import_by_local_name(file, local)
-            if isinstance(imported, Err):
+            if isinstance(imported, VibaProgramErr):
                 continue
             target = imported.ok_value.module_name
             rest = parts[cut:]

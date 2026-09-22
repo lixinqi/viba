@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret)
 from viba.reflect import access as reflect_access
-from viba.type import Err, Failed, NotMyDutyException, Ok
+from viba.type import VibaProgramErr, UnderlyingVibaOpFailed, NotMyDutyException, Ok
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
 
@@ -36,12 +36,12 @@ class Checks:
             print(f"FAIL: {label}")
 
     def labelled(self, result, want, label: str):
-        """`want` is a substring of the Err, or None for Ok."""
+        """`want` is a substring of the VibaProgramErr, or None for Ok."""
         if want is None:
             self.check(isinstance(result, Ok), f"{label}: {result!r}")
         else:
-            self.check(isinstance(result, Err) and want in result.err_msg,
-                       f"{label}: expected Err({want!r}), got {result!r}")
+            self.check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+                       f"{label}: expected VibaProgramErr({want!r}), got {result!r}")
 
     def deferred(self, result, label: str):
         """The run stopped at a step this host does not implement."""
@@ -50,8 +50,8 @@ class Checks:
 
     def failed(self, result, want: str, label: str):
         """A step's implementation broke: `want` is part of its message."""
-        self.check(isinstance(result, Failed) and want in result.msg,
-                   f"{label}: expected Failed({want!r}), got {result!r}")
+        self.check(isinstance(result, UnderlyingVibaOpFailed) and want in result.msg,
+                   f"{label}: expected UnderlyingVibaOpFailed({want!r}), got {result!r}")
 
     def report(self) -> int:
         print(f"{self.name}: {self.passed} passed, {self.failures} failed")
@@ -154,7 +154,7 @@ class Host:
         if func_name == "inner_value":
             def inner_value(env):
                 result = interpret(self.knobs["inner_file"], env)
-                if isinstance(result, Err):
+                if isinstance(result, VibaProgramErr):
                     raise RuntimeError(result.err_msg)
                 return result.ok_value
             return inner_value

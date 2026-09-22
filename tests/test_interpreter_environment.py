@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from interpreter_support import ADD, LEAF, Checks, Host, value_of, write
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Err, Ok
+from viba.type import VibaProgramErr, Ok
 
 checks = Checks("interpreter_environment")
 check = checks.check
@@ -40,16 +40,16 @@ double = int <- $a int <- { double it }
 __ret__ = double << $a 21
 """)
     labelled(interpret(no_env, environ), "$env Environment",
-             "a function without $env -> Err")
+             "a function without $env -> VibaProgramErr")
 
     not_given = write(tmp, "not_given.viba", ADD + "__ret__ = add << $a 1 << $b 2\n")
     labelled(interpret(not_given, environ), "still waiting for arguments",
-             "a call that was not given the environment -> Err")
+             "a call that was not given the environment -> VibaProgramErr")
 
     wrong = write(tmp, "wrong_env.viba",
                   ADD + "__ret__ = add << $env 7 << $a 1 << $b 2\n")
     labelled(interpret(wrong, environ), "not given an Environment",
-             "an environment argument that is not an Environment -> Err")
+             "an environment argument that is not an Environment -> VibaProgramErr")
 
     # 环境那一格必须写成 $env：不带 tag 的 Environment 位不算数
     positional = write(tmp, "positional_env.viba", """
@@ -61,14 +61,14 @@ f =
 __ret__ = f << environ << $x 1
 """)
     labelled(interpret(positional, environ), "takes no $env Environment",
-             "an environment slot written without a tag -> Err")
+             "an environment slot written without a tag -> VibaProgramErr")
 
     labelled(interpret(str(tmp / "not_given.viba"), object()), "needs an Environment",
-             "interpret with something that is not an Environment -> Err")
+             "interpret with something that is not an Environment -> VibaProgramErr")
 
     no_compute = write(tmp, "no_compute.viba", LEAF + "__ret__ = leaf << $env environ\n")
     labelled(interpret(no_compute, Environment(None, None)), "compute",
-             "an environment with no compute side -> Err")
+             "an environment with no compute side -> VibaProgramErr")
 
 
 def _children(tmp: Path):
@@ -174,11 +174,11 @@ __ret__ = environ.sub_env << "child"
     answered = write(tmp, "env_answered.viba",
                      '__ret__ = environ.sub_env << "a" << "b"\n')
     labelled(interpret(answered, environ), "is not a function",
-             "another argument given to an answered sub_env -> Err")
+             "another argument given to an answered sub_env -> VibaProgramErr")
 
 
 def _host_members(tmp: Path):
-    """environ 上的成员：宿主加的方法能调，不是函数的报 Err，没 storage 也是 Err。"""
+    """environ 上的成员：宿主加的方法能调，不是函数的报 VibaProgramErr，没 storage 也是 VibaProgramErr。"""
     host = Host()
     environ = host.environ()
 
@@ -196,7 +196,7 @@ def _host_members(tmp: Path):
 
     storage = write(tmp, "env_member.viba", "__ret__ = environ.storage\n")
     labelled(interpret(storage, environ), "environment has no 'storage'",
-             "an environment member that is not callable -> Err")
+             "an environment member that is not callable -> VibaProgramErr")
 
     # 把 import 绑到 environ 上，也压不过内建的那个环境
     write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
@@ -206,7 +206,7 @@ def _host_members(tmp: Path):
     check(isinstance(result, Ok) and isinstance(result.ok_value, Environment),
           f"environ stays the built-in environment even imported as one: {result!r}")
 
-    # 没有 storage 的环境：宿主那边崩了也是 Err，不是把异常扔出来
+    # 没有 storage 的环境：宿主那边崩了也是 VibaProgramErr，不是把异常扔出来
     headless = Environment(None, EnvironmentCompute(host.get_func))
     headless_use = write(tmp, "headless.viba", '__ret__ = environ.sub_env << "a"\n')
     checks.failed(interpret(headless_use, headless), "raised",

@@ -21,7 +21,7 @@ from viba.compliance import (PreparedStorage, call_of, is_compliant, measured_of
 from viba.compliance.demo.host import RULE, DistanceHost
 from viba.interpret import Environment, EnvironmentCompute
 from viba.reflect import access as reflect_access
-from viba.type import Err, Failed, NotMyDutyException, Ok
+from viba.type import VibaProgramErr, UnderlyingVibaOpFailed, NotMyDutyException, Ok
 
 BACKUP = Path(__file__).resolve().parent / "data" / "compliance" / "backup"
 
@@ -41,8 +41,8 @@ def labelled(result, want, label: str):
     if want is None:
         check(isinstance(result, Ok), f"{label}: {result!r}")
     else:
-        check(isinstance(result, Err) and want in result.err_msg,
-              f"{label}: expected Err({want!r}), got {result!r}")
+        check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+              f"{label}: expected VibaProgramErr({want!r}), got {result!r}")
 
 
 def case_environ(env, name="case_at_1230"):
@@ -297,15 +297,15 @@ def _refusals(tmp: Path):
 
     not_a_verdict = write(tmp, "not_a_verdict.viba", '__ret__ = "yes"\n')
     labelled(is_compliant(not_a_verdict, env), "a verdict is a bool",
-             "a rule that answers a string -> Err")
+             "a rule that answers a string -> VibaProgramErr")
 
     design = write(tmp, "design_only.viba", "Only = $x int\n")
     labelled(is_compliant(design, env), "has no __ret__",
-             "a rule that is not a program -> Err")
+             "a rule that is not a program -> VibaProgramErr")
 
     broken = write(tmp, "broken.viba", "__ret__ = -1\n")
     labelled(is_compliant(broken, env), "cannot parse",
-             "a rule that does not compile -> Err")
+             "a rule that does not compile -> VibaProgramErr")
 
     write(tmp, "boom_case.viba", "__ret__ = $victim ($x 0 * $y 0) * $at \"12:30\"\n")
     boom_rule = write(tmp, "boom_rule.viba", """
@@ -323,15 +323,15 @@ the_case = boom_case << case_env
 __ret__ = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 """)
     failed_verdict = is_compliant(boom_rule, env)
-    check(isinstance(failed_verdict, Failed) and "raised" in failed_verdict.msg,
-          f"a measurement that blows up -> Failed: {failed_verdict!r}")
+    check(isinstance(failed_verdict, UnderlyingVibaOpFailed) and "raised" in failed_verdict.msg,
+          f"a measurement that blows up -> UnderlyingVibaOpFailed: {failed_verdict!r}")
     check(failed_verdict.step.func_name == "measure_distance",
           f"and the failure names the step: {failed_verdict.step!r}")
 
     plain = PreparedStorage("root", None, str(tmp / "no-backup-store"))
     no_backup = Environment(plain, EnvironmentCompute(DistanceHost().get_func))
     labelled(prepare_run(str(RULE), no_backup), "cannot record a Prepare",
-             "prepare_run without a backup to write -> Err")
+             "prepare_run without a backup to write -> VibaProgramErr")
 
 
 if __name__ == "__main__":
