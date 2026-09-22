@@ -116,6 +116,31 @@ Environment(storage, compute)                            # sub_env(name) 给子�
 **interpret 不认识任何具体函数**：viba 默认不带任何库函数，实现全部来自 `get_func`，
 谁写、怎么生成，interpret 不感知。
 
+## 类型层的模块
+
+同一个文件在**类型推导**里也是"environ 进、`__ret__` 出"：名字绑到的是一个模块（import 的名字）时，
+它当函数读，类型就是
+
+```viba
+__ret__ <- $env Environment
+```
+
+所以下面这几条都成立（`tests/test_is_sub_type.py` 里有用例）：
+
+```viba
+demo := import add_demo as demo         # 概念上
+demo << $env environ  <:  int           # 就是 __ret__ 的类型
+int <: demo << $env environ             # 反过来也成立：两者同型
+demo.add <: int <- $env Environment <- $a int <- $b int
+design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
+```
+
+- 只认 **import 绑定的那个名字**（`import a.b as c` 的 `c`，`import a.b` 的 `a.b`）。`module.Name`
+  仍然是那个模块里的定义，和以前一样按最长的前缀解析。
+- 没有 `__ret__` 的模块不是程序：`demo << $env environ` 在类型层也是 `Err`。
+- `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
+  这一格在类型上也对得上。
+
 ## 错误
 
 `interpret` 返回 `Result`：`Ok(VibaNode)` 是 `__ret__` 的值，`Err(str)` 说明哪一步不行：
@@ -126,7 +151,11 @@ no definition named 'x' in module 'm' 名字解析不了
 module 'x' not found (...)            import 找不到文件
 module 'm' has no __ret__: ...        设计，不是程序
 no implementation for 'add' in ...    get_func 没给
+get_func(...) raised ...              get_func 自己抛了
+add raised ZeroDivisionError(...)     宿主函数抛了
 ... takes no $env Environment ...     可执行函数没依赖 environ
 ... was not given the environment     调用时没给 environ
+... was not given an Environment      给了，但不是 Environment
+module 'x' is already running         模块调用成环
 ... is a function still waiting ...   __ret__ 不是值
 ```

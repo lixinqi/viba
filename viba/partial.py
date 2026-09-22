@@ -23,9 +23,45 @@ argument the function does not have, or one that does not fit, is a mistake
 from typing import Callable, Optional, Tuple
 
 from viba import viba_ast
-from viba.type import PartialError
+from viba.type import Ok, PartialError
 
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
+
+
+RET_NAME = "__ret__"
+ENVIRON_TAG = "$env"
+ENVIRON_TYPE = "Environment"
+
+
+def module_as_function(module, name):
+    """(body, home) for a bare import name read as a function, or None.
+
+    A module is a function too: `__ret__ <- $env Environment`, its input the
+    environment and its output `__ret__`. `name` has to be one of this
+    module's imports — the name the import binds, not a member of it (a dotted
+    name is that module's own definition and resolves as it always did) — and
+    the module it names has to be a program, `__ret__` and all.
+    """
+    imports = getattr(module, "imports", None)
+    if not imports or name not in imports:
+        return None
+    imported = module.module_environment(imports[name])
+    if not isinstance(imported, Ok):
+        return None
+    ret = _definition(imported.ok_value, RET_NAME)
+    if ret is None:
+        return None
+    return (viba_ast.ExponentChain([
+        ret.body,
+        viba_ast.Tagged(ENVIRON_TAG, viba_ast.TypeRef(ENVIRON_TYPE)),
+    ]), imported.ok_value)
+
+
+def _definition(module, name):
+    for node in getattr(module, "module", module).body:
+        if getattr(node, "name", None) == name:
+            return node
+    return None
 
 
 def reduce_partial(node, module, resolve: Callable, judge: Callable) -> Tuple[object, object]:
@@ -112,4 +148,4 @@ def _elements(node):
     return [node]
 
 
-__all__ = ["reduce_partial"]
+__all__ = ["reduce_partial", "module_as_function"]

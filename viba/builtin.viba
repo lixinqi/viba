@@ -26,3 +26,33 @@ Predicate[Cond, PythonCode] :=
 # not[oneof] shell and swaps every branch leaf for the poison
 # PredicationFailed; a branch left positive, or missing, judges False.
 not[A] := never <- $not_operand A
+
+# The environment a running module is handed (viba-interpreter.md). Read as
+# a type, `environ` is an Environment — that is what a module's `$env` slot
+# asks for; read as computation, it is the real environment. `Environment` is
+# a function of the sub-environment's name, which is how a module call hands
+# a module its own.
+Environment :=
+    Object
+  * $sub_env (Environment <- $sub_env_name str)
+
+environ := Environment
+
+# The host side of an environment. It is host vocabulary (the interpreter
+# calls get_func; HostLanguageFunc is whatever that interpreter's functions
+# are), so this file only states the shapes.
+EnvironmentStorage :=
+    Object
+  * $cur_storage_path str
+  * $sub_storage (EnvironmentStorage <- $sub_storage_name str)
+  * {
+      other storage information
+    }
+
+EnvironmentCompute :=
+    Object
+  * $get_func (HostLanguageFunc <- $module_path str <- $func_name str)
+  * {
+      get_func is called by interpret, and a module's sub-environment holds
+      the parent's compute.
+    }

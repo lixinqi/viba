@@ -82,7 +82,7 @@ alias of what it is written as, and judgment is structural throughout.
 """
 
 from viba import viba_ast
-from viba.partial import reduce_partial
+from viba.partial import module_as_function, reduce_partial
 from viba.type import (
     PartialError,
     AnyType,
@@ -940,10 +940,15 @@ class _Checker:
                 given, given_module, written, written_module))
 
     def _partial_target(self, name, module, side: str):
-        """(body, home) for the name a `<<` gives to, or None."""
+        """(body, home) for the name a `<<` gives to, or None.
+
+        A definition is itself; a bare import name is the module read as a
+        function (`module_as_function`), while `module.Name` stays what it
+        always was — that module's own definition.
+        """
         resolved = self._resolve_name(name, module, side)
         if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
-            return None
+            return module_as_function(module, name)
         node = resolved.ok_value.ast_node
         if isinstance(node, viba_ast.GenericDefinition):
             return None                     # a bare generic name has no body

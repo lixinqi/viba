@@ -273,31 +273,38 @@ class InlineCycleError(Exception):
     """An inline chain comes back to a definition it is already expanding."""
 
 
-def module_get_type(module: ModuleType, type_name: str) -> Result:
+def module_get_type(module: ModuleType, type_name: str, _seen=None) -> Result:
     """Resolve a type name against a module (ModuleGetType).
 
     Built-ins are visible from every module: a custom module falls
     back to the built-in registry after its own definitions and
     environment are exhausted.
+
+    The environment is asked for a module too, which is how a nested module's
+    own definitions are reached. A module that hands itself (or a module that
+    handed us) back would loop — a name that is both a type and a module — so
+    the modules met on the way are remembered.
     """
     if isinstance(module, BuiltinModuleType):
         return module.lookup(type_name)
     if isinstance(module, CustomModuleType):
-        return _lookup_custom(module, type_name)
+        return _lookup_custom(module, type_name, set() if _seen is None else _seen)
     return Err(f"unknown module kind: {module!r}")
 
 
-def _lookup_custom(module: CustomModuleType, type_name: str) -> Result:
+def _lookup_custom(module: CustomModuleType, type_name: str, seen) -> Result:
     local = module.lookup_local(type_name)
     if isinstance(local, Ok):
         return local
     via_env = module.module_environment(type_name)
-    if isinstance(via_env, Ok):
-        return module_get_type(via_env.ok_value, type_name)
+    if isinstance(via_env, Ok) and id(via_env.ok_value) not in seen:
+        seen = seen | {id(module)}
+        return module_get_type(via_env.ok_value, type_name, seen)
     builtin = BUILTIN_MODULE.lookup(type_name)
     if isinstance(builtin, Ok):
         return builtin
-    return Err(f"type {type_name!r} unresolved: {local.err_msg}; {via_env.err_msg}")
+    note = via_env.err_msg if isinstance(via_env, Err) else "it names a module already met"
+    return Err(f"type {type_name!r} unresolved: {local.err_msg}; {note}")
 
 
 # ----------------------------------------------------------------------

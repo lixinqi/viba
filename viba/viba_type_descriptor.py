@@ -26,7 +26,7 @@ import hashlib
 from typing import Callable, Dict, List, Optional
 
 from viba import viba_ast
-from viba.partial import reduce_partial
+from viba.partial import module_as_function, reduce_partial
 from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
     PartialError,
@@ -439,7 +439,7 @@ def _partial_target(pool, name, module):
     """(body, home) for the name a `<<` gives to, or None."""
     resolved = module_get_type(module, name)
     if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
-        return None
+        return module_as_function(module, name)
     node = resolved.ok_value.ast_node
     if isinstance(node, ast_nodes.GenericDefinition):
         return None

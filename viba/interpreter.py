@@ -173,6 +173,7 @@ class _Runner:
         self.by_path: dict = {}        # resolved path -> module
         self.by_name: dict = {}        # module name -> module
         self.path_of: dict = {}        # module name -> file it was loaded from
+        self.running: list = []        # module activations, for cycle refusal
 
     def run_file(self, file: str, environ: Environment) -> Result:
         path = Path(file)
@@ -217,7 +218,13 @@ def run_module(runner: _Runner, module: ModuleType, environ: Environment,
     ret = _definition(module, RET_NAME)
     if ret is None:
         return Err(f"module {name!r} has no {RET_NAME}: it is design, not a program")
-    value = _Activation(runner, module, environ, name, file).evaluate(ret.body)
+    if name in runner.running:
+        return Err(f"module {name!r} is already running: a module call cycle")
+    runner.running.append(name)
+    try:
+        value = _Activation(runner, module, environ, name, file).evaluate(ret.body)
+    finally:
+        runner.running.pop()
     if isinstance(value, Err):
         return value
     if not isinstance(value.ok_value, (_Material, _Host)):
@@ -422,11 +429,18 @@ class _VibaFunc:
         if compute is None:
             return Err(f"{self.name}: the environment carries no compute side")
         module_path = getattr(storage, "cur_storage_path", "") if storage else ""
-        host = compute.get_func(module_path, self.name)
+        try:
+            host = compute.get_func(module_path, self.name)
+        except Exception as exc:            # the host is the host's business
+            return Err(f"get_func({module_path!r}, {self.name!r}) raised {exc!r}")
         if host is None:
             return Err(f"no implementation for {self.name!r} in module {module_path!r}")
         args = [_argument_value(given[index]) for index, _ in self._ordered(given)]
-        return Ok(_answer(host(*args)))
+        try:
+            answer = host(*args)
+        except Exception as exc:
+            return Err(f"{self.name} raised {exc!r}")
+        return Ok(_answer(answer))
 
     def _ordered(self, given):
         """The arguments in written order: what the host function is handed."""
@@ -440,6 +454,9 @@ class _VibaFunc:
                     f"every executable function depends on the environment")
         if self.slots.index(ENVIRON_TAG) not in given:
             return f"{self.name} was not given the environment"
+        environ = given[self.slots.index(ENVIRON_TAG)]
+        if not isinstance(environ, _Host) or not isinstance(environ.obj, Environment):
+            return f"{self.name} was not given an {ENVIRON_TYPE}"
         return None
 
 
@@ -475,16 +492,25 @@ class _ModuleFunc:
         environ = values[0].obj if isinstance(values[0], _Host) else None
         if not isinstance(environ, Environment):
             return Err(f"module {self.name!r} needs an Environment")
-        return run_module(self.runner, self.module, environ, self.name, None)
+        answer = run_module(self.runner, self.module, environ, self.name, None)
+        if isinstance(answer, Err):
+            return answer
+        # `interpret` hands the node out; inside a run a module's answer is a
+        # value like any other, so it goes back into the value model.
+        node = answer.ok_value
+        return Ok(_Material(node) if isinstance(node, VibaNode) else _Host(node))
 
 
 def _answer(answer):
-    """What a host function answered: a VibaNode, or a literal leaf."""
+    """What a host function answered: a VibaNode, or a literal leaf.
+
+    `None` is `nil` — the unit — the way it is in the builder.
+    """
     if isinstance(answer, VibaNode):
         return _Material(answer)
     if isinstance(answer, Environment):
         return _Host(answer)
-    node = viba_ast.Constant(answer)
+    node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
     return _Material(VibaNode(reflect_access,
                               descriptor_of(AstNodeType(node, custom_module(""))), node))
 

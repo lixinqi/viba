@@ -1,7 +1,7 @@
-"""viba.interpreter 的验收：跑那份可执行 viba 模块。
+"""viba.interpreter 的压测：把 interpret 的边角都过一遍。
 
-语料是设计里那两份：add_demo.viba（add / print / __ret__）与 main.viba
-（import add_demo as demo，把子 environment 交给模块调用）。
+语料是设计里那两份可执行模块（add_demo.viba / main.viba），其余模块都在临时目录里
+现写现跑，不留在仓库里。
 
     python tests/test_interpreter.py
 """
@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba.interpreter import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret)
+from viba.reflect import access as reflect_access
 from viba.type import Err, Ok
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
@@ -30,104 +31,331 @@ def check(ok: bool, label: str):
         print(f"FAIL: {label}")
 
 
-def _compute(printed, seen=None):
-    """The host side: two functions, and the paths they were asked for."""
-    seen = seen if seen is not None else []
+def value_of(result):
+    """The leaf a run answered: None for a nil piece."""
+    if not isinstance(result, Ok):
+        return result
+    return reflect_access.leaf(result.ok_value).ok_value
 
-    def get_func(module_path, func_name):
-        seen.append((module_path, func_name))
+
+def labelled(result, want, label: str):
+    """`want` is a substring of the Err, or None for Ok."""
+    if want is None:
+        check(isinstance(result, Ok), f"{label}: {result!r}")
+    else:
+        check(isinstance(result, Err) and want in result.err_msg,
+              f"{label}: expected Err({want!r}), got {result!r}")
+
+
+class Host:
+    """The host side: a few functions, a record of the calls, and knobs."""
+
+    def __init__(self, **knobs):
+        self.calls = []
+        self.printed = []
+        self.knobs = knobs
+
+    def get_func(self, module_path, func_name):
+        self.calls.append((module_path, func_name))
+        if self.knobs.get("get_func_raises"):
+            raise RuntimeError("host broke")
         if func_name == "add":
+            return lambda env, a, b: a.value + b.value
+        if func_name == "join":
             return lambda env, a, b: a.value + b.value
         if func_name == "print":
             def show(env, x):
-                printed.append(x)
+                self.printed.append(x)
                 return None
             return show
+        if func_name == "explode":
+            return lambda env: 1 / 0
+        if func_name == "echo":
+            return lambda env, x: x
+        if func_name == "leaf":
+            return lambda env: 7
+        if func_name == "text":
+            return lambda env: "hi"
+        if func_name == "flag":
+            return lambda env: True
+        if func_name == "ratio":
+            return lambda env: 0.5
+        if func_name == "nothing":
+            return lambda env: None
         return None
-    return EnvironmentCompute(get_func)
+
+    def environ(self, path="root"):
+        return Environment(EnvironmentStorage(path), EnvironmentCompute(self.get_func))
 
 
-def _environ(printed, seen=None):
-    return Environment(EnvironmentStorage("root"), _compute(printed, seen))
+def run() -> int:
+    tmp = Path(tempfile.mkdtemp(prefix="viba-interpreter-stress-"))
+    try:
+        _spec_modules()
+        _values_and_answers(tmp)
+        _applications(tmp)
+        _environments(tmp)
+        _modules(tmp)
+        _paths(tmp)
+    finally:
+        for leftover in sorted(tmp.rglob("*"), reverse=True):
+            leftover.unlink() if leftover.is_file() else leftover.rmdir()
+    print(f"interpreter: {PASS} passed, {FAIL} failed")
+    return 1 if FAIL else 0
 
 
 def _write(tmp: Path, name: str, source: str) -> str:
     path = tmp / name
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(source)
     return str(path)
 
 
-def run() -> int:
-    printed = []
-    seen = []
-    environ = _environ(printed, seen)
+LEAF = """
+leaf :=
+	int
+	<- $env Environment
+	<- { answer seven }
+"""
 
-    # 1. 模块就是函数：environ 进，__ret__ 出
-    result = interpret(str(CASES / "add_demo.viba"), environ)
-    check(isinstance(result, Ok), f"add_demo runs: {result!r}")
-    check(isinstance(result, Ok) and result.ok_value.value == 1000000,
-          "its __ret__ is what add answered")
-    check(("root", "add") in seen,
-          f"the implementation was looked up at the environment's path: {seen}")
+TEXT = """
+text :=
+	str
+	<- $env Environment
+	<- { answer some text }
+"""
 
-    # 2. import 进来的模块可以调用，也可以取它的函数
-    result = interpret(str(CASES / "main.viba"), environ)
-    check(isinstance(result, Ok), f"main runs: {result!r}")
-    check(len(printed) == 1 and getattr(printed[0], "value", None) == 1000000,
-          f"print got the value main computed: {printed!r}")
-    check(("root/add_demo", "add") in seen,
-          f"a module called through a sub-environment looks its functions up there: {seen}")
-
-    # 3. 子 environment 带着父级的 compute
-    child = environ.sub_env("add_demo")
-    check(isinstance(child, Environment) and child.compute is environ.compute,
-          "a sub-environment holds the parent's compute")
-    check(child.storage.cur_storage_path == "root/add_demo",
-          f"and its own storage path: {child.storage.cur_storage_path!r}")
-
-    # 4. 没有 __ret__ 的文件是设计，不是程序
-    #    写出来的临时文件不留在仓库里
-    tmp = Path(tempfile.mkdtemp(prefix="viba-interpreter-"))
-    design = _write(tmp, "design.viba", "A := int\n")
-    check(isinstance(interpret(design, environ), Err),
-          "a file without __ret__ is design, not a program")
-
-    # 5. 没有实现就是 Err，而不是猜一个
-    bare = Environment(EnvironmentStorage("root"), EnvironmentCompute(lambda p, n: None))
-    check(isinstance(interpret(str(CASES / "add_demo.viba"), bare), Err),
-          "no implementation for add -> Err")
-
-    # 6. 每个可执行函数都要依赖 environ
-    no_env = _write(tmp, "no_env.viba", """
-double := int <- $a int <- { double it }
-__ret__ := double << $a 21
-""")
-    check(isinstance(interpret(no_env, environ), Err),
-          "a function without $env Environment -> Err")
-
-    # 7. 没有给 environ 也是 Err
-    not_given = _write(tmp, "not_given.viba", """
+ADD = """
 add :=
 	int
 	<- $env Environment
 	<- $a int
 	<- $b int
-	<- { add }
-__ret__ := add << $a 1 << $b 2
+	<- { add two integer }
+"""
+
+
+def _spec_modules():
+    """设计里那两份：模块当函数、import、sub_env、print。"""
+    host = Host()
+    environ = host.environ()
+
+    result = interpret(str(CASES / "add_demo.viba"), environ)
+    check(isinstance(result, Ok) and value_of(result) == 1000000,
+          f"add_demo's __ret__ is what add answered: {result!r}")
+    check(("root", "add") in host.calls,
+          f"the implementation is looked up at the environment's path: {host.calls}")
+
+    result = interpret(str(CASES / "main.viba"), environ)
+    check(isinstance(result, Ok), f"main runs: {result!r}")
+    check(("root/add_demo", "add") in host.calls,
+          f"a module called through a sub-environment looks its functions up there: {host.calls}")
+    check(len(host.printed) == 1 and getattr(host.printed[0], "value", None) == 1000000,
+          f"print got the value main computed: {host.printed!r}")
+
+
+def _values_and_answers(tmp: Path):
+    """宿主返回什么，__ret__ 就是什么；宿主出错就是 Err，不是崩。"""
+    host = Host()
+    environ = host.environ()
+    for func, want, label in (("leaf", 7, "an int"), ("text", "hi", "a str"),
+                              ("flag", True, "a bool"), ("ratio", 0.5, "a float"),
+                              ("nothing", None, "None lands as nil")):
+        path = _write(tmp, f"{func}.viba", f"""
+{func} :=
+	int
+	<- $env Environment
+	<- {{ inline }}
+__ret__ := {func} << $env environ
 """)
-    check(isinstance(interpret(not_given, environ), Err),
-          "a call that was not given the environment -> Err")
+        result = interpret(path, environ)
+        check(isinstance(result, Ok) and value_of(result) == want,
+              f"a host function returning {label}: {result!r}")
 
-    # 8. 找不到模块
-    missing = _write(tmp, "missing.viba", "import nope as n\n__ret__ := n << environ\n")
-    check(isinstance(interpret(missing, environ), Err),
-          "an import that names no file -> Err")
+    boom = _write(tmp, "boom.viba", """
+explode :=
+	int
+	<- $env Environment
+	<- { go }
+__ret__ := explode << $env environ
+""")
+    labelled(interpret(boom, environ), "ZeroDivision", "a host function that raises -> Err")
+    labelled(interpret(boom, Host(get_func_raises=True).environ()), "raised",
+             "a get_func that raises -> Err")
 
-    for leftover in tmp.glob("*.viba"):
-        leftover.unlink()
-    tmp.rmdir()
-    print(f"interpreter: {PASS} passed, {FAIL} failed")
-    return 1 if FAIL else 0
+    missing = _write(tmp, "no_impl.viba", """
+ghost :=
+	int
+	<- $env Environment
+	<- { nothing implements this }
+__ret__ := ghost << $env environ
+""")
+    labelled(interpret(missing, environ), "no implementation", "get_func says None -> Err")
+
+    echo = _write(tmp, "echo.viba", """
+echo :=
+	int
+	<- $env Environment
+	<- $x int
+	<- { pass it through }
+__ret__ := echo << $env environ << $x 42
+""")
+    result = interpret(echo, environ)
+    check(isinstance(result, Ok) and value_of(result) == 42,
+          f"a host function echoing its argument: {result!r}")
+
+
+def _applications(tmp: Path):
+    """`<<` 的边角：少给、多给、给错、说明块、分两步、不是值。"""
+    host = Host()
+    environ = host.environ()
+    cases = [
+        ("__ret__ := add << $env environ << $a 1 << $b 2\n", None, "all three given"),
+        ("__ret__ := add << $env environ << $a 1\n",
+         "waiting for arguments", "one argument short"),
+        ("__ret__ := add << $env environ << $a 1 << $b 2 << $b 3\n",
+         "is not a function", "one argument too many (the call already answered)"),
+        ("__ret__ := add << $env environ << $a 1 << $z 2\n",
+         "takes no $z", "an argument the function does not have"),
+        ("__ret__ := add << $env environ << $a 1 << $b 2 << { trailing note }\n", None,
+         "documentation after the arguments"),
+        ("__ret__ := add << $env environ << { a note } << $a 1 << $b 2\n", None,
+         "documentation between the arguments"),
+        ("__ret__ := add\n", "waiting for arguments", "the function itself is not a value"),
+        ("__ret__ := { just a note }\n", "documentation", "a code block is not a value"),
+        ("__ret__ := Nope\n", "no definition named", "a name nothing defines"),
+    ]
+    for index, (body, want, label) in enumerate(cases):
+        path = _write(tmp, f"apply{index}.viba", ADD + body)
+        labelled(interpret(path, environ), want, label)
+
+    two_steps = _write(tmp, "two_steps.viba", ADD + """
+half := add << $env environ << $a 40
+__ret__ := half << $b 2
+""")
+    result = interpret(two_steps, environ)
+    check(isinstance(result, Ok) and value_of(result) == 42,
+          f"a partially applied function kept in a definition: {result!r}")
+
+    positional = _write(tmp, "positional.viba", ADD + """
+__ret__ := add << environ << 40 << 2
+""")
+    result = interpret(positional, environ)
+    check(isinstance(result, Ok) and value_of(result) == 42,
+          f"arguments written without tags bind in order: {result!r}")
+
+
+def _environments(tmp: Path):
+    """environment 的边角：必须给、必须是 Environment、子环境带父级 compute。"""
+    host = Host()
+    environ = host.environ()
+
+    no_env = _write(tmp, "no_env.viba", """
+double := int <- $a int <- { double it }
+__ret__ := double << $a 21
+""")
+    labelled(interpret(no_env, environ), "$env Environment",
+             "a function without $env -> Err")
+
+    not_given = _write(tmp, "not_given.viba", ADD + "__ret__ := add << $a 1 << $b 2\n")
+    labelled(interpret(not_given, environ), "still waiting for arguments",
+             "a call that was not given the environment -> Err")
+
+    wrong = _write(tmp, "wrong_env.viba", ADD + "__ret__ := add << $env 7 << $a 1 << $b 2\n")
+    labelled(interpret(wrong, environ), "not given an Environment",
+             "an environment argument that is not an Environment -> Err")
+
+    child = environ.sub_env("a")
+    grand = child.sub_env("b")
+    check(child.storage.cur_storage_path == "root/a",
+          "a sub-environment's path is <parent>/<name>")
+    check(grand.storage.cur_storage_path == "root/a/b", "and it nests")
+    check(child.compute is environ.compute and grand.compute is environ.compute,
+          "every sub-environment holds the parent's compute")
+    check(environ.sub_env("a").storage is child.storage,
+          "the same name hands back the same sub-storage")
+    check(isinstance(child, Environment), "sub_env answers an Environment")
+
+    host.calls.clear()
+    paths = _write(tmp, "paths.viba", ADD + "__ret__ := add << $env environ << $a 1 << $b 2\n")
+    labelled(interpret(paths, child), None, "a module runs under a sub-environment")
+    check(("root/a", "add") in host.calls,
+          f"its path is what get_func sees: {host.calls}")
+
+    labelled(interpret(paths, object()), "needs an Environment",
+             "interpret with something that is not an Environment -> Err")
+
+
+def _modules(tmp: Path):
+    """模块：嵌套 import、dotted import、设计模块、自调用环。"""
+    host = Host()
+    environ = host.environ()
+
+    _write(tmp, "inner.viba", ADD + "__ret__ := add << $env environ << $a 1 << $b 2\n")
+    outer = _write(tmp, "outer.viba", """
+import inner as inner
+__ret__ := inner << (environ.sub_env << "inner")
+""")
+    result = interpret(outer, environ)
+    check(isinstance(result, Ok) and value_of(result) == 3,
+          f"a module imported by a module: {result!r}")
+
+    _write(tmp, "pkg/mod.viba", """
+join :=
+	str
+	<- $env Environment
+	<- $a str
+	<- $b str
+	<- { join two strings }
+__ret__ := join << $env environ << $a "a" << $b "b"
+""")
+    dotted = _write(tmp, "dotted.viba", """
+import pkg.mod as mod
+__ret__ := mod << environ
+""")
+    result = interpret(dotted, environ)
+    check(isinstance(result, Ok) and value_of(result) == "ab",
+          f"a dotted import finds pkg/mod.viba: {result!r}")
+
+    _write(tmp, "design_only.viba", "Only := $x int\n")
+    design = _write(tmp, "use_design.viba", """
+import design_only as d
+__ret__ := d << environ
+""")
+    labelled(interpret(design, environ), "has no __ret__",
+             "calling a module that is design only -> Err")
+
+    _write(tmp, "loop.viba", "import loop as loop\n__ret__ := loop << environ\n")
+    labelled(interpret(str(tmp / "loop.viba"), environ), "already running",
+             "a module that calls itself -> Err")
+
+    missing = _write(tmp, "missing_import.viba", "import nope as n\n__ret__ := n << environ\n")
+    labelled(interpret(missing, environ), "not found", "an import that names no file -> Err")
+
+    labelled(interpret(str(tmp / "nothing_here.viba"), environ), "no such file",
+             "a main file that is not there -> Err")
+
+
+def _paths(tmp: Path):
+    """VIBA_PATH：按顺序找，import 旁边的先赢。"""
+    host = Host()
+    environ = host.environ()
+    first = tmp / "one"
+    second = tmp / "two"
+    first.mkdir(exist_ok=True)
+    second.mkdir(exist_ok=True)
+    _write(first, "lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    _write(second, "lib.viba", TEXT + "__ret__ := text << $env environ\n")
+
+    user = _write(tmp, "uses_path.viba", "import lib as lib\n__ret__ := lib << environ\n")
+    result = interpret(user, environ, viba_path=f"{first}:{second}")
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"the first directory on VIBA_PATH wins: {result!r}")
+
+    near = _write(second, "near.viba", "import lib as lib\n__ret__ := lib << environ\n")
+    result = interpret(near, environ, viba_path=f"{first}:{second}")
+    check(isinstance(result, Ok) and value_of(result) == "hi",
+          f"a module next to the importer beats VIBA_PATH: {result!r}")
 
 
 if __name__ == "__main__":
