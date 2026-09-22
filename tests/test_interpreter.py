@@ -1018,12 +1018,18 @@ def _paths(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a relative VIBA_PATH entry: {result!r}")
 
-    # 一个 Path 就是一个目录；别的类型说清楚要的是字符串
-    result = interpret(dotted, environ, viba_path=flat)
+    # 这一段用的是仓库里现成的两份 .viba（data/interpreter/paths）：main.viba
+    # 旁边没有 pkg/，模块只在给进来的那个目录里——一个 Path 就是一个目录；
+    # 别的类型说清楚要的是字符串。
+    paths_case = CASES / "paths"
+    main_file = str(paths_case / "main.viba")
+    result = interpret(main_file, environ, viba_path=paths_case / "elsewhere")
     check(isinstance(result, Ok) and value_of(result) == 7,
-          f"a VIBA_PATH that is one Path: {result!r}")
-    labelled(interpret(dotted, environ, viba_path=7), "viba_path is a string",
+          f"a dotted module on a VIBA_PATH that is one Path: {result!r}")
+    labelled(interpret(main_file, environ, viba_path=7), "viba_path is a string",
              "a VIBA_PATH that is not a string or a path -> Err")
+    labelled(interpret(main_file, environ), "not found",
+             "the same module with no VIBA_PATH at all -> Err")
 
 
 if __name__ == "__main__":
