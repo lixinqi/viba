@@ -497,6 +497,8 @@ if __name__ == "__main__":
          "Arguments given in the other order"),
         ("PartialNested := M << $b (P * Q)",
          "The given argument is a product"),
+        ("PartialGrouped := M << (N << $a P)",
+         "A `<<` given as the argument keeps its grouping"),
         # 11-15: Semantic Paths & Tagging
         ("SimpleTag := $target Output", "Basic tagged type"),
         ("NestedPath := $meta.id.hash STRING", "Nested semantic path ($a.b.c)"),

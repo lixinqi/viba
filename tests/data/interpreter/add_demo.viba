@@ -1,0 +1,23 @@
+# file name: add_demo.viba
+add :=
+	int
+	<- $env Environment
+	<- $a int
+	<- $b int
+	<- {
+		add two integer
+	}
+
+print :=
+	void
+	<- $env Environment
+	<- $x Any
+	<- {
+		print to stdout
+	}
+
+__ret__ :=
+	add
+	<< $env environ
+	<< $a 999999
+	<< $b 1

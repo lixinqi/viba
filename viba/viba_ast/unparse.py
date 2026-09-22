@@ -136,7 +136,9 @@ def _unparse_partial(node: Partial, indent: int, depth: int) -> str:
 
     if _is_binary(node.function):
         function = f"({function})"
-    if _is_binary(node.argument):
+    # `<<` is left-associative, so only the right side that is itself a `<<`
+    # needs the parentheses kept: `a << (b << c)` is not `a << b << c`.
+    if _is_binary(node.argument) or isinstance(node.argument, Partial):
         argument = f"({argument})"
 
     return f"{function} << {argument}"

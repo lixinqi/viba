@@ -36,6 +36,25 @@ ToChain := AST <- $node AST <- Comments[{A * (B * C) 与 A * B * C 到这一步�
 FromChain := AST <- $node AST
 
 # ----------------------------------------------------------------------
+# Running a module: viba.interpreter
+# ----------------------------------------------------------------------
+
+# interpret(viba_main_file, environ, viba_path=None) -> Result[VibaNode]
+Interpret :=
+    Result[VibaNode]
+  <- $viba_main_file str
+  <- $environ Environment
+  <- $viba_path str
+  <- Comments[{
+      模块就是函数：environ 进，__ret__ 出。没有 __ret__ 的文件是设计，不是程序。
+      interpret 不认识任何具体函数：实现全部来自 environ 的 compute 侧
+      （get_func(module_path, func_name)），而且每个可执行函数都要依赖 environ。
+    }]
+
+# Environment := EnvironmentStorage * EnvironmentCompute，宿主侧的形状见
+# viba/environ.viba；sub_env 给子环境，子环境带着父级的 compute。
+
+# ----------------------------------------------------------------------
 # Partial computation: viba.partial
 # ----------------------------------------------------------------------
 

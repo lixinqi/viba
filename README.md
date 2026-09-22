@@ -99,6 +99,8 @@ intermediate representation.
 | `ast/__init__.py` | Public API: `parse`, `unparse`, `canonical`, `dump`, `walk`, visitors |
 | `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
 | `partial.py` | Reduces `T << X`: the function with that written argument given |
+| `interpreter.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
+| `environ.viba` | The environment shapes the interpreter is handed |
 | `api.viba` | The package's top-level API, as viba signatures |
 
 `viba/rule/` is the rule layer — a Viba application built on the core.

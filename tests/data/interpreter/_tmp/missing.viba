@@ -1,0 +1,2 @@
+import nope as n
+__ret__ := n << environ

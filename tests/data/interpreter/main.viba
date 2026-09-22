@@ -1,0 +1,5 @@
+import add_demo as demo
+
+ret := demo << (environ.sub_env << "add_demo")
+
+__ret__ := demo.print << environ << ret
