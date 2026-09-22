@@ -440,7 +440,7 @@ class _VibaFunc:
             answer = host(*args)
         except Exception as exc:
             return Err(f"{self.name} raised {exc!r}")
-        return Ok(_answer(answer))
+        return _answer(self.name, answer)
 
     def _ordered(self, given):
         """The arguments in written order: what the host function is handed."""
@@ -473,7 +473,11 @@ class _HostFunction:
         values = self.given + [_argument_value(item.value)]
         if len(values) < self.slots:
             return Ok(_HostFunction(self.name, self.func, self.slots, values))
-        return Ok(_answer(self.func(*values)))
+        try:
+            answer = self.func(*values)
+        except Exception as exc:
+            return Err(f"environ.{self.name} raised {exc!r}")
+        return _answer(f"environ.{self.name}", answer)
 
 
 class _ModuleFunc:
@@ -501,18 +505,25 @@ class _ModuleFunc:
         return Ok(_Material(node) if isinstance(node, VibaNode) else _Host(node))
 
 
-def _answer(answer):
-    """What a host function answered: a VibaNode, or a literal leaf.
+def _answer(name, answer):
+    """Result: what a host function answered, as a value.
 
-    `None` is `nil` — the unit — the way it is in the builder.
+    A `VibaNode` is taken as it is, an `Environment` stays a host value, and
+    `None` is `nil` the way it is in the builder. A plain Python value lands
+    as a leaf — but only a scalar one: a list, a dict, a callable or any other
+    object has no leaf to be, and guessing one would put a shape into the
+    material that no design asked for.
     """
     if isinstance(answer, VibaNode):
-        return _Material(answer)
+        return Ok(_Material(answer))
     if isinstance(answer, Environment):
-        return _Host(answer)
+        return Ok(_Host(answer))
+    if answer is not None and not isinstance(answer, (bool, int, float, str)):
+        return Err(f"{name} answered {type(answer).__name__}, "
+                   f"which is no leaf: answer a VibaNode, a scalar, or None")
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
-    return _Material(VibaNode(reflect_access,
-                              descriptor_of(AstNodeType(node, custom_module(""))), node))
+    return Ok(_Material(VibaNode(reflect_access,
+                                 descriptor_of(AstNodeType(node, custom_module(""))), node)))
 
 
 def _elements(node):

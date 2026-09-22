@@ -297,8 +297,10 @@ def _lookup_custom(module: CustomModuleType, type_name: str, seen) -> Result:
     if isinstance(local, Ok):
         return local
     via_env = module.module_environment(type_name)
-    if isinstance(via_env, Ok) and id(via_env.ok_value) not in seen:
-        seen = seen | {id(module)}
+    # The environment may hand back a fresh module object for the same file, so
+    # what is remembered is the syntax tree behind it: one per file.
+    if isinstance(via_env, Ok) and id(via_env.ok_value.module) not in seen:
+        seen = seen | {id(module.module)}
         return module_get_type(via_env.ok_value, type_name, seen)
     builtin = BUILTIN_MODULE.lookup(type_name)
     if isinstance(builtin, Ok):

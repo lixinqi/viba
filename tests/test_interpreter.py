@@ -96,6 +96,7 @@ def run() -> int:
         _applications(tmp)
         _environments(tmp)
         _modules(tmp)
+        _loose_ends(tmp)
         _paths(tmp)
     finally:
         for leftover in sorted(tmp.rglob("*"), reverse=True):
@@ -334,6 +335,55 @@ __ret__ := d << environ
 
     labelled(interpret(str(tmp / "nothing_here.viba"), environ), "no such file",
              "a main file that is not there -> Err")
+
+
+def _loose_ends(tmp: Path):
+    """再压一批：没写 as 的 import、字面量当 __ret__、坏路径、坏答案、A→B→A。"""
+    host = Host()
+    environ = host.environ()
+
+    # import 没写 as：绑定的就是模块全名
+    _write(tmp, "plain.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    plain = _write(tmp, "plain_user.viba", """
+import plain
+__ret__ := plain << environ
+""")
+    result = interpret(plain, environ)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"an import without as binds its whole name: {result!r}")
+
+    # 字面量、nil、Any 当 __ret__
+    for body, want, label in (("42", 42, "a literal int"), ('"hi"', "hi", "a literal str"),
+                              ("true", True, "a literal bool")):
+        path = _write(tmp, f"lit_{want}.viba", f"__ret__ := {body}\n")
+        result = interpret(path, environ)
+        check(isinstance(result, Ok) and value_of(result) == want,
+              f"__ret__ written as {label}: {result!r}")
+    for body, label in (("nil", "nil"), ("never", "never"), ("Any", "Any")):
+        path = _write(tmp, f"unit_{label}.viba", f"__ret__ := {body}\n")
+        result = interpret(path, environ)
+        check(isinstance(result, Ok), f"__ret__ written as {label}: {result!r}")
+    for body, label in (("(1 | 2)", "a sum"), ("(1 * 2)", "a product")):
+        path = _write(tmp, f"shape_{label.split()[-1]}.viba", f"__ret__ := {body}\n")
+        labelled(interpret(path, environ), "cannot compute", f"__ret__ written as {label} -> Err")
+
+    # 坏路径 / 坏答案 / 坏 environment
+    labelled(interpret(str(tmp), environ), "cannot read", "the main path is a directory -> Err")
+    labelled(interpret(str(tmp / "gone.viba"), environ), "no such file", "no such file -> Err")
+    labelled(interpret(str(tmp / "plain.viba"), Environment(None, None)), "compute",
+             "an environment with no compute side -> Err")
+
+    host.knobs["get_func_raises"] = False
+    bad = Host()
+    bad.get_func = lambda p, n: "not callable"
+    weird = _write(tmp, "weird.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    labelled(interpret(weird, bad.environ()), "raised", "a non-callable implementation -> Err")
+
+    # A -> B -> A 的环
+    _write(tmp, "cycle_a.viba", "import cycle_b as b\n__ret__ := b << environ\n")
+    _write(tmp, "cycle_b.viba", "import cycle_a as a\n__ret__ := a << environ\n")
+    labelled(interpret(str(tmp / "cycle_a.viba"), environ), "already running",
+             "a module call cycle A->B->A -> Err")
 
 
 def _paths(tmp: Path):

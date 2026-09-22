@@ -18,6 +18,7 @@ import ast as py_ast
 from viba import viba_ast
 from viba.check_tag_and_inline import check_tag_and_inline
 from viba.type import (
+    CustomModuleType,
     BUILTIN_MODULE,
     AstNodeType,
     Err,
@@ -634,6 +635,53 @@ def run_cross_module_inline_cases():
                  "the last word of a module path is not bound: mod.Mid resolves nowhere")
 
 
+
+def run_module_as_function_cases():
+    """模块当函数（类型层）：import 绑定的名字读成 `__ret__ <- $env Environment`，
+    `module.Name` 照旧是那个模块里的定义，没有 `__ret__` 的模块不是程序。"""
+    sources = {
+        "program": ("add := int <- $env Environment <- $a int <- $b int <- { add }\n"
+                    "__ret__ := add << $env environ << $a 1 << $b 2\n"),
+        "design_only": "Only := $x int\n",
+        "caller": ("import program as program\n"
+                   "import design_only\n"
+                   "Program := program << $env environ\n"
+                   "Half := program.add << $env environ << $a 1\n"
+                   "Dotted := design_only.Only\n"
+                   "NotAProgram := design_only << $env environ\n"),
+    }
+    built = {}
+
+    def environment(name):
+        return Ok(built[name]) if name in built else Err(f"module {name!r} not found")
+
+    for name in ("program", "design_only", "caller"):
+        tree = viba_ast.parse(sources[name])
+        imports = {stmt.alias or stmt.module: stmt.module
+                   for stmt in tree.body if isinstance(stmt, viba_ast.Import)}
+        built[name] = CustomModuleType(tree, environment, imports)
+
+    caller = built["caller"]
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, caller), entry_type(sup, caller))
+
+    check_result(judge("Program", "int"), True,
+                 "a bare import name reads as the module's __ret__")
+    check_result(judge("int", "Program"), True,
+                 "and the two are the same type the other way round")
+    check_result(judge("program << $env environ", "int"), True,
+                 "written inline too")
+    check_result(judge("Half", "int <- $b int"), True,
+                 "a module's function may be given part of its arguments")
+    check_result(judge("Dotted", "$x int"), True,
+                 "module.MyType still resolves to that module's definition")
+    check_result(judge("NotAProgram", "int"), "error",
+                 "a module without __ret__ is not a program, even as a function")
+    check_result(judge("design_only.Only", "$x int"), True,
+                 "and its own definitions still resolve")
+
+
 def run_function_chain_cases():
     """函数之间比函数：结果协变、参数逆变，按书写顺序逐位比（$arg0 对 $arg0）。
     先把 sub 弄到 sup 的长度（sup 不动）：sub 短了补 never，长了截掉；弄齐再逐位比。
@@ -1020,6 +1068,7 @@ run_unit_alias_cases()
 run_inline_member_cases()
 run_inline_cycle_guard_cases()
 run_cross_module_inline_cases()
+run_module_as_function_cases()
 run_function_chain_cases()
 run_config_cases()
 run_never_head_cases()
