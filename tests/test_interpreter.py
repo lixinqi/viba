@@ -352,6 +352,52 @@ __ret__ := double << $a 21
           "a storage handed in ready-made is the one sub_env hands back")
     check(environ.sub_env(7).storage.cur_storage_path == "root/7",
           "a name that is not a string still lands in the path")
+
+    # tmp_sub_env：名字不用起，每次都是新的一个
+    first = environ.tmp_sub_env()
+    second = environ.tmp_sub_env()
+    check(isinstance(first, Environment) and first.compute is environ.compute,
+          "tmp_sub_env answers a child with the parent's compute")
+    check(first.storage.cur_storage_path.startswith("root/tmp_") and
+          second.storage.cur_storage_path.startswith("root/tmp_"),
+          f"and its path says it is temporary: {first.storage.cur_storage_path}")
+    check(first.storage is not second.storage and
+          first.storage.cur_storage_path != second.storage.cur_storage_path,
+          "two calls are two children, unlike sub_env with one name")
+    check(first.storage.cur_storage_path in
+          [s.cur_storage_path for s in environ.storage.sub_storage.values()],
+          "the child it made is remembered under its own name")
+
+    # viba 那边就是 `environ.tmp_sub_env << ()`：两次调用各拿一个，直接过唯一性那一关
+    host.calls.clear()
+    _write(tmp, "tmp_lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    tmp_calls = _write(tmp, "tmp_calls.viba", ADD + """
+import tmp_lib as lib
+__ret__ := add << $env environ
+  << $a (lib << (environ.tmp_sub_env << ()))
+  << $b (lib << (environ.tmp_sub_env << ()))
+""")
+    result = interpret(tmp_calls, environ)
+    check(isinstance(result, Ok) and value_of(result) == 14,
+          f"two module calls, each under a temporary environment: {result!r}")
+    leaf_paths = [path for path, func in host.calls if func == "leaf"]
+    check(len(leaf_paths) == 2 and len(set(leaf_paths)) == 2 and
+          all(path.startswith("root/tmp_") for path in leaf_paths),
+          f"each call under a path of its own: {host.calls}")
+
+    # 写下来的那个实参被忽略：给别的也一样
+    given = _write(tmp, "tmp_given.viba", "__ret__ := environ.tmp_sub_env << nil\n")
+    result = interpret(given, environ)
+    check(isinstance(result, Ok) and isinstance(result.ok_value, Environment) and
+          result.ok_value.storage.cur_storage_path.startswith("root/tmp_"),
+          f"the written argument is ignored, whatever it is: {result!r}")
+
+    # 没有 storage 的时候：照着 sub_env 的规矩，宿主那边报了就是 Err
+    headless = Environment(None, EnvironmentCompute(host.get_func))
+    headless_tmp = _write(tmp, "headless_tmp.viba",
+                          "__ret__ := environ.tmp_sub_env << ()\n")
+    labelled(interpret(headless_tmp, headless), "raised",
+             "tmp_sub_env on an environment with no storage -> Err")
     child_a = environ.sub_env("a")
     child_b = environ.sub_env("b")
     check(child_a.sub_env("x").storage.cur_storage_path == "root/a/x" and
@@ -618,10 +664,16 @@ __ret__ := interrupt << $env environ
 
 
 def _shapes_and_scale(tmp: Path):
-    """值形状、规模：元组/泛型应用不是值；长链、深 import。"""
+    """值形状、规模：元组是材料（空元组也是一个值）；泛型应用不是；长链、深 import。"""
     host = Host()
     environ = host.environ()
-    for body, label in ((u"(1, 2)", "a tuple"), ("list[int]", "a generic application"),
+    for body, want, label in (("(1, 2)", 2, "a tuple of two"),
+                              ("()", 0, "the empty tuple")):
+        path = _write(tmp, f"shape_{abs(hash(body))}.viba", f"__ret__ := {body}\n")
+        result = interpret(path, environ)
+        check(isinstance(result, Ok) and len(result.ok_value) == want,
+              f"__ret__ written as {label} is material: {result!r}")
+    for body, label in (("list[int]", "a generic application"),
                         ("int <- $x int", "an exponent")):
         path = _write(tmp, f"shape_{abs(hash(body))}.viba", f"__ret__ := {body}\n")
         labelled(interpret(path, environ), "cannot compute", f"__ret__ written as {label} -> Err")

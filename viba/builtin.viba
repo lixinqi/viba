@@ -31,10 +31,14 @@ not[A] := never <- $not_operand A
 # a type, `environ` is an Environment — that is what a module's `$env` slot
 # asks for; read as computation, it is the real environment. `Environment` is
 # a function of the sub-environment's name, which is how a module call hands
-# a module its own.
+# a module its own — and `$tmp_sub_env` is the same thing under a name nobody
+# chose, fresh every call: `environ.tmp_sub_env << ()`. Its written argument
+# is ignored (a call gives one, and `()` is how "nothing" is written), so any
+# `()` does, and the shape says so by writing `()`.
 Environment :=
     Object
   * $sub_env (Environment <- $sub_env_name str)
+  * $tmp_sub_env (Environment <- ())
 
 environ := Environment
 

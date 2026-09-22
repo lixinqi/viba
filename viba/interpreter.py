@@ -47,6 +47,7 @@ anything else as itself (the environment among them). It answers with a
 """
 
 import os
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -59,6 +60,7 @@ from viba.viba_type_descriptor import descriptor_of
 # Parsed once, not once per answer.
 _NO_MODULE = custom_module("")
 
+TMP_PREFIX = "tmp_"
 RET_NAME = "__ret__"
 ENVIRON_NAME = "environ"
 ENVIRON_TAG = "$env"
@@ -86,6 +88,14 @@ class EnvironmentStorage:
             self.sub_storage[name] = EnvironmentStorage(path)
         return self.sub_storage[name]
 
+    def tmp(self) -> "EnvironmentStorage":
+        """A child under a name nobody chose, fresh on every call — the way a
+        temporary file is. Two module calls then cannot land on one path."""
+        while True:
+            name = TMP_PREFIX + uuid.uuid4().hex[:12]
+            if name not in self.sub_storage:
+                return self.sub(name)
+
 
 class EnvironmentCompute:
     """The implementations: `get_func(module_path, func_name) -> callable|None`."""
@@ -110,10 +120,18 @@ class Environment:
 
         `name` is what the viba side wrote: a material node lands as the leaf
         it carries, so `environ.sub_env << "add_demo"` names the module.
+        The same name is the same child, handed back again.
         """
         if isinstance(name, VibaNode):
             name = name.value
         return Environment(self.storage.sub(str(name)), self.compute)
+
+    def tmp_sub_env(self, ignored=None) -> "Environment":
+        """A child environment under a name of its own, fresh every time:
+        `environ.tmp_sub_env << ()` — no name to pick, and no two calls share a
+        storage path. The written argument is ignored; it is there because a
+        call gives one, and `()` is the way to write "nothing"."""
+        return Environment(self.storage.tmp(), self.compute)
 
 
 # ----------------------------------------------------------------------
@@ -377,7 +395,11 @@ class _Activation:
 
     def evaluate(self, node):
         """Result: the value this piece writes."""
-        if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never, viba_ast.Any)):
+        if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never,
+                             viba_ast.Any, viba_ast.Tuple)):
+            # A tuple written here is material as it stands (its elements are
+            # data, not calls) — `()` is how a call that wants no argument is
+            # written, e.g. `environ.tmp_sub_env << ()`.
             return Ok(_Material(VibaNode(reflect_access, self._descriptor(node), node)))
         if isinstance(node, viba_ast.Partial):
             return self._apply_chain(node)

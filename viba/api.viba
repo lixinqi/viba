@@ -53,7 +53,8 @@ Interpret :=
       get_file 是源的来处：留空就读文件系统；给了就一律走它——返回文件的文本，
       那个路径上没有文件就返回 nil（或抛 FileNotFoundError）。路径按字符串给。
       每次模块调用要有自己的 storage 路径（它的身份），两次调用不许撞车：
-      模块调用给一个子环境，environ.sub_env << ...。
+      模块调用给一个子环境，environ.sub_env << ...；不想起名字就
+      environ.tmp_sub_env << ()，每次一个新的。
     }]
 
 # Environment := EnvironmentStorage * EnvironmentCompute，宿主侧的形状见

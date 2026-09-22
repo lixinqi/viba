@@ -110,6 +110,17 @@ used: give each module call a sub-environment of its own (environ.sub_env << ...
 复用），所以同一个模块调两次要给两个名字，或者让宿主给出两份不同的 storage。主文件自己也算
 一次激活，占着它那条路径——直接 `lib << environ` 就是撞车。
 
+不想起名字就用 `tmp_sub_env`：
+
+```viba
+lib << (environ.tmp_sub_env << ())
+```
+
+它像临时文件一样，**每次调用都给一个新的子环境**（路径是 `父路径/tmp_<随机>`），所以两次调用
+天然各占一条路径。写下来的那个实参被忽略——调用总得给一个实参，`()` 就是"什么都没有"的写法，
+给 `nil` 也一样。`viba/builtin.viba` 里 `Environment` 的成员形状因此写的是
+`$tmp_sub_env (Environment <- ())`。
+
 ## 宿主侧：Environment
 
 `Environment` 由宿主提供，至少两个概念：
@@ -118,6 +129,7 @@ used: give each module call a sub-environment of its own (environ.sub_env << ...
 Environment :=
     Object
   * $sub_env (Environment <- $sub_env_name str)
+  * $tmp_sub_env (Environment <- ())
 
 EnvironmentStorage :=
     Object
