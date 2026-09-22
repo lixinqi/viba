@@ -1004,6 +1004,47 @@ def test_builder_partial_case_004():
     assert any(getattr(d, "name", None) == "Given" for d in module.body)
 
 
+def test_builder_private_names_case_001():
+    """下划线开头的东西不是 tag、不是字段、不是定义位：AttributeError。"""
+    vb = builder.Builder()
+    _raises(AttributeError, lambda: vb.tag._private)
+    _raises(AttributeError, lambda: vb._private)
+    _raises(AttributeError, lambda: vb.Some._private)
+
+
+def test_builder_tag_arity_case_001():
+    """tag 只收一个参数（分组）或两个（字段）。"""
+    _raises(TypeError, lambda: tag(1, 2, 3))
+
+
+def test_builder_name_slot_case_001():
+    """一个光名字不是定义位：泛型下标与应用的头部都要说得出为什么不行。"""
+    _raises(TypeError, lambda: builder._Name("A").__setitem__(7, 1))
+    _raises(TypeError, lambda: builder._TypeApp(7, []))
+
+
+def test_builder_bad_source_case_001():
+    """写出来的源编不过：check 把它说成 ValueError，而不是把 SyntaxError 放出来。
+    名字不是标识符时落在定义名那一关（TypeError），根本写不进源里。"""
+    _raises(TypeError, lambda: setattr(builder.Builder(), "a b", int))
+    vb = builder.add_import(builder.Builder(), "a..b")
+    _raises(ValueError, lambda: builder.check(vb))
+
+
+def test_builder_origin_name_case_001():
+    """一个没有名字的东西当泛型的头：说得出它没有名字可写。"""
+    _raises(TypeError, lambda: builder._origin_name(object()))
+
+
+def test_builder_comment_case_001():
+    """注释行不是节点：下划线开头的名字照挡，挂东西仍可挂。"""
+    vb = builder.comment(builder.Builder(), "note")
+    note = vb._body[-1]
+    _raises(AttributeError, lambda: note._private)
+    note._marker = 1
+    assert note._marker == 1
+
+
 # ----------------------------------------------------------------------
 # 跑
 # ----------------------------------------------------------------------

@@ -251,14 +251,37 @@ def _check_errors():
         assert isinstance(module_get_type(not_a_module, "X"), Err), not_a_module
 
 
+def _check_reprs():
+    """描述符的 repr：调试和 diff 都要用，所以既说得出是什么，也不能带地址。"""
+    pool = load("shapes", [("shapes.viba", "shapes")])
+    assert repr(pool) == "VibaPool(1 files)"
+    definition = pool_find_definition(pool, "shapes.Shapes").ok_value
+    assert repr(definition) == "VibaDefinitionDescriptor('shapes.Shapes')"
+    assert repr(definition.members[0]) == "VibaMemberDescriptor(0, '$items')"
+    seen = {m.tag: repr(m.member_type) for m in definition.members}
+    assert seen["$items"] == \
+        "VibaTypeDescriptor(type_app, VibaTypeAppDescriptor('list', 1 args))"
+    assert seen["$maybe"] == "VibaTypeDescriptor(sum, VibaChainDescriptor(2 elements))"
+    assert seen["$pair"] == "VibaTypeDescriptor(tuple, VibaTupleDescriptor(2 elements))"
+    assert seen["$lit"] == "VibaTypeDescriptor(literal, VibaLiteralDescriptor(42))"
+    assert seen["$code"] == "VibaTypeDescriptor(code_block, VibaCodeBlockDescriptor(...))"
+    assert seen["$top"] == "VibaTypeDescriptor(any, None)"
+    binding = load("import_binding", [("user.viba", "user")])
+    imports = pool_find_file(binding, "user.viba").ok_value.imports
+    assert repr(imports[0]) == "VibaImportDescriptor('pkg.mod' as 'pkg.mod')"
+    written = "".join([repr(pool), repr(definition)]
+                      + [repr(m.member_type) for m in definition.members])
+    assert "0x" not in written, written
+
+
 def run():
     checks = [_check_alias_and_depth, _check_import_binding, _check_shapes,
-              _check_generics, _check_unit_heads, _check_errors]
+              _check_generics, _check_unit_heads, _check_errors, _check_reprs]
     for check in checks:
         check()
     print(f"type_descriptor_api: {len(checks)} checks passed "
           f"(imports and prefixes, import binding, member shapes, generics, "
-          f"unit chain heads, negatives)")
+          f"unit chain heads, negatives, descriptor reprs)")
     return 0
 
 

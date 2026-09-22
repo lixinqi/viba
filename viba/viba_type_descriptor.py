@@ -124,6 +124,9 @@ class VibaTupleDescriptor:
         self.resolvable_type = resolvable_type
         self.elements = elements
 
+    def __repr__(self):
+        return f"VibaTupleDescriptor({len(self.elements)} elements)"
+
 
 class VibaTaggedDescriptor:
     """$tag Type"""
@@ -136,6 +139,9 @@ class VibaTaggedDescriptor:
         self.tag = tag
         self.tagged_type = tagged_type
 
+    def __repr__(self):
+        return f"VibaTaggedDescriptor({self.tag!r})"
+
 
 class VibaChainDescriptor:
     """Canonical sum chain or product chain."""
@@ -146,6 +152,9 @@ class VibaChainDescriptor:
         self.pool = pool
         self.resolvable_type = resolvable_type
         self.elements = elements
+
+    def __repr__(self):
+        return f"VibaChainDescriptor({len(self.elements)} elements)"
 
 
 class VibaLiteralDescriptor:
@@ -158,6 +167,9 @@ class VibaLiteralDescriptor:
         self.resolvable_type = resolvable_type
         self.value = value
 
+    def __repr__(self):
+        return f"VibaLiteralDescriptor({self.value!r})"
+
 
 class VibaCodeBlockDescriptor:
     """{...} — kept verbatim."""
@@ -168,6 +180,9 @@ class VibaCodeBlockDescriptor:
         self.pool = pool
         self.resolvable_type = resolvable_type
         self.code = code
+
+    def __repr__(self):
+        return "VibaCodeBlockDescriptor(...)"
 
 
 # ----------------------------------------------------------------------
