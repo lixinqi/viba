@@ -176,6 +176,8 @@ VibaPath = List[VibaStep]
 
 def _tag_of(name: str) -> str:
     """Chained calls write names without the $; with it counts too."""
+    if not isinstance(name, str):
+        raise TypeError(f"a tag name is a string, not {type(name).__name__}")
     return name if name.startswith("$") else "$" + name
 
 
