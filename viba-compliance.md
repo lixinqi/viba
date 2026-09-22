@@ -14,8 +14,7 @@
 
 ```viba
 # viba/compliance/demo/rule_distance.viba
-# 12:30 那一刻：受害人 (0,0)、嫌疑人 (3,4)——至少隔了 5 吗？
-import case_points as witness
+import case_at_1230 as case_at_1230
 
 Point := $x int * $y int
 Case := $victim Point * $suspect Point * $at str
@@ -25,7 +24,8 @@ measure_distance :=
 	<- $env Environment
 	<- $case Case
 	<- {
-		受害人与嫌疑人当时相距多远：不是纯函数，答案会被存档（见第 4 节）
+		how far apart the victim and the suspect were: not a pure function,
+		so the answer is prepared
 	}
 
 distance_at_least_5 :=
@@ -33,21 +33,32 @@ distance_at_least_5 :=
 	<- $env Environment
 	<- $d int
 	<- {
-		至少隔了 5 吗？
+		were they at least 5 apart?
 	}
 
-__ret__ :=
-	distance_at_least_5
-	<< $env environ
-	<< $d (
-		measure_distance
-		<< $env environ
-		<< $case (witness << (environ.sub_env << "witness"))
-	)
+# the address of this case: the sub-environment is named after it, and
+# everything it costs — its witness, its measurement, its Prepare — happens
+# there, so the evidence says which case it belongs to
+case_env := environ.sub_env << "case_at_1230"
+
+# the witness: the three facts of that moment
+the_case := case_at_1230 << case_env
+
+# the measurement of those facts: not pure, so its answer is this case's Prepare
+distance := measure_distance << $env case_env << $case the_case
+
+# the rule's question, answered on the measurement
+__ret__ := distance_at_least_5 << $env case_env << $d distance
 ```
 
 读法：
 
+- **一步一个定义**：案子的地址、呈证、测量、判定各是一行，没有把调用套在调用里面。定义在
+  一次运行里只算一次（`viba-interpreter.md`），所以 `the_case` 就是那份材料本身。
+- **`case_env` 是这个案子的地址**：`case_at_1230` 这个名字同时是模块名、子环境名，也落在
+  storage 路径上（`root/case_at_1230`）。这个案子的测量、它的 Prepare 都在那条路径下面——
+  换个案子就是另一条路径，证据不会混，宿主按路径就能路由。所以规则里每一步都拿 `case_env`
+  当 `$env`，不拿最外面那个。
 - **`__ret__` 是判定**。它是 `bool`，跑完就是答案：真合规、假不合规。这条规则跑出来是
   `Ok(true)`——量出来恰好 5，够门槛。
 - **条件是它自己的函数**。`distance_at_least_5` 就是这条规则要问的那件事；规则想有几个条件、
@@ -63,7 +74,7 @@ __ret__ :=
 样——tag 与积写在值位置上就是材料。
 
 ```viba
-# viba/compliance/demo/case_points.viba
+# viba/compliance/demo/case_at_1230.viba
 # 12:30 那一刻：受害人在 (0,0)，嫌疑人在 (3,4)
 __ret__ :=
     $victim ($x 0 * $y 0)
@@ -74,14 +85,15 @@ __ret__ :=
 两个坐标就是两个点：受害人 (0,0)，嫌疑人 (3,4)——横竖各差 3 与 4，于是相距 5，正好压在规则
 的门槛上。这条呈证给的是**事实**（谁在哪、什么时候），不是结论。
 
-规则那边把呈证当模块调一次，拿到材料，再交给自己的函数：
+呈证的文件名就是案子的名字（`case_at_1230`：那一刻），规则按这个名字调它：
 
 ```viba
-<< $case (witness << (environ.sub_env << "witness"))
+the_case := case_at_1230 << case_env
 ```
 
-材料里有什么，规则就按反射协议读什么（`$victim`、`$suspect`、`$at`，以及各自的 `$x`/`$y`）；
-读的工具在宿主侧，是 `viba.reflect`（`viba-reflect.md`）。呈证不必长得像规则：它就是事实。
+呈证是材料，规则要按地址读它：`$victim`、`$suspect`、`$at` 是地址，`$x`/`$y` 再往下一层。读的
+工具在宿主侧，是 `viba.reflect`（`viba-reflect.md`）——上面那段 `host.py` 里的 `_point` 就是
+这么读的（`prepared.by_tag("victim").by_tag("x").leaf`）。呈证不必长得像规则：它就是事实。
 
 ## 3. 判定
 
@@ -111,7 +123,7 @@ def measure_distance(self, env, case):
         suspect = _point(prepared, "suspect")
         return int(round(((victim[0] - suspect[0]) ** 2
                           + (victim[1] - suspect[1]) ** 2) ** 0.5))
-    return measure(env, "distance", case, compute)
+    return measure(env, "measure_distance", case, compute)
 ```
 
 `measure(environ, name, call, compute)` 做的事：
@@ -122,7 +134,7 @@ def measure_distance(self, env, case):
 **Prepare 是"这一次测量"的存档**：调用（参数定了、结果声明了）与量出来的值，一个文件：
 
 ```viba
-# <store>/root/prepare/distance.viba
+# <store>/root/case_at_1230/prepare/measure_distance.viba
 value :=
     $call (
         $victim ($x 0 * $y 0)
@@ -133,7 +145,8 @@ value :=
 ```
 
 - 它是**序列化的 viba 数据**，不是 pickle：人读得懂，也能解析回材料。
-- 路径是 `<storage 路径>/prepare/<name>.viba`；`name` 由调用方取（同一个调用用同一个名字）。
+- 路径是 `<案子路径>/prepare/<name>.viba`；`name` 由调用方取（同一个调用用同一个名字），
+  所以上面这份证据的整个路径就在说：哪个案子、量的是什么。
 - Prepare 里的 `$call` 压过现场写的 `call`：**被固定的那次调用才算数**——这正是"准备"的含义。
 
 ## 5. 备份与回放
@@ -151,9 +164,6 @@ value :=
 | `prepare_run` | 回放刚量过的那份 | 5 | `Ok(true)`，并把 Prepare 记进备份 |
 | 之后每一次（有备份） | **一次都不走**，读备份里的 5 | 5 | `Ok(true)` |
 
-换成另一个嫌疑人的坐标（(0,3) 而不是 (3,4)）就是另一条呈证，量出来 3，判定 `Ok(false)`：不
-合规。同一份规则、不同的呈证，正是"一次准备、多次判定"要支持的事。
-
 把备份留下来的是**一次专门的运行**：
 
 ```python
@@ -162,8 +172,13 @@ from viba.compliance import prepare_run
 prepare_run("rule_distance.viba", environ)   # 跑一遍，把它量过的 Prepare 记进备份
 ```
 
-`tests/data/compliance/backup/` 里放着一份事先备份好的 Prepare：拿它当 `prepare_root_dir`
-运行，那条不纯的路一次都不走，判定仍是同一个。
+`tests/data/compliance/backup/` 里放着一份事先备份好的 Prepare（
+`root/case_at_1230/prepare/measure_distance.viba`）：拿它当 `prepare_root_dir` 运行，那条不纯
+的路一次都不走，判定仍是同一个。
+
+**换一个案子**（比如 12:10 那一刻，嫌疑人在 (0,3)）：呈证写成 `case_at_1210.viba`，规则里
+`case_env` 换成 `environ.sub_env << "case_at_1210"`——量出来 3，判定 `Ok(false)`。名字换了，
+环境与证据也跟着换到 `root/case_at_1210` 下面，两起案子不会互相踩到对方的 Prepare。
 
 ## 6. 句柄一览
 
@@ -197,14 +212,16 @@ record_text(file_path, content)          # 写进备份本身（prepare_run 用�
 
 ## 7. 自己写一份
 
-1. **写呈证**：一个模块，`__ret__` 是材料（tag、积、字面量、元组都行）。
-2. **写规则**：一个模块，`__ret__` 是 `bool`；把条件写成它自己的函数，每个函数带
-   `$env Environment`。
-3. **实现宿主那侧**：`get_func(module_path, func_name)` 给出这些函数的实现；纯的照常写，
-   不纯的用 `measure` 包住，名字自取。
-4. **跑判定**：给一个 `Environment`（storage + compute）。要留证据就 `prepare_run` 一次，
+1. **给案子起个名字**：这个名字会同时是呈证的模块名、规则的子环境名与 storage 路径
+   （`case_at_1230`）。案子多起来之后，这条路径就是证据的归属。
+2. **写呈证**：一个模块（`<案子>.viba`），`__ret__` 是材料（tag、积、字面量、元组都行）。
+3. **写规则**：一个模块，`__ret__` 是 `bool`；一步一个定义（案子的地址、呈证、测量、判定），
+   别把调用套进调用里；条件写成它自己的函数，每个函数带 `$env Environment`。
+4. **实现宿主那侧**：`get_func(module_path, func_name)` 给出这些函数的实现；纯的照常写，
+   不纯的用 `measure` 包住，名字取"量的是什么"（它也是 Prepare 的文件名）。
+5. **跑判定**：给一个 `Environment`（storage + compute）。要留证据就 `prepare_run` 一次，
    之后每次 `is_compliant` 都读备份。
-5. **要检查材料**：用 `viba.reflect` 的地址与叶子读（`viba-reflect.md`），或 `read_prepare`
+6. **要检查材料**：用 `viba.reflect` 的地址与叶子读（`viba-reflect.md`），或 `read_prepare`
    直接读存档。
 
 `tests/test_compliance.py` 是一份可以照抄的完整例子；`viba/compliance/demo/` 是上面这套的

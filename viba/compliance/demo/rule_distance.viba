@@ -1,16 +1,15 @@
-# The rule of the demo: at 12:30 the victim was at (0,0) and the suspect at
-# (3,4) — were they at least 5 apart then?
+# Were the victim and the suspect at least 5 apart at 12:30?
 #
 # The case is one moment of one case: two people, a position each, a time. The
-# rule asks one thing about it, and the witness (case_points.viba) is where the
-# three facts come from.
+# rule reads those three facts from its witness — case_at_1230.viba, which the
+# environment names — and answers its one question with a bool.
 #
-# A rule is a program: `environ` in, a bool verdict out. Everything it needs
-# that is not in the witness comes through its own functions — and the one that
-# *measures* is not pure, so it goes through `measure` and its answer is a
-# Prepare in the storage (see viba-compliance.md).
+# A rule is a program: `environ` in, a bool verdict out. Every step of it is a
+# definition of its own, so nothing nests; the step that is not pure (the
+# measurement) goes through `measure` and its answer becomes this case's Prepare
+# in the storage (see viba-compliance.md).
 
-import case_points as witness
+import case_at_1230 as case_at_1230
 
 Point := $x int * $y int
 Case := $victim Point * $suspect Point * $at str
@@ -32,11 +31,16 @@ distance_at_least_5 :=
 		were they at least 5 apart?
 	}
 
-__ret__ :=
-	distance_at_least_5
-	<< $env environ
-	<< $d (
-		measure_distance
-		<< $env environ
-		<< $case (witness << (environ.sub_env << "witness"))
-	)
+# the address of this case: the sub-environment is named after it, and
+# everything it costs — its witness, its measurement, its Prepare — happens
+# there, so the evidence says which case it belongs to
+case_env := environ.sub_env << "case_at_1230"
+
+# the witness: the three facts of that moment
+the_case := case_at_1230 << case_env
+
+# the measurement of those facts: not pure, so its answer is this case's Prepare
+distance := measure_distance << $env case_env << $case the_case
+
+# the rule's question, answered on the measurement
+__ret__ := distance_at_least_5 << $env case_env << $d distance

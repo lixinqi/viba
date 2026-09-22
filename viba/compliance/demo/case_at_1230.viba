@@ -1,7 +1,8 @@
 # The witness of the demo: the facts this case is about, as material.
 #
-# At 12:30 the victim was at (0,0) and the suspect at (3,4) — 3 and 4 along the
-# two axes, so 5 apart, which is the rule's threshold to the point.
+# The case is the moment: 12:30. At that moment the victim was at (0,0) and the
+# suspect at (3,4) — 3 and 4 along the two axes, so 5 apart, which is the rule's
+# threshold to the point.
 #
 # A witness is a program too — `environ` in, the material out. Written here the
 # way its design would be written: a tagged product of literals.

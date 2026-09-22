@@ -1,7 +1,8 @@
 """The demo's host side: what the rule's functions actually do.
 
-`DistanceHost` is the `get_func` of a run of `rule_distance.viba`. It records
-what it was asked, which is how a test tells a replayed run from a measured one:
+`DistanceHost` is the `get_func` of a run of `rule_distance.viba` — the case of
+the victim at (0,0) and the suspect at (3,4) at 12:30. It records what it was
+asked, which is how a test tells a replayed run from a measured one:
 
 - `measured` gets one entry per *measurement actually taken* — a run that
   replayed its Prepare leaves it empty;
@@ -17,7 +18,7 @@ from viba.compliance import measure
 from viba.reflect import access as reflect_access
 
 RULE = Path(__file__).resolve().parent / "rule_distance.viba"
-WITNESS = Path(__file__).resolve().parent / "case_points.viba"
+WITNESS = Path(__file__).resolve().parent / "case_at_1230.viba"
 
 
 class DistanceHost:
@@ -35,14 +36,19 @@ class DistanceHost:
         return None
 
     def measure_distance(self, env, case):
-        """How far apart the two were: the impure step, through `measure`."""
+        """How far apart the two were: the impure step, through `measure`.
+
+        The Prepare is named after this function, and lands under the storage
+        path of the case it was measured for — `root/case_at_1230/prepare/
+        measure_distance.viba` — so the evidence says which case it belongs to.
+        """
         def compute(prepared):
             victim = _point(prepared, "victim")
             suspect = _point(prepared, "suspect")
             self.measured.append((victim, suspect))
             return int(round(((victim[0] - suspect[0]) ** 2
                               + (victim[1] - suspect[1]) ** 2) ** 0.5))
-        return measure(env, "distance", case, compute)
+        return measure(env, "measure_distance", case, compute)
 
     def distance_at_least_5(self, env, d):
         """The predicate: pure, so it runs on every judgment."""

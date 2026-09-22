@@ -45,6 +45,11 @@ def labelled(result, want, label: str):
               f"{label}: expected Err({want!r}), got {result!r}")
 
 
+def case_environ(env, name="case_at_1230"):
+    """The environment a case's evidence lives under: its own address."""
+    return Environment(env.storage.sub(name), env.compute)
+
+
 def environ_for(store, backup=None, host=None):
     host = host or DistanceHost()
     storage = PreparedStorage("root", None, str(store),
@@ -79,15 +84,15 @@ def _judge(tmp: Path):
     check(host.measured == [((0, 0), (3, 4))],
           f"and the measurement ran once: {host.measured}")
 
-    # 同一份材料，另一个 witness：量出来 3，判定为假
-    write(tmp, "case_near.viba", """
+    # 另一个案子：12:10 那一刻嫌疑人只在 (0,3)，量出来 3，判定为假
+    write(tmp, "case_at_1210.viba", """
 __ret__ :=
     $victim ($x 0 * $y 0)
   * $suspect ($x 0 * $y 3)
-  * $at "12:30"
+  * $at "12:10"
 """)
-    near_rule = write(tmp, "rule_near.viba", """
-import case_near as witness
+    near_rule = write(tmp, "rule_distance_at_1210.viba", """
+import case_at_1210 as case_at_1210
 
 Point := $x int * $y int
 Case := $victim Point * $suspect Point * $at str
@@ -104,14 +109,10 @@ distance_at_least_5 :=
 	<- $d int
 	<- { at least 5? }
 
-__ret__ :=
-	distance_at_least_5
-	<< $env environ
-	<< $d (
-		measure_distance
-		<< $env environ
-		<< $case (witness << (environ.sub_env << "witness"))
-	)
+case_env := environ.sub_env << "case_at_1210"
+the_case := case_at_1210 << case_env
+distance := measure_distance << $env case_env << $case the_case
+__ret__ := distance_at_least_5 << $env case_env << $d distance
 """)
     env, host = environ_for(tmp / "near-store")
     verdict = is_compliant(near_rule, env)
@@ -128,15 +129,15 @@ def _prepare_and_record(tmp: Path):
     check(isinstance(is_compliant(str(RULE), env), Ok), "the run judges")
     check(host.measured == [((0, 0), (3, 4))], "and measures")
 
-    # 本轮 store 里那份：调用的参数定了、结果也写上了
-    prepare = read_prepare(env, "distance")
+    # 本轮 store 里那份：调用的参数定了、结果也写上了；它落在案子自己的地址下面
+    prepare = read_prepare(case_environ(env), "measure_distance")
     value, recorded = measured_of(prepare)
     check(recorded and value == 5, f"the run's own Prepare carries the value: {prepare!r}")
 
     check(isinstance(prepare_run(str(RULE), env), Ok), "prepare_run judges too")
     check(host.measured == [((0, 0), (3, 4))],
           f"and replays the value it just measured: {host.measured}")
-    recorded_file = backup / "root" / "prepare" / "distance.viba"
+    recorded_file = backup / "root" / "case_at_1230" / "prepare" / "measure_distance.viba"
     check(recorded_file.is_file(), f"the backup now holds the Prepare: {recorded_file}")
     text = recorded_file.read_text()
     check(text.startswith("value :="), f"as viba source: {text!r}")
@@ -153,13 +154,14 @@ def _replay_from_a_shipped_backup(tmp: Path):
           f"and the impure step is not taken: {host.measured}")
     check(host.judged == [5],
           f"the pure part still runs, on the replayed value: {host.judged}")
-    value, recorded = measured_of(read_prepare(env, "distance"))
+    value, recorded = measured_of(read_prepare(case_environ(env), "measure_distance"))
     check(recorded and value == 5, f"the Prepare it read carries the value: {value!r}")
 
     # 备份是只读的证据：本轮的目录里没有 prepare，备份文件也没被动过
-    check(not (tmp / "replay-store" / "root" / "prepare" / "distance.viba").exists(),
+    check(not (tmp / "replay-store" / "root" / "case_at_1230" / "prepare"
+               / "measure_distance.viba").exists(),
           "a replayed run writes no Prepare of its own")
-    check((BACKUP / "root" / "prepare" / "distance.viba").is_file(),
+    check((BACKUP / "root" / "case_at_1230" / "prepare" / "measure_distance.viba").is_file(),
           "and the backup is still there")
 
 
@@ -167,12 +169,14 @@ def _the_store_wins(tmp: Path):
     """本轮写的那份压过备份：先看自己，再看备份。"""
     store = tmp / "own-store"
     env, host = environ_for(store, BACKUP)
-    record_prepare(env, "distance", viba_ast.Constant(0), 7)
-    value, recorded = measured_of(read_prepare(env, "distance"))
+    case = case_environ(env)
+    record_prepare(case, "measure_distance", viba_ast.Constant(0), 7)
+    value, recorded = measured_of(read_prepare(case, "measure_distance"))
     check(recorded and value == 7, f"the run's own Prepare is what is read: {value!r}")
 
     # 备份里还是原来那份
-    backup_disk = (BACKUP / "root" / "prepare" / "distance.viba").read_text()
+    backup_disk = (BACKUP / "root" / "case_at_1230" / "prepare"
+                   / "measure_distance.viba").read_text()
     check("* $measured 5" in backup_disk, "the backup is untouched by the run")
 
 
@@ -181,8 +185,8 @@ def _storage(tmp: Path):
     store = tmp / "plain-store"
     backup = tmp / "plain-backup"
     storage = PreparedStorage("root", None, str(store), str(backup))
-    check(storage.is_prepare("root/prepare/distance.viba") and
-          not storage.is_prepare("root/distance.viba"),
+    check(storage.is_prepare("root/case_at_1230/prepare/measure_distance.viba") and
+          not storage.is_prepare("root/case_at_1230/measure_distance.viba"),
           "a Prepare is what sits under a prepare segment")
     child = storage.sub("a")
     check(child.prepare_root_dir == str(backup) and
@@ -223,7 +227,7 @@ def _refusals(tmp: Path):
 
     write(tmp, "boom_case.viba", "__ret__ := $victim ($x 0 * $y 0) * $at \"12:30\"\n")
     boom_rule = write(tmp, "boom_rule.viba", """
-import boom_case as witness
+import boom_case as boom_case
 
 measure_distance :=
 	int
@@ -231,7 +235,9 @@ measure_distance :=
 	<- $case Any
 	<- { measure }
 
-__ret__ := measure_distance << $env environ << $case (witness << (environ.sub_env << "witness"))
+case_env := environ.sub_env << "boom_case"
+the_case := boom_case << case_env
+__ret__ := measure_distance << $env case_env << $case the_case
 """)
     labelled(is_compliant(boom_rule, env), "raised",
              "a measurement that blows up -> Err")
