@@ -21,6 +21,7 @@ interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 按顺序找 `<name>.viba`，dotted 名当路径走；空条目和不存在的目录跳过）；import 的那个文件所在的目录总是
 先找——**被 import 进来、又在自己的文件里 import 的模块，也按它自己的文件找**（链多深都一样）。
 写了 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
+`viba_path` 也可以直接给一个路径（`Path`）；给了别的类型是 `Err`，不是把 `AttributeError` 抛出来。
 
 ## 一个可执行的模块
 

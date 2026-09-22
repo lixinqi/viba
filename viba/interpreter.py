@@ -39,6 +39,7 @@ anything else as itself (the environment among them). It answers with a
 `VibaNode`, or with a plain Python value, which lands as a leaf.
 """
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -180,18 +181,22 @@ def interpret(viba_main_file: str, environ: Environment,
     `viba_path` is where modules are looked up, like PYTHONPATH: the
     directories are searched in order for `<name>.viba` (a dotted name as a
     path), and the directory of the file that wrotes the import is searched
-    first.
+    first. It is written as a string of directories, or given as one path.
     """
     if not isinstance(environ, Environment):
         return Err("interpret needs an Environment")
+    if viba_path is not None and not isinstance(viba_path, (str, os.PathLike)):
+        return Err(f"viba_path is a string of directories (or one path), "
+                   f"not {type(viba_path).__name__}")
     return _Runner(viba_path).run_file(viba_main_file, environ)
 
 
 class _Runner:
     """One run: the files it has loaded, and where it looks for more."""
 
-    def __init__(self, viba_path: Optional[str] = None):
-        self.paths = [Path(p) for p in (viba_path or "").split(":") if p]
+    def __init__(self, viba_path=None):
+        text = "" if viba_path is None else os.fspath(viba_path)
+        self.paths = [Path(p) for p in text.split(":") if p]
         self.by_path: dict = {}        # resolved path -> module
         self.by_name: dict = {}        # module name -> module
         self.path_of: dict = {}        # module name -> file it was loaded from

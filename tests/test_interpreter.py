@@ -1018,6 +1018,13 @@ def _paths(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a relative VIBA_PATH entry: {result!r}")
 
+    # 一个 Path 就是一个目录；别的类型说清楚要的是字符串
+    result = interpret(dotted, environ, viba_path=flat)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a VIBA_PATH that is one Path: {result!r}")
+    labelled(interpret(dotted, environ, viba_path=7), "viba_path is a string",
+             "a VIBA_PATH that is not a string or a path -> Err")
+
 
 if __name__ == "__main__":
     sys.exit(run())
