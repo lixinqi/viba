@@ -54,9 +54,9 @@ __all__ = [
 
 def parse(source: str) -> Module:
     """Parse Viba source into a Module (cf. ast.parse)."""
-    from viba.parser import check_definition_names, parser as _ply_parser
+    from viba.parser import check_definition_names, parse_source
 
-    program = _ply_parser.parse(source) or []
+    program = parse_source(source) or []
     check_definition_names(program)
     return Module(program)
 

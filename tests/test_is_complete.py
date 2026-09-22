@@ -12,6 +12,7 @@ All material comes from the repo, nothing new is invented:
 """
 
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -78,9 +79,88 @@ def main():
     # Edges: an entry that does not compile, and an empty one
     check("entry does not compile", is_complete("X := ", [], [], set()), False)
     check("empty file", is_complete("", [], [], set()), True)
+    check("a lexical error is a compile error",
+          is_complete("X := A @ B", [], [], set()), False)
+    check("an unterminated code block is a compile error",
+          is_complete("X := {never closed", [], [], set()), False)
+    check("a source written with CRLF",
+          is_complete("X :=\r\n  int\r\n", [], [], set()), True)
+    check("a byte-order mark is a compile error",
+          is_complete("\ufeffX := int", [], [], set()), False)
+
+    corners()
 
     print(f"is_complete: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0
+
+
+def corners():
+    """边角：顶类型、内建定义、终结符、泛型实参、依赖从哪来。"""
+    # The top type has no members, and no leaf reads out of it either — unlike
+    # never, which admits no material at all. So a design resting on it does
+    # not walk through.
+    check("Any alone", is_complete("X := Any", [], [], set()), False)
+    check("Any as a member", is_complete("X := int * Any", [], [], set()), False)
+    check("Any under a container", is_complete("X := list[Any]", [], [], set()), False)
+
+    # Builtin definitions count: builtin.viba's own names resolve too.
+    check("a builtin definition", is_complete("X := Metric[int]", [], [], set()), True)
+    check("a builtin definition over a code block",
+          is_complete("X := Metric[{code}]", [], [], set()), False)
+
+    # A code block ends a walk only when the name wrapped around it is a
+    # terminator, and the terminator is asked about the application.
+    check("Hint without the terminator",
+          is_complete("X := Hint[$python_code {a}]", [], [], set()), False)
+    check("Hint with the terminator",
+          is_complete("X := Hint[$python_code {a}]", [], [], {"Hint"}), True)
+    check("Predicate without the terminator",
+          is_complete("X := Predicate[{a}, $python_code {b}]", [], [], set()), False)
+    check("Predicate with the terminator",
+          is_complete("X := Predicate[{a}, $python_code {b}]", [], [], {"Predicate"}), True)
+
+    # A generic parameter is walked through the argument an application binds
+    # it to; unbound, it is a placeholder and decides nothing.
+    check("an unbound parameter alone", is_complete("W[T] := T\n", [], [], set()), True)
+    check("a parameter bound to a leaf",
+          is_complete("W[T] := T\nA := W[int]\n", [], [], set()), True)
+    check("a parameter bound to a code block",
+          is_complete("W[T] := T\nA := W[{code}]\n", [], [], set()), False)
+    check("a parameter bound behind a member",
+          is_complete("W[T] := $a T\nA := W[int]\nW2[T] := $b T\n", [], [], set()), True)
+    check("too many arguments",
+          is_complete("W[T] := T\nA := W[int, str]\n", [], [], set()), False)
+    check("too few arguments",
+          is_complete("W[T, U] := T * U\nA := W[int]\n", [], [], set()), False)
+
+    # A dependency that does not compile is skipped; the name it would have
+    # defined then does not resolve.
+    entry = "import util\nX := util.M\n"
+    check("a dependency that does not compile",
+          is_complete(entry, [("util.viba", "M := ")], [], set()), False)
+    check("a library directory that is not there",
+          is_complete(entry, [], ["/no/such/directory"], set()), False)
+    check("the first library entry keeps the module name",
+          is_complete(entry, [("util.viba", "M := int\n"),
+                              ("util.viba", "M := {code}\n")], [], set()), True)
+
+    # A dotted module name is the path under the directory, and a dotted
+    # import binds its whole name (`import pkg.mod` binds `pkg.mod`).
+    with tempfile.TemporaryDirectory() as directory:
+        package = Path(directory) / "pkg"
+        package.mkdir()
+        (package / "mod.viba").write_text("M := int\n")
+        check("a dotted import with no alias",
+              is_complete("import pkg.mod\nX := pkg.mod.M\n", [], [directory], set()), True)
+        check("a dotted import with an alias",
+              is_complete("import pkg.mod as m\nX := m.M\n", [], [directory], set()), True)
+        check("a dotted name through the parent module",
+              is_complete("import pkg\nX := pkg.mod.M\n", [], [directory], set()), True)
+        check("a dotted name that is not there",
+              is_complete("import pkg\nX := pkg.mod.Nope\n", [], [directory], set()), False)
+        check("the same directory twice",
+              is_complete("import pkg.mod\nX := pkg.mod.M\n", [], [directory, directory], set()),
+              True)
 
 
 if __name__ == "__main__":

@@ -399,9 +399,19 @@ class _Activation:
 
 
 def _give(function, item):
+    """Give one written argument to `function`, or say what stood there.
+
+    What is not a function is named by its kind: a node by its address (it is
+    a value), anything else by its type. The message stays the same between
+    runs — an object's repr would carry an address that changes every time.
+    """
     if isinstance(function, (_VibaFunc, _HostFunction, _ModuleFunc)):
         return function.give(item)
-    return Err(f"{getattr(function, 'name', function)!r} is not a function")
+    if isinstance(function, _Material):
+        return Err(f"{function.node!r} is not a function: it is a value")
+    if isinstance(function, _Host):
+        return Err(f"{type(function.obj).__name__} is not a function")
+    return Err(f"{type(function).__name__} is not a function")
 
 
 class _Callable:

@@ -91,6 +91,7 @@ CLEAN = {
         "A := $q Box[int] * $r Box[Pair]\n"),
     "nested generics": (
         "Inner[T] := $i T\nOuter[T] := $o (Inner[list[T]])\nA := Outer[int] * $y int\n"),
+    "a source written with CRLF": "Box := int\r\nBox2 := str\r\n",
 }
 
 MALFORMED = {
@@ -129,11 +130,24 @@ MALFORMED = {
 }
 
 
+# 连词法都过不去的源：先报编译不了，轮不到 tag 与内联
+LEXICAL = {
+    "an illegal character": "Box := A @ B\n",
+    "a minus sign": "Box := -1\n",
+    "an unterminated code block": "Box := {never closed\n",
+    "a builtin container as a definition": "list := int\n",
+    "a builtin literal as a parameter": "W[ListLiteral] := int\n",
+    "a byte-order mark": "\ufeffBox := int\n",
+}
+
+
 def run_cases():
     for label, source in CLEAN.items():
         check(label, design(source), "Ok")
     for label, (source, want) in MALFORMED.items():
         check(label, design(source), want)
+    for label, source in LEXICAL.items():
+        check(label, design(source), "does not parse")
 
 
 def pool_design(files):

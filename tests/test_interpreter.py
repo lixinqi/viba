@@ -89,6 +89,18 @@ class Host:
             return lambda env: 0.5
         if func_name == "nothing":
             return lambda env: None
+        if func_name == "zero":
+            return lambda env: 0
+        if func_name == "empty":
+            return lambda env: ""
+        if func_name == "falsey":
+            return lambda env: False
+        if func_name == "answer_a_list":
+            return lambda env: [1, 2]
+        if func_name == "answer_a_tuple":
+            return lambda env: (1, 2)
+        if func_name == "answer_a_dict":
+            return lambda env: {"a": 1}
         if func_name == "wrong_arity":
             return lambda env: 1
         if func_name == "make_node":
@@ -103,6 +115,21 @@ class Host:
             return make_node
         if func_name == "answer_a_function":
             return lambda env: (lambda: 1)
+        if func_name == "overfeed":
+            def overfeed(env, f, x):
+                return f(env, x, 1)
+            return overfeed
+        if func_name == "inner_value":
+            def inner_value(env):
+                result = interpret(self.knobs["inner_file"], env)
+                if isinstance(result, Err):
+                    raise RuntimeError(result.err_msg)
+                return result.ok_value
+            return inner_value
+        if func_name == "interrupt":
+            def interrupt(env):
+                raise KeyboardInterrupt
+            return interrupt
         return None
 
     def environ(self, path="root"):
@@ -122,6 +149,7 @@ def run() -> int:
         _higher_order_and_answers(tmp)
         _shapes_and_scale(tmp)
         _caching_and_repeats(tmp)
+        _more_corners(tmp)
         _paths(tmp)
     finally:
         for leftover in sorted(tmp.rglob("*"), reverse=True):
@@ -533,6 +561,53 @@ __ret__ := add << $env environ << $a 1 << $b 2
           ("root", "unused") not in host.calls,
           f"a definition nobody asks for is never run: {result!r}")
 
+    # 宿主调用拿到手的 viba 函数：给多了是 Err，不是崩
+    overfeed = _write(tmp, "overfeed.viba", """
+overfeed :=
+	int
+	<- $env Environment
+	<- $f (int <- $env Environment <- $x int)
+	<- $x int
+	<- { give f one argument too many }
+inc :=
+	int
+	<- $env Environment
+	<- $x int
+	<- { add one }
+__ret__ := overfeed << $env environ << $f inc << $x 10
+""")
+    labelled(interpret(overfeed, environ), "raised",
+             "a host that gives the viba function too many arguments -> Err")
+
+    # 宿主里面再跑一次 interpret：两个 run 互不干扰
+    inner = _write(tmp, "inner_module.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    outer = _write(tmp, "outer_run.viba", """
+inner_value :=
+	int
+	<- $env Environment
+	<- { run another module from inside the host }
+__ret__ := inner_value << $env environ
+""")
+    host.knobs["inner_file"] = inner
+    result = interpret(outer, environ)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a host function that runs interpret itself: {result!r}")
+    host.knobs.pop("inner_file")
+
+    # 宿主抛的不是 Exception：interpret 不吞
+    interrupt = _write(tmp, "interrupt.viba", """
+interrupt :=
+	int
+	<- $env Environment
+	<- { interrupt }
+__ret__ := interrupt << $env environ
+""")
+    try:
+        interpret(interrupt, environ)
+        check(False, "a host raising KeyboardInterrupt is not swallowed")
+    except KeyboardInterrupt:
+        check(True, "a host raising KeyboardInterrupt is not swallowed")
+
 
 def _shapes_and_scale(tmp: Path):
     """值形状、规模：元组/泛型应用不是值；长链、深 import。"""
@@ -620,6 +695,228 @@ __ret__ := add << $env environ << $a 1 << $a 2 << $b 3
     result = interpret(twice, environ)
     check(isinstance(result, Ok) and value_of(result) == 5,
           f"a tag given twice: the later value stands: {result!r}")
+
+
+def _more_corners(tmp: Path):
+    """再压一层：书写次序、假值答案、重复与次序无关、environment 的边角。"""
+    host = Host()
+    environ = host.environ()
+
+    # tag 给的顺序不影响结果
+    out_of_order = _write(tmp, "out_of_order.viba", ADD + """
+__ret__ := add << $b 2 << $env environ << $a 1
+""")
+    result = interpret(out_of_order, environ)
+    check(isinstance(result, Ok) and value_of(result) == 3,
+          f"tags may be given in any order: {result!r}")
+
+    # 环境那一格必须写成 $env：不带 tag 的 Environment 位不算数
+    positional = _write(tmp, "positional_env.viba", """
+f :=
+	int
+	<- Environment
+	<- $x int
+	<- { inline }
+__ret__ := f << environ << $x 1
+""")
+    labelled(interpret(positional, environ), "takes no $env Environment",
+             "an environment slot written without a tag -> Err")
+
+    # 假值但不是 nil：0、空串、false 都是叶子
+    for func, want, label in (("zero", 0, "0"), ("empty", "", "an empty str"),
+                              ("falsey", False, "false")):
+        path = _write(tmp, f"falsy_{func}.viba", f"""
+{func} :=
+	int
+	<- $env Environment
+	<- {{ inline }}
+__ret__ := {func} << $env environ
+""")
+        result = interpret(path, environ)
+        check(isinstance(result, Ok) and value_of(result) == want,
+              f"a host answer of {label} is a leaf, not nil: {result!r}")
+
+    # 答不出叶子的容器
+    for func, label in (("answer_a_list", "a list"), ("answer_a_tuple", "a tuple"),
+                        ("answer_a_dict", "a dict")):
+        path = _write(tmp, f"{func}.viba", f"""
+{func} :=
+	int
+	<- $env Environment
+	<- {{ inline }}
+__ret__ := {func} << $env environ
+""")
+        labelled(interpret(path, environ), "no leaf",
+                 f"a host answer that is {label} -> Err")
+
+    # 重复定义：先写的那个算
+    twice_defined = _write(tmp, "twice_defined.viba", "x := 1\nx := 2\n__ret__ := x\n")
+    result = interpret(twice_defined, environ)
+    check(isinstance(result, Ok) and value_of(result) == 1,
+          f"a name defined twice: the first definition stands: {result!r}")
+
+    # 定义的次序无关：先用后写也行
+    defined_after = _write(tmp, "defined_after.viba", "__ret__ := x\nx := 7\n")
+    result = interpret(defined_after, environ)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a definition written after its use: {result!r}")
+
+    # import 写在定义之后也算
+    _write(tmp, "late_lib.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    late = _write(tmp, "late_import.viba",
+                  "__ret__ := late_lib << environ\nimport late_lib\n")
+    result = interpret(late, environ)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"an import written at the end of the file: {result!r}")
+
+    # 本地定义压过 import 的别名
+    shadow = _write(tmp, "shadow.viba",
+                    "import late_lib as late_lib\nlate_lib := 5\n__ret__ := late_lib\n")
+    result = interpret(shadow, environ)
+    check(isinstance(result, Ok) and value_of(result) == 5,
+          f"a local definition shadows an import alias: {result!r}")
+
+    # 把 import 绑到 environ 上，也压不过内建的那个环境
+    env_alias = _write(tmp, "env_alias.viba",
+                       "import late_lib as environ\n__ret__ := environ\n")
+    result = interpret(env_alias, environ)
+    check(isinstance(result, Ok) and isinstance(result.ok_value, Environment),
+          f"environ stays the built-in environment even imported as one: {result!r}")
+
+    # environ 上不是函数的东西
+    storage = _write(tmp, "env_member.viba", "__ret__ := environ.storage\n")
+    labelled(interpret(storage, environ), "environment has no 'storage'",
+             "an environment member that is not callable -> Err")
+
+    # 已经答完的 sub_env 再给参数：那不是函数
+    answered = _write(tmp, "env_answered.viba",
+                      '__ret__ := environ.sub_env << "a" << "b"\n')
+    labelled(interpret(answered, environ), "is not a function",
+             "another argument given to an answered sub_env -> Err")
+
+    # __ret__ 就是环境本身
+    the_env = _write(tmp, "the_env.viba", "__ret__ := environ\n")
+    result = interpret(the_env, environ)
+    check(isinstance(result, Ok) and result.ok_value is environ,
+          f"a module whose __ret__ is the environment: {result!r}")
+
+    # __ret__ 是 import 进来的模块：还缺参数，不是值
+    module_value = _write(tmp, "module_value.viba",
+                          "import late_lib as lib\n__ret__ := lib\n")
+    labelled(interpret(module_value, environ), "still waiting for arguments",
+             "__ret__ written as a module -> Err")
+
+    # 内建类型名不是值
+    builtin_value = _write(tmp, "builtin_value.viba", "__ret__ := str\n")
+    labelled(interpret(builtin_value, environ), "no definition named",
+             "a builtin type name used as a value -> Err")
+
+    # 词法上就没有这个词：'-' 不能被悄悄跳过，否则 -5 会跑成 5
+    negative = _write(tmp, "negative.viba", "__ret__ := -5\n")
+    result = interpret(negative, environ)
+    check(isinstance(result, Err) and "cannot parse" in result.err_msg
+          and "illegal character" in result.err_msg,
+          f"a character with no token of its own -> Err: {result!r}")
+
+    # CRLF 只是行尾：写得跟 LF 一样读
+    crlf = _write(tmp, "crlf.viba",
+                  (LEAF + "__ret__ := leaf << $env environ\n").replace("\n", "\r\n"))
+    result = interpret(crlf, environ)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a module written with CRLF line endings: {result!r}")
+
+    # 带 tag 的说明块不是值
+    tagged_note = _write(tmp, "tagged_note.viba",
+                         ADD + "__ret__ := add << $env environ << $a { note } << $b 2\n")
+    labelled(interpret(tagged_note, environ), "documentation",
+             "a tagged code block where an argument goes -> Err")
+
+    # 把没给全参数的函数当实参：宿主拿到的就是那个函数，回手就被拒
+    handed = _write(tmp, "handed.viba", LEAF + """
+echo :=
+	int
+	<- $env Environment
+	<- $x int
+	<- { hand the argument back }
+__ret__ := echo << $env environ << $x leaf
+""")
+    labelled(interpret(handed, environ), "no leaf",
+             "a viba function handed where a value is expected, echoed back -> Err")
+
+    # 参数出错：那个函数根本不会被调用
+    argument_boom = _write(tmp, "argument_boom.viba", ADD + """
+explode :=
+	int
+	<- $env Environment
+	<- { go }
+__ret__ := add << $env environ << $a (explode << $env environ) << $b 2
+""")
+    host.calls.clear()
+    labelled(interpret(argument_boom, environ), "raised", "an argument that blows up -> Err")
+    check(("root", "add") not in host.calls,
+          f"the call itself never happens: {host.calls}")
+
+    # 一个定义算一次：两处用它，宿主只被叫一次
+    memo = _write(tmp, "memo.viba", ADD + LEAF + """
+half := leaf << $env environ
+__ret__ := add << $env environ << $a half << $b half
+""")
+    host.calls.clear()
+    result = interpret(memo, environ)
+    check(isinstance(result, Ok) and value_of(result) == 14,
+          f"a definition used twice: {result!r}")
+    check(host.calls.count(("root", "leaf")) == 1,
+          f"a definition is computed once: {host.calls}")
+
+    # 同一个模块被用了两次就跑两次（每次都是一个新调用）
+    host.calls.clear()
+    twice_module = _write(tmp, "twice_module.viba", ADD + """
+import late_lib as lib
+__ret__ := add << $env environ << $a (lib << environ) << $b (lib << environ)
+""")
+    result = interpret(twice_module, environ)
+    check(isinstance(result, Ok) and value_of(result) == 14,
+          f"one module called twice: {result!r}")
+    check(host.calls.count(("root", "leaf")) == 2,
+          f"each call runs the module again: {host.calls}")
+
+    # module.MyType.Inner：点到底也还是找那个定义
+    dotted_member = _write(tmp, "dotted_member.viba",
+                           "import late_lib as lib\n__ret__ := lib.Only.More\n")
+    labelled(interpret(dotted_member, environ), "has no 'Only.More'",
+             "a dotted rest that names no definition -> Err")
+
+    # 点分 import 的最长前缀赢：a.b 与 a.b.c 各是各的模块
+    dotted_dir = tmp / "dotted"
+    dotted_dir.mkdir(exist_ok=True)
+    _write(dotted_dir, "a/b.viba", "X := 1\n__ret__ := 1\n")
+    _write(dotted_dir, "a/b/c.viba", "X := 2\n__ret__ := 2\n")
+    both = _write(tmp, "both_dotted.viba",
+                  "import a.b\nimport a.b.c\n__ret__ := a.b.c << environ\n")
+    result = interpret(both, environ, viba_path=str(dotted_dir))
+    check(isinstance(result, Ok) and value_of(result) == 2,
+          f"the longest import prefix wins: {result!r}")
+
+    # 点分名也可以是一个带点的平面文件：pkg.inner.viba
+    flat_dir = tmp / "flatdotted"
+    flat_dir.mkdir(exist_ok=True)
+    _write(flat_dir, "pkg.inner.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    flat_use = _write(tmp, "flat_dotted.viba",
+                      "import pkg.inner\n__ret__ := pkg.inner << environ\n")
+    result = interpret(flat_use, environ, viba_path=str(flat_dir))
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a dotted import that is one file named pkg.inner.viba: {result!r}")
+
+    # 主文件也可以是相对路径
+    _write(tmp, "relative_main.viba", LEAF + "__ret__ := leaf << $env environ\n")
+    here = os.getcwd()
+    try:
+        os.chdir(tmp)
+        result = interpret("relative_main.viba", environ)
+    finally:
+        os.chdir(here)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"a main file named by a relative path: {result!r}")
 
 
 def _paths(tmp: Path):

@@ -167,9 +167,8 @@ def t_CODE_BLOCK(t):
     lexdata = t.lexer.lexdata
     while depth > 0:
         if start >= len(lexdata):
-            print(f"Lexical Error: Unterminated code block at line {t.lexer.lineno}")
-            t.lexer.skip(1)
-            return
+            raise SyntaxError(
+                f"Viba parse error: unterminated code block at line {t.lexer.lineno}")
         c = lexdata[start]
         if c == '\n':
             t.lexer.lineno += 1
@@ -184,7 +183,9 @@ def t_CODE_BLOCK(t):
     return t
 
 
-t_ignore = " \t"
+# \r is a line ending, not content: a file written with CRLF reads
+# the same as one with LF (the descriptor layer normalises it too).
+t_ignore = " \t\r"
 
 
 def t_newline(t):
@@ -193,8 +194,11 @@ def t_newline(t):
 
 
 def t_error(t):
-    print(f"Lexical Error: Illegal character '{t.value[0]}' at line {t.lexer.lineno}")
-    t.lexer.skip(1)
+    """Raise on an illegal character, like `p_error` does on a bad token: a
+    character the grammar has no word for means this source does not compile.
+    Skipping it would parse `-5` as `5`, and the caller would never know."""
+    raise SyntaxError(
+        f"Viba parse error: illegal character {t.value[0]!r} at line {t.lexer.lineno}")
 
 
 lexer = lex.lex()
@@ -463,6 +467,17 @@ def p_error(p):
 
 parser = yacc.yacc()
 
+
+def parse_source(source: str):
+    """Parse one source, counting its lines from one.
+
+    The lexer keeps `lineno` between calls, so without this a fresh one-line
+    file by mistake reports the line it ended on in the file parsed before it.
+    Every caller that reads a whole source goes through here.
+    """
+    lexer.lineno = 1
+    return parser.parse(source)
+
 # ================================================================= #
 # 3. TEST RUN
 # ================================================================= #
@@ -638,6 +653,26 @@ if __name__ == "__main__":
             "import numpy\nimport torch as t\nTensor := t.Tensor * numpy.ndarray",
             "Imports before definitions",
         ),
+        ("Crlf := int\r\nCrlf2 := str\r\n", "A source written with CRLF line endings"),
+    ]
+
+    # Sources that must not compile: a caller has to be able to tell. The name
+    # check that lives outside the grammar (a builtin container on the left) is
+    # run here too, the way `viba_ast.parse` runs it.
+
+    error_cases = [
+        ("X := (A * B", "An unclosed parenthesis"),
+        ("X := A |", "A sum with no right side"),
+        ("X :=", "A definition with no body"),
+        ("X := -5", "A minus sign: there is no unary minus"),
+        ("X := A @ B", "An illegal character"),
+        ("X := {never closed", "A code block that never closes"),
+        ("import", "An import with no module name"),
+        ("X := $x int $y", "Two tags with no operator between them"),
+        ("X := A B", "Two names with no operator between them"),
+        ("X := 1.2.3", "A malformed float"),
+        ("list := int", "A builtin container as a definition name"),
+        ("W[list] := int", "A builtin container as a generic parameter"),
     ]
 
     print(f"{'TEST CASE':<50} | {'STATUS'}")
@@ -646,7 +681,7 @@ if __name__ == "__main__":
     success_count = 0
     for code, desc in test_cases:
         try:
-            parser.parse(code)
+            parse_source(code)
             print(f"{desc:<50} | SUCCESS")
             success_count += 1
         except Exception as e:
@@ -654,3 +689,32 @@ if __name__ == "__main__":
 
     print("-" * 65)
     print(f"Passed {success_count}/{len(test_cases)} tests.")
+    print()
+    print("These must fail: a source that does not compile has to raise.")
+    print("-" * 65)
+
+    error_count = 0
+    for code, desc in error_cases:
+        try:
+            check_definition_names(parse_source(code) or [])
+            print(f"{desc:<50} | DID NOT RAISE")
+        except SyntaxError as e:
+            print(f"{desc:<50} | RAISED: {e}")
+            error_count += 1
+        except Exception as e:                    # the wrong exception
+            print(f"{desc:<50} | {type(e).__name__}: {e}")
+
+    # The line count starts over with each source: a fresh one-line file says
+    # line 1, whatever the file parsed before it ended on.
+    parse_source("A := int\nB := int\nC := int\n")
+    try:
+        parse_source("X := -5")
+        print(f"{'a fresh source counts from line 1':<50} | DID NOT RAISE")
+    except SyntaxError as e:
+        if "line 1" in str(e):
+            error_count += 1
+        print(f"{'a fresh source counts from line 1':<50} | {e}")
+
+    print("-" * 65)
+    print(f"Passed {success_count}/{len(test_cases)} tests, "
+          f"{error_count}/{len(error_cases) + 1} error tests.")

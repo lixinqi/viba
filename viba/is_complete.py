@@ -168,16 +168,32 @@ class _Checker:
                 if _is_definition(node)}
 
     def _resolve(self, name: str, module_name: str):
-        """(definition node, module it lives in); None when it does not resolve."""
-        local, dot, rest = name.partition(".")
-        if dot:
-            file = self.files.get(module_name)
+        """(definition node, module it lives in); None when it does not resolve.
+
+        A name reached through an import goes by what the import binds: its
+        alias, or its whole dotted name (`import a.b` binds `a.b`), and the
+        longest binding wins — the rule every other layer reads names by.
+        What follows the binding names modules while more than a definition
+        name is left (`import pkg` then `pkg.mod.M` is module `pkg.mod`,
+        definition `M`), so a dotted import with no alias resolves too.
+        """
+        file = self.files.get(module_name)
+        parts = name.split(".")
+        for cut in range(len(parts) - 1, 0, -1):
             if file is None:
-                return None
+                break
+            local = ".".join(parts[:cut])
             imported = file_find_import_by_local_name(file, local)
             if isinstance(imported, Err):
-                return None
-            module_name, name = imported.ok_value.module_name, rest
+                continue
+            target = imported.ok_value.module_name
+            rest = parts[cut:]
+            if len(rest) > 1:
+                target = ".".join([target] + rest[:-1])
+            node = self._definitions_of(target).get(rest[-1])
+            if node is not None:
+                return node, target
+            break       # the longest binding matched; a shorter one is not it
         node = self._definitions_of(module_name).get(name)
         if node is not None:
             return node, module_name
