@@ -1,4 +1,9 @@
-# The rule of the demo: were they at least 5 apart at that moment?
+# The rule of the demo: at 12:30 the victim was at (0,0) and the suspect at
+# (3,4) — were they at least 5 apart then?
+#
+# The case is one moment of one case: two people, a position each, a time. The
+# rule asks one thing about it, and the witness (case_points.viba) is where the
+# three facts come from.
 #
 # A rule is a program: `environ` in, a bool verdict out. Everything it needs
 # that is not in the witness comes through its own functions — and the one that
@@ -15,7 +20,8 @@ measure_distance :=
 	<- $env Environment
 	<- $case Case
 	<- {
-		how far apart they were: not a pure function, so the answer is prepared
+		how far apart the victim and the suspect were: not a pure function,
+		so the answer is prepared
 	}
 
 distance_at_least_5 :=
@@ -23,7 +29,7 @@ distance_at_least_5 :=
 	<- $env Environment
 	<- $d int
 	<- {
-		is that at least 5?
+		were they at least 5 apart?
 	}
 
 __ret__ :=
