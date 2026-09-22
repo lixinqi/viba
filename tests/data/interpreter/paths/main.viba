@@ -1,7 +1,7 @@
 # The main file of the VIBA_PATH case: the module it imports does not sit
 # next to it, so `interpret` has to be told where to look.
 #
-# Verdicts (tests/test_interpreter.py):
+# Verdicts (tests/test_interpreter_imports.py):
 #   interpret(main.viba, environ, viba_path=<elsewhere>)  => Ok(7)
 
 import pkg.inner

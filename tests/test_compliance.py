@@ -19,7 +19,7 @@ from viba import viba_ast, serialize
 from viba.compliance import (PreparedStorage, is_compliant, measured_of, prepare_path,
                              prepare_run, read_prepare, record_prepare)
 from viba.compliance.demo.host import RULE, DistanceHost
-from viba.interpreter import Environment, EnvironmentCompute
+from viba.interpret import Environment, EnvironmentCompute
 from viba.reflect import access as reflect_access
 from viba.type import Err, Ok
 

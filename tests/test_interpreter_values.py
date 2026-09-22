@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import ADD, LEAF, Checks, Host, value_of, write
 
-from viba.interpreter import interpret
+from viba.interpret import interpret
 from viba.reflect import access as reflect_access
 from viba.type import Err, Ok
 

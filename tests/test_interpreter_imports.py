@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import ADD, CASES, LEAF, TEXT, Checks, Host, value_of, write
 
-from viba.interpreter import interpret
+from viba.interpret import interpret
 from viba.type import Err, Ok
 
 checks = Checks("interpreter_imports")
@@ -326,7 +326,7 @@ def _bad_sources(tmp: Path):
 
 def _compiled_once(tmp: Path):
     """一个文件只编一次；同一个 tag 给两次，后给的算。"""
-    import viba.interpreter as interpreter_module
+    import viba.interpret as interpreter_module
 
     host = Host()
     environ = host.environ()

@@ -1,11 +1,11 @@
-"""viba.interpreter — run a viba module.
+"""viba.interpret — run a viba module.
 
 A module is a file, and a file is also a function: its input is `environ`,
 its output is `__ret__`. Type inference reads the same file as a type
 (viba.is_sub_type); computation runs it (here). A file that wants to be
 runnable defines `__ret__`; a file that does not is design only.
 
-    from viba.interpreter import interpret
+    from viba.interpret import interpret
 
     interpret("add_demo.viba", environ)          # -> Result[VibaNode]
     interpret("main.viba", environ, get_file=files.get)   # sources from anywhere

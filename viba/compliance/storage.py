@@ -16,7 +16,7 @@ Recording a backup is a separate, deliberate act: `record_text` (see
 from pathlib import Path
 from typing import Optional
 
-from viba.interpreter import EnvironmentStorage
+from viba.interpret import EnvironmentStorage
 
 # A Prepare is named `prepare/<name>` (that is what `judge.prepare_path` builds)
 # and lands in the store under the storage's own path, so the segment is what

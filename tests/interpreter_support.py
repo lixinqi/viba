@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.interpreter import (Environment, EnvironmentCompute, EnvironmentStorage,
+from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret)
 from viba.reflect import access as reflect_access
 from viba.type import Err, Ok

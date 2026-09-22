@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from interpreter_support import Checks, value_of, write
 
 from viba import viba_ast
-from viba.interpreter import (Environment, EnvironmentCompute, EnvironmentStorage,
+from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, read_snapshot, replayed, snapshot_path,
                               write_snapshot)
 from viba.reflect import VibaNode, access as reflect_access

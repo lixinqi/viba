@@ -86,24 +86,26 @@ Handler := {def forward(self, x): return x}
 
 ## Modules
 
-`viba/` contains only the parser and the `ast` package — the parser's
-grammar actions build `viba.viba_ast.nodes` objects directly; there is no
-intermediate representation.
+`viba/` is the package: the syntax layer, the type model and the judgment over it, and the
+tools built on those. The parser's grammar actions build `viba.viba_ast` nodes directly;
+there is no intermediate representation.
 
 | Module | Summary |
 |--------|---------|
 | `parser.py` | Lexer + parser (PLY) — .viba source straight to `viba.viba_ast` nodes |
-| `ast/nodes.py` | AST node classes (cf. `ast.AST`) |
-| `ast/chain.py` | Flattens nested binary trees into Sum/Product/Exponent chains and back |
-| `ast/unparse.py` | Code generator — nodes back to canonical .viba source |
-| `ast/_match.py` | Keyword-argument pattern matching over node classes |
-| `ast/__init__.py` | Public API: `parse`, `unparse`, `canonical`, `dump`, `walk`, visitors |
+| `viba_ast/` | Node classes, chain canonicalization, unparse, visitors, `dump` |
+| `type.py` | The Type model, the builtin names, `module_get_type` |
+| `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) |
+| `viba_type_descriptor.py` | The descriptor side: files, definitions, members, type expressions |
+| `reflect.py` | The reflection protocol: addressing a design, reading a material |
+| `serialize.py` | Writes a piece of material back out as viba source |
 | `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
 | `partial.py` | Reduces `T << X`: the function with that written argument given |
-| `interpreter.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
+| `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
+| `is_complete.py` | Whether a design can be reflected through |
+| `interpret.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — the environment shapes among them |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
-| `api.viba` | The package's top-level API, as viba signatures |
 
 ## Usage
 
@@ -113,6 +115,15 @@ from viba import viba_ast
 tree = viba_ast.parse("Option[T] := $some T | nil")
 print(viba_ast.dump(tree))
 print(viba_ast.unparse(tree))   # canonical chain-style source
+```
+
+The same file is also a program: give it an environment and it answers its `__ret__`.
+
+```python
+from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
+
+environ = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
+interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 ```
 
 ## Installation

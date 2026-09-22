@@ -3,7 +3,7 @@
 一个 viba 文件是一个 Module，而 Module 有两种读法：
 
 1. **类型推导**：把它当类型读（`viba.is_sub_type`、`viba-reflect.md`）；
-2. **数值计算**：把它跑起来（`viba.interpreter`）。
+2. **数值计算**：把它跑起来（`viba.interpret`）。
 
 同一份语法，两种模式。跑的时候，模块**就是函数**：输入是 `environ`，输出是 `__ret__`。
 
@@ -11,7 +11,7 @@
 答出来的 `bool`——见 `viba-compliance.md`。
 
 ```python
-from viba.interpreter import interpret
+from viba.interpret import interpret
 
 interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 ```
@@ -159,7 +159,7 @@ EnvironmentCompute :=
     }
 ```
 
-Python 侧就是这三个类（`viba.interpreter`）：
+Python 侧就是这三个类（`viba.interpret`）：
 
 ```python
 EnvironmentStorage(cur_storage_path, sub_storage=None, store_root_dir=None)
@@ -206,7 +206,7 @@ def twice(env, f, x):
 自己负责：**把答案快照到 `EnvironmentStorage` 里，下一次跑同一次调用就直接回放**。
 
 ```python
-from viba.interpreter import read_snapshot, write_snapshot, replayed
+from viba.interpret import read_snapshot, write_snapshot, replayed
 
 def roll(env, n):
     def compute():

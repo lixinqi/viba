@@ -25,7 +25,7 @@ judged as often as wanted.
 from pathlib import Path
 
 from viba import viba_ast
-from viba.interpreter import (Environment, Err, Result, interpret, material,
+from viba.interpret import (Environment, Err, Result, interpret, material,
                               read_snapshot, write_snapshot)
 from viba.reflect import VibaNode, access as reflect_access, by_tag
 from viba.compliance.storage import PREPARE_PREFIX, PREPARE_SEGMENT

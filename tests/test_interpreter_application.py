@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import ADD, Checks, Host, value_of, write
 
-from viba.interpreter import Environment, EnvironmentCompute, EnvironmentStorage, interpret
+from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.type import Err, Ok
 
 checks = Checks("interpreter_application")
