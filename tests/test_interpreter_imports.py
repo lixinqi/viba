@@ -314,11 +314,11 @@ def _bad_sources(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a module written with CRLF line endings: {result!r}")
 
-    # 老写法 := 现在给的不是"非法字符"而已，它说清了定义该怎么写
-    old_style = write(tmp, "old_style.viba", "__ret__ := 5\n")
-    result = interpret(old_style, environ)
-    check(isinstance(result, VibaProgramErr) and "not `:=`" in result.err_msg,
-          f"an old-style := definition -> VibaProgramErr naming the operator: {result!r}")
+    # 冒号不是这门语言的字符：定义只有 `=`，写错了就停在词法上
+    colon = write(tmp, "colon.viba", "__ret__ := 5\n")
+    result = interpret(colon, environ)
+    check(isinstance(result, VibaProgramErr) and "illegal character ':'" in result.err_msg,
+          f"a colon where a definition writes `=` -> VibaProgramErr: {result!r}")
 
     labelled(interpret(str(tmp), environ), "cannot read", "the main path is a directory -> VibaProgramErr")
     labelled(interpret(str(tmp / "gone.viba"), environ), "no such file", "no such file -> VibaProgramErr")

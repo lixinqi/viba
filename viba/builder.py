@@ -70,9 +70,8 @@ is `A <- (B <- $p C)`, and `A ** vb.T` is a TypeError — `**` is not a power
 here.
 
 A definition is written `vb.Name = body` or `vb.Name[Params] = body`, and comes
-out as `Name = body` or `Name[Params] = body` — the same `=` in both places
-(Python has no `:=` for a subscript target, so there is no second spelling to
-remember).
+out as `Name = body` or `Name[Params] = body`: the same `=` in both places, and
+no second spelling to remember.
 
 Associativity: the language's `|` and `*` are left-associative and Python's are
 too, so `A | B | C` grows the one chain and `A | (B | C)` keeps a branch — the

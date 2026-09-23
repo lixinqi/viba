@@ -52,7 +52,7 @@ The terminals it names:
 | `NEVER`, `ANY`, `ELLIPSIS` | `never`, `Any`, `...` |
 | `CODE_BLOCK` | `{ ... }` — text for the host to read; braces nest |
 | `IMPORT`, `AS` | `import`, `as` |
-| `ASSIGN` | `=` — a definition is written `=`, never `:=` |
+| `ASSIGN` | `=` — a definition |
 | `SUM_OP`, `PROD_OP`, `EXP_OP`, `APPLY_OP` | `\|`, `*`, `<-`, `<<` |
 | `LBRACKET`, `RBRACKET`, `LPAREN`, `RPAREN`, `COMMA` | `[`, `]`, `(`, `)`, `,` |
 
@@ -131,8 +131,8 @@ from viba import viba_ast
 viba_ast.parse(Path("store.viba").read_text())   # SyntaxError: what is wrong, and which line
 ```
 
-It refuses what the grammar has no word for — an illegal character, an unterminated code block, `:=`
-instead of `=`, a builtin container as a definition name — and always names the line. The design has
+It refuses what the grammar has no word for — an illegal character, an unterminated code block, a
+builtin container as a definition name — and always names the line. The design has
 a check of its own (one tag per product, inline chains that bottom out, no builtin name defined):
 
 ```python

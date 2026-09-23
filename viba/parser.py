@@ -205,10 +205,6 @@ def t_error(t):
     """Raise on an illegal character, like `p_error` does on a bad token: a
     character the grammar has no word for means this source does not compile.
     Skipping it would parse `-5` as `5`, and the caller would never know."""
-    if t.value.startswith(":" + "="):
-        raise SyntaxError(
-            f"Viba parse error: a definition is written `=`, not `:=` "
-            f"(line {t.lexer.lineno})")
     raise SyntaxError(
         f"Viba parse error: illegal character {t.value[0]!r} at line {t.lexer.lineno}")
 
@@ -785,7 +781,6 @@ if __name__ == "__main__":
         ("X =", "A definition with no body"),
         ("X = -5", "A minus sign: there is no unary minus"),
         ("X = A @ B", "An illegal character"),
-        ("X := int", "An old-style := definition: the operator is ="),
         ("X = {never closed", "A code block that never closes"),
         ("import", "An import with no module name"),
         ("X = $x int $y", "Two tags with no operator between them"),
