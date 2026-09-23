@@ -21,7 +21,7 @@ tag = viba.builder.tag
 
 vb.UserName = str
 
-vb.Optional[vb.T] = vb.T | None
+vb.Optional[vb.T] = vb.Oneof | vb.T | None
 
 vb.List[vb.T] = (
     vb.Oneof
@@ -45,7 +45,8 @@ UserName =
   str
 
 Optional[T] =
-  T
+  Oneof
+  | T
   | nil
 
 List[T] =
@@ -73,8 +74,8 @@ latest_file[Ctx] =
 | `vb.a.b.Name` | `a.b.Name` |
 | `vb.Name[arg0, arg1]` | `Name[arg0, arg1]` |
 | `vb.Name[()]` | `Name[]` |
-| `A \| B` | `A \| B`（和） |
-| `A * B` | `A * B`（积） |
+| `A \| B` | `A \| B`（和）；定义的头写 `vb.Oneof` |
+| `A * B` | `A * B`（积）；定义的头写 `vb.Object` |
 | `A ** B` | `A <- B`（指数；`B` 必须是 tag 或分组） |
 | `A << B` | `A << B`（部分计算：把那个参数给掉；`B` 与 `**` 一样必须是 tag 或分组） |
 | `tag.name(body)` | `$name body` |
@@ -184,6 +185,8 @@ vb.L = str         # str（类型名）
 vb.M = int | str   # int | str（Python 的联合类型就是和）
 vb.N = int | None  # int | nil
 ```
+
+这几行示范的是**值到写法的对照**，不是在示范一份定义该怎么起头：真写一份定义时，链要摊成多行块，块的头就得写出来——和链写 `vb.Oneof`、积链写 `vb.Object`（见 README 的 Writing conventions）。
 
 `vb.nil` / `vb.never` 建出来的就是 `Nil` / `Never` 节点本身，不只是打印成 `nil` / `never`。`vb.true` / `vb.false` 是写错（Python 里该写 `True` / `False`），当场抛。
 

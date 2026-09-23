@@ -67,13 +67,89 @@ The terminals it names:
 | Partial | `T << $a A` | Function T with that written argument given: `(B <- $a A) << $a A` is `B`; what is given must fit the slot (`A' <: A`) |
 | Generic | `Name[T]` | Parameterized type |
 | Tag | `$label T` | Named field / variant |
-| Nil | `nil` | Product identity (`A * nil = A`); `void` and `None` are aliases |
-| Never | `never` | Sum identity (`A \| never = A`), the bottom: it is a subtype of everything |
+| Nil | `nil` | Product identity (`A * nil = A`); `void`, `None` and `Object` are aliases — `Object` is the same unit, written at the head of a product laid out as a block |
+| Never | `never` | Sum identity (`A \| never = A`), the bottom: it is a subtype of everything; `Oneof` is the same unit, written at the head of a sum laid out as a block |
 | Any | `Any` | The top: every type is its subtype, and only Any (or a type equal to it, e.g. `Any \| int`) is below it |
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
 | Code block | `{ ... }` | Arbitrary text, supports nesting — a note on a design, or the hint a step's implementation is written from |
 | Import | `import a.b [as c]` | Module reference (top level) |
+
+### Writing conventions
+
+**Every field and every argument carries a tag, and the tag is the semantics.**
+`Point = $x float * $y float`, never `Point = float * float`; `Handler = Response <- $request Request`,
+never `Response <- Request`. Positional members are for what has no name to give: a tuple `(A, B)`,
+where the order *is* the meaning, and a branch that is nothing (`nil`) or a bare value (`int | str`).
+
+**A chain laid out as a block carries its unit head** — a product's head is `Object`, a sum's is
+`Oneof`. One line needs no head: the whole body is visible at once.
+
+```viba
+# one line: the shape is plain, no head
+Option[T] = $some T | nil
+Config = $mode "fast" * $threads 42 * $ratio 3.14
+Region = str
+
+# laid out as a block: the head says which shape the block is
+StoragePool =
+  Object
+  * $region Region
+  * $medium Medium
+
+Validation =
+  Oneof
+  | $ok nil
+  | $blocked CrossPool
+```
+
+`Object` is `nil` and `Oneof` is `never` — names for the units, not new syntax. A unit written
+*inside* a chain stays `nil` / `never`: `Parent = Oneof | nil | $parent_of RGroup` is a sum whose head
+is `Oneof` and whose first branch is `nil`. An exponent takes no head at all: its first element is the
+result, and it carries a tag per argument.
+
+More of the same:
+
+- **The builtin scalars are `bool`, `int`, `float`, `str`.** `string` is not a builtin name: it
+  resolves to nothing, and the parse will not say so — the type layer will (`module_get_type`,
+  `is_sub_type`).
+- **A function's chain reads result first, then the arguments in the order they are given**, and its
+  hint `{...}` last:
+  `Distance = int <- $env Environment <- $a int <- { how far apart the two were }`.
+- **A hint is prose for whoever writes the implementation, not code.** It says what the step is for;
+  nothing evaluates it, and it is not an argument (`<<` skips it).
+- **One definition is one expression**, on its own line: no commas, no statement separators.
+- **An executable file defines `__ret__`.** A file without it is design only, and running it is an
+  error.
+
+**Check what you wrote.** The parser is the syntax checker, and it is one call:
+
+```python
+from pathlib import Path
+from viba import viba_ast
+
+viba_ast.parse(Path("store.viba").read_text())   # SyntaxError: what is wrong, and which line
+```
+
+It refuses what the grammar has no word for — an illegal character, an unterminated code block, `:=`
+instead of `=`, a builtin container as a definition name — and always names the line. The design has
+a check of its own (one tag per product, inline chains that bottom out, no builtin name defined):
+
+```python
+from viba.check_tag_and_inline import check_tag_and_inline
+from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
+
+pool = empty_pool()
+file = parse_viba_file(pool, source, "store.viba", "store")
+check_tag_and_inline(pool_add_file(pool, file.ok_value).ok_value)   # Ok(nil), or what is wrong
+```
+
+The language's own cases run as commands:
+
+```bash
+python -m viba.parser     # the grammar: 131 sources that compile, 14 that must not
+python -m viba.viba_ast   # what the printer writes parses back to the same tree
+```
 
 ### Strings
 
@@ -101,27 +177,27 @@ written function on the spot, and giving every argument leaves the result itself
 ### Examples
 
 ```viba
-# Standard ADTs
+# Standard ADTs: a sum of tagged branches
 Option[T] = $some T | nil
 Result[T, E] = $ok T | $err E
 
-# Function types
-Map[A, B] = B <- A
-Curried = C <- B <- A
+# Function types: result first, every argument tagged
+Map[A, B] = B <- $key A
+Curried = C <- $b B <- $a A
 
-# Struct (product of tagged fields)
+# Struct: a block, so the head says which shape it is
 MatchContext =
   Object
   * $match_result MatchResult
   * $target fx.GraphModule
 
 # Open sum type
-Variadic = A | B | ...
+Variadic = $a A | $b B | ...
 
-# Literals
-Config = "fast" * 42 * 3.14
+# Literals: each one tagged, so the value says what it is
+Config = $mode "fast" * $threads 42 * $ratio 3.14
 
-# Code block
+# Code block: prose for whoever implements the step
 Handler = {def forward(self, x): return x}
 ```
 
@@ -269,17 +345,22 @@ Option[T] = $some T | nil
 # Result with error
 Result[T, E] = $ok T | $err E
 
-# Linked list
-List[T] = T * List[T] | nil
+# Linked list: a block, so the heads are written and every field is named
+List[T] =
+  Oneof
+  | Object
+    * $head T
+    * $tail List[T]
+  | nil
 
 # Dictionary entry
 Pair[K, V] = $key K * $value V
 
 # HTTP handler
-Handler = Response <- Request
+Handler = Response <- $request Request
 
 # Parse pipeline
-Parser = AST <- Tokens <- String
+Parser = AST <- $tokens Tokens <- $source String
 
 # 2D point
 Point = $x float * $y float
