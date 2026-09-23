@@ -72,7 +72,7 @@ The terminals it names:
 | Any | `Any` | The top: every type is a subtype of it, and only Any (or a type equal to it, e.g. `Any \| int`) is below it |
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
-| Code block | `{ ... }` | Arbitrary text, supports nesting — a note on a design, or the hint a step's implementation is written from |
+| Code block | `{ ... }` | Arbitrary text, supports nesting — a note on a type, or the hint a step's implementation is written from |
 | Import | `import a.b [as c]` | Module reference (top level) |
 
 ### Writing a definition
@@ -132,7 +132,7 @@ Handler = {def forward(self, x): return x}
 
 ## Usage
 
-### Reading a design
+### Reading a type
 
 ```python
 from viba import viba_ast
@@ -145,7 +145,7 @@ print(viba_ast.unparse(tree))   # canonical chain-style source
 ### Running a module
 
 The same file is also a program: a module is a function whose input is `environ`
-and whose answer is `__ret__`. A file with no `__ret__` is a design, not a
+and whose answer is `__ret__`. A file with no `__ret__` is a type, not a
 program, and running it raises `VibaProgramErr`.
 
 ```viba
@@ -192,7 +192,7 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
   call gives it: `environ` is the builtin standing for the environment the run
   was handed. A function without that slot, or a call that leaves it out, is an
   `VibaProgramErr`.
-- A written argument arrives at the host as a piece of material — the literal
+- A written argument arrives at the host as an instance — the literal
   `999999` lands as a node, whose `.value` is the bare number — while the
   environment arrives as itself.
 - `interpret` ships no library of its own: every implementation a run can reach
@@ -201,7 +201,7 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
   (`$underlying_viba_op_failed Failure`, when a step's implementation broke) or
   `NotMyDutyException` (`$not_my_duty_exception Duty`, when the run reached a step
   this host does not implement). Both of the last two name
-  the `step`; the deferral also carries the `call` material, so the deferred step can be written
+  the `step`; the deferral also carries the `call` instance, so the deferred step can be written
   up as a work order and handed on — what [`roadmap.md`](roadmap.md) builds on.
   `node.value` is the answer when it landed on a literal; a product or a sum is walked
   with the node accessors of [`viba-reflect.md`](viba-reflect.md).
@@ -248,7 +248,7 @@ def roll(env, n):
 `replayed(env, compute, name)` reads `<cur storage path>/<name>.viba` under the
 store root; finding nothing, it runs `compute()` and writes the answer. Snapshots
 are serialized viba data, not pickle: a person can read them, and the type side
-reads them as material. Two runs against one store therefore give one value and
+reads them as instances. Two runs against one store therefore give one value and
 walk the impure step once. It is the path that has to be stable: a `tmp_sub_env`
 child is new on every call, so what hangs under it never replays.
 
@@ -301,7 +301,7 @@ Color = $red int | $green int | $blue int
 
 | Document | Subject |
 |----------|---------|
-| [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a design, reading a material |
+| [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, reading an instance |
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `environ` in, `__ret__` out — the executable reading |
 | [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
 | [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
@@ -319,11 +319,11 @@ tools built on those.
 | `type.py` | The Type model, the builtin names, `module_get_type` |
 | `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) |
 | `viba_type_descriptor.py` | The descriptor side: files, definitions, members, type expressions |
-| `reflect.py` | The reflection protocol: addressing a design, reading a material |
-| `serialize.py` | Writes a piece of material back out as viba source |
+| `reflect.py` | The reflection protocol: addressing a type, reading an instance |
+| `serialize.py` | Writes an instance back out as viba source |
 | `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
 | `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
-| `is_complete.py` | Whether a design can be reflected through |
+| `is_complete.py` | Whether a type can be reflected through |
 | `interpret.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — `Environment` among them |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |

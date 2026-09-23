@@ -139,7 +139,7 @@ Nested = $nested list[dict[str, int]]
   键写 `str`——访问协议里按键那一步就是 `$at_key str`。
 - **没有 `repeated` 这回事**：一个字段可重复就把类型写成 `list[T]`，不要再包一层。
 - **字面量有自己的写法**：`ListLiteral[1, "x"]`、`SetLiteral[1, 2]`、`DictLiteral[("k", 1)]`，
-  空的是 `ListLiteral[]`。它们是 `list[...]` 之类的居民，写在**材料**那一侧（呈证、Prepare）。
+  空的是 `ListLiteral[]`。它们是 `list[...]` 之类的居民，写在**实例**那一侧（呈证、Prepare）。
 - **可以任意嵌套**：`list[dict[str, int]]`、`dict[str, list[$x int]]`。
 - **这三个名字（连 `ListLiteral` / `SetLiteral` / `DictLiteral`）不能拿来定义**：定义名和泛型形参
   里出现它们，解析器当场拒；它们只在类型表达式里出现。
@@ -175,7 +175,7 @@ Distance =
 - **内建标量是 `bool` / `int` / `float` / `str`。** `string` 不是内建名：它什么都解析不到，而且
   语法层不会报——类型层会（`module_get_type`、`is_sub_type`）。
 - **一份定义一个表达式**，各自一行：没有逗号，也没有语句分隔符。
-- **有 `__ret__` 才是程序**：没有它的文件是设计，不是程序，跑它是错。
+- **有 `__ret__` 才是程序**：没有它的文件是类型，不是程序，跑它是错。
 
 ## 12. 写完怎么查
 
@@ -188,7 +188,7 @@ from viba import viba_ast
 viba_ast.parse(Path("store.viba").read_text())   # SyntaxError: what is wrong, and which line
 ```
 
-语法不认识的字符、没闭合的代码块、拿内建容器当定义名，都会报，而且一定给出行号。设计本身另有一份
+语法不认识的字符、没闭合的代码块、拿内建容器当定义名，都会报，而且一定给出行号。类型本身另有一份
 检查（一个积里 tag 不重复、内联链要摊到底）：
 
 ```python

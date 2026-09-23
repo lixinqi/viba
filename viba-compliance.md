@@ -1,8 +1,8 @@
 # 合规：规则与呈证
 
 一份规则（rule）说"什么算合规"，一份呈证（witness）说"这一次是什么情况"，两者合起来给一个
-判定。这一章讲这套东西怎么用**可执行模块**来写：规则是程序，呈证也是程序（它答出那份材料，
-而材料里的事实是问来的），判定就是跑规则那个程序。
+判定。这一章讲这套东西怎么用**可执行模块**来写：规则是程序，呈证也是程序（它答出那份实例，
+而实例里的事实是问来的），判定就是跑规则那个程序。
 
 ## 1. 一个规则是一个程序
 
@@ -62,7 +62,7 @@ __ret__ = distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $thr
 
 - **一步一个定义**：案子的地址、呈证、测量、判定各是一行，没有把调用套在调用里面。定义在
   一次运行里只算一次（[`viba-interpreter.md`](viba-interpreter.md)），所以 `the_case` 就是那份
-  材料本身。
+  实例本身。
 - **`case_env` 是这个案子的地址**：`case_at_1230` 这个名字同时是模块名、子环境名，也落在
   storage 路径上（`root/case_at_1230`）。读呈证用它，这个案子的证据也存在它下面。
 - **调用用临时环境，证据才要地址**。函数调用给 `(environ.tmp_sub_env << ())`：一次调用没有
@@ -80,12 +80,12 @@ __ret__ = distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $thr
   照着它把实现补出来的 agent。
 - **每个可执行函数都要 `$env Environment`**：这是 interpreter 的规矩，规则也不例外。
 
-## 2. 呈证答出材料
+## 2. 呈证答出实例
 
-呈证是规则要判的那份材料，它自己也是一个程序：`environ` 进、材料出。
+呈证是规则要判的那份实例，它自己也是一个程序：`environ` 进、实例出。
 
 **事实是问来的，不是写死的。** 呈证文件说的是"这个案子里有哪几件事"，不是"这几件事是什么"：它
-定义一个函数（`at_1230`），函数的类型就是那份材料的写法，实现落在宿主侧——真实案子里读的是记录、
+定义一个函数（`at_1230`），函数的类型就是那份实例的写法，实现落在宿主侧——真实案子里读的是记录、
 数据库或服务。所以换一份事实不用改呈证文件，换实现就行；同一份呈证也可以对着不同的实现跑。
 
 ```viba
@@ -98,7 +98,7 @@ at_1230 =
 __ret__ = at_1230 << $env environ
 ```
 
-它答出来的就是那份材料——受害人 (0,0)，嫌疑人 (3,4)，时刻 12:30，横竖各差 3 与 4 于是相距 5，
+它答出来的就是那份实例——受害人 (0,0)，嫌疑人 (3,4)，时刻 12:30，横竖各差 3 与 4 于是相距 5，
 正好压在规则的门槛上。这条呈证给的是**事实**（谁在哪、什么时候），不是结论。
 
 > 案子的值当然也可以直接写在文件里（`$victim ($x 0 * $y 0) * …`），那是同一个程序的最短写法，
@@ -111,7 +111,7 @@ __ret__ = at_1230 << $env environ
 the_case = case_at_1230 << case_env
 ```
 
-呈证答出来的是材料，规则要按地址读它：`$victim`、`$suspect`、`$at` 是地址，`$x`/`$y` 再往下一层。
+呈证答出来的是实例，规则要按地址读它：`$victim`、`$suspect`、`$at` 是地址，`$x`/`$y` 再往下一层。
 读的工具在宿主侧，是 [`viba/reflect.py`](viba/reflect.py)（[`viba-reflect.md`](viba-reflect.md)）：
 上面那段 [`host.py`](viba/compliance/demo/host.py) 里的 `_point` 就是按地址读的
 （`prepared.by_tag("victim").by_tag("x").leaf`）。呈证不必长得像规则：它就是事实。
@@ -132,7 +132,7 @@ verdict = is_compliant("rule_distance.viba", environ)   # -> Result[bool]
 - 答的不是 `bool`，是 `VibaProgramErr`（"a verdict is a bool"）。
 - 规则里某一步没人实现，则是**递延**（`$not_my_duty_exception Duty`）：判定还没发生，这次规则
   不归这台机器跑完。递延带着 `$step`（哪条模块路径上的哪个定义）与 `$call`——`$call` 就是一份
-  Prepare 要固定的那份材料，所以工单可以照它直接写出来，不必再跑一次。`prepare_run` 在这种情形
+  Prepare 要固定的那份实例，所以工单可以照它直接写出来，不必再跑一次。`prepare_run` 在这种情形
   下什么都不记进备份——没发生的判定不准备案子。
 - 规则编不过、没有 `__ret__`、`$env` 没给、宿主函数抛了……都是 `VibaProgramErr`，说明哪一步不行。
 - 一次运行的环境（`Environment`、storage、`get_func`）怎么给，见
@@ -176,7 +176,7 @@ value =
   * $measured 5
 ```
 
-- 它是**序列化的 viba 数据**，不是 pickle：人读得懂，也能解析回材料。
+- 它是**序列化的 viba 数据**，不是 pickle：人读得懂，也能解析回实例。
 - 路径是 `<案子路径>/prepare/<name>.viba`；`name` 由调用方取（同一个调用用同一个名字），
   所以上面这份证据的整个路径就在说：哪个案子、量的是什么。
 - Prepare 里的 `$call` 压过现场写的 `call`：**被固定的那次调用才算数**——这正是"准备"的含义。
@@ -227,7 +227,7 @@ measure(environ, name, call, compute, evidence=None)   # 量一次：有 Prepare
 
 ```python
 prepare_path(name)                     # 它在 store 里的名字：prepare/<name>
-read_prepare(environ, name)            # 存着的那份材料，或 None
+read_prepare(environ, name)            # 存着的那份实例，或 None
 record_prepare(environ, name, call, measured=None)   # 写进本轮 store
 measured_of(prepare)                   # (值, True)；没有量过是 (None, False)
 call_of(prepare)                       # 被固定的那次调用，或 None
@@ -247,8 +247,8 @@ record_text(file_path, content)          # 写进备份本身（prepare_run 用�
 
 1. **给案子起个名字**：这个名字会同时是呈证的模块名、规则的子环境名与 storage 路径
    （`case_at_1230`）。案子多起来之后，这条路径就是证据的归属。
-2. **写呈证**：一个模块（`<案子>.viba`），`__ret__` 是材料。事实从函数问来——定义一个
-   函数，它的类型就是那份材料的写法，实现交给宿主（第 2 节）；只有真的是常量的东西才写进文件。
+2. **写呈证**：一个模块（`<案子>.viba`），`__ret__` 是实例。事实从函数问来——定义一个
+   函数，它的类型就是那份实例的写法，实现交给宿主（第 2 节）；只有真的是常量的东西才写进文件。
 3. **写规则**：一个模块，`__ret__` 是 `bool`；一步一个定义（案子的地址、呈证、测量、判定），
    别把调用套进调用里；条件写成它自己的函数，每个函数带 `$env Environment`。
 4. **实现宿主那侧**：这一步是交给 agent 的——照着文件里 `{...}` 的提示，把每个函数写出来。
@@ -258,7 +258,7 @@ record_text(file_path, content)          # 写进备份本身（prepare_run 用�
 5. **跑判定**：给一个 `Environment`（storage + compute）。要留证据就 `prepare_run` 一次，
    之后每次 `is_compliant` 都读备份。规则里的函数调用给临时环境，只有读呈证与记证据才用
    案子的地址。
-6. **要检查材料**：用 [`viba/reflect.py`](viba/reflect.py) 的地址与叶子读
+6. **要检查实例**：用 [`viba/reflect.py`](viba/reflect.py) 的地址与叶子读
    （[`viba-reflect.md`](viba-reflect.md)），或 `read_prepare` 直接读存档。
 
 [`tests/test_compliance.py`](tests/test_compliance.py) 是一份可以照抄的完整例子；

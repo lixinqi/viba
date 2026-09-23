@@ -7,7 +7,7 @@
 
 同一份语法，两种模式。跑的时候，模块**就是函数**：输入是 `environ`，输出是 `__ret__`。
 
-规则、呈证与度量也是这么写的：一次度量就是一次调用，证据是那次运行留下的材料，判定是程序
+规则、呈证与度量也是这么写的：一次度量就是一次调用，证据是那次运行留下的实例，判定是程序
 答出来的 `bool`——见 `viba-compliance.md`。
 
 ```python
@@ -72,7 +72,7 @@ __ret__ =
 
 规则：
 
-- **没有 `__ret__` 的文件是设计，不是程序**：跑它给 `VibaProgramErr`。
+- **没有 `__ret__` 的文件是类型，不是程序**：跑它给 `VibaProgramErr`。
 - **`environ` 是内建变量**：类型推导时它是 `Environment` 类型，计算时是真实的那个环境。
 - **函数体里的 `{...}` 是说明**：它不是参数，`<<` 给完实参之后链就落到结果上——
   `(B <- $a A) << $a A` 就是 `B`。
@@ -168,7 +168,7 @@ content)`（在 store root 底下的纯文本读写，读不到返回 `None`）�
 这个路径，加上 `func_name`，构成了答案里那个 `$step`。
 
 `HostLanguageFunc` 与 interpreter 匹配：Python interpreter 里就是一个 Python 函数，收到的参数是
-**已经算好的实参**，按书写顺序给——材料是 `viba.reflect.VibaNode`，别的（environ 在内）是它本身。
+**已经算好的实参**，按书写顺序给——实例是 `viba.reflect.VibaNode`，别的（environ 在内）是它本身。
 返回值是 `VibaNode`，或者一个普通 Python 值（落到函数声明结果的一个叶子上）。
 
 参数里出现 **viba 函数**（`$f (int <- $env Environment <- $x int)` 这种高阶签名）时，宿主拿到的是一个
@@ -211,7 +211,7 @@ def roll(env, n):
   `sub_env << "稳定的名字"` 就是稳定的；`tmp_sub_env` 每条路径都是新的，挂在它底下的调用不适合
   保存要回放的东西（上一节：这正是它给出的"该显名保存了"的信号）。
 - **快照是序列化的 viba 数据**（`viba.serialize` 写出来的 `value = …`），不是 pickle：存下来
-  的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回材料，叶子和原来一样。
+  的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回实例，叶子和原来一样。
 - **存不了、回放不出来就是错**：`VibaProgramErr`（宿主抛出来，interpret 转成 `VibaProgramErr`），不会静默给个默认值。
 
 于是"随机"也能回放：
@@ -296,9 +296,9 @@ Duty =
   实现"是常态，不是错误。
 
 `$step` 的两个字段就是 `get_func(module_path, func_name)` 收到的那两个：路径是这次调用的**地址**，
-所以同一个定义、另一个案子，是另一步。`$call` 是这一步拿到的**材料**，按它写下来的样子——一份
-Prepare 要固定的正是这份材料，所以拿着递延就能把工单写出来，不必再跑一次。宿主值（首先是
-environment）不是材料，不随 `$call` 走：接手的那一侧自己造环境。`$reason` 只有这几种：
+所以同一个定义、另一个案子，是另一步。`$call` 是这一步拿到的**实例**，按它写下来的样子——一份
+Prepare 要固定的正是这份实例，所以拿着递延就能把工单写出来，不必再跑一次。宿主值（首先是
+environment）不是实例，不随 `$call` 走：接手的那一侧自己造环境。`$reason` 只有这几种：
 
 | `$reason` | 意思 |
 |---|---|
@@ -319,7 +319,7 @@ environment）不是材料，不随 `$call` 走：接手的那一侧自己造环
 no such file: ...                     文件不在
 no definition named 'x' in module 'm' 名字解析不了
 module 'x' not found (...)            import 找不到文件
-module 'm' has no __ret__: ...        设计，不是程序
+module 'm' has no __ret__: ...        类型，不是程序
 ... takes no $env Environment ...     可执行函数没依赖 environ
 ... was not given the environment     调用时没给 environ
 ... was not given an Environment      给了，但不是 Environment
