@@ -68,7 +68,7 @@ __ret__ = distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $thr
 - **调用用临时环境，证据才要地址**。函数调用给 `(environ.tmp_sub_env << ())`：一次调用没有
   自己的地址，也不该占一个（`tmp_sub_env` 每次都是新的，见
   [`viba-interpreter.md`](viba-interpreter.md)）。要给
-  证据落地址的是**测量**：它多收一格 `$evidence Environment`，明说"这次测量属于哪个案子"。
+  证据落地址的是**测量**：它多收一个槽位 `$evidence Environment`，明说"这次测量属于哪个案子"。
   两者分开，规则里才没有人把随便哪次调用钉到案子的地址上。
 - **`__ret__` 是判定**。它是 `bool`，跑完就是答案：真合规、假不合规。这条规则跑出来是
   `Ok(true)`——量出来恰好 5，够门槛。
@@ -253,7 +253,7 @@ record_text(file_path, content)          # 写进备份本身（prepare_run 用�
    别把调用套进调用里；条件写成它自己的函数，每个函数带 `$env Environment`。
 4. **实现宿主那侧**：这一步是交给 agent 的——照着文件里 `{...}` 的提示，把每个函数写出来。
    `get_func(module_path, func_name)` 给出这些函数的实现；纯的照常写，
-   不纯的用 `measure` 包住，名字取"量的是什么"（它也是 Prepare 的文件名），并收一格
+   不纯的用 `measure` 包住，名字取"量的是什么"（它也是 Prepare 的文件名），并收一个槽位
    `$evidence Environment`——它是案子的地址，证据记在那里。
 5. **跑判定**：给一个 `Environment`（storage + compute）。要留证据就 `prepare_run` 一次，
    之后每次 `is_compliant` 都读备份。规则里的函数调用给临时环境，只有读呈证与记证据才用

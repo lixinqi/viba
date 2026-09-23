@@ -78,7 +78,7 @@ __ret__ =
   `(B <- $a A) << $a A` 就是 `B`。
 - **`{...}` 只给提示，不给实现**：提示只说这一步要实现什么，主要逻辑得有人照着它写出来，再交到
   `get_func` 上。写这些函数的是 agent（见下"宿主侧"），viba 一个都不带。
-- **每个可执行函数都要依赖 environ**：签名里必须有 `$env Environment` 这一格，调用时也必须给；
+- **每个可执行函数都要依赖 environ**：签名里必须有 `$env Environment` 这个槽位，调用时也必须给；
   否则 `VibaProgramErr`（不是猜一个默认值）。
 - `__ret__` 必须是值。还差参数没给全的函数不是值，`VibaProgramErr`。
 
@@ -132,7 +132,7 @@ lib << (environ.tmp_sub_env << ())
 ## 宿主侧：Environment
 
 `Environment` 由宿主提供。三个名字里**只有 `Environment` 是 viba 里看得见的那一个**
-（`viba/builtin.viba`）：模块的 `$env` 那一格要的就是它，`environ` 也是它。
+（`viba/builtin.viba`）：模块的 `$env` 那个槽位要的就是它，`environ` 也是它。
 
 ```viba
 Environment =
@@ -253,7 +253,7 @@ design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
   仍然是那个模块里的定义，和以前一样按最长的前缀解析。
 - 没有 `__ret__` 的模块不是程序：`demo << $env environ` 在类型层也是 `VibaProgramErr`。
 - `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
-  这一格在类型上也对得上。
+  这个槽位在类型上也对得上。
 
 ## 四种答案
 
