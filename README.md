@@ -75,84 +75,11 @@ The terminals it names:
 | Code block | `{ ... }` | Arbitrary text, supports nesting — a note on a design, or the hint a step's implementation is written from |
 | Import | `import a.b [as c]` | Module reference (top level) |
 
-### Writing conventions
+### Writing a definition
 
-**Every field and every argument carries a tag, and the tag is the semantics.**
-`Point = $x float * $y float`, never `Point = float * float`; `Handler = Response <- $request Request`,
-never `Response <- Request`. Positional members are for what has no name to give: a tuple `(A, B)`,
-where the order *is* the meaning, and a branch that is nothing (`nil`) or a bare value (`int | str`).
-
-**One line: no head. Laid out as a block: the head comes first** — `Object` for a product, `Oneof` for a
-sum. On one line there is nothing to announce, and a head there is noise:
-`Parent = nil | $parent_of RGroup`, **not** `Parent = Oneof | nil | $parent_of RGroup`. In a block the
-head is what tells the reader which shape the block is, so a block that starts with a field or a branch
-leaves that to be guessed.
-
-```viba
-# one line: the shape is plain, no head
-Option[T] = $some T | nil
-Config = $mode "fast" * $threads 42 * $ratio 3.14
-Parent = nil | $parent_of RGroup
-Region = str
-
-# laid out as a block: the head says which shape the block is
-StoragePool =
-  Object
-  * $region Region
-  * $medium Medium
-
-Validation =
-  Oneof
-  | $ok nil
-  | $blocked CrossPool
-```
-
-`Object` is `nil` and `Oneof` is `never` — names for the units, not new syntax, and only how a block's
-head is spelled. A unit written *inside* a chain stays `nil` / `never`, and an exponent takes no head at
-all: its first element is the result, and it carries a tag per argument.
-
-More of the same:
-
-- **The builtin scalars are `bool`, `int`, `float`, `str`.** `string` is not a builtin name: it
-  resolves to nothing, and the parse will not say so — the type layer will (`module_get_type`,
-  `is_sub_type`).
-- **A function's chain reads result first, then the arguments in the order they are given**, and its
-  hint `{...}` last:
-  `Distance = int <- $env Environment <- $a int <- { how far apart the two were }`.
-- **A hint is prose for whoever writes the implementation, not code.** It says what the step is for;
-  nothing evaluates it, and it is not an argument (`<<` skips it).
-- **One definition is one expression**, on its own line: no commas, no statement separators.
-- **An executable file defines `__ret__`.** A file without it is design only, and running it is an
-  error.
-
-**Check what you wrote.** The parser is the syntax checker, and it is one call:
-
-```python
-from pathlib import Path
-from viba import viba_ast
-
-viba_ast.parse(Path("store.viba").read_text())   # SyntaxError: what is wrong, and which line
-```
-
-It refuses what the grammar has no word for — an illegal character, an unterminated code block, a
-builtin container as a definition name — and always names the line. The design has
-a check of its own (one tag per product, inline chains that bottom out, no builtin name defined):
-
-```python
-from viba.check_tag_and_inline import check_tag_and_inline
-from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
-
-pool = empty_pool()
-file = parse_viba_file(pool, source, "store.viba", "store")
-check_tag_and_inline(pool_add_file(pool, file.ok_value).ok_value)   # Ok(nil), or what is wrong
-```
-
-The language's own cases run as commands:
-
-```bash
-python -m viba.parser     # the grammar: 131 sources that compile, 14 that must not
-python -m viba.viba_ast   # what the printer writes parses back to the same tree
-```
+Writing one has conventions of its own — every field and argument tagged, a block's head written, one
+branch is no sum, and how the builtin containers are used: [`viba-style.md`](viba-style.md), which
+also says how to check what you wrote.
 
 ### Strings
 
@@ -380,6 +307,7 @@ Color = $red int | $green int | $blue int
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `environ` in, `__ret__` out — the executable reading |
 | [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
 | [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
+| [`viba-style.md`](viba-style.md) | Writing a definition: tags, heads, containers, and how to check what you wrote |
 | [`roadmap.md`](roadmap.md) | The direction: one ontology, and execution handed across languages, nodes and agents |
 
 ## Modules
@@ -403,7 +331,7 @@ tools built on those.
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY
-grammar behind `viba_ast.parse`, with a self-test at the bottom that also checks the
-Syntax section above spells that grammar out) and `partial.py` (the reduction `<<` goes
-through, used by the judgment).
+grammar behind `viba_ast.parse`, with a self-test at the bottom that also checks this file
+spells that grammar out, and that every `.viba` sample here and in `viba-style.md`
+compiles) and `partial.py` (the reduction `<<` goes through, used by the judgment).
 

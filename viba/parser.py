@@ -835,8 +835,9 @@ if __name__ == "__main__":
     # are sources too, and a sample that does not compile teaches a mistake.
     print("-" * 65)
     doc_count = 0
-    readme = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "README.md")
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    readme = os.path.join(root, "README.md")
+    style = os.path.join(root, "viba-style.md")
     try:
         with open(readme, encoding="utf-8") as handle:
             manual = handle.read()
@@ -861,16 +862,23 @@ if __name__ == "__main__":
         except Exception as e:                      # a stale GRAMMAR_ORDER, no block
             print(f"{'the README spells this grammar':<50} | {type(e).__name__}: {e}")
 
-        try:
-            samples = _readme_blocks(manual, "viba")
+    # The manual and the style guide are read as sources too: a sample that does
+    # not compile is teaching a mistake.
+    try:
+        blocks = 0
+        for path in (readme, style):
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
+            samples = _readme_blocks(text, "viba")
             for sample in samples:
                 check_definition_names(parse_source(sample) or [])
-            doc_count += 1
-            print(f"{'every .viba sample in the README compiles':<50} | OK "
-                  f"({len(samples)} blocks)")
-        except Exception as e:
-            print(f"{'every .viba sample in the README compiles':<50} | "
-                  f"{type(e).__name__}: {e}")
+            blocks += len(samples)
+        doc_count += 1
+        print(f"{'every .viba sample in the docs compiles':<50} | OK "
+              f"({blocks} blocks: README.md, viba-style.md)")
+    except Exception as e:
+        print(f"{'every .viba sample in the docs compiles':<50} | "
+              f"{type(e).__name__}: {e}")
 
     print("-" * 65)
     print(f"Passed {success_count}/{len(test_cases)} tests, "
