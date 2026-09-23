@@ -107,15 +107,15 @@ written function on the spot, and giving every argument leaves the result itself
 ### Examples
 
 ```viba
-# Standard ADTs: a sum of tagged branches
+# Standard ADTs
 Option[T] = $some T | nil
 Result[T, E] = $ok T | $err E
 
-# Function types: result first, every argument tagged
+# Function types
 Map[A, B] = B <- $key A
 Curried = C <- $b B <- $a A
 
-# Struct: a block, so the head says which shape it is
+# Struct (a product of tagged fields)
 MatchContext =
   Object
   * $match_result MatchResult
@@ -124,10 +124,10 @@ MatchContext =
 # Open sum type
 Variadic = $a A | $b B | ...
 
-# Literals: each one tagged, so the value says what it is
+# Literals
 Config = $mode "fast" * $threads 42 * $ratio 3.14
 
-# Code block: prose for whoever implements the step
+# Code block
 Handler = {def forward(self, x): return x}
 ```
 
