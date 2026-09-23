@@ -188,7 +188,7 @@ from viba import viba_ast
 viba_ast.parse(Path("store.viba").read_text())   # SyntaxError: what is wrong, and which line
 ```
 
-语法里没有词的字符、没闭合的代码块、拿内建容器当定义名，都会报，而且一定给出行号。设计本身另有一份
+语法不认识的字符、没闭合的代码块、拿内建容器当定义名，都会报，而且一定给出行号。设计本身另有一份
 检查（一个积里 tag 不重复、内联链要摊到底）：
 
 ```python

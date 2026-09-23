@@ -3,7 +3,7 @@
 一个 viba 文件是一个 Module，而 Module 有两种读法：
 
 1. **类型推导**：把它当类型读（`viba.is_sub_type`、`viba-reflect.md`）；
-2. **数值计算**：把它跑起来（`viba.interpret`）。
+2. **求值执行**：把它跑起来（`viba.interpret`）。
 
 同一份语法，两种模式。跑的时候，模块**就是函数**：输入是 `environ`，输出是 `__ret__`。
 
@@ -35,7 +35,7 @@ interpret("main.viba", environ, get_file=files.get)   # 一次运行全在内存
   数据库或者别的地方上，路径只是字符串。
 - 它收到的路径**按字符串给**（`$file_path str`），就是这次要找的那个候选路径（绝对还是相对，
   取决于 `viba_path`/主文件是怎么写的）。
-- **"这个路径上没有文件"说三样都算**：返回 `None`、或者抛 `FileNotFoundError`——于是查找继续
+- **"这个路径上没有文件"：这两种都算**——返回 `None`、或者抛 `FileNotFoundError`，于是查找继续
   去下一个地方（先 import 旁边，再 `viba_path` 按顺序），全都说没有就是
   `module 'x' not found (...)`。主文件说没有就是 `no such file: ...`。
 - **返回非字符串、或者抛别的异常，是 `VibaProgramErr`**（`get_file(...) raised ...` / `... not the file's text`），
@@ -74,7 +74,7 @@ __ret__ =
 
 - **没有 `__ret__` 的文件是设计，不是程序**：跑它给 `VibaProgramErr`。
 - **`environ` 是内建变量**：类型推导时它是 `Environment` 类型，计算时是真实的那个环境。
-- **函数体里的 `{...}` 是说明**：它不是参数，`<<` 给完真参数之后链就落到结果上——
+- **函数体里的 `{...}` 是说明**：它不是参数，`<<` 给完实参之后链就落到结果上——
   `(B <- $a A) << $a A` 就是 `B`。
 - **`{...}` 只给提示，不给实现**：提示只说这一步要实现什么，主要逻辑得有人照着它写出来，再交到
   `get_func` 上。写这些函数的是 agent（见下"宿主侧"），viba 一个都不带。
@@ -92,7 +92,7 @@ ret = demo << (environ.sub_env << "add_demo")
 __ret__ = demo.print << environ << ret
 ```
 
-- `demo` 是模块，当函数用：给它一个 environment，它跑完给出它的 `__ret__`。
+- `demo` 是模块，当函数用：给它一个环境，它跑完给出它的 `__ret__`。
 - `demo.print` 是这个模块里的函数。
 - `environ.sub_env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
   `父路径/add_demo`（见下）。
@@ -154,7 +154,7 @@ Environment(storage, compute, viba_path=None)            # sub_env / tmp_sub_env
 `viba_path` 是模块的搜索路径：一次运行里它跟着 environment 走，`sub_env`/`tmp_sub_env` 把父级的
 那条原样交给孩子，于是"这个模块的 import 去哪里找"就是它被交给的那个 environment 说了算。
 
-`EnvironmentStorage` 面朝 viba 的那几个概念：`cur_storage_path`（这条路径就是这次调用的
+`EnvironmentStorage` 面向 viba 一侧暴露的概念：`cur_storage_path`（这条路径就是这次调用的
 身份）、`sub(name)`（子 storage，`sub_env` 用它）、`store_root_dir`（快照放在哪个目录下，
 不给就是默认的临时目录 `…/viba-store`）、`read_text(file_path)` / `write_text(file_path,
 content)`（在 store root 底下的纯文本读写，读不到返回 `None`）。子 storage 带着父级的
@@ -309,7 +309,7 @@ environment）不是材料，不随 `$call` 走：接手的那一侧自己造环
 | `no leaf` | 实现答了没有叶子的东西 |
 
 递延与失败都会一路穿回调用方，而且**原样上传、不被改写**：被调用的模块里那一步没实现，带回来的
-那一步是**里面那一次调用**（`root/模块名` 下的那个定义），不是外面那一层；穿过运行交给宿主的可
+那一步是**里面那一次调用**（`root/模块名` 下的那个定义），不是外面那一层；穿过运行、再交给宿主的可
 调用对象时也一样。`get_func` 抛递延时，run 会把缺的补上：步名与 `$call` 用它知道的这次调用，
 `$reason` 留着宿主自己说的（没说就是 `refused`）。
 

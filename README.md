@@ -69,7 +69,7 @@ The terminals it names:
 | Tag | `$label T` | Named field / variant |
 | Nil | `nil` | Product identity (`A * nil = A`); `void`, `None` and `Object` are aliases — `Object` is the same unit, written at the head of a product laid out as a block |
 | Never | `never` | Sum identity (`A \| never = A`), the bottom: it is a subtype of everything; `Oneof` is the same unit, written at the head of a sum laid out as a block |
-| Any | `Any` | The top: every type is its subtype, and only Any (or a type equal to it, e.g. `Any \| int`) is below it |
+| Any | `Any` | The top: every type is a subtype of it, and only Any (or a type equal to it, e.g. `Any \| int`) is below it |
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
 | Code block | `{ ... }` | Arbitrary text, supports nesting — a note on a design, or the hint a step's implementation is written from |
@@ -77,8 +77,7 @@ The terminals it names:
 
 ### Writing a definition
 
-Writing one has conventions of its own — every field and argument tagged, a block's head written, one
-branch is no sum, and how the builtin containers are used: [`viba-style.md`](viba-style.md), which
+Writing one has conventions of its own — every field and argument tagged, a block's head written, a sum written with one branch is no sum, and how the builtin containers are used: [`viba-style.md`](viba-style.md), which
 also says how to check what you wrote.
 
 ### Strings
@@ -102,7 +101,7 @@ loosest, then sum, product, exponent — and application and tagging bind tighte
 4. `<-` (exponent) — left-associative
 
 All binary operators are left-associative. `T << X` is not a constructor: it reduces a
-written function on the spot, and giving every argument leaves the result itself.
+written function on the spot, and giving it every argument leaves you with the result itself.
 
 ### Examples
 
@@ -147,7 +146,7 @@ print(viba_ast.unparse(tree))   # canonical chain-style source
 
 The same file is also a program: a module is a function whose input is `environ`
 and whose answer is `__ret__`. A file with no `__ret__` is a design, not a
-program, and running it is a `VibaProgramErr`.
+program, and running it raises `VibaProgramErr`.
 
 ```viba
 # add_demo.viba
@@ -167,8 +166,7 @@ __ret__ =
 
 `{ add two integers }` is all the file says about that step's implementation: a
 hint. Every step that has to be implemented gets a hint like it — a line about
-what the step is for — and no logic, so a file on its own does not run: that half
-is what an agent reads the hints to write. Where its functions are handed to the
+what the step is for — and no logic, so a file on its own does not run: that half—the logic—is what an agent writes by reading the hints. Where its functions are handed to the
 run is `get_func`.
 
 The host provides the environment — where snapshots go (`EnvironmentStorage`,
@@ -197,13 +195,13 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
 - A written argument arrives at the host as a piece of material — the literal
   `999999` lands as a node, whose `.value` is the bare number — while the
   environment arrives as itself.
-- `interpret` ships no library of its own: every implementation a run can reach is
-  one `get_func` answered for, written from the hints the file carries.
+- `interpret` ships no library of its own: every implementation a run can reach
+  comes from a single `get_func` answer, written from the hints the file carries.
 - What comes back is `Ok(node)`, `VibaProgramErr(message)`, `UnderlyingVibaOpFailed`
   (`$underlying_viba_op_failed Failure`, when a step's implementation broke) or
   `NotMyDutyException` (`$not_my_duty_exception Duty`, when the run reached a step
   this host does not implement). Both of the last two name
-  the `step`; the deferral also carries the `call` material, so the run can be written
+  the `step`; the deferral also carries the `call` material, so the deferred step can be written
   up as a work order and handed on — what [`roadmap.md`](roadmap.md) builds on.
   `node.value` is the answer when it landed on a literal; a product or a sum is walked
   with the node accessors of [`viba-reflect.md`](viba-reflect.md).
@@ -219,7 +217,7 @@ __ret__ = demo << (environ.sub_env << "add_demo")
 A module is called with the environment it should run under: the name given to
 `environ.sub_env` is what `get_func` sees as `module_path`, and the storage path
 is the call's identity. So no two module calls in one run may share a path, and
-saying it twice is a `VibaProgramErr` that spells the fix out:
+using the same path twice is a `VibaProgramErr` that spells the fix out:
 
 ```
 VibaProgramErr("module 'add_demo' was handed the storage path 'root', which another module call

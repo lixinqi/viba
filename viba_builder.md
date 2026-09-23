@@ -186,7 +186,7 @@ vb.M = int | str   # int | str（Python 的联合类型就是和）
 vb.N = int | None  # int | nil
 ```
 
-这几行示范的是**值到写法的对照**，不是在示范一份定义该怎么起头：真写一份定义时，链要摊成多行块，块的头就得写出来——和链写 `vb.Oneof`、积链写 `vb.Object`（见 README 的 Writing conventions）。
+这几行示范的是**值到写法的对照**，不是在示范一份定义该怎么起头：真写一份定义时，链要摊成多行块，块的头就得写出来——和链写 `vb.Oneof`、积链写 `vb.Object`（见 README 的 “Writing a definition” 一节）。
 
 `vb.nil` / `vb.never` 建出来的就是 `Nil` / `Never` 节点本身，不只是打印成 `nil` / `never`。`vb.true` / `vb.false` 是写错（Python 里该写 `True` / `False`），当场抛。
 
@@ -253,7 +253,7 @@ Path("store.viba").write_text(str(vb))
 | 你做的事 | 结果 |
 |---|---|
 | 起点不是合法 Viba 源码 | `ValueError`（当场） |
-| 定义文件里已有的名字 | `TypeError: 'DemoRule' is already defined: only new definitions can be appended` |
+| 重复定义文件里已有的名字 | `TypeError: 'DemoRule' is already defined: only new definitions can be appended` |
 | 给续写的 builder 加 import | `TypeError`（import 得站在最上面，那是插入，不是追加） |
 
 既有内容原样带在最前，不会被重排、不会掉注释。

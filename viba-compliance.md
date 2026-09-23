@@ -116,7 +116,7 @@ the_case = case_at_1230 << case_env
 上面那段 [`host.py`](viba/compliance/demo/host.py) 里的 `_point` 就是按地址读的
 （`prepared.by_tag("victim").by_tag("x").leaf`）。呈证不必长得像规则：它就是事实。
 
-[`host.py`](viba/compliance/demo/host.py) 里 `at_1230` 的实现读的是一张表——演示里要短；一个
+[`host.py`](viba/compliance/demo/host.py) 里 `at_1230` 的实现读的是一张表——演示里为了短；一个
 真案子读的是记录或服务，那就是不纯的，得像测量一样把它记下来（`replayed` 写到案子自己的地址
 下），否则一年后再判同一个案子，读到的事实可能已经变了。
 
@@ -156,8 +156,7 @@ def measure_distance(self, env, evidence, case):
     return measure(env, "measure_distance", case, compute, evidence=evidence)
 ```
 
-`env` 是这次调用跑在哪个环境里——规则给的是临时环境，够用；预备给谁看的是 `evidence`，
-也就是案子的环境，Prepare 记在它的路径下面。
+`env` 是这次调用跑在哪个环境里——规则给的是临时环境，够用；Prepare 记在哪个案子下，由 `evidence` 指定——它就是案子的环境。
 
 `measure(environ, name, call, compute)` 做的事：
 
