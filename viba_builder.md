@@ -74,8 +74,8 @@ latest_file[Ctx] =
 | `vb.a.b.Name` | `a.b.Name` |
 | `vb.Name[arg0, arg1]` | `Name[arg0, arg1]` |
 | `vb.Name[()]` | `Name[]` |
-| `A \| B` | `A \| B`（和）；定义的头写 `vb.Oneof` |
-| `A * B` | `A * B`（积）；定义的头写 `vb.Object` |
+| `A \| B` | `A \| B`（和）；定义摊成多行块时，头写 `vb.Oneof` |
+| `A * B` | `A * B`（积）；定义摊成多行块时，头写 `vb.Object` |
 | `A ** B` | `A <- B`（指数；`B` 必须是 tag 或分组） |
 | `A << B` | `A << B`（部分计算：把那个参数给掉；`B` 与 `**` 一样必须是 tag 或分组） |
 | `tag.name(body)` | `$name body` |

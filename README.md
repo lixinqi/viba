@@ -82,13 +82,17 @@ The terminals it names:
 never `Response <- Request`. Positional members are for what has no name to give: a tuple `(A, B)`,
 where the order *is* the meaning, and a branch that is nothing (`nil`) or a bare value (`int | str`).
 
-**A chain laid out as a block carries its unit head** — a product's head is `Object`, a sum's is
-`Oneof`. One line needs no head: the whole body is visible at once.
+**One line: no head. Laid out as a block: the head comes first** — `Object` for a product, `Oneof` for a
+sum. On one line there is nothing to announce, and a head there is noise:
+`Parent = nil | $parent_of RGroup`, **not** `Parent = Oneof | nil | $parent_of RGroup`. In a block the
+head is what tells the reader which shape the block is, so a block that starts with a field or a branch
+leaves that to be guessed.
 
 ```viba
 # one line: the shape is plain, no head
 Option[T] = $some T | nil
 Config = $mode "fast" * $threads 42 * $ratio 3.14
+Parent = nil | $parent_of RGroup
 Region = str
 
 # laid out as a block: the head says which shape the block is
@@ -103,10 +107,9 @@ Validation =
   | $blocked CrossPool
 ```
 
-`Object` is `nil` and `Oneof` is `never` — names for the units, not new syntax. A unit written
-*inside* a chain stays `nil` / `never`: `Parent = Oneof | nil | $parent_of RGroup` is a sum whose head
-is `Oneof` and whose first branch is `nil`. An exponent takes no head at all: its first element is the
-result, and it carries a tag per argument.
+`Object` is `nil` and `Oneof` is `never` — names for the units, not new syntax, and only how a block's
+head is spelled. A unit written *inside* a chain stays `nil` / `never`, and an exponent takes no head at
+all: its first element is the result, and it carries a tag per argument.
 
 More of the same:
 
