@@ -414,8 +414,9 @@ design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
 `a binding belongs in a value, not inside material`。要让材料里出现一个算出来的值，就让一个函数
 把它答出来（上面「宿主侧：Environment」那些宿主函数就是这么干的）。
 
-类型层不做这件事：绑定是**算出来的**，不是判出来的。定义体是绑定块时，判定会答
-`a binding is computed, not judged`，描述符层同理。
+`:=` 是**计算的写法**。定义体平时由解释器当值算（`A = (a := 7  a)` 就是这么用的），但类型层
+只判类型：它在定义体或别的类型位置上遇到绑定块，答的是 `a binding is computation, not a type: …`。
+这一层没有绑定，也没有等着谁去做的代换——想在类型里给中间量起名，那就是另一条定义。
 
 ## 四种答案
 

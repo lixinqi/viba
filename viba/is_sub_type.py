@@ -254,10 +254,11 @@ class _Checker:
         if isinstance(node, viba_ast.TypeRef):
             return self._lift_ref(node, module, side)
         if isinstance(node, (viba_ast.Let, viba_ast.Binding)):
-            # A binding block is computed, not judged: the judgment has no
-            # value to put in the bound names' place (viba-style.md).
+            # `:=` belongs to computation; what a definition judges is a type.
+            # A binding here is misplaced, not a judgment this layer owes
+            # (viba-style.md).
             raise UnresolvedTypeError(
-                "a binding is computed, not judged: "
+                "a binding is computation, not a type: "
                 f"{viba_ast.unparse_type(node)}")
         return None
 

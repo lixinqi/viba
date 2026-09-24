@@ -1044,6 +1044,16 @@ def _suite_case_nodes():
             yield tup.elts[0].value
 
 
+def run_binding_definition_cases():
+    """绑定是计算的写法：定义体上出现它，答复是"这不是类型"，不是"算不出来"。"""
+    result = is_sub_type(load_entry("A = (a := 7  a)"),
+                         load_entry("A = (a := 7  a)"))
+    check_result(result, "error", "a binding body is no type")
+    check(isinstance(result, VibaProgramErr)
+          and "computation, not a type" in result.err_msg,
+          True, "and the answer names the reason")
+
+
 def run_suite_reflexivity():
     """Every closed parser suite case must be reflexive (others skip)."""
     count = skipped = 0
@@ -1105,6 +1115,7 @@ run_canonical_chain_cases()
 run_apply_cases()
 run_any_cases()
 run_type_object_cases()
+run_binding_definition_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

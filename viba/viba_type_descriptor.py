@@ -467,9 +467,10 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
     if isinstance(node, ast_nodes.Any):
         return VibaTypeDescriptor(ANY)
     if isinstance(node, (ast_nodes.Let, ast_nodes.Binding)):
-        # A binding block is computed, not judged: the type layer has no value
-        # to substitute for the names it binds (viba-style.md).
-        raise PartialError("a binding is computed, not judged: "
+        # `:=` belongs to computation, and this file declares types: a binding
+        # in a definition body is misplaced, not a substitution this layer owes
+        # (viba-style.md).
+        raise PartialError("a binding is computation, not a type: "
                            f"{viba_ast.unparse_type(node)}")
     if isinstance(node, ast_nodes.Partial):
         reduced, _ = reduce_partial(node, module,
