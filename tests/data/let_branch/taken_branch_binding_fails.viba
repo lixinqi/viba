@@ -1,0 +1,17 @@
+import branch
+explode =
+    int <- $env Environment <- { raises }
+__ret__ =
+    Oneof
+  | (
+      branch.id_or_never
+      << $env environ
+      << $condition true
+      << $v (a := (explode << $env environ)  a)
+    )
+  | (
+      branch.never_or_id
+      << $env environ
+      << $condition true
+      << $v (0)
+    )

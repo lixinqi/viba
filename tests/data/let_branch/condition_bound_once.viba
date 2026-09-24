@@ -1,0 +1,22 @@
+import branch
+ge =
+    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+tick =
+    int <- $env Environment <- { counts as a side effect }
+A = (
+  condition := ge << $env environ << $x (tick << $env environ) << $y 2
+  Oneof
+  | (
+      branch.id_or_never
+      << $env environ
+      << $condition condition
+      << $v (10)
+    )
+  | (
+      branch.never_or_id
+      << $env environ
+      << $condition condition
+      << $v (20)
+    )
+)
+__ret__ = A

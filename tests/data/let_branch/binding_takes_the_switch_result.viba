@@ -1,0 +1,22 @@
+import branch
+add =
+    int <- $env Environment <- $a int <- $b int <- { add the two }
+A = (
+  r := (
+    Oneof
+    | (
+        branch.id_or_never
+        << $env environ
+        << $condition true
+        << $v (3)
+      )
+    | (
+        branch.never_or_id
+        << $env environ
+        << $condition true
+        << $v (0)
+      )
+  )
+  add << $env environ << $a r << $b 4
+)
+__ret__ = A

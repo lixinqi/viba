@@ -1,0 +1,37 @@
+import branch
+A = (
+  outer := (
+    Oneof
+    | (
+        branch.id_or_never
+        << $env environ
+        << $condition true
+        << $v (
+          inner := (
+            Oneof
+            | (
+                branch.id_or_never
+                << $env environ
+                << $condition true
+                << $v (9)
+              )
+            | (
+                branch.never_or_id
+                << $env environ
+                << $condition true
+                << $v (0)
+              )
+          )
+          inner
+        )
+      )
+    | (
+        branch.never_or_id
+        << $env environ
+        << $condition true
+        << $v (0)
+      )
+  )
+  outer
+)
+__ret__ = A

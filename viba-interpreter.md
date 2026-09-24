@@ -368,6 +368,10 @@ getter **最多算一次**：第一次问出结果（值或停下），之后每
 一处代价要记住：被标记的调用**递延时不带 `$call`**。工单要固定的那份材料来自已算出的实参，而惰性
 调用根本没有算过它们——递延里只有 `$step` 与 `$reason`（`$call` 是空的）。
 
+绑定和这两个开关一起用的时候，谁先算、谁不算，看
+[`tests/test_interpreter_let_branch.py`](tests/test_interpreter_let_branch.py)：20 份可以打开的文件
+（`tests/data/let_branch/*.viba`），每条只在表里写该跑出什么。
+
 > 已知缺口：**类型层还看不见这个标记**——它把 `ParametersLazyEvaluated[F]` 当成一个普通的类型应用
 > （`Object` 套一个 `$func F`），所以 `id_or_never << $env environ` 在类型层归约不到
 > `Any <- $condition bool <- $v Any`。运行是对的，判定还没跟上。

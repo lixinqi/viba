@@ -1,0 +1,15 @@
+import branch
+A = (
+  r := (
+    Oneof
+    | (
+        branch.never_or_id
+        << $env environ
+        << $condition true
+        << $v (99)
+      )
+    | (5)
+  )
+  r
+)
+__ret__ = A
