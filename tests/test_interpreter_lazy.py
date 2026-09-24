@@ -50,6 +50,14 @@ def host_for(calls):
             return lambda env, x, y: 1
         if func_name == "ge":
             return lambda env, x, y: x.value >= y.value
+        if func_name == "explode":
+            def explode(env):
+                raise ZeroDivisionError("poison")
+            return explode
+        if func_name == "broken_lookup":
+            raise RuntimeError("the router broke")
+        if func_name == "answer_a_list":
+            return lambda env: [1, 2]
         if func_name == "inner_lambda_record":
             # 分支值本身也是一次调用：它被算过就说明那一支走了
             def inner_lambda_record(env, label):
@@ -111,6 +119,7 @@ def run(tmp: Path):
     _an_ignored_argument_is_never_computed(tmp)
     _a_branch_value_is_its_own_call(tmp)
     _an_argument_is_computed_at_most_once(tmp)
+    _poison_in_the_untaken_branch(tmp)
     _the_getters_follow_the_slots(tmp)
     _an_unmarked_function_is_still_eager(tmp)
     _a_called_getter_carries_what_stopped(tmp)
@@ -346,6 +355,77 @@ __ret__ = positional << $v (tick << $env environ) << $condition condition << $en
     check(isinstance(result, Ok) and value_of(result) == 1,
           f"tags given in another order reach the same slots: {result!r}")
     check(calls == ["tick"], f"and the value was computed: {calls}")
+
+
+# 毒剂：放进"走不到的那一支"的表达式。每一条都配一次对照——把同一份毒放进走得到的那一支，
+# 它必须真的发作，否则这条用例什么也没证明。
+POISONS = [
+    ("a step with no implementation", "",
+     "ghost << $env environ", NotMyDutyException, None),
+    ("a step whose implementation raises", "",
+     "explode << $env environ", UnderlyingVibaOpFailed, "explode raised"),
+    ("a step whose get_func raises", "",
+     "broken_lookup << $env environ", UnderlyingVibaOpFailed, "get_func"),
+    ("a step answering something with no leaf", "",
+     "answer_a_list << $env environ", UnderlyingVibaOpFailed, "no leaf"),
+    ("a module that is not there", "import missing_module as missing_module\n",
+     "missing_module << (environ.tmp_sub_env << ())", VibaProgramErr, "not found"),
+    ("a name nothing defines", "",
+     "nope", VibaProgramErr, "no definition named"),
+    ("an argument given to a number", "",
+     "1 << $x 2", VibaProgramErr, "is not a function"),
+    ("a product factor that is poison", "",
+     "(ghost << $env environ) * 1", NotMyDutyException, None),
+    ("a sum branch that is poison", "",
+     "(ghost << $env environ) | 1", NotMyDutyException, None),
+    ("a branch that would take poison itself", "",
+     "(branch.id_or_never << $env environ"
+     " << $condition (ge << $env environ << $x 1 << $y 0)"
+     " << $v (ghost << $env environ))", NotMyDutyException, None),
+]
+
+POISON_PROGRAM = """{imports}import branch
+
+ge =
+    bool <- $env Environment <- $x int <- $y int <- {{ x >= y }}
+ghost =
+    int <- $env Environment <- {{ nothing implements this }}
+explode =
+    int <- $env Environment <- {{ this implementation raises }}
+broken_lookup =
+    int <- $env Environment <- {{ get_func itself raises for this name }}
+answer_a_list =
+    int <- $env Environment <- {{ answers a list, which is no leaf }}
+
+healthy = 42
+condition = ge << $env environ << $x 1 << $y 0
+__ret__ =
+    Oneof
+  | (branch.id_or_never << $env environ << $condition condition << $v {one})
+  | (branch.never_or_nil << $env environ << $condition condition << $v {two})
+"""
+
+
+def _poison_in_the_untaken_branch(tmp: Path):
+    """走不到的那一支放毒：这一支不算，毒就不发作；同一份毒放进走得到的那一支，必须发作。"""
+    for index, (label, imports, poison, kind, fragment) in enumerate(POISONS):
+        # 条件为真，走第一支；毒放在第二支
+        untaken = write(tmp, f"poison_untaken_{index}.viba",
+                        POISON_PROGRAM.format(imports=imports, one="(healthy)", two=f"({poison})"))
+        result = interpret(untaken, environ_for([], tmp / f"store-poison-a{index}"))
+        check(isinstance(result, Ok) and value_of(result) == 42,
+              f"poison in the branch that is not taken ({label}): {result!r}")
+
+        # 同一份毒放进第一支：它必须发作
+        taken = write(tmp, f"poison_taken_{index}.viba",
+                      POISON_PROGRAM.format(imports=imports, one=f"({poison})", two="(healthy)"))
+        result = interpret(taken, environ_for([], tmp / f"store-poison-b{index}"))
+        if kind is NotMyDutyException:
+            checks.deferred(result, f"the same poison, taken ({label})")
+        elif kind is UnderlyingVibaOpFailed:
+            checks.failed(result, fragment, f"the same poison, taken ({label})")
+        else:
+            labelled(result, fragment, f"the same poison, taken ({label})")
 
 
 def _an_unmarked_function_is_still_eager(tmp: Path):
