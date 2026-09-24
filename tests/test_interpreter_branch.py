@@ -39,7 +39,52 @@ def host_for(a_value):
     return get_func
 
 
-BRANCH_PROGRAM = """
+def comparison_if_program(threshold, when_true="a", when_false="0", reverse=False):
+    """A complete comparison, selection and merge program."""
+    branches = (
+        f"  | (branch.id_or_never << $env environ << $condition condition << $v {when_true})\n"
+        f"  | (branch.never_or_nil << $env environ << $condition condition << $v {when_false})"
+    )
+    if reverse:
+        branches = (
+            f"  | (branch.never_or_nil << $env environ << $condition condition << $v {when_false})\n"
+            f"  | (branch.id_or_never << $env environ << $condition condition << $v {when_true})"
+        )
+    return f"""
+import branch
+
+foo =
+    int <- $env Environment <- {{ the case's value }}
+ge =
+    bool <- $env Environment <- $x int <- $y int <- {{ x >= y }}
+
+a = foo << $env environ
+condition = ge << $env environ << $x a << $y {threshold}
+__ret__ =
+  Oneof
+{branches}
+"""
+
+
+def literal_if_program(condition, when_true, when_false, reverse=False):
+    """A complete branch program with a written boolean condition."""
+    branches = (
+        f"  | (branch.id_or_never << $env environ << $condition {condition} << $v {when_true})\n"
+        f"  | (branch.never_or_nil << $env environ << $condition {condition} << $v {when_false})"
+    )
+    if reverse:
+        branches = (
+            f"  | (branch.never_or_nil << $env environ << $condition {condition} << $v {when_false})\n"
+            f"  | (branch.id_or_never << $env environ << $condition {condition} << $v {when_true})"
+        )
+    return f"""import branch
+__ret__ =
+  Oneof
+{branches}
+"""
+
+
+NESTED_BRANCH_PROGRAM = """
 import branch
 
 foo =
@@ -48,16 +93,27 @@ ge =
     bool <- $env Environment <- $x int <- $y int <- { x >= y }
 
 a = foo << $env environ
-condition = ge << $env environ << $x a << $y 0
+high = ge << $env environ << $x a << $y 10
+nonnegative = ge << $env environ << $x a << $y 0
+nonnegative_or_negative =
+  Oneof
+  | (branch.id_or_never
+      << $env environ << $condition nonnegative << $v "nonnegative")
+  | (branch.never_or_nil
+      << $env environ << $condition nonnegative << $v "negative")
 __ret__ =
   Oneof
-  | (branch.id_or_never << $env environ << $condition condition << $v a)
-  | (branch.never_or_nil << $env environ << $condition condition << $v 0)
+  | (branch.id_or_never << $env environ << $condition high << $v "high")
+  | (branch.never_or_nil
+      << $env environ << $condition high << $v nonnegative_or_negative)
 """
 
 
 def run(tmp: Path):
-    _if_else_picks(tmp)
+    _comparison_driven_if_else(tmp)
+    _literal_if_else_value_kinds_and_order(tmp)
+    _nested_if_elif_else(tmp)
+    _guarded_multi_branch_merge(tmp)
     _selectors_keep_or_eliminate_each_value_kind(tmp)
     _product_identities_and_absorption(tmp)
     _sum_identities_and_live_branches(tmp)
@@ -70,12 +126,75 @@ def _run(tmp, name, source, a_value=0):
     return interpret(path, env)
 
 
-def _if_else_picks(tmp: Path):
-    """a >= 0 hands back a; otherwise it hands back 0."""
-    for a_value, want in ((7, 7), (1, 1), (0, 0), (-1, 0), (-8, 0)):
-        result = _run(tmp, f"branch_{a_value}.viba", BRANCH_PROGRAM, a_value)
+def _comparison_driven_if_else(tmp: Path):
+    """Threshold boundaries run through comparison, both selectors and merge."""
+    cases = (
+        (0, -8, 0), (0, -1, 0), (0, 0, 0), (0, 1, 1), (0, 7, 7),
+        (5, 0, 0), (5, 4, 0), (5, 5, 5), (5, 6, 6), (5, 20, 20),
+        (10, 1, 0), (10, 9, 0), (10, 10, 10), (10, 11, 11), (10, 99, 99),
+    )
+    for index, (threshold, a_value, want) in enumerate(cases):
+        source = comparison_if_program(threshold)
+        result = _run(tmp, f"comparison_branch_{index}.viba", source, a_value)
         check(isinstance(result, Ok) and value_of(result) == want,
-              f"if/else with a={a_value} answers {want}: {result!r}")
+              f"if a={a_value} >= {threshold} answers {want}: {result!r}")
+
+
+def _literal_if_else_value_kinds_and_order(tmp: Path):
+    """Both outcomes and both branch orders work for each scalar value kind."""
+    cases = (
+        ("true", "7", "8", 7),
+        ("false", "7", "8", 8),
+        ("true", '"left"', '"right"', "left"),
+        ("false", '"left"', '"right"', "right"),
+        ("true", "true", "false", True),
+        ("false", "true", "false", False),
+        ("true", "nil", "9", None),
+        ("false", "9", "nil", None),
+    )
+    for reverse in (False, True):
+        for index, (condition, when_true, when_false, want) in enumerate(cases):
+            source = literal_if_program(condition, when_true, when_false, reverse)
+            result = _run(tmp, f"literal_branch_{reverse}_{index}.viba", source)
+            check(isinstance(result, Ok) and value_of(result) == want,
+                  f"if {condition} with reverse={reverse} answers {want!r}: {result!r}")
+
+
+def _nested_if_elif_else(tmp: Path):
+    """A nested merge implements high / nonnegative / negative classification."""
+    cases = ((25, "high"), (11, "high"), (10, "high"),
+             (9, "nonnegative"), (1, "nonnegative"), (0, "nonnegative"),
+             (-1, "negative"), (-20, "negative"))
+    for index, (a_value, want) in enumerate(cases):
+        result = _run(tmp, f"nested_branch_{index}.viba",
+                      NESTED_BRANCH_PROGRAM, a_value)
+        check(isinstance(result, Ok) and value_of(result) == want,
+              f"nested branch classifies {a_value} as {want}: {result!r}")
+
+
+def _guarded_multi_branch_merge(tmp: Path):
+    """Three independent guards preserve exactly their live branch set."""
+    for mask in range(8):
+        conditions = tuple("true" if mask & (1 << index) else "false"
+                           for index in range(3))
+        source = f"""import branch
+__ret__ =
+  Oneof
+  | (branch.id_or_never << $env environ << $condition {conditions[0]} << $v 1)
+  | (branch.id_or_never << $env environ << $condition {conditions[1]} << $v 2)
+  | (branch.id_or_never << $env environ << $condition {conditions[2]} << $v 3)
+"""
+        result = _run(tmp, f"guarded_merge_{mask}.viba", source)
+        live = [index + 1 for index in range(3) if mask & (1 << index)]
+        if not live:
+            valid = isinstance(result, Ok) and isinstance(result.ok_value.data,
+                                                           viba_ast.Never)
+        elif len(live) == 1:
+            valid = isinstance(result, Ok) and value_of(result) == live[0]
+        else:
+            data = result.ok_value.data if isinstance(result, Ok) else None
+            valid = isinstance(data, viba_ast.SumChain) and len(data.elements) == len(live)
+        check(valid, f"guards {conditions} preserve branches {live}: {result!r}")
 
 
 def _selectors_keep_or_eliminate_each_value_kind(tmp: Path):
