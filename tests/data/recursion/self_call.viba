@@ -1,0 +1,7 @@
+use =
+    int
+  <- $env Environment
+  <- $x int
+  <- { hand x back }
+A = use << $env environ << $x A
+__ret__ = A

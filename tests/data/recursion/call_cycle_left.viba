@@ -1,0 +1,2 @@
+import call_cycle_right
+__ret__ = call_cycle_right << (environ.sub_env << "right") << ()

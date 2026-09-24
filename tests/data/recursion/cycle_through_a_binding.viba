@@ -1,0 +1,7 @@
+
+A = (
+  step := B
+  step
+)
+B = A
+__ret__ = A

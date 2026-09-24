@@ -1,0 +1,2 @@
+import self_import as me
+__ret__ = me << (environ.tmp_sub_env << ()) << ()

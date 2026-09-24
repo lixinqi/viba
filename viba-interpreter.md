@@ -491,6 +491,27 @@ A = (
 只判类型：它在定义体或别的类型位置上遇到绑定块，答的是 `a binding is computation, not a type: …`。
 这一层没有绑定，也没有等着谁去做的代换——想在类型里给中间量起名，那就是另一条定义。
 
+## 一份文件跑不出递归
+
+函数递归执行要"再一次进到同一个定义"。一份文件自己的定义图是无环的——**文件里的定义不许绕回
+自己**——所以单独给一份文件，怎么跑都跑不出递归：写出来的调用点就那么多，`<<` 一处一处写死。
+
+```viba
+A = B
+B = A
+# A -> B -> A: one file's definitions may not go round — recursion takes two files
+```
+
+- **绕回自己当场报错**，不是等栈崩：一份文件里 `A = A`、`A = B` 与 `B = A`、以及"算 A 的时候
+  又去要 A"（`A = use << $env environ << $x A`）都是 `VibaProgramErr`，话里给出绕的路径。
+- **没真跑起来的不算**：惰性实参没人叫就不算递归（`A = ignore << $env environ << $x A` 答 7，
+  因为 `ignore` 不叫那个 getter）；`List[T] = Object * $tail List[T] | nil` 这种**类型**自引用也
+  不算——类型不执行。
+- **跨文件不设这条限制**：两份文件可以互相 import、互相调用，设计层不拦。真的绕回去（`a.x` 要
+  `b.y`、`b.y` 又要 `a.x`）时，这次运行报
+  `a.x -> b.y -> a.x: the run came back to where it started`；模块调用成环报
+  `module 'a' is already running: a module call cycle`。两条都是"这次跑不完"，不是设计不合规。
+
 ## 四种答案
 
 `interpret` 返回的 `Result` 比别处多两支，而多出来的那两支都带着"是哪一步"：

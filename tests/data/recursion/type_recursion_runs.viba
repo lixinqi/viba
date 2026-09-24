@@ -1,0 +1,14 @@
+leaf =
+    int
+  <- $env Environment
+  <- { answer seven }
+
+List[T] =
+  Oneof
+  | Object
+    * $head T
+    * $tail List[T]
+  | nil
+
+Items = $items List[int]
+__ret__ = leaf << $env environ

@@ -605,6 +605,7 @@ class _Runner:
         self.path_of: dict = {}        # module name -> file it was loaded from
         self.running: list = []        # module activations, for cycle refusal
         self.used_paths: set = set()   # storage paths module calls have run under
+        self.computing: list = []      # (module, definition) being computed, innermost last
 
     def run_file(self, file: str, environ: Environment) -> InterpretResult:
         path = Path(file)
@@ -980,8 +981,45 @@ class _Activation:
         return None
 
     def _defined(self, name: str, definition):
+        """The value this definition stands for, computed once.
+
+        A definition that is asked for while it is still being computed is a
+        definition that goes round: one file's definitions may not form a cycle,
+        so this is a program error — recursion is what two files do, and it is
+        the module call that carries it (viba-interpreter.md).
+        """
         if name in self.defined:
             return self.defined[name]
+        mine = (self.name, name)
+        if mine in self.runner.computing:
+            return VibaProgramErr(self._goes_round(name))
+        self.runner.computing.append(mine)
+        try:
+            value = self._compute(name, definition)
+        finally:
+            self.runner.computing.pop()
+        self.defined[name] = value
+        return value
+
+    def _goes_round(self, name: str) -> str:
+        """What went round, as the path that came back to `name`.
+
+        Inside one file this is the rule: a file's own definitions may not form
+        a cycle, which is why a file alone cannot recurse. Across files the
+        design is left alone — two files may call each other — but a run that
+        comes back to a definition still being computed has nowhere to stop, so
+        it is reported rather than left to the interpreter's own stack.
+        """
+        mine = (self.name, name)
+        path = self.runner.computing[self.runner.computing.index(mine):] + [mine]
+        if len({module for module, _defined in path}) == 1:
+            written = " -> ".join(defined for _module, defined in path)
+            return (f"{written}: one file's definitions may not go round — "
+                    f"recursion takes two files")
+        written = " -> ".join(f"{module}.{defined}" for module, defined in path)
+        return f"{written}: the run came back to where it started"
+
+    def _compute(self, name: str, definition):
         body = definition.body
         if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
             value = Ok(_VibaFunc(self, name, body))     # a function is a value
@@ -994,7 +1032,6 @@ class _Activation:
                 value = Ok(_VibaFunc(self, name, chain, lazy=True))
         else:
             value = self.evaluate(body)
-        self.defined[name] = value
         return value
 
     def _member_of(self, module, module_name: str, rest: str):
