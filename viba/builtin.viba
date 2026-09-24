@@ -27,9 +27,10 @@ environ = Environment
 # really takes one branch (branch.viba).
 #
 # The marker is the tag `$__param_lazy_evaluated_tag_yanatutt__` — a name
-# nobody may use — and `$func` holds the function type being marked. The type
-# layer does not read through the marker yet: it sees this product, so a marked
-# call does not reduce to its result there (viba-interpreter.md says so).
+# nobody may use — and `$func` holds the function type being marked. The tag is
+# what every layer goes by: the interpreter, the judgment and the descriptor
+# layer all read through the marker and see `Func` itself, which is why a marked
+# call reduces everywhere (viba/partial.py::marked_function).
 ParametersLazyEvaluated[Func] =
     Object
   * $__param_lazy_evaluated_tag_yanatutt__ ()

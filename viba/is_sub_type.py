@@ -82,7 +82,7 @@ alias of what it is written as, and judgment is structural throughout.
 """
 
 from viba import viba_ast
-from viba.partial import module_as_function, reduce_partial
+from viba.partial import marked_function, module_as_function, reduce_partial
 from viba.type import (
     PartialError,
     AnyType,
@@ -928,13 +928,24 @@ class _Checker:
         return ("inline", id(resolved.ok_value.ast_node)), node.name
 
     def _normalize(self, node, module, side: str):
-        """Unfold names and give `<<` until neither is left."""
+        """Unfold names, read through the lazy marker, give `<<`: until none
+        of the three has anything left."""
         while True:
             before = (id(node), id(module))
             node, module = self._unfold_ref(node, module, side)
+            node = self._through_marker(node, module)
             node, module = self._partial(node, module, side)
             if (id(node), id(module)) == before:
                 return node, module
+
+    def _through_marker(self, node, module):
+        """`ParametersLazyEvaluated[F]` is F: the marker says how the arguments
+        are given, not what the function is (viba-interpreter.md)."""
+        while True:
+            marked = marked_function(node, module)
+            if marked is None:
+                return node
+            node = marked
 
     def _partial(self, node, module, side: str):
         """A design's `<<` reduced: the function with that argument given."""

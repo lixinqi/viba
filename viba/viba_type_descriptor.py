@@ -26,7 +26,7 @@ import hashlib
 from typing import Callable, Dict, List, Optional
 
 from viba import viba_ast
-from viba.partial import module_as_function, reduce_partial
+from viba.partial import marked_function, module_as_function, reduce_partial
 from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
     PartialError,
@@ -472,6 +472,11 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
         # (viba-style.md).
         raise PartialError("a binding is computation, not a type: "
                            f"{viba_ast.unparse_type(node)}")
+    marked = marked_function(node, module)
+    if marked is not None:
+        # A marked function is the function it marks: the descriptor of
+        # `ParametersLazyEvaluated[F]` is the descriptor of F.
+        return _build_type(pool, module, marked)
     if isinstance(node, ast_nodes.Partial):
         reduced, _ = reduce_partial(node, module,
                                     lambda name, home: _partial_target(pool, name, home),

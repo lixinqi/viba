@@ -1054,6 +1054,62 @@ def run_binding_definition_cases():
           True, "and the answer names the reason")
 
 
+def run_lazy_marker_cases():
+    """`ParametersLazyEvaluated[F]` 在判定层就是 F：标记说的是实参怎么给，不是类型。
+
+    名字自己不算数——本地定义盖过内建——所以只有带那个保留 tag 的定义才算标记。
+    """
+    marked = """
+mark =
+    ParametersLazyEvaluated[
+        int
+      <- $env Environment
+      <- $x int
+    ]
+"""
+    plain = """
+mark =
+    int
+  <- $env Environment
+  <- $x int
+"""
+    check_result(is_sub_type(load_entry_as(marked, custom_module(marked)),
+                             load_entry_as(plain, custom_module(plain))),
+                 True, "a marked function is the function it marks")
+    check_result(is_sub_type(load_entry_as(plain, custom_module(plain)),
+                             load_entry_as(marked, custom_module(marked))),
+                 True, "and the judgement does not care which way round")
+
+    applied = marked + "X = mark << $env environ\n"
+    left = "X = int <- $x int\n"
+    check_result(is_sub_type(load_entry_as(applied, custom_module(applied)),
+                             load_entry_as(left, custom_module(left))),
+                 True, "a marked call reduces: the environment given, the arguments left")
+
+    # 本地那份不带保留 tag：它就是一个普通的类型应用，不是标记
+    shadowed = """
+ParametersLazyEvaluated[F] =
+    Object
+  * $func F
+mark = ParametersLazyEvaluated[int <- $env Environment <- $x int]
+"""
+    check_result(is_sub_type(load_entry_as(shadowed, custom_module(shadowed)),
+                             load_entry_as(plain, custom_module(plain))),
+                 False, "a name without the reserved tag is no marker")
+
+    # 带着保留 tag 的本地定义就是标记——判定层和 interpreter 读的是同一条规矩
+    carrying = """
+ParametersLazyEvaluated[F] =
+    Object
+  * $__param_lazy_evaluated_tag_yanatutt__ ()
+  * $func F
+mark = ParametersLazyEvaluated[int <- $env Environment <- $x int]
+"""
+    check_result(is_sub_type(load_entry_as(carrying, custom_module(carrying)),
+                             load_entry_as(plain, custom_module(plain))),
+                 True, "a local definition carrying the tag is the marker")
+
+
 def run_suite_reflexivity():
     """Every closed parser suite case must be reflexive (others skip)."""
     count = skipped = 0
@@ -1116,6 +1172,7 @@ run_apply_cases()
 run_any_cases()
 run_type_object_cases()
 run_binding_definition_cases()
+run_lazy_marker_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

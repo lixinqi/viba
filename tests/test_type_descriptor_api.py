@@ -1,7 +1,7 @@
 """Descriptor-side API checks.
 
 The 100 generated cases in data/type_descriptor/case_* are the regression;
-these five checks are the readable ones: each is a small directory of
+these checks are the readable ones: each is a small directory of
 hand-written .viba files under data/type_descriptor/api plus the exact
 assertions it is there to make.
 
@@ -155,6 +155,38 @@ def _check_unit_heads():
     assert isinstance(definition_find_member_by_index(rule, 2), VibaProgramErr)
 
 
+def _check_lazy_marker():
+    """`ParametersLazyEvaluated`：标记说的是实参怎么给，不是类型。
+
+    所以这一层读穿它：标记过的定义是个函数（没有成员），标记过的调用编得出来。
+    名字自己不算数——本地那份不含保留 tag 的定义就只是个普通的类型应用。
+    """
+    pool = load("lazy_marker", [("case.viba", "lazy_marker")])
+
+    # 一份写着标记调用的文件编得出来：以前这一步是 PartialError
+    called = pool_find_definition(pool, "lazy_marker.Called").ok_value
+    assert definition_members(called).ok_value == []       # 函数，不是带两个成员的积
+
+    selector = pool_find_definition(pool, "lazy_marker.id_or_never").ok_value
+    assert definition_members(selector).ok_value == []
+    assert isinstance(definition_find_member_by_tag(
+        selector, "$__param_lazy_evaluated_tag_yanatutt__"), VibaProgramErr)
+
+    holder = pool_find_definition(pool, "lazy_marker.Holder").ok_value
+    member = definition_find_member_by_tag(holder, "$sw").ok_value
+    assert member_resolved_definition(member).ok_value.full_name == "lazy_marker.id_or_never"
+
+    # 本地同名、不带保留 tag：`Local[...]` 还是个类型应用，给不了实参。
+    # 这条源故意编不过，所以写在这里而不是放进语料目录（那份语料一份都该是干净的）；
+    # 判定层那边用两份能打开的文件钉了同一条规矩（test_is_sub_type.py）。
+    shadowed = ("Local[F] =\n"
+                "    Object\n"
+                "  * $func F\n"
+                "Try = Local[int <- $env Environment] << $env environ\n")
+    assert isinstance(parse_viba_file(empty_pool(), shadowed, "shadowed.viba", "shadowed"),
+                      VibaProgramErr)
+
+
 def _check_errors():
     """反例：重名文件、重名全名、模块名撞车、import 指向的模块不在池子里。"""
     pool = load("errors", [("amb_a.viba", "err.amb"), ("amb_b.viba", "err.amb")])
@@ -284,12 +316,13 @@ def _check_reprs():
 
 def run():
     checks = [_check_alias_and_depth, _check_import_binding, _check_members,
-              _check_generics, _check_unit_heads, _check_errors, _check_reprs]
+              _check_generics, _check_unit_heads, _check_lazy_marker,
+              _check_errors, _check_reprs]
     for check in checks:
         check()
     print(f"type_descriptor_api: {len(checks)} checks passed "
           f"(imports and prefixes, import binding, members, generics, "
-          f"unit chain heads, negatives, descriptor reprs)")
+          f"unit chain heads, the lazy marker, negatives, descriptor reprs)")
     return 0
 
 

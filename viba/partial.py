@@ -27,7 +27,7 @@ argument the function does not have, or one that does not fit, is a mistake
 from typing import Callable, Optional, Tuple
 
 from viba import viba_ast
-from viba.type import Ok, PartialError
+from viba.type import BUILTIN_MODULE, AstNodeType, Ok, PartialError
 
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
@@ -35,6 +35,39 @@ _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 RET_NAME = "__ret__"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
+
+# The tag that makes a function's arguments lazy (viba/builtin.viba).
+LAZY_MARKER_TAG = "$__param_lazy_evaluated_tag_yanatutt__"
+
+
+def marked_function(node, module):
+    """The function type inside `ParametersLazyEvaluated[F]`, else None.
+
+    A marked function *is* the function it marks: the marker says how the
+    arguments are given (one at a time, to the host, viba-interpreter.md), not
+    what the function is. Every layer reads through it, so all three agree on
+    what is being called.
+
+    The name alone decides nothing — a module may define
+    `ParametersLazyEvaluated` itself, and a local definition wins — so the
+    definition the constructor names has to carry the reserved tag.
+    """
+    if not isinstance(node, viba_ast.TypeApp) or len(node.args or []) != 1:
+        return None
+    body = None
+    local = _definition(module, node.constructor)
+    if local is not None:
+        body = local.body
+    else:
+        builtin = BUILTIN_MODULE.lookup(node.constructor)
+        if isinstance(builtin, Ok) and isinstance(builtin.ok_value, AstNodeType):
+            body = builtin.ok_value.ast_node
+    if body is None:
+        return None
+    if not any(isinstance(part, viba_ast.Tagged) and part.tag == LAZY_MARKER_TAG
+               for part in viba_ast.walk(body)):
+        return None
+    return node.args[0]
 
 
 def module_as_function(module, name):
@@ -101,17 +134,21 @@ def _give(base, module, argument, argument_module, resolve, judge):
 
 
 def _unfold(node, module, resolve):
-    """A name runs to its body, name after name."""
+    """A name runs to its body, name after name — and a marked function is the
+    function it marks, so the marker is read through here."""
     seen = set()
-    while isinstance(node, viba_ast.TypeRef):
-        if node.name in seen:
+    while True:
+        marked = marked_function(node, module)
+        if marked is not None:
+            node = marked
+            continue
+        if not isinstance(node, viba_ast.TypeRef) or node.name in seen:
             return node, module
         seen.add(node.name)
         target = resolve(node.name, module)
         if target is None:
             return node, module
         node, module = target
-    return node, module
 
 
 def _written(node) -> str:
@@ -152,4 +189,4 @@ def _elements(node):
     return [node]
 
 
-__all__ = ["reduce_partial", "module_as_function"]
+__all__ = ["reduce_partial", "module_as_function", "marked_function"]

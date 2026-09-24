@@ -70,6 +70,7 @@ from pathlib import Path
 from typing import Optional
 
 from viba import serialize, viba_ast
+from viba.partial import marked_function
 from viba.reflect import VibaNode, access as reflect_access
 from viba.type import (REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
@@ -275,33 +276,6 @@ def material(value) -> VibaNode:
 def _is_never(value) -> bool:
     """Whether `value` is the additive unit `never`."""
     return isinstance(value, _Material) and isinstance(value.node.data, viba_ast.Never)
-
-
-LAZY_MARKER_TAG = "$__param_lazy_evaluated_tag_yanatutt__"
-
-
-def _is_lazy_marker(node, module) -> bool:
-    """Whether this written type application is `ParametersLazyEvaluated[F]`.
-
-    The marker is the tag `LAZY_MARKER_TAG` inside the definition the
-    constructor names — `ParametersLazyEvaluated` in `viba/builtin.viba`, or a
-    module's own definition carrying the same reserved tag. Matching the name
-    alone would let a shadowed name change what a call means.
-    """
-    if not isinstance(node, viba_ast.TypeApp) or len(node.args or []) != 1:
-        return False
-    body = None
-    local = _definition(module, node.constructor)
-    if local is not None:
-        body = local.body
-    else:
-        builtin = BUILTIN_MODULE.lookup(node.constructor)
-        if isinstance(builtin, Ok) and isinstance(builtin.ok_value, AstNodeType):
-            body = builtin.ok_value.ast_node
-    if body is None:
-        return False
-    return any(isinstance(part, viba_ast.Tagged) and part.tag == LAZY_MARKER_TAG
-               for part in viba_ast.walk(body))
 
 
 def _is_nil(value) -> bool:
@@ -879,8 +853,7 @@ class _Activation:
         body = definition.body
         if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
             value = Ok(_VibaFunc(self, name, body))     # a function is a value
-        elif _is_lazy_marker(body, self.module):
-            chain = body.args[0]
+        elif (chain := marked_function(body, self.module)) is not None:
             if not isinstance(chain, (viba_ast.Exponent, viba_ast.ExponentChain)):
                 value = VibaProgramErr(
                     f"{name}: ParametersLazyEvaluated marks a function, not "

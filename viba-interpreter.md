@@ -372,9 +372,16 @@ getter **最多算一次**：第一次问出结果（值或停下），之后每
 [`tests/test_interpreter_let_branch.py`](tests/test_interpreter_let_branch.py)：20 份可以打开的文件
 （`tests/data/let_branch/*.viba`），每条只在表里写该跑出什么。
 
-> 已知缺口：**类型层还看不见这个标记**——它把 `ParametersLazyEvaluated[F]` 当成一个普通的类型应用
-> （`Object` 套一个 `$func F`），所以 `id_or_never << $env environ` 在类型层归约不到
-> `Any <- $condition bool <- $v Any`。运行是对的，判定还没跟上。
+标记说的是实参怎么给，不是类型，所以**类型层也读穿它**：`ParametersLazyEvaluated[F]` 在判定层和
+描述符层就是 `F`。于是 `id_or_never` 的类型是 `Any <- $condition bool <- $v Any`，
+`id_or_never << $env environ` 也归约得下去（少掉 `$env` 那一格）。三层读的是同一份读法
+（`viba/partial.py` 的 `marked_function`），所以运行、判定、描述符不会各读各的。
+
+名字自己不算数：本地定义盖过内建，所以只有定义体里带那个保留 tag 的名字才算标记——一个模块自己定义
+个同名类型，那它就只是个类型。
+
+用例：判定层 [`tests/test_is_sub_type.py`](tests/test_is_sub_type.py) 的 `run_lazy_marker_cases`，
+描述符层 [`tests/data/type_descriptor/api/lazy_marker/case.viba`](tests/data/type_descriptor/api/lazy_marker/case.viba)。
 
 ## 类型层的模块
 
