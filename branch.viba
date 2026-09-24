@@ -3,8 +3,8 @@
 # Each switch takes the branch value and applies an internal product selector:
 # the identity keeps it (nil * value = value), while never eliminates it
 # (never * value = never). The surrounding sum then drops the eliminated
-# branch. Hence `id_or_never`: the identity is what keeps the value when the
-# condition holds.
+# branch. Hence the two names: `id_or_never` keeps the value when the condition
+# holds (the identity selects it), `never_or_id` keeps it when it does not.
 #
 # Both are marked `ParametersLazyEvaluated`, so `interpret` does not compute the
 # branch value up front: it hands the host a getter for it, and the switch calls
@@ -24,7 +24,7 @@ id_or_never =
 
 # Condition holds: never * v = never — and v is never computed.
 # Condition does not hold: nil * v = v — and v is computed.
-never_or_nil =
+never_or_id =
     ParametersLazyEvaluated[
         Any
       <- $env Environment

@@ -43,11 +43,11 @@ def comparison_if_program(threshold, when_true="a", when_false="0", reverse=Fals
     """A complete comparison, selection and merge program."""
     branches = (
         f"  | (branch.id_or_never << $env environ << $condition condition << $v {when_true})\n"
-        f"  | (branch.never_or_nil << $env environ << $condition condition << $v {when_false})"
+        f"  | (branch.never_or_id << $env environ << $condition condition << $v {when_false})"
     )
     if reverse:
         branches = (
-            f"  | (branch.never_or_nil << $env environ << $condition condition << $v {when_false})\n"
+            f"  | (branch.never_or_id << $env environ << $condition condition << $v {when_false})\n"
             f"  | (branch.id_or_never << $env environ << $condition condition << $v {when_true})"
         )
     return f"""
@@ -70,11 +70,11 @@ def literal_if_program(condition, when_true, when_false, reverse=False):
     """A complete branch program with a written boolean condition."""
     branches = (
         f"  | (branch.id_or_never << $env environ << $condition {condition} << $v {when_true})\n"
-        f"  | (branch.never_or_nil << $env environ << $condition {condition} << $v {when_false})"
+        f"  | (branch.never_or_id << $env environ << $condition {condition} << $v {when_false})"
     )
     if reverse:
         branches = (
-            f"  | (branch.never_or_nil << $env environ << $condition {condition} << $v {when_false})\n"
+            f"  | (branch.never_or_id << $env environ << $condition {condition} << $v {when_false})\n"
             f"  | (branch.id_or_never << $env environ << $condition {condition} << $v {when_true})"
         )
     return f"""import branch
@@ -99,12 +99,12 @@ nonnegative_or_negative =
   Oneof
   | (branch.id_or_never
       << $env environ << $condition nonnegative << $v "nonnegative")
-  | (branch.never_or_nil
+  | (branch.never_or_id
       << $env environ << $condition nonnegative << $v "negative")
 __ret__ =
   Oneof
   | (branch.id_or_never << $env environ << $condition high << $v "high")
-  | (branch.never_or_nil
+  | (branch.never_or_id
       << $env environ << $condition high << $v nonnegative_or_negative)
 """
 
@@ -202,8 +202,8 @@ def _selectors_keep_or_eliminate_each_value_kind(tmp: Path):
     selectors = (
         ("id_or_never", "true", True),
         ("id_or_never", "false", False),
-        ("never_or_nil", "true", False),
-        ("never_or_nil", "false", True),
+        ("never_or_id", "true", False),
+        ("never_or_id", "false", True),
     )
     for selector, condition, keeps_value in selectors:
         for written, expected in values:

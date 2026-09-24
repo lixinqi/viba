@@ -110,7 +110,7 @@ condition = ge << $env environ << $x 1 << $y THRESHOLD
 __ret__ =
   Oneof
   | (branch.id_or_never << $env environ << $condition condition << $v (tick << $env environ))
-  | (branch.never_or_nil << $env environ << $condition condition << $v (tock << $env environ))
+  | (branch.never_or_id << $env environ << $condition condition << $v (tock << $env environ))
 """
 
 
@@ -204,7 +204,7 @@ condition = ge << $env environ << $x 1 << $y THRESHOLD
 __ret__ =
     Oneof
   | (branch.id_or_never << environ << condition << (inner_lambda_record << environ << "true_branch"))
-  | (branch.never_or_nil << environ << condition << (inner_lambda_record << environ << "false_branch"))
+  | (branch.never_or_id << environ << condition << (inner_lambda_record << environ << "false_branch"))
 """
     calls = []
     result = interpret(write(tmp, "recorded_true.viba", source.replace("THRESHOLD", "0")),

@@ -260,7 +260,7 @@ id_or_never =
       <- $v Any
     ]
 
-never_or_nil =
+never_or_id =
     ParametersLazyEvaluated[
         Any
       <- $env Environment
@@ -290,8 +290,8 @@ def id_or_never(get_env, get_condition, get_v):
 - `id_or_never`：condition 为真时按单位元 `nil * v = v` 返回 `get_v()`，否则按 `never * v = never`
   返回 never——**`get_v` 不会被叫**，那一支的实参表达式根本不算；名字里的 `id` 就是单位元
   （identity）：留下这个值的那个选择子；
-- `never_or_nil`：condition 为真时按 `never * v = never` 返回 never，否则按 `nil * v = v` 返回
-  `get_v()`。
+- `never_or_id`：condition 为真时按 `never * v = never` 返回 never，否则按单位元 `nil * v = v`
+  返回 `get_v()`。
 
 ```python
 a = foo()
@@ -312,7 +312,7 @@ condition = ge << $env environ << $x a << $y 0
 __ret__ =
     Oneof
     | (branch.id_or_never << $env environ << $condition condition << $v a)
-    | (branch.never_or_nil << $env environ << $condition condition << $v 0)
+    | (branch.never_or_id << $env environ << $condition condition << $v 0)
 ```
 
 当 `a = 1` 时：第一支是 `nil * 1 = 1`，第二支是 `never * 0 = never`，最终 `1 | never = 1`。

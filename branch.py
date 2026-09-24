@@ -39,7 +39,7 @@ def id_or_never(get_env, get_condition, get_v):
     return _never()
 
 
-def never_or_nil(get_env, get_condition, get_v):
+def never_or_id(get_env, get_condition, get_v):
     """Answer never when the condition holds; otherwise the value."""
     if get_condition().value:
         return _never()
@@ -50,6 +50,6 @@ def get_func(module_path, func_name):
     """Route the two selectors; anything else defers to whoever called us."""
     if func_name == "id_or_never":
         return id_or_never
-    if func_name == "never_or_nil":
-        return never_or_nil
+    if func_name == "never_or_id":
+        return never_or_id
     return None
