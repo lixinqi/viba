@@ -194,7 +194,7 @@ distance_ge =
 	<- { at least the threshold? }
 
 case_env = environ.sub_env << "case_at_1210"
-the_case = case_at_1210 << case_env
+the_case = case_at_1210 << case_env << ()
 distance = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 threshold = 5
 __ret__ = distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold
@@ -322,7 +322,7 @@ measure_distance =
 	<- { measure }
 
 case_env = environ.sub_env << "boom_case"
-the_case = boom_case << case_env
+the_case = boom_case << case_env << ()
 __ret__ = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
 """)
     failed_verdict = is_compliant(boom_rule, env)

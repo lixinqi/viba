@@ -135,8 +135,8 @@ def _written_in_viba(tmp: Path):
     tmp_calls = write(tmp, "tmp_calls.viba", ADD + """
 import tmp_lib as lib
 __ret__ = add << $env environ
-  << $a (lib << (environ.tmp_sub_env << ()))
-  << $b (lib << (environ.tmp_sub_env << ()))
+  << $a (lib << (environ.tmp_sub_env << ()) << ())
+  << $b (lib << (environ.tmp_sub_env << ()) << ())
 """)
     result = interpret(tmp_calls, environ)
     check(isinstance(result, Ok) and value_of(result) == 14,

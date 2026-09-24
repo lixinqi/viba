@@ -70,7 +70,7 @@ from pathlib import Path
 from typing import Optional
 
 from viba import serialize, viba_ast
-from viba.partial import marked_function
+from viba.partial import marked_function, product_elements
 from viba.reflect import VibaNode, access as reflect_access
 from viba.type import (REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
@@ -84,6 +84,7 @@ _NO_MODULE = custom_module("")
 
 TMP_PREFIX = "tmp_"
 RET_NAME = "__ret__"
+ARGS_NAME = "__args__"
 ENVIRON_NAME = "environ"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
@@ -309,15 +310,6 @@ def _sum_branches(node):
     if isinstance(node, viba_ast.Sum):
         return _sum_branches(node.left) + _sum_branches(node.right)
     if isinstance(node, viba_ast.SumChain):
-        return list(node.elements)
-    return [node]
-
-
-def _product_factors(node):
-    """The factors of a written product, flattened in written order."""
-    if isinstance(node, viba_ast.Product):
-        return _product_factors(node.left) + _product_factors(node.right)
-    if isinstance(node, viba_ast.ProductChain):
         return list(node.elements)
     return [node]
 
@@ -642,8 +634,12 @@ class _Runner:
 
 
 def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
-               name: str, file: Optional[str]) -> InterpretResult:
+               name: str, file: Optional[str], args=None) -> InterpretResult:
     """The module as a function: `environ` in, `__ret__` out.
+
+    A module that declares `__args__` is called with its members as well; `args`
+    is the product they were given as, and inside the module that product is what
+    `__args__` (and every name that aliases it) means (viba-interpreter.md).
 
     The storage path a module runs under is its identity: it is what the host
     is handed as `module_path`, so two activations under one path cannot be
@@ -665,7 +661,7 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     runner.used_paths.add(path)
     runner.running.append(name)
     try:
-        value = _Activation(runner, module, environ, name, file).evaluate(ret.body)
+        value = _Activation(runner, module, environ, name, file, args).evaluate(ret.body)
     finally:
         runner.running.pop()
     if _stopped(value):
@@ -681,6 +677,42 @@ def _storage_path(environ: Environment) -> str:
     return getattr(storage, "cur_storage_path", "") if storage else ""
 
 
+def _module_arg_slots(module: ModuleType):
+    """(slots, problem) for a module's `__args__`, or (None, None) for none.
+
+    `__args__` is a product type and its members are the call's arguments, in
+    written order: `__args__ = Object * $a int * $b int` is a module called with
+    two. `__args__ = Object` declares a module that still takes none, and a
+    `__args__` that is no product at all is a program error, reported at the
+    call.
+    """
+    definition = _definition(module, ARGS_NAME)
+    if definition is None:
+        return None, None
+    body = definition.body
+    if _builtin_unit(body) is NilType:
+        return [], None
+    if not isinstance(body, (viba_ast.Product, viba_ast.ProductChain)):
+        return None, (f"{ARGS_NAME} is not a product: {viba_ast.unparse_type(body)}")
+    slots = []
+    for factor in product_elements(body):
+        if _builtin_unit(factor) is NilType:
+            continue                        # the head, not a member
+        if isinstance(factor, viba_ast.Tagged):
+            slots.append((factor.tag, factor.type))
+        else:
+            slots.append((None, factor))    # a member with no tag: position only
+    return slots, None
+
+
+def _material_factors(node: VibaNode):
+    """The factors of a product material, in written order."""
+    data = node.data
+    if isinstance(data, (viba_ast.Product, viba_ast.ProductChain)):
+        return product_elements(data)
+    return [data]
+
+
 def _definition(module: ModuleType, name: str):
     for node in module.module.body:
         if getattr(node, "name", None) == name:
@@ -692,12 +724,13 @@ class _Activation:
     """One module running with one environment."""
 
     def __init__(self, runner: _Runner, module: ModuleType, environ: Environment,
-                 name: str, file: Optional[str]):
+                 name: str, file: Optional[str], args=None):
         self.runner = runner
         self.module = module
         self.environ = environ
         self.name = name
         self.file = file
+        self.args = args                     # the `__args__` product, if any
         self.defined: dict = {}
 
     # ---- expressions ----
@@ -744,7 +777,7 @@ class _Activation:
     def _product(self, node, scope=()):
         """Evaluate a product: never absorbs, while nil disappears."""
         kept = []
-        for factor in _product_factors(node):
+        for factor in product_elements(node):
             if _builtin_unit(factor) is NilType:
                 continue
             value = self.evaluate(factor, scope)
@@ -821,6 +854,11 @@ class _Activation:
             return Ok(bound)
         if name == ENVIRON_NAME:
             return Ok(_Host(self.environ))
+        if name == ARGS_NAME and self.args is not None:
+            # Read as a type `__args__` is the product of the call's arguments;
+            # read as a value inside the module it is that product (the one the
+            # call was given), which is why a name aliasing it works too.
+            return Ok(self.args)
         if name.startswith(ENVIRON_NAME + "."):
             return self._environ_member(name[len(ENVIRON_NAME) + 1:])
         definition = _definition(self.module, name)
@@ -835,7 +873,33 @@ class _Activation:
             if rest:
                 return self._member_of(imported.ok_value, module_name, rest)
             return Ok(_ModuleFunc(self.runner, imported.ok_value, module_name))
+        member = self._tagged_member(name, scope)
+        if member is not None:
+            return member
         return VibaProgramErr(f"no definition named {name!r} in module {self.name!r}")
+
+    def _tagged_member(self, name: str, scope=()):
+        """`args.a`: the `$a` member of a product this module names.
+
+        A dotted name is a member of an imported module (`demo.print`), which is
+        settled before this; when the head is not an import, it is the tag of a
+        member of the product the head stands for — the arguments of the call
+        among them (`args.a`, `__args__.a`). None when the head is no such
+        value, so the caller reports the name the way it always did.
+        """
+        head, dot, tag = name.rpartition(".")
+        if not dot or not head:
+            return None
+        value = self._resolve(head, scope)
+        if _stopped(value) or not isinstance(value.ok_value, _Material):
+            return None
+        wanted = "$" + tag
+        for factor in _material_factors(value.ok_value.node):
+            if isinstance(factor, viba_ast.Tagged) and factor.tag == wanted:
+                inner = factor.type          # the member's value, not its address
+                return Ok(_Material(VibaNode(
+                    reflect_access, descriptor_of(AstNodeType(inner, self.module)), inner)))
+        return VibaProgramErr(f"{head!r} has no member tagged {wanted!r}")
 
     def _imported_name(self, name: str):
         """(module name, rest) when `name` is written through an import."""
@@ -912,6 +976,18 @@ class _Activation:
             if _stopped(current):
                 return current
             current = current.ok_value
+        if isinstance(current, _ModuleFunc):
+            # `__args__` is the whole point of the declaration: a module is
+            # called with all of them, so a chain that ends short is a program
+            # error, not a half-applied function — and one that ends full runs
+            # here, at the end of the call.
+            missing = current.missing()
+            if missing is not None:
+                return VibaProgramErr(missing)
+            fired = current.fire()
+            if _stopped(fired):
+                return fired
+            current = fired.ok_value
         return Ok(current)
 
     def _argument(self, node, scope=()):
@@ -988,6 +1064,13 @@ class _Callable:
                 if isinstance(given, VibaProgramErr):
                     raise RuntimeError(given.err_msg)
                 current = given.ok_value
+            if isinstance(current, _ModuleFunc) and current.ready():
+                fired = current.fire()
+                if isinstance(fired, VibaProgramErr):
+                    raise RuntimeError(fired.err_msg)
+                if _stopped(fired):
+                    raise fired
+                current = fired.ok_value
             return _argument_value(current)
         return call
 
@@ -1145,28 +1228,141 @@ class _HostFunction(_Callable):
 
 
 class _ModuleFunc(_Callable):
-    """A module as a function: its one argument is the environment."""
+    """A module as a function: the environment, then its `__args__`.
 
-    def __init__(self, runner: _Runner, module: ModuleType, name: str):
+    After the environment comes the call's arguments: every member of the
+    module's `__args__` — each one by tag (`<< $a 3`) or, without a tag, to the
+    next member in written order, the way an ordinary function takes its
+    arguments. A module with no members (no `__args__`, or an empty product)
+    still gives that slot, written `()`: the call says what it gives, so a chain
+    that stops early cannot look complete.
+
+    A call that ends before the arguments are all in is a program error, not a
+    half-applied function — the declaration is what the module is called with.
+    """
+
+    def __init__(self, runner: _Runner, module: ModuleType, name: str,
+                 environ=None, given=None, empty=False):
         self.runner = runner
         self.module = module
         self.name = name
-        self.given = []
+        self.environ = environ
+        self.given = dict(given or {})      # member index -> value
+        self.empty = empty                  # the `()` an empty product is given as
+
+    def ready(self) -> bool:
+        """Whether every argument is in — the call has what it needs to run."""
+        if self.environ is None:
+            return False
+        slots, problem = _module_arg_slots(self.module)
+        if problem is not None:
+            return False
+        return self.empty if not slots else len(self.given) == len(slots)
+
+    def fire(self):
+        """Run the call: the environment and every argument are in."""
+        return self._run(self.environ, self.given)
+
+    def missing(self):
+        """Why this call is not complete, or None when it is."""
+        if self.environ is None:
+            return f"module {self.name!r} needs an Environment"
+        slots, problem = _module_arg_slots(self.module)
+        if problem is not None:
+            return f"module {self.name!r}: {problem}"
+        if not slots:
+            if self.empty:
+                return None
+            return (f"module {self.name!r} was given no argument for its {ARGS_NAME}: "
+                    f"an empty one is written ()")
+        left = [_slot_name(index, tag)
+                for index, (tag, _written) in enumerate(slots) if index not in self.given]
+        if not left:
+            return None
+        return (f"module {self.name!r} was given {len(self.given)} of its "
+                f"{len(slots)} {ARGS_NAME}: {', '.join(left)} missing")
 
     def give(self, item):
-        values = self.given + [item.value]
-        if len(values) < 1:
-            return Ok(_ModuleFunc(self.runner, self.module, self.name))
-        environ = values[0].obj if isinstance(values[0], _Host) else None
-        if not isinstance(environ, Environment):
-            return VibaProgramErr(f"module {self.name!r} needs an Environment")
-        answer = _run_module(self.runner, self.module, environ, self.name, None)
+        if self.environ is None:
+            environ = item.value.obj if isinstance(item.value, _Host) else None
+            if not isinstance(environ, Environment):
+                return VibaProgramErr(f"module {self.name!r} needs an Environment")
+            return Ok(_ModuleFunc(self.runner, self.module, self.name, environ, {}))
+        slots, problem = _module_arg_slots(self.module)
+        if problem is not None:
+            return VibaProgramErr(f"module {self.name!r}: {problem}")
+        if not slots:
+            if item.tag is not None:
+                return VibaProgramErr(
+                    f"module {self.name!r} takes no {item.tag} argument: its "
+                    f"{ARGS_NAME} is empty, written ()")
+            if self.empty:                      # the empty product, given twice
+                return VibaProgramErr(
+                    f"module {self.name!r} takes no more arguments: its "
+                    f"{ARGS_NAME} is empty, written ()")
+            return Ok(_ModuleFunc(self.runner, self.module, self.name,
+                                  self.environ, {}, empty=True))
+        given = dict(self.given)
+        if item.tag is not None:
+            tags = [tag for tag, _written in slots]
+            if item.tag not in tags:
+                return VibaProgramErr(
+                    f"module {self.name!r} takes no {item.tag} argument: its "
+                    f"{ARGS_NAME} are {_written_slots(slots)}")
+            index = tags.index(item.tag)
+            if index in given:
+                return VibaProgramErr(
+                    f"module {self.name!r} was given {item.tag} twice")
+        else:
+            free = [index for index in range(len(slots)) if index not in given]
+            if not free:
+                return VibaProgramErr(
+                    f"module {self.name!r} takes no more arguments: its "
+                    f"{ARGS_NAME} are all given")
+            index = free[0]
+        given[index] = item.value
+        # The module runs when the chain ends, not the moment the last argument
+        # lands: one more `<<` means the call was written wrong, and a body must
+        # not have run for a call that never was (see `_apply_chain`).
+        return Ok(_ModuleFunc(self.runner, self.module, self.name,
+                              self.environ, given))
+
+    def _run(self, environ, given):
+        """Every argument is in: hand them to the module as one product."""
+        slots, _problem = _module_arg_slots(self.module)
+        nodes = []
+        for index, (tag, _written) in enumerate(slots or []):
+            value = given[index]
+            if not isinstance(value, _Material):
+                return VibaProgramErr(
+                    f"module {self.name!r}: the {_slot_name(index, tag)} argument "
+                    f"is not material, so it cannot be part of {ARGS_NAME}")
+            nodes.append(viba_ast.Tagged(tag, value.node.data) if tag else value.node.data)
+        if not nodes:
+            args = _Material(material(None))
+        elif len(nodes) == 1:
+            args = _Material(VibaNode(reflect_access, self._descriptor(nodes[0]), nodes[0]))
+        else:
+            chain = viba_ast.ProductChain(nodes)
+            args = _Material(VibaNode(reflect_access, self._descriptor(chain), chain))
+        answer = _run_module(self.runner, self.module, environ, self.name, None, args)
         if _stopped(answer):
             return answer
         # `interpret` hands the node out; inside a run a module's answer is a
         # value like any other, so it goes back into the value model.
         node = answer.ok_value
         return Ok(_Material(node) if isinstance(node, VibaNode) else _Host(node))
+
+    def _descriptor(self, node):
+        return descriptor_of(AstNodeType(node, self.module))
+
+
+def _slot_name(index: int, tag) -> str:
+    return tag if tag else f"#{index + 1}"
+
+
+def _written_slots(slots) -> str:
+    return ", ".join(_slot_name(index, tag) for index, (tag, _written) in enumerate(slots))
 
 
 def _answer(name, answer, step: Step = None):

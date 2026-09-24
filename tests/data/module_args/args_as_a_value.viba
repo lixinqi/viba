@@ -1,0 +1,2 @@
+import sums_its_args
+__ret__ = sums_its_args << (environ.tmp_sub_env << ()) << 3 << 4

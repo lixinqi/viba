@@ -639,7 +639,8 @@ def run_cross_module_inline_cases():
 
 
 def run_module_as_function_cases():
-    """模块当函数（类型层）：import 绑定的名字读成 `__ret__ <- $env Environment`，
+    """模块当函数（类型层）：import 绑定的名字读成
+    `__ret__ <- $env Environment <- __args__`（没有 `__args__` 就是空的 `()`），
     `module.Name` 照旧是那个模块里的定义，没有 `__ret__` 的模块不是程序。"""
     sources = {
         "program": ("add = int <- $env Environment <- $a int <- $b int <- { add }\n"
@@ -647,10 +648,10 @@ def run_module_as_function_cases():
         "design_only": "Only = $x int\n",
         "caller": ("import program as program\n"
                    "import design_only\n"
-                   "Program = program << $env environ\n"
+                   "Program = program << $env environ << ()\n"
                    "Half = program.add << $env environ << $a 1\n"
                    "Dotted = design_only.Only\n"
-                   "NotAProgram = design_only << $env environ\n"),
+                   "NotAProgram = design_only << $env environ << ()\n"),
     }
     built = {}
 
@@ -672,8 +673,10 @@ def run_module_as_function_cases():
                  "a bare import name reads as the module's __ret__")
     check_result(judge("int", "Program"), True,
                  "and the two are the same type the other way round")
-    check_result(judge("program << $env environ", "int"), True,
+    check_result(judge("program << $env environ << ()", "int"), True,
                  "written inline too")
+    check_result(judge("program << $env environ", "int <- ()"), True,
+                 "the arguments slot is part of the signature: the environment alone is a function")
     check_result(judge("Half", "int <- $b int"), True,
                  "a module's function may be given part of its arguments")
     check_result(judge("Dotted", "$x int"), True,
@@ -682,6 +685,68 @@ def run_module_as_function_cases():
                  "a module without __ret__ is not a program, even as a function")
     check_result(judge("design_only.Only", "$x int"), True,
                  "and its own definitions still resolve")
+
+
+def run_module_args_cases():
+    """`__args__`（类型层）：模块的签名是 `__ret__ <- $env Environment <- 它的实参`。
+
+    每个成员按 tag 给、或者按位置给（值层就是这么给的），`__args__` 不是积就是不合法输入。
+    给了一半在**类型**上是一种类型（剩下的那个函数）；值层里给一半是程序错
+    （tests/test_interpreter_module_args.py）。
+    """
+    sources = {
+        "program": ("__args__ = Object * $a int * $b int\n"
+                    "args = __args__\n"
+                    "sum = int <- $env Environment <- $a int <- $b int <- { add }\n"
+                    "__ret__ = sum << $env environ << $a args.a << $b args.b\n"),
+        "empty": ("__args__ = Object\n"
+                  "leaf = int <- $env Environment <- { seven }\n"
+                  "__ret__ = leaf << $env environ\n"),
+        "bad": ("__args__ = int\n"
+                "__ret__ = 1\n"),
+        "caller": ("import program as program\n"
+                   "import empty as empty\n"
+                   "import bad as bad\n"
+                   "All = program << $env environ << 3 << 4\n"
+                   "ByTag = program << $env environ << $b 4 << $a 3\n"
+                   "Half = program << $env environ << $a 3\n"
+                   "NoArgs = empty << $env environ << ()\n"
+                   "Bad = bad << $env environ << ()\n"),
+    }
+    built = {}
+
+    def environment(name):
+        return Ok(built[name]) if name in built else VibaProgramErr(f"module {name!r} not found")
+
+    for name in ("program", "empty", "bad", "caller"):
+        tree = viba_ast.parse(sources[name])
+        imports = {stmt.alias or stmt.module: stmt.module
+                   for stmt in tree.body if isinstance(stmt, viba_ast.Import)}
+        built[name] = CustomModuleType(tree, environment, imports)
+
+    caller = built["caller"]
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, caller), entry_type(sup, caller))
+
+    check_result(judge("All", "int"), True,
+                 "every argument given: the module's __ret__")
+    check_result(judge("ByTag", "int"), True,
+                 "given by tag, in any order")
+    check_result(judge("program << $env environ << 3 << 4", "int"), True,
+                 "given positionally, written inline")
+    check_result(judge("Half", "int <- $b int"), True,
+                 "given up to the last member: what is left is a function")
+    check_result(judge("Half", "int"), False,
+                 "and it is not yet the result")
+    check_result(judge("NoArgs", "int"), True,
+                 "an empty __args__ is still given, as ()")
+    check_result(judge("empty << $env environ", "int <- ()"), True,
+                 "without it the call is still waiting")
+    check_result(judge("program << $env environ << 3 << 4 << $c 5", "never"), "error",
+                 "an argument the module does not have -> VibaProgramErr")
+    check_result(judge("Bad", "never"), "error",
+                 "a __args__ that is no product -> VibaProgramErr")
 
 
 def run_function_chain_cases():
@@ -1173,6 +1238,7 @@ run_any_cases()
 run_type_object_cases()
 run_binding_definition_cases()
 run_lazy_marker_cases()
+run_module_args_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

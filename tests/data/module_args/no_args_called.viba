@@ -1,0 +1,2 @@
+import no_args_module
+__ret__ = no_args_module << (environ.tmp_sub_env << ()) << ()

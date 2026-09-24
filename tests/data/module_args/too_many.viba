@@ -1,0 +1,2 @@
+import square_sum
+__ret__ = square_sum << (environ.tmp_sub_env << ()) << 3 << 4 << 5

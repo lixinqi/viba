@@ -1,0 +1,2 @@
+import x_of_the_point
+__ret__ = x_of_the_point << (environ.tmp_sub_env << ()) << ($x 2 * $y 5)

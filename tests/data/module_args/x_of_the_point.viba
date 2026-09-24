@@ -1,0 +1,11 @@
+__args__ =
+  Object
+  * $p ($x int * $y int)
+
+x_of =
+    int
+  <- $env Environment
+  <- $p ($x int * $y int)
+  <- { the x of that point }
+
+__ret__ = x_of << environ << $p __args__.p

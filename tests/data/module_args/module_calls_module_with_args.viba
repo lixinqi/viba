@@ -1,0 +1,11 @@
+import inner_with_args as inner
+
+twice =
+    int
+  <- $env Environment
+  <- $n int
+  <- { the number twice over }
+
+__ret__ = twice
+  << environ
+  << (inner << (environ.sub_env << "inner") << 3 << 4)

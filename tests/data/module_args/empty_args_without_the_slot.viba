@@ -1,0 +1,2 @@
+import empty_args_declared
+__ret__ = empty_args_declared << (environ.tmp_sub_env << ())

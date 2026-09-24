@@ -153,6 +153,11 @@ The same file is also a program: a module is a function whose input is `environ`
 and whose answer is `__ret__`. A file with no `__ret__` is a type, not a
 program, and running it raises `VibaProgramErr`.
 
+A module that wants arguments declares them: `__args__` is a product type, and a
+call gives every member of it — `<< ()` when there are none, so a call always
+says what it gives. See [`viba-style.md`](viba-style.md) for the writing rule and
+[`viba-interpreter.md`](viba-interpreter.md) for the call.
+
 ```viba
 # add_demo.viba
 add =
@@ -216,12 +221,13 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
 ```viba
 import add_demo as demo
 
-__ret__ = demo << (environ.sub_env << "add_demo")
+__ret__ = demo << (environ.sub_env << "add_demo") << ()
 ```
 
-A module is called with the environment it should run under: the name given to
-`environ.sub_env` is what `get_func` sees as `module_path`, and the storage path
-is the call's identity. So no two module calls in one run may share a path, and
+A module is called with the environment it should run under, and then with its
+arguments: `()` is how a module with no arguments is given its (empty) `__args__`.
+The name given to `environ.sub_env` is what `get_func` sees as `module_path`, and
+the storage path is the call's identity. So no two module calls in one run may share a path, and
 using the same path twice is a `VibaProgramErr` that spells the fix out:
 
 ```

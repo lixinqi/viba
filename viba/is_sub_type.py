@@ -82,7 +82,8 @@ alias of what it is written as, and judgment is structural throughout.
 """
 
 from viba import viba_ast
-from viba.partial import marked_function, module_as_function, reduce_partial
+from viba.partial import (marked_function, module_as_function, product_elements,
+                          reduce_partial)
 from viba.type import (
     PartialError,
     AnyType,
@@ -229,14 +230,55 @@ class _Checker:
         return tuple(id(e) for e in self._env_stacks[side])
 
     def _resolve_name(self, name: str, module: ModuleType, side: str) -> Result:
-        """Module definitions win; the side's env_get supplements
-        (innermost binding first) — the free-variable channel."""
+        """Module definitions win; a product member comes next; the side's
+        env_get supplements (innermost binding first) — the free-variable
+        channel."""
         resolved = module_get_type(module, name)
         if isinstance(resolved, Ok):
             return resolved
+        member = self._product_member_type(name, module, side)
+        if member is not None:
+            return member
         envs = reversed(self._env_stacks[side])
         hits = (e(name) for e in envs)
         return next((h for h in hits if isinstance(h, Ok)), resolved)
+
+    def _product_member_type(self, name: str, module: ModuleType, side: str):
+        """`point.x` read as a type: the `$x` member's declared type.
+
+        A member of a product is addressed by its tag, and that is what a dotted
+        name does — `__args__.a` is `int` when the module declares
+        `__args__ = Object * $a int`. The value layer reads the same name as the
+        argument the call was given (viba-interpreter.md): one name, two layers,
+        what it denotes each time. None when the head is no product.
+        """
+        head, dot, tag = name.rpartition(".")
+        if not dot or not head:
+            return None
+        body, home = self._head_body(head, module, side)
+        if body is None:
+            return None
+        for factor in product_elements(body):
+            if isinstance(factor, viba_ast.Tagged) and factor.tag == "$" + tag:
+                return Ok(AstNodeType(factor.type, home))
+        return None
+
+    def _head_body(self, name: str, module: ModuleType, side: str):
+        """(body, home) for the name, following aliases to the end."""
+        seen = set()
+        while name not in seen:
+            seen.add(name)
+            resolved = self._resolve_name(name, module, side)
+            if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
+                return None, module
+            entry = resolved.ok_value
+            node = entry.ast_node
+            if isinstance(node, viba_ast.TypeDefinition):
+                node = node.body
+            if not isinstance(node, viba_ast.TypeRef):
+                return node, entry.container_module
+            name, module = node.name, entry.container_module
+        return None, module
 
     def _lift(self, node, module: ModuleType, side: str):
         """Lift a Constant, TypeRef, Nil or Never to a Type; else None.
@@ -589,7 +631,7 @@ class _Checker:
             return {node.tag: (node.type, module)}
         if isinstance(node, _PROD_NODES):
             fields = {}
-            for element in _product_elements(node):
+            for element in product_elements(node):
                 for tag, field in self._tagged_fields(element, module, seen).items():
                     if tag in fields:
                         raise DuplicateTagError(
@@ -821,7 +863,7 @@ class _Checker:
         input, and so is an inline chain that comes back to a definition
         it is already expanding (see _split_element)."""
         tagged, bare = {}, []
-        for elem in _product_elements(node):
+        for elem in product_elements(node):
             t, b = self._split_element(elem, module, side, seen, env)
             for tag, member in t.items():
                 if tag in tagged:
@@ -1249,14 +1291,6 @@ def _literal_type(value) -> Type:
     if isinstance(value, str):
         return StrLiteralType(value)
     raise TypeError(f"unsupported literal: {value!r}")
-
-
-def _product_elements(node):
-    if isinstance(node, viba_ast.Product):
-        return _product_elements(node.left) + _product_elements(node.right)
-    if isinstance(node, viba_ast.ProductChain):
-        return list(node.elements)
-    return [node]
 
 
 def _flatten_sum(node):

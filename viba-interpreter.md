@@ -82,17 +82,57 @@ __ret__ =
   否则 `VibaProgramErr`（不是猜一个默认值）。
 - `__ret__` 必须是值。还差参数没给全的函数不是值，`VibaProgramErr`。
 
+## 模块的实参：`__args__`
+
+一个模块要收参数，就把参数写成 `__args__`——一份**积类型**，成员就是这次调用的实参：
+
+```viba
+# file square_sum.viba
+__args__ =
+  Object
+  * $a int
+  * $b int
+
+args = __args__
+
+__ret__ = add
+  << environ
+  << (mul << environ << args.a << args.a)
+  << (mul << environ << args.b << args.b)
+```
+
+```viba
+# file main.viba
+import square_sum
+
+__ret__ = square_sum << (environ.tmp_sub_env << ()) << 3 << 4
+```
+
+- **给环境，再给实参**：每个成员一个 `<<`，按位置给（`<< 3 << 4`）或按 tag 给
+  （`<< $b 4 << $a 3`）都行；按 tag 给时顺序随意。
+- **必须给全**：少一个就是 `VibaProgramErr`，话里点名少了谁
+  （`module 'square_sum' was given 1 of its 2 __args__: $b missing`）。给一半不是"部分应用的
+  函数"，是调用写错了——模块体一次都不会跑。多给、给重、给了没有的 tag，同样当场报错。
+- **没有实参也得给那一格，写成 `()`**：没声明 `__args__` 的模块、和 `__args__ = Object` 的模块
+  都一样，`module << (environ.tmp_sub_env << ()) << ()`。调用写明了它给了什么，链断在半路才不会
+  看着像调用完了。
+- **模块体里 `__args__` 就是那份实参积**：`args = __args__` 只是个别名，运行时 `args` 是这次调用
+  的实参（`args.a` 是 `$a` 那个成员的值，按 tag 寻址）；判定层读同一个名字读到的是成员**声明的
+  类型**（`args.a` 就是 `int`）。一个名字，两层各读各的——和 `environ` 一样。
+- 实参必须是材料：它是积的一部分，交出去的东西得是能写下来的值。
+
 ## 调用别的模块
 
 ```viba
 import add_demo as demo
 
-ret = demo << (environ.sub_env << "add_demo")
+ret = demo << (environ.sub_env << "add_demo") << ()
 
 __ret__ = demo.print << environ << ret
 ```
 
-- `demo` 是模块，当函数用：给它一个环境，它跑完给出它的 `__ret__`。
+- `demo` 是模块，当函数用：给它一个环境、再给它 `__args__`（这份没声明实参，那一格写 `()`），
+  它跑完给出它的 `__ret__`。
 - `demo.print` 是这个模块里的函数。
 - `environ.sub_env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
   `父路径/add_demo`（见下）。
@@ -385,28 +425,33 @@ getter **最多算一次**：第一次问出结果（值或停下），之后每
 
 ## 类型层的模块
 
-同一个文件在**类型推导**里也是"environ 进、`__ret__` 出"：名字绑到的是一个模块（import 的名字）时，
-它当函数读，类型就是
+同一个文件在**类型推导**里也是"environ 进、实参进、`__ret__` 出"：名字绑到的是一个模块（import
+的名字）时，它当函数读，类型就是它的 `__args__`（没声明就是空的 `()`）：
 
 ```viba
-__ret__ <- $env Environment
+__ret__ <- $env Environment <- __args__
 ```
 
 所以下面这几条都成立（`tests/test_is_sub_type.py` 里有用例）：
 
 ```viba
 demo = import add_demo as demo         # 概念上
-demo << $env environ  <:  int           # 就是 __ret__ 的类型
-int <: demo << $env environ             # 反过来也成立：两者同型
+demo << $env environ << ()  <:  int     # 就是 __ret__ 的类型
+int <: demo << $env environ << ()       # 反过来也成立：两者同型
 demo.add <: int <- $env Environment <- $a int <- $b int
 design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
+square_sum << $env environ << $a 3 <: int <- $b int   # 给了一半：剩下的是函数
 ```
 
 - 只认 **import 绑定的那个名字**（`import a.b as c` 的 `c`，`import a.b` 的 `a.b`）。`module.Name`
   仍然是那个模块里的定义，和以前一样按最长的前缀解析。
-- 没有 `__ret__` 的模块不是程序：`demo << $env environ` 在类型层也是 `VibaProgramErr`。
+- 没有 `__ret__` 的模块不是程序：`demo << $env environ << ()` 在类型层也是 `VibaProgramErr`。
 - `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
   这个槽位在类型上也对得上。
+- 实参按 tag 给（`<< $a 3`）或按位置给（`<< 3`）都认；位置那一支要求写得下那一格
+  （`3 <: int`）。**给一半在类型上是一种类型**——剩下的那个函数；在值层给一半是程序错。
+- `__args__` 的成员在模块体里按 tag 读：`args.a` 在类型层就是那个成员声明的类型。`__args__` 不是
+  积类型的话，两层都当场报错。
 
 ## 表达式里的绑定
 

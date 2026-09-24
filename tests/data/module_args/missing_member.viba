@@ -1,0 +1,6 @@
+__args__ =
+  Object
+  * $a int
+
+args = __args__
+__ret__ = args.zzz

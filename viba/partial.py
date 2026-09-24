@@ -27,12 +27,13 @@ argument the function does not have, or one that does not fit, is a mistake
 from typing import Callable, Optional, Tuple
 
 from viba import viba_ast
-from viba.type import BUILTIN_MODULE, AstNodeType, Ok, PartialError
+from viba.type import BUILTIN_MODULE, AstNodeType, NilType, Ok, PartialError
 
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 
 RET_NAME = "__ret__"
+ARGS_NAME = "__args__"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
 
@@ -73,11 +74,14 @@ def marked_function(node, module):
 def module_as_function(module, name):
     """(body, home) for a bare import name read as a function, or None.
 
-    A module is a function too: `__ret__ <- $env Environment`, its input the
-    environment and its output `__ret__`. `name` has to be one of this
-    module's imports — the name the import binds, not a member of it (a dotted
-    name is that module's own definition and resolves as it always did) — and
-    the module it names has to be a program, `__ret__` and all.
+    A module is a function too: `__ret__ <- $env Environment <- __args__`, its
+    input the environment and its arguments, its output `__ret__`. A module that
+    declares no `__args__` still has that argument slot — an empty product, which
+    is written `()` — so a call says what it gives and an incomplete chain cannot
+    pass for a call. `name` has to be one of this module's imports — the name the
+    import binds, not a member of it (a dotted name is that module's own
+    definition and resolves as it always did) — and the module it names has to be
+    a program, `__ret__` and all.
     """
     imports = getattr(module, "imports", None)
     if not imports or name not in imports:
@@ -88,10 +92,53 @@ def module_as_function(module, name):
     ret = _definition(imported.ok_value, RET_NAME)
     if ret is None:
         return None
-    return (viba_ast.ExponentChain([
-        ret.body,
-        viba_ast.Tagged(ENVIRON_TAG, viba_ast.TypeRef(ENVIRON_TYPE)),
-    ]), imported.ok_value)
+    elements = [ret.body,
+                viba_ast.Tagged(ENVIRON_TAG, viba_ast.TypeRef(ENVIRON_TYPE))]
+    elements += _argument_slots(imported.ok_value)
+    return (viba_ast.ExponentChain(elements), imported.ok_value)
+
+
+def _argument_slots(module):
+    """A module call's argument slots: its `__args__` members, or the empty `()`.
+
+    `__args__` is a product type and its members are the call's arguments, in
+    written order; no `__args__` (or an empty product) is a module with no
+    arguments, and its slot is written `()`.
+    """
+    definition = _definition(module, ARGS_NAME)
+    if definition is None:
+        return [viba_ast.Tuple([])]
+    body = definition.body
+    if isinstance(body, (viba_ast.Product, viba_ast.ProductChain)):
+        slots = [factor for factor in product_elements(body)
+                 if not _is_product_unit(factor)]
+        return slots or [viba_ast.Tuple([])]
+    if _is_product_unit(body):
+        return [viba_ast.Tuple([])]
+    raise PartialError(f"{ARGS_NAME} is not a product: {_written(body)}")
+
+
+def product_elements(node):
+    """The factors of a written product, flattened in written order.
+
+    One definition for the three layers that read a product apart: the
+    interpreter (a product is its factors), the judgment and this module.
+    """
+    if isinstance(node, viba_ast.Product):
+        return product_elements(node.left) + product_elements(node.right)
+    if isinstance(node, viba_ast.ProductChain):
+        return list(node.elements)
+    return [node]
+
+
+def _is_product_unit(node) -> bool:
+    """The multiplicative unit as written: `Object`, `nil`, or a bare nil."""
+    if isinstance(node, viba_ast.Nil):
+        return True
+    if isinstance(node, viba_ast.TypeRef):
+        builtin = BUILTIN_MODULE.lookup(node.name)
+        return isinstance(builtin, Ok) and isinstance(builtin.ok_value, NilType)
+    return False
 
 
 def _definition(module, name):
@@ -166,8 +213,10 @@ def _matches(written, given, module, given_module, judge) -> bool:
 
     A tag when both carry one (that is how a field is addressed) — and then the
     given type has to fit the declared one, so `(A <- $b B) << $b C` is legal
-    only when `C <: B`. Without tags there is no address to name: the two are
-    the same piece, or they are not.
+    only when `C <: B`. An argument written without a tag takes the next free
+    slot, the way a call gives one, if it fits there: that is how a module's
+    `__args__` are given one by one. Without a tag on either side there is no
+    address to name: the two are the same piece, or they are not.
     """
     if isinstance(written, viba_ast.Tagged) and isinstance(given, viba_ast.Tagged):
         if written.tag != given.tag:
@@ -177,6 +226,12 @@ def _matches(written, given, module, given_module, judge) -> bool:
         raise PartialError(
             f"{_written(given)} does not fit {_written(written)}: "
             f"{_written(given.type)} <: {_written(written.type)} does not hold")
+    if isinstance(written, viba_ast.Tagged):
+        if judge(given, given_module, written.type, module):
+            return True
+        raise PartialError(
+            f"{_written(given)} does not fit {_written(written)}: "
+            f"{_written(given)} <: {_written(written.type)} does not hold")
     return viba_ast.unparse_type(written) == viba_ast.unparse_type(given)
 
 
@@ -189,4 +244,5 @@ def _elements(node):
     return [node]
 
 
-__all__ = ["reduce_partial", "module_as_function", "marked_function"]
+__all__ = ["reduce_partial", "module_as_function", "marked_function",
+           "product_elements"]

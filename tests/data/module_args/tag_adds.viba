@@ -1,0 +1,15 @@
+__args__ =
+  Object
+  * $a int
+  * $b int
+
+args = __args__
+
+add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__ret__ = add << environ << $a args.a << $b __args__.b
