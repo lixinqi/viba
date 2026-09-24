@@ -17,3 +17,20 @@ Environment =
   * $tmp_sub_env (Environment <- ())
 
 environ = Environment
+
+# The marker that makes a function's arguments lazy (viba-interpreter.md).
+#
+# A function written as `ParametersLazyEvaluated[F]` is not called the usual
+# way: `interpret` does not compute its arguments, it wraps each one in a
+# no-argument lambda and hands those to the host, which calls the ones it wants.
+# So a step that may not need an argument never computes it — an `if/else` that
+# really takes one branch (branch.viba).
+#
+# The marker is the tag `$__param_lazy_evaluated_tag_yanatutt__` — a name
+# nobody may use — and `$func` holds the function type being marked. The type
+# layer does not read through the marker yet: it sees this product, so a marked
+# call does not reduce to its result there (viba-interpreter.md says so).
+ParametersLazyEvaluated[Func] =
+    Object
+  * $__param_lazy_evaluated_tag_yanatutt__ ()
+  * $func Func

@@ -1,8 +1,18 @@
 """Host implementations of the two selectors declared in branch.viba.
 
-A switch takes the branch value. When selected it returns that value
-(nil * value = value); otherwise it returns never (never * value = never).
-The surrounding sum then drops the eliminated branch.
+Both are marked `ParametersLazyEvaluated`, so they are handed **getters**
+instead of values: `nil_or_never(get_env, get_condition, get_v)` calls `get_v`
+only on the branch it takes, so the argument expression of the branch it does
+not take is never evaluated. A switch that is not taken answers `never`
+(`never * value = never`), and the surrounding sum drops it.
+
+    def nil_or_never(get_env, get_condition, get_v):
+        if get_condition().value:
+            return get_v()
+        return _never()
+
+`get_env()` answers the environment itself; a material argument answers its
+`VibaNode`, so the leaf of a `bool` is `.value`.
 """
 
 from viba import viba_ast
@@ -21,14 +31,18 @@ def _never() -> VibaNode:
     return _unit(viba_ast.Never())
 
 
-def nil_or_never(env, condition, value):
-    """Answer value when condition holds; otherwise never."""
-    return value if condition.value else _never()
+def nil_or_never(get_env, get_condition, get_v):
+    """Answer the value when the condition holds; otherwise never."""
+    if get_condition().value:
+        return get_v()
+    return _never()
 
 
-def never_or_nil(env, condition, value):
-    """Answer never when condition holds; otherwise value."""
-    return _never() if condition.value else value
+def never_or_nil(get_env, get_condition, get_v):
+    """Answer never when the condition holds; otherwise the value."""
+    if get_condition().value:
+        return _never()
+    return get_v()
 
 
 def get_func(module_path, func_name):

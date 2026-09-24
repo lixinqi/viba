@@ -248,20 +248,25 @@ never | a = a
 和里只剩一个非 never 分支时，结果就是该分支；所有分支都是 never 时，结果是 never；
 多个非 never 分支同时存在时，结果保留为和值，不擅自选择其中一支。
 
-`branch.viba` 与 `branch.py` 提供两个通用开关。它们接收分支值 `$v Any`，并返回 `Any`：
+`branch.viba` 与 `branch.py` 提供两个通用开关。它们接收分支值 `$v Any`，并返回 `Any`，而且带
+`ParametersLazyEvaluated` 标记（见下）：
 
 ```viba
 nil_or_never =
-    Any
-    <- $env Environment
-    <- $condition bool
-    <- $v Any
+    ParametersLazyEvaluated[
+        Any
+      <- $env Environment
+      <- $condition bool
+      <- $v Any
+    ]
 
 never_or_nil =
-    Any
-    <- $env Environment
-    <- $condition bool
-    <- $v Any
+    ParametersLazyEvaluated[
+        Any
+      <- $env Environment
+      <- $condition bool
+      <- $v Any
+    ]
 ```
 
 `branch.py` 是宿主实现，和其他可执行函数一样由 `EnvironmentCompute` 显式注册：
@@ -273,8 +278,19 @@ def get_func(module_path, func_name):
     return branch.get_func(module_path, func_name)
 ```
 
-- `nil_or_never`：condition 为真时按 `nil * v = v` 返回 `v`，否则按 `never * v = never` 返回 never；
-- `never_or_nil`：condition 为真时按 `never * v = never` 返回 never，否则按 `nil * v = v` 返回 `v`。
+被标记的函数拿到的是 **getter** 而不是值，所以开关叫哪个才算哪个：
+
+```python
+def nil_or_never(get_env, get_condition, get_v):
+    if get_condition().value:
+        return get_v()
+    return _never()
+```
+
+- `nil_or_never`：condition 为真时按 `nil * v = v` 返回 `get_v()`，否则按 `never * v = never`
+  返回 never——**`get_v` 不会被叫**，那一支的实参表达式根本不算；
+- `never_or_nil`：condition 为真时按 `never * v = never` 返回 never，否则按 `nil * v = v` 返回
+  `get_v()`。
 
 ```python
 a = foo()
@@ -303,6 +319,49 @@ __ret__ =
 
 开关把 `$v` 一并接收进来，对外统一返回 `Any`；nil/never 是它内部用来决定保留还是消去 `$v` 的代数机制。
 解释器提供积与和的通用归约，库函数负责把 condition 映射成这次分支的结果。
+
+**这两支都要算** 本来是这个设计的代价：积与和只决定"哪一支留下"，不代表"哪一支被算"。真要是
+if/else，没走的那一支就不该算——于是有了下面这个标记。
+
+### 惰性参数：`ParametersLazyEvaluated`
+
+`viba/builtin.viba` 里定义了一个特殊标记（`=` 左边是名字，标记本身是里面那个保留 tag）：
+
+```viba
+ParametersLazyEvaluated[Func] =
+    Object
+  * $__param_lazy_evaluated_tag_yanatutt__ ()
+  * $func Func
+```
+
+函数写成 `ParametersLazyEvaluated[F]`（`F` 是它本来的函数类型）时，`interpret` **不按平常的
+调用约定走**：
+
+- 每个写下来的实参**不求值**，而是包成一个无参 lambda（getter），连同这次调用的环境一起交给宿主；
+- 宿主叫哪个 getter，哪个实参才算；没叫的，那一支的表达式一次都不求值；
+- `$env` 那一格是例外：它照旧先算出来（interpret 要靠它找到答这一步的宿主），宿主拿到的
+  `get_env()` 就是把它答回来。
+
+```python
+def nil_or_never(get_env, get_condition, get_v):
+    env = get_env()                    # 环境本身
+    if get_condition().value:          # 材料是 VibaNode，bool 要 .value
+        return get_v()                 # 只有这一支会算
+    return _never()
+```
+
+getter 答出来的，就是宿主平常会直接拿到的那份东西：材料是 `VibaNode`，环境是 `Environment`
+自己，viba 函数是可调用的宿主对象。getter 在求值时出的错**原样**回到 run：没有实现就是递延，
+实现坏了就是 `$underlying_viba_op_failed`，程序写错就是 `$viba_program_err`——错的是那个实参，
+不是叫它的人。
+
+标记只标函数：`ParametersLazyEvaluated[int]` 会在构建时给
+`ParametersLazyEvaluated marks a function, not int`。惰性跟着部分应用走：先给一半、再给另一半，
+剩下那一格仍然是惰性的。
+
+> 已知缺口：**类型层还看不见这个标记**——它把 `ParametersLazyEvaluated[F]` 当成一个普通的类型应用
+> （`Object` 套一个 `$func F`），所以 `nil_or_never << $env environ` 在类型层归约不到
+> `Any <- $condition bool <- $v Any`。运行是对的，判定还没跟上。
 
 ## 类型层的模块
 

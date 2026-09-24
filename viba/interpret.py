@@ -277,6 +277,33 @@ def _is_never(value) -> bool:
     return isinstance(value, _Material) and isinstance(value.node.data, viba_ast.Never)
 
 
+LAZY_MARKER_TAG = "$__param_lazy_evaluated_tag_yanatutt__"
+
+
+def _is_lazy_marker(node, module) -> bool:
+    """Whether this written type application is `ParametersLazyEvaluated[F]`.
+
+    The marker is the tag `LAZY_MARKER_TAG` inside the definition the
+    constructor names — `ParametersLazyEvaluated` in `viba/builtin.viba`, or a
+    module's own definition carrying the same reserved tag. Matching the name
+    alone would let a shadowed name change what a call means.
+    """
+    if not isinstance(node, viba_ast.TypeApp) or len(node.args or []) != 1:
+        return False
+    body = None
+    local = _definition(module, node.constructor)
+    if local is not None:
+        body = local.body
+    else:
+        builtin = BUILTIN_MODULE.lookup(node.constructor)
+        if isinstance(builtin, Ok) and isinstance(builtin.ok_value, AstNodeType):
+            body = builtin.ok_value.ast_node
+    if body is None:
+        return False
+    return any(isinstance(part, viba_ast.Tagged) and part.tag == LAZY_MARKER_TAG
+               for part in viba_ast.walk(body))
+
+
 def _is_nil(value) -> bool:
     """Whether `value` is the multiplicative unit `nil`."""
     return isinstance(value, _Material) and isinstance(value.node.data, viba_ast.Nil)
@@ -352,6 +379,62 @@ class _Given:
     def __init__(self, tag, value):
         self.tag = tag
         self.value = value
+
+
+class _Raised(Exception):
+    """A `Result` a getter has to cross a host call with.
+
+    The host boundary speaks exceptions, so a getter that stops carries the
+    whole answer — the program error, the deferral, the failure — and the call
+    hands that answer back unchanged: what stopped is the argument that was
+    asked for, not the host function that asked.
+    """
+
+    def __init__(self, result):
+        super().__init__(repr(result))
+        self.result = result
+
+
+class _Getter:
+    """One written argument of a lazy call, computed only when it is wanted.
+
+    A marked function (`ParametersLazyEvaluated[F]`) is handed these instead of
+    values: the host calls the ones it needs, and the argument expressions it
+    does not call are never evaluated at all. Calling one answers what the host
+    would have been handed eagerly — material as its `VibaNode`, the
+    environment as itself — or raises `_Raised` with whatever the run stopped
+    with.
+    """
+
+    __slots__ = ("activation", "node")
+
+    def __init__(self, activation, node):
+        self.activation = activation
+        self.node = node
+
+    def __call__(self):
+        value = self.activation.evaluate(self.node)
+        if not isinstance(value, Ok):
+            raise _Raised(value)
+        return _argument_value(value.ok_value)
+
+
+def _addressed(node):
+    """(tag, inner) of a written argument: the tag it is addressed by, if any."""
+    if isinstance(node, viba_ast.Tagged):
+        return node.tag, node.type
+    return None, node
+
+
+def _getter(value) -> "_Getter":
+    """`value` as a getter: a `_Getter` as it is, anything else answered back."""
+    if isinstance(value, _Getter):
+        return value
+
+    def get():
+        return _argument_value(value)
+
+    return get
 
 
 def _argument_value(value):
@@ -738,6 +821,14 @@ class _Activation:
         body = definition.body
         if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
             value = Ok(_VibaFunc(self, name, body))     # a function is a value
+        elif _is_lazy_marker(body, self.module):
+            chain = body.args[0]
+            if not isinstance(chain, (viba_ast.Exponent, viba_ast.ExponentChain)):
+                value = VibaProgramErr(
+                    f"{name}: ParametersLazyEvaluated marks a function, not "
+                    f"{viba_ast.unparse_type(chain)}")
+            else:
+                value = Ok(_VibaFunc(self, name, chain, lazy=True))
         else:
             value = self.evaluate(body)
         self.defined[name] = value
@@ -778,7 +869,9 @@ class _Activation:
             return function
         current = function.ok_value
         for argument in reversed(written):
-            value = self._argument(argument)
+            lazy = isinstance(current, _VibaFunc) and current.lazy \
+                and not self._is_environment_slot(current, argument)
+            value = self._lazy_argument(argument) if lazy else self._argument(argument)
             if _stopped(value):
                 return value
             if value.ok_value is None:
@@ -793,14 +886,36 @@ class _Activation:
         """Result: the `_Given` this argument is, or Ok(None) for documentation."""
         if isinstance(node, viba_ast.CodeBlock):
             return Ok(None)
-        tag = None
-        inner = node
-        if isinstance(node, viba_ast.Tagged):
-            tag, inner = node.tag, node.type
+        tag, inner = _addressed(node)
         value = self.evaluate(inner)
         if _stopped(value):
             return value
         return Ok(_Given(tag, value.ok_value))
+
+    def _lazy_argument(self, node):
+        """Result: the `_Given` this argument is, with its value not computed.
+
+        What travels is a getter; the host calls it if and when it wants that
+        argument (see `ParametersLazyEvaluated`).
+        """
+        if isinstance(node, viba_ast.CodeBlock):
+            return Ok(None)
+        tag, inner = _addressed(node)
+        return Ok(_Given(tag, _Getter(self, inner)))
+
+    def _is_environment_slot(self, function, node):
+        """Whether this written argument is the `$env` slot of `function`.
+
+        The environment is never lazy: `interpret` needs it to find the host
+        that answers the call, and the host is handed a getter for it that
+        simply answers it back.
+        """
+        tag, _ = _addressed(node)
+        slots = function.slots
+        if tag is not None:
+            return tag == ENVIRON_TAG
+        free = [index for index in range(len(slots)) if index not in function.given]
+        return bool(free) and slots[free[0]] == ENVIRON_TAG
 
 
 def _give(function, item):
@@ -846,13 +961,19 @@ class _Callable:
 
 
 class _VibaFunc(_Callable):
-    """A viba function: its chain is the design, `given` what it has so far."""
+    """A viba function: its chain is the design, `given` what it has so far.
 
-    def __init__(self, activation: _Activation, name: str, chain, given=None):
+    `lazy` is the marked calling convention (`ParametersLazyEvaluated[F]`): its
+    arguments travel to the host as getters (`_Getter`) rather than values.
+    """
+
+    def __init__(self, activation: _Activation, name: str, chain, given=None,
+                 lazy: bool = False):
         self.activation = activation
         self.name = name
         self.chain = chain
         self.given = dict(given or {})
+        self.lazy = lazy
 
     @property
     def slots(self):
@@ -884,7 +1005,8 @@ class _VibaFunc(_Callable):
             given[free[0]] = item.value
         if all(index in given for index in range(len(slots))):
             return self.call(given)
-        return Ok(_VibaFunc(self.activation, self.name, self.chain, given))
+        return Ok(_VibaFunc(self.activation, self.name, self.chain, given,
+                            self.lazy))
 
     def call(self, given):
         """Every slot is filled: the environment's compute side implements it."""
@@ -906,13 +1028,17 @@ class _VibaFunc(_Callable):
                           step, REASON_GET_FUNC_RAISED)
         if host is None:
             return _no_implementation(step, self._call_material(given))
-        args = [_argument_value(given[index]) for index, _ in self._ordered(given)]
+        handed = [_getter(given[index]) if self.lazy else _argument_value(given[index])
+                  for index, _ in self._ordered(given)]
+        args = list(handed)
         try:
             answer = host(*args)
         except NotMyDutyException as deferred:   # a viba call inside deferred
             return deferred
         except UnderlyingVibaOpFailed as failure:                # ... or failed inside
             return failure
+        except _Raised as raised:                # ... or stopped inside a getter
+            return raised.result
         except Exception as exc:
             return UnderlyingVibaOpFailed(f"{self.name} raised {exc!r}", step, REASON_RAISED)
         return _answer(self.name, answer, step)
@@ -979,6 +1105,8 @@ class _HostFunction(_Callable):
             return _refused(deferred, step, None)
         except UnderlyingVibaOpFailed as failure:
             return failure
+        except _Raised as raised:
+            return raised.result
         except Exception as exc:
             return UnderlyingVibaOpFailed(f"environ.{self.name} raised {exc!r}", step, REASON_RAISED)
         return _answer(f"environ.{self.name}", answer, step)
