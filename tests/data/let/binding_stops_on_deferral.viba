@@ -1,0 +1,12 @@
+add =
+    int <- $env Environment <- $a int <- $b int <- { add the two }
+ghost =
+    int <- $env Environment <- { nothing implements this }
+tick =
+    int <- $env Environment <- { counts as a side effect }
+A = (
+  a := ghost << $env environ
+  b := tick << $env environ
+  add << $env environ << $a a << $b b
+)
+__ret__ = A

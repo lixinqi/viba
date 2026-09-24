@@ -1,0 +1,10 @@
+ask_twice =
+    ParametersLazyEvaluated[
+        int
+      <- $env Environment
+      <- $x int
+      <- { add x to itself }
+    ]
+tick =
+    int <- $env Environment <- { counts as a side effect }
+__ret__ = ask_twice << $env environ << $x (a := (tick << $env environ)  a)

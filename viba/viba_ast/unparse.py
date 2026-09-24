@@ -14,6 +14,8 @@ from viba.viba_ast.nodes import (
     Product,
     Exponent,
     Partial,
+    Let,
+    Binding,
     Tagged,
     TypeApp,
     Tuple,
@@ -60,6 +62,8 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
         Product=lambda p: _unparse_binary(p, " * ", indent, depth),
         Exponent=lambda e: _unparse_exponent(e, indent, depth),
         Partial=lambda a: _unparse_partial(a, indent, depth),
+        Let=lambda l: _unparse_let(l, indent, depth),
+        Binding=lambda b: f"{b.name} := {_unparse_type(b.value, indent, depth)}",
         Tagged=lambda t: f"{unparse_tag(t)}{_tagged_body_parens(t.type, _unparse_type(t.type, indent, depth), ' ' * (indent * depth))}",
         TypeApp=lambda a: _unparse_typeapp(a, indent, depth),
         Tuple=lambda t: _unparse_tuple(t, indent, depth),
@@ -142,6 +146,26 @@ def _unparse_partial(node: Partial, indent: int, depth: int) -> str:
         argument = f"({argument})"
 
     return f"{function} << {argument}"
+
+
+def _unparse_let(let_node: Let, indent: int, depth: int) -> str:
+    """A binding block: `(` then the bindings, then the result, then `)`.
+
+    Each binding is placed by its name and its value follows on the same line,
+    with the value's own continuation lines at the same indentation — the way a
+    chain is laid out everywhere else.
+    """
+    line_indent = " " * (indent * depth)
+    inner_indent = " " * (indent * (depth + 1))
+
+    lines = [f"{line_indent}("]
+    for binding in let_node.bindings:
+        value = _dedent(_unparse_type(binding.value, indent, depth + 1), inner_indent)
+        lines.append(f"{inner_indent}{binding.name} := {value}")
+    body = _dedent(_unparse_type(let_node.body, indent, depth + 1), inner_indent)
+    lines.append(f"{inner_indent}{body}")
+    lines.append(f"{line_indent})")
+    return "\n".join(lines)
 
 
 def _unparse_typeapp(app_node: TypeApp, indent: int, depth: int) -> str:

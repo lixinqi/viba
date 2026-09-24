@@ -1,0 +1,4 @@
+x_of =
+    int <- $env Environment <- $p ($x int * $y int) <- { the x of that point }
+A = (p := ($x 1 * $y 2)  x_of << $env environ << $p p)
+__ret__ = A

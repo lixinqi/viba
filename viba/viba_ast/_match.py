@@ -22,6 +22,8 @@ def viba_type_match(
     Exponent: Callable[[Any], Any] = None,
     Partial: Callable[[Any], Any] = None,
     Tagged: Callable[[Any], Any] = None,
+    Let: Callable[[Any], Any] = None,
+    Binding: Callable[[Any], Any] = None,
     TypeApp: Callable[[Any], Any] = None,
     Tuple: Callable[[Any], Any] = None,
     TypeRef: Callable[[Any], Any] = None,

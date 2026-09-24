@@ -1,0 +1,10 @@
+ignore_x =
+    ParametersLazyEvaluated[
+        int
+      <- $env Environment
+      <- $x int
+      <- { answer seven without looking at x }
+    ]
+tick =
+    int <- $env Environment <- { counts as a side effect }
+__ret__ = ignore_x << $env environ << $x (a := (tick << $env environ)  a)

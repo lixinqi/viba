@@ -327,7 +327,7 @@ if/else，没走的那一支就不该算——于是有了下面这个标记。
 ### 惰性参数：`ParametersLazyEvaluated`
 
 `viba/builtin.viba` 里定义了一个特殊标记——它和 `Environment` 一样对每个模块可见，**不需要
-import**（`builtin.viba` 是最低优先级的内建库，见 [`viba-style.md`](viba-style.md) 第 11 节）。
+import**（`builtin.viba` 是最低优先级的内建库，见 [`viba-style.md`](viba-style.md) 第 12 节）。
 标记本身是里面那个保留 tag（`=` 左边是名字）：
 
 ```viba
@@ -396,6 +396,26 @@ design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
 - 没有 `__ret__` 的模块不是程序：`demo << $env environ` 在类型层也是 `VibaProgramErr`。
 - `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
   这个槽位在类型上也对得上。
+
+## 表达式里的绑定
+
+`(a := 3  b := 4  add << $env environ << $a a << $b b)` 是一个**表达式**：绑定在前、结果最后，
+整块的值就是结果。求值规矩：
+
+- 绑定按书写顺序算，算完就放进这一块自己的作用域；结果在同一个作用域里求值，所以看得见它们；
+- 名字**不出块**：`A = (a := 3  a)` 之后写 `__ret__ = a` 是 `no definition named 'a'`；
+  遮蔽一个定义也一样，块一结束那个定义照旧；
+- 绑定可以遮蔽 `environ`、import 的名字、甚至 `int` 这种内建名——查找顺序是"块内先看"；
+- 绑定是**先算的**（ML 的 `let`，不是懒参数）：没用到的绑定照样算。懒的是"整块作为某个被标记
+  函数的实参"这件事——那时整块变成 getter，宿主不叫，绑定和结果都不算；
+- getter 记住它被写下时所在的作用域：块结束后被叫，仍然看得见当时的绑定。
+
+值位置上的材料（tag、积、元组）不跑表达式，所以绑定不能写进材料里：`$point (p := …  p)` 报
+`a binding belongs in a value, not inside material`。要让材料里出现一个算出来的值，就让一个函数
+把它答出来（上面「宿主侧：Environment」那些宿主函数就是这么干的）。
+
+类型层不做这件事：绑定是**算出来的**，不是判出来的。定义体是绑定块时，判定会答
+`a binding is computed, not judged`，描述符层同理。
 
 ## 四种答案
 

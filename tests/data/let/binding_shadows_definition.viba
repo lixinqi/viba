@@ -1,0 +1,5 @@
+x = 41
+add =
+    int <- $env Environment <- $a int <- $b int <- { add the two }
+A = (x := 1  add << $env environ << $a x << $b 0)
+__ret__ = A

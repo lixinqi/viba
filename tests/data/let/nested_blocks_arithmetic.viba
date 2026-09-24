@@ -1,0 +1,13 @@
+add =
+    int <- $env Environment <- $a int <- $b int <- { add the two }
+A = (
+  a := 1
+  (
+    b := 2
+    (
+      c := 3
+      add << $env environ << $a a << $b (add << $env environ << $a b << $b c)
+    )
+  )
+)
+__ret__ = A

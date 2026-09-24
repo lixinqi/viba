@@ -314,11 +314,12 @@ def _bad_sources(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a module written with CRLF line endings: {result!r}")
 
-    # 冒号不是这门语言的字符：定义只有 `=`，写错了就停在词法上
+    # `:=` 是表达式里的绑定，不能出现在定义那一层：报错会告诉你该写在哪
     colon = write(tmp, "colon.viba", "__ret__ := 5\n")
     result = interpret(colon, environ)
-    check(isinstance(result, VibaProgramErr) and "illegal character ':'" in result.err_msg,
-          f"a colon where a definition writes `=` -> VibaProgramErr: {result!r}")
+    check(isinstance(result, VibaProgramErr) and
+          "a binding belongs inside an expression" in result.err_msg,
+          f"a binding where a definition goes -> VibaProgramErr: {result!r}")
 
     labelled(interpret(str(tmp), environ), "cannot read", "the main path is a directory -> VibaProgramErr")
     labelled(interpret(str(tmp / "gone.viba"), environ), "no such file", "no such file -> VibaProgramErr")

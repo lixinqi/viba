@@ -466,6 +466,11 @@ def _partial_target(pool, name, module):
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
     if isinstance(node, ast_nodes.Any):
         return VibaTypeDescriptor(ANY)
+    if isinstance(node, (ast_nodes.Let, ast_nodes.Binding)):
+        # A binding block is computed, not judged: the type layer has no value
+        # to substitute for the names it binds (viba-style.md).
+        raise PartialError("a binding is computed, not judged: "
+                           f"{viba_ast.unparse_type(node)}")
     if isinstance(node, ast_nodes.Partial):
         reduced, _ = reduce_partial(node, module,
                                     lambda name, home: _partial_target(pool, name, home),

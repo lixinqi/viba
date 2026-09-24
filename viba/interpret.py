@@ -412,19 +412,37 @@ class _Getter:
     effect happen twice.
     """
 
-    __slots__ = ("activation", "node", "answer")
+    __slots__ = ("activation", "node", "scope", "answer")
 
-    def __init__(self, activation, node):
+    def __init__(self, activation, node, scope=()):
         self.activation = activation
         self.node = node
+        self.scope = scope                  # the block the argument was written in
         self.answer = None                  # the Result, once it is worked out
 
     def __call__(self):
         if self.answer is None:
-            self.answer = self.activation.evaluate(self.node)
+            self.answer = self.activation.evaluate(self.node, self.scope)
         if not isinstance(self.answer, Ok):
             raise _Raised(self.answer)
         return _argument_value(self.answer.ok_value)
+
+
+def _in_scope(scope, name):
+    """The value `name` is bound to in this scope, or None (a value is never
+    None: `nil` is material)."""
+    for frame in reversed(scope):
+        if name in frame:
+            return frame[name]
+    return None
+
+
+def _let_inside(node):
+    """The first binding block written inside a piece of material, or None."""
+    for part in viba_ast.walk(node):
+        if isinstance(part, viba_ast.Let):
+            return part
+    return None
 
 
 def _addressed(node):
@@ -710,7 +728,7 @@ class _Activation:
 
     # ---- expressions ----
 
-    def evaluate(self, node):
+    def evaluate(self, node, scope=()):
         """Result: the value this piece writes — or why the chain stopped: an
         `VibaProgramErr`, or the deferral of a step nobody here implements.
 
@@ -719,18 +737,29 @@ class _Activation:
         `$victim ($x 0 * $y 0) * $at "12:30"` is a witness, the same spelling
         its type would have. Its members are data, not calls, so nothing in
         them is evaluated. A sum is not: which branch would it be.
+
+        `scope` is what a binding block put around this piece: the frames of the
+        blocks it is written inside, innermost last. A definition's own body
+        runs with the empty scope, so a binding never reaches past its block.
         """
         if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never,
                              viba_ast.Any, viba_ast.Tuple, viba_ast.Tagged)):
+            inside = _let_inside(node)
+            if inside is not None:
+                return VibaProgramErr(
+                    f"a binding belongs in a value, not inside material: "
+                    f"{viba_ast.unparse_type(inside)}")
             return Ok(_Material(VibaNode(reflect_access, self._descriptor(node), node)))
         if isinstance(node, (viba_ast.Product, viba_ast.ProductChain)):
-            return self._product(node)
+            return self._product(node, scope)
         if isinstance(node, (viba_ast.Sum, viba_ast.SumChain)):
-            return self._sum(node)
+            return self._sum(node, scope)
+        if isinstance(node, viba_ast.Let):
+            return self._let(node, scope)
         if isinstance(node, viba_ast.Partial):
-            return self._apply_chain(node)
+            return self._apply_chain(node, scope)
         if isinstance(node, viba_ast.TypeRef):
-            return self._resolve(node.name)
+            return self._resolve(node.name, scope)
         if isinstance(node, viba_ast.CodeBlock):
             return VibaProgramErr("a code block is documentation: it is not a value")
         return VibaProgramErr(f"cannot compute {type(node).__name__}")
@@ -738,13 +767,13 @@ class _Activation:
     def _descriptor(self, node):
         return descriptor_of(AstNodeType(node, self.module))
 
-    def _product(self, node):
+    def _product(self, node, scope=()):
         """Evaluate a product: never absorbs, while nil disappears."""
         kept = []
         for factor in _product_factors(node):
             if _builtin_unit(factor) is NilType:
                 continue
-            value = self.evaluate(factor)
+            value = self.evaluate(factor, scope)
             if _stopped(value):
                 return value
             answered = value.ok_value
@@ -760,7 +789,7 @@ class _Activation:
         chain = viba_ast.ProductChain([factor.node.data for factor in kept])
         return Ok(_Material(VibaNode(reflect_access, self._descriptor(chain), chain)))
 
-    def _sum(self, node):
+    def _sum(self, node, scope=()):
         """Evaluate a written sum, dropping the branches that answered never.
 
         A sum here is `if/else`: each branch answers either its value or never.
@@ -772,7 +801,7 @@ class _Activation:
         for branch in _sum_branches(node):
             if _builtin_unit(branch) is NeverType:
                 continue                        # the chain head, not a branch
-            value = self.evaluate(branch)
+            value = self.evaluate(branch, scope)
             if _stopped(value):
                 return value
             answered = value.ok_value
@@ -794,7 +823,28 @@ class _Activation:
                 for stmt in self.module.module.body
                 if isinstance(stmt, viba_ast.Import)}
 
-    def _resolve(self, name: str):
+    def _let(self, node, scope):
+        """A binding block: the bindings in written order, then the result.
+
+        The names live in a frame of their own, so the result sees them — and
+        so does anything the block hands out, a lazy argument's getter above
+        all — while the module around the block does not. The bindings are
+        computed as they are written, used or not; a name bound twice in one
+        block is the later binding.
+        """
+        frame = {}
+        inner = scope + (frame,)
+        for binding in node.bindings:
+            value = self.evaluate(binding.value, inner)
+            if _stopped(value):
+                return value
+            frame[binding.name] = value.ok_value
+        return self.evaluate(node.body, inner)
+
+    def _resolve(self, name: str, scope=()):
+        bound = _in_scope(scope, name)
+        if bound is not None:
+            return Ok(bound)
         if name == ENVIRON_NAME:
             return Ok(_Host(self.environ))
         if name.startswith(ENVIRON_NAME + "."):
@@ -860,7 +910,7 @@ class _Activation:
 
     # ---- calls ----
 
-    def _apply_chain(self, node):
+    def _apply_chain(self, node, scope=()):
         """Give the written arguments to the function, in written order.
 
         The chain nests left: `((f << a) << b) << c` is read by walking the
@@ -872,14 +922,15 @@ class _Activation:
         while isinstance(node, viba_ast.Partial):
             written.append(node.argument)
             node = node.function
-        function = self.evaluate(node)
+        function = self.evaluate(node, scope)
         if _stopped(function):
             return function
         current = function.ok_value
         for argument in reversed(written):
             lazy = isinstance(current, _VibaFunc) and current.lazy \
                 and not self._is_environment_slot(current, argument)
-            value = self._lazy_argument(argument) if lazy else self._argument(argument)
+            value = (self._lazy_argument(argument, scope) if lazy
+                     else self._argument(argument, scope))
             if _stopped(value):
                 return value
             if value.ok_value is None:
@@ -890,17 +941,17 @@ class _Activation:
             current = current.ok_value
         return Ok(current)
 
-    def _argument(self, node):
+    def _argument(self, node, scope=()):
         """Result: the `_Given` this argument is, or Ok(None) for documentation."""
         if isinstance(node, viba_ast.CodeBlock):
             return Ok(None)
         tag, inner = _addressed(node)
-        value = self.evaluate(inner)
+        value = self.evaluate(inner, scope)
         if _stopped(value):
             return value
         return Ok(_Given(tag, value.ok_value))
 
-    def _lazy_argument(self, node):
+    def _lazy_argument(self, node, scope=()):
         """Result: the `_Given` this argument is, with its value not computed.
 
         What travels is a getter; the host calls it if and when it wants that
@@ -909,7 +960,7 @@ class _Activation:
         if isinstance(node, viba_ast.CodeBlock):
             return Ok(None)
         tag, inner = _addressed(node)
-        return Ok(_Given(tag, _Getter(self, inner)))
+        return Ok(_Given(tag, _Getter(self, inner, scope)))
 
     def _is_environment_slot(self, function, node):
         """Whether this written argument is the `$env` slot of `function`.

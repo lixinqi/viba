@@ -21,6 +21,8 @@ from viba.viba_ast.nodes import (
     Product,
     Exponent,
     Partial,
+    Let,
+    Binding,
     Tagged,
     TypeApp,
     Tuple,
@@ -48,6 +50,9 @@ def convert_to_chain_style(node: AST) -> AST:
             d.name, d.generic_params, convert_to_chain_style(d.body)
         ),
         Tagged=lambda t: Tagged(t.tag, convert_to_chain_style(t.type)),
+        Let=lambda l: Let([Binding(b.name, convert_to_chain_style(b.value))
+                           for b in l.bindings], convert_to_chain_style(l.body)),
+        Binding=lambda b: Binding(b.name, convert_to_chain_style(b.value)),
         TypeApp=lambda a: TypeApp(a.constructor, [convert_to_chain_style(arg) for arg in a.args]),
         Tuple=lambda t: Tuple([convert_to_chain_style(e) for e in t.elements]),
         Any=lambda a: a,
@@ -114,6 +119,9 @@ def convert_from_chain_style(node: AST) -> AST:
             d.name, d.generic_params, convert_from_chain_style(d.body)
         ),
         Tagged=lambda t: Tagged(t.tag, convert_from_chain_style(t.type)),
+        Let=lambda l: Let([Binding(b.name, convert_from_chain_style(b.value))
+                           for b in l.bindings], convert_from_chain_style(l.body)),
+        Binding=lambda b: Binding(b.name, convert_from_chain_style(b.value)),
         TypeApp=lambda a: TypeApp(a.constructor, [convert_from_chain_style(arg) for arg in a.args]),
         Tuple=lambda t: Tuple([convert_from_chain_style(e) for e in t.elements]),
         strict=False,

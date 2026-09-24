@@ -1,0 +1,3 @@
+import branch as branch
+A = (branch := 5  branch)
+__ret__ = A

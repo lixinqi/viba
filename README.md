@@ -33,7 +33,10 @@ unary_expr : TAGGED_CLASS_NAME type_app_expr | type_app_expr
 type_app_expr : CLASS_NAME optional_type_args | primary_expr
 optional_type_args : LBRACKET partial_expr adt_arg_list RBRACKET | LBRACKET RBRACKET | (empty)
 adt_arg_list : COMMA partial_expr adt_arg_list | (empty)
-primary_expr : CLASS_NAME | literal | NIL | NEVER | ANY | ELLIPSIS | LPAREN partial_expr RPAREN | LPAREN adt_expr_list RPAREN | CODE_BLOCK
+primary_expr : CLASS_NAME | literal | NIL | NEVER | ANY | ELLIPSIS | LPAREN partial_expr RPAREN | LPAREN adt_expr_list RPAREN | LPAREN let_block RPAREN | CODE_BLOCK
+let_block : binding let_tail
+let_tail : binding let_tail | partial_expr
+binding : CLASS_NAME WALRUS partial_expr
 adt_expr_list : partial_expr COMMA partial_expr | partial_expr COMMA adt_expr_list | (empty)
 literal : FLOAT | INT | STRING | SINGLE_STRING | TRIPLE_STRING | BOOLEAN
 ```
@@ -53,6 +56,7 @@ The terminals it names:
 | `CODE_BLOCK` | `{ ... }` — text for the host to read; braces nest |
 | `IMPORT`, `AS` | `import`, `as` |
 | `ASSIGN` | `=` — a definition |
+| `WALRUS` | `:=` — a binding, inside an expression only |
 | `SUM_OP`, `PROD_OP`, `EXP_OP`, `APPLY_OP` | `\|`, `*`, `<-`, `<<` |
 | `LBRACKET`, `RBRACKET`, `LPAREN`, `RPAREN`, `COMMA` | `[`, `]`, `(`, `)`, `,` |
 
@@ -61,6 +65,7 @@ The terminals it names:
 | Operator | Form | Meaning |
 |----------|------|---------|
 | Assign | `Name = body` | Type definition |
+| Bind | `Name = (a := 1  a)` | Binds a name for the rest of that expression: the bindings come first, the result last, and the names do not reach outside — see [`viba-style.md`](viba-style.md) |
 | Sum | `A \| B` | Either A or B |
 | Product | `A * B` | Both A and B |
 | Exponent | `B <- A` | Function from A to B |

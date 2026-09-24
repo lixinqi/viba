@@ -18,6 +18,8 @@ import ply.lex as lex
 import ply.yacc as yacc
 
 from viba.viba_ast.nodes import (
+    Let,
+    Binding,
     TypeDefinition,
     GenericDefinition,
     Import,
@@ -65,6 +67,7 @@ tokens = (
     "LBRACE",  # {
     "RBRACE",  # }
     "COMMA",
+    "WALRUS",  # :=
     "NIL",
     "NEVER",
     "ANY",
@@ -85,6 +88,8 @@ t_RPAREN = r"\)"
 t_LBRACE = r"\{"
 t_RBRACE = r"\}"
 t_COMMA = r","
+# `:=` binds a name inside an expression; `=` alone defines at the top level.
+t_WALRUS = r":="
 t_ELLIPSIS = r"\.\.\."
 
 
@@ -408,6 +413,27 @@ def p_adt_expr_list_empty(p):
     p[0] = []
 
 
+def p_let_block(p):
+    """let_block : binding let_tail"""
+    bindings, body = p[2]
+    p[0] = Let([p[1]] + bindings, body)
+
+
+def p_let_tail(p):
+    """let_tail : binding let_tail
+    | partial_expr"""
+    if len(p) == 3:
+        bindings, body = p[2]
+        p[0] = ([p[1]] + bindings, body)
+    else:
+        p[0] = ([], p[1])
+
+
+def p_binding(p):
+    """binding : CLASS_NAME WALRUS partial_expr"""
+    p[0] = Binding(p[1], p[3])
+
+
 def p_primary_expr(p):
     """primary_expr : CLASS_NAME
     | literal
@@ -417,6 +443,7 @@ def p_primary_expr(p):
     | ELLIPSIS
     | LPAREN partial_expr RPAREN
     | LPAREN adt_expr_list RPAREN
+    | LPAREN let_block RPAREN
     | CODE_BLOCK"""
     # 1. Handle atomic units (Length 2)
     if len(p) == 2:
@@ -469,6 +496,11 @@ def p_error(p):
     """Raise on a syntax error: callers must be able to tell that this
     source does not compile."""
     if p:
+        if getattr(p, "type", None) == "WALRUS":
+            raise SyntaxError(
+                f"Viba parse error: a binding belongs inside an expression — "
+                f"`A = (x := 3  x)`; a definition is written `=` "
+                f"(line {p.lineno})")
         raise SyntaxError(f"Viba parse error: unexpected {p.value!r} at line {p.lineno}")
     raise SyntaxError("Viba parse error: unexpected EOF")
 
@@ -502,6 +534,9 @@ GRAMMAR_ORDER = (
     "optional_type_args",
     "adt_arg_list",
     "primary_expr",
+    "let_block",
+    "let_tail",
+    "binding",
     "adt_expr_list",
     "literal",
 )
@@ -625,6 +660,12 @@ if __name__ == "__main__":
          "Function with one argument given"),
         ("PartialAll = T << $c C << $b B",
          "Arguments given in the other order"),
+        ("LetSimple = (a := 3  add << environ << a)",
+         "One binding, then the result"),
+        ("LetChain = (a := 3  b := 4  add << $env environ << $a a << $b b)",
+         "Two bindings, both used by the result"),
+        ("LetNested = (a := (b := 3  b)  a)", "A let block inside a binding"),
+        ("LetShadow = (a := 1  a := 2  a)", "A name bound twice in one block"),
         ("PartialNested = M << $b (P * Q)",
          "The given argument is a product"),
         ("PartialGrouped = M << (N << $a P)",
@@ -785,6 +826,7 @@ if __name__ == "__main__":
         ("import", "An import with no module name"),
         ("X = $x int $y", "Two tags with no operator between them"),
         ("X = A B", "Two names with no operator between them"),
+        ("X := int", "A binding where a definition goes"),
         ("X = 1.2.3", "A malformed float"),
         ("list = int", "A builtin container as a definition name"),
         ("W[list] = int", "A builtin container as a generic parameter"),

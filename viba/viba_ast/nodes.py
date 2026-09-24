@@ -5,7 +5,7 @@ canonicalization, dump and visitors all work on this single hierarchy.
 
 Composite nodes:
     Module, TypeDefinition, GenericDefinition, Sum, Product, Exponent,
-    Tagged, TypeApp, Tuple
+    Tagged, TypeApp, Tuple, Let, Binding
 Atomic nodes:
     TypeRef, Constant, Nil, Never, Ellipsis, CodeBlock
 Canonical (chain-style) nodes, produced by convert_to_chain_style:
@@ -80,6 +80,23 @@ class Partial(AST):
     """function << argument — the written argument is given to the function."""
 
     _fields = ("function", "argument")
+
+
+class Binding(AST):
+    """name := value — one binding inside a let block."""
+
+    _fields = ("name", "value")
+
+
+class Let(AST):
+    """(name := value  ...  result) — bindings, then the expression they lead to.
+
+    The names are bound for the rest of the block — and for anything the block
+    hands out, a lazy argument's getter above all. They do not reach the module
+    around the block.
+    """
+
+    _fields = ("bindings", "body")
 
 
 class Tagged(AST):

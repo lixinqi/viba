@@ -1,0 +1,9 @@
+add =
+    int <- $env Environment <- $a int <- $b int <- { add the two }
+tick =
+    int <- $env Environment <- { counts as a side effect }
+A = (
+  a := (tick << $env environ)
+  add << $env environ << $a 1 << $b 1
+)
+__ret__ = A

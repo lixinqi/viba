@@ -253,6 +253,12 @@ class _Checker:
         # (`sup is AnyType`: everything fits) is what the walk asks first.
         if isinstance(node, viba_ast.TypeRef):
             return self._lift_ref(node, module, side)
+        if isinstance(node, (viba_ast.Let, viba_ast.Binding)):
+            # A binding block is computed, not judged: the judgment has no
+            # value to put in the bound names' place (viba-style.md).
+            raise UnresolvedTypeError(
+                "a binding is computed, not judged: "
+                f"{viba_ast.unparse_type(node)}")
         return None
 
     def _lift_ref(self, node, module: ModuleType, side: str):

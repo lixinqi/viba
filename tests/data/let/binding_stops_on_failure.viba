@@ -1,0 +1,10 @@
+explode =
+    int <- $env Environment <- { raises }
+tick =
+    int <- $env Environment <- { counts as a side effect }
+A = (
+  a := explode << $env environ
+  b := tick << $env environ
+  a
+)
+__ret__ = A
