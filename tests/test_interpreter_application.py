@@ -14,6 +14,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import ADD, Checks, Host, value_of, write
 
+from viba.reflect import access as reflect_access
+
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.type import VibaProgramErr, Ok, Step
 
@@ -25,6 +27,8 @@ labelled = checks.labelled
 def run(tmp: Path):
     _arguments(tmp)
     _order_and_slots(tmp)
+    _argument_types(tmp)
+    _lazy_argument_types(tmp)
     _long_chain(tmp)
 
 
@@ -108,6 +112,86 @@ __ret__ = add << $env environ << $a (explode << $env environ) << $b 2
           f"the step that stopped is the argument's, not the call's: {exploded.step!r}")
     check(("root", "add") not in host.calls,
           f"the call itself never happens: {host.calls}")
+
+
+def _argument_types(tmp: Path):
+    """实参要装得下它那一格：装不下是**程序错**，宿主还没看见这个实参。
+
+    值层现在也用得上判定的那套 <:：字面量、材料、环境都有写下来的类型。
+    判不出类型的（宿主自己的值、判定层settle不了的）照旧放过去，交给实现那一步的人。
+    """
+    def get_func(path, func_name):
+        if func_name == "x_of":
+            return lambda env, point: reflect_access.leaf(point.by_tag("x")).ok_value
+        return Host().get_func(path, func_name)
+
+    environ = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
+    product_slot = """
+x_of =
+	int
+	<- $env Environment
+	<- $p ($x int * $y int)
+	<- { the x of that point }
+"""
+    cases = [
+        ('__ret__ = add << $env environ << $a "x" << $b 1\n',
+         "does not fit $a int", "a string in an int slot"),
+        ('__ret__ = add << $env environ << $a 1 << $b "x"\n',
+         "does not fit $b int", "and in the second slot"),
+        ('__ret__ = add << $env environ << $a true << $b 1\n',
+         "does not fit $a int", "a bool is no int"),
+        ('__ret__ = add << $env environ << $a environ << $b 1\n',
+         "does not fit $a int", "the environment in an int slot"),
+        ('__ret__ = add << $env environ << $a nil << $b 1\n',
+         "does not fit $a int", "nil in an int slot"),
+        (product_slot + '__ret__ = x_of << $env environ << $p ($x "s" * $y 1)\n',
+         "does not fit $p", "a product whose member does not fit"),
+        ('__ret__ = add << $env environ << $a 3 << $b 4\n', None,
+         "a literal that does fit goes through"),
+        (product_slot + '__ret__ = x_of << $env environ << $p ($x 1 * $y 2)\n', None,
+         "and so does a product that fits"),
+    ]
+    for index, (body, want, label) in enumerate(cases):
+        path = write(tmp, f"slot{index}.viba", ADD + body)
+        labelled(interpret(path, environ), want, label)
+
+
+def _lazy_argument_types(tmp: Path):
+    """惰性实参不先算，所以那一格在宿主叫它的时候才核：叫了才错，不叫就不错。"""
+    lazy = """
+watch =
+	ParametersLazyEvaluated[
+		int
+		<- $env Environment
+		<- $x int
+		<- { hand x back }
+	]
+"""
+    asked = write(tmp, "lazy_asked.viba", lazy + '__ret__ = watch << $env environ << $x "x"\n')
+    ignored = write(tmp, "lazy_ignored.viba", lazy + """
+ignore =
+	ParametersLazyEvaluated[
+		int
+		<- $env Environment
+		<- $x int
+		<- { answer seven without looking at x }
+	]
+__ret__ = ignore << $env environ << $x "x"
+""")
+
+    def get_func(path, func_name):
+        if func_name == "watch":
+            return lambda get_env, get_x: get_x().value
+        if func_name == "ignore":
+            return lambda get_env, get_x: 7
+        return Host().get_func(path, func_name)
+
+    host = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
+    labelled(interpret(asked, host), "does not fit $x int",
+             "a marked function asks for the argument: the slot is checked then")
+    result = interpret(ignored, host)
+    check(isinstance(result, Ok) and value_of(result) == 7,
+          f"and an argument nobody asks for is never checked: {result!r}")
 
 
 def _long_chain(tmp: Path):

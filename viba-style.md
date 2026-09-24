@@ -196,6 +196,9 @@ Distance =
   [`tests/data/let/let_in_taken_branch.viba`](tests/data/let/let_in_taken_branch.viba)。
 - **实参是表达式时把它括起来**：`$v (f << $env environ)`，不是 `$v f << $env environ`——`<<` 比
   tag 松，后者会被读成两个实参（先给 `$v f`，再给一个位置实参）。
+- **实参要装得下它那一格**：`$a int` 那里写 `"x"` 是程序写错，`interpret` 当场报
+  `VibaProgramErr`（不是等宿主崩了再报）。所以槽位的类型写准，别拿 `Any` 糊过去——写着 `Any`
+  就等于说"这一格什么都收"。
 - **没有死参数**：一个实参不参与任何判断、不影响结果，就删掉它——读的人会一路找它在哪生效，找不到
   就是浪费。**唯一例外是 `$env Environment`**：它对 interpreter 是规矩（每个可执行函数都要依赖
   environ），不是死参数。

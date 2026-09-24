@@ -48,7 +48,7 @@ __ret__ = double << $a 21
 
     wrong = write(tmp, "wrong_env.viba",
                   ADD + "__ret__ = add << $env 7 << $a 1 << $b 2\n")
-    labelled(interpret(wrong, environ), "not given an Environment",
+    labelled(interpret(wrong, environ), "does not fit $env Environment",
              "an environment argument that is not an Environment -> VibaProgramErr")
 
     # 环境那一格必须写成 $env：不带 tag 的 Environment 位不算数

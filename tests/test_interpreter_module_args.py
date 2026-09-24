@@ -77,11 +77,13 @@ CASES_TO_RUN = [
     ("empty_args_without_the_slot", "error", "an empty one is written ()", None),
     ("module_calls_module_with_args", "value", 14, None),
     ("args_inside_a_binding", "value", 17, None),
+    ("wrong_type_positionally", "error", 'does not fit $a int', None),
+    ("wrong_type_by_tag", "error", 'does not fit $b int', None),
 ]
 
 
 def run(tmp: Path):
-    check(len(CASES_TO_RUN) == 20, f"twenty cases: {len(CASES_TO_RUN)}")
+    check(len(CASES_TO_RUN) == 22, f"twenty-two cases: {len(CASES_TO_RUN)}")
     for index, (name, kind, want, calls_wanted) in enumerate(CASES_TO_RUN):
         program = CASES / f"{name}.viba"
         check(program.is_file(), f"the case is a file: {program.name}")

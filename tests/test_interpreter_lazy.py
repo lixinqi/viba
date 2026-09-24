@@ -462,7 +462,7 @@ __ret__ = ignore_x << 5 << 1
 """)
     calls = []
     labelled(interpret(no_env, environ_for(calls, tmp / "store-i")),
-             "was not given an Environment",
+             "does not fit $env Environment",
              "a marked function still needs its environment")
 
 

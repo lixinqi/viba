@@ -323,7 +323,7 @@ __ret__ = feed_a_list << $env environ << $f inc
     checks.failed(interpret(fed, environ), "raised",
                   "a host handing a viba function something with no leaf")
 
-    # 没给全参数的函数当实参：宿主拿到的就是那个函数，回手就被拒
+    # 那一格声明的是 int：把函数递进去是程序错，判定层当场拦下，走不到宿主
     handed = write(tmp, "handed.viba", LEAF + """
 echo =
 	int
@@ -332,8 +332,20 @@ echo =
 	<- { hand the argument back }
 __ret__ = echo << $env environ << $x leaf
 """)
-    checks.failed(interpret(handed, environ), "no leaf",
-                  "a viba function handed where a value is expected, echoed back")
+    checks.labelled(interpret(handed, environ), "does not fit $x int",
+                    "a viba function handed where an int is declared: a program error")
+
+    # 那一格声明的是 Any：函数装得下，宿主拿到它再交回来，才轮到"没有叶子"
+    handed_any = write(tmp, "handed_any.viba", LEAF + """
+echo =
+	int
+	<- $env Environment
+	<- $x Any
+	<- { hand the argument back }
+__ret__ = echo << $env environ << $x leaf
+""")
+    checks.failed(interpret(handed_any, environ), "no leaf",
+                  "a viba function handed where Any is declared, echoed back")
 
     # 宿主里面再跑一次 interpret：两个 run 互不干扰
     inner = write(tmp, "inner_module.viba", LEAF + "__ret__ = leaf << $env environ\n")

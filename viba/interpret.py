@@ -284,6 +284,55 @@ def _is_nil(value) -> bool:
     return isinstance(value, _Material) and isinstance(value.node.data, viba_ast.Nil)
 
 
+def _one_line(node) -> str:
+    """A piece as one line: error messages read better without the layout."""
+    return " ".join(viba_ast.unparse_type(node).split())
+
+
+def _slot_type(element):
+    """The declared type a written argument slot asks for."""
+    return element.type if isinstance(element, viba_ast.Tagged) else element
+
+
+def _value_as_type(value):
+    """The type this value already is, or None when it has none written here.
+
+    Material is the design it was made of and a viba function is its chain, so
+    the judgment can read them; the environment is `Environment`. A host value
+    with no viba type — a host function, a host object — has none, and nothing
+    is judged for it.
+    """
+    if isinstance(value, _Material):
+        return value.node.data
+    if isinstance(value, _VibaFunc):
+        return value.chain
+    if isinstance(value, _Host) and isinstance(value.obj, Environment):
+        return viba_ast.TypeRef(ENVIRON_TYPE)
+    return None
+
+
+def _fits_slot(value, element, module, owner: str):
+    """Why this argument does not fit the slot it was given to, or None.
+
+    The design says what a slot is (`$a int`), and a value that is written out
+    already has a type, so the judgment that reads the design can refuse the
+    argument before any host sees it: a string in an int slot is a program
+    error, not a step whose implementation broke. Only what can be read both
+    ways is judged — a value whose type the judgment cannot settle is left to
+    whoever implements the step, the way it always was.
+    """
+    given = _value_as_type(value)
+    if given is None:
+        return None
+    written = _slot_type(element)
+    from viba.is_sub_type import is_sub_type
+    judged = is_sub_type(AstNodeType(given, module), AstNodeType(written, module))
+    if not isinstance(judged, Ok) or judged.ok_value is True:
+        return None
+    return (f"{owner}: {_one_line(given)} does not fit {_one_line(element)}: "
+            f"{_one_line(given)} <: {_one_line(written)} does not hold")
+
+
 def _builtin_unit(node):
     """The builtin unit type written by `node`, if it names one."""
     if isinstance(node, viba_ast.Nil):
@@ -378,17 +427,36 @@ class _Getter:
     effect happen twice.
     """
 
-    __slots__ = ("activation", "node", "scope", "answer")
+    __slots__ = ("activation", "node", "scope", "answer", "slot", "module", "owner")
 
     def __init__(self, activation, node, scope=()):
         self.activation = activation
         self.node = node
         self.scope = scope                  # the block the argument was written in
         self.answer = None                  # the Result, once it is worked out
+        self.slot = None                    # what the call asked for, once it is taken
+        self.module = None
+        self.owner = ""
+
+    def watch(self, element, module, owner: str):
+        """The call that took this argument says which slot it fills.
+
+        A getter is handed over before the value exists, so the type the slot
+        asks for can only be checked when the host asks for it. `_VibaFunc.give`
+        knows the slot; this is where it tells the getter.
+        """
+        self.slot = element
+        self.module = module
+        self.owner = owner
 
     def __call__(self):
         if self.answer is None:
-            self.answer = self.activation.evaluate(self.node, self.scope)
+            answer = self.activation.evaluate(self.node, self.scope)
+            if isinstance(answer, Ok) and self.slot is not None:
+                problem = _fits_slot(answer.ok_value, self.slot, self.module, self.owner)
+                if problem is not None:
+                    answer = VibaProgramErr(problem)
+            self.answer = answer
         if not isinstance(self.answer, Ok):
             raise _Raised(self.answer)
         return _argument_value(self.answer.ok_value)
@@ -1091,33 +1159,46 @@ class _VibaFunc(_Callable):
         self.lazy = lazy
 
     @property
+    def elements(self):
+        """The argument slots, in written order: each with its tag and its type."""
+        return [element for element in _elements(self.chain)[1:]
+                if not isinstance(element, viba_ast.CodeBlock)]
+
+    @property
     def slots(self):
         """The arguments, in written order: a tag, or None for a position."""
-        out = []
-        for element in _elements(self.chain)[1:]:
-            if isinstance(element, viba_ast.Tagged):
-                out.append(element.tag)
-            elif isinstance(element, viba_ast.CodeBlock):
-                continue                    # documentation is no argument
-            else:
-                out.append(None)
-        return out
+        return [element.tag if isinstance(element, viba_ast.Tagged) else None
+                for element in self.elements]
 
     def give(self, item):
-        """Give one written argument to the slot it addresses."""
+        """Give one written argument to the slot it addresses.
+
+        What is given has to fit what the slot declares: `$a int` takes no
+        string, and saying so here keeps the four answers apart — a program
+        that hands over the wrong piece is a `VibaProgramErr`, not a host whose
+        implementation broke.
+        """
         slots = self.slots
         given = dict(self.given)
         if item.tag is not None:
             if item.tag not in slots:
                 return VibaProgramErr(f"{self.name} takes no {item.tag} argument")
-            given[slots.index(item.tag)] = item.value
+            index = slots.index(item.tag)
         else:
             # An argument written without a tag is the next slot that is free:
             # the caller did not say which one, and the order is the design's.
             free = [index for index in range(len(slots)) if index not in given]
             if not free:
                 return VibaProgramErr(f"{self.name} takes no more arguments")
-            given[free[0]] = item.value
+            index = free[0]
+        element = self.elements[index]
+        if isinstance(item.value, _Getter):
+            item.value.watch(element, self.activation.module, self.name)
+        else:
+            problem = _fits_slot(item.value, element, self.activation.module, self.name)
+            if problem is not None:
+                return VibaProgramErr(problem)
+        given[index] = item.value
         if all(index in given for index in range(len(slots))):
             return self.call(given)
         return Ok(_VibaFunc(self.activation, self.name, self.chain, given,
@@ -1320,6 +1401,12 @@ class _ModuleFunc(_Callable):
                     f"module {self.name!r} takes no more arguments: its "
                     f"{ARGS_NAME} are all given")
             index = free[0]
+        tag, declared = slots[index]
+        problem = _fits_slot(item.value,
+                             viba_ast.Tagged(tag, declared) if tag else declared,
+                             self.module, f"module {self.name!r}")
+        if problem is not None:
+            return VibaProgramErr(problem)
         given[index] = item.value
         # The module runs when the chain ends, not the moment the last argument
         # lands: one more `<<` means the call was written wrong, and a body must
