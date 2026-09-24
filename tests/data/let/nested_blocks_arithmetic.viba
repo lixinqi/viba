@@ -6,7 +6,8 @@ A = (
     b := 2
     (
       c := 3
-      add << $env environ << $a a << $b (add << $env environ << $a b << $b c)
+      bc := add << $env environ << $a b << $b c
+      add << $env environ << $a a << $b bc
     )
   )
 )

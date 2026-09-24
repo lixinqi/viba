@@ -7,4 +7,7 @@ take_x =
     ]
 tick =
     int <- $env Environment <- { counts as a side effect }
-__ret__ = take_x << $env environ << $x (a := (tick << $env environ)  a)
+__ret__ =
+    take_x
+    << $env environ
+    << $x (a := (tick << $env environ)  a)

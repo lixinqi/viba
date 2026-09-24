@@ -50,12 +50,20 @@ the_case = case_at_1230 << case_env
 # the measurement of those facts. The call itself runs under a temporary
 # environment (a call has no address of its own), and is told where the evidence
 # goes: this case's address. Not pure, so what it answers becomes the Prepare.
-distance = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
+distance =
+    measure_distance
+    << $env (environ.tmp_sub_env << ())
+    << $evidence case_env
+    << $case the_case
 
 # the rule's question: at least this far apart?
 threshold = 5
 
-__ret__ = distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold
+__ret__ =
+    distance_ge
+    << $env (environ.tmp_sub_env << ())
+    << $d distance
+    << $threshold threshold
 ```
 
 读法：

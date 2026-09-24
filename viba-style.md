@@ -89,7 +89,10 @@ Distance =
   (
     dx := sub << $env environ << $a x1 << $b x2
     dy := sub << $env environ << $a y1 << $b y2
-    add << $env environ << $a (square << $env environ << $x dx) << $b (square << $env environ << $x dy)
+    add
+    << $env environ
+    << $a (square << $env environ << $x dx)
+    << $b (square << $env environ << $x dy)
   )
 ```
 
@@ -186,6 +189,9 @@ Distance =
 ```
 
 - 链的第一个元素是**结果**，然后是实参，按给的顺序排；每个实参带 tag。
+- **一行放不下就折行**：每个实参占一行，续行以 `<-` / `<<` 起头。可打开的例子：
+  [`tests/data/interpreter/add_demo.viba`](tests/data/interpreter/add_demo.viba)、
+  [`tests/data/let/let_in_taken_branch.viba`](tests/data/let/let_in_taken_branch.viba)。
 - **实参是表达式时把它括起来**：`$v (f << $env environ)`，不是 `$v f << $env environ`——`<<` 比
   tag 松，后者会被读成两个实参（先给 `$v f`，再给一个位置实参）。
 - **没有死参数**：一个实参不参与任何判断、不影响结果，就删掉它——读的人会一路找它在哪生效，找不到
