@@ -50,6 +50,32 @@ def host_for(calls):
             return lambda env, x, y: 1
         if func_name == "ge":
             return lambda env, x, y: x.value >= y.value
+        if func_name == "inner_lambda_record":
+            # 分支值本身也是一次调用：它被算过就说明那一支走了
+            def inner_lambda_record(env, label):
+                calls.append(label.value)
+                return 0
+            return inner_lambda_record
+        if func_name == "ask_twice":
+            # 同一个 getter 问两次：只该算一次
+            def ask_twice(get_env, get_x):
+                first = get_x().value
+                second = get_x().value
+                return first + second
+            return ask_twice
+        if func_name == "ask_nothing":
+            # 两个实参都不问
+            return lambda get_env, get_a, get_b: 0
+        if func_name == "positional":
+            # 三个槽位都收，按写下来的顺序给 getter
+            def positional(get_env, get_condition, get_v):
+                return get_v().value if get_condition().value else 0
+            return positional
+        if func_name == "boom_when_asked":
+            def boom_when_asked(get_env):
+                calls.append("boom")
+                raise ZeroDivisionError("boom")
+            return boom_when_asked
         return branch.get_func(module_path, func_name)
     return get_func
 
@@ -83,6 +109,9 @@ __ret__ =
 def run(tmp: Path):
     _only_the_taken_branch_is_computed(tmp)
     _an_ignored_argument_is_never_computed(tmp)
+    _a_branch_value_is_its_own_call(tmp)
+    _an_argument_is_computed_at_most_once(tmp)
+    _the_getters_follow_the_slots(tmp)
     _an_unmarked_function_is_still_eager(tmp)
     _a_called_getter_carries_what_stopped(tmp)
     _the_marker_marks_functions(tmp)
@@ -147,6 +176,176 @@ __ret__ = half << $x (ghost << $env environ)
     result = interpret(half, environ_for(calls, tmp / "store-d"))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a marked function stays lazy through a partial application: {result!r}")
+
+
+def _a_branch_value_is_its_own_call(tmp: Path):
+    """分支值写成一次调用（`inner_lambda_record << env << "true_branch"`）时，
+    只有走的那一支会留下记录。"""
+    source = """
+import branch
+
+ge =
+    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+inner_lambda_record =
+    int <- $env Environment <- $label str <- { record which branch was taken }
+ghost =
+    int <- $env Environment <- { nothing implements this }
+
+condition = ge << $env environ << $x 1 << $y THRESHOLD
+__ret__ =
+    Oneof
+  | (branch.id_or_never << environ << condition << (inner_lambda_record << environ << "true_branch"))
+  | (branch.never_or_nil << environ << condition << (inner_lambda_record << environ << "false_branch"))
+"""
+    calls = []
+    result = interpret(write(tmp, "recorded_true.viba", source.replace("THRESHOLD", "0")),
+                       environ_for(calls, tmp / "store-true"))
+    check(isinstance(result, Ok) and value_of(result) == 0, f"the true branch: {result!r}")
+    check(calls == ["true_branch"],
+          f"and only it was recorded: {calls}")
+
+    calls = []
+    result = interpret(write(tmp, "recorded_false.viba", source.replace("THRESHOLD", "5")),
+                       environ_for(calls, tmp / "store-false"))
+    check(isinstance(result, Ok) and value_of(result) == 0, f"the false branch: {result!r}")
+    check(calls == ["false_branch"],
+          f"and only it was recorded: {calls}")
+
+    # 分支背后那一步没有实现：递延报的是那一步，而且它没被算过
+    missing = write(tmp, "recorded_missing.viba", source
+                    .replace("THRESHOLD", "0")
+                    .replace('(inner_lambda_record << environ << "true_branch")',
+                             '(ghost << environ)'))
+    calls = []
+    result = interpret(missing, environ_for(calls, tmp / "store-missing"))
+    check(isinstance(result, NotMyDutyException),
+          f"an unimplemented step behind a branch defers: {result!r}")
+    check(calls == [],
+          f"and nothing behind that branch was computed: {calls}")
+
+
+def _an_argument_is_computed_at_most_once(tmp: Path):
+    """一个实参只算一次：问两次不等于做两遍。
+
+    惰性是"要的时候才算"，不是"每次问都算"——原来 eager 调用里那个实参也只求值一次，
+    宿主问两次不该让副作用发生两次。
+    """
+    twice = write(tmp, "ask_twice.viba", """
+ask_twice =
+    ParametersLazyEvaluated[
+        int
+      <- $env Environment
+      <- $x int
+      <- { add x to itself, asking for x twice }
+    ]
+
+tick =
+    int <- $env Environment <- { a value with a side effect }
+
+__ret__ = ask_twice << $env environ << $x (tick << $env environ)
+""")
+    calls = []
+    result = interpret(twice, environ_for(calls, tmp / "store-once"))
+    check(isinstance(result, Ok) and value_of(result) == 2,
+          f"the answer says the argument was asked for twice: {result!r}")
+    check(calls == ["tick"],
+          f"and computed once: {calls}")
+
+    nothing = write(tmp, "ask_nothing.viba", """
+ask_nothing =
+    ParametersLazyEvaluated[
+        int
+      <- $env Environment
+      <- $a int
+      <- $b int
+      <- { answer zero, asking for neither argument }
+    ]
+
+tick =
+    int <- $env Environment <- { one }
+tock =
+    int <- $env Environment <- { the other }
+
+__ret__ = ask_nothing << $env environ << $a (tick << $env environ) << $b (tock << $env environ)
+""")
+    calls = []
+    result = interpret(nothing, environ_for(calls, tmp / "store-none"))
+    check(isinstance(result, Ok) and value_of(result) == 0,
+          f"a host that asks for nothing still answers: {result!r}")
+    check(calls == [], f"and nothing was computed: {calls}")
+
+    # 失败也只算一次：第二次问拿到的是同一个结果，不是重新求值
+    failing = write(tmp, "ask_twice_failing.viba", """
+ask_twice =
+    ParametersLazyEvaluated[
+        int
+      <- $env Environment
+      <- $x int
+      <- { add x to itself, asking for x twice }
+    ]
+
+boom_when_asked =
+    int <- $env Environment <- { a step whose implementation raises }
+
+__ret__ = ask_twice << $env environ << $x (boom_when_asked << $env environ)
+""")
+    calls = []
+    checks.failed(interpret(failing, environ_for(calls, tmp / "store-fail-once")),
+                  "boom_when_asked raised",
+                  "a getter that stops stops the call the first time it is asked")
+    check(calls == ["boom"],
+          f"and the step behind it ran once, not once per ask: {calls}")
+
+
+def _the_getters_follow_the_slots(tmp: Path):
+    """位置实参与乱序 tag：getter 仍按槽位交给宿主。"""
+    positional = write(tmp, "positional.viba", """
+positional =
+    ParametersLazyEvaluated[
+        int
+      <- $env Environment
+      <- $condition bool
+      <- $v int
+      <- { the value when the condition holds }
+    ]
+
+tick =
+    int <- $env Environment <- { one }
+ge =
+    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+
+value = tick << $env environ
+condition = ge << $env environ << $x value << $y 0
+__ret__ = positional << environ << condition << value
+""")
+    calls = []
+    result = interpret(positional, environ_for(calls, tmp / "store-pos"))
+    check(isinstance(result, Ok) and value_of(result) == 1,
+          f"arguments written without tags reach the right slots: {result!r}")
+
+    out_of_order = write(tmp, "out_of_order.viba", """
+positional =
+    ParametersLazyEvaluated[
+        int
+      <- $env Environment
+      <- $condition bool
+      <- $v int
+      <- { the value when the condition holds }
+    ]
+
+tick =
+    int <- $env Environment <- { one }
+ge =
+    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+
+condition = ge << $env environ << $x 1 << $y 0
+__ret__ = positional << $v (tick << $env environ) << $condition condition << $env environ
+""")
+    calls = []
+    result = interpret(out_of_order, environ_for(calls, tmp / "store-ooo"))
+    check(isinstance(result, Ok) and value_of(result) == 1,
+          f"tags given in another order reach the same slots: {result!r}")
+    check(calls == ["tick"], f"and the value was computed: {calls}")
 
 
 def _an_unmarked_function_is_still_eager(tmp: Path):

@@ -362,6 +362,12 @@ getter 答出来的，就是宿主平常会直接拿到的那份东西：材料�
 `ParametersLazyEvaluated marks a function, not int`。惰性跟着部分应用走：先给一半、再给另一半，
 剩下那一格仍然是惰性的。
 
+getter **最多算一次**：第一次问出结果（值或停下），之后每一次问都拿同一个。所以宿主问两遍不会让
+副作用发生两遍——和 eager 调用里那个实参只求值一次是同一件事。
+
+一处代价要记住：被标记的调用**递延时不带 `$call`**。工单要固定的那份材料来自已算出的实参，而惰性
+调用根本没有算过它们——递延里只有 `$step` 与 `$reason`（`$call` 是空的）。
+
 > 已知缺口：**类型层还看不见这个标记**——它把 `ParametersLazyEvaluated[F]` 当成一个普通的类型应用
 > （`Object` 套一个 `$func F`），所以 `id_or_never << $env environ` 在类型层归约不到
 > `Any <- $condition bool <- $v Any`。运行是对的，判定还没跟上。

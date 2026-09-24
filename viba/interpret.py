@@ -404,19 +404,27 @@ class _Getter:
     would have been handed eagerly — material as its `VibaNode`, the
     environment as itself — or raises `_Raised` with whatever the run stopped
     with.
+
+    **At most once**: the answer, value or stop, is worked out on the first call
+    and handed back on every later one. An argument that is asked for twice is
+    still one argument — `get_v()` twice is as eager as writing `v` twice, which
+    is what the host would have been handed. Asking again cannot make a side
+    effect happen twice.
     """
 
-    __slots__ = ("activation", "node")
+    __slots__ = ("activation", "node", "answer")
 
     def __init__(self, activation, node):
         self.activation = activation
         self.node = node
+        self.answer = None                  # the Result, once it is worked out
 
     def __call__(self):
-        value = self.activation.evaluate(self.node)
-        if not isinstance(value, Ok):
-            raise _Raised(value)
-        return _argument_value(value.ok_value)
+        if self.answer is None:
+            self.answer = self.activation.evaluate(self.node)
+        if not isinstance(self.answer, Ok):
+            raise _Raised(self.answer)
+        return _argument_value(self.answer.ok_value)
 
 
 def _addressed(node):
