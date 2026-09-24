@@ -252,7 +252,7 @@ never | a = a
 `ParametersLazyEvaluated` 标记（见下）：
 
 ```viba
-nil_or_never =
+id_or_never =
     ParametersLazyEvaluated[
         Any
       <- $env Environment
@@ -281,14 +281,15 @@ def get_func(module_path, func_name):
 被标记的函数拿到的是 **getter** 而不是值，所以开关叫哪个才算哪个：
 
 ```python
-def nil_or_never(get_env, get_condition, get_v):
+def id_or_never(get_env, get_condition, get_v):
     if get_condition().value:
         return get_v()
     return _never()
 ```
 
-- `nil_or_never`：condition 为真时按 `nil * v = v` 返回 `get_v()`，否则按 `never * v = never`
-  返回 never——**`get_v` 不会被叫**，那一支的实参表达式根本不算；
+- `id_or_never`：condition 为真时按单位元 `nil * v = v` 返回 `get_v()`，否则按 `never * v = never`
+  返回 never——**`get_v` 不会被叫**，那一支的实参表达式根本不算；名字里的 `id` 就是单位元
+  （identity）：留下这个值的那个选择子；
 - `never_or_nil`：condition 为真时按 `never * v = never` 返回 never，否则按 `nil * v = v` 返回
   `get_v()`。
 
@@ -310,7 +311,7 @@ condition = ge << $env environ << $x a << $y 0
 
 __ret__ =
     Oneof
-    | (branch.nil_or_never << $env environ << $condition condition << $v a)
+    | (branch.id_or_never << $env environ << $condition condition << $v a)
     | (branch.never_or_nil << $env environ << $condition condition << $v 0)
 ```
 
@@ -325,7 +326,9 @@ if/else，没走的那一支就不该算——于是有了下面这个标记。
 
 ### 惰性参数：`ParametersLazyEvaluated`
 
-`viba/builtin.viba` 里定义了一个特殊标记（`=` 左边是名字，标记本身是里面那个保留 tag）：
+`viba/builtin.viba` 里定义了一个特殊标记——它和 `Environment` 一样对每个模块可见，**不需要
+import**（`builtin.viba` 是最低优先级的内建库，见 [`viba-style.md`](viba-style.md) 第 11 节）。
+标记本身是里面那个保留 tag（`=` 左边是名字）：
 
 ```viba
 ParametersLazyEvaluated[Func] =
@@ -343,7 +346,7 @@ ParametersLazyEvaluated[Func] =
   `get_env()` 就是把它答回来。
 
 ```python
-def nil_or_never(get_env, get_condition, get_v):
+def id_or_never(get_env, get_condition, get_v):
     env = get_env()                    # 环境本身
     if get_condition().value:          # 材料是 VibaNode，bool 要 .value
         return get_v()                 # 只有这一支会算
@@ -360,7 +363,7 @@ getter 答出来的，就是宿主平常会直接拿到的那份东西：材料�
 剩下那一格仍然是惰性的。
 
 > 已知缺口：**类型层还看不见这个标记**——它把 `ParametersLazyEvaluated[F]` 当成一个普通的类型应用
-> （`Object` 套一个 `$func F`），所以 `nil_or_never << $env environ` 在类型层归约不到
+> （`Object` 套一个 `$func F`），所以 `id_or_never << $env environ` 在类型层归约不到
 > `Any <- $condition bool <- $v Any`。运行是对的，判定还没跟上。
 
 ## 类型层的模块

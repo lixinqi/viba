@@ -75,7 +75,7 @@ ge =
 condition = ge << $env environ << $x 1 << $y THRESHOLD
 __ret__ =
   Oneof
-  | (branch.nil_or_never << $env environ << $condition condition << $v (tick << $env environ))
+  | (branch.id_or_never << $env environ << $condition condition << $v (tick << $env environ))
   | (branch.never_or_nil << $env environ << $condition condition << $v (tock << $env environ))
 """
 

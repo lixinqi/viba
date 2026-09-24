@@ -177,6 +177,11 @@ Distance =
 
 ## 11. 其它
 
+- **内建名字不用 import。** [`viba/builtin.viba`](viba/builtin.viba) 对每个模块可见（最低优先级，自己
+  模块的同名定义优先）：`Environment` / `environ`、`Object` / `Oneof` / `nil` / `never` / `Any`、
+  标量 `bool` / `int` / `float` / `str`、容器名 `list` / `set` / `dict`、以及惰性标记
+  `ParametersLazyEvaluated`。所以 `$env Environment` 那一格和 `ParametersLazyEvaluated[...]` 都
+  不需要写任何 import。
 - **内建标量是 `bool` / `int` / `float` / `str`。** `string` 不是内建名：它什么都解析不到，而且
   语法层不会报——类型层会（`module_get_type`、`is_sub_type`）。
 - **一份定义一个表达式**，各自一行：没有逗号，也没有语句分隔符。

@@ -51,7 +51,7 @@ a = foo << $env environ
 condition = ge << $env environ << $x a << $y 0
 __ret__ =
   Oneof
-  | (branch.nil_or_never << $env environ << $condition condition << $v a)
+  | (branch.id_or_never << $env environ << $condition condition << $v a)
   | (branch.never_or_nil << $env environ << $condition condition << $v 0)
 """
 
@@ -81,8 +81,8 @@ def _if_else_picks(tmp: Path):
 def _selectors_keep_or_eliminate_each_value_kind(tmp: Path):
     values = (("7", 7), ('"kept"', "kept"), ("false", False), ("nil", None))
     selectors = (
-        ("nil_or_never", "true", True),
-        ("nil_or_never", "false", False),
+        ("id_or_never", "true", True),
+        ("id_or_never", "false", False),
         ("never_or_nil", "true", False),
         ("never_or_nil", "false", True),
     )
