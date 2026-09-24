@@ -167,12 +167,17 @@ def _written_as_ret(tmp: Path):
         path = write(tmp, f"unit_{label}.viba", f"__ret__ = {body}\n")
         result = interpret(path, environ)
         check(isinstance(result, Ok), f"__ret__ written as {label}: {result!r}")
-    for body, label in (("(1 | 2)", "a sum"),
-                        ("list[int]", "a generic application"),
+    for body, label in (("list[int]", "a generic application"),
                         ("int <- $x int", "an exponent")):
         path = write(tmp, f"written_{label.split()[-1]}.viba", f"__ret__ = {body}\n")
         labelled(interpret(path, environ), "cannot compute",
                  f"__ret__ written as {label} -> VibaProgramErr")
+
+    # A written sum is material: every branch that did not answer never stays.
+    sum_value = write(tmp, "written_sum.viba", "__ret__ = (1 | 2)\n")
+    result = interpret(sum_value, environ)
+    check(isinstance(result, Ok),
+          f"__ret__ written as a sum is material, not an error: {result!r}")
 
     write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
     module_value = write(tmp, "module_value.viba",

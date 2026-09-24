@@ -74,7 +74,7 @@ from viba.reflect import VibaNode, access as reflect_access
 from viba.type import (REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
                        InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
-                       custom_module)
+                       BUILTIN_MODULE, NilType, NeverType, custom_module)
 from viba.viba_type_descriptor import descriptor_of
 
 # A scalar a host answers belongs to no file: its leaf gets an empty module.
@@ -270,6 +270,55 @@ def material(value) -> VibaNode:
                            f"only a VibaNode, an AST piece, a scalar, or None")
     node = viba_ast.Nil() if value is None else viba_ast.Constant(value)
     return VibaNode(reflect_access, descriptor_of(AstNodeType(node, _NO_MODULE)), node)
+
+
+def _is_never(value) -> bool:
+    """Whether `value` is the additive unit `never`."""
+    return isinstance(value, _Material) and isinstance(value.node.data, viba_ast.Never)
+
+
+def _is_nil(value) -> bool:
+    """Whether `value` is the multiplicative unit `nil`."""
+    return isinstance(value, _Material) and isinstance(value.node.data, viba_ast.Nil)
+
+
+def _builtin_unit(node):
+    """The builtin unit type written by `node`, if it names one."""
+    if isinstance(node, viba_ast.Nil):
+        return NilType
+    if isinstance(node, viba_ast.Never):
+        return NeverType
+    if not isinstance(node, viba_ast.TypeRef):
+        return None
+    builtin = BUILTIN_MODULE.lookup(node.name)
+    if isinstance(builtin, Ok) and isinstance(builtin.ok_value, (NilType, NeverType)):
+        return type(builtin.ok_value)
+    return None
+
+
+def _never_material():
+    """The `never` value as material."""
+    node = viba_ast.Never()
+    return _Material(VibaNode(reflect_access,
+                              descriptor_of(AstNodeType(node, _NO_MODULE)), node))
+
+
+def _sum_branches(node):
+    """The branches of a written sum, flattened from the left-nested `|` tree."""
+    if isinstance(node, viba_ast.Sum):
+        return _sum_branches(node.left) + _sum_branches(node.right)
+    if isinstance(node, viba_ast.SumChain):
+        return list(node.elements)
+    return [node]
+
+
+def _product_factors(node):
+    """The factors of a written product, flattened in written order."""
+    if isinstance(node, viba_ast.Product):
+        return _product_factors(node.left) + _product_factors(node.right)
+    if isinstance(node, viba_ast.ProductChain):
+        return list(node.elements)
+    return [node]
 
 
 # ----------------------------------------------------------------------
@@ -581,9 +630,12 @@ class _Activation:
         them is evaluated. A sum is not: which branch would it be.
         """
         if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never,
-                             viba_ast.Any, viba_ast.Tuple, viba_ast.Tagged,
-                             viba_ast.Product, viba_ast.ProductChain)):
+                             viba_ast.Any, viba_ast.Tuple, viba_ast.Tagged)):
             return Ok(_Material(VibaNode(reflect_access, self._descriptor(node), node)))
+        if isinstance(node, (viba_ast.Product, viba_ast.ProductChain)):
+            return self._product(node)
+        if isinstance(node, (viba_ast.Sum, viba_ast.SumChain)):
+            return self._sum(node)
         if isinstance(node, viba_ast.Partial):
             return self._apply_chain(node)
         if isinstance(node, viba_ast.TypeRef):
@@ -594,6 +646,55 @@ class _Activation:
 
     def _descriptor(self, node):
         return descriptor_of(AstNodeType(node, self.module))
+
+    def _product(self, node):
+        """Evaluate a product: never absorbs, while nil disappears."""
+        kept = []
+        for factor in _product_factors(node):
+            if _builtin_unit(factor) is NilType:
+                continue
+            value = self.evaluate(factor)
+            if _stopped(value):
+                return value
+            answered = value.ok_value
+            if _is_never(answered):
+                return Ok(_never_material())
+            if _is_nil(answered):
+                continue
+            kept.append(answered)
+        if not kept:
+            return Ok(_Material(material(None)))
+        if len(kept) == 1:
+            return Ok(kept[0])
+        chain = viba_ast.ProductChain([factor.node.data for factor in kept])
+        return Ok(_Material(VibaNode(reflect_access, self._descriptor(chain), chain)))
+
+    def _sum(self, node):
+        """Evaluate a written sum, dropping the branches that answered never.
+
+        A sum here is `if/else`: each branch answers either its value or never.
+        The branches that answered never are the ones not taken, so they are
+        dropped; what is left is the taken branch. None left means every branch
+        dropped — the whole sum is never.
+        """
+        kept = []
+        for branch in _sum_branches(node):
+            if _builtin_unit(branch) is NeverType:
+                continue                        # the chain head, not a branch
+            value = self.evaluate(branch)
+            if _stopped(value):
+                return value
+            answered = value.ok_value
+            if _is_never(answered):
+                continue
+            kept.append(answered)
+        if not kept:
+            return Ok(_never_material())
+        if len(kept) == 1:
+            return Ok(kept[0])
+        elements = [branch.node.data for branch in kept]
+        chain = viba_ast.SumChain(elements)
+        return Ok(_Material(VibaNode(reflect_access, self._descriptor(chain), chain)))
 
     def _imports(self) -> dict:
         """The file's import table: what each import binds, and the module it

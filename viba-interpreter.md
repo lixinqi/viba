@@ -230,6 +230,80 @@ __ret__ = roll << $env environ << $n 1
 都不走，结果还是 731204。`tests/test_interpreter_idempotence.py` 里就是这么验的：同一个 store 跑两遍值
 相同、不纯函数只被调用一次；换一个 store 才会重新算。
 
+## 分支：用积选择，用和汇合
+
+viba 没有专门的 `if` 语法。分支由积与和组合出来：**积决定某一支是否存在，和把仍然存在的分支汇合起来**。
+
+解释器只需要归约三个代数恒等式：
+
+```viba
+nil * a = a
+never * a = never
+never | a = a
+```
+
+`nil` 是积的单位元，所以 `nil * a` 保留 `a`；`never` 是积的吸收元，所以
+`never * a` 让整支消失；`never` 同时是和的单位元，所以汇合时会从和里被剥掉。
+
+和里只剩一个非 never 分支时，结果就是该分支；所有分支都是 never 时，结果是 never；
+多个非 never 分支同时存在时，结果保留为和值，不擅自选择其中一支。
+
+`branch.viba` 与 `branch.py` 提供两个通用开关。它们接收分支值 `$v Any`，并返回 `Any`：
+
+```viba
+nil_or_never =
+    Any
+    <- $env Environment
+    <- $condition bool
+    <- $v Any
+
+never_or_nil =
+    Any
+    <- $env Environment
+    <- $condition bool
+    <- $v Any
+```
+
+`branch.py` 是宿主实现，和其他可执行函数一样由 `EnvironmentCompute` 显式注册：
+
+```python
+import branch
+
+def get_func(module_path, func_name):
+    return branch.get_func(module_path, func_name)
+```
+
+- `nil_or_never`：condition 为真时按 `nil * v = v` 返回 `v`，否则按 `never * v = never` 返回 never；
+- `never_or_nil`：condition 为真时按 `never * v = never` 返回 never，否则按 `nil * v = v` 返回 `v`。
+
+```python
+a = foo()
+if a >= 0:
+    return a
+else:
+    return 0
+```
+
+对应：
+
+```viba
+import branch
+
+a = foo << $env environ
+condition = ge << $env environ << $x a << $y 0
+
+__ret__ =
+    Oneof
+    | (branch.nil_or_never << $env environ << $condition condition << $v a)
+    | (branch.never_or_nil << $env environ << $condition condition << $v 0)
+```
+
+当 `a = 1` 时：第一支是 `nil * 1 = 1`，第二支是 `never * 0 = never`，最终 `1 | never = 1`。
+当 `a = -1` 时：第一支是 `never * -1 = never`，第二支是 `nil * 0 = 0`，最终 `never | 0 = 0`。
+
+开关把 `$v` 一并接收进来，对外统一返回 `Any`；nil/never 是它内部用来决定保留还是消去 `$v` 的代数机制。
+解释器提供积与和的通用归约，库函数负责把 condition 映射成这次分支的结果。
+
 ## 类型层的模块
 
 同一个文件在**类型推导**里也是"environ 进、`__ret__` 出"：名字绑到的是一个模块（import 的名字）时，

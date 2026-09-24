@@ -1,0 +1,23 @@
+# branch.viba — the two switches that make if/else.
+#
+# Each switch takes the branch value and applies an internal product selector:
+# nil * value keeps it, while never * value eliminates it. The surrounding sum
+# then drops the eliminated branch.
+
+# Condition holds: nil * v = v.
+# Condition does not hold: never * v = never.
+nil_or_never =
+    Any
+    <- $env Environment
+    <- $condition bool
+    <- $v Any
+    <- { when condition holds, hand back v; otherwise hand back never }
+
+# Condition holds: never * v = never.
+# Condition does not hold: nil * v = v.
+never_or_nil =
+    Any
+    <- $env Environment
+    <- $condition bool
+    <- $v Any
+    <- { when condition holds, hand back never; otherwise hand back v }
