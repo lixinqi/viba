@@ -1,0 +1,19 @@
+# Poison in the branch that is not taken.
+#
+# The condition holds, so `id_or_never` takes the first branch and
+# `never_or_nil` takes the second — the one carrying the poison. The run must
+# answer the first branch's value (42); counting it would fail.
+
+import branch
+
+ge =
+    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+poison_get_func_raises =
+    int <- $env Environment <- { get_func itself raises for this name }
+
+healthy = 42
+condition = ge << $env environ << $x 1 << $y 0
+__ret__ =
+    Oneof
+  | (branch.id_or_never << $env environ << $condition condition << $v (healthy))
+  | (branch.never_or_nil << $env environ << $condition condition << $v (poison_get_func_raises << $env environ))

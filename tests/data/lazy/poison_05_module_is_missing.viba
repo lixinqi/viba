@@ -1,0 +1,17 @@
+# Poison in the branch that is not taken.
+#
+# The condition holds, so `id_or_never` takes the first branch and
+# `never_or_nil` takes the second — the one carrying the poison. The run must
+# answer the first branch's value (42); counting it would be a program error.
+
+import branch
+import poison_missing_module as poison_missing_module
+
+ge =
+    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+healthy = 42
+condition = ge << $env environ << $x 1 << $y 0
+__ret__ =
+    Oneof
+  | (branch.id_or_never << $env environ << $condition condition << $v (healthy))
+  | (branch.never_or_nil << $env environ << $condition condition << $v (poison_missing_module << (environ.tmp_sub_env << ())))

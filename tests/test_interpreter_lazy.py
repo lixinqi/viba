@@ -50,13 +50,13 @@ def host_for(calls):
             return lambda env, x, y: 1
         if func_name == "ge":
             return lambda env, x, y: x.value >= y.value
-        if func_name == "explode":
-            def explode(env):
+        if func_name == "poison_raises":
+            def poison_raises(env):
                 raise ZeroDivisionError("poison")
-            return explode
-        if func_name == "broken_lookup":
+            return poison_raises
+        if func_name == "poison_get_func_raises":
             raise RuntimeError("the router broke")
-        if func_name == "answer_a_list":
+        if func_name == "poison_answers_a_list":
             return lambda env: [1, 2]
         if func_name == "inner_lambda_record":
             # 分支值本身也是一次调用：它被算过就说明那一支走了
@@ -79,11 +79,11 @@ def host_for(calls):
             def positional(get_env, get_condition, get_v):
                 return get_v().value if get_condition().value else 0
             return positional
-        if func_name == "boom_when_asked":
-            def boom_when_asked(get_env):
+        if func_name == "poison_raises_when_asked":
+            def poison_raises_when_asked(get_env):
                 calls.append("boom")
                 raise ZeroDivisionError("boom")
-            return boom_when_asked
+            return poison_raises_when_asked
         return branch.get_func(module_path, func_name)
     return get_func
 
@@ -154,10 +154,10 @@ ignore_x =
       <- { answer seven without looking at x }
     ]
 
-ghost =
+poison_no_implementation =
     int <- $env Environment <- { nothing implements this }
 
-__ret__ = ignore_x << $env environ << $x (ghost << $env environ)
+__ret__ = ignore_x << $env environ << $x (poison_no_implementation << $env environ)
 """)
     calls = []
     result = interpret(program, environ_for(calls, tmp / "store-c"))
@@ -175,11 +175,11 @@ ignore_x =
       <- { answer seven without looking at x }
     ]
 
-ghost =
+poison_no_implementation =
     int <- $env Environment <- { nothing implements this }
 
 half = ignore_x << $env environ
-__ret__ = half << $x (ghost << $env environ)
+__ret__ = half << $x (poison_no_implementation << $env environ)
 """)
     calls = []
     result = interpret(half, environ_for(calls, tmp / "store-d"))
@@ -197,7 +197,7 @@ ge =
     bool <- $env Environment <- $x int <- $y int <- { x >= y }
 inner_lambda_record =
     int <- $env Environment <- $label str <- { record which branch was taken }
-ghost =
+poison_no_implementation =
     int <- $env Environment <- { nothing implements this }
 
 condition = ge << $env environ << $x 1 << $y THRESHOLD
@@ -224,7 +224,7 @@ __ret__ =
     missing = write(tmp, "recorded_missing.viba", source
                     .replace("THRESHOLD", "0")
                     .replace('(inner_lambda_record << environ << "true_branch")',
-                             '(ghost << environ)'))
+                             '(poison_no_implementation << environ)'))
     calls = []
     result = interpret(missing, environ_for(calls, tmp / "store-missing"))
     check(isinstance(result, NotMyDutyException),
@@ -293,14 +293,14 @@ ask_twice =
       <- { add x to itself, asking for x twice }
     ]
 
-boom_when_asked =
+poison_raises_when_asked =
     int <- $env Environment <- { a step whose implementation raises }
 
-__ret__ = ask_twice << $env environ << $x (boom_when_asked << $env environ)
+__ret__ = ask_twice << $env environ << $x (poison_raises_when_asked << $env environ)
 """)
     calls = []
     checks.failed(interpret(failing, environ_for(calls, tmp / "store-fail-once")),
-                  "boom_when_asked raised",
+                  "poison_raises_when_asked raised",
                   "a getter that stops stops the call the first time it is asked")
     check(calls == ["boom"],
           f"and the step behind it ran once, not once per ask: {calls}")
@@ -357,67 +357,21 @@ __ret__ = positional << $v (tick << $env environ) << $condition condition << $en
     check(calls == ["tick"], f"and the value was computed: {calls}")
 
 
-# 毒剂：放进"走不到的那一支"的表达式。它们各自本来会怎样，写在标签里——验的是结果：
-# 走的那一支的值照常出来，走不到的那一支一次都不算。
-POISONS = [
-    ("a step with no implementation (would defer)", "",
-     "ghost << $env environ"),
-    ("a step whose implementation raises (would fail)", "",
-     "explode << $env environ"),
-    ("a step whose get_func raises (would fail)", "",
-     "broken_lookup << $env environ"),
-    ("a step answering something with no leaf (would fail)", "",
-     "answer_a_list << $env environ"),
-    ("a module that is not there (would be a program error)", "",
-     "missing_module << (environ.tmp_sub_env << ())"),
-    ("a name nothing defines (would be a program error)", "",
-     "nope"),
-    ("an argument given to a number (would be a program error)", "",
-     "1 << $x 2"),
-    ("a product factor that is poison (would defer)", "",
-     "(ghost << $env environ) * 1"),
-    ("a sum branch that is poison (would defer)", "",
-     "(ghost << $env environ) | 1"),
-    ("a branch that would take poison itself (would defer)", "",
-     "(branch.id_or_never << $env environ"
-     " << $condition (ge << $env environ << $x 1 << $y 0)"
-     " << $v (ghost << $env environ))"),
-]
-
-POISON_PROGRAM = """{imports}import branch
-
-ge =
-    bool <- $env Environment <- $x int <- $y int <- {{ x >= y }}
-ghost =
-    int <- $env Environment <- {{ nothing implements this }}
-explode =
-    int <- $env Environment <- {{ this implementation raises }}
-broken_lookup =
-    int <- $env Environment <- {{ get_func itself raises for this name }}
-answer_a_list =
-    int <- $env Environment <- {{ answers a list, which is no leaf }}
-
-healthy = 42
-condition = ge << $env environ << $x 1 << $y 0
-__ret__ =
-    Oneof
-  | (branch.id_or_never << $env environ << $condition condition << $v {one})
-  | (branch.never_or_nil << $env environ << $condition condition << $v {two})
-"""
+LAZY_CASES = Path(__file__).resolve().parent / "data" / "lazy"
 
 
 def _poison_in_the_untaken_branch(tmp: Path):
-    """走不到的那一支放毒：只有走的那一支的值出来，毒一次都不发作。
+    """走不到的那一支放毒：只看结果——另一支的值照常出来，毒一次都不发作。
 
-    验的是**结果**——`Ok(42)`，也就是另一支的值；毒如果被算过，这十条里任何一条都会变成递延、
-    失败或程序错误，所以这个结果本身就是"那一支没被算"的证明。
+    十份用例就是 `tests/data/lazy/*.viba` 这十个文件，可以直接打开：每份的最后一行是毒，它要是
+    被算过，这一份就会变成递延、失败或程序错误，所以 `Ok(42)` 本身就是"那一支没被算"的证明。
     """
-    for index, (label, imports, poison) in enumerate(POISONS):
-        source = POISON_PROGRAM.format(imports=imports, one="(healthy)", two=f"({poison})")
-        program = write(tmp, f"poison_{index}.viba", source)
-        result = interpret(program, environ_for([], tmp / f"store-poison{index}"))
+    programs = sorted(LAZY_CASES.glob("*.viba"))
+    check(len(programs) == 10, f"ten poison cases are on disk: {len(programs)}")
+    for index, program in enumerate(programs):
+        result = interpret(str(program), environ_for([], tmp / f"store-poison{index}"))
         check(isinstance(result, Ok) and value_of(result) == 42,
-              f"poison in the branch that is not taken ({label}): {result!r}")
+              f"poison in the branch that is not taken ({program.name}): {result!r}")
 
 
 def _an_unmarked_function_is_still_eager(tmp: Path):
@@ -454,10 +408,10 @@ take_x =
       <- { answer whatever x is }
     ]
 
-ghost =
+poison_no_implementation =
     int <- $env Environment <- { nothing implements this }
 
-__ret__ = take_x << $env environ << $x (ghost << $env environ)
+__ret__ = take_x << $env environ << $x (poison_no_implementation << $env environ)
 """)
     calls = []
     result = interpret(missing, environ_for(calls, tmp / "store-f"))
