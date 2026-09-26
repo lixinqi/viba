@@ -34,7 +34,7 @@
 一句话：先立起点，再顺着地图一步一步点下去，点到叶子取值。
 
 ```python
-root = access(report).root(material)   # 起点：给根节点
+root = access(report).root(viba_data)   # 起点：给根节点
 root.get_len().value                   # $len 这一段，取叶子：17
 root.get_counter()['value'].value      # 走两步：$counter → 键 'value'
 if 'items' in root:                    # 先问有没有，再迭代

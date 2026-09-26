@@ -56,7 +56,7 @@ __ret__ = inner << (environ.sub_env << environ << "deferred_module") << ()
           f"the step is the call that stopped, not the module that called it: {stopped.step!r}")
     check(stopped.reason == "no implementation", f"and why: {stopped.reason!r}")
     check(_text_of(stopped.call) == "$a 1 * $b 2",
-          f"with the material it was given, as it was written: {_text_of(stopped.call)!r}")
+          f"with the viba data it was given, as it was written: {_text_of(stopped.call)!r}")
     host.knobs.pop("missing")
 
     result = interpret(outer, environ)
@@ -83,7 +83,7 @@ __ret__ = inner << (environ.sub_env << environ << "deferred_module") << ()
 
 
 def _text_of(node):
-    """One piece of material as written, with the laying out flattened away."""
+    """One piece of viba data as written, with the laying out flattened away."""
     written = serialize.serialize("call", node)
     if not isinstance(written, Ok):
         return repr(node)

@@ -796,7 +796,7 @@ class _Checker:
         if isinstance(sp, viba_ast.CodeBlock):
             # A code block has no members: the unit is its only resident, and a
             # code block counts as one. Its text is not compared — the protocol
-            # hands no reader the material's code, so there is nothing to
+            # hands no reader the viba data's code, so there is nothing to
             # compare against.
             if isinstance(sn, viba_ast.CodeBlock):
                 return True

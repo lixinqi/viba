@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from viba import viba_ast
 from viba.compliance import measure
-from viba.interpret import material
+from viba.interpret import viba_data
 from viba.reflect import access as reflect_access
 
 RULE = Path(__file__).resolve().parent / "rule_distance.viba"
@@ -50,7 +50,7 @@ class DistanceHost:
         return None
 
     def at_1230(self, env):
-        """The three facts of that moment, as material.
+        """The three facts of that moment, as viba data.
 
         The witness says which facts there are (its type is that product); the
         answer here is where they come from. Nothing about the case is written
@@ -58,9 +58,9 @@ class DistanceHost:
         same file with another implementation.
         """
         self.witnessed.append(MOMENT)
-        return material(viba_ast.ProductChain([
-            viba_ast.Tagged("$victim", _point_material(*FACTS["victim"])),
-            viba_ast.Tagged("$suspect", _point_material(*FACTS["suspect"])),
+        return viba_data(viba_ast.ProductChain([
+            viba_ast.Tagged("$victim", _point_viba_data(*FACTS["victim"])),
+            viba_ast.Tagged("$suspect", _point_viba_data(*FACTS["suspect"])),
             viba_ast.Tagged("$at", viba_ast.Constant(MOMENT)),
         ]))
 
@@ -87,8 +87,8 @@ class DistanceHost:
         return d.value >= threshold.value
 
 
-def _point_material(x, y):
-    """A point as material: `$x x * $y y`, the way `Point` is written."""
+def _point_viba_data(x, y):
+    """A point as viba data: `$x x * $y y`, the way `Point` is written."""
     return viba_ast.ProductChain([viba_ast.Tagged("$x", viba_ast.Constant(x)),
                                   viba_ast.Tagged("$y", viba_ast.Constant(y))])
 

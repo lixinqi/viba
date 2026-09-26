@@ -68,7 +68,7 @@ def environ_for(store, calls=()):
 #   ("value", 叶子)     Ok，且叶子是这个值
 #   ("closure", 写法)   Ok，答的是一个闭包，写出来是这个样子
 #   ("error", 片段)     VibaProgramErr，话里含这个片段
-#   ("material", None)  Ok，是一个闭包装在可序列化数据里的值（后面单独看）
+#   ("viba_data", None)  Ok，是一个闭包装在可序列化数据里的值（后面单独看）
 # 最后一列是要看住的副作用调用；None 表示不看。
 CASES_TO_RUN = [
     # 闭包是什么、能拿它做什么
@@ -85,7 +85,7 @@ CASES_TO_RUN = [
     ("closure_with_module_call_argument", "value", 29, None),
     ("closure_with_product_argument", "value", 2, None),
     ("closure_with_a_closure_argument", "closure", "add << $a 40", None),
-    ("closure_in_material", "material", None, None),
+    ("closure_in_viba_data", "viba_data", None, None),
     # 模块闭包：同型，四种给法
     ("module_closure", "closure", "square_sum << $a 3 << $b 4", None),
     # 按需的那个参数留着不给，别的先给：这正是标记挪到实参上换来的
@@ -95,14 +95,14 @@ CASES_TO_RUN = [
     ("module_closure_empty_product", "value", 7, None),
     # 两种不许存下来的
     ("half_with_environment", "error", "was given 2 of its 3 arguments", None),
-    ("closure_holding_environment", "error", "a closure holds material only", None),
+    ("closure_holding_environment", "error", "a closure holds viba_data only", None),
     ("by_need_argument_is_not_stored", "error",
      "computed only when it is wanted, so it cannot be stored", None),
 ]
 
 
 def written(value) -> str:
-    """One piece of material as written, layout flattened away."""
+    """One piece of viba data as written, layout flattened away."""
     answer = serialize.serialize("piece", value)
     if not isinstance(answer, Ok):
         return repr(value)
@@ -124,9 +124,9 @@ def run(tmp: Path):
         if kind == "value":
             check(isinstance(result, Ok) and value_of(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
-        elif kind == "material":
+        elif kind == "viba_data":
             check(isinstance(result, Ok),
-                  f"{name}: expected the material, got {result!r}")
+                  f"{name}: expected the viba data, got {result!r}")
         elif kind == "closure":
             check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.Partial),
                   f"{name}: expected a closure, got {result!r}")
@@ -151,10 +151,10 @@ def run(tmp: Path):
           f"and reading it back gives the same closure: {one_line(again)!r}")
 
     # 可序列化数据里装一个闭包：装的是数据，不会被执行（那个参数是 `$f`，不是一次调用）
-    material = interpret(str(CASES / "closure_in_material.viba"), environ_for(tmp / "store-mat"))
-    check(isinstance(material, Ok), f"a closure inside material stays material: {material!r}")
-    if isinstance(material, Ok):
-        inner = material.ok_value.by_tag("f")
+    viba_data = interpret(str(CASES / "closure_in_viba_data.viba"), environ_for(tmp / "store-mat"))
+    check(isinstance(viba_data, Ok), f"a closure inside viba data stays viba data: {viba_data!r}")
+    if isinstance(viba_data, Ok):
+        inner = viba_data.ok_value.by_tag("f")
         check(isinstance(inner.data, viba_ast.Partial),
               f"and what is inside is the written call: {inner.data!r}")
 

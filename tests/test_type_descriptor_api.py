@@ -31,14 +31,14 @@ from viba.viba_type_descriptor import (
     pool_find_member,
 )
 
-MATERIAL = Path(__file__).resolve().parent / "data" / "type_descriptor" / "api"
+VIBA_DATA = Path(__file__).resolve().parent / "data" / "type_descriptor" / "api"
 
 
 def load(check, modules):
     """modules: [(相对路径, 模块名), ...] 依次编进一个池子。"""
     pool = empty_pool()
     for rel_path, module_name in modules:
-        source = (MATERIAL / check / rel_path).read_text()
+        source = (VIBA_DATA / check / rel_path).read_text()
         parsed = parse_viba_file(pool, source, rel_path, module_name)
         assert isinstance(parsed, Ok), (rel_path, parsed)
         added = pool_add_file(pool, parsed.ok_value)
@@ -194,7 +194,7 @@ def _check_errors():
     assert isinstance(pool.module_environment("err.missing"), VibaProgramErr)
 
     dup_pool = load("errors", [("dup1.viba", "err.dup")])
-    parsed = parse_viba_file(dup_pool, (MATERIAL / "errors" / "dup2.viba").read_text(),
+    parsed = parse_viba_file(dup_pool, (VIBA_DATA / "errors" / "dup2.viba").read_text(),
                              "dup2.viba", "err.dup")
     assert isinstance(parsed, Ok)
     assert isinstance(pool_add_file(dup_pool, parsed.ok_value), VibaProgramErr)      # 全名撞车
@@ -284,7 +284,7 @@ def _check_errors():
                           VibaProgramErr), bad
     # 可序列化数据里也不跑表达式，所以可序列化数据里同样放不进去
     assert isinstance(parse_viba_file(empty_pool(), "X = $field (p := 7  p)\n",
-                                      "material.viba", "material"), VibaProgramErr)
+                                      "viba_data.viba", "viba_data"), VibaProgramErr)
     # 不是模块的东西：问它要名字，说的是"不认识这种模块"，不是崩
     for not_a_module in ("not a module", None, 7):
         assert isinstance(module_get_type(not_a_module, "X"), VibaProgramErr), not_a_module

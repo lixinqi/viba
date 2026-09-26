@@ -90,7 +90,7 @@ CASES_TO_RUN = [
     ("same_name_twice", "value", 2, None),
     ("binding_shadows_builtin_name", "value", 7, None),
     ("three_levels_deep", "value", 3, None),
-    ("binding_of_material", "value", 1, None),
+    ("binding_of_viba_data", "value", 1, None),
     ("binding_as_tagged_argument", "value", 7, None),
     ("binding_as_positional_argument", "value", 7, None),
     ("let_as_call_argument", "value", 7, None),
@@ -124,7 +124,7 @@ CASES_TO_RUN = [
     ("let_binds_the_module_itself", "value", 41, None),
     ("two_lets_two_module_calls", "value", 82, None),
     ("let_inside_a_witness", "error", "belongs in a value", None),
-    ("let_in_material_is_refused", "error", "belongs in a value", None),
+    ("let_in_viba_data_is_refused", "error", "belongs in a value", None),
     ("let_as_the_module_environment", "value", 41, None),
 ]
 

@@ -1,6 +1,6 @@
 """Tests for is_complete: take the corpora as designs and ask if they are complete.
 
-All material comes from the repo, nothing new is invented:
+All viba_data comes from the repo, nothing new is invented:
 
     data/type_descriptor/case_081/     deep entry (import util as base) + util.viba
     data/is_sub_type/sub030.viba       recursive Chain = $head int * $tail Chain | nil
@@ -95,7 +95,7 @@ def main():
 def corners():
     """边角：顶类型、内建定义、终结符、泛型实参、依赖从哪来。"""
     # The top type has no members, and no leaf reads out of it either — unlike
-    # never, which admits no material at all. So a design resting on it does
+    # never, which admits no viba_data at all. So a design resting on it does
     # not walk through.
     check("Any alone", is_complete("X = Any", [], [], set()), False)
     check("Any as a member", is_complete("X = int * Any", [], [], set()), False)

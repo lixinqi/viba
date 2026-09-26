@@ -120,7 +120,7 @@ def _store_text(tmp: Path):
     check(isinstance(again, VibaNode) and
           reflect_access.leaf(again.by_tag("a")).ok_value == 1 and
           reflect_access.leaf(again.by_tag("b")).ok_value == "x",
-          f"a material goes out and comes back: {again!r}")
+          f"a viba data goes out and comes back: {again!r}")
 
     # 快照坏了：宿主抛，interpret 答 VibaProgramErr，不是崩
     broken = fresh_environ()

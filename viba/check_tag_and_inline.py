@@ -10,7 +10,7 @@ spread, and every inline chain ends; VibaProgramErr names the first mistake.
 A product's untagged members are inline slots (viba-reflect.md section 4): the
 members of the definition written there spread into the product that names it.
 Two writing mistakes only become visible after that spreading, and both are
-properties of the design alone — no material is involved:
+properties of the design alone — no viba_data is involved:
 
 - the same tag twice in one product, inlined members counted: a base's `$x`
   next to a written `$x`, or one base inlined twice;

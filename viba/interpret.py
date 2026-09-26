@@ -13,7 +13,7 @@ runnable defines `__ret__`; a file that does not is design only.
 A function the compute side does not implement is not a failure: the run stops
 and answers `NotMyDutyException` — `$not_my_duty_exception Duty` — the deferral
 that says this host is not the one to finish it, and carries the step, the
-material it was given and why (`roadmap.md`). A step whose implementation broke
+viba data it was given and why (`roadmap.md`). A step whose implementation broke
 answers `UnderlyingVibaOpFailed` — `$underlying_viba_op_failed Failure` — with
 the same step in it. What is left is `Ok(node)`, for the `__ret__` that came
 out, and `VibaProgramErr(message)` — `$viba_program_err str` — for a program or
@@ -50,7 +50,7 @@ The host side, spelled out:
         which keeps the parent's compute and its module search path.
 
 A host function is called with the arguments already evaluated, in the order
-they are written: a piece of material arrives as a `viba.reflect.VibaNode`,
+they are written: a piece of viba data arrives as a `viba.reflect.VibaNode`,
 anything else as itself (the environment among them). It answers with a
 `VibaNode`, or with a plain Python value, which lands as a leaf.
 
@@ -188,7 +188,7 @@ class Environment:
 def sub_env(environ: "Environment", name) -> "Environment":
     """A child environment: its own storage, the parent's compute.
 
-    `name` is what the viba side wrote: a material node lands as the leaf it
+    `name` is what the viba side wrote: a viba data node lands as the leaf it
     carries, so `environ.sub_env << environ << "add_demo"` names the module. The
     same name is the same child, handed back again.
     """
@@ -219,7 +219,7 @@ def read_snapshot(environ: Environment, name: str = SNAPSHOT_NAME):
     """The value stored for this call, or None when nothing is stored yet.
 
     A snapshot is serialized viba data: it is parsed and rooted again, so it
-    comes back as the material it was. What cannot be read raises — a host
+    comes back as the viba data it was. What cannot be read raises — a host
     function's exception is the `VibaProgramErr` the caller sees.
     """
     text = _storage(environ).read_text(snapshot_path(environ, name))
@@ -236,7 +236,7 @@ def read_snapshot(environ: Environment, name: str = SNAPSHOT_NAME):
 def write_snapshot(environ: Environment, value, name: str = SNAPSHOT_NAME) -> None:
     """Store `value` as this call's snapshot: serialized viba data, so it can
     be read back and played again."""
-    written = serialize.serialize(SNAPSHOT_NAME, material(value))
+    written = serialize.serialize(SNAPSHOT_NAME, viba_data(value))
     if isinstance(written, VibaProgramErr):
         raise RuntimeError(f"cannot snapshot this value: {written.err_msg}")
     _storage(environ).write_text(snapshot_path(environ, name), written.ok_value)
@@ -263,8 +263,8 @@ def _storage(environ: Environment) -> EnvironmentStorage:
     return storage
 
 
-def material(value) -> VibaNode:
-    """A host value as material.
+def viba_data(value) -> VibaNode:
+    """A host value as viba data.
 
     A `VibaNode` as it is; an AST piece a host built (a product of tags and
     literals, say) gets the design written on it; a scalar becomes its leaf.
@@ -275,7 +275,7 @@ def material(value) -> VibaNode:
         return VibaNode(reflect_access,
                         descriptor_of(AstNodeType(value, _NO_MODULE)), value)
     if value is not None and not isinstance(value, (bool, int, float, str)):
-        raise RuntimeError(f"cannot take {type(value).__name__} as material: "
+        raise RuntimeError(f"cannot take {type(value).__name__} as viba data: "
                            f"only a VibaNode, an AST piece, a scalar, or None")
     node = viba_ast.Nil() if value is None else viba_ast.Constant(value)
     return VibaNode(reflect_access, descriptor_of(AstNodeType(node, _NO_MODULE)), node)
@@ -283,12 +283,12 @@ def material(value) -> VibaNode:
 
 def _is_never(value) -> bool:
     """Whether `value` is the additive unit `never`."""
-    return isinstance(value, _Material) and isinstance(value.node.data, viba_ast.Never)
+    return isinstance(value, _VibaData) and isinstance(value.node.data, viba_ast.Never)
 
 
 def _is_nil(value) -> bool:
     """Whether `value` is the multiplicative unit `nil`."""
-    return isinstance(value, _Material) and isinstance(value.node.data, viba_ast.Nil)
+    return isinstance(value, _VibaData) and isinstance(value.node.data, viba_ast.Nil)
 
 
 def _one_line(node) -> str:
@@ -304,14 +304,14 @@ def _slot_type(element):
 def _value_as_type(value):
     """The type this value already is, or None when it has none written here.
 
-    Material is the design it was made of and a viba function is its chain, so
+    Viba data is the design it was made of and a viba function is its chain, so
     the judgment can read them; the environment is `Environment`. A host value
     with no viba type — a host function, a host object — has none, and nothing
     is judged for it.
     """
-    if isinstance(value, _Material):
+    if isinstance(value, _VibaData):
         return value.node.data
-    if isinstance(value, _Material):
+    if isinstance(value, _VibaData):
         return value.node.data
     if isinstance(value, _Host) and isinstance(value.obj, Environment):
         return viba_ast.TypeRef(ENVIRON_TYPE)
@@ -354,10 +354,10 @@ def _builtin_unit(node):
     return None
 
 
-def _never_material():
-    """The `never` value as material."""
+def _never_viba_data():
+    """The `never` value as viba data."""
     node = viba_ast.Never()
-    return _Material(VibaNode(reflect_access,
+    return _VibaData(VibaNode(reflect_access,
                               descriptor_of(AstNodeType(node, _NO_MODULE)), node))
 
 
@@ -375,8 +375,8 @@ def _sum_branches(node):
 # ----------------------------------------------------------------------
 
 
-class _Material:
-    """A piece of material with its design: a `VibaNode`."""
+class _VibaData:
+    """A piece of viba data with its design: a `VibaNode`."""
 
     __slots__ = ("node",)
 
@@ -438,7 +438,7 @@ class _Getter:
     A slot written `CalledByNeed[T]` is handed one of these instead of a value:
     the host calls it if it needs that argument, and the expression it does not
     call is never evaluated at all. Calling one answers what the host would have
-    been handed eagerly — material as its `VibaNode`, the environment as itself —
+    been handed eagerly — viba data as its `VibaNode`, the environment as itself —
     or raises `_Raised` with whatever the run stopped with.
 
     **At most once**: the answer, value or stop, is worked out on the first call
@@ -485,7 +485,7 @@ class _Getter:
 
 def _in_scope(scope, name):
     """The value `name` is bound to in this scope, or None (a value is never
-    None: `nil` is material)."""
+    None: `nil` is viba data)."""
     for frame in reversed(scope):
         if name in frame:
             return frame[name]
@@ -493,7 +493,7 @@ def _in_scope(scope, name):
 
 
 def _let_inside(node):
-    """The first binding block written inside a piece of material, or None."""
+    """The first binding block written inside a piece of viba data, or None."""
     for part in viba_ast.walk(node):
         if isinstance(part, viba_ast.Let):
             return part
@@ -521,12 +521,12 @@ def _getter(value) -> "_Getter":
 def _argument_value(value):
     """What a host function is handed.
 
-    Material arrives as its node, a viba function as a Python callable (the
+    Viba data arrives as its node, a viba function as a Python callable (the
     host calls it like any other function: the values it is called with are
     nodes or host objects, and the answer is a node or a host object), and
     anything else as itself — the environment among them.
     """
-    if isinstance(value, _Material):
+    if isinstance(value, _VibaData):
         return value.node
     if isinstance(value, _HostFunction):
         return value.as_callable()
@@ -537,7 +537,7 @@ def _argument_value(value):
 
 def _given_value(value):
     """A value a host handed back into a call: a node, a scalar, or an object."""
-    if isinstance(value, _Material):
+    if isinstance(value, _VibaData):
         return value
     answer = _answer("a host argument", value)
     if isinstance(answer, VibaProgramErr):
@@ -558,7 +558,7 @@ def _stopped(result) -> bool:
 def _no_implementation(step: Step, call) -> NotMyDutyException:
     """The deferral a host answers with: no implementation for that call.
 
-    The step, the material it was given and why are all in it, so the side that
+    The step, the viba data it was given and why are all in it, so the side that
     answers next can write the work order without reading the run again.
     """
     return NotMyDutyException(step, call, REASON_NO_IMPLEMENTATION)
@@ -586,7 +586,7 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None) -> Inter
     What it answers is `Result[VibaNode]` with two more branches, both naming the
     step that stopped: `$not_my_duty_exception Duty`, when the compute side does
     not implement that step (a deferral, not a failure — the caller hands it on,
-    and the duty carries the step, the material it was given and why), and
+    and the duty carries the step, the viba data it was given and why), and
     `$underlying_viba_op_failed Failure`, when that step's implementation broke.
     `$viba_program_err str` is the rest: a program or an environment that cannot
     run at all.
@@ -764,7 +764,7 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
         runner.running.pop()
     if _stopped(value):
         return value
-    if not isinstance(value.ok_value, (_Material, _Host)):
+    if not isinstance(value.ok_value, (_VibaData, _Host)):
         return VibaProgramErr(f"{name}.{RET_NAME} is a function still waiting for arguments")
     return Ok(_argument_value(value.ok_value))
 
@@ -803,8 +803,8 @@ def _module_arg_slots(module: ModuleType):
     return slots, None
 
 
-def _material_factors(node: VibaNode):
-    """The factors of a product material, in written order."""
+def _viba_data_factors(node: VibaNode):
+    """The factors of a product viba data, in written order."""
     data = node.data
     if isinstance(data, (viba_ast.Product, viba_ast.ProductChain)):
         return product_elements(data)
@@ -837,7 +837,7 @@ class _Activation:
         """Result: the value this piece writes — or why the chain stopped: an
         `VibaProgramErr`, or the deferral of a step nobody here implements.
 
-        A piece of data written where a value goes is material as it stands:
+        A piece of data written where a value goes is viba data as it stands:
         a literal or a unit, a tuple, and a product of tags and literals —
         `$victim ($x 0 * $y 0) * $at "12:30"` is a witness, the same spelling
         its type would have. Its members are data, not calls, so nothing in
@@ -852,9 +852,9 @@ class _Activation:
             inside = _let_inside(node)
             if inside is not None:
                 return VibaProgramErr(
-                    f"a binding belongs in a value, not inside material: "
+                    f"a binding belongs in a value, not inside viba_data: "
                     f"{viba_ast.unparse_type(inside)}")
-            return Ok(_Material(VibaNode(reflect_access, self._descriptor(node), node)))
+            return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(node), node)))
         if isinstance(node, (viba_ast.Product, viba_ast.ProductChain)):
             return self._product(node, scope)
         if isinstance(node, (viba_ast.Sum, viba_ast.SumChain)):
@@ -886,16 +886,16 @@ class _Activation:
                 return value
             answered = value.ok_value
             if _is_never(answered):
-                return Ok(_never_material())
+                return Ok(_never_viba_data())
             if _is_nil(answered):
                 continue
             kept.append(answered)
         if not kept:
-            return Ok(_Material(material(None)))
+            return Ok(_VibaData(viba_data(None)))
         if len(kept) == 1:
             return Ok(kept[0])
         chain = viba_ast.ProductChain([factor.node.data for factor in kept])
-        return Ok(_Material(VibaNode(reflect_access, self._descriptor(chain), chain)))
+        return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(chain), chain)))
 
     def _sum(self, node, scope=()):
         """Evaluate a written sum, dropping the branches that answered never.
@@ -917,12 +917,12 @@ class _Activation:
                 continue
             kept.append(answered)
         if not kept:
-            return Ok(_never_material())
+            return Ok(_never_viba_data())
         if len(kept) == 1:
             return Ok(kept[0])
         elements = [branch.node.data for branch in kept]
         chain = viba_ast.SumChain(elements)
-        return Ok(_Material(VibaNode(reflect_access, self._descriptor(chain), chain)))
+        return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(chain), chain)))
 
     def _imports(self) -> dict:
         """The file's import table: what each import binds, and the module it
@@ -974,7 +974,7 @@ class _Activation:
             if rest:
                 return self._member_of(imported.ok_value, module_name, rest, name)
             node = viba_ast.TypeRef(name)
-            return Ok(_Material(VibaNode(
+            return Ok(_VibaData(VibaNode(
                 reflect_access, descriptor_of(AstNodeType(node, self.module)), node)))
         member = self._tagged_member(name, scope)
         if member is not None:
@@ -994,13 +994,13 @@ class _Activation:
         if not dot or not head:
             return None
         value = self._resolve(head, scope)
-        if _stopped(value) or not isinstance(value.ok_value, _Material):
+        if _stopped(value) or not isinstance(value.ok_value, _VibaData):
             return None
         wanted = "$" + tag
-        for factor in _material_factors(value.ok_value.node):
+        for factor in _viba_data_factors(value.ok_value.node):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == wanted:
                 inner = factor.type          # the member's value, not its address
-                return Ok(_Material(VibaNode(
+                return Ok(_VibaData(VibaNode(
                     reflect_access, descriptor_of(AstNodeType(inner, self.module)), inner)))
         return VibaProgramErr(f"{head!r} has no member tagged {wanted!r}")
 
@@ -1087,7 +1087,7 @@ class _Activation:
         body = definition.body
         if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
             node = viba_ast.TypeRef(written or name)
-            return Ok(_Material(VibaNode(
+            return Ok(_VibaData(VibaNode(
                 reflect_access, descriptor_of(AstNodeType(node, home)), node)))
         return self._defined(name, definition)
 
@@ -1112,11 +1112,11 @@ class _Activation:
                                     slots=_required_arguments(attributed),
                                     given=[value.obj],
                                     module_path=_storage_path(value.obj)))
-        if isinstance(value, _Material):
-            for factor in _material_factors(value.node):
+        if isinstance(value, _VibaData):
+            for factor in _viba_data_factors(value.node):
                 if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
                     inner = factor.type       # the member's value, not its address
-                    return Ok(_Material(VibaNode(
+                    return Ok(_VibaData(VibaNode(
                         reflect_access,
                         descriptor_of(AstNodeType(inner, self.module)), inner)))
             return VibaProgramErr(f"no member tagged {tag!r} to take from it")
@@ -1138,7 +1138,7 @@ class _Activation:
         spine, which meets c first. It is read apart into (head, arguments in
         written order), the head is resolved, and then each argument is given in
         that order — the order the host sees them in, and the order side effects
-        happen in. A closure stored as material is that same written chain, so
+        happen in. A closure stored as viba data is that same written chain, so
         applying more arguments to one is reading it apart again and carrying on.
         """
         target, written = self._target_and_arguments(node, scope)
@@ -1214,7 +1214,7 @@ class _Activation:
         call without one is a value: a closure, written down and serializable.
         """
         if pending.environ is None:
-            return pending.materialize()
+            return pending.as_viba_data()
         missing = pending.missing()
         if missing is not None:
             return VibaProgramErr(missing)
@@ -1225,7 +1225,7 @@ class _Activation:
 
         A name at the head is read as the definition it names, not as the value
         it stands for: `add` at the head is that call, while `add` in an argument
-        is the closure. A closure stored as material is the chain it was made
+        is the closure. A closure stored as viba data is the chain it was made
         from, so it is read apart here, its arguments coming first.
         """
         head, arguments = _call_parts(node)
@@ -1243,11 +1243,11 @@ class _Activation:
             if _stopped(value):
                 return value, None
             got = value.ok_value
-            if isinstance(got, _Material) and isinstance(got.node.data, viba_ast.Partial):
+            if isinstance(got, _VibaData) and isinstance(got.node.data, viba_ast.Partial):
                 head, stored = _call_parts(got.node.data)
                 arguments = stored + arguments
                 continue
-            if isinstance(got, _Material) and isinstance(got.node.data, viba_ast.TypeRef):
+            if isinstance(got, _VibaData) and isinstance(got.node.data, viba_ast.TypeRef):
                 head = got.node.data           # a name kept as a value
                 continue
             return Ok(got), arguments
@@ -1345,8 +1345,8 @@ def _slots_of(chain):
 def _call_parts(node):
     """A written call as (head, arguments in written order).
 
-    A closure made of material is this same shape, which is why applying more
-    arguments to a stored closure is only reading it apart again.
+    A closure kept as a value is that same written call, so applying more
+    arguments to one is only reading it apart again.
     """
     written = []
     while isinstance(node, viba_ast.Partial):
@@ -1360,9 +1360,9 @@ def _is_a_written_call(value) -> bool:
 
     A closure kept as a value is the chain it was made from (`f << $a 1`), and a
     name kept as a value is the call it stands for, so both take arguments by
-    being read on. Materials that are answers — a literal, a product — do not.
+    being read on. Viba data that is an answer — a literal, a product — does not.
     """
-    return (isinstance(value, _Material)
+    return (isinstance(value, _VibaData)
             and isinstance(value.node.data, (viba_ast.Partial, viba_ast.TypeRef)))
 
 
@@ -1376,7 +1376,7 @@ def _host_give(function, item):
     """
     if isinstance(function, _HostFunction):
         return function.give(item)
-    if isinstance(function, _Material):
+    if isinstance(function, _VibaData):
         return VibaProgramErr(f"{function.node!r} is not a function: it is a value")
     if isinstance(function, _Host):
         return VibaProgramErr(f"{type(function.obj).__name__} is not a function")
@@ -1407,7 +1407,7 @@ def _is_environ_value(value) -> bool:
 
 def _is_empty_product(value) -> bool:
     """Whether this value is the written empty product, `()`."""
-    return (isinstance(value, _Material)
+    return (isinstance(value, _VibaData)
             and isinstance(value.node.data, viba_ast.Tuple)
             and not value.node.data.elements)
 
@@ -1416,7 +1416,7 @@ class _Pending:
     """A call being prepared: a function or a module, and what it has been given.
 
     It lives inside one chain. When the chain ends it either runs (the
-    environment is in, so the arguments must be complete) or becomes material —
+    environment is in, so the arguments must be complete) or becomes viba_data —
     the function's name and the arguments already computed, which is a closure.
     That is why a half-given call cannot be stored, and why the state of having
     no environment is itself a serializable value.
@@ -1500,7 +1500,7 @@ class _Pending:
     def slot_by_need(self, index):
         """The type inside `CalledByNeed[T]` when this slot is marked, else None.
 
-        A module's arguments are material it reads, not a call being made, so
+        A module's arguments are viba data it reads, not a call being made, so
         nothing is computed on demand there.
         """
         if self.kind == "module":
@@ -1630,11 +1630,11 @@ class _Pending:
             return self._run_module_call()
         return self._call_host()
 
-    def materialize(self):
-        """Without an environment this pending call is material — a closure.
+    def as_viba_data(self):
+        """Without an environment this pending call is viba data — a closure.
 
         The function's name and the arguments already computed, written back as
-        the chain they came from. Only material goes in: that is what makes the
+        the chain they came from. Only viba_data goes in: that is what makes the
         closure serializable, and it is the same thing every function and module
         answers with.
         """
@@ -1647,14 +1647,14 @@ class _Pending:
                     f"{self.written}: the {_slot_name(index, tags[index])} argument "
                     f"is computed only when it is wanted, so it cannot be stored: "
                     f"give it in the chain that runs")
-            if not isinstance(value, _Material):
+            if not isinstance(value, _VibaData):
                 return VibaProgramErr(
-                    f"{self.written}: a closure holds material only; the "
+                    f"{self.written}: a closure holds viba_data only; the "
                     f"{_slot_name(index, tags[index])} argument is not")
             tag = tags[index]
             piece = value.node.data
             node = viba_ast.Partial(node, viba_ast.Tagged(tag, piece) if tag else piece)
-        return Ok(_Material(VibaNode(reflect_access, self.descriptor(node), node)))
+        return Ok(_VibaData(VibaNode(reflect_access, self.descriptor(node), node)))
 
     def descriptor(self, node):
         """What the design calls this piece.
@@ -1667,27 +1667,27 @@ class _Pending:
             return descriptor_of(AstNodeType(self.head, self.home))
         return descriptor_of(AstNodeType(node, self.home))
 
-    def call_material(self):
-        """The material this call was given, as it was written.
+    def call_viba_data(self):
+        """The viba_data this call was given, as it was written.
 
-        A host value — the environment above all — is no material and does not
-        travel: the side that answers makes its own. One material argument is
+        A host value — the environment above all — is no viba_data and does not
+        travel: the side that answers makes its own. One viba_data argument is
         that argument itself (no tag is needed to tell it from the others),
         which is the `$call` a Prepare of such a call fixes; several make a
-        product, keeping the tags as written. None when nothing material was
+        product, keeping the tags as written. None when nothing viba_data was
         given.
         """
         tags = self.slot_tags()
-        material_given = [(tags[index], value.node.data)
+        viba_data_given = [(tags[index], value.node.data)
                           for index, value in sorted(self.given.items())
-                          if isinstance(value, _Material)]
-        if not material_given:
+                          if isinstance(value, _VibaData)]
+        if not viba_data_given:
             return None
-        if len(material_given) == 1:
-            return material(material_given[0][1])
+        if len(viba_data_given) == 1:
+            return viba_data(viba_data_given[0][1])
         written = [viba_ast.Tagged(tag, piece) if tag else piece
-                   for tag, piece in material_given]
-        return material(viba_ast.ProductChain(written))
+                   for tag, piece in viba_data_given]
+        return viba_data(viba_ast.ProductChain(written))
 
     def _call_host(self):
         """Every slot is filled: the environment's compute side implements it."""
@@ -1701,13 +1701,13 @@ class _Pending:
         try:
             host = compute.get_func(module_path, self.name)
         except NotMyDutyException as deferred:   # the host refuses this call
-            return _refused(deferred, step, self.call_material())
+            return _refused(deferred, step, self.call_viba_data())
         except Exception as exc:            # the host is the host's business
             return UnderlyingVibaOpFailed(
                 f"get_func({module_path!r}, {self.name!r}) raised {exc!r}",
                 step, REASON_GET_FUNC_RAISED)
         if host is None:
-            return _no_implementation(step, self.call_material())
+            return _no_implementation(step, self.call_viba_data())
         handed = [_getter(self.given[index]) if self.slot_by_need(index)
                   else _argument_value(self.given[index])
                   for index in range(len(self.elements))]
@@ -1733,18 +1733,18 @@ class _Pending:
             if value is None:
                 return VibaProgramErr(
                     f"module {self.module_name!r} is not ready to run")
-            if not isinstance(value, _Material):
+            if not isinstance(value, _VibaData):
                 return VibaProgramErr(
                     f"module {self.module_name!r}: the {_slot_name(index, tag)} argument "
-                    f"is not material, so it cannot be part of {ARGS_NAME}")
+                    f"is not viba data, so it cannot be part of {ARGS_NAME}")
             nodes.append(viba_ast.Tagged(tag, value.node.data) if tag else value.node.data)
         if not nodes:
-            args = _Material(material(None))
+            args = _VibaData(viba_data(None))
         elif len(nodes) == 1:
-            args = _Material(VibaNode(reflect_access, self.descriptor(nodes[0]), nodes[0]))
+            args = _VibaData(VibaNode(reflect_access, self.descriptor(nodes[0]), nodes[0]))
         else:
             chain = viba_ast.ProductChain(nodes)
-            args = _Material(VibaNode(reflect_access, self.descriptor(chain), chain))
+            args = _VibaData(VibaNode(reflect_access, self.descriptor(chain), chain))
         answer = _run_module(self.runner, self.module, self.environ, self.module_name,
                              None, args)
         if _stopped(answer):
@@ -1752,7 +1752,7 @@ class _Pending:
         # `interpret` hands the node out; inside a run a module's answer is a
         # value like any other, so it goes back into the value model.
         node = answer.ok_value
-        return Ok(_Material(node) if isinstance(node, VibaNode) else _Host(node))
+        return Ok(_VibaData(node) if isinstance(node, VibaNode) else _Host(node))
 
 
 class _HostFunction:
@@ -1812,12 +1812,12 @@ def _answer(name, answer, step: Step = None):
     `None` is `nil` the way it is in the builder. A plain Python value lands
     as a leaf — but only a scalar one: a list, a dict, a callable or any other
     object has no leaf to be, and guessing one would put a piece into the
-    material that no design asked for. Given a `step`, that refusal is a
+    viba_data that no design asked for. Given a `step`, that refusal is a
     failure of it; without one — a value a host is handing back into a call —
     it is a plain `VibaProgramErr`.
     """
     if isinstance(answer, VibaNode):
-        return Ok(_Material(answer))
+        return Ok(_VibaData(answer))
     if isinstance(answer, Environment):
         return Ok(_Host(answer))
     if answer is not None and not isinstance(answer, (bool, int, float, str)):
@@ -1827,7 +1827,7 @@ def _answer(name, answer, step: Step = None):
             return UnderlyingVibaOpFailed(msg, step, REASON_NO_LEAF)
         return VibaProgramErr(msg)
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
-    return Ok(_Material(VibaNode(reflect_access,
+    return Ok(_VibaData(VibaNode(reflect_access,
                                  descriptor_of(AstNodeType(node, _NO_MODULE)), node)))
 
 
@@ -1840,4 +1840,4 @@ def _elements(node):
 
 
 __all__ = ["interpret", "Environment", "EnvironmentStorage", "EnvironmentCompute",
-           "material", "snapshot_path", "read_snapshot", "write_snapshot", "replayed"]
+           "viba_data", "snapshot_path", "read_snapshot", "write_snapshot", "replayed"]

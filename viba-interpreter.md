@@ -541,7 +541,7 @@ A = (
 - getter 记住它被写下时所在的作用域：块结束后被叫，仍然看得见当时的绑定。
 
 值位置上的可序列化数据（tag、积、元组）不跑表达式，所以绑定不能写进可序列化数据里：`$point (p := …  p)` 报
-`a binding belongs in a value, not inside material`。要让可序列化数据里出现一个算出来的值，就让一个函数
+`a binding belongs in a value, not inside viba_data`。要让可序列化数据里出现一个算出来的值，就让一个函数
 把它答出来（「宿主侧：Environment」里那些宿主函数就是这么干的）。
 
 `:=` 是**计算的写法**。定义体平时由解释器当值算（`A = (a := 7  a)` 就是这么用的），但类型层

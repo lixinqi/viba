@@ -26,14 +26,14 @@ from pathlib import Path
 
 from viba import viba_ast
 from viba.interpret import (Environment, VibaProgramErr, InterpretResult, Ok, interpret,
-                              material, read_snapshot, write_snapshot)
+                              viba_data, read_snapshot, write_snapshot)
 from viba.reflect import VibaNode, access as reflect_access, by_tag
 from viba.compliance.storage import PREPARE_PREFIX, PREPARE_SEGMENT
 
 CALL_TAG = "$call"
 MEASURED_TAG = "$measured"
 
-__all__ = ["is_compliant", "measure", "prepare_material", "prepare_path", "prepare_run",
+__all__ = ["is_compliant", "measure", "prepare_viba_data", "prepare_path", "prepare_run",
            "read_prepare", "record_prepare", "measured_of", "call_of",
            "CALL_TAG", "MEASURED_TAG"]
 
@@ -72,11 +72,11 @@ def prepare_path(name: str) -> str:
 
 
 def read_prepare(environ: Environment, name: str):
-    """The stored Prepare `name` as material, or None when there is none."""
+    """The stored Prepare `name` as viba data, or None when there is none."""
     return read_snapshot(environ, prepare_path(name))
 
 
-def prepare_material(call, measured=None):
+def prepare_viba_data(call, measured=None):
     """A Prepare: `$call` is the prepared call, `$measured` what it answered.
 
     Unmeasured is written `nil`, so a Prepare reads the same whether or not the
@@ -90,7 +90,7 @@ def prepare_material(call, measured=None):
 
 def record_prepare(environ: Environment, name: str, call, measured=None) -> None:
     """Write the Prepare into this run's store."""
-    write_snapshot(environ, prepare_material(call, measured), prepare_path(name))
+    write_snapshot(environ, prepare_viba_data(call, measured), prepare_path(name))
 
 
 def call_of(prepare):
@@ -129,7 +129,7 @@ def measure(environ: Environment, name: str, call, compute, evidence: Environmen
         return value
     prepared = call_of(prepare)
     if prepared is None:
-        prepared = material(call)
+        prepared = viba_data(call)
     value = compute(prepared)
     record_prepare(home, name, prepared, value)
     return value
@@ -189,10 +189,10 @@ def _member(node, tag):
 
 
 def _data(value):
-    """The AST piece under a material (or the piece itself)."""
+    """The AST piece under a viba data (or the piece itself)."""
     return value.data if isinstance(value, VibaNode) else value
 
 
 def _piece(value):
-    """A host value as an AST piece of material (a scalar becomes its leaf)."""
-    return _data(material(value))
+    """A host value as an AST piece of viba data (a scalar becomes its leaf)."""
+    return _data(viba_data(value))

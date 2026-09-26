@@ -1,9 +1,9 @@
-"""viba.serialize — write a material out as viba source (the mirror of reflect).
+"""viba.serialize — write a viba data out as viba source (the mirror of reflect).
 
     from viba.reflect import access, VibaData
     from viba import serialize
 
-    root = access.root(definition, VibaData(material))
+    root = access.root(definition, VibaData(viba_data))
     serialize.serialize("entry", root.ok_value)
     # -> Ok('entry =\n  Object\n  * $left 1\n  * $right 2\n')
 
@@ -13,7 +13,7 @@ how Data is bound. What comes out is canonical viba source (it goes through
 viba.builder), and `builder.check` reads it back before it is handed over.
 
 A piece the design has no spelling for gives VibaProgramErr rather than a wrong spelling:
-that is a material the design cannot carry, and the caller decides what to do
+that is a viba data the design cannot carry, and the caller decides what to do
 about it.
 """
 
@@ -77,7 +77,7 @@ def _call_parts(node):
 
 def _bare(piece, access: VibaAccess) -> VibaNode:
     """One written piece as a node of its own: a closure keeps its arguments as
-    the material they already are, with no module to read them in."""
+    the viba data they already are, with no module to read them in."""
     from viba.type import AstNodeType
     from viba.viba_type_descriptor import descriptor_of
     return VibaNode(access, descriptor_of(AstNodeType(piece, None)), piece)
@@ -95,7 +95,7 @@ def _emit_closure(access: VibaAccess, node: VibaNode):
     if not isinstance(head, viba_ast.TypeRef):
         # A chain headed by `$tag` is the same call, but the tag is no name to
         # write back through a builder; the value layer keeps such a chain as a
-        # call in progress, not as material.
+        # call in progress, not as viba data.
         raise SerializeGap("a chain headed by a member has no written form here")
     expression = getattr(_NAMES, head.name)
     for argument in arguments:
@@ -107,7 +107,7 @@ def _emit(access: VibaAccess, node: VibaNode):
     data = getattr(node, "data", None)
     if isinstance(data, viba_ast.Partial):
         return _emit_closure(access, node)
-    """This part of the material, as a builder expression.
+    """This part of the viba data, as a builder expression.
 
     The value side is asked with the protocol's own cells, never by looking at
     what the binding put in the node: VibaLeaf answers "the value is itself this
@@ -116,7 +116,7 @@ def _emit(access: VibaAccess, node: VibaNode):
     The written type is asked first, for two things only: a piece the design
     calls `never` — however many names that takes — has no resident, and a
     product whose inline chain comes back to where it started has no reading.
-    Either way a material that carries something there is not a material of
+    Either way a viba data that carries something there is not a viba data of
     this design.
     """
     unfolded = access.unfold(node.descriptor)
@@ -168,7 +168,7 @@ def _unit_expression(descriptor):
     """The product identity as the language writes it: `Object`.
 
     A design may head a product with a word of its own layer. Writing the
-    *design's* word would carry that layer's vocabulary into every material this
+    *design's* word would carry that layer's vocabulary into every viba_data this
     writes, so the language's own unit goes out instead: `Object` is the product
     identity and a builtin name.
     """
@@ -202,7 +202,7 @@ def _emit_product(access: VibaAccess, node: VibaNode, unfolded):
                 raise SerializeGap(f"the tag {tag} is written twice in one product")
             seen_tags.add(tag)
         # The design itself writes a unit here — unless the name it writes
-        # lands on `never`, which has no resident for a material to hold.
+        # lands on `never`, which has no resident for a viba data to hold.
         if (access._is_unit_descriptor(descriptor)
                 and access.unfold(descriptor).kind != NEVER):
             unit = None
@@ -232,7 +232,7 @@ def _emit_tuple(access: VibaAccess, node: VibaNode):
 
 
 def _emit_tagged(access: VibaAccess, node: VibaNode):
-    """One written tag whose body is the design's: the material keeps the tag
+    """One written tag whose body is the design's: the viba data keeps the tag
     (that is how a reader finds `$value` under a metric)."""
     for tag, step, _ in access.member_steps(node):
         return _tag(tag)(_emit(access, _child(access, node, step)))
@@ -240,7 +240,7 @@ def _emit_tagged(access: VibaAccess, node: VibaNode):
 
 
 def _emit_code_block(unfolded):
-    """`{ ... }`: opaque, and the material's own text is not reachable through
+    """`{ ... }`: opaque, and the viba data's own text is not reachable through
     the protocol — no cell hands it over. What cannot be read is not invented:
     the unit goes out in its place."""
     return None
@@ -250,7 +250,7 @@ def _emit_exponent(access: VibaAccess, node: VibaNode, unfolded):
     """Exponent chain: the result, then every argument under its own tag.
 
     Written the way the design writes it — never <- $not_operand (...) is just
-    one such chain — with whatever the material has at each address filled in.
+    one such chain — with whatever the viba data has at each address filled in.
     """
     elements = list(unfolded.payload.elements)
     head = elements[0]
@@ -295,7 +295,7 @@ def _may_be_nil(access: VibaAccess, step, node) -> bool:
 def _emit_container(access: VibaAccess, node: VibaNode, container: str, unfolded):
     """Container: a literal (ListLiteral / SetLiteral / DictLiteral).
 
-    The members are written in the order the material has them, not sorted: a
+    The members are written in the order the viba data has them, not sorted: a
     set has no order of its own, but both sides walk it by position, so the
     written order is the order that was read.
     """

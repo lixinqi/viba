@@ -130,7 +130,7 @@ def _a_deferral_carries_the_work(tmp: Path):
     duty = is_compliant(str(RULE), env)
     check(isinstance(duty, NotMyDutyException), f"the rule defers: {duty!r}")
     check(_written(duty.call) == wanted,
-          f"the material in the deferral is the $call a Prepare fixes:\n"
+          f"the viba data in the deferral is the $call a Prepare fixes:\n"
           f"{_written(duty.call)}\n{wanted}")
 
     # 拿它手写一份工单：$call 是那份可序列化数据，$measured 空着
@@ -145,7 +145,7 @@ def _a_deferral_carries_the_work(tmp: Path):
 
 
 def _written(node):
-    """One piece of material as viba source, laying out flattened away."""
+    """One piece of viba data as viba source, laying out flattened away."""
     text = serialize.serialize("call", node)
     if not isinstance(text, Ok):
         return repr(node)

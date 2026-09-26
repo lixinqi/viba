@@ -123,7 +123,7 @@ def run_access_edges():
 
     thin = _product([viba_ast.Tagged("$a", viba_ast.Constant(1))])
     thin_root = _root(definition, thin)
-    same("a piece the material lacks reads nil",
+    same("a piece the viba data lacks reads nil",
          access.get(thin_root, by_tag("$b")).ok_value, None)
     same("and has says false", access.has(thin_root, by_tag("$b")).ok_value, False)
 

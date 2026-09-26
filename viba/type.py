@@ -113,10 +113,10 @@ class NotMyDutyException(Exception):
     not this host's duty to finish, and the caller hands it on (see
     `roadmap.md`).
 
-    `call` is the material the step was given, as it was written — the same
-    material a Prepare fixes, so a work order can be written from it without
+    `call` is the viba data the step was given, as it was written — the same
+    viba_data a Prepare fixes, so a work order can be written from it without
     running anything again. Host values, the environment above all, are no
-    material and do not travel: the side that answers makes its own. `reason` is
+    viba_data and do not travel: the side that answers makes its own. `reason` is
     one of the `REASON_*` strings below.
 
     It is an exception as well, because that is how the same news crosses a

@@ -222,7 +222,7 @@ def run_set_order_cases():
     check(isinstance(written, Ok), f"set order: writes ({written})")
     if isinstance(written, Ok):
         check('SetLiteral["c", "a"]' in written.ok_value,
-              "set order: the material's order, not sorted")
+              "set order: the viba data's order, not sorted")
         _round_trip("set order", definition, access, node, source, "Box")
 
 
@@ -272,7 +272,7 @@ def run_code_block_cases():
 
 
 def _product(*items):
-    """Object * item * ... : the product chain a material is."""
+    """Object * item * ... : the product chain a viba data is."""
     return viba_ast.ProductChain([viba_ast.TypeRef("Object"), *items])
 
 
@@ -285,7 +285,7 @@ def _corner(label, source, name, body, expect=None, resident=True, strict=True):
     from viba.reflect import access
     pool, definition = _design(source, name)
     rooted = access.root(definition, VibaData(body))
-    check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
+    check(isinstance(rooted, Ok), f"{label}: the viba data roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
     written = serialize.serialize("entry", rooted.ok_value)
@@ -304,7 +304,7 @@ def _gap(label, source, name, body, needle):
     from viba.reflect import access
     pool, definition = _design(source, name)
     rooted = access.root(definition, VibaData(body))
-    check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
+    check(isinstance(rooted, Ok), f"{label}: the viba data roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
     written = serialize.serialize("entry", rooted.ok_value)
@@ -370,7 +370,7 @@ def run_member_corner_cases():
 
     _corner("zero-member product", "Only = Object\n", "Only", viba_ast.Nil(),
             expect="entry =\n  nil\n")
-    _corner("the head the material left out", "Box = Object * $a int\n", "Box",
+    _corner("the head the viba data left out", "Box = Object * $a int\n", "Box",
             viba_ast.ProductChain([_tagged("$a", viba_ast.Constant(1))]),
             expect="entry =\n  Object\n  * $a 1\n")
     _corner("a member the design has no address for", "Box = Object * $a int\n", "Box",
@@ -424,13 +424,13 @@ def run_leaf_corner_cases():
             _product(_tagged("$n", viba_ast.Constant(10 ** 30))),
             expect=f"* $n {10 ** 30}")
 
-    _corner("set: the material's order, repeats and all",
+    _corner("set: the viba data's order, repeats and all",
             "Box = Object * $seen set[str]\n", "Box",
             _product(_tagged("$seen", viba_ast.TypeApp("SetLiteral", [
                 viba_ast.Constant("b"), viba_ast.Constant("a"),
                 viba_ast.Constant("b")]))),
             expect='SetLiteral["b", "a", "b"]')
-    _corner("dict: odd keys, in the material's order",
+    _corner("dict: odd keys, in the viba data's order",
             "Box = Object * $d dict[str, int]\n", "Box",
             _product(_tagged("$d", viba_ast.TypeApp("DictLiteral", [
                 viba_ast.Tuple([viba_ast.Constant(""), viba_ast.Constant(1)]),
@@ -770,9 +770,9 @@ def run_dict_key_aliases():
                           ("a chain of aliases",
                            "S = str\nT = S\nBox = Object * $d dict[T, int]\n")):
         pool = _pool(("m.viba", "m", source))
-        material = _product(_tagged("$d", viba_ast.TypeApp("DictLiteral", [
+        viba_data = _product(_tagged("$d", viba_ast.TypeApp("DictLiteral", [
             viba_ast.Tuple([viba_ast.Constant("k"), viba_ast.Constant(1)])])))
-        _corner_in(f"dict keyed by {label}", pool, "m.Box", material,
+        _corner_in(f"dict keyed by {label}", pool, "m.Box", viba_data,
                    expect='("k", 1)',
                    resident_source="Box = Object * $d dict[str, int]\n")
 
@@ -799,9 +799,9 @@ def run_positional_gaps():
              f"no value here: ${'abc'[position]}")
     _gap("gap a wrong tag", "Box = Object * $a int\n", "Box",
          _product(_tagged("$z", viba_ast.Constant(9))), "no value here: $a")
-    _gap("gap an empty product material", "Box = Object * $a int\n", "Box",
+    _gap("gap an empty product viba_data", "Box = Object * $a int\n", "Box",
          viba_ast.ProductChain([]), "no value here: $a")
-    _gap("gap never as the whole material", "Box = Object * $a int\n", "Box",
+    _gap("gap never as the whole viba_data", "Box = Object * $a int\n", "Box",
          viba_ast.Never(), "no value here: $a")
     _gap("gap a name where a container element goes",
          "Box = Object * $a list[int]\n", "Box",
@@ -940,11 +940,11 @@ def run_name_alias_members():
 
 def run_name_gaps():
     """名字背后的 never：可序列化数据里放什么都是 VibaProgramErr。"""
-    for label, material in (("a value", viba_ast.Constant(1)),
+    for label, viba_data in (("a value", viba_ast.Constant(1)),
                             ("never", viba_ast.Never())):
-        _gap(f"gap never behind a name, material {label}",
+        _gap(f"gap never behind a name, viba_data {label}",
              "N = never\nBox = Object * $n N\n", "Box",
-             _product(_tagged("$n", material)), "nothing resides in never")
+             _product(_tagged("$n", viba_data)), "nothing resides in never")
     _gap("gap never behind two names", "M = never\nN = M\nBox = Object * $n N\n", "Box",
          _product(_tagged("$n", viba_ast.Constant(1))), "nothing resides in never")
     _gap("gap never behind a name in a container",
@@ -977,7 +977,7 @@ def run_more_gap_corners():
          "S = nil | $a int\nBox = Object * $s S\n", "Box",
          _product(_tagged("$s", viba_ast.SumChain([viba_ast.Nil()]))),
          "no branch of this sum carries a value")
-    _gap("gap an ellipsis material", "Box = Object * $a int\n", "Box",
+    _gap("gap an ellipsis viba data", "Box = Object * $a int\n", "Box",
          _product(_tagged("$a", viba_ast.Ellipsis())), "no value here: $a")
     _gap("gap an ellipsis design", "Box = Object * $a ...\n", "Box",
          _product(_tagged("$a", viba_ast.Ellipsis())), "no value here: $a")
@@ -1015,7 +1015,7 @@ def _corner_in(label, pool, full_name, body, expect=None, resident=True,
     if not isinstance(found, Ok):
         return
     rooted = access.root(found.ok_value, VibaData(body))
-    check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
+    check(isinstance(rooted, Ok), f"{label}: the viba data roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
     written = serialize.serialize("entry", rooted.ok_value)
@@ -1039,7 +1039,7 @@ def _gap_in(label, pool, full_name, body, needle):
     if not isinstance(found, Ok):
         return
     rooted = access.root(found.ok_value, VibaData(body))
-    check(isinstance(rooted, Ok), f"{label}: the material roots ({rooted})")
+    check(isinstance(rooted, Ok), f"{label}: the viba data roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
     written = serialize.serialize("entry", rooted.ok_value)
@@ -1159,7 +1159,7 @@ def run_cycle_cases():
                expect="* $w 1", resident=False)
 
 
-def run_material_root_cases():
+def run_viba_data_root_cases():
     """可序列化数据本身不是一个产品：叶子、单个标签、和式、空链、nil。"""
     def design():
         return _pool(("m.viba", "m", "Box = Object * $a int\n"))
@@ -1217,7 +1217,7 @@ def run_sums_in_containers():
     """和式装在容器与元组里，每一项挑不同的支。"""
     source = "S = int | $a str\nBox = Object * $xs list[S] * $ss set[S] * $t (S, S)\n"
     pool = _pool(("m.viba", "m", source))
-    material = _product(
+    viba_data = _product(
         _tagged("$xs", viba_ast.TypeApp("ListLiteral", [
             viba_ast.SumChain([viba_ast.Constant(1)]),
             viba_ast.SumChain([_tagged("$a", viba_ast.Constant("x"))]),
@@ -1227,7 +1227,7 @@ def run_sums_in_containers():
         _tagged("$t", viba_ast.Tuple([
             viba_ast.SumChain([viba_ast.Constant(3)]),
             viba_ast.SumChain([_tagged("$a", viba_ast.Constant("z"))])])))
-    _corner_in("sums in a list, a set and a tuple", pool, "m.Box", material,
+    _corner_in("sums in a list, a set and a tuple", pool, "m.Box", viba_data,
                expect='ListLiteral[1, $a "x", 2]', strict=False)
 
 
@@ -1248,10 +1248,10 @@ def run_exponent_arguments():
     for index, (argument_type, argument, expect) in enumerate(cases):
         pool = _pool(("m.viba", "m",
                       f"G = Object * $g (never <- $b {argument_type})\n"))
-        material = _product(_tagged("$g", viba_ast.ExponentChain([
+        viba_data = _product(_tagged("$g", viba_ast.ExponentChain([
             viba_ast.Never(), _tagged("$b", argument)])))
         _corner_in(f"exponent argument[{index}] {argument_type}", pool, "m.G",
-                   material, expect=expect, resident=False, resident_source=None)
+                   viba_data, expect=expect, resident=False, resident_source=None)
 
 
 def run_deep_stress():
@@ -1331,7 +1331,7 @@ def run_inline_member_cases():
             "U = Object\nBox = U * $a int\n", "Box",
             _product(_tagged("$a", viba_ast.Constant(1))),
             expect="entry =\n  Object\n  * $a 1\n")
-    _corner("the member written as a name on the material side",
+    _corner("the member written as a name on the viba data side",
             "Data = $x 1 * $y 2\nA = $x int * $y int\nB = A * $z int\n", "B",
             _product(viba_ast.TypeRef("Data"), _tagged("$z", viba_ast.Constant(3))),
             expect="entry =\n  $x 1\n  * $y 2\n  * $z 3\n")
@@ -1375,7 +1375,7 @@ def run():
                  run_code_block_positions, run_exponent_batteries,
                  run_name_alias_members, run_name_gaps, run_more_gap_corners,
                  run_dict_key_aliases, run_cross_module_cases, run_cycle_cases,
-                 run_material_root_cases, run_definition_name_cases,
+                 run_viba_data_root_cases, run_definition_name_cases,
                  run_alias_of_definition_cases, run_sums_in_containers,
                  run_exponent_arguments, run_deep_stress,
                  run_head_written_as_unit, run_inline_member_cases):

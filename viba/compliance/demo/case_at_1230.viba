@@ -4,9 +4,9 @@
 # suspect at (3,4) — 3 and 4 along the two axes, so 5 apart, which is the rule's
 # threshold to the point.
 #
-# A witness is a program too — `environ` in, the material out — and it *asks*
+# A witness is a program too — `environ` in, the viba data out — and it *asks*
 # for its facts: `at_1230` is a step like any other, a hint and an implementation
-# on the host side. What it answers is the material, written the way its design
+# on the host side. What it answers is the viba data, written the way its design
 # is written. Where those facts really come from — a log, a database, a service —
 # is the implementation's business, not the witness's: this file says which facts
 # there are, never what they are.

@@ -107,7 +107,7 @@ __ret__ = ghost << $env environ
     check(stopped.step == Step("root", "ghost") and stopped.reason == "no implementation",
           f"the deferral names the step and why: {stopped!r}")
     check(stopped.call is None,
-          f"a step given no material carries none: {stopped.call!r}")
+          f"a step given no viba_data carries none: {stopped.call!r}")
 
     echo = write(tmp, "echo.viba", """
 echo =
@@ -175,11 +175,11 @@ def _written_as_ret(tmp: Path):
         labelled(interpret(path, environ), "cannot compute",
                  f"__ret__ written as {label} -> VibaProgramErr")
 
-    # A written sum is material: every branch that did not answer never stays.
+    # A written sum is viba data: every branch that did not answer never stays.
     sum_value = write(tmp, "written_sum.viba", "__ret__ = (1 | 2)\n")
     result = interpret(sum_value, environ)
     check(isinstance(result, Ok),
-          f"__ret__ written as a sum is material, not an error: {result!r}")
+          f"__ret__ written as a sum is viba data, not an error: {result!r}")
 
     write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
     module_value = write(tmp, "module_value.viba",
@@ -201,7 +201,7 @@ def _written(tmp: Path):
         path = write(tmp, f"written_{abs(hash(body))}.viba", f"__ret__ = {body}\n")
         result = interpret(path, environ)
         check(isinstance(result, Ok) and len(result.ok_value) == want,
-              f"__ret__ written as {label} is material: {result!r}")
+              f"__ret__ written as {label} is viba data: {result!r}")
 
     # 一份 witness 的写法：tag 与积是可序列化数据，和它的类型写法一样
     witness = write(tmp, "witness.viba",
@@ -284,7 +284,7 @@ __ret__ = show << $env environ << $f inc
     host2 = Environment(EnvironmentStorage("root"), EnvironmentCompute(host.get_func))
     result = interpret(higher, host2)
     check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.TypeRef),
-          f"a viba function handed to the host is material (its written name): {result!r}")
+          f"a viba function handed to the host is viba data (its written name): {result!r}")
     check(result.ok_value.data.name == "inc",
           f"and what it holds is that name: {result.ok_value.data!r}")
     host.get_func = original

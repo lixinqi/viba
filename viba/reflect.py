@@ -1,7 +1,7 @@
-"""viba.reflect — treat a design as a map and read a material through it.
+"""viba.reflect — treat a design as a map and read a viba data through it.
 
 This is the access side of ``viba-reflect.md``: the map (the descriptors) comes
-from the descriptor side reading the design, the data (Data) is one material's
+from the descriptor side reading the design, the data (Data) is one viba data's
 type expression, and access walks the map's addresses one step at a time. Names
 follow the rule ``viba_type_descriptor.py`` keeps for
 ``viba_type_descriptor.viba``: the protocol's class names stay as they are, its
@@ -25,16 +25,16 @@ underscore.
 
 What the protocol does not name is this layer's binding or helping, not a protocol concept:
 
-    the Data parameter    -> VibaData: one material's type expression
+    the Data parameter    -> VibaData: one viba data's type expression
     section 5.4 "throw"   -> VibaReflectError
     reading the map       -> VibaAccess's underscore methods and this module's
 
 Two rules from the protocol:
 
 * ``root`` only pairs (descriptor, data). Versions are none of its business:
-  which revision a material was built against is the caller's bookkeeping.
+  which revision a viba data was built against is the caller's bookkeeping.
 * ``has`` answers true or false only: no such address in the design and no
-  such piece in the material are both ``False``. In ``get``, "the material has
+  such piece in the viba data are both ``False``. In ``get``, "the viba data has
   no such piece" is ``Ok(nil)`` and only "the map has no such address" is
   ``VibaProgramErr``; ``leaf`` / ``length`` / ``keys`` give ``VibaProgramErr`` when they cannot.
 
@@ -187,10 +187,10 @@ def _tag_of(name: str) -> str:
 
 
 class VibaData:
-    """This layer's binding of the protocol's Data parameter: one material's
+    """This layer's binding of the protocol's Data parameter: one viba data's
     type expression.
 
-    The protocol leaves Data to the implementation; on this side a material is
+    The protocol leaves Data to the implementation; on this side a viba data is
     written in the design's own language, so it lands as an AST node. Versions
     and the like are carried by the caller, not by the protocol.
     """
@@ -211,7 +211,7 @@ class VibaData:
 
 
 class VibaNode:
-    """One node: a piece of the design's descriptor plus a piece of the material.
+    """One node: a piece of the design's descriptor plus a piece of the viba data.
 
     ``path`` is the VibaPath walked from the root (the protocol's node has no
     such field; this layer keeps it so an address can be stored, printed and
@@ -226,7 +226,7 @@ class VibaNode:
         self.descriptor = descriptor
         self.data = data
         self.path = tuple(path)
-        # The module the material was written in: a name on the data side is
+        # The module the viba data was written in: a name on the data side is
         # resolved there, not where the design piece came from.
         self.data_module = data_module
 
@@ -367,14 +367,14 @@ class VibaAccess:
 
     def has(self, node: VibaNode, step: VibaStep) -> Result:
         """VibaHas: is this step there. No such address in the design and no
-        such piece in the material are both false."""
+        such piece in the viba data are both false."""
         if not self._knows(node, step, self.members(node)):
             return Ok(False)
         return Ok(self._value_at(node.data, step, node.descriptor,
                                  node.data_module) is not None)
 
     def get(self, node: VibaNode, step: VibaStep) -> Result:
-        """VibaGet: take one step. A piece the material lacks is Ok(nil); an
+        """VibaGet: take one step. A piece the viba data lacks is Ok(nil); an
         address the map lacks is VibaProgramErr."""
         slots = self.members(node)
         if not self._knows(node, step, slots):
@@ -418,7 +418,7 @@ class VibaAccess:
     def resolve(self, node: VibaNode, path: Sequence[VibaStep]) -> Result:
         """VibaResolve: walk the path with VibaGet, one step at a time.
 
-        Walking onto "the material has no such piece" (``Ok(nil)``) is as far
+        Walking onto "the viba data has no such piece" (``Ok(nil)``) is as far
         as it goes: with steps left that is a VibaProgramErr; with no steps left, the
         ``Ok(nil)`` is handed out.
         """
@@ -623,14 +623,14 @@ class VibaAccess:
     def members_of(self, descriptor: VibaTypeDescriptor) -> Optional[List[tuple]]:
         """The same, straight from a piece of the map: the members a descriptor
         has, without a data piece to hang them on. A checker that reads the
-        design alone (no material involved) asks here."""
+        design alone (no viba_data involved) asks here."""
         return self._design_members(descriptor)
 
     def member_steps(self, node: VibaNode) -> List[tuple]:
         """[(tag or None, that step, descriptor)]: the members of this piece,
         each with the step that takes you there; a None tag goes by position.
 
-        The step is what VibaGet takes, so a writer walks a material the same
+        The step is what VibaGet takes, so a writer walks a viba data the same
         way a reader does.
         """
         out, positional = [], 0
@@ -726,11 +726,11 @@ class VibaAccess:
         return cycles[0] if cycles else None
 
     def _bare_sum(self, descriptor: VibaTypeDescriptor) -> Optional[List[tuple]]:
-        """The positional branches of an untagged sum whose layer a material may
+        """The positional branches of an untagged sum whose layer a viba data may
         skip: [(index, role, descriptor), ...], else None.
 
         A sum with at most one inner node can be written without the sum layer:
-        the material carries that branch's content directly, and leaf branches
+        the viba data carries that branch's content directly, and leaf branches
         are told apart by the value itself. Two inner nodes cannot be told
         apart, and a tagged sum is addressed by tag, so neither qualifies.
         """
@@ -817,12 +817,12 @@ class VibaAccess:
     # ---- private: the data side ----
 
     def _value_at(self, data, step: VibaStep, design=None, data_module=None):
-        """The matching piece in the material; None when there is none (``...``
+        """The matching piece in the viba data; None when there is none (``...``
         is not data)."""
         return _as_value(self._match(data, step, design, data_module))
 
     def _expand_data(self, data, design, data_module=None):
-        """Unfold a material written as a name or a generic application: a name
+        """Unfold a viba data written as a name or a generic application: a name
         gives its definition body, an application fills its arguments in.
 
         One rule on both sides (the design side works on descriptors, this one
@@ -896,10 +896,10 @@ class VibaAccess:
         return None
 
     def _bare_sum_piece(self, data, design, index: int):
-        """The piece an untagged-sum design means when the material skips it.
+        """The piece an untagged-sum design means when the viba data skips it.
 
         The single inner branch takes anything that is not a leaf; a leaf branch
-        takes the value that matches it (a nil material takes nil).
+        takes the value that matches it (a nil viba_data takes nil).
         """
         members = self._bare_sum(design)
         if members is None:
@@ -913,7 +913,7 @@ class VibaAccess:
         return None
 
     def _data_fits_leaf(self, data, branch: VibaTypeDescriptor) -> bool:
-        """Does this material piece belong to that leaf branch of a sum?"""
+        """Does this viba data piece belong to that leaf branch of a sum?"""
         if isinstance(data, viba_ast.Nil):
             return branch.kind == NIL
         if isinstance(data, viba_ast.Never):
@@ -962,14 +962,14 @@ class VibaAccess:
                 and unfolded.payload.type_name in self.config.nil_eqv)
 
     def _is_unit_data(self, node) -> bool:
-        """The same on the material side: a unit written as a form or a name."""
+        """The same on the viba data side: a unit written as a form or a name."""
         if isinstance(node, (viba_ast.Nil, viba_ast.Never)):
             return True
         return (isinstance(node, viba_ast.TypeRef)
                 and self.config.is_unit_name(node.name))
 
     def _is_product_unit_data(self, node) -> bool:
-        """The product's unit on the material side: nil, or a name the config
+        """The product's unit on the viba data side: nil, or a name the config
         calls nil. never is the sum's unit and is no product unit."""
         if isinstance(node, viba_ast.Nil):
             return True
@@ -1002,7 +1002,7 @@ class VibaAccess:
         return slots
 
     def _product_data_members(self, data, design, seen, data_module=None) -> List[tuple]:
-        """A product's members on the material side, by the design's rule.
+        """A product's members on the viba data side, by the design's rule.
 
         An untagged piece written as a name or an application that unfolds to a
         product or to a single tagged member hands those members over,
@@ -1040,7 +1040,7 @@ class VibaAccess:
         return out
 
     def _data_definition_key(self, data, module) -> Optional[tuple]:
-        """The definition a material piece points at, as the key of the inline
+        """The definition a viba data piece points at, as the key of the inline
         chain; None when it is not a name over a definition."""
         if isinstance(data, viba_ast.TypeRef):
             resolved = module_get_type(module, data.name)
@@ -1129,12 +1129,12 @@ def _flatten(node) -> Optional[List]:
 
 
 def _is_leaf_data(node) -> bool:
-    """A material piece written as a leaf: a literal, nil or never."""
+    """A viba_data piece written as a leaf: a literal, nil or never."""
     return isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never))
 
 
 def _design_module(descriptor):
-    """Which module the design piece belongs to (material names resolve in it)."""
+    """Which module the design piece belongs to (viba_data names resolve in it)."""
     resolvable = getattr(descriptor, "resolvable_type", None)
     return getattr(resolvable, "container_module", None)
 
