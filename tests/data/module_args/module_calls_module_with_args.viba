@@ -8,4 +8,4 @@ twice =
 
 __ret__ = twice
   << environ
-  << (inner << (environ.sub_env << "inner") << 3 << 4)
+  << (inner << (environ.sub_env << environ << "inner") << 3 << 4)

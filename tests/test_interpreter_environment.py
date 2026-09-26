@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import ADD, LEAF, Checks, Host, value_of, write
 
-from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
+from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
+                            interpret, sub_env, tmp_sub_env)
 from viba.type import VibaProgramErr, Ok
 
 checks = Checks("interpreter_environment")
@@ -76,21 +77,21 @@ def _children(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    child = environ.sub_env("a")
-    grand = child.sub_env("b")
+    child = sub_env(environ, "a")
+    grand = sub_env(child, "b")
     check(child.storage.cur_storage_path == "root/a",
           "a sub-environment's path is <parent>/<name>")
     check(grand.storage.cur_storage_path == "root/a/b", "and it nests")
     check(child.compute is environ.compute and grand.compute is environ.compute,
           "every sub-environment holds the parent's compute")
-    check(environ.sub_env("a").storage is child.storage,
+    check(sub_env(environ, "a").storage is child.storage,
           "the same name hands back the same sub-storage")
     check(isinstance(child, Environment), "sub_env answers an Environment")
 
-    child_a = environ.sub_env("a")
-    child_b = environ.sub_env("b")
-    check(child_a.sub_env("x").storage.cur_storage_path == "root/a/x" and
-          child_b.sub_env("x").storage.cur_storage_path == "root/b/x",
+    child_a = sub_env(environ, "a")
+    child_b = sub_env(environ, "b")
+    check(sub_env(child_a, "x").storage.cur_storage_path == "root/a/x" and
+          sub_env(child_b, "x").storage.cur_storage_path == "root/b/x",
           "the same name under two parents is two storages")
 
     host.calls.clear()
@@ -100,17 +101,17 @@ def _children(tmp: Path):
     check(("root/a", "add") in host.calls,
           f"its path is what get_func sees: {host.calls}")
 
-    # 子环境的名来自 viba 那边写下的东西：材料取它的叶子，别的就 str 一下
+    # 子环境的名来自 viba 那边写下的东西：可序列化数据取它的叶子，别的就 str 一下
     seeded = EnvironmentStorage("root", {"a": EnvironmentStorage("root/a")})
-    check(Environment(seeded, environ.compute).sub_env("a").storage is
+    check(sub_env(Environment(seeded, environ.compute), "a").storage is
           seeded.sub_storage["a"],
           "a storage handed in ready-made is the one sub_env hands back")
-    check(environ.sub_env(7).storage.cur_storage_path == "root/7",
+    check(sub_env(environ, 7).storage.cur_storage_path == "root/7",
           "a name that is not a string still lands in the path")
 
     # tmp_sub_env：名字不用起，每次都是新的一个
-    first = environ.tmp_sub_env()
-    second = environ.tmp_sub_env()
+    first = tmp_sub_env(environ)
+    second = tmp_sub_env(environ)
     check(isinstance(first, Environment) and first.compute is environ.compute,
           "tmp_sub_env answers a child with the parent's compute")
     check(first.storage.cur_storage_path.startswith("root/tmp_") and
@@ -135,8 +136,8 @@ def _written_in_viba(tmp: Path):
     tmp_calls = write(tmp, "tmp_calls.viba", ADD + """
 import tmp_lib as lib
 __ret__ = add << $env environ
-  << $a (lib << (environ.tmp_sub_env << ()) << ())
-  << $b (lib << (environ.tmp_sub_env << ()) << ())
+  << $a (lib << (environ.tmp_sub_env << environ) << ())
+  << $b (lib << (environ.tmp_sub_env << environ) << ())
 """)
     result = interpret(tmp_calls, environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
@@ -146,19 +147,17 @@ __ret__ = add << $env environ
           all(path.startswith("root/tmp_") for path in leaf_paths),
           f"each call under a path of its own: {host.calls}")
 
-    # 写下来的那个实参被忽略：给别的也一样
-    given = write(tmp, "tmp_given.viba", "__ret__ = environ.tmp_sub_env << nil\n")
-    result = interpret(given, environ)
-    check(isinstance(result, Ok) and isinstance(result.ok_value, Environment) and
-          result.ok_value.storage.cur_storage_path.startswith("root/tmp_"),
-          f"the written argument is ignored, whatever it is: {result!r}")
+    # 它收的就是那个环境：写别的值不成立（判定层拦下，见 test_is_sub_type.py）
+    wrong = write(tmp, "tmp_wrong.viba", "__ret__ = environ.tmp_sub_env << nil\n")
+    check(not isinstance(interpret(wrong, environ), Ok),
+          "a temporary child is asked for with the environment it belongs to")
 
     sub = write(tmp, "sub.viba", """
 go =
 	int
 	<- $env Environment
 	<- { nobody calls this }
-__ret__ = environ.sub_env << "child"
+__ret__ = environ.sub_env << environ << "child"
 """)
     result = interpret(sub, environ)
     check(isinstance(result, Ok) and isinstance(result.ok_value, Environment) and
@@ -172,7 +171,7 @@ __ret__ = environ.sub_env << "child"
 
     # 已经答完的 sub_env 再给参数：那不是函数
     answered = write(tmp, "env_answered.viba",
-                     '__ret__ = environ.sub_env << "a" << "b"\n')
+                     '__ret__ = environ.sub_env << environ << "a" << "b"\n')
     labelled(interpret(answered, environ), "is not a function",
              "another argument given to an answered sub_env -> VibaProgramErr")
 
@@ -208,11 +207,11 @@ def _host_members(tmp: Path):
 
     # 没有 storage 的环境：宿主那边崩了也是 VibaProgramErr，不是把异常扔出来
     headless = Environment(None, EnvironmentCompute(host.get_func))
-    headless_use = write(tmp, "headless.viba", '__ret__ = environ.sub_env << "a"\n')
+    headless_use = write(tmp, "headless.viba", '__ret__ = environ.sub_env << environ << "a"\n')
     checks.failed(interpret(headless_use, headless), "raised",
                   "an environment with no storage, and a step that needs one")
     headless_tmp = write(tmp, "headless_tmp.viba",
-                         "__ret__ = environ.tmp_sub_env << ()\n")
+                         "__ret__ = environ.tmp_sub_env << environ\n")
     checks.failed(interpret(headless_tmp, headless), "raised",
                   "tmp_sub_env on an environment with no storage")
 

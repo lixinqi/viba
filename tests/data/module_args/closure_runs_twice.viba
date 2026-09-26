@@ -8,8 +8,8 @@ add =
   <- { add the two }
 
 sg = square_sum << 3 << 4
-first = sg << (environ.tmp_sub_env << ())
+first = sg << (environ.tmp_sub_env << environ)
 __ret__ = add
-  << (environ.tmp_sub_env << ())
+  << (environ.tmp_sub_env << environ)
   << $a first
-  << $b (sg << (environ.tmp_sub_env << ()))
+  << $b (sg << (environ.tmp_sub_env << environ))

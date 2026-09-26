@@ -1,6 +1,6 @@
 """Rule/Witness 用 interpret 重做的第一批：跑规则、Prepare 与回放。
 
-一个规则是程序（`environ` 进、`bool` 出），判定就是跑它；witness 是它判的材料。
+一个规则是程序（`environ` 进、`bool` 出），判定就是跑它；witness 是它判的可序列化数据。
 不纯的那一步（量距离）走 `measure`：Prepare 是调用（参数定了、结果声明了）加量出来的
 值，放在 storage 里——运行之前就备份好的那份直接回放，没有的才当场量、写进本轮 store。
 
@@ -111,7 +111,7 @@ def _deferral(tmp: Path):
 
 
 def _a_deferral_carries_the_work(tmp: Path):
-    """递延里的材料就是工单要的东西：不必再跑一次，就能写出一份合法 Prepare。"""
+    """递延里的可序列化数据就是工单要的东西：不必再跑一次，就能写出一份合法 Prepare。"""
     # 一条跑完的规则：它记下的 Prepare 就是"这一手该长什么样"
     env, host = environ_for(tmp / "work-store")
     check(isinstance(is_compliant(str(RULE), env), Ok), "the rule judges when it can")
@@ -133,7 +133,7 @@ def _a_deferral_carries_the_work(tmp: Path):
           f"the material in the deferral is the $call a Prepare fixes:\n"
           f"{_written(duty.call)}\n{wanted}")
 
-    # 拿它手写一份工单：$call 是那份材料，$measured 空着
+    # 拿它手写一份工单：$call 是那份可序列化数据，$measured 空着
     hands = case_environ(env)
     record_prepare(hands, "measure_distance", duty.call, None)
     written = read_prepare(hands, "measure_distance")
@@ -153,7 +153,7 @@ def _written(node):
 
 
 def _judge(tmp: Path):
-    """跑一个规则：判定就是 __ret__，材料是 witness 那个程序问来的。"""
+    """跑一个规则：判定就是 __ret__，可序列化数据是 witness 那个程序问来的。"""
     store = tmp / "judge-store"
     env, host = environ_for(store)
     verdict = is_compliant(str(RULE), env)
@@ -193,11 +193,11 @@ distance_ge =
 	<- $threshold int
 	<- { at least the threshold? }
 
-case_env = environ.sub_env << "case_at_1210"
+case_env = environ.sub_env << environ << "case_at_1210"
 the_case = case_at_1210 << case_env << ()
-distance = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
+distance = measure_distance << $env (environ.tmp_sub_env << environ) << $evidence case_env << $case the_case
 threshold = 5
-__ret__ = distance_ge << $env (environ.tmp_sub_env << ()) << $d distance << $threshold threshold
+__ret__ = distance_ge << $env (environ.tmp_sub_env << environ) << $d distance << $threshold threshold
 """)
     env, host = environ_for(tmp / "near-store")
     verdict = is_compliant(near_rule, env)
@@ -321,9 +321,9 @@ measure_distance =
 	<- $case Any
 	<- { measure }
 
-case_env = environ.sub_env << "boom_case"
+case_env = environ.sub_env << environ << "boom_case"
 the_case = boom_case << case_env << ()
-__ret__ = measure_distance << $env (environ.tmp_sub_env << ()) << $evidence case_env << $case the_case
+__ret__ = measure_distance << $env (environ.tmp_sub_env << environ) << $evidence case_env << $case the_case
 """)
     failed_verdict = is_compliant(boom_rule, env)
     check(isinstance(failed_verdict, UnderlyingVibaOpFailed) and "raised" in failed_verdict.msg,

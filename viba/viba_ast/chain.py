@@ -24,6 +24,7 @@ from viba.viba_ast.nodes import (
     Let,
     Binding,
     Tagged,
+    Member,
     TypeApp,
     Tuple,
     Nil,
@@ -50,6 +51,7 @@ def convert_to_chain_style(node: AST) -> AST:
             d.name, d.generic_params, convert_to_chain_style(d.body)
         ),
         Tagged=lambda t: Tagged(t.tag, convert_to_chain_style(t.type)),
+        Member=lambda m: m,
         Let=lambda l: Let([Binding(b.name, convert_to_chain_style(b.value))
                            for b in l.bindings], convert_to_chain_style(l.body)),
         Binding=lambda b: Binding(b.name, convert_to_chain_style(b.value)),

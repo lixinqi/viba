@@ -1,7 +1,7 @@
 """闭包：没给环境的调用就是一个值，可序列化、可存、可传。
 
 环境是执行那一步，也只有它是：给了环境就是执行（实参必须齐），没给环境就是闭包——写下来的函数名
-加上已经算好的实参。这份材料里没有环境，所以它跨得过运行边界。
+加上已经算好的实参。这份可序列化数据里没有环境，所以它跨得过运行边界。
 
     python3 tests/test_interpreter_closure.py
 
@@ -68,7 +68,7 @@ def environ_for(store, calls=()):
 #   ("value", 叶子)     Ok，且叶子是这个值
 #   ("closure", 写法)   Ok，答的是一个闭包，写出来是这个样子
 #   ("error", 片段)     VibaProgramErr，话里含这个片段
-#   ("material", None)  Ok，是一个闭包装在材料里的值（后面单独看）
+#   ("material", None)  Ok，是一个闭包装在可序列化数据里的值（后面单独看）
 # 最后一列是要看住的副作用调用；None 表示不看。
 CASES_TO_RUN = [
     # 闭包是什么、能拿它做什么
@@ -150,7 +150,7 @@ def run(tmp: Path):
     check(one_line(again) == stored,
           f"and reading it back gives the same closure: {one_line(again)!r}")
 
-    # 材料里装一个闭包：装的是数据，不会被执行（那个参数是 `$f`，不是一次调用）
+    # 可序列化数据里装一个闭包：装的是数据，不会被执行（那个参数是 `$f`，不是一次调用）
     material = interpret(str(CASES / "closure_in_material.viba"), environ_for(tmp / "store-mat"))
     check(isinstance(material, Ok), f"a closure inside material stays material: {material!r}")
     if isinstance(material, Ok):

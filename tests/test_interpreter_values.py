@@ -1,6 +1,6 @@
 """值：宿主答什么、__ret__ 能写成什么、一个名字算几次。
 
-不纯的东西从这里出去（宿主函数），回来的必须是叶子或材料；函数、模块、泛型应用都不是值。
+不纯的东西从这里出去（宿主函数），回来的必须是叶子或可序列化数据；函数、模块、泛型应用都不是值。
 
     python3 tests/test_interpreter_values.py
 """
@@ -193,7 +193,7 @@ def _written_as_ret(tmp: Path):
 
 
 def _written(tmp: Path):
-    """写在值位置上的数据就是材料：元组、tag、积。"""
+    """写在值位置上的数据就是可序列化数据：元组、tag、积。"""
     host = Host()
     environ = host.environ()
     for body, want, label in (("(1, 2)", 2, "a tuple of two"),
@@ -203,7 +203,7 @@ def _written(tmp: Path):
         check(isinstance(result, Ok) and len(result.ok_value) == want,
               f"__ret__ written as {label} is material: {result!r}")
 
-    # 一份 witness 的写法：tag 与积是材料，和它的类型写法一样
+    # 一份 witness 的写法：tag 与积是可序列化数据，和它的类型写法一样
     witness = write(tmp, "witness.viba",
                     '__ret__ = $victim ($x 0 * $y 0) * $suspect ($x 3 * $y 4)\n')
     result = interpret(witness, environ)

@@ -1,2 +1,2 @@
 import missing_member
-__ret__ = missing_member << (environ.tmp_sub_env << ()) << 1
+__ret__ = missing_member << (environ.tmp_sub_env << environ) << 1

@@ -117,7 +117,7 @@ __ret__ = add << $env environ << $a (explode << $env environ) << $b 2
 def _argument_types(tmp: Path):
     """实参要装得下那个参数：装不下是**程序错**，宿主还没看见这个实参。
 
-    值层现在也用得上判定的那套 <:：字面量、材料、环境都有写下来的类型。
+    值层现在也用得上判定的那套 <:：字面量、可序列化数据、环境都有写下来的类型。
     判不出类型的（宿主自己的值、判定层settle不了的）照旧放过去，交给实现那一步的人。
     """
     def get_func(path, func_name):

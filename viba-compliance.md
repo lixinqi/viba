@@ -42,7 +42,7 @@ distance_ge =
 
 # the address of this case: the witness is read under it, and this is where the
 # case's evidence — its Prepare — is kept
-case_env = environ.sub_env << "case_at_1230"
+case_env = environ.sub_env << environ << "case_at_1230"
 
 # the witness: the three facts of that moment
 the_case = case_at_1230 << case_env
@@ -52,7 +52,7 @@ the_case = case_at_1230 << case_env
 # goes: this case's address. Not pure, so what it answers becomes the Prepare.
 distance =
     measure_distance
-    << $env (environ.tmp_sub_env << ())
+    << $env (environ.tmp_sub_env << environ)
     << $evidence case_env
     << $case the_case
 
@@ -61,7 +61,7 @@ threshold = 5
 
 __ret__ =
     distance_ge
-    << $env (environ.tmp_sub_env << ())
+    << $env (environ.tmp_sub_env << environ)
     << $d distance
     << $threshold threshold
 ```
@@ -73,7 +73,7 @@ __ret__ =
   实例本身。
 - **`case_env` 是这个案子的地址**：`case_at_1230` 这个名字同时是模块名、子环境名，也落在
   storage 路径上（`root/case_at_1230`）。读呈证用它，这个案子的证据也存在它下面。
-- **调用用临时环境，证据才要地址**。函数调用给 `(environ.tmp_sub_env << ())`：一次调用没有
+- **调用用临时环境，证据才要地址**。函数调用给 `(environ.tmp_sub_env << environ)`：一次调用没有
   自己的地址，也不该占一个（`tmp_sub_env` 每次都是新的，见
   [`viba-interpreter.md`](viba-interpreter.md)）。要给
   证据落地址的是**测量**：它多收一个槽位 `$evidence Environment`，明说"这次测量属于哪个案子"。
@@ -218,7 +218,7 @@ Prepare（`root/case_at_1230/prepare/measure_distance.viba`）：拿它当 `prep
 那条不纯的路一次都不走，判定仍是同一个。
 
 **换一个案子**（比如 12:10 那一刻，嫌疑人在 (0,3)）：呈证写成 `case_at_1210.viba`，规则里
-`case_env` 换成 `environ.sub_env << "case_at_1210"`——量出来 3，判定 `Ok(false)`。名字换了，
+`case_env` 换成 `environ.sub_env << environ << "case_at_1210"`——量出来 3，判定 `Ok(false)`。名字换了，
 环境与证据也跟着换到 `root/case_at_1210` 下面，两起案子不会互相踩到对方的 Prepare。
 
 ## 6. 句柄一览

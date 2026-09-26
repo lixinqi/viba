@@ -63,6 +63,7 @@ both sides), and the next run of the same call finds it and plays it again
 they are serialized viba data, so what was stored can be read and checked.
 """
 
+import inspect
 import os
 import tempfile
 import uuid
@@ -165,7 +166,7 @@ class EnvironmentCompute:
 class Environment:
     """Storage, compute and the module search path, and the children under it."""
 
-    __slots__ = ("storage", "compute", "viba_path")
+    __slots__ = ("storage", "compute", "viba_path", "sub_env", "tmp_sub_env")
 
     def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute,
                  viba_path=None):
@@ -176,24 +177,30 @@ class Environment:
         # own imports are looked up where that environment says — which is how a
         # sub-environment keeps the parent's search path along with its compute.
         self.viba_path = viba_path
+        # The members a design hangs off the environment are plain functions of
+        # the environment itself: nothing is bound to the one they were read
+        # from, so `environ.sub_env << environ << "child"` and
+        # `$sub_env << environ << "child"` are the same call (viba-interpreter.md).
+        self.sub_env = sub_env
+        self.tmp_sub_env = tmp_sub_env
 
-    def sub_env(self, name) -> "Environment":
-        """A child environment: its own storage, the parent's compute.
 
-        `name` is what the viba side wrote: a material node lands as the leaf
-        it carries, so `environ.sub_env << "add_demo"` names the module.
-        The same name is the same child, handed back again.
-        """
-        if isinstance(name, VibaNode):
-            name = name.value
-        return Environment(self.storage.sub(str(name)), self.compute, self.viba_path)
+def sub_env(environ: "Environment", name) -> "Environment":
+    """A child environment: its own storage, the parent's compute.
 
-    def tmp_sub_env(self, ignored=None) -> "Environment":
-        """A child environment under a name of its own, fresh every time:
-        `environ.tmp_sub_env << ()` — no name to pick, and no two calls share a
-        storage path. The written argument is ignored; it is there because a
-        call gives one, and `()` is the way to write "nothing"."""
-        return Environment(self.storage.tmp(), self.compute, self.viba_path)
+    `name` is what the viba side wrote: a material node lands as the leaf it
+    carries, so `environ.sub_env << environ << "add_demo"` names the module. The
+    same name is the same child, handed back again.
+    """
+    if isinstance(name, VibaNode):
+        name = name.value
+    return Environment(environ.storage.sub(str(name)), environ.compute, environ.viba_path)
+
+
+def tmp_sub_env(environ: "Environment") -> "Environment":
+    """A child environment under a name of its own, fresh every time: no name to
+    pick, and no two calls share a storage path."""
+    return Environment(environ.storage.tmp(), environ.compute, environ.viba_path)
 
 
 # ----------------------------------------------------------------------
@@ -384,6 +391,21 @@ class _Host:
 
     def __init__(self, obj):
         self.obj = obj
+
+
+class _Member:
+    """`$tag` at the head of a chain: the member `$tag` of the value given first.
+
+    The chain gives that value first (`$sub_env << environ << "c"`), and giving
+    it is what takes the member: the first argument is never an argument of the
+    member itself. A tag is not a value, so this only ever stands at the head of
+    a chain and is gone as soon as the chain has run (viba-interpreter.md).
+    """
+
+    __slots__ = ("tag",)
+
+    def __init__(self, tag):
+        self.tag = tag
 
 
 class _Given:
@@ -733,7 +755,7 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     if path in runner.used_paths:
         return VibaProgramErr(f"module {name!r} was handed the storage path {path!r}, which "
                    f"another module call already used: give each module call a "
-                   f"sub-environment of its own (environ.sub_env << ...)")
+                   f"sub-environment of its own (environ.sub_env << environ << ...)")
     runner.used_paths.add(path)
     runner.running.append(name)
     try:
@@ -1069,11 +1091,42 @@ class _Activation:
                 reflect_access, descriptor_of(AstNodeType(node, home)), node)))
         return self._defined(name, definition)
 
+    def _take_member(self, member, value):
+        """The member `$tag` of the value the chain gave first.
+
+        An environment hands over the function it hangs off itself — the same
+        thing `environ.sub_env` reads, only reached from the value the chain was
+        given. A product hands over the piece its tag addresses. Anything else
+        keeps no members here.
+        """
+        tag = member.tag
+        name = tag[1:]
+        if _is_environ_value(value):
+            attributed = getattr(value.obj, name, None)
+            if not callable(attributed):
+                return VibaProgramErr(f"the environment has no {name!r}")
+            # The value the member is taken from is also what the member is
+            # given first: `$sub_env << environ << "child"` is
+            # `environ.sub_env << environ << "child"`.
+            return Ok(_HostFunction(name, attributed,
+                                    slots=_required_arguments(attributed),
+                                    given=[value.obj],
+                                    module_path=_storage_path(value.obj)))
+        if isinstance(value, _Material):
+            for factor in _material_factors(value.node):
+                if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
+                    inner = factor.type       # the member's value, not its address
+                    return Ok(_Material(VibaNode(
+                        reflect_access,
+                        descriptor_of(AstNodeType(inner, self.module)), inner)))
+            return VibaProgramErr(f"no member tagged {tag!r} to take from it")
+        return VibaProgramErr(f"{type(value).__name__} has no member tagged {tag!r}")
+
     def _environ_member(self, rest: str):
         member = getattr(self.environ, rest, None)
         if not callable(member):
             return VibaProgramErr(f"the environment has no {rest!r}")
-        return Ok(_HostFunction(rest, member, slots=1,
+        return Ok(_HostFunction(rest, member, slots=_required_arguments(member),
                                 module_path=_storage_path(self.environ)))
 
     # ---- calls ----
@@ -1100,6 +1153,12 @@ class _Activation:
                 return value
             if value.ok_value is None:
                 continue                        # documentation is no argument
+            if isinstance(current, _Member):
+                current = self._take_member(current, value.ok_value.value)
+                if _stopped(current):
+                    return current
+                current = current.ok_value
+                continue
             if isinstance(current, _Pending):
                 current = current.give(value.ok_value.tag, value.ok_value.value)
             else:
@@ -1109,6 +1168,12 @@ class _Activation:
             current = current.ok_value
         if isinstance(current, _Pending):
             return self._finish(current)
+        if isinstance(current, _HostFunction):
+            if current.filled():
+                return current.run()
+            return VibaProgramErr(
+                f"environ.{current.name} was given {len(current.given)} of its "
+                f"{current.slots} arguments")
         return Ok(current)
 
     def _argument_is_by_need(self, current, argument):
@@ -1143,6 +1208,8 @@ class _Activation:
         """
         head, arguments = _call_parts(node)
         while True:
+            if isinstance(head, viba_ast.Member):
+                return Ok(_Member(head.tag)), arguments
             if isinstance(head, viba_ast.TypeRef):
                 # None 是"这个名字不是一次调用"，不是"停下了"：停下只有 Result 能表达。
                 target = self._call_target(head, scope)
@@ -1283,6 +1350,23 @@ def _host_give(function, item):
     return VibaProgramErr(f"{type(function).__name__} is not a function")
 
 
+def _required_arguments(func) -> int:
+    """How many arguments a host callable insists on.
+
+    A member whose parameter is the empty product is called with no argument at
+    all; a callable that cannot be read is taken to insist on one, the way every
+    environment member used to.
+    """
+    try:
+        parameters = inspect.signature(func).parameters.values()
+    except (TypeError, ValueError):
+        return 1
+    return sum(1 for parameter in parameters
+               if parameter.default is inspect.Parameter.empty
+               and parameter.kind in (parameter.POSITIONAL_ONLY,
+                                      parameter.POSITIONAL_OR_KEYWORD))
+
+
 def _is_environ_value(value) -> bool:
     """Whether this value is an environment — giving one is what execution is."""
     return isinstance(value, _Host) and isinstance(value.obj, Environment)
@@ -1314,7 +1398,7 @@ class _Pending:
         self.written = written               # 写出来的样子：给人和闭包用
         self.name = name or written          # 定义名：宿主按这个名字找实现
         self.module = module                 # 参数声明在哪个模块：核对类型用
-        self.home = home or module           # 这次调用写在哪个模块：写回材料用
+        self.home = home or module           # 这次调用写在哪个模块：写回可序列化数据用
         self.elements = list(elements)       # 各参数，按书写顺序
         self.runner = runner                 # 模块：谁来跑它
         self.module_name = module_name
@@ -1446,7 +1530,7 @@ class _Pending:
         inner = self.slot_by_need(index)
         if inner is not None and isinstance(value, _Getter):
             # 按需：这个参数收的是"要用的时候再来拿"的东西，所以核类型也要等它被拿出来
-            # 的时候（`_Getter.watch`），而它本身不是材料——链走完还没执行就存不下来。
+            # 的时候（`_Getter.watch`），而它本身不是可序列化数据——链走完还没执行就存不下来。
             tag_name = self.slots[index]
             value.watch(viba_ast.Tagged(tag_name, inner) if tag_name else inner,
                         self.module, self.written)
@@ -1649,12 +1733,23 @@ class _HostFunction:
         self.given = list(given or [])
         self.module_path = module_path
 
+    def filled(self) -> bool:
+        """Whether every argument it asked for is in."""
+        return len(self.given) >= self.slots
+
+    def run(self):
+        """Run it: a chain that ends with every argument in makes the call."""
+        return self._call(self.given)
+
     def give(self, item):
         values = self.given + [_argument_value(item.value)]
-        step = Step(self.module_path, f"environ.{self.name}")
         if len(values) < self.slots:
             return Ok(_HostFunction(self.name, self.func, self.slots, values,
                                     self.module_path))
+        return self._call(values)
+
+    def _call(self, values):
+        step = Step(self.module_path, f"environ.{self.name}")
         try:
             answer = self.func(*values)
         except NotMyDutyException as deferred:

@@ -5,4 +5,4 @@ x_of =
   <- { the x of that point }
 
 h = x_of << $p ($x 2 * $y 5)
-__ret__ = h << (environ.tmp_sub_env << ())
+__ret__ = h << (environ.tmp_sub_env << environ)

@@ -70,7 +70,7 @@ def environ_for(calls, store):
 #   ("value", 叶子)   Ok，且叶子是这个值
 #   ("ok", None)      Ok，叶子是什么不管
 #   ("len", n)        Ok，答案是元组且长度是 n
-#   ("tags", {...})   Ok，答案是材料，这些 tag 的叶子各是这些值
+#   ("tags", {...})   Ok，答案是可序列化数据，这些 tag 的叶子各是这些值
 #   ("error", 片段)   VibaProgramErr，话里含这个片段
 #   ("defer", None)   递延
 #   ("fail", 片段)    UnderlyingVibaOpFailed，话里含这个片段

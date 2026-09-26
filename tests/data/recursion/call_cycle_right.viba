@@ -1,2 +1,2 @@
 import call_cycle_left
-__ret__ = call_cycle_left << (environ.sub_env << "left") << ()
+__ret__ = call_cycle_left << (environ.sub_env << environ << "left") << ()

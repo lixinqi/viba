@@ -92,6 +92,11 @@ def _emit_closure(access: VibaAccess, node: VibaNode):
     that is already computed.
     """
     head, arguments = _call_parts(node.data)
+    if not isinstance(head, viba_ast.TypeRef):
+        # A chain headed by `$tag` is the same call, but the tag is no name to
+        # write back through a builder; the value layer keeps such a chain as a
+        # call in progress, not as material.
+        raise SerializeGap("a chain headed by a member has no written form here")
     expression = getattr(_NAMES, head.name)
     for argument in arguments:
         expression = expression << _emit(access, _bare(argument, access))

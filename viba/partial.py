@@ -164,6 +164,8 @@ def reduce_partial(node, module, resolve: Callable, judge: Callable) -> Tuple[ob
 
 
 def _give(base, module, argument, argument_module, resolve, judge):
+    if isinstance(base, viba_ast.Member):
+        return _member_of(base.tag, argument, argument_module, resolve, judge)
     base, module = _unfold(base, module, resolve)
     if not isinstance(base, _EXP_NODES):
         raise PartialError(
@@ -179,6 +181,34 @@ def _give(base, module, argument, argument_module, resolve, judge):
                 return rest[0], module
             return viba_ast.ExponentChain(rest), module
     raise PartialError(f"the function has no such argument: {_written(argument)}")
+
+
+def _member_of(tag, owner, owner_module, resolve, judge):
+    """(type, home) of the `$tag` member of the value a chain gave first, given
+    that value.
+
+    `$tag << X << a` is `X.tag << X << a`: X is the value the member is taken
+    from, and it is also what the member is given first — a member of an
+    environment is a plain function of the environment. So the member's own type
+    is reduced with X as its first argument, exactly as `X.tag << X` would be.
+    The value is read the way any design piece is read: a name runs to its body
+    (`environ` is `Environment`), and a product is its factors, one of which the
+    tag addresses. Reading no such member is a design mistake, like giving a
+    function an argument it does not have.
+    """
+    if isinstance(owner, viba_ast.Tagged):
+        owner = owner.type      # the tag addresses the argument; the value is inside
+    written, written_module = owner, owner_module
+    owner, owner_module = _unfold(owner, owner_module, resolve)
+    if isinstance(owner, (viba_ast.Product, viba_ast.ProductChain)):
+        for factor in product_elements(owner):
+            if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
+                base, home = _unfold(factor.type, owner_module, resolve)
+                return _give(base, home, written, written_module, resolve, judge)
+        raise PartialError(
+            f"no member tagged {tag!r} to take from {_written(owner)}")
+    raise PartialError(
+        f"{_written(owner)} is no value to take the member {tag!r} from")
 
 
 def _unfold(node, module, resolve):

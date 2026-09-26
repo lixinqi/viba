@@ -4,17 +4,18 @@
 # The environment a running module is handed (viba-interpreter.md). Read as
 # a type, `environ` is an Environment — that is what a module's `$env` slot
 # asks for; read as computation, it is the real environment. `Environment` is
-# a function of the sub-environment's name, which is how a module call hands
-# a module its own — `$viba_path` is where its imports are looked up, and a
-# child keeps the parent's — and `$tmp_sub_env` is the same thing under a name nobody
-# chose, fresh every call: `environ.tmp_sub_env << ()`. Its written argument
-# is ignored (a call gives one, and `()` is how "nothing" is written), so any
-# `()` does, and the type says so by writing `()`.
+# a plain function of the environment and the sub-environment's name, which is
+# how a module call hands a module its own — `$viba_path` is where its imports
+# are looked up, and a child keeps the parent's — and `$tmp_sub_env` is the same
+# thing under a name nobody chose, fresh every call. Both take the environment
+# as their first argument, so nothing is bound to the environment they came
+# from: `environ.sub_env << environ << "child"` is the same call as
+# `$sub_env << environ << "child"` (viba-interpreter.md).
 Environment =
     Object
   * $viba_path str
-  * $sub_env (Environment <- $sub_env_name str)
-  * $tmp_sub_env (Environment <- ())
+  * $sub_env (Environment <- $env Environment <- $sub_env_name str)
+  * $tmp_sub_env (Environment <- $env Environment)
 
 environ = Environment
 

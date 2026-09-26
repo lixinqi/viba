@@ -1,0 +1,2 @@
+# The dotted reading the tag form stands for: the environment is written out.
+__ret__ = environ.sub_env << environ << "child"

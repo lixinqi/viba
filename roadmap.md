@@ -64,8 +64,8 @@ viba 把三类交流翻译成同一种语言——类型。它自己只是个转
 
 **二、路由键是 storage 路径，不是函数名。** 宿主拿到的是 `get_func(module_path, func_name)`，其中 `module_path` 就是这次调用所在环境的路径：同一个 `distance` 出现在 `root/case_1230` 下和在 `root/case_9999` 下，是两件不同的工单。由此有三条读法：
 
-- `environ.sub_env << "名字"` 在这个语境里该读成一张**租约**：谁拿着这个案子，谁写这个子路径；
-- `environ.tmp_sub_env << ()` 是本体里现成的"**别缓存**"标记：就地算完就算完，不产生交接件；
+- `environ.sub_env << environ << "名字"` 在这个语境里该读成一张**租约**：谁拿着这个案子，谁写这个子路径；
+- `environ.tmp_sub_env << environ` 是本体里现成的"**别缓存**"标记：就地算完就算完，不产生交接件；
 - "两次模块调用不许同用一条路径"那条错，在分布式里说的是**身份**——同一条路径上两个系统同时写，就是丢更新。
 
 **三、能过界的只有实例。** 宿主对象（environment、实例句柄）过不了任何序列化边界，而每个可执行函数都带 `$env Environment`。所以递延的边界必须落在**参数全是实例**的叶子上，接收方**自己造**它那一侧的 environment——这恰好就是"每门语言各有自己的 `interpret`"的含义：环境是局部的，不随工单走。要让工单自足，地址本身也得是本体可见的实例：`$viba_path` 已经是 [`viba/builtin.viba`](viba/builtin.viba) 里 `Environment` 的一个 str 成员，storage 路径目前还只在宿主侧。

@@ -1,0 +1,3 @@
+# Giving the first argument by tag is the same thing, and the member's own
+# argument is addressed by its tag as usual.
+__ret__ = $sub_env << $env environ << $sub_env_name "kid"

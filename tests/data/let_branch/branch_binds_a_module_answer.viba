@@ -6,7 +6,7 @@ __ret__ =
       branch.id_or_never
       << $env environ
       << $condition true
-      << $v (got := answer << (environ.tmp_sub_env << ()) << ()  got)
+      << $v (got := answer << (environ.tmp_sub_env << environ) << ()  got)
     )
   | (
       branch.never_or_id

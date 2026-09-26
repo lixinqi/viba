@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import ADD, CASES, LEAF, TEXT, Checks, Host, value_of, write
 
-from viba.interpret import interpret
+from viba.interpret import interpret, sub_env, tmp_sub_env
 from viba.type import VibaProgramErr, Ok
 
 checks = Checks("interpreter_imports")
@@ -58,7 +58,7 @@ def _names(tmp: Path):
     write(tmp, "plain.viba", LEAF + "__ret__ = leaf << $env environ\n")
     plain = write(tmp, "plain_user.viba", """
 import plain
-__ret__ = plain << (environ.sub_env << "plain") << ()
+__ret__ = plain << (environ.sub_env << environ << "plain") << ()
 """)
     result = interpret(plain, environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
@@ -73,7 +73,7 @@ __ret__ = plain << (environ.sub_env << "plain") << ()
 
     # import 写在定义之后也算
     late = write(tmp, "late_import.viba",
-                 "__ret__ = plain << (environ.sub_env << \"plain\") << ()\n"
+                 "__ret__ = plain << (environ.sub_env << environ << \"plain\") << ()\n"
                  "import plain\n")
     result = interpret(late, environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
@@ -100,13 +100,13 @@ def _paths(tmp: Path):
 
     on_path = host.environ(viba_path=f"{first}:{second}")
     user = write(tmp, "uses_path.viba",
-                 "import lib as lib\n__ret__ = lib << (environ.sub_env << \"lib\") << ()\n")
+                 "import lib as lib\n__ret__ = lib << (environ.sub_env << environ << \"lib\") << ()\n")
     result = interpret(user, on_path)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"the first directory on VIBA_PATH wins: {result!r}")
 
     near = write(second, "near.viba",
-                 "import lib as lib\n__ret__ = lib << (environ.sub_env << \"lib\") << ()\n")
+                 "import lib as lib\n__ret__ = lib << (environ.sub_env << environ << \"lib\") << ()\n")
     result = interpret(near, on_path)
     check(isinstance(result, Ok) and value_of(result) == "hi",
           f"a module next to the importer beats VIBA_PATH: {result!r}")
@@ -118,14 +118,14 @@ def _paths(tmp: Path):
     ragged = f":{first}:{tmp / 'missing'}::{flat}:"
     dotted = write(tmp, "dotted.viba",
                    "import pkg.inner\n"
-                   "__ret__ = pkg.inner << (environ.sub_env << \"inner\") << ()\n")
+                   "__ret__ = pkg.inner << (environ.sub_env << environ << \"inner\") << ()\n")
     result = interpret(dotted, host.environ(viba_path=ragged))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a dotted module found on VIBA_PATH, empty and missing entries skipped: {result!r}")
 
     aliased = write(tmp, "aliased.viba",
                     "import pkg.inner as inner\n"
-                    "__ret__ = inner << (environ.sub_env << \"inner\") << ()\n")
+                    "__ret__ = inner << (environ.sub_env << environ << \"inner\") << ()\n")
     result = interpret(aliased, host.environ(viba_path=ragged))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"the same module under an alias: {result!r}")
@@ -154,7 +154,7 @@ def _paths(tmp: Path):
     write(dotted_dir, "a/b/c.viba", "X = 2\n__ret__ = 2\n")
     both = write(tmp, "both_dotted.viba",
                  "import a.b\nimport a.b.c\n"
-                 "__ret__ = a.b.c << (environ.sub_env << \"c\") << ()\n")
+                 "__ret__ = a.b.c << (environ.sub_env << environ << \"c\") << ()\n")
     result = interpret(both, host.environ(viba_path=str(dotted_dir)))
     check(isinstance(result, Ok) and value_of(result) == 2,
           f"the longest import prefix wins: {result!r}")
@@ -165,7 +165,7 @@ def _paths(tmp: Path):
     write(flat_dir, "pkg.inner.viba", LEAF + "__ret__ = leaf << $env environ\n")
     flat_use = write(tmp, "flat_dotted.viba",
                      "import pkg.inner\n"
-                     "__ret__ = pkg.inner << (environ.sub_env << \"inner\") << ()\n")
+                     "__ret__ = pkg.inner << (environ.sub_env << environ << \"inner\") << ()\n")
     result = interpret(flat_use, host.environ(viba_path=str(flat_dir)))
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a dotted import that is one file named pkg.inner.viba: {result!r}")
@@ -193,13 +193,13 @@ def _paths(tmp: Path):
         name = f"leaf{level}"
         write(depth, f"{name}.viba",
               f"import {previous} as down\n"
-              f"__ret__ = down << (environ.sub_env << \"{previous}\") << ()\n")
+              f"__ret__ = down << (environ.sub_env << environ << \"{previous}\") << ()\n")
         previous = name
     result = interpret(str(depth / "leaf1.viba"), environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a five-deep import chain: {result!r}")
-    check(on_path.sub_env("child").viba_path == on_path.viba_path and
-          on_path.tmp_sub_env().viba_path == on_path.viba_path,
+    check(sub_env(on_path, "child").viba_path == on_path.viba_path and
+          tmp_sub_env(on_path).viba_path == on_path.viba_path,
           "a child environment keeps the parent's module search path")
 
 
@@ -210,7 +210,7 @@ def _virtual_files(tmp: Path):
 
     files = {
         "/vfs/main.viba": ("import pkg.inner\n"
-                           "__ret__ = pkg.inner << (environ.sub_env << \"inner\") << ()\n"),
+                           "__ret__ = pkg.inner << (environ.sub_env << environ << \"inner\") << ()\n"),
         "/vfs/pkg/inner.viba": LEAF + "__ret__ = leaf << $env environ\n",
     }
     asked = []
@@ -244,8 +244,8 @@ def _virtual_files(tmp: Path):
     lib_path = "/vfs/lib.viba"
     files[twice] = ADD + ("import lib as one\nimport lib as two\n"
                           "__ret__ = add << $env environ"
-                          " << $a (one << (environ.sub_env << \"one\") << ())"
-                          " << $b (two << (environ.sub_env << \"two\") << ())\n")
+                          " << $a (one << (environ.sub_env << environ << \"one\") << ())"
+                          " << $b (two << (environ.sub_env << environ << \"two\") << ())\n")
     files[lib_path] = LEAF + "__ret__ = leaf << $env environ\n"
     result = interpret(twice, environ, get_file=get_file)
     check(isinstance(result, Ok) and value_of(result) == 14 and
@@ -340,13 +340,13 @@ def _compiled_once(tmp: Path):
 
     write(tmp, "shared.viba", LEAF + "__ret__ = leaf << $env environ\n")
     write(tmp, "left.viba",
-          "import shared as s\n__ret__ = s << (environ.sub_env << \"s\") << ()\n")
+          "import shared as s\n__ret__ = s << (environ.sub_env << environ << \"s\") << ()\n")
     write(tmp, "right.viba",
-          "import shared as r\n__ret__ = r << (environ.sub_env << \"r\") << ()\n")
+          "import shared as r\n__ret__ = r << (environ.sub_env << environ << \"r\") << ()\n")
     top = write(tmp, "top.viba", ADD + """
 import left as l
 import right as r
-__ret__ = add << $env environ << $a (l << (environ.sub_env << "l") << ()) << $b (r << (environ.sub_env << "r") << ())
+__ret__ = add << $env environ << $a (l << (environ.sub_env << environ << "l") << ()) << $b (r << (environ.sub_env << environ << "r") << ())
 """)
 
     parsed = []

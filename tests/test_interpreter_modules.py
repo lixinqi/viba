@@ -46,7 +46,7 @@ def _deferral(tmp: Path):
           ADD + "__ret__ = add << $env environ << $a 1 << $b 2\n")
     outer = write(tmp, "deferred_outer.viba", """
 import deferred_module as inner
-__ret__ = inner << (environ.sub_env << "deferred_module") << ()
+__ret__ = inner << (environ.sub_env << environ << "deferred_module") << ()
 """)
 
     host.knobs["missing"] = ("add",)
@@ -117,7 +117,7 @@ def _nested_modules(tmp: Path):
     write(tmp, "inner.viba", ADD + "__ret__ = add << $env environ << $a 1 << $b 2\n")
     outer = write(tmp, "outer.viba", """
 import inner as inner
-__ret__ = inner << (environ.sub_env << "inner") << ()
+__ret__ = inner << (environ.sub_env << environ << "inner") << ()
 """)
     result = interpret(outer, environ)
     check(isinstance(result, Ok) and value_of(result) == 3,
@@ -134,7 +134,7 @@ __ret__ = join << $env environ << $a "a" << $b "b"
 """)
     dotted = write(tmp, "dotted.viba", """
 import pkg.mod as mod
-__ret__ = mod << (environ.sub_env << "mod") << ()
+__ret__ = mod << (environ.sub_env << environ << "mod") << ()
 """)
     result = interpret(dotted, environ)
     check(isinstance(result, Ok) and value_of(result) == "ab",
@@ -143,7 +143,7 @@ __ret__ = mod << (environ.sub_env << "mod") << ()
     write(tmp, "design_only.viba", "Only = $x int\n")
     design = write(tmp, "use_design.viba", """
 import design_only as d
-__ret__ = d << (environ.sub_env << "d") << ()
+__ret__ = d << (environ.sub_env << environ << "d") << ()
 """)
     labelled(interpret(design, environ), "has no __ret__",
              "calling a module that is design only -> VibaProgramErr")
@@ -159,8 +159,8 @@ __ret__ = d << (environ.sub_env << "d") << ()
     twice_module = write(tmp, "twice_module.viba", ADD + """
 import late_lib as lib
 __ret__ = add << $env environ
-  << $a (lib << (environ.sub_env << "first") << ())
-  << $b (lib << (environ.sub_env << "second") << ())
+  << $a (lib << (environ.sub_env << environ << "first") << ())
+  << $b (lib << (environ.sub_env << environ << "second") << ())
 """)
     result = interpret(twice_module, environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
@@ -180,9 +180,9 @@ def _cycles(tmp: Path):
              "a module that calls itself -> VibaProgramErr")
 
     write(tmp, "cycle_a.viba",
-          "import cycle_b as b\n__ret__ = b << (environ.sub_env << \"b\") << ()\n")
+          "import cycle_b as b\n__ret__ = b << (environ.sub_env << environ << \"b\") << ()\n")
     write(tmp, "cycle_b.viba",
-          "import cycle_a as a\n__ret__ = a << (environ.sub_env << \"a\") << ()\n")
+          "import cycle_a as a\n__ret__ = a << (environ.sub_env << environ << \"a\") << ()\n")
     labelled(interpret(str(tmp / "cycle_a.viba"), environ), "already running",
              "a module call cycle A->B->A -> VibaProgramErr")
 
@@ -203,8 +203,8 @@ def _storage_paths(tmp: Path):
     repeated = write(tmp, "repeated_path.viba", ADD + """
 import lib as lib
 __ret__ = add << $env environ
-  << $a (lib << (environ.sub_env << "one") << ())
-  << $b (lib << (environ.sub_env << "one") << ())
+  << $a (lib << (environ.sub_env << environ << "one") << ())
+  << $b (lib << (environ.sub_env << environ << "one") << ())
 """)
     labelled(interpret(repeated, environ), "storage path",
              "two calls to one storage path -> VibaProgramErr")
@@ -215,8 +215,8 @@ __ret__ = add << $env environ
 import lib as one
 import other as two
 __ret__ = add << $env environ
-  << $a (one << (environ.sub_env << "m") << ())
-  << $b (two << (environ.sub_env << "m") << ())
+  << $a (one << (environ.sub_env << environ << "m") << ())
+  << $b (two << (environ.sub_env << environ << "m") << ())
 """)
     labelled(interpret(two_modules, environ), "storage path",
              "two modules under one storage path -> VibaProgramErr")
@@ -227,8 +227,8 @@ __ret__ = add << $env environ
 import lib as one
 import other as two
 __ret__ = add << $env environ
-  << $a (one << (environ.sub_env << "one") << ())
-  << $b (two << (environ.sub_env << "two") << ())
+  << $a (one << (environ.sub_env << environ << "one") << ())
+  << $b (two << (environ.sub_env << environ << "two") << ())
 """)
     result = interpret(two_names, environ)
     check(isinstance(result, Ok) and value_of(result) == 14,

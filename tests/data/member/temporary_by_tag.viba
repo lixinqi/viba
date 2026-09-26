@@ -1,0 +1,3 @@
+# The tag names the member, and the value it is taken from is also what the member
+# is given first: `$tmp_sub_env << environ` is `environ.tmp_sub_env << environ`.
+__ret__ = $tmp_sub_env << environ

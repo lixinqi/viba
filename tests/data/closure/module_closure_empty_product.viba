@@ -1,4 +1,4 @@
 import zero_lib
 
 sg = zero_lib << ()
-__ret__ = sg << (environ.tmp_sub_env << ())
+__ret__ = sg << (environ.tmp_sub_env << environ)

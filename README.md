@@ -25,7 +25,8 @@ generic_definition : CLASS_NAME LBRACKET CLASS_NAME type_param_list RBRACKET ASS
 type_param_list : COMMA CLASS_NAME type_param_list | (empty)
 import_stmt : IMPORT CLASS_NAME optional_alias
 optional_alias : AS CLASS_NAME | (empty)
-partial_expr : partial_expr APPLY_OP adt_expr | adt_expr
+partial_expr : partial_expr APPLY_OP adt_expr | member_head APPLY_OP adt_expr | adt_expr
+member_head : TAGGED_CLASS_NAME
 adt_expr : adt_expr SUM_OP product_expr | product_expr
 product_expr : product_expr PROD_OP exponent_expr | exponent_expr
 exponent_expr : exponent_expr EXP_OP unary_expr | unary_expr
@@ -221,7 +222,7 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
 ```viba
 import add_demo as demo
 
-__ret__ = demo << (environ.sub_env << "add_demo") << ()
+__ret__ = demo << (environ.sub_env << environ << "add_demo") << ()
 ```
 
 A module is called with the environment it should run under, and then with its
@@ -231,10 +232,10 @@ using the same path twice is a `VibaProgramErr` that spells the fix out:
 
 ```
 VibaProgramErr("module 'add_demo' was handed the storage path 'root', which another module call
-already used: give each module call a sub-environment of its own (environ.sub_env << ...)")
+already used: give each module call a sub-environment of its own (environ.sub_env << environ << ...)")
 ```
 
-`environ.sub_env << "name"` hands back the same child whenever that name is asked
+`environ.sub_env << environ << "name"` hands back the same child whenever that name is asked
 for, so calling one module twice means choosing two names; `environ.tmp_sub_env
 << ()` is for the calls that need no name, and hands out a fresh child every
 time. Where an `import` is looked for is the environment's business: next to the

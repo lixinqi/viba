@@ -1,0 +1,2 @@
+# The first argument may itself be a call: a child of a child.
+__ret__ = $sub_env << ($sub_env << environ << "a") << "b"

@@ -1,4 +1,4 @@
 import square_sum
 
 sg = square_sum << $b 4 << $a 3
-__ret__ = sg << (environ.tmp_sub_env << ())
+__ret__ = sg << (environ.tmp_sub_env << environ)

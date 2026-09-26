@@ -28,6 +28,7 @@ from viba.viba_ast.nodes import (
     Exponent,
     Partial,
     Tagged,
+    Member,
     TypeApp,
     Tuple,
     TypeRef,
@@ -282,11 +283,20 @@ def check_definition_names(definitions) -> None:
 
 def p_partial_expr(p):
     """partial_expr : partial_expr APPLY_OP adt_expr
+    | member_head APPLY_OP adt_expr
     | adt_expr"""
     if len(p) == 4:
         p[0] = Partial(p[1], p[3])
     else:
         p[0] = p[1]
+
+
+# `$tag << X << a` is `X.tag << a`: the tag heads a chain and names a member of
+# the first argument, which is why it is a production of its own — a bare `$tag`
+# is no value, and no rule spells one.
+def p_member_head(p):
+    """member_head : TAGGED_CLASS_NAME"""
+    p[0] = Member(p[1])
 
 
 def p_type_definition(p):
@@ -526,6 +536,7 @@ GRAMMAR_ORDER = (
     "import_stmt",
     "optional_alias",
     "partial_expr",
+    "member_head",
     "adt_expr",
     "product_expr",
     "exponent_expr",

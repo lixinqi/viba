@@ -2,7 +2,7 @@ add =
     int <- $env Environment <- $a int <- $b int <- { add the two }
 import let_inner as let_inner
 A = (
-  v := let_inner << (environ.tmp_sub_env << ()) << ()
+  v := let_inner << (environ.tmp_sub_env << environ) << ()
   add << $env environ << $a v << $b 1
 )
 __ret__ = A

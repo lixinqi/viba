@@ -282,7 +282,7 @@ def _check_errors():
                 "X[T] = (T := int  T)\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "binding.viba", "binding"),
                           VibaProgramErr), bad
-    # 材料里也不跑表达式，所以材料里同样放不进去
+    # 可序列化数据里也不跑表达式，所以可序列化数据里同样放不进去
     assert isinstance(parse_viba_file(empty_pool(), "X = $field (p := 7  p)\n",
                                       "material.viba", "material"), VibaProgramErr)
     # 不是模块的东西：问它要名字，说的是"不认识这种模块"，不是崩

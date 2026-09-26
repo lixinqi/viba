@@ -105,6 +105,17 @@ class Tagged(AST):
     _fields = ("tag", "type")
 
 
+class Member(AST):
+    """$tag at the head of a chain: the member `$tag` of the first argument.
+
+    `$tag << X << a` is `X.tag << a`: X is the value the member is taken from,
+    and the chain always gives it first. The tag is not a value — there is no
+    node for a bare `$tag` — so a member never stands alone (viba-interpreter.md).
+    """
+
+    _fields = ("tag",)
+
+
 class TypeApp(AST):
     """Constructor[Arg, ...]"""
 

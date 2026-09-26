@@ -12,4 +12,4 @@ show =
 
 inner = add << $a 40
 outer = show << $f inner
-__ret__ = outer << (environ.tmp_sub_env << ())
+__ret__ = outer << (environ.tmp_sub_env << environ)

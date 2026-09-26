@@ -1227,6 +1227,42 @@ run_inline_cycle_guard_cases()
 run_cross_module_inline_cases()
 run_module_as_function_cases()
 run_function_chain_cases()
+def run_member_head_cases():
+    """`$tag << X << …` 在判定层：tag 命中的是第一个参数的成员。
+
+    第一个参数是取成员的那个值，所以它的类型决定成员是谁；成员不在、或者第一个参数根本不是那个
+    值，都在这里拒绝，不留到运行时。
+    """
+    child = 'X = $sub_env << environ << "c"\n'
+    check_result(is_sub_type(load_entry(child), load_entry("X = Environment\n")),
+                 True, "taking $sub_env off the environment names a child")
+    check_result(is_sub_type(load_entry(child), load_entry("X = int\n")),
+                 False, "and not an int")
+    check_result(is_sub_type(load_entry('X = $tmp_sub_env << environ\n'),
+                             load_entry("X = Environment\n")),
+                 True, "a member that takes no argument is read as its result")
+    check_result(is_sub_type(load_entry('X = $sub_env << $env environ << $sub_env_name "c"\n'),
+                             load_entry("X = Environment\n")),
+                 True, "the first argument may be written by tag")
+    check_result(is_sub_type(load_entry('X = $sub_env << environ\n'),
+                             load_entry("X = Environment <- $sub_env_name str\n")),
+                 True, "giving no name leaves the member itself")
+
+    # 非法：成员不在，第一个参数不是有那个成员的值，或者给成员的实参装不下
+    for bad in ('X = $nope << environ',
+                'X = $sub_env << $sub_env_name "kid"',
+                'X = $sub_env << 7',
+                'X = environ.tmp_sub_env << nil'):
+        check_result(is_sub_type(load_entry(bad + "\n"),
+                                 load_entry("X = Environment\n")),
+                     "error", f"{bad} is a design mistake")
+
+    # 废止的那种写法：只给名字，环境没给，当场说它装不进 `$env Environment`
+    check_result(is_sub_type(load_entry('X = environ.sub_env << "child"\n'),
+                             load_entry("X = Environment\n")),
+                 "error", "the spelling without the environment does not hold")
+
+
 run_config_cases()
 run_never_head_cases()
 run_code_block_cases()
@@ -1237,6 +1273,7 @@ run_type_object_cases()
 run_binding_definition_cases()
 run_by_need_cases()
 run_module_args_cases()
+run_member_head_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

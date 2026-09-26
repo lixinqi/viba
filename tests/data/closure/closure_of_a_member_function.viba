@@ -1,4 +1,4 @@
 import tools
 
 h = tools.inc << $x 41
-__ret__ = h << (environ.tmp_sub_env << ())
+__ret__ = h << (environ.tmp_sub_env << environ)

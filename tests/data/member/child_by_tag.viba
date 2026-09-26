@@ -1,0 +1,4 @@
+# `$sub_env << environ << "child"` is `environ.sub_env << environ << "child"`: the tag
+# names a member of the first argument, and that value is given to the member first —
+# a member of an environment is a plain function of the environment.
+__ret__ = $sub_env << environ << "child"

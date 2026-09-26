@@ -4,5 +4,5 @@ takes =
   <- $x Environment
   <- { where that is }
 
-bad = takes << $x (environ.tmp_sub_env << ())
+bad = takes << $x (environ.tmp_sub_env << environ)
 __ret__ = bad

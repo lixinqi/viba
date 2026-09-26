@@ -5,8 +5,8 @@ add =
   <- $b int
   <- { add the two }
 half = add << $a 40
-first = half << $b 1 << (environ.sub_env << "one")
+first = half << $b 1 << (environ.sub_env << environ << "one")
 __ret__ = add
-  << (environ.sub_env << "two")
+  << (environ.sub_env << environ << "two")
   << $a first
-  << $b (half << $b 2 << (environ.sub_env << "three"))
+  << $b (half << $b 2 << (environ.sub_env << environ << "three"))

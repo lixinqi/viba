@@ -164,9 +164,9 @@ roll =
 __ret__ = roll << $env environ << $n 1
 """)
     named = write(tmp, "dice_named.viba",
-                  "import dice as d\n__ret__ = d << (environ.sub_env << \"dice\") << ()\n")
+                  "import dice as d\n__ret__ = d << (environ.sub_env << environ << \"dice\") << ()\n")
     temporary = write(tmp, "dice_tmp.viba",
-                      "import dice as d\n__ret__ = d << (environ.tmp_sub_env << ()) << ()\n")
+                      "import dice as d\n__ret__ = d << (environ.tmp_sub_env << environ) << ()\n")
 
     def fresh_environ():
         return Environment(EnvironmentStorage("root", None, str(store)), compute)

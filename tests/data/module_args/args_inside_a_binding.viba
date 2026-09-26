@@ -3,5 +3,5 @@ import square_sum as square_sum
 __ret__ =
   (
     side := 1
-    square_sum << (environ.tmp_sub_env << ()) << side << 4
+    square_sum << (environ.tmp_sub_env << environ) << side << 4
   )

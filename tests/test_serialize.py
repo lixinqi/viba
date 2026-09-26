@@ -1,6 +1,6 @@
 """viba.serialize 的验收：写出来、读得回来、是居民。
 
-每个用例都做三件事：把材料写成源码；用同一个设计把源码当材料读回来，逐地址比
+每个用例都做三件事：把可序列化数据写成源码；用同一个设计把源码当可序列化数据读回来，逐地址比
 叶子；把写出来的体判成那个定义体的子类型。
 
     python3 tests/test_serialize.py
@@ -67,7 +67,7 @@ def _round_trip(label, definition, access, node, design_source, design_name,
                    if after.get(address, "<missing>") != value}
         check(not missing, f"{label}: every address reads the same leaf ({missing})")
     else:
-        # 材料把和式那一支写全了，写出来只剩值：地址少一跳，叶子还是那些。
+        # 可序列化数据把和式那一支写全了，写出来只剩值：地址少一跳，叶子还是那些。
         check(sorted(map(repr, before.values())) == sorted(map(repr, after.values())),
               f"{label}: the same leaves under either spelling ({before} vs {after})")
 
@@ -135,7 +135,7 @@ def _node(design, body):
 
 
 def run_fixture_cases():
-    """两份手搓的材料：一个 int/积/list 的报告，一个 list/set/dict 的节点。"""
+    """两份手搓的可序列化数据：一个 int/积/list 的报告，一个 list/set/dict 的节点。"""
     from viba.reflect import access
 
     pool, definition = _design(DEMO_DESIGN, "Report")
@@ -227,7 +227,7 @@ def run_set_order_cases():
 
 
 def run_exponent_cases():
-    """指数字段：按设计写 never <- $not_operand (...)，值从材料里拿。"""
+    """指数字段：按设计写 never <- $not_operand (...)，值从可序列化数据里拿。"""
     source = """Guard = Object * $no (never <- $not_operand Bad)
 Bad = $kill int | $steal int
 """
@@ -249,7 +249,7 @@ Bad = $kill int | $steal int
         out = written.ok_value
         check("<- $not_operand" in out and "never" in out,
               "exponent: written as never <- $not_operand (...)")
-        # 这份材料只带一支，写出来也只有一支；判成居民与否是材料自己的事
+        # 这份可序列化数据只带一支，写出来也只有一支；判成居民与否是可序列化数据自己的事
         _round_trip("exponent", definition, access, node, source, "Guard",
                     resident=False)
 
@@ -281,7 +281,7 @@ def _tagged(tag, body):
 
 
 def _corner(label, source, name, body, expect=None, resident=True, strict=True):
-    """同一个设计写一份材料：文本里有 expect，读得回来，还是居民。"""
+    """同一个设计写一份可序列化数据：文本里有 expect，读得回来，还是居民。"""
     from viba.reflect import access
     pool, definition = _design(source, name)
     rooted = access.root(definition, VibaData(body))
@@ -518,7 +518,7 @@ def run_gap_cases():
     check(isinstance(written, VibaProgramErr) and "no value here" in written.err_msg,
           f"gap: a tagged slot with no value and no nil is a VibaProgramErr ({written})")
 
-    # 材料本身是空的：设计里的那个地址上什么都没有，就写成 gap，不硬编
+    # 可序列化数据本身是空的：设计里的那个地址上什么都没有，就写成 gap，不硬编
     pool2, definition2 = _design("not[A] = never <- $not_operand A\n", "not")
     node2 = access.root(definition2, VibaData(viba_ast.Never())).ok_value
     written2 = serialize.serialize("entry", node2)
@@ -709,7 +709,7 @@ def run_type_matrix():
 
 
 def run_container_fills():
-    """容器填满：12 个元素、40 个键、30 个集合成员，顺序照材料。"""
+    """容器填满：12 个元素、40 个键、30 个集合成员，顺序照可序列化数据。"""
     twelve = [viba_ast.Constant(i) for i in range(12)]
     _corner("list of 12", "Box = Object * $a list[int]\n", "Box",
             _product(_tagged("$a", viba_ast.TypeApp("ListLiteral", twelve))),
@@ -788,7 +788,7 @@ def run_dict_key_gaps():
 
 
 def run_positional_gaps():
-    """材料缺了成员：头、中、尾，都不硬编。"""
+    """可序列化数据缺了成员：头、中、尾，都不硬编。"""
     for position in range(3):
         members = ["$a int", "$b int", "$c int"]
         present = [i for i in range(3) if i != position]
@@ -939,7 +939,7 @@ def run_name_alias_members():
 
 
 def run_name_gaps():
-    """名字背后的 never：材料里放什么都是 VibaProgramErr。"""
+    """名字背后的 never：可序列化数据里放什么都是 VibaProgramErr。"""
     for label, material in (("a value", viba_ast.Constant(1)),
                             ("never", viba_ast.Never())):
         _gap(f"gap never behind a name, material {label}",
@@ -990,7 +990,7 @@ def run_more_gap_corners():
 
 
 # ---------------------------------------------------------------------------
-# 再一轮：跨模块、环、材料本身怎么写、名字参数、和式的容器、指数字段实参、压力。
+# 再一轮：跨模块、环、可序列化数据本身怎么写、名字参数、和式的容器、指数字段实参、压力。
 # ---------------------------------------------------------------------------
 
 
@@ -1008,7 +1008,7 @@ def _pool(*files):
 
 def _corner_in(label, pool, full_name, body, expect=None, resident=True,
                strict=True, resident_source=None, resident_name=None):
-    """同一个池子里的定义写一份材料；居民那一判用本地拼法的等价设计来问。"""
+    """同一个池子里的定义写一份可序列化数据；居民那一判用本地拼法的等价设计来问。"""
     from viba.reflect import access
     found = pool_find_definition(pool, full_name)
     check(isinstance(found, Ok), f"{label}: the definition is in the pool ({found})")
@@ -1160,7 +1160,7 @@ def run_cycle_cases():
 
 
 def run_material_root_cases():
-    """材料本身不是一个产品：叶子、单个标签、和式、空链、nil。"""
+    """可序列化数据本身不是一个产品：叶子、单个标签、和式、空链、nil。"""
     def design():
         return _pool(("m.viba", "m", "Box = Object * $a int\n"))
 

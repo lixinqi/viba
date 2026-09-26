@@ -1,2 +1,2 @@
 import bad_args
-__ret__ = bad_args << (environ.tmp_sub_env << ()) << ()
+__ret__ = bad_args << (environ.tmp_sub_env << environ) << ()
