@@ -1,0 +1,8 @@
+x_of =
+    int
+  <- $env Environment
+  <- $p ($x int * $y int)
+  <- { the x of that point }
+
+h = x_of << $p ($x 2 * $y 5)
+__ret__ = h << (environ.tmp_sub_env << ())

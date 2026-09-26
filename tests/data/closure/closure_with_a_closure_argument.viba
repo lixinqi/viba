@@ -1,0 +1,15 @@
+add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { add the two }
+show =
+    int
+  <- $env Environment
+  <- $f (int <- $env Environment <- $b int)
+  <- { hand it back }
+
+inner = add << $a 40
+outer = show << $f inner
+__ret__ = outer << (environ.tmp_sub_env << ())

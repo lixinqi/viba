@@ -20,6 +20,7 @@ about it.
 from __future__ import annotations
 
 from viba import builder
+from viba import viba_ast
 from viba.reflect import VibaAccess, VibaNode, at_index, at_key
 from viba.type import VibaProgramErr, Ok, Result
 from viba.viba_type_descriptor import (
@@ -65,7 +66,42 @@ def serialize(name: str, node: VibaNode) -> Result:
     return Ok(str(vb))
 
 
+def _call_parts(node):
+    """A written call as (head, arguments in written order)."""
+    written = []
+    while isinstance(node, viba_ast.Partial):
+        written.append(node.argument)
+        node = node.function
+    return node, list(reversed(written))
+
+
+def _bare(piece, access: VibaAccess) -> VibaNode:
+    """One written piece as a node of its own: a closure keeps its arguments as
+    the material they already are, with no module to read them in."""
+    from viba.type import AstNodeType
+    from viba.viba_type_descriptor import descriptor_of
+    return VibaNode(access, descriptor_of(AstNodeType(piece, None)), piece)
+
+
+def _emit_closure(access: VibaAccess, node: VibaNode):
+    """A closure: a call whose environment has not been given.
+
+    The design reads such a node as the type it would have when executed, which
+    is not what the node holds — the node is the written chain itself. So the
+    spelling comes from that chain: the name at the head, then every argument
+    that is already computed.
+    """
+    head, arguments = _call_parts(node.data)
+    expression = getattr(_NAMES, head.name)
+    for argument in arguments:
+        expression = expression << _emit(access, _bare(argument, access))
+    return expression
+
+
 def _emit(access: VibaAccess, node: VibaNode):
+    data = getattr(node, "data", None)
+    if isinstance(data, viba_ast.Partial):
+        return _emit_closure(access, node)
     """This part of the material, as a builder expression.
 
     The value side is asked with the protocol's own cells, never by looking at

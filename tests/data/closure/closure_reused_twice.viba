@@ -1,0 +1,12 @@
+add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { add the two }
+half = add << $a 40
+first = half << $b 1 << (environ.sub_env << "one")
+__ret__ = add
+  << (environ.sub_env << "two")
+  << $a first
+  << $b (half << $b 2 << (environ.sub_env << "three"))

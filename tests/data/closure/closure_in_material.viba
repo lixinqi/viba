@@ -1,0 +1,7 @@
+add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { add the two }
+__ret__ = $f (add << $a 1)

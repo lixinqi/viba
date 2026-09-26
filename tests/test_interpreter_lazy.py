@@ -165,7 +165,7 @@ __ret__ = ignore_x << $env environ << $x (poison_no_implementation << $env envir
           f"an argument nobody asks for is not computed, so its missing "
           f"implementation never shows: {result!r}")
 
-    # 先给一半、再给另一半：惰性跟着走
+    # 标记过的函数没有闭包形态：它的实参不先算，存不下来，所以只能一次写完
     half = write(tmp, "half.viba", """
 ignore_x =
     ParametersLazyEvaluated[
@@ -175,16 +175,12 @@ ignore_x =
       <- { answer seven without looking at x }
     ]
 
-poison_no_implementation =
-    int <- $env Environment <- { nothing implements this }
-
 half = ignore_x << $env environ
-__ret__ = half << $x (poison_no_implementation << $env environ)
+__ret__ = half << $x 1
 """)
-    calls = []
-    result = interpret(half, environ_for(calls, tmp / "store-d"))
-    check(isinstance(result, Ok) and value_of(result) == 7,
-          f"a marked function stays lazy through a partial application: {result!r}")
+    labelled(interpret(half, environ_for([], tmp / "store-d")),
+             "was given 1 of its 2 arguments",
+             "a marked function is not stored half-way: a program error")
 
 
 def _a_branch_value_is_its_own_call(tmp: Path):
@@ -348,7 +344,7 @@ ge =
     bool <- $env Environment <- $x int <- $y int <- { x >= y }
 
 condition = ge << $env environ << $x 1 << $y 0
-__ret__ = positional << $v (tick << $env environ) << $condition condition << $env environ
+__ret__ = positional << $env environ << $v (tick << $env environ) << $condition condition
 """)
     calls = []
     result = interpret(out_of_order, environ_for(calls, tmp / "store-ooo"))
@@ -462,7 +458,7 @@ __ret__ = ignore_x << 5 << 1
 """)
     calls = []
     labelled(interpret(no_env, environ_for(calls, tmp / "store-i")),
-             "does not fit $env Environment",
+             "was not given an Environment",
              "a marked function still needs its environment")
 
 

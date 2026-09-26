@@ -1,0 +1,8 @@
+takes =
+    int
+  <- $env Environment
+  <- $x Environment
+  <- { where that is }
+
+bad = takes << $x (environ.tmp_sub_env << ())
+__ret__ = bad

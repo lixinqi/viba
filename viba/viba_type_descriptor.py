@@ -478,10 +478,12 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
         # `ParametersLazyEvaluated[F]` is the descriptor of F.
         return _build_type(pool, module, marked)
     if isinstance(node, ast_nodes.Partial):
-        reduced, _ = reduce_partial(node, module,
-                                    lambda name, home: _partial_target(pool, name, home),
-                                    _fits)
-        return _build_type(pool, module, reduced)
+        reduced, home = reduce_partial(node, module,
+                                       lambda name, home: _partial_target(pool, name, home),
+                                       _fits)
+        # 归约可能走进另一个模块（模块调用：`__ret__` 是那个模块里写的），
+        # 所以接着读要用归约回来的那个模块，不是进来时那个。
+        return _build_type(pool, home, reduced)
     resolvable = AstNodeType(node, module)
     if isinstance(node, (ast_nodes.Product, ast_nodes.ProductChain)):
         return VibaTypeDescriptor(PRODUCT, VibaChainDescriptor(

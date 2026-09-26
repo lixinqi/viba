@@ -1,0 +1,8 @@
+add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { add the two }
+h = add << $b 2 << $a 1
+__ret__ = h << environ

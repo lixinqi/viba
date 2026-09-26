@@ -1,0 +1,25 @@
+__args__ =
+  Object
+  * $a int
+  * $b int
+
+args = __args__
+
+mul =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { multiply the two }
+
+add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__ret__ = add
+  << environ
+  << (mul << environ << args.a << args.a)
+  << (mul << environ << args.b << args.b)

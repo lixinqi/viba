@@ -102,7 +102,7 @@ CASES_TO_RUN = [
     ("let_result_is_never", "ok", None, None),
     ("let_result_is_any", "ok", None, None),
     ("let_result_is_empty_tuple", "len", 0, None),
-    ("let_result_is_a_function", "error", "still waiting for arguments", None),
+    ("let_result_is_a_function", "ok", None, None),
     ("let_in_taken_branch", "value", 1, ["tick"]),
     ("let_in_untaken_branch_poison", "value", 42, []),
     ("let_in_untaken_branch_counts", "value", 42, []),

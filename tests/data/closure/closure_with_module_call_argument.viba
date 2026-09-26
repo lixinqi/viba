@@ -1,0 +1,11 @@
+add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { add the two }
+import square_sum
+
+inside = square_sum << 3 << 4 << (environ.tmp_sub_env << ())
+h = add << $a inside
+__ret__ = h << $b 4 << (environ.tmp_sub_env << ())

@@ -14,7 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import ADD, LEAF, Checks, Host, value_of, write
 
-from viba.interpret import interpret
+from viba import viba_ast
+from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
+                            interpret)
 from viba.reflect import access as reflect_access
 from viba.type import VibaProgramErr, NotMyDutyException, Ok, Step
 
@@ -182,8 +184,8 @@ def _written_as_ret(tmp: Path):
     write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
     module_value = write(tmp, "module_value.viba",
                          "import late_lib as lib\n__ret__ = lib\n")
-    labelled(interpret(module_value, environ), "still waiting for arguments",
-             "__ret__ written as a module -> VibaProgramErr")
+    check(isinstance(interpret(module_value, environ), Ok),
+          "__ret__ written as a module is the closure it stands for")
 
     builtin_value = write(tmp, "builtin_value.viba", "__ret__ = str\n")
     labelled(interpret(builtin_value, environ), "no definition named",
@@ -254,7 +256,7 @@ __ret__ = add << $env environ << $a half << $b half
 
 
 def _crossing_the_host_boundary(tmp: Path):
-    """宿主手里拿到 viba 函数：能调、给多了是 VibaProgramErr、喂不进没叶子的东西。"""
+    """宿主手里拿到 viba 函数：只是数据——拿着、存着、原样递回来，调不动。"""
     host = Host()
     environ = host.environ()
 
@@ -264,25 +266,28 @@ inc =
 	<- $env Environment
 	<- $x int
 	<- { add one }
-twice =
+show =
 	int
 	<- $env Environment
 	<- $f (int <- $env Environment <- $x int)
-	<- $x int
-	<- { call f twice }
-__ret__ = twice << $env environ << $f inc << $x 10
+	<- { hand the argument back }
+__ret__ = show << $env environ << $f inc
 """)
-    result = interpret(higher, environ)
-    check(isinstance(result, Ok) and value_of(result) == 22,
-          f"a viba function handed to the host is callable: {result!r}")
+    original = host.get_func
 
-    # 宿主手里那个 viba 函数没有实现：递延从宿主调用里穿出来，run 的答案还是递延
-    host.knobs["missing"] = ("inc",)
-    result = interpret(higher, environ)
-    checks.deferred(result, "the host calls a viba function with no implementation")
-    check(result.step == Step("root", "inc"),
-          f"the step that stopped is the one inside, not the one outside: {result.step!r}")
-    host.knobs.pop("missing")
+    def hand_back(path, func_name):
+        if func_name == "show":
+            return lambda env, f: f            # 拿到的就是那个节点，原样交回来
+        return original(path, func_name)
+
+    host.get_func = hand_back
+    host2 = Environment(EnvironmentStorage("root"), EnvironmentCompute(host.get_func))
+    result = interpret(higher, host2)
+    check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.TypeRef),
+          f"a viba function handed to the host is material (its written name): {result!r}")
+    check(result.ok_value.data.name == "inc",
+          f"and what it holds is that name: {result.ok_value.data!r}")
+    host.get_func = original
 
     # 宿主自己说"不是我的事"：get_func 抛递延，等于回答递延
     host.knobs["refuse"] = ("twice",)
@@ -344,8 +349,9 @@ echo =
 	<- { hand the argument back }
 __ret__ = echo << $env environ << $x leaf
 """)
-    checks.failed(interpret(handed_any, environ), "no leaf",
-                  "a viba function handed where Any is declared, echoed back")
+    result = interpret(handed_any, environ)
+    check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.TypeRef),
+          f"a viba function handed where Any is declared comes back as data: {result!r}")
 
     # 宿主里面再跑一次 interpret：两个 run 互不干扰
     inner = write(tmp, "inner_module.viba", LEAF + "__ret__ = leaf << $env environ\n")

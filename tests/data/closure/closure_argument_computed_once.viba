@@ -1,0 +1,13 @@
+add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { add the two }
+tick =
+    int
+  <- $env Environment
+  <- { counts as a side effect }
+
+h = add << $a (tick << environ)
+__ret__ = h << $b 2 << environ

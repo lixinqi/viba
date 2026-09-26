@@ -1,0 +1,6 @@
+leaf =
+    int
+  <- $env Environment
+  <- { answer seven }
+
+__ret__ = leaf << environ

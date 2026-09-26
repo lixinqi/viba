@@ -39,16 +39,16 @@ def _arguments(tmp: Path):
     cases = [
         ("__ret__ = add << $env environ << $a 1 << $b 2\n", None, "all three given"),
         ("__ret__ = add << $env environ << $a 1\n",
-         "waiting for arguments", "one argument short"),
+         "was given 2 of its 3 arguments", "one argument short (the environment is in)"),
         ("__ret__ = add << $env environ << $a 1 << $b 2 << $b 3\n",
-         "is not a function", "one argument too many (the call already answered)"),
+         "takes no more arguments", "one argument too many (every slot is filled)"),
         ("__ret__ = add << $env environ << $a 1 << $z 2\n",
          "takes no $z", "an argument the function does not have"),
         ("__ret__ = add << $env environ << $a 1 << $b 2 << { trailing note }\n", None,
          "documentation after the arguments"),
         ("__ret__ = add << $env environ << { a note } << $a 1 << $b 2\n", None,
          "documentation between the arguments"),
-        ("__ret__ = add\n", "waiting for arguments", "the function itself is not a value"),
+        ("__ret__ = add\n", None, "a bare function name is the closure it stands for"),
         ("__ret__ = { just a note }\n", "documentation", "a code block is not a value"),
         ("__ret__ = Nope\n", "no definition named", "a name nothing defines"),
         ("__ret__ = add << $env environ << $a { note } << $b 2\n", "documentation",
@@ -60,8 +60,8 @@ def _arguments(tmp: Path):
         labelled(interpret(path, environ), want, label)
 
     two_steps = write(tmp, "two_steps.viba", ADD + """
-half = add << $env environ << $a 40
-__ret__ = half << $b 2
+half = add << $a 40
+__ret__ = half << $b 2 << environ
 """)
     result = interpret(two_steps, environ)
     check(isinstance(result, Ok) and value_of(result) == 42,
@@ -94,8 +94,8 @@ f =
 	<- { a function with no argument slot }
 __ret__ = f << 1
 """)
-    labelled(interpret(no_slots, environ), "takes no more arguments",
-             "an untagged argument to a function with no slots -> VibaProgramErr")
+    labelled(interpret(no_slots, environ), "takes no $env Environment argument",
+             "a function with no environment slot can never run -> VibaProgramErr")
 
     # 参数出错：那个函数根本不会被调用
     argument_boom = write(tmp, "argument_boom.viba", ADD + """

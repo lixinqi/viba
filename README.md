@@ -154,9 +154,9 @@ and whose answer is `__ret__`. A file with no `__ret__` is a type, not a
 program, and running it raises `VibaProgramErr`.
 
 A module that wants arguments declares them: `__args__` is a product type, and a
-call gives every member of it — `<< ()` when there are none, so a call always
-says what it gives. See [`viba-style.md`](viba-style.md) for the writing rule and
-[`viba-interpreter.md`](viba-interpreter.md) for the call.
+call gives every member of it. Giving the environment is what runs the call, and
+a call without one is a closure — a value you can keep, pass on, or serialize and
+run later. See [`viba-interpreter.md`](viba-interpreter.md) for the whole rule.
 
 ```viba
 # add_demo.viba
@@ -225,9 +225,8 @@ __ret__ = demo << (environ.sub_env << "add_demo") << ()
 ```
 
 A module is called with the environment it should run under, and then with its
-arguments: `()` is how a module with no arguments is given its (empty) `__args__`.
-The name given to `environ.sub_env` is what `get_func` sees as `module_path`, and
-the storage path is the call's identity. So no two module calls in one run may share a path, and
+arguments. The name given to `environ.sub_env` is what `get_func` sees as
+`module_path`, and the storage path is the call's identity. So no two module calls in one run may share a path, and
 using the same path twice is a `VibaProgramErr` that spells the fix out:
 
 ```

@@ -1,0 +1,11 @@
+add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { add the two }
+__ret__ =
+  (
+    half := add << $a 40
+    half << $b 2 << environ
+  )

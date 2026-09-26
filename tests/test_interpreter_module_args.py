@@ -55,6 +55,7 @@ def environ_for(calls, store):
 
 # (文件, 该跑出什么)：
 #   ("value", 叶子)   Ok，且叶子是这个值
+#   ("ok", None)      Ok，叶子是什么不管（答的是一个闭包时用它）
 #   ("error", 片段)   VibaProgramErr，话里含这个片段
 CASES_TO_RUN = [
     ("calls_positionally", "value", 25, None),
@@ -63,18 +64,19 @@ CASES_TO_RUN = [
     ("too_many", "error", "takes no more arguments", None),
     ("unknown_tag", "error", "takes no $c argument", None),
     ("tag_twice", "error", "was given $a twice", None),
-    ("no_environment", "error", "needs an Environment", None),
     ("bad_args_declared", "error", "__args__ is not a product", None),
-    ("asked_without_the_environment", "error", "still waiting for arguments", None),
+    ("asked_without_the_environment", "ok", None, None),
+    ("closure_then_execute", "value", 25, None),
+    ("closure_runs_twice", "value", 50, None),
     ("partial_module_value", "error", "$a, $b missing", None),
     ("args_as_a_value", "value", 7, None),
     ("members_by_tag_and_directly", "value", 7, None),
     ("member_missing", "error", "no member tagged", None),
     ("nested_product_argument", "value", 2, None),
     ("no_args_called", "value", 7, None),
-    ("no_args_without_the_slot", "error", "an empty one is written ()", None),
+    ("no_args_without_the_slot", "value", 7, None),
     ("empty_args_called", "value", 7, None),
-    ("empty_args_without_the_slot", "error", "an empty one is written ()", None),
+    ("empty_args_without_the_slot", "value", 7, None),
     ("module_calls_module_with_args", "value", 14, None),
     ("args_inside_a_binding", "value", 17, None),
     ("wrong_type_positionally", "error", 'does not fit $a int', None),
@@ -83,7 +85,7 @@ CASES_TO_RUN = [
 
 
 def run(tmp: Path):
-    check(len(CASES_TO_RUN) == 22, f"twenty-two cases: {len(CASES_TO_RUN)}")
+    check(len(CASES_TO_RUN) == 23, f"twenty-three cases: {len(CASES_TO_RUN)}")
     for index, (name, kind, want, calls_wanted) in enumerate(CASES_TO_RUN):
         program = CASES / f"{name}.viba"
         check(program.is_file(), f"the case is a file: {program.name}")
@@ -92,6 +94,9 @@ def run(tmp: Path):
         if kind == "value":
             check(isinstance(result, Ok) and value_of(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
+        elif kind == "ok":
+            check(isinstance(result, Ok),
+                  f"{name}: expected Ok, got {result!r}")
         elif kind == "error":
             check(isinstance(result, VibaProgramErr) and want in result.err_msg,
                   f"{name}: expected an error saying {want!r}, got {result!r}")
