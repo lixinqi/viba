@@ -1257,7 +1257,7 @@ def run_member_head_cases():
                                  load_entry("X = Environment\n")),
                      "error", f"{bad} is a design mistake")
 
-    # 废止的那种写法：只给名字，环境没给，当场说它装不进 `$env Environment`
+    # 只给名字、环境没给：装不进 `$env Environment`，当场拒绝
     check_result(is_sub_type(load_entry('X = environ.sub_env << "child"\n'),
                              load_entry("X = Environment\n")),
                  "error", "the spelling without the environment does not hold")

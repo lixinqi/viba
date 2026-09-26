@@ -180,7 +180,7 @@ __ret__ = demo.print << environ << ret
 - `demo.print` 是这个模块里的函数。
 - `environ.sub_env << environ << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
   `父路径/add_demo`（见「幂等与快照：结果要能回放」）。同一个调用还可以写成
-  `$sub_env << environ << "add_demo"`（见下「链头写 tag」）。
+  `$sub_env << environ << "add_demo"`（见「如何调用方法：链头写 tag」）。
 
 **每次模块调用都要有自己的 storage 路径**：那条路径是这次调用的身份——宿主拿到的
 `get_func(module_path, func_name)` 里的 `module_path` 就是它，两次激活落在同一条路径上，宿主就
@@ -196,19 +196,18 @@ used: give each module call a sub-environment of its own (environ.sub_env << env
 复用），所以同一个模块调两次要给两个名字，或者让宿主给出两份不同的 storage。主文件自己也算
 一次激活，占着它那条路径——直接 `lib << environ` 就是撞车。
 
-### 链头写 tag：`$tag << X << …`
+### 如何调用方法：链头写 tag
 
 `$tag << X << a` 就是 `X.tag << X << a`：**tag 写在链头时，它命中的是第一个参数的成员，
-而那个值也接着被交给成员当第一个实参**。环境成员因此不再有"绑在某个环境上"的写法：
+而那个值也接着被交给成员当第一个实参**。`environ` 的成员因此有两种写法，一样长：
 
 ```viba
-environ.sub_env << "add_demo"            # 废止：只给了一个实参，成员要的是两个
 environ.sub_env << environ << "add_demo" # 点号，环境自己写出来
 $sub_env << environ << "add_demo"        # tag 写链头，同一个调用，短一些
 $sub_env << $env environ << $sub_env_name "add_demo"   # 都按 tag 给，也对
 ```
 
-因为 `viba/builtin.viba` 里 `Environment` 的成员就是这样声明的——环境是它的第一个参数：
+`viba/builtin.viba` 里 `Environment` 的成员就是这样声明的——环境是它的第一个参数：
 
 ```viba
   * $sub_env (Environment <- $env Environment <- $sub_env_name str)
@@ -457,7 +456,7 @@ viba 函数给的是它写下来的样子（名字或闭包）。getter 在求�
 
 **按需的那个参数存不下来**，别的都能：它的实参没算过，不是可序列化数据，所以装不进闭包。链走完时它还在、而环境
 也没给，就是程序错（`the $v argument is computed only when it is wanted, so it cannot be stored`）。
-这反过来让 `<<` 的偏应用变宽了——以前整函数被标记，一个实参都不能先给；现在只有那个参数不能：
+所以偏应用在别的参数上照旧：只有按需的那个参数不能先给。
 
 ```viba
 switch = branch.id_or_never << $condition condition   # 闭包：条件先定下来
