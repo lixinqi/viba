@@ -675,8 +675,8 @@ def run_module_as_function_cases():
                  "and the two are the same type the other way round")
     check_result(judge("program << $env environ << ()", "int"), True,
                  "written inline too")
-    check_result(judge("program << $env environ", "int <- ()"), True,
-                 "the arguments slot is part of the signature: the environment alone is a function")
+    check_result(judge("program << $env environ", "int"), True,
+                 "a module with no __args__ is run by its environment alone")
     check_result(judge("Half", "int <- $b int"), True,
                  "a module's function may be given part of its arguments")
     check_result(judge("Dotted", "$x int"), True,
@@ -741,8 +741,8 @@ def run_module_args_cases():
                  "and it is not yet the result")
     check_result(judge("NoArgs", "int"), True,
                  "an empty __args__ is still given, as ()")
-    check_result(judge("empty << $env environ", "int <- ()"), True,
-                 "without it the call is still waiting")
+    check_result(judge("empty << $env environ", "int"), True,
+                 "and the empty () need not be written either")
     check_result(judge("program << $env environ << 3 << 4 << $c 5", "never"), "error",
                  "an argument the module does not have -> VibaProgramErr")
     check_result(judge("Bad", "never"), "error",

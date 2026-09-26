@@ -149,7 +149,8 @@ def _definition(module, name):
     return None
 
 
-def reduce_partial(node, module, resolve: Callable, judge: Callable) -> Tuple[object, object]:
+def reduce_partial(node, module, resolve: Callable, judge: Callable,
+                   outermost: bool = True) -> Tuple[object, object]:
     """(node, module) with every `<<` given.
 
     `resolve(name, module) -> (body, home) | None` is how a written name is
@@ -158,8 +159,29 @@ def reduce_partial(node, module, resolve: Callable, judge: Callable) -> Tuple[ob
     argument fits the slot it is written to.
     """
     while isinstance(node, viba_ast.Partial):
-        base, base_module = reduce_partial(node.function, module, resolve, judge)
+        base, base_module = reduce_partial(node.function, module, resolve, judge,
+                                           outermost=False)
         node, module = _give(base, base_module, node.argument, module, resolve, judge)
+    if outermost:
+        node, module = _nothing_left_to_give(node, module)
+    return node, module
+
+
+def _nothing_left_to_give(node, module):
+    """A call with only the empty product left to give is that call.
+
+    `()` is how "nothing" is written, and a module with no `__args__` is run by
+    its environment alone, so the last empty argument need not be written: giving
+    it and leaving it out are the same call. It is read here, once the whole
+    chain has been given, so that writing it out still works.
+    """
+    if not isinstance(node, _EXP_NODES):
+        return node, module
+    elements = _elements(node)
+    if len(elements) > 1 and all(_is_documentation(element)
+                                 or _is_the_empty_product(element)
+                                 for element in elements[1:]):
+        return elements[0], module
     return node, module
 
 
@@ -209,6 +231,11 @@ def _member_of(tag, owner, owner_module, resolve, judge):
             f"no member tagged {tag!r} to take from {_written(owner)}")
     raise PartialError(
         f"{_written(owner)} is no value to take the member {tag!r} from")
+
+
+def _is_the_empty_product(node) -> bool:
+    """The empty product as the language writes it: the empty tuple `()`."""
+    return isinstance(node, viba_ast.Tuple) and not node.elements
 
 
 def _unfold(node, module, resolve):

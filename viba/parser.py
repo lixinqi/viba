@@ -891,6 +891,7 @@ if __name__ == "__main__":
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     readme = os.path.join(root, "README.md")
     style = os.path.join(root, "viba-style.md")
+    tutorial = os.path.join(root, "viba_tutorial.md")
     try:
         with open(readme, encoding="utf-8") as handle:
             manual = handle.read()
@@ -915,11 +916,11 @@ if __name__ == "__main__":
         except Exception as e:                      # a stale GRAMMAR_ORDER, no block
             print(f"{'the README spells this grammar':<50} | {type(e).__name__}: {e}")
 
-    # The manual and the style guide are read as sources too: a sample that does
-    # not compile is teaching a mistake.
+    # The manual, the style guide and the tutorial are read as sources too: a
+    # sample that does not compile is teaching a mistake.
     try:
         blocks = 0
-        for path in (readme, style):
+        for path in (readme, style, tutorial):
             with open(path, encoding="utf-8") as handle:
                 text = handle.read()
             samples = _readme_blocks(text, "viba")
@@ -928,7 +929,7 @@ if __name__ == "__main__":
             blocks += len(samples)
         doc_count += 1
         print(f"{'every .viba sample in the docs compiles':<50} | OK "
-              f"({blocks} blocks: README.md, viba-style.md)")
+              f"({blocks} blocks: README.md, viba-style.md, viba_tutorial.md)")
     except Exception as e:
         print(f"{'every .viba sample in the docs compiles':<50} | "
               f"{type(e).__name__}: {e}")

@@ -222,7 +222,7 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
 ```viba
 import add_demo as demo
 
-__ret__ = demo << (environ.sub_env << environ << "add_demo") << ()
+__ret__ = demo << (environ.sub_env << environ << "add_demo")
 ```
 
 A module is called with the environment it should run under, and then with its
@@ -237,8 +237,8 @@ already used: give each module call a sub-environment of its own (environ.sub_en
 
 `environ.sub_env << environ << "name"` hands back the same child whenever that name is asked
 for, so calling one module twice means choosing two names; `environ.tmp_sub_env
-<< ()` is for the calls that need no name, and hands out a fresh child every
-time. Where an `import` is looked for is the environment's business: next to the
+<< environ` (also written `$tmp_sub_env << environ`) is for the calls that need
+no name, and hands out a fresh child every time. Where an `import` is looked for is the environment's business: next to the
 file that wrote it, then along `Environment`'s `viba_path` (directories, like
 `PYTHONPATH`).
 
@@ -312,6 +312,7 @@ Color = $red int | $green int | $blue int
 
 | Document | Subject |
 |----------|---------|
+| [`viba_tutorial.md`](viba_tutorial.md) | Learning the language: from one definition to a module that runs |
 | [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, reading an instance |
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `environ` in, `__ret__` out — the executable reading |
 | [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
@@ -341,6 +342,6 @@ tools built on those.
 
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY
 grammar behind `viba_ast.parse`, with a self-test at the bottom that also checks this file
-spells that grammar out, and that every `.viba` sample here and in `viba-style.md`
-compiles) and `partial.py` (the reduction `<<` goes through, used by the judgment).
+spells that grammar out, and that every `.viba` sample here, in `viba-style.md` and in
+`viba_tutorial.md` compiles) and `partial.py` (the reduction `<<` goes through, used by the judgment).
 

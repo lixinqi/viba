@@ -38,7 +38,7 @@ distance_ge =
 case_env = environ.sub_env << environ << "case_at_1230"
 
 # the witness: the three facts of that moment
-the_case = case_at_1230 << case_env << ()
+the_case = case_at_1230 << case_env
 
 # the measurement of those facts. The call itself runs under a temporary
 # environment (a call has no address of its own), and is told where the evidence

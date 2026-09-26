@@ -170,7 +170,7 @@ __ret__ = square_sum << (environ.tmp_sub_env << environ) << 3 << 4
 ```viba
 import add_demo as demo
 
-ret = demo << (environ.sub_env << environ << "add_demo") << ()
+ret = demo << (environ.sub_env << environ << "add_demo")
 
 __ret__ = demo.print << environ << ret
 ```
@@ -500,8 +500,8 @@ __ret__ <- $env Environment <- __args__
 
 ```viba
 demo = import add_demo as demo         # 概念上
-demo << $env environ << ()  <:  int     # 就是 __ret__ 的类型
-int <: demo << $env environ << ()       # 反过来也成立：两者同型
+demo << $env environ  <:  int     # 就是 __ret__ 的类型；没有 __args__ 的模块，给环境就是执行
+int <: demo << $env environ        # 反过来也成立：两者同型
 demo.add <: int <- $env Environment <- $a int <- $b int
 design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
 square_sum << $env environ << $a 3 <: int <- $b int   # 给了一半：剩下的是函数
@@ -509,7 +509,7 @@ square_sum << $env environ << $a 3 <: int <- $b int   # 给了一半：剩下的
 
 - 只认 **import 绑定的那个名字**（`import a.b as c` 的 `c`，`import a.b` 的 `a.b`）。`module.Name`
   仍然是那个模块里的定义，和以前一样按最长的前缀解析。
-- 没有 `__ret__` 的模块不是程序：`demo << $env environ << ()` 在类型层也是 `VibaProgramErr`。
+- 没有 `__ret__` 的模块不是程序：`demo << $env environ` 在类型层也是 `VibaProgramErr`。
 - `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
   这个参数在类型上也对得上。
 - 实参按 tag 给（`<< $a 3`）或按位置给（`<< 3`）都认；位置那一支要求给的实参装得下那个参数
