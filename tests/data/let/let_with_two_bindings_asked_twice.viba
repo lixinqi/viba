@@ -1,12 +1,10 @@
 add =
     int <- $env Environment <- $a int <- $b int <- { add the two }
 ask_twice =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { add x to itself }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { add x to itself }
 tick =
     int <- $env Environment <- { counts as a side effect }
 tock =

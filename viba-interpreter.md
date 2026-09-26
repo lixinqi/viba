@@ -151,6 +151,8 @@ __ret__ = square_sum << (environ.tmp_sub_env << ()) << 3 << 4
   （`sg << (environ.tmp_sub_env << ())`）。"必须给全"只对执行成立，对闭包不成立。
 - **`()` 只在显式写出空实参时写**：零实参的模块，执行就是 `lib << <环境>`；`sg = lib << ()` 是
   把"准备好的空实参"写出来存成闭包。
+- **`__args__` 的成员上写 `CalledByNeed` 没有用**：模块的实参是它读到的材料（`args.a` 那种），
+  不是一次"要的时候再来拿"的调用——按需说的是宿主那一侧的实参。
 - **模块体里 `__args__` 就是那份实参积**：`args = __args__` 只是个别名，运行时 `args` 是这次调用
   的实参（`args.a` 是 `$a` 那个成员的值，按 tag 寻址）；判定层读同一个名字读到的是成员**声明的
   类型**（`args.a` 就是 `int`）。一个名字，两层各读各的——和 `environ` 一样。
@@ -322,25 +324,21 @@ never | a = a
 和里只剩一个非 never 分支时，结果就是该分支；所有分支都是 never 时，结果是 never；
 多个非 never 分支同时存在时，结果保留为和值，不擅自选择其中一支。
 
-`branch.viba` 与 `branch.py` 提供两个通用开关。它们接收分支值 `$v Any`，并返回 `Any`，而且带
-`ParametersLazyEvaluated` 标记（见下）：
+`branch.viba` 与 `branch.py` 提供两个通用开关。它们接收分支值 `$v Any`，返回 `Any`，而那一格写着
+`CalledByNeed[Any]`（见下）——只有它会"要的时候才算"：
 
 ```viba
 id_or_never =
-    ParametersLazyEvaluated[
-        Any
-      <- $env Environment
-      <- $condition bool
-      <- $v Any
-    ]
+    Any
+  <- $env Environment
+  <- $condition bool
+  <- $v CalledByNeed[Any]
 
 never_or_id =
-    ParametersLazyEvaluated[
-        Any
-      <- $env Environment
-      <- $condition bool
-      <- $v Any
-    ]
+    Any
+  <- $env Environment
+  <- $condition bool
+  <- $v CalledByNeed[Any]
 ```
 
 `branch.py` 是宿主实现，和其他可执行函数一样由 `EnvironmentCompute` 显式注册：
@@ -398,59 +396,60 @@ __ret__ =
 **这两支都要算** 本来是这个设计的代价：积与和只决定"哪一支留下"，不代表"哪一支被算"。真要是
 if/else，没走的那一支就不该算——于是有了下面这个标记。
 
-### 惰性参数：`ParametersLazyEvaluated`
+### 按需的实参：`CalledByNeed`
 
 `viba/builtin.viba` 里定义了一个特殊标记——它和 `Environment` 一样对每个模块可见，**不需要
 import**（`builtin.viba` 是最低优先级的内建库，见 [`viba-style.md`](viba-style.md) 第 12 节）。
 标记本身是里面那个保留 tag（`=` 左边是名字）：
 
 ```viba
-ParametersLazyEvaluated[Func] =
+CalledByNeed[Arg] =
     Object
-  * $__param_lazy_evaluated_tag_yanatutt__ ()
-  * $func Func
+  * $__called_by_need_tag_yanatutt__ ()
+  * $arg Arg
 ```
 
-函数写成 `ParametersLazyEvaluated[F]`（`F` 是它本来的函数类型）时，`interpret` **不按平常的
-调用约定走**：
+**标记标的是实参，不是函数**：写成 `$v CalledByNeed[Any]` 的那一格，`interpret` 不先算它：
 
-- 每个写下来的实参**不求值**，而是包成一个无参 lambda（getter），连同这次调用的环境一起交给宿主；
-- 宿主叫哪个 getter，哪个实参才算；没叫的，那一支的表达式一次都不求值；
-- `$env` 那一格是例外：它照旧先算出来（interpret 要靠它找到答这一步的宿主），宿主拿到的
-  `get_env()` 就是把它答回来。
+- 那一格的实参被包成一个无参 lambda（getter），连同这次调用的环境一起交给宿主；
+- 宿主叫它才算，不叫就一次都不求值；
+- 同一个调用里**别的实参照旧给值**——环境是 `Environment` 自己，条件就是它的材料。所以宿主那一侧
+  是"值 + 那一格的 getter"，不是"全是 getter"。
 
 ```python
-def id_or_never(get_env, get_condition, get_v):
-    env = get_env()                    # 环境本身
-    if get_condition().value:          # 材料是 VibaNode，bool 要 .value
+def id_or_never(env, condition, get_v):
+    if condition.value:                # 材料是 VibaNode，bool 要 .value
         return get_v()                 # 只有这一支会算
     return _never()
 ```
 
-getter 答出来的，就是宿主平常会直接拿到的那份东西：材料是 `VibaNode`，环境是 `Environment`
-自己，viba 函数是它的材料（名字或闭包）。getter 在求值时出的错**原样**回到 run：没有实现就是递延，
-实现坏了就是 `$underlying_viba_op_failed`，程序写错就是 `$viba_program_err`——错的是那个实参，
-不是叫它的人。
+getter 答出来的就是宿主平常会直接拿到的那份东西：材料是 `VibaNode`，环境是 `Environment` 自己，
+viba 函数是它的材料（名字或闭包）。getter 在求值时出的错**原样**回到 run：没有实现就是递延，实现坏了
+就是 `$underlying_viba_op_failed`，程序写错就是 `$viba_program_err`——错的是那个实参，不是叫它的人。
 
-标记只标函数：`ParametersLazyEvaluated[int]` 会在构建时给
-`ParametersLazyEvaluated marks a function, not int`。标记过的函数**没有闭包形态**：它的实参不先算，
-存不下来，所以环境要先给（写在链的最前面），实参跟在后面，**一次写完**。先给一半存起来不行
-（`half = ignore_x << $env environ` 是程序错：环境给了、实参没齐）。
+**按需的那一格存不下来**，别的都能：它的实参没算过，不是材料，所以装不进闭包。链走完时它还在、而环境
+也没给，就是程序错（`the $v argument is computed only when it is wanted, so it cannot be stored`）。
+这反过来让 `<<` 的偏应用变宽了——以前整函数被标记，一个实参都不能先给；现在只有那一格不能：
+
+```viba
+switch = branch.id_or_never << $condition condition   # 闭包：条件先定下来
+__ret__ = switch << $v (tick << environ) << environ   # 给按需那一格 + 环境，才执行
+```
 
 getter **最多算一次**：第一次问出结果（值或停下），之后每一次问都拿同一个。所以宿主问两遍不会让
 副作用发生两遍——和 eager 调用里那个实参只求值一次是同一件事。
 
-一处代价要记住：被标记的调用**递延时不带 `$call`**。工单要固定的那份材料来自已算出的实参，而惰性
-调用根本没有算过它们——递延里只有 `$step` 与 `$reason`（`$call` 是空的）。
+一处代价要记住：递延时**那份 `$call` 里没有按需的那一格**。工单要固定的材料来自已算出的实参，而它
+根本没算过——递延里只有 `$step`、`$reason`，和其余算过的实参。
 
 绑定和这两个开关一起用的时候，谁先算、谁不算，看
 [`tests/test_interpreter_let_branch.py`](tests/test_interpreter_let_branch.py)：20 份可以打开的文件
 （`tests/data/let_branch/*.viba`），每条只在表里写该跑出什么。
 
-标记说的是实参怎么给，不是类型，所以**类型层也读穿它**：`ParametersLazyEvaluated[F]` 在判定层和
-描述符层就是 `F`。于是 `id_or_never` 的类型是 `Any <- $condition bool <- $v Any`，
+标记说的是那一格怎么给，不是类型，所以**类型层也读穿它**：`CalledByNeed[T]` 在判定层和描述符层
+就是 `T`。于是 `id_or_never` 的类型是 `Any <- $condition bool <- $v Any`，
 `id_or_never << $env environ` 也归约得下去（少掉 `$env` 那一格）。三层读的是同一份读法
-（`viba/partial.py` 的 `marked_function`），所以运行、判定、描述符不会各读各的。
+（`viba/partial.py` 的 `by_need_type`），所以运行、判定、描述符不会各读各的。
 
 名字自己不算数：本地定义盖过内建，所以只有定义体里带那个保留 tag 的名字才算标记——一个模块自己定义
 个同名类型，那它就只是个类型。

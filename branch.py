@@ -1,19 +1,19 @@
 """Host implementations of the two selectors declared in branch.viba.
 
-Both are marked `ParametersLazyEvaluated`, so they are handed **getters**
-instead of values: `id_or_never(get_env, get_condition, get_v)` calls `get_v`
-only on the branch it takes, so the argument expression of the branch it does
-not take is never evaluated. A switch that is not taken answers `never`
-(`never * value = never`), and the surrounding sum drops it. `id` is the
-identity: the product selector that keeps the value.
+The branch value's slot is `CalledByNeed[Any]`, so that one argument is handed
+over as something to call rather than a value: `id_or_never(env, condition,
+get_v)` calls `get_v` only on the branch it takes, and the argument expression
+of the branch it does not take is never evaluated. A switch that is not taken
+answers `never` (`never * value = never`), and the surrounding sum drops it.
+`id` is the identity: the product selector that keeps the value.
 
-    def id_or_never(get_env, get_condition, get_v):
-        if get_condition().value:
+    def id_or_never(env, condition, get_v):
+        if condition.value:
             return get_v()
         return _never()
 
-`get_env()` answers the environment itself; a material argument answers its
-`VibaNode`, so the leaf of a `bool` is `.value`.
+The environment arrives as itself and the condition as its `VibaNode` — the
+other slots are ordinary ones — so the leaf of a `bool` is `.value`.
 """
 
 from viba import viba_ast
@@ -32,16 +32,16 @@ def _never() -> VibaNode:
     return _unit(viba_ast.Never())
 
 
-def id_or_never(get_env, get_condition, get_v):
+def id_or_never(env, condition, get_v):
     """Answer the value when the condition holds; otherwise never."""
-    if get_condition().value:
+    if condition.value:
         return get_v()
     return _never()
 
 
-def never_or_id(get_env, get_condition, get_v):
+def never_or_id(env, condition, get_v):
     """Answer never when the condition holds; otherwise the value."""
-    if get_condition().value:
+    if condition.value:
         return _never()
     return get_v()
 

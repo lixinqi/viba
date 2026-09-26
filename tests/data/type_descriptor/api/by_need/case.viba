@@ -1,0 +1,10 @@
+id_or_never =
+    Any
+  <- $env Environment
+  <- $condition bool
+  <- $v CalledByNeed[Any]
+
+Box = Object * $t CalledByNeed[int]
+
+Called = id_or_never << $env environ
+Holder = Object * $sw id_or_never

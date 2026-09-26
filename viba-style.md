@@ -208,12 +208,12 @@ Distance =
 - `{...}` 是**提示**：写给照着它补实现的人（常常是 agent），说这一步要干什么。它不是参数，也不被
   执行——`<<` 会把说明跳过去。所以提示里可以写清"读哪些字段、怎么比、对不上返回什么"（顺着类型能
   一路读出字段路径），但不要指望它是代码。
-- **可能会用不上的参数，用 `ParametersLazyEvaluated` 标起来。** 一个函数写成
-  `ParametersLazyEvaluated[F]`（`F` 是它本来的类型）时，实参不先算：宿主拿到的是 getter，叫哪个
-  才算哪个——if/else 真正只走一支靠的就是它（见 [`viba-interpreter.md`](viba-interpreter.md)）。
-  只在"确实有分支语义、且实参求值有代价或副作用"时用它；普通函数别标，标了就等于把求值时机的
-  责任推给了每一个实现者。标记只改实参怎么给：判定层和描述符层读到的类型就是 `F`。标记过的
-  函数**没有闭包形态**（实参不先算、存不下来），所以环境写在最前面、实参跟在后面，一次写完。
+- **可能会用不上的那一格，写成 `CalledByNeed[T]`。** 标的是**实参**，不是函数：那一格实参不先算，
+  宿主拿到的是"要用的时候再来拿"的东西，叫了才算——if/else 真正只走一支靠的就是它
+  （见 [`viba-interpreter.md`](viba-interpreter.md)）。只在"确实有分支语义、且实参求值有代价或
+  副作用"时用它；别的格子别标，标了就等于把求值时机的责任推给了每一个实现者。标记只改那一格怎么
+  给：判定层和描述符层读到的类型就是 `T`。**按需的那一格存不进闭包**（实参没算过、不是材料），
+  同一个调用里其它的实参照旧可以先给——`<<` 的偏应用因此只在那一格上受限。
 
 ## 11. 命名、注释、提示说同一件事
 
@@ -226,9 +226,8 @@ Distance =
 
 - **内建名字不用 import。** [`viba/builtin.viba`](viba/builtin.viba) 对每个模块可见（最低优先级，自己
   模块的同名定义优先）：`Environment` / `environ`、`Object` / `Oneof` / `nil` / `never` / `Any`、
-  标量 `bool` / `int` / `float` / `str`、容器名 `list` / `set` / `dict`、以及惰性标记
-  `ParametersLazyEvaluated`。所以 `$env Environment` 那一格和 `ParametersLazyEvaluated[...]` 都
-  不需要写任何 import。
+  标量 `bool` / `int` / `float` / `str`、容器名 `list` / `set` / `dict`、以及按需标记
+  `CalledByNeed`。所以 `$env Environment` 那一格和 `CalledByNeed[...]` 都不需要写任何 import。
 - **内建标量是 `bool` / `int` / `float` / `str`。** `string` 不是内建名：它什么都解析不到，而且
   语法层不会报——类型层会（`module_get_type`、`is_sub_type`）。
 - **一份定义一个表达式**，各自一行：没有逗号，也没有语句分隔符。

@@ -1,9 +1,7 @@
 ignore =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { answer seven without looking at x }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { answer seven without looking at x }
 A = ignore << $env environ << $x A
 __ret__ = A

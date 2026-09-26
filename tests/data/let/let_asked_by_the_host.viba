@@ -1,10 +1,8 @@
 take_x =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { answer whatever x is }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { answer whatever x is }
 tick =
     int <- $env Environment <- { counts as a side effect }
 __ret__ =

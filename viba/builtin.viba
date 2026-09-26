@@ -18,20 +18,19 @@ Environment =
 
 environ = Environment
 
-# The marker that makes a function's arguments lazy (viba-interpreter.md).
+# The marker that makes one argument be computed only if it is wanted
+# (viba-interpreter.md).
 #
-# A function written as `ParametersLazyEvaluated[F]` is not called the usual
-# way: `interpret` does not compute its arguments, it wraps each one in a
-# no-argument lambda and hands those to the host, which calls the ones it wants.
-# So a step that may not need an argument never computes it — an `if/else` that
-# really takes one branch (branch.viba).
+# A slot written `CalledByNeed[T]` is the type T; what the marker says is how
+# that one argument is given — not computed up front, but handed to the host as
+# something it calls if and when it needs it. So a step that may not need an
+# argument never computes it — an `if/else` that really takes one branch
+# (branch.viba) — while every other argument of the same call is given as usual.
 #
-# The marker is the tag `$__param_lazy_evaluated_tag_yanatutt__` — a name
-# nobody may use — and `$func` holds the function type being marked. The tag is
-# what every layer goes by: the interpreter, the judgment and the descriptor
-# layer all read through the marker and see `Func` itself, which is why a marked
-# call reduces everywhere (viba/partial.py::marked_function).
-ParametersLazyEvaluated[Func] =
+# The marker is the tag `$__called_by_need_tag_yanatutt__` — a name nobody may
+# use — and `$arg` holds the type being marked. Every layer reads through it
+# and sees T (viba/partial.py::by_need_type).
+CalledByNeed[Arg] =
     Object
-  * $__param_lazy_evaluated_tag_yanatutt__ ()
-  * $func Func
+  * $__called_by_need_tag_yanatutt__ ()
+  * $arg Arg

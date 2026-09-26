@@ -28,7 +28,7 @@ def run(tmp: Path):
     _arguments(tmp)
     _order_and_slots(tmp)
     _argument_types(tmp)
-    _lazy_argument_types(tmp)
+    _by_need_argument_types(tmp)
     _long_chain(tmp)
 
 
@@ -156,34 +156,31 @@ x_of =
         labelled(interpret(path, environ), want, label)
 
 
-def _lazy_argument_types(tmp: Path):
-    """惰性实参不先算，所以那一格在宿主叫它的时候才核：叫了才错，不叫就不错。"""
-    lazy = """
+def _by_need_argument_types(tmp: Path):
+    """按需的实参不先算，所以那一格在宿主叫它的时候才核：叫了才错，不叫就不错。"""
+    watch = """
 watch =
-	ParametersLazyEvaluated[
-		int
-		<- $env Environment
-		<- $x int
-		<- { hand x back }
-	]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { hand x back }
 """
-    asked = write(tmp, "lazy_asked.viba", lazy + '__ret__ = watch << $env environ << $x "x"\n')
-    ignored = write(tmp, "lazy_ignored.viba", lazy + """
+    asked = write(tmp, "by_need_asked.viba",
+                  watch + '__ret__ = watch << $env environ << $x "x"\n')
+    ignored = write(tmp, "by_need_ignored.viba", watch + """
 ignore =
-	ParametersLazyEvaluated[
-		int
-		<- $env Environment
-		<- $x int
-		<- { answer seven without looking at x }
-	]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { answer seven without looking at x }
 __ret__ = ignore << $env environ << $x "x"
 """)
 
     def get_func(path, func_name):
         if func_name == "watch":
-            return lambda get_env, get_x: get_x().value
+            return lambda env, get_x: get_x().value
         if func_name == "ignore":
-            return lambda get_env, get_x: 7
+            return lambda env, get_x: 7
         return Host().get_func(path, func_name)
 
     host = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))

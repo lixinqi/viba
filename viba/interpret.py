@@ -70,7 +70,7 @@ from pathlib import Path
 from typing import Optional
 
 from viba import serialize, viba_ast
-from viba.partial import marked_function, product_elements
+from viba.partial import by_need_type, product_elements
 from viba.reflect import VibaNode, access as reflect_access
 from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
@@ -413,12 +413,11 @@ class _Raised(Exception):
 class _Getter:
     """One written argument of a lazy call, computed only when it is wanted.
 
-    A marked function (`ParametersLazyEvaluated[F]`) is handed these instead of
-    values: the host calls the ones it needs, and the argument expressions it
-    does not call are never evaluated at all. Calling one answers what the host
-    would have been handed eagerly — material as its `VibaNode`, the
-    environment as itself — or raises `_Raised` with whatever the run stopped
-    with.
+    A slot written `CalledByNeed[T]` is handed one of these instead of a value:
+    the host calls it if it needs that argument, and the expression it does not
+    call is never evaluated at all. Calling one answers what the host would have
+    been handed eagerly — material as its `VibaNode`, the environment as itself —
+    or raises `_Raised` with whatever the run stopped with.
 
     **At most once**: the answer, value or stop, is worked out on the first call
     and handed back on every later one. An argument that is asked for twice is
@@ -846,6 +845,9 @@ class _Activation:
             return self._resolve(node.name, scope)
         if isinstance(node, viba_ast.CodeBlock):
             return VibaProgramErr("a code block is documentation: it is not a value")
+        import traceback
+        traceback.print_stack()
+        print("DEBUG evaluating:", type(node).__name__, viba_ast.unparse_type(node)[:60].replace("\n", " "))
         return VibaProgramErr(f"cannot compute {type(node).__name__}")
 
     def _descriptor(self, node):
@@ -1061,8 +1063,7 @@ class _Activation:
         """
         home = home or self.module
         body = definition.body
-        if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)) or \
-                marked_function(body, owner_module) is not None:
+        if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
             node = viba_ast.TypeRef(written or name)
             return Ok(_Material(VibaNode(
                 reflect_access, descriptor_of(AstNodeType(node, home)), node)))
@@ -1092,9 +1093,8 @@ class _Activation:
             return target
         current = target.ok_value
         for argument in written:
-            lazy = isinstance(current, _Pending) and current.lazy \
-                and not current.is_environment_slot(argument)
-            value = (self._lazy_argument(argument, scope) if lazy
+            value = (self._lazy_argument(argument, scope)
+                     if self._argument_is_by_need(current, argument)
                      else self._argument(argument, scope))
             if _stopped(value):
                 return value
@@ -1110,6 +1110,14 @@ class _Activation:
         if isinstance(current, _Pending):
             return self._finish(current)
         return Ok(current)
+
+    def _argument_is_by_need(self, current, argument):
+        """Whether this written argument lands on a slot computed only when it is
+        wanted — then it is not computed here at all."""
+        if not isinstance(current, _Pending):
+            return False
+        index = current.index_for(argument)
+        return index is not None and current.slot_by_need(index) is not None
 
     def _finish(self, pending):
         """The chain ended: run it when the environment is in, store it when not.
@@ -1190,18 +1198,10 @@ class _Activation:
         if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
             return self._func_pending(name_node, written, owner_module, body,
                                       local_name or name, home=home)
-        chain = marked_function(body, owner_module)
-        if chain is None:
-            return None
-        if not isinstance(chain, (viba_ast.Exponent, viba_ast.ExponentChain)):
-            return VibaProgramErr(
-                f"{name}: ParametersLazyEvaluated marks a function, not "
-                f"{viba_ast.unparse_type(chain)}")
-        return self._func_pending(name_node, written, owner_module, chain,
-                                  local_name or name, lazy=True, home=home)
+        return None
 
     def _func_pending(self, name_node, written, owner_module, chain, name,
-                      lazy=False, home=None):
+                      home=None):
         """The call a function stands for. Every executable function depends on
         the environment, so a chain without that slot can never run: saying so
         here is what keeps such a call from becoming a closure that never runs."""
@@ -1212,7 +1212,7 @@ class _Activation:
                 f"{written} takes no {ENVIRON_TAG} {ENVIRON_TYPE} argument: "
                 f"every executable function depends on the environment")
         return Ok(_Pending.func(self, name_node, written, owner_module, slots,
-                                lazy=lazy, name=name, home=home))
+                                name=name, home=home))
 
     def _member_target(self, module, module_name, rest, name_node, written,
                        home=None):
@@ -1239,7 +1239,7 @@ class _Activation:
         """Result: the `_Given` this argument is, with its value not computed.
 
         What travels is a getter; the host calls it if and when it wants that
-        argument (see `ParametersLazyEvaluated`).
+        argument (see `CalledByNeed`).
         """
         if isinstance(node, viba_ast.CodeBlock):
             return Ok(None)
@@ -1306,7 +1306,7 @@ class _Pending:
     """
 
     def __init__(self, kind, activation=None, head=None, written="", name="",
-                 module=None, home=None, elements=(), lazy=False, runner=None,
+                 module=None, home=None, elements=(), runner=None,
                  module_name=None):
         self.kind = kind                     # "func" | "module"
         self.activation = activation         # 函数：定义在哪个模块里
@@ -1316,7 +1316,6 @@ class _Pending:
         self.module = module                 # 格子声明在哪个模块：核对类型用
         self.home = home or module           # 这次调用写在哪个模块：写回材料用
         self.elements = list(elements)       # 各格，按书写顺序
-        self.lazy = lazy
         self.runner = runner                 # 模块：谁来跑它
         self.module_name = module_name
         self.environ = None                  # 环境；给了就是执行
@@ -1324,11 +1323,10 @@ class _Pending:
         self.empty = False                   # 模块：那份空实参被显式写出来了
 
     @classmethod
-    def func(cls, activation, head, written, owner_module, elements, lazy=False,
-             name="", home=None):
+    def func(cls, activation, head, written, owner_module, elements, name="",
+             home=None):
         return cls("func", activation=activation, head=head, written=written,
-                   name=name, module=owner_module, home=home, elements=elements,
-                   lazy=lazy)
+                   name=name, module=owner_module, home=home, elements=elements)
 
     @classmethod
     def module(cls, runner, module, module_name, head, home=None):
@@ -1360,20 +1358,40 @@ class _Pending:
                 return index
         return None
 
-    def is_environment_slot(self, node):
-        """Whether this written argument is the environment's slot.
-
-        Only a marked function asks: its arguments are not computed, and the
-        environment is never one of those — it is what an execution runs on.
-        """
-        index = self.environ_slot()
-        if index is None:
-            return False
+    def index_for(self, node):
+        """Which slot this written argument goes to, or None when there is none
+        (then `give` reports it)."""
         tag, _ = _addressed(node)
+        index, _problem = self.slot_for(tag)
+        return index
+
+    def slot_for(self, tag):
+        """(index, problem) for a written argument: by its tag, or the next free
+        slot when it carries none."""
+        slots = self.slots
+        if len(self.given) == len(slots):
+            return None, f"{self.written} takes no more arguments"
         if tag is not None:
-            return tag == ENVIRON_TAG
-        free = [one for one in range(len(self.elements)) if one not in self.given]
-        return bool(free) and free[0] == index
+            if tag not in slots:
+                return None, f"{self.written} takes no {tag} argument"
+            return slots.index(tag), None
+        free = [one for one in range(len(slots)) if one not in self.given]
+        if not free:
+            return None, f"{self.written} takes no more arguments"
+        return free[0], None
+
+    def slot_by_need(self, index):
+        """The type inside `CalledByNeed[T]` when this slot is marked, else None.
+
+        A module's arguments are material it reads, not a call being made, so
+        nothing is computed on demand there.
+        """
+        if self.kind == "module":
+            return None
+        element = self.elements[index]
+        if isinstance(element, viba_ast.Tagged):
+            element = element.type
+        return by_need_type(element, self.module)
 
     def ready(self) -> bool:
         if self.environ is None:
@@ -1415,38 +1433,28 @@ class _Pending:
         return self._give_func(tag, value)
 
     def _give_func(self, tag, value):
-        slots = self.slots
-        if len(self.given) == len(slots):
-            # 每一格都填过了：再来一个实参就是这个调用写多了（重复的 tag 后写的算，
-            # 见下）。
-            return VibaProgramErr(f"{self.written} takes no more arguments")
-        if tag is not None:
-            if tag not in slots:
-                return VibaProgramErr(f"{self.written} takes no {tag} argument")
-            index = slots.index(tag)
-        else:
-            free = [one for one in range(len(slots)) if one not in self.given]
-            if not free:
-                return VibaProgramErr(f"{self.written} takes no more arguments")
-            index = free[0]
+        index, problem = self.slot_for(tag)
+        if problem is not None:
+            return VibaProgramErr(problem)
         element = self.elements[index]
-        if self.lazy and self.environ is None and index != self.environ_slot():
-            # 标记过的函数：环境要先给。给之前，一个实参是环境还是惰性实参分不出来。
-            return VibaProgramErr(
-                f"{self.written}: a marked function is given its environment "
-                f"({ENVIRON_TAG}) before its arguments")
         if index == self.environ_slot():
             if not _is_environ_value(value):
                 return VibaProgramErr(f"{self.written} was not given an {ENVIRON_TYPE}")
             self.given[index] = value
             self.environ = value.obj
             return Ok(self)
-        if isinstance(value, _Getter):
-            value.watch(element, self.module, self.written)
-        else:
-            problem = _fits_slot(value, element, self.module, self.written)
-            if problem is not None:
-                return VibaProgramErr(problem)
+        inner = self.slot_by_need(index)
+        if inner is not None and isinstance(value, _Getter):
+            # 按需：这一格收的是"要用的时候再来拿"的东西，所以核类型也要等它被拿出来
+            # 的时候（`_Getter.watch`），而它本身不是材料——链走完还没执行就存不下来。
+            tag_name = self.slots[index]
+            value.watch(viba_ast.Tagged(tag_name, inner) if tag_name else inner,
+                        self.module, self.written)
+            self.given[index] = value
+            return Ok(self)
+        problem = _fits_slot(value, element, self.module, self.written)
+        if problem is not None:
+            return VibaProgramErr(problem)
         self.given[index] = value
         return Ok(self)
 
@@ -1513,14 +1521,15 @@ class _Pending:
         closure serializable, and it is the same thing every function and module
         answers with.
         """
-        if self.lazy and self.given:
-            return VibaProgramErr(
-                f"{self.written}: a marked function is not stored; it is executed "
-                f"in one chain")
         node = self.head
         tags = self.slot_tags()
         for index in sorted(self.given):
             value = self.given[index]
+            if isinstance(value, _Getter):
+                return VibaProgramErr(
+                    f"{self.written}: the {_slot_name(index, tags[index])} argument "
+                    f"is computed only when it is wanted, so it cannot be stored: "
+                    f"give it in the chain that runs")
             if not isinstance(value, _Material):
                 return VibaProgramErr(
                     f"{self.written}: a closure holds material only; the "
@@ -1582,7 +1591,7 @@ class _Pending:
                 step, REASON_GET_FUNC_RAISED)
         if host is None:
             return _no_implementation(step, self.call_material())
-        handed = [_getter(self.given[index]) if self.lazy
+        handed = [_getter(self.given[index]) if self.slot_by_need(index)
                   else _argument_value(self.given[index])
                   for index in range(len(self.elements))]
         try:

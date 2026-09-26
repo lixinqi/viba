@@ -1,0 +1,8 @@
+watch =
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { hand x back }
+
+w = watch << $x 1
+__ret__ = w

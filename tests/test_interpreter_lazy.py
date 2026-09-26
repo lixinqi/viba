@@ -1,8 +1,8 @@
-"""惰性参数：`ParametersLazyEvaluated` 标记的函数，实参不先算。
+"""按需参数：写在实参上的 `CalledByNeed[T]`，那一格不先算。
 
-被标记的函数（`branch.viba` 的两个开关就是一个例子）不按平常的方式调用：`interpret` 把每个
-写下来的实参包成一个无参 lambda 交给宿主，宿主叫哪个才算哪个。于是"没走的那一支"不会被求值——
-这才是 if/else；不然两条都算完再丢掉一条，只是结果一样。
+被标记的那一格（`branch.viba` 的两个开关就是一个例子）不按平常的方式给：`interpret` 把它包成
+一个无参 lambda 交给宿主，宿主叫了才算。于是"没走的那一支"不会被求值——这才是 if/else；不然
+两条都算完再丢掉一条，只是结果一样。同一个调用里别的实参照旧给值：标记只标那一格。
 
     python3 tests/test_interpreter_lazy.py
 """
@@ -123,7 +123,7 @@ def run(tmp: Path):
     _the_getters_follow_the_slots(tmp)
     _an_unmarked_function_is_still_eager(tmp)
     _a_called_getter_carries_what_stopped(tmp)
-    _the_marker_marks_functions(tmp)
+    _the_marker_marks_one_slot(tmp)
 
 
 def _only_the_taken_branch_is_computed(tmp: Path):
@@ -147,12 +147,10 @@ def _an_ignored_argument_is_never_computed(tmp: Path):
     """宿主不叫那个 getter，实参就不算——哪怕它根本没有实现。"""
     program = write(tmp, "ignored.viba", """
 ignore_x =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { answer seven without looking at x }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { answer seven without looking at x }
 
 poison_no_implementation =
     int <- $env Environment <- { nothing implements this }
@@ -168,12 +166,10 @@ __ret__ = ignore_x << $env environ << $x (poison_no_implementation << $env envir
     # 标记过的函数没有闭包形态：它的实参不先算，存不下来，所以只能一次写完
     half = write(tmp, "half.viba", """
 ignore_x =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { answer seven without looking at x }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { answer seven without looking at x }
 
 half = ignore_x << $env environ
 __ret__ = half << $x 1
@@ -237,12 +233,10 @@ def _an_argument_is_computed_at_most_once(tmp: Path):
     """
     twice = write(tmp, "ask_twice.viba", """
 ask_twice =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { add x to itself, asking for x twice }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { add x to itself, asking for x twice }
 
 tick =
     int <- $env Environment <- { a value with a side effect }
@@ -258,13 +252,11 @@ __ret__ = ask_twice << $env environ << $x (tick << $env environ)
 
     nothing = write(tmp, "ask_nothing.viba", """
 ask_nothing =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $a int
-      <- $b int
-      <- { answer zero, asking for neither argument }
-    ]
+    int
+  <- $env Environment
+  <- $a CalledByNeed[int]
+  <- $b CalledByNeed[int]
+  <- { answer zero, asking for neither argument }
 
 tick =
     int <- $env Environment <- { one }
@@ -282,12 +274,10 @@ __ret__ = ask_nothing << $env environ << $a (tick << $env environ) << $b (tock <
     # 失败也只算一次：第二次问拿到的是同一个结果，不是重新求值
     failing = write(tmp, "ask_twice_failing.viba", """
 ask_twice =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { add x to itself, asking for x twice }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { add x to itself, asking for x twice }
 
 poison_raises_when_asked =
     int <- $env Environment <- { a step whose implementation raises }
@@ -306,13 +296,11 @@ def _the_getters_follow_the_slots(tmp: Path):
     """位置实参与乱序 tag：getter 仍按槽位交给宿主。"""
     positional = write(tmp, "positional.viba", """
 positional =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $condition bool
-      <- $v int
-      <- { the value when the condition holds }
-    ]
+    int
+  <- $env Environment
+  <- $condition CalledByNeed[bool]
+  <- $v CalledByNeed[int]
+  <- { the value when the condition holds }
 
 tick =
     int <- $env Environment <- { one }
@@ -330,13 +318,11 @@ __ret__ = positional << environ << condition << value
 
     out_of_order = write(tmp, "out_of_order.viba", """
 positional =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $condition bool
-      <- $v int
-      <- { the value when the condition holds }
-    ]
+    int
+  <- $env Environment
+  <- $condition CalledByNeed[bool]
+  <- $v CalledByNeed[int]
+  <- { the value when the condition holds }
 
 tick =
     int <- $env Environment <- { one }
@@ -397,12 +383,10 @@ def _a_called_getter_carries_what_stopped(tmp: Path):
     """宿主叫了那个 getter，实参算的时候出的事就照常报出来。"""
     missing = write(tmp, "called_missing.viba", """
 take_x =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { answer whatever x is }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { answer whatever x is }
 
 poison_no_implementation =
     int <- $env Environment <- { nothing implements this }
@@ -416,12 +400,10 @@ __ret__ = take_x << $env environ << $x (poison_no_implementation << $env environ
 
     boomed = write(tmp, "called_boom.viba", """
 take_x =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { answer whatever x is }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { answer whatever x is }
 
 __ret__ = take_x << $env environ << $x (1 << $x 2)
 """)
@@ -431,28 +413,14 @@ __ret__ = take_x << $env environ << $x (1 << $x 2)
              "not a failure of the host that asked for it")
 
 
-def _the_marker_marks_functions(tmp: Path):
-    """标记只标函数；漏了 environ 也照旧是错。"""
-    not_a_function = write(tmp, "not_a_function.viba", """
-wrong =
-    ParametersLazyEvaluated[int]
-
-__ret__ = wrong << $env environ
-""")
-    calls = []
-    result = interpret(not_a_function, environ_for(calls, tmp / "store-h"))
-    check(isinstance(result, VibaProgramErr) and
-          "ParametersLazyEvaluated marks a function" in result.err_msg,
-          f"the marker around a non-function says so: {result!r}")
-
+def _the_marker_marks_one_slot(tmp: Path):
+    """标记标的是那一格实参；函数该有的 environ 漏了也照旧是错。"""
     no_env = write(tmp, "no_env.viba", """
 ignore_x =
-    ParametersLazyEvaluated[
-        int
-      <- $env Environment
-      <- $x int
-      <- { answer seven without looking at x }
-    ]
+    int
+  <- $env Environment
+  <- $x CalledByNeed[int]
+  <- { answer seven without looking at x }
 
 __ret__ = ignore_x << 5 << 1
 """)

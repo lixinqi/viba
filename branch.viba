@@ -6,29 +6,25 @@
 # branch. Hence the two names: `id_or_never` keeps the value when the condition
 # holds (the identity selects it), `never_or_id` keeps it when it does not.
 #
-# Both are marked `ParametersLazyEvaluated`, so `interpret` does not compute the
-# branch value up front: it hands the host a getter for it, and the switch calls
-# that getter only on the branch it takes. That is what makes this if/else and
-# not "compute both, then drop one".
+# The branch value's slot is `CalledByNeed[Any]`, so `interpret` does not compute
+# it up front: it hands the host something it calls only on the branch it takes.
+# That is what makes this if/else and not "compute both, then drop one" — while
+# the environment and the condition, being ordinary slots, are given as usual.
 
 # Condition holds: nil * v = v — and v is computed.
 # Condition does not hold: never * v = never — and v is never computed.
 id_or_never =
-    ParametersLazyEvaluated[
-        Any
-      <- $env Environment
-      <- $condition bool
-      <- $v Any
-      <- { when condition holds, hand back v; otherwise hand back never }
-    ]
+    Any
+  <- $env Environment
+  <- $condition bool
+  <- $v CalledByNeed[Any]
+  <- { when condition holds, hand back v; otherwise hand back never }
 
 # Condition holds: never * v = never — and v is never computed.
 # Condition does not hold: nil * v = v — and v is computed.
 never_or_id =
-    ParametersLazyEvaluated[
-        Any
-      <- $env Environment
-      <- $condition bool
-      <- $v Any
-      <- { when condition holds, hand back never; otherwise hand back v }
-    ]
+    Any
+  <- $env Environment
+  <- $condition bool
+  <- $v CalledByNeed[Any]
+  <- { when condition holds, hand back never; otherwise hand back v }

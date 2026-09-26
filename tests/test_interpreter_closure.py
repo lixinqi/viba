@@ -16,6 +16,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import branch
+
 from interpreter_support import Checks, value_of
 
 from viba.reflect import access as reflect_access
@@ -43,6 +45,8 @@ def host_for(calls):
             return lambda env: 7
         if func_name == "x_of":
             return lambda env, point: reflect_access.leaf(point.by_tag("x")).ok_value
+        if func_name == "ge":
+            return lambda env, x, y: x.value >= y.value
         if func_name == "show":
             return lambda env, f: f          # 宿主只把它当数据，原样递回来
         if func_name == "tick":
@@ -50,14 +54,14 @@ def host_for(calls):
                 calls.append("tick")
                 return len(calls)
             return counted
-        return None
+        return branch.get_func(module_path, func_name)
     return get_func
 
 
 def environ_for(store, calls=()):
     return Environment(EnvironmentStorage("root", None, str(store)),
                        EnvironmentCompute(host_for(calls)),
-                       viba_path=str(CASES))
+                       viba_path=str(CASES.parents[2]))
 
 
 # (文件, 该跑出什么)：
@@ -84,14 +88,16 @@ CASES_TO_RUN = [
     ("closure_in_material", "material", None, None),
     # 模块闭包：同型，四种给法
     ("module_closure", "closure", "square_sum << $a 3 << $b 4", None),
+    # 按需那一格留着不给，别的先给：这正是标记挪到实参上换来的
+    ("partial_across_a_by_need_slot", "value", 1, ["tick"]),
     ("module_closure_by_tag", "value", 25, None),
     ("module_closure_bare_name", "value", 25, None),
     ("module_closure_empty_product", "value", 7, None),
     # 两种不许存下来的
     ("half_with_environment", "error", "was given 2 of its 3 arguments", None),
     ("closure_holding_environment", "error", "a closure holds material only", None),
-    ("closure_over_a_marked_function", "error",
-     "a marked function is given its environment", None),
+    ("by_need_argument_is_not_stored", "error",
+     "computed only when it is wanted, so it cannot be stored", None),
 ]
 
 
@@ -109,7 +115,7 @@ def one_line(node) -> str:
 
 
 def run(tmp: Path):
-    check(len(CASES_TO_RUN) == 20, f"twenty cases: {len(CASES_TO_RUN)}")
+    check(len(CASES_TO_RUN) == 21, f"twenty-one cases: {len(CASES_TO_RUN)}")
     for index, (name, kind, want, calls_wanted) in enumerate(CASES_TO_RUN):
         program = CASES / f"{name}.viba"
         check(program.is_file(), f"the case is a file: {program.name}")

@@ -82,7 +82,7 @@ alias of what it is written as, and judgment is structural throughout.
 """
 
 from viba import viba_ast
-from viba.partial import (marked_function, module_as_function, product_elements,
+from viba.partial import (by_need_type, module_as_function, product_elements,
                           reduce_partial)
 from viba.type import (
     PartialError,
@@ -981,10 +981,10 @@ class _Checker:
                 return node, module
 
     def _through_marker(self, node, module):
-        """`ParametersLazyEvaluated[F]` is F: the marker says how the arguments
-        are given, not what the function is (viba-interpreter.md)."""
+        """`CalledByNeed[T]` is T: the marker says how that one argument is
+        given, not what the type is (viba-interpreter.md)."""
         while True:
-            marked = marked_function(node, module)
+            marked = by_need_type(node, module)
             if marked is None:
                 return node
             node = marked

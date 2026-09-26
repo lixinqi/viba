@@ -37,21 +37,22 @@ ARGS_NAME = "__args__"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
 
-# The tag that makes a function's arguments lazy (viba/builtin.viba).
-LAZY_MARKER_TAG = "$__param_lazy_evaluated_tag_yanatutt__"
+# The tag that marks one argument as computed only when it is wanted
+# (viba/builtin.viba).
+CALLED_BY_NEED_TAG = "$__called_by_need_tag_yanatutt__"
 
 
-def marked_function(node, module):
-    """The function type inside `ParametersLazyEvaluated[F]`, else None.
+def by_need_type(node, module):
+    """The type a slot written `CalledByNeed[T]` asks for, else None.
 
-    A marked function *is* the function it marks: the marker says how the
-    arguments are given (one at a time, to the host, viba-interpreter.md), not
-    what the function is. Every layer reads through it, so all three agree on
-    what is being called.
+    A marked slot *is* its type: the marker says how that one argument is given
+    (an argument the host asks for if it wants it, viba-interpreter.md), not what
+    the type is. Every layer reads through it, so a marked slot and a plain one
+    are judged the same, and a marked call reduces everywhere.
 
-    The name alone decides nothing — a module may define
-    `ParametersLazyEvaluated` itself, and a local definition wins — so the
-    definition the constructor names has to carry the reserved tag.
+    The name alone decides nothing — a module may define `CalledByNeed` itself,
+    and a local definition wins — so the definition the constructor names has to
+    carry the reserved tag.
     """
     if not isinstance(node, viba_ast.TypeApp) or len(node.args or []) != 1:
         return None
@@ -65,7 +66,7 @@ def marked_function(node, module):
             body = builtin.ok_value.ast_node
     if body is None:
         return None
-    if not any(isinstance(part, viba_ast.Tagged) and part.tag == LAZY_MARKER_TAG
+    if not any(isinstance(part, viba_ast.Tagged) and part.tag == CALLED_BY_NEED_TAG
                for part in viba_ast.walk(body)):
         return None
     return node.args[0]
@@ -181,11 +182,11 @@ def _give(base, module, argument, argument_module, resolve, judge):
 
 
 def _unfold(node, module, resolve):
-    """A name runs to its body, name after name — and a marked function is the
-    function it marks, so the marker is read through here."""
+    """A name runs to its body, name after name — and a marked slot is the type
+    it marks, so the marker is read through here too."""
     seen = set()
     while True:
-        marked = marked_function(node, module)
+        marked = by_need_type(node, module)
         if marked is not None:
             node = marked
             continue
@@ -244,5 +245,5 @@ def _elements(node):
     return [node]
 
 
-__all__ = ["reduce_partial", "module_as_function", "marked_function",
+__all__ = ["reduce_partial", "module_as_function", "by_need_type",
            "product_elements"]

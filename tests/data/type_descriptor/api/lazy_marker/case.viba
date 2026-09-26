@@ -1,9 +1,0 @@
-id_or_never =
-    ParametersLazyEvaluated[
-        Any
-      <- $env Environment
-      <- $condition bool
-      <- $v Any
-    ]
-Called = id_or_never << $env environ
-Holder = Object * $sw id_or_never
