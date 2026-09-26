@@ -1,0 +1,13 @@
+# A member may be a function that takes the value it was taken from as its first
+# argument. The tag form gives that value first, so this is `box.f << box << …`.
+Box = Object * $f (int <- $box Box <- $env Environment <- $x int) * $y int
+
+inc =
+    int
+  <- $box Box
+  <- $env Environment
+  <- $x int
+  <- { add one }
+
+box = Object * $f inc * $y 2
+__ret__ = $f << box << environ << 1

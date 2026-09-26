@@ -14,10 +14,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, Host
+from interpreter_support import Checks, Host, value_of
 
 from viba import viba_ast
-from viba.interpret import Environment, interpret
+from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.type import Ok
 
 CASES = Path(__file__).resolve().parent / "data" / "member"
@@ -40,6 +40,7 @@ def run(tmp: Path):
     _the_same_child(tmp)
     _the_same_temporary_child(tmp)
     _the_first_argument_is_the_receiver(tmp)
+    _a_member_that_takes_its_owner()
     _the_tag_is_not_a_value()
     _what_is_not_there_is_reported(tmp)
 
@@ -74,6 +75,23 @@ def _the_first_argument_is_the_receiver(tmp: Path):
     by_tag = interpret(str(CASES / "argument_written_by_tag.viba"), environ_for())
     check(isinstance(by_tag, Ok) and _path_of(by_tag) == "root/kid",
           f"the first argument may be written by tag: {by_tag!r}")
+
+
+def _a_member_that_takes_its_owner():
+    """成员要 owner 时，两种写法是同一次调用：第一个参数也交给成员。"""
+    def get_func(path, func_name):
+        if func_name == "inc":
+            # 收 owner、环境、x 三样
+            return lambda box, environ, x: 2
+        return Host().get_func(path, func_name)
+
+    host = Environment(EnvironmentStorage("root", None, None), EnvironmentCompute(get_func))
+    by_tag = interpret(str(CASES / "owner_member_by_tag.viba"), host)
+    by_dot = interpret(str(CASES / "owner_member_by_dot.viba"), host)
+    check(isinstance(by_tag, Ok) and value_of(by_tag) == 2,
+          f"a member that takes its owner: {by_tag!r}")
+    check(isinstance(by_dot, Ok) and value_of(by_dot) == 2,
+          f"and the dotted spelling is the same call: {by_dot!r}")
 
 
 def _the_tag_is_not_a_value():

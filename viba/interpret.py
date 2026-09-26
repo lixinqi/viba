@@ -1145,7 +1145,17 @@ class _Activation:
         if written is None:
             return target
         current = target.ok_value
-        for argument in written:
+        for index, argument in enumerate(written):
+            if _is_a_written_call(current):
+                # A value that is a call written down — a member read out of the
+                # design, a closure kept as a value — takes the rest of the chain
+                # the way it would at the head: read the chain it is and keep
+                # giving. Nothing is computed twice: the arguments still to be
+                # given have not been touched yet.
+                node = current.node.data
+                for later in written[index:]:
+                    node = viba_ast.Partial(node, later)
+                return self._apply_chain(node, scope)
             value = (self._lazy_argument(argument, scope)
                      if self._argument_is_by_need(current, argument)
                      else self._argument(argument, scope))
@@ -1154,10 +1164,22 @@ class _Activation:
             if value.ok_value is None:
                 continue                        # documentation is no argument
             if isinstance(current, _Member):
-                current = self._take_member(current, value.ok_value.value)
-                if _stopped(current):
-                    return current
-                current = current.ok_value
+                taken = self._take_member(current, value.ok_value.value)
+                if _stopped(taken):
+                    return taken
+                current = taken.ok_value
+                if _is_a_written_call(current):
+                    # The value the member came from is given to the member too,
+                    # and the rest of the chain goes on from there.
+                    node = current.node.data
+                    for later in written[index:]:
+                        node = viba_ast.Partial(node, later)
+                    return self._apply_chain(node, scope)
+                if isinstance(current, _HostFunction) and current.filled():
+                    run = current.run()
+                    if _stopped(run):
+                        return run
+                    current = run.ok_value
                 continue
             if isinstance(current, _Pending):
                 current = current.give(value.ok_value.tag, value.ok_value.value)
@@ -1331,6 +1353,17 @@ def _call_parts(node):
         written.append(node.argument)
         node = node.function
     return node, list(reversed(written))
+
+
+def _is_a_written_call(value) -> bool:
+    """Whether this value is a call written down rather than an answer.
+
+    A closure kept as a value is the chain it was made from (`f << $a 1`), and a
+    name kept as a value is the call it stands for, so both take arguments by
+    being read on. Materials that are answers — a literal, a product — do not.
+    """
+    return (isinstance(value, _Material)
+            and isinstance(value.node.data, (viba_ast.Partial, viba_ast.TypeRef)))
 
 
 def _host_give(function, item):

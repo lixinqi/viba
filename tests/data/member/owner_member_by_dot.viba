@@ -1,0 +1,13 @@
+# The same call with the member read by its dotted name: the value it came from
+# is written out as its first argument.
+Box = Object * $f (int <- $box Box <- $env Environment <- $x int) * $y int
+
+inc =
+    int
+  <- $box Box
+  <- $env Environment
+  <- $x int
+  <- { add one }
+
+box = Object * $f inc * $y 2
+__ret__ = box.f << box << environ << 1

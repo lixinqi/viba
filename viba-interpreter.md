@@ -214,6 +214,9 @@ $sub_env << $env environ << $sub_env_name "add_demo"   # 都按 tag 给，也对
   * $tmp_sub_env (Environment <- $env Environment)
 ```
 
+成员也可以写在数据里：一个积的 `$f` 里放一个函数名时，`$f << box << environ << 1` 就是
+`box.f << box << environ << 1` —— 成员收的第一个参数是它所在的那个值（`$box Box`），环境跟在后面。
+
 tag 本身**不是值**：`method = $sub_env` 编不过，标签只有写在链头、后面跟着第一个参数时才成立。
 第一个参数必须写出来——它是取成员的那一个，省略了就成了一次没有成员的调用。第一个参数是别的值
 也一样：`$tag` 命中的是它的成员，不在就报错。
