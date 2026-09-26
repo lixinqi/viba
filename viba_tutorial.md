@@ -269,7 +269,7 @@ tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头�
 - `$underlying_viba_op_failed Failure`（`UnderlyingVibaOpFailed`）：**某一步的实现坏了**，或者它答了
   没有叶子的东西。`$msg` 给人读，`$step`、`$reason` 给程序读。
 - `$not_my_duty_exception Duty`（`NotMyDutyException`）：**这一步不在这台机器上作答**。这不是失败，是
-  递延——程序停在那儿，等有实现的一方接着做。`interpret` 不带库函数，所以"没有实现"是常态。
+  递延——程序停在那儿，等有实现的一方接着做。`interpret` 不带库函数，所以"没有实现"很正常。
 
 递延里带着是哪一步（`$step` 的 `module_path` 与 `func_name`）和这一步拿到的实例（`$call`），所以拿着
 它就能把下一步该做什么写出来，不必再跑一次（[`roadmap.md`](roadmap.md)）。

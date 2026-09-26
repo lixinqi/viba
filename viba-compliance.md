@@ -77,7 +77,7 @@ __ret__ =
   自己的地址，也不该占一个（`tmp_sub_env` 每次都是新的，见
   [`viba-interpreter.md`](viba-interpreter.md)）。要给
   证据落地址的是**测量**：它多收一个槽位 `$evidence Environment`，明说"这次测量属于哪个案子"。
-  两者分开，规则里才没有人把随便哪次调用钉到案子的地址上。
+  两者分开，规则里才没有人把任意一次调用钉到案子的地址上。
 - **`__ret__` 是判定**。它是 `bool`，跑完就是答案：真合规、假不合规。这条规则跑出来是
   `Ok(true)`——量出来恰好 5，够门槛。
 - **条件是它自己的函数，判据是它的参数**。`distance_ge` 问的是"距离至少到没到门槛"，门槛由
@@ -168,7 +168,7 @@ def measure_distance(self, env, evidence, case):
 
 `measure(environ, name, call, compute)` 做的事：
 
-1. 读这次调用的 **Prepare**（见下）。里面已经有量出来的值 → **直接回放，`compute` 一次不调**；
+1. 读这次调用的 **Prepare**。里面已经有量出来的值 → **直接回放，`compute` 一次不调**；
 2. 没有 → 调 `compute(call)`（不纯的那一步），把值写进本轮 store 的 Prepare 里，再答它。
 
 **Prepare 是"这一次测量"的存档**：调用（参数定了、结果声明了）与量出来的值，一个文件：

@@ -30,8 +30,8 @@ interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 interpret("main.viba", environ, get_file=files.get)   # 一次运行全在内存里
 ```
 
-- **留空（`None`）就读文件系统**，和以前一样（`Path.read_text()`）。
-- **给了就一律走它**，不再碰文件系统：连主文件也从它那儿读。所以宿主可以把整次运行架在内存、
+- **留空（`None`）就读文件系统**（`Path.read_text()`）。
+- **给了就一律走它**，就不碰文件系统：连主文件也从它那儿读。所以宿主可以把整次运行架在内存、
   数据库或者别的地方上，路径只是字符串。
 - 它收到的路径**按字符串给**（`$file_path str`），就是这次要找的那个候选路径（绝对还是相对，
   取决于 `viba_path`/主文件是怎么写的）。
@@ -83,7 +83,7 @@ __ret__ =
 - **接实参时逐个核类型**：设计已经写明每个参数要什么（`$a int`），而写出来的实参自己带着类型
   （可序列化数据、字面量、函数链、环境），所以判定层那套 `<:` 在这里就能用——给错了是**程序错**
   （`VibaProgramErr`），不是"某一步的实现坏了"。判不出类型的（宿主自己的值、判定 settle 不了的）
-  照旧放过去，交给实现那一步的人；按需的实参不先算，所以那个参数等宿主叫它的时候才核，不叫就不核。
+  就放过去，交给实现那一步的人；按需的实参不先算，所以那个参数等宿主叫它的时候才核，不叫就不核。
 - `__ret__` 必须是值：可序列化数据、环境，或者一个**闭包**（见「环境就是执行」）。
 
 ## 环境就是执行
@@ -316,7 +316,7 @@ def roll(env, n):
   `sub_env << environ << "稳定的名字"` 就是稳定的；`tmp_sub_env` 每条路径都是新的，挂在它底下的调用不适合
   保存要回放的东西（上一节：这正是它给出的"该显名保存了"的信号）。
 - **快照是序列化的 viba 数据**（`viba.serialize` 写出来的 `value = …`），不是 pickle：存下来
-  的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回实例，叶子和原来一样。
+  的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回实例，叶子和存进去的时候一样。
 - **存不了、回放不出来就是错**：`VibaProgramErr`（宿主抛出来，interpret 转成 `VibaProgramErr`），不会静默给个默认值。
 
 于是"随机"也能回放：
@@ -503,12 +503,12 @@ demo = import add_demo as demo         # 概念上
 demo << $env environ  <:  int     # 就是 __ret__ 的类型；没有 __args__ 的模块，给环境就是执行
 int <: demo << $env environ        # 反过来也成立：两者同型
 demo.add <: int <- $env Environment <- $a int <- $b int
-design.Only <: $x int                   # module.MyType 照旧，没有被顶掉
+design.Only <: $x int                   # module.MyType 仍然是那个模块里的定义
 square_sum << $env environ << $a 3 <: int <- $b int   # 给了一半：剩下的是函数
 ```
 
 - 只认 **import 绑定的那个名字**（`import a.b as c` 的 `c`，`import a.b` 的 `a.b`）。`module.Name`
-  仍然是那个模块里的定义，和以前一样按最长的前缀解析。
+  仍然是那个模块里的定义，按最长的前缀解析。
 - 没有 `__ret__` 的模块不是程序：`demo << $env environ` 在类型层也是 `VibaProgramErr`。
 - `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
   这个参数在类型上也对得上。
@@ -607,7 +607,7 @@ Duty =
   句子里的；
 - `$not_my_duty_exception Duty`（`NotMyDutyException`）：**这一步不在这台机器上作答**。这不是失败，是递延——程序停在
   那儿，等有实现的一方接着做（[`roadmap.md`](roadmap.md)）。`interpret` 不带库函数，所以"没有
-  实现"是常态，不是错误。
+  实现"很正常，不是错误。
 
 `$step` 的两个字段就是 `get_func(module_path, func_name)` 收到的那两个：路径是这次调用的**地址**，
 所以同一个定义、另一个案子，是另一步。`$call` 是这一步拿到的**实例**，按它写下来的样子——一份
