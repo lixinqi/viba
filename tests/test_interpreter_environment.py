@@ -1,6 +1,6 @@
-"""Environment：$env 那一格、子环境、以及宿主给自己加的东西。
+"""Environment：$env 那个参数、子环境、以及宿主给自己加的东西。
 
-每个可执行函数都要 $env Environment，而且那格必须写成 $env；sub_env 按名字给子环境，
+每个可执行函数都要 $env Environment，而且那个参数必须写成 $env；sub_env 按名字给子环境，
 tmp_sub_env 每次给一个新的；子环境带着父级的 compute。
 
     python3 tests/test_interpreter_environment.py
@@ -31,7 +31,7 @@ def run(tmp: Path):
 
 
 def _the_env_slot(tmp: Path):
-    """必须给、必须是 Environment、那格必须写成 $env。"""
+    """必须给、必须是 Environment、那个参数必须写成 $env。"""
     host = Host()
     environ = host.environ()
 
@@ -51,7 +51,7 @@ __ret__ = double << $a 21
     labelled(interpret(wrong, environ), "was not given an Environment",
              "an environment argument that is not an Environment -> VibaProgramErr")
 
-    # 环境那一格必须写成 $env：不带 tag 的 Environment 位不算数
+    # 环境那个参数必须写成 $env：不带 tag 的 Environment 位不算数
     positional = write(tmp, "positional_env.viba", """
 f =
 	int

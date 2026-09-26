@@ -156,9 +156,9 @@ def _check_unit_heads():
 
 
 def _check_by_need():
-    """`CalledByNeed[T]`：标记说的是那一格怎么给，不是类型。
+    """`CalledByNeed[T]`：标记说的是那个参数怎么给，不是类型。
 
-    所以这一层读穿它：一格写成 `CalledByNeed[int]`，读出来就是 `int`；带着标记的调用也编得出来。
+    所以这一层读穿它：一个参数写成 `CalledByNeed[int]`，读出来就是 `int`；带着标记的调用也编得出来。
     名字自己不算数——本地那份不含保留 tag 的定义就只是个普通的类型应用。
     """
     pool = load("by_need", [("case.viba", "by_need")])
@@ -266,7 +266,7 @@ def _check_errors():
                 "N = int << $b str\n",
                 "M = (int <- $b str) << $c str\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "partial.viba", "partial"), VibaProgramErr), bad
-    # 给的那个参数得能坐进那一格：C <: B 才算合法
+    # 给的那个参数得能坐进那个位置：C <: B 才算合法
     assert isinstance(parse_viba_file(empty_pool(),
                                       "W = (int <- $b (int | str)) << $b int\n",
                                       "fit.viba", "fit"), Ok)

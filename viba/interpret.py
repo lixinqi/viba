@@ -1313,13 +1313,13 @@ class _Pending:
         self.head = head                     # 闭包写成什么：函数名或模块名那个节点
         self.written = written               # 写出来的样子：给人和闭包用
         self.name = name or written          # 定义名：宿主按这个名字找实现
-        self.module = module                 # 格子声明在哪个模块：核对类型用
+        self.module = module                 # 参数声明在哪个模块：核对类型用
         self.home = home or module           # 这次调用写在哪个模块：写回材料用
-        self.elements = list(elements)       # 各格，按书写顺序
+        self.elements = list(elements)       # 各参数，按书写顺序
         self.runner = runner                 # 模块：谁来跑它
         self.module_name = module_name
         self.environ = None                  # 环境；给了就是执行
-        self.given = {}                      # 格号 -> 值
+        self.given = {}                      # 参数序号 -> 值
         self.empty = False                   # 模块：那份空实参被显式写出来了
 
     @classmethod
@@ -1445,7 +1445,7 @@ class _Pending:
             return Ok(self)
         inner = self.slot_by_need(index)
         if inner is not None and isinstance(value, _Getter):
-            # 按需：这一格收的是"要用的时候再来拿"的东西，所以核类型也要等它被拿出来
+            # 按需：这个参数收的是"要用的时候再来拿"的东西，所以核类型也要等它被拿出来
             # 的时候（`_Getter.watch`），而它本身不是材料——链走完还没执行就存不下来。
             tag_name = self.slots[index]
             value.watch(viba_ast.Tagged(tag_name, inner) if tag_name else inner,

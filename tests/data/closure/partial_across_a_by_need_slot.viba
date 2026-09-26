@@ -8,7 +8,7 @@ tick =
 
 condition = ge << $env environ << $x 1 << $y 0
 
-# 按需的那一格还没给：条件先定下来，这还是一个闭包
+# 按需的那个参数还没给：条件先定下来，这还是一个闭包
 switch = branch.id_or_never << $condition condition
 
 __ret__ = switch << $v (tick << environ) << environ

@@ -52,7 +52,7 @@ CASES_TO_RUN = [
     ("three_cycle", "A -> B -> C -> A"),
     ("cycle_through_a_binding", "A -> B -> A"),
     ("self_call", "A -> A"),
-    # 没真跑起来的递归不算：惰性实参没人叫、递归类型只是类型
+    # 没真跑起来的递归不算：按需的实参没人叫、递归类型只是类型
     ("lazy_self_terminates", 7),
     ("type_recursion_runs", 7),
     ("tagged_type_piece", 7),

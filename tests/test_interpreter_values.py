@@ -328,7 +328,7 @@ __ret__ = feed_a_list << $env environ << $f inc
     checks.failed(interpret(fed, environ), "raised",
                   "a host handing a viba function something with no leaf")
 
-    # 那一格声明的是 int：把函数递进去是程序错，判定层当场拦下，走不到宿主
+    # 那个参数声明的是 int：把函数递进去是程序错，判定层当场拦下，走不到宿主
     handed = write(tmp, "handed.viba", LEAF + """
 echo =
 	int
@@ -340,7 +340,7 @@ __ret__ = echo << $env environ << $x leaf
     checks.labelled(interpret(handed, environ), "does not fit $x int",
                     "a viba function handed where an int is declared: a program error")
 
-    # 那一格声明的是 Any：函数装得下，宿主拿到它再交回来，才轮到"没有叶子"
+    # 那个参数声明的是 Any：函数装得下，宿主拿到它再交回来，才轮到"没有叶子"
     handed_any = write(tmp, "handed_any.viba", LEAF + """
 echo =
 	int

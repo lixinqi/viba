@@ -1,8 +1,8 @@
-"""按需参数：写在实参上的 `CalledByNeed[T]`，那一格不先算。
+"""按需参数：写在实参上的 `CalledByNeed[T]`，那个参数不先算。
 
-被标记的那一格（`branch.viba` 的两个开关就是一个例子）不按平常的方式给：`interpret` 把它包成
+被标记的那个参数（`branch.viba` 的两个开关就是一个例子）不按平常的方式给：`interpret` 把它包成
 一个无参 lambda 交给宿主，宿主叫了才算。于是"没走的那一支"不会被求值——这才是 if/else；不然
-两条都算完再丢掉一条，只是结果一样。同一个调用里别的实参照旧给值：标记只标那一格。
+两条都算完再丢掉一条，只是结果一样。同一个调用里别的实参照旧给值：标记只标那个参数。
 
     python3 tests/test_interpreter_lazy.py
 """
@@ -75,7 +75,7 @@ def host_for(calls):
             # 两个实参都不问
             return lambda get_env, get_a, get_b: 0
         if func_name == "positional":
-            # 三个槽位都收，按写下来的顺序给 getter
+            # 三个参数都收，按写下来的顺序给 getter
             def positional(get_env, get_condition, get_v):
                 return get_v().value if get_condition().value else 0
             return positional
@@ -228,7 +228,7 @@ __ret__ =
 def _an_argument_is_computed_at_most_once(tmp: Path):
     """一个实参只算一次：问两次不等于做两遍。
 
-    惰性是"要的时候才算"，不是"每次问都算"——原来 eager 调用里那个实参也只求值一次，
+    按需是"要的时候才算"，不是"每次问都算"——原来 eager 调用里那个实参也只求值一次，
     宿主问两次不该让副作用发生两次。
     """
     twice = write(tmp, "ask_twice.viba", """
@@ -293,7 +293,7 @@ __ret__ = ask_twice << $env environ << $x (poison_raises_when_asked << $env envi
 
 
 def _the_getters_follow_the_slots(tmp: Path):
-    """位置实参与乱序 tag：getter 仍按槽位交给宿主。"""
+    """位置实参与乱序 tag：getter 仍按参数位置交给宿主。"""
     positional = write(tmp, "positional.viba", """
 positional =
     int
@@ -414,7 +414,7 @@ __ret__ = take_x << $env environ << $x (1 << $x 2)
 
 
 def _the_marker_marks_one_slot(tmp: Path):
-    """标记标的是那一格实参；函数该有的 environ 漏了也照旧是错。"""
+    """标记标的是那个参数的实参；函数该有的 environ 漏了也照旧是错。"""
     no_env = write(tmp, "no_env.viba", """
 ignore_x =
     int

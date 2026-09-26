@@ -1120,7 +1120,7 @@ def run_binding_definition_cases():
 
 
 def run_by_need_cases():
-    """`CalledByNeed[T]` 在判定层就是 T：标记说的是那一格怎么给，不是类型。
+    """`CalledByNeed[T]` 在判定层就是 T：标记说的是那个参数怎么给，不是类型。
 
     名字自己不算数——本地定义盖过内建——所以只有带那个保留 tag 的定义才算标记。
     """

@@ -77,14 +77,14 @@ __ret__ =
 - **函数体里的 `{...}` 是说明**：它不是参数，`<<` 给完实参之后链就落到结果上——
   `(B <- $a A) << $a A` 就是 `B`。
 - **`{...}` 只给提示，不给实现**：提示只说这一步要实现什么，主要逻辑得有人照着它写出来，再交到
-  `get_func` 上。写这些函数的是 agent（见下"宿主侧"），viba 一个都不带。
-- **每个可执行函数都要依赖 environ**：签名里必须有 `$env Environment` 这个槽位，调用时也必须给；
+  `get_func` 上。写这些函数的是 agent（见「宿主侧：Environment」），viba 一个都不带。
+- **每个可执行函数都要依赖 environ**：签名里必须有 `$env Environment` 这个参数，调用时也必须给；
   否则 `VibaProgramErr`（不是猜一个默认值）。
-- **接实参时按槽位核一次类型**：设计已经写明每一格要什么（`$a int`），而写出来的实参自己带着类型
+- **接实参时逐个核类型**：设计已经写明每个参数要什么（`$a int`），而写出来的实参自己带着类型
   （材料、字面量、函数链、环境），所以判定层那套 `<:` 在这里就能用——给错了是**程序错**
   （`VibaProgramErr`），不是"某一步的实现坏了"。判不出类型的（宿主自己的值、判定 settle 不了的）
-  照旧放过去，交给实现那一步的人；惰性实参不先算，所以那一格等宿主叫它的时候才核，不叫就不核。
-- `__ret__` 必须是值：材料、环境，或者一个**闭包**（见下）。
+  照旧放过去，交给实现那一步的人；按需的实参不先算，所以那个参数等宿主叫它的时候才核，不叫就不核。
+- `__ret__` 必须是值：材料、环境，或者一个**闭包**（见「环境就是执行」）。
 
 ## 环境就是执行
 
@@ -114,7 +114,7 @@ __ret__ = g                    # 一次运行可以答一个闭包：给出去�
   `sg << (environ.tmp_sub_env << ())` 和 `sg << (environ.sub_env << "again")` 是两次运行。
 - **给了环境的链要么跑完，要么报错**：环境给了、实参还欠着，是"准备不完整"的程序错——这种
   半成品存不下来，也不该存。所以"给了一半"和"没给环境"是两件完全不同的事。
-- 宿主那一侧永远只见得到材料（见下"宿主侧"）：闭包到了宿主手里就是数据，可以拿着、存着、递回来。
+- 宿主那一侧永远只见得到材料（见「宿主侧：Environment」）：闭包到了宿主手里就是数据，可以拿着、存着、递回来。
 
 ## 模块的实参：`__args__`
 
@@ -154,10 +154,13 @@ __ret__ = square_sum << (environ.tmp_sub_env << ()) << 3 << 4
 - **`__args__` 的成员上写 `CalledByNeed` 没有用**：模块的实参是它读到的材料（`args.a` 那种），
   不是一次"要的时候再来拿"的调用——按需说的是宿主那一侧的实参。
 - **模块体里 `__args__` 就是那份实参积**：`args = __args__` 只是个别名，运行时 `args` 是这次调用
-  的实参（`args.a` 是 `$a` 那个成员的值，按 tag 寻址）；判定层读同一个名字读到的是成员**声明的
-  类型**（`args.a` 就是 `int`）。一个名字，两层各读各的——和 `environ` 一样。
+  的实参（`args.a` 是 `$a` 那个成员的值，按 tag 寻址——这里说的**地址**是数据存下来的那条路径，
+  由一串步子接成（按 tag、按位置、按下标、按键），一段一段走下去就是寻址；`$a` 是它的一步，模块
+  路径和 `cur_storage_path/<name>.viba` 也是地址。「幂等与快照」里的"快照地址"、「一次执行会得到什么」里的"这次调用的地址"都是这个
+  意思，步子分哪几种见 [`viba-reflect.md`](viba-reflect.md) 第 4 节）；判定层读同一个名字读到的是
+  成员**声明的类型**（`args.a` 就是 `int`）。一个名字，两层各读各的——和 `environ` 一样。
 - 实参必须是材料：它是积的一部分，交出去的东西得是能写下来的值。
-- **实参要装得下它那一格**：`$a int` 那一格给 `"x"` 是**程序写错了**，当场 `VibaProgramErr`
+- **实参要装得下那个参数**：`$a int` 那个参数给 `"x"` 是**程序写错了**，当场 `VibaProgramErr`
   （`module 'square_sum': "x" does not fit $a int: "x" <: int does not hold`），宿主根本看不见这个
   实参。函数那边同理：`add` 的 `$a int` 给字符串也一样。
 
@@ -171,11 +174,11 @@ ret = demo << (environ.sub_env << "add_demo") << ()
 __ret__ = demo.print << environ << ret
 ```
 
-- `demo` 是模块，当函数用：给它一个环境、再给它 `__args__`（这份没声明实参，那一格写 `()`），
+- `demo` 是模块，当函数用：给它一个环境、再给它 `__args__`（这份没声明实参，那个参数写 `()`），
   它跑完给出它的 `__ret__`。
 - `demo.print` 是这个模块里的函数。
 - `environ.sub_env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
-  `父路径/add_demo`（见下）。
+  `父路径/add_demo`（见「幂等与快照：结果要能回放」）。
 
 **每次模块调用都要有自己的 storage 路径**：那条路径是这次调用的身份——宿主拿到的
 `get_func(module_path, func_name)` 里的 `module_path` 就是它，两次激活落在同一条路径上，宿主就
@@ -212,7 +215,7 @@ lib << (environ.tmp_sub_env << ())
 ## 宿主侧：Environment
 
 `Environment` 由宿主提供。三个名字里**只有 `Environment` 是 viba 里看得见的那一个**
-（`viba/builtin.viba`）：模块的 `$env` 那个槽位要的就是它，`environ` 也是它。
+（`viba/builtin.viba`）：模块的 `$env` 那个参数要的就是它，`environ` 也是它。
 
 ```viba
 Environment =
@@ -324,8 +327,8 @@ never | a = a
 和里只剩一个非 never 分支时，结果就是该分支；所有分支都是 never 时，结果是 never；
 多个非 never 分支同时存在时，结果保留为和值，不擅自选择其中一支。
 
-`branch.viba` 与 `branch.py` 提供两个通用开关。它们接收分支值 `$v Any`，返回 `Any`，而那一格写着
-`CalledByNeed[Any]`（见下）——只有它会"要的时候才算"：
+`branch.viba` 与 `branch.py` 提供两个通用开关。它们接收分支值 `$v Any`，返回 `Any`，而那个参数写着
+`CalledByNeed[Any]`（见「按需的实参」）——只有它会"要的时候才算"：
 
 ```viba
 id_or_never =
@@ -393,8 +396,9 @@ __ret__ =
 开关把 `$v` 一并接收进来，对外统一返回 `Any`；nil/never 是它内部用来决定保留还是消去 `$v` 的代数机制。
 解释器提供积与和的通用归约，库函数负责把 condition 映射成这次分支的结果。
 
-**这两支都要算** 本来是这个设计的代价：积与和只决定"哪一支留下"，不代表"哪一支被算"。真要是
-if/else，没走的那一支就不该算——于是有了下面这个标记。
+**这两支都要算** 本来是这个设计的代价：积与和只决定"哪一支留下"，不代表"哪一支被算"。要让没走的那
+一支不算，就得让那个参数的实参**要的时候才算**——这件事由 `CalledByNeed[T]` 管：写在参数上，
+`interpret` 不先算它，而是把"要用的时候再来拿"的东西交给宿主，宿主叫它才算。
 
 ### 按需的实参：`CalledByNeed`
 
@@ -409,12 +413,12 @@ CalledByNeed[Arg] =
   * $arg Arg
 ```
 
-**标记标的是实参，不是函数**：写成 `$v CalledByNeed[Any]` 的那一格，`interpret` 不先算它：
+**标记标的是实参，不是函数**：写成 `$v CalledByNeed[Any]` 的那个参数，`interpret` 不先算它：
 
-- 那一格的实参被包成一个无参 lambda（getter），连同这次调用的环境一起交给宿主；
+- 那个参数的实参被包成一个无参 lambda（getter），连同这次调用的环境一起交给宿主；
 - 宿主叫它才算，不叫就一次都不求值；
 - 同一个调用里**别的实参照旧给值**——环境是 `Environment` 自己，条件就是它的材料。所以宿主那一侧
-  是"值 + 那一格的 getter"，不是"全是 getter"。
+  是"值 + 那个参数的 getter"，不是"全是 getter"。
 
 ```python
 def id_or_never(env, condition, get_v):
@@ -427,28 +431,28 @@ getter 答出来的就是宿主平常会直接拿到的那份东西：材料是 
 viba 函数是它的材料（名字或闭包）。getter 在求值时出的错**原样**回到 run：没有实现就是递延，实现坏了
 就是 `$underlying_viba_op_failed`，程序写错就是 `$viba_program_err`——错的是那个实参，不是叫它的人。
 
-**按需的那一格存不下来**，别的都能：它的实参没算过，不是材料，所以装不进闭包。链走完时它还在、而环境
+**按需的那个参数存不下来**，别的都能：它的实参没算过，不是材料，所以装不进闭包。链走完时它还在、而环境
 也没给，就是程序错（`the $v argument is computed only when it is wanted, so it cannot be stored`）。
-这反过来让 `<<` 的偏应用变宽了——以前整函数被标记，一个实参都不能先给；现在只有那一格不能：
+这反过来让 `<<` 的偏应用变宽了——以前整函数被标记，一个实参都不能先给；现在只有那个参数不能：
 
 ```viba
 switch = branch.id_or_never << $condition condition   # 闭包：条件先定下来
-__ret__ = switch << $v (tick << environ) << environ   # 给按需那一格 + 环境，才执行
+__ret__ = switch << $v (tick << environ) << environ   # 给按需的那个参数 + 环境，才执行
 ```
 
 getter **最多算一次**：第一次问出结果（值或停下），之后每一次问都拿同一个。所以宿主问两遍不会让
 副作用发生两遍——和 eager 调用里那个实参只求值一次是同一件事。
 
-一处代价要记住：递延时**那份 `$call` 里没有按需的那一格**。工单要固定的材料来自已算出的实参，而它
+一处代价要记住：递延时**那份 `$call` 里没有按需的那个参数**。工单要固定的材料来自已算出的实参，而它
 根本没算过——递延里只有 `$step`、`$reason`，和其余算过的实参。
 
 绑定和这两个开关一起用的时候，谁先算、谁不算，看
 [`tests/test_interpreter_let_branch.py`](tests/test_interpreter_let_branch.py)：20 份可以打开的文件
 （`tests/data/let_branch/*.viba`），每条只在表里写该跑出什么。
 
-标记说的是那一格怎么给，不是类型，所以**类型层也读穿它**：`CalledByNeed[T]` 在判定层和描述符层
+标记说的是那个参数怎么给，不是类型，所以**类型层也读穿它**：`CalledByNeed[T]` 在判定层和描述符层
 就是 `T`。于是 `id_or_never` 的类型是 `Any <- $condition bool <- $v Any`，
-`id_or_never << $env environ` 也归约得下去（少掉 `$env` 那一格）。三层读的是同一份读法
+`id_or_never << $env environ` 也归约得下去（少掉 `$env` 那个参数）。三层读的是同一份读法
 （`viba/partial.py` 的 `by_need_type`），所以运行、判定、描述符不会各读各的。
 
 名字自己不算数：本地定义盖过内建，所以只有定义体里带那个保留 tag 的名字才算标记——一个模块自己定义
@@ -466,7 +470,7 @@ getter **最多算一次**：第一次问出结果（值或停下），之后每
 __ret__ <- $env Environment <- __args__
 ```
 
-所以下面这几条都成立（`tests/test_is_sub_type.py` 里有用例）：
+所以这几条都成立（`tests/test_is_sub_type.py` 里有用例）：
 
 ```viba
 demo = import add_demo as demo         # 概念上
@@ -481,8 +485,8 @@ square_sum << $env environ << $a 3 <: int <- $b int   # 给了一半：剩下的
   仍然是那个模块里的定义，和以前一样按最长的前缀解析。
 - 没有 `__ret__` 的模块不是程序：`demo << $env environ << ()` 在类型层也是 `VibaProgramErr`。
 - `environ` 在类型层是内建名字，类型为 `Environment`（`viba/builtin.viba`），所以 `<< $env environ`
-  这个槽位在类型上也对得上。
-- 实参按 tag 给（`<< $a 3`）或按位置给（`<< 3`）都认；位置那一支要求写得下那一格
+  这个参数在类型上也对得上。
+- 实参按 tag 给（`<< $a 3`）或按位置给（`<< 3`）都认；位置那一支要求给的实参装得下那个参数
   （`3 <: int`）。**给一半在类型上是一种类型**——剩下的那个函数；在值层给一半是程序错。
 - `__args__` 的成员在模块体里按 tag 读：`args.a` 在类型层就是那个成员声明的类型。`__args__` 不是
   积类型的话，两层都当场报错。
@@ -512,7 +516,7 @@ A = (
 
 值位置上的材料（tag、积、元组）不跑表达式，所以绑定不能写进材料里：`$point (p := …  p)` 报
 `a binding belongs in a value, not inside material`。要让材料里出现一个算出来的值，就让一个函数
-把它答出来（上面「宿主侧：Environment」那些宿主函数就是这么干的）。
+把它答出来（「宿主侧：Environment」里那些宿主函数就是这么干的）。
 
 `:=` 是**计算的写法**。定义体平时由解释器当值算（`A = (a := 7  a)` 就是这么用的），但类型层
 只判类型：它在定义体或别的类型位置上遇到绑定块，答的是 `a binding is computation, not a type: …`。
@@ -531,7 +535,7 @@ B = A
 
 - **绕回自己当场报错**，不是等栈崩：一份文件里 `A = A`、`A = B` 与 `B = A`、以及"算 A 的时候
   又去要 A"（`A = use << $env environ << $x A`）都是 `VibaProgramErr`，话里给出绕的路径。
-- **没真跑起来的不算**：惰性实参没人叫就不算递归（`A = ignore << $env environ << $x A` 答 7，
+- **没真跑起来的不算**：按需的实参没人叫就不算递归（`A = ignore << $env environ << $x A` 答 7，
   因为 `ignore` 不叫那个 getter）；`List[T] = Object * $tail List[T] | nil` 这种**类型**自引用也
   不算——类型不执行。
 - **跨文件不设这条限制**：两份文件可以互相 import、互相调用，设计层不拦。真的绕回去（`a.x` 要
@@ -539,7 +543,7 @@ B = A
   `a.x -> b.y -> a.x: the run came back to where it started`；模块调用成环报
   `module 'a' is already running: a module call cycle`。两条都是"这次跑不完"，不是设计不合规。
 
-## 四种答案
+## 一次执行会得到什么
 
 `interpret` 返回的 `Result` 比别处多两支，而多出来的那两支都带着"是哪一步"：
 

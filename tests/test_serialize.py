@@ -255,7 +255,7 @@ Bad = $kill int | $steal int
 
 
 def run_code_block_cases():
-    """代码块没有格子取材料自己的文本，按约定写 nil。"""
+    """代码块没有参数取它自己的文本，按约定写 nil。"""
     source = """Guard = Object * $code {return 1}
 """
     pool, definition = _design(source, "Guard")
@@ -700,7 +700,7 @@ _OUTER_TYPES = [
 
 
 def run_type_matrix():
-    """类型两两套：9 种里层 × 7 种外层 = 63 个格子。"""
+    """类型两两套：9 种里层 × 7 种外层 = 63 个组合。"""
     for outer_name, outer_type, outer_body in _OUTER_TYPES:
         for inner_name, inner_type, inner_body in _INNER_TYPES:
             _corner(f"{outer_name} of {inner_name}",
@@ -1214,7 +1214,7 @@ def run_alias_of_definition_cases():
 
 
 def run_sums_in_containers():
-    """和式装在容器与元组里，每一格挑不同的支。"""
+    """和式装在容器与元组里，每一项挑不同的支。"""
     source = "S = int | $a str\nBox = Object * $xs list[S] * $ss set[S] * $t (S, S)\n"
     pool = _pool(("m.viba", "m", source))
     material = _product(

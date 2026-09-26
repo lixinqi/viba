@@ -88,7 +88,7 @@ CASES_TO_RUN = [
     ("closure_in_material", "material", None, None),
     # 模块闭包：同型，四种给法
     ("module_closure", "closure", "square_sum << $a 3 << $b 4", None),
-    # 按需那一格留着不给，别的先给：这正是标记挪到实参上换来的
+    # 按需的那个参数留着不给，别的先给：这正是标记挪到实参上换来的
     ("partial_across_a_by_need_slot", "value", 1, ["tick"]),
     ("module_closure_by_tag", "value", 25, None),
     ("module_closure_bare_name", "value", 25, None),
@@ -150,7 +150,7 @@ def run(tmp: Path):
     check(one_line(again) == stored,
           f"and reading it back gives the same closure: {one_line(again)!r}")
 
-    # 材料里装一个闭包：装的是数据，不会被执行（那一格是 `$f`，不是一次调用）
+    # 材料里装一个闭包：装的是数据，不会被执行（那个参数是 `$f`，不是一次调用）
     material = interpret(str(CASES / "closure_in_material.viba"), environ_for(tmp / "store-mat"))
     check(isinstance(material, Ok), f"a closure inside material stays material: {material!r}")
     if isinstance(material, Ok):
