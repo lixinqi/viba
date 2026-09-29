@@ -310,9 +310,10 @@ class CustomModuleType(ModuleType):
     def lookup_local(self, type_name: str) -> Result:
         """Find a top-level definition by name; failing that, through this
         file's imports. The environment is not consulted for either."""
-        named = (d for d in self.module.body
-            if _is_definition(d) and d.name == type_name)
-        found = next(named, None)
+        found = None
+        for node in self.module.body:
+            if _is_definition(node) and node.name == type_name:
+                found = node          # 后写的覆盖先写的
         if found is not None:
             return Ok(AstNodeType(found, self))
         return self._lookup_imported(type_name)

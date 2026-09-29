@@ -275,7 +275,7 @@ def _check_errors():
     for good in ("G = (int <- $b str) << $b str\n",
                  "H = (int <- $b str <- $c bool) << $c bool << $b str\n"):
         assert isinstance(parse_viba_file(empty_pool(), good, "partial_ok.viba", "partial_ok"), Ok), good
-    # 已知的分歧：点分定义名现在能编（builder 那边 `vb.a.b = …` 是拦的）
+    # 点分定义名编得出来：它定义的是父概念的一个成员（viba-style.md 第 5 节）
     assert isinstance(parse_viba_file(empty_pool(), "a.b = int\n", "dotted.viba", "dotted"), Ok)
     # 绑定是计算的写法，不是类型的写法：定义体上出现它，这一层就编不出来
     for bad in ("A = (a := 7  a)\n",

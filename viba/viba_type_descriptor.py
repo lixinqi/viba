@@ -334,13 +334,20 @@ def _build_file(pool: VibaPool, tree, file_name: str, module_name: str, file_has
     module = CustomModuleType(tree, pool.module_environment,
                               _import_locals_for(tree))
     imports = []
-    definitions = []
+    written = []                    # 一份文件里的定义，按书写顺序
+    where = {}                      # 名字 -> 它在 written 里的位置
     for stmt in tree.body:
         if isinstance(stmt, ast_nodes.Import):
             local = stmt.alias or stmt.module
             imports.append(VibaImportDescriptor(pool, stmt.module, local))
         elif isinstance(stmt, (ast_nodes.TypeDefinition, ast_nodes.GenericDefinition)):
-            definitions.append(_build_definition(pool, module, stmt, module_name, file_name, file_hash))
+            if stmt.name in where:  # 后写的覆盖先写的
+                written[where[stmt.name]] = stmt
+            else:
+                where[stmt.name] = len(written)
+                written.append(stmt)
+    definitions = [_build_definition(pool, module, stmt, module_name, file_name, file_hash)
+                   for stmt in written]
     return VibaFileDescriptor(pool, file_name, file_hash, module_name, imports, definitions, tree)
 
 

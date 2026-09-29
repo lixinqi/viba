@@ -143,10 +143,12 @@ def _is_product_unit(node) -> bool:
 
 
 def _definition(module, name):
+    """The definition this name stands for: the last one written under it."""
+    found = None
     for node in getattr(module, "module", module).body:
         if getattr(node, "name", None) == name:
-            return node
-    return None
+            found = node
+    return found
 
 
 def reduce_partial(node, module, resolve: Callable, judge: Callable,

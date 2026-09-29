@@ -30,6 +30,7 @@ from viba.viba_ast.nodes import (
     Tagged,
     Member,
     TypeApp,
+    ProductChain,
     Tuple,
     TypeRef,
     Constant,
@@ -634,10 +635,93 @@ def parse_source(source: str):
 
     The lexer keeps `lineno` between calls, so without this a fresh one-line
     file by mistake reports the line it ended on in the file parsed before it.
-    Every caller that reads a whole source goes through here.
+    Every caller that reads a whole source goes through here, and every source
+    comes out with its dotted definitions expanded (viba-style.md).
     """
     lexer.lineno = 1
-    return parser.parse(source)
+    statements = parser.parse(source)
+    if not statements:
+        return statements
+    return expand_dotted_definitions(statements)
+
+
+class _DottedNames:
+    """点分名字写下来的那棵树：每个前缀一个节点，节点下面是它的成员。
+
+    只管组织，不管类型：谁是谁的孩子按名字算，按书写顺序排。
+    """
+
+    def __init__(self):
+        self.leaves = {}   # 路径 -> 写在这一路径下的定义（同一个写两次就有两个）
+        self.order = {}    # 路径 -> 孩子段，按书写顺序
+
+    def add(self, segments, definition):
+        for cut in range(1, len(segments)):
+            order = self.order.setdefault(tuple(segments[:cut]), [])
+            if segments[cut] not in order:
+                order.append(segments[cut])
+        # 同一个叶子写两次：以后一个为准（覆盖）
+        self.leaves[tuple(segments)] = [definition]
+
+    def body(self, segments):
+        """这一级概念的类型：它的孩子们按书写顺序组成的积。
+
+        一个孩子就写那个成员自己（`a = $b A`），多于一个才是一条积（`a = $b A * $c C`）。
+        """
+        members = []
+        for segment in self.order.get(tuple(segments), []):
+            members.extend(self._members(segments, segment))
+        return members[0] if len(members) == 1 else ProductChain(members)
+
+    def _members(self, prefix, segment):
+        """前缀下那一段成员：写在这一路径下的定义赢，它下面的定义不再展开。"""
+        path = tuple(prefix) + (segment,)
+        if path in self.leaves:
+            return [Tagged("$" + segment, self.leaves[path][0].body)]
+        return [Tagged("$" + segment, self.body(path))]
+
+
+def expand_dotted_definitions(statements):
+    """点分名字的定义展开成它父概念的成员。
+
+    `a.b = A` 就是 `a = $b A`；`a.b = A` 与 `a.c = C` 一起就是 `a = $b A * $c C`。
+    每一级前缀都是一个概念，叶子挂在最后一段上，所以 `a.b.c = T` 是 `a = $b ($c T)`。
+
+    后写的覆盖先写的：同一个叶子写两次，以后一个为准；一个不带点的定义（`a = …`）压在
+    `a.…` 上时，那一整棵子树不再展开；写了 `a.b = …` 又写了 `a.b.c = …` 时，`a.b` 那一份赢。
+    """
+    definitions = [n for n in statements
+                   if isinstance(n, (TypeDefinition, GenericDefinition))]
+    dotted = [d for d in definitions if "." in d.name]
+    if not dotted:
+        return statements
+    for definition in dotted:
+        if isinstance(definition, GenericDefinition):
+            raise SyntaxError(
+                f"Viba parse error: {definition.name} is a generic definition: a "
+                f"dotted name defines one member of its parent, and a member is no "
+                f"generic")
+
+    names = _DottedNames()
+    for definition in dotted:
+        names.add(definition.name.split("."), definition)
+
+    plain = {d.name for d in definitions if "." not in d.name}
+    expanded = []
+    done = set()
+    for statement in statements:
+        if (isinstance(statement, (TypeDefinition, GenericDefinition))
+                and "." in statement.name):
+            top = statement.name.split(".")[0]
+            if top in done:
+                continue
+            done.add(top)
+            if top in plain:                # 显式写的那个赢
+                continue
+            expanded.append(TypeDefinition(top, names.body([top])))
+            continue
+        expanded.append(statement)
+    return expanded
 
 # ================================================================= #
 # 4. TEST RUN

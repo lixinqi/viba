@@ -20,6 +20,9 @@ interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 按顺序找 `<name>.viba`，dotted 名当路径走；空条目和不存在的目录跳过）；import 的那个文件所在的目录总是
 先找——**被 import 进来、又在自己的文件里 import 的模块，也按它自己的文件找**（链多深都一样）。
 写了 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
+点分名字还有一层意思：`a.b = A` 定义的是 `a` 的 `$b` 成员（[`viba-style.md`](viba-style.md) 第 5 节），
+所以 `a.b` 当类型读是它的声明类型，写在链头就是那一步的调用 —— 宿主拿到的 `func_name` 是写下来的整串。
+同一个名字写两次，后写的覆盖先写的：读名字得到的是后写的那一份。
 `viba_path` 也可以直接给一个路径（`Path`）；给了别的类型是 `VibaProgramErr`，不是把 `AttributeError` 抛出来。
 
 ## 源从哪来：get_file

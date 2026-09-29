@@ -1,0 +1,18 @@
+# 点分名字：每个叶子是父概念的一个成员，父概念由它的孩子们按书写顺序组成。
+# `demo.math.add` 与 `demo.math.mul` 一起定义出 `demo = $math ($add … * $mul …)`，
+# 而每个叶子自己仍然是一个可以调用的名字 —— 宿主拿到的 func_name 就是整串。
+demo.math.add =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+demo.math.mul =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { 两个整数相乘 }
+
+__ret__ = demo.math.add << $env environ << $a 1 << $b 2

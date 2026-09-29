@@ -812,10 +812,12 @@ def _viba_data_factors(node: VibaNode):
 
 
 def _definition(module: ModuleType, name: str):
+    """The definition this name stands for: the last one written under it."""
+    found = None
     for node in module.module.body:
         if getattr(node, "name", None) == name:
-            return node
-    return None
+            found = node
+    return found
 
 
 class _Activation:
@@ -1265,6 +1267,9 @@ class _Activation:
         definition = _definition(self.module, name)
         if definition is not None:
             return self._pending_of(definition, name_node, name, self.module, name)
+        chain = self._member_function(name)
+        if chain is not None:
+            return self._func_pending(name_node, name, self.module, chain, name)
         bound = self._imported_name(name)
         if bound is None:
             return None
@@ -1277,6 +1282,23 @@ class _Activation:
                                        name, home=self.module)
         return Ok(_Pending.module(self.runner, imported.ok_value, module_name,
                                   name_node, home=self.module))
+
+    def _member_function(self, name):
+        """`a.b` 写在链头、而 `b` 是 `a` 的一个函数成员时，这一步的函数体。
+
+        点分名字定义的是父概念的一个成员（viba-style.md），所以 `a.b << …` 调的
+        就是那一步，而名字仍然是写下来的整串 —— 宿主拿到的 `func_name` 就是它。
+        不是函数成员、或者父概念下没有这个成员时，答 None，交给别的读法。
+        """
+        if "." not in name:
+            return None
+        member = self._tagged_member(name)
+        if not isinstance(member, Ok) or not isinstance(member.ok_value, _VibaData):
+            return None
+        piece = member.ok_value.node.data
+        if isinstance(piece, (viba_ast.Exponent, viba_ast.ExponentChain)):
+            return piece
+        return None
 
     def _pending_of(self, definition, name_node, name, owner_module, written,
                     local_name="", home=None):

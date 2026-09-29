@@ -78,6 +78,27 @@ tag 写在链头时，它命中的是**第一个参数的成员**：`$sub_env <<
 `environ.sub_env << environ << "x"`（见 [`viba-interpreter.md`](viba-interpreter.md)）。tag 不是值，
 `method = $sub_env` 这种写法编不过。
 
+**点分名字定义的是父概念的一个成员。** `a.b = A` 就是 `a = $b A`；`a.b = A` 与 `a.c = C` 一起
+就是 `a = $b A * $c C`（按书写顺序）；`a.b.c = T` 是 `a = $b ($c T)` —— 每一级前缀都是一个概念，
+叶子挂在最后一段上。以叶子为视角写一组有关联的成员，就是一组 API 一个叶子一个叶子地写下来：
+
+```viba
+mooncake.reshard.weight.plan_placement_transfer =
+    WeightPlan
+  <- $source WeightPlacement
+  <- $target WeightPlacement
+
+mooncake.reshard.weight.plan_storage_move =
+    WeightPlan
+  <- $source WeightPlacement
+  <- $target WeightPlacement
+```
+展开出来是 `mooncake = $reshard ($weight ($plan_placement_transfer … * $plan_storage_move …))`。
+**后来写的覆盖先写的**：同一个名字——不管带不带点——写两次，以后一个为准。短的赢：写了 `a = …`，
+`a.…` 那一棵子树不再展开；写了 `a.b = …` 又写了 `a.b.c = …`，`a.b` 那一份赢。
+叶子自己仍然是一个名字：当类型读是它的声明类型，写在链头就是那一步的调用 —— 宿主拿到的
+`func_name` 是写下来的整串（`demo.math.add`）。
+
 不带标签的成员只留给"本来就没有名字"的东西：
 
 - **元组**：`(A, B)`——顺序本身就是语义；

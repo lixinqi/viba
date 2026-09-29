@@ -216,14 +216,14 @@ def _written(tmp: Path):
 
 
 def _names_and_repeats(tmp: Path):
-    """名字与次序：同名取先写的、定义写在用之后也算、一个定义只算一次。"""
+    """名字与次序：同名取后写的、定义写在用之后也算、一个定义只算一次。"""
     host = Host()
     environ = host.environ()
 
     twice_defined = write(tmp, "twice_defined.viba", "x = 1\nx = 2\n__ret__ = x\n")
     result = interpret(twice_defined, environ)
-    check(isinstance(result, Ok) and value_of(result) == 1,
-          f"a name defined twice: the first definition stands: {result!r}")
+    check(isinstance(result, Ok) and value_of(result) == 2,
+          f"a name defined twice: the later definition stands: {result!r}")
 
     defined_after = write(tmp, "defined_after.viba", "__ret__ = x\nx = 7\n")
     result = interpret(defined_after, environ)
