@@ -1,0 +1,6 @@
+import branch
+
+__ret__ =
+  branch.never_or_echo
+  << $env environ << $cond true
+  << $get_v (builtin.echo << $x "kept")

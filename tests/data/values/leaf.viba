@@ -1,0 +1,5 @@
+leaf =
+	int
+	<- $env Environment
+	<- { inline }
+__ret__ = leaf << $env environ

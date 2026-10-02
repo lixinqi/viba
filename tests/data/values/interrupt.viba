@@ -1,0 +1,5 @@
+interrupt =
+	int
+	<- $env Environment
+	<- { interrupt }
+__ret__ = interrupt << $env environ

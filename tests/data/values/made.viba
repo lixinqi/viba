@@ -1,0 +1,5 @@
+make_node =
+	int
+	<- $env Environment
+	<- { make a node }
+__ret__ = make_node << $env environ

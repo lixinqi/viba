@@ -1,0 +1,5 @@
+import branch
+import right_lazy_slot_called as right
+
+x = right.take << $env environ << $x (builtin.echo << $x right.y)
+__ret__ = x

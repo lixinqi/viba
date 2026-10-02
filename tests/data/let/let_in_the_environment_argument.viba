@@ -1,6 +1,0 @@
-ask_twice =
-    int
-  <- $env Environment
-  <- $x CalledByNeed[int]
-  <- { add x to itself }
-__ret__ = ask_twice << $env (e := environ  e) << $x 1

@@ -1,0 +1,10 @@
+ask_twice =
+    int
+  <- $env Environment
+  <- $get_x (int <- $env Environment)
+  <- { add x to itself, asking for x twice }
+
+tick =
+    int <- $env Environment <- { a value with a side effect }
+
+__ret__ = ask_twice << $env environ << $get_x (tick << $env environ)

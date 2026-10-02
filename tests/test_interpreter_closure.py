@@ -96,8 +96,6 @@ CASES_TO_RUN = [
     # 两种不许存下来的
     ("half_with_environment", "error", "was given 2 of its 3 arguments", None),
     ("closure_holding_environment", "error", "a closure holds viba_data only", None),
-    ("by_need_argument_is_not_stored", "error",
-     "computed only when it is wanted, so it cannot be stored", None),
 ]
 
 
@@ -115,7 +113,7 @@ def one_line(node) -> str:
 
 
 def run(tmp: Path):
-    check(len(CASES_TO_RUN) == 21, f"twenty-one cases: {len(CASES_TO_RUN)}")
+    check(len(CASES_TO_RUN) == 20, f"twenty cases: {len(CASES_TO_RUN)}")
     for index, (name, kind, want, calls_wanted) in enumerate(CASES_TO_RUN):
         program = CASES / f"{name}.viba"
         check(program.is_file(), f"the case is a file: {program.name}")

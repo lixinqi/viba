@@ -1,0 +1,15 @@
+
+add =
+	int
+	<- $env Environment
+	<- $a int
+	<- $b int
+	<- { add two integer }
+
+leaf =
+	int
+	<- $env Environment
+	<- { answer seven }
+
+half = leaf << $env environ
+__ret__ = add << $env environ << $a half << $b half

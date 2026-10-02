@@ -1,0 +1,2 @@
+import loop as loop
+__ret__ = loop << environ << ()

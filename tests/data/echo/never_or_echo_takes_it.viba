@@ -1,0 +1,9 @@
+# never_or_echo 是另一个方向：条件不成立时才跑那一支，也在它自己的子环境里。
+import branch
+
+leaf =
+    int
+  <- $env Environment
+  <- { 答一个数 }
+
+__ret__ = branch.never_or_echo << $env environ << $cond false << $get_v leaf

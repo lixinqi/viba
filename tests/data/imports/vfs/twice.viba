@@ -1,0 +1,10 @@
+
+add =
+	int
+	<- $env Environment
+	<- $a int
+	<- $b int
+	<- { add two integer }
+import lib as one
+import lib as two
+__ret__ = add << $env environ << $a (one << (environ.sub_env << environ << "one") << ()) << $b (two << (environ.sub_env << environ << "two") << ())

@@ -1,0 +1,2 @@
+import shared as r
+__ret__ = r << (environ.sub_env << environ << "r") << ()

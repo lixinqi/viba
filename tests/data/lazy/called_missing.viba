@@ -1,0 +1,10 @@
+take_x =
+    int
+  <- $env Environment
+  <- $get_x (int <- $env Environment)
+  <- { answer whatever x is }
+
+poison_no_implementation =
+    int <- $env Environment <- { nothing implements this }
+
+__ret__ = take_x << $env environ << $get_x (poison_no_implementation << $env environ)

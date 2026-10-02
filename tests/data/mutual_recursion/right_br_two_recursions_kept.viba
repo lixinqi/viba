@@ -1,0 +1,13 @@
+import branch
+import left_br_two_recursions_kept as left
+
+y =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x left.x))
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x left.x))

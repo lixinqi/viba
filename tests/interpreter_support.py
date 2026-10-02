@@ -1,10 +1,11 @@
-"""interpreter 各套件共用的东西：计数器、宿主、语料片段。
+"""interpreter 各套件共用的东西：计数器、宿主。
 
 不是套件本身（没有 `__main__` 的跑法），`test_interpreter_*.py` 从这里取：
 
-    from interpreter_support import ADD, LEAF, TEXT, Checks, Host, value_of, write
+    from interpreter_support import Checks, Host, value_of
 
-`Checks` 管每个套件自己的通过/失败计数与那一行汇总；失败会打出来。
+`Checks` 管每个套件自己的通过/失败计数与那一行汇总；失败会打出来。用例本身是
+`tests/data/` 下的 `.viba` 文件，不写在这里。
 """
 
 import sys
@@ -14,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret)
-from viba.reflect import access as reflect_access
+from viba.reflect import VibaNode, access as reflect_access
 from viba.type import VibaProgramErr, UnderlyingVibaOpFailed, NotMyDutyException, Ok
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
@@ -59,18 +60,23 @@ class Checks:
 
 
 def value_of(result):
-    """The leaf a run answered: None for a nil piece."""
+    """The leaf a run answered: None for a nil piece, the stop itself otherwise.
+
+    A suite writes `isinstance(result, Ok) and value_of(result) == 7` and the
+    left side is false when the run stopped, so this must not assume a value:
+    a stop has no leaf to read.
+    """
     if not isinstance(result, Ok):
         return result
-    return reflect_access.leaf(result.ok_value).ok_value
-
-
-def write(tmp: Path, name: str, source: str) -> str:
-    """Write one module into the suite's scratch directory; answer its path."""
-    path = tmp / name
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(source)
-    return str(path)
+    value = result.ok_value
+    if isinstance(value, (Ok, VibaProgramErr)):
+        return value.err_msg if isinstance(value, VibaProgramErr) else value.ok_value
+    if not isinstance(value, VibaNode):
+        return value
+    leaf = reflect_access.leaf(value)
+    if not isinstance(leaf, Ok):
+        return leaf
+    return leaf.ok_value
 
 
 class Host:
@@ -172,27 +178,3 @@ class Host:
         return Environment(EnvironmentStorage(path, None, store_root_dir),
                            EnvironmentCompute(self.get_func), viba_path)
 
-
-# 三份常写的片段：一个只答 7 的函数、一个答文本的、一个两数相加的。
-LEAF = """
-leaf =
-	int
-	<- $env Environment
-	<- { answer seven }
-"""
-
-TEXT = """
-text =
-	str
-	<- $env Environment
-	<- { answer some text }
-"""
-
-ADD = """
-add =
-	int
-	<- $env Environment
-	<- $a int
-	<- $b int
-	<- { add two integer }
-"""

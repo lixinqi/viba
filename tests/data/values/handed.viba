@@ -1,0 +1,12 @@
+
+leaf =
+	int
+	<- $env Environment
+	<- { answer seven }
+
+echo =
+	int
+	<- $env Environment
+	<- $x int
+	<- { hand the argument back }
+__ret__ = echo << $env environ << $x leaf

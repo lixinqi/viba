@@ -1,0 +1,16 @@
+import branch as branch
+import poison as poison
+import counters as counters
+
+__ret__ =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (counters.tick)
+      )
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (true)
+        << $get_v (poison.ghost)
+      )

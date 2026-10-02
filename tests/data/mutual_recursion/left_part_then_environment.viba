@@ -1,0 +1,5 @@
+import branch
+import right_part_then_environment as right
+
+x = (right.f << $a 1) << $env environ
+__ret__ = x

@@ -1,0 +1,5 @@
+ghost =
+	int
+	<- $env Environment
+	<- { nothing implements this }
+__ret__ = ghost << $env environ

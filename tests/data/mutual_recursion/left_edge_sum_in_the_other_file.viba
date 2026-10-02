@@ -1,0 +1,5 @@
+import branch
+import right_edge_sum_in_the_other_file as right
+
+x = right.y
+__ret__ = x

@@ -1,0 +1,15 @@
+import branch as branch
+import kinds as kinds
+
+__ret__ =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (kinds.answer_sum)
+      )
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x 0)
+      )

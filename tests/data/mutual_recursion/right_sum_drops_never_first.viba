@@ -1,0 +1,4 @@
+import branch
+import left_sum_drops_never_first as left
+
+y = left.x

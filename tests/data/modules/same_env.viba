@@ -1,0 +1,2 @@
+import lib as lib
+__ret__ = lib << environ << ()

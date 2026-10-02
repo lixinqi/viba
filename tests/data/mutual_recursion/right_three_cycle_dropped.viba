@@ -1,0 +1,4 @@
+import branch
+import left_three_cycle_dropped as left
+
+y = left.x

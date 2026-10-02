@@ -1,0 +1,4 @@
+import arithmetic as arithmetic
+
+half = arithmetic.add << $a 40
+__ret__ = half << $b 2 << environ

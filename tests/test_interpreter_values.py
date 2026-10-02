@@ -1,6 +1,7 @@
 """值：宿主答什么、__ret__ 能写成什么、一个名字算几次。
 
 不纯的东西从这里出去（宿主函数），回来的必须是叶子或可序列化数据；函数、模块、泛型应用都不是值。
+每条用例是一份可以打开的文件（`tests/data/values/*.viba`），这里只列它该跑出什么。
 
     python3 tests/test_interpreter_values.py
 """
@@ -12,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import ADD, LEAF, Checks, Host, value_of, write
+from interpreter_support import Checks, Host, value_of
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
@@ -24,6 +25,12 @@ checks = Checks("interpreter_values")
 check = checks.check
 labelled = checks.labelled
 
+CASES = Path(__file__).resolve().parent / "data" / "values"
+
+
+def _case(name: str) -> str:
+    return str(CASES / f"{name}.viba")
+
 
 def run(tmp: Path):
     _host_answers(tmp)
@@ -33,58 +40,49 @@ def run(tmp: Path):
     _crossing_the_host_boundary(tmp)
 
 
+# (文件, 宿主答什么, 说明)
+HOST_ANSWER_CASES = [
+    ("leaf", 7, "an int"),
+    ("text", "hi", "a str"),
+    ("flag", True, "a bool"),
+    ("ratio", 0.5, "a float"),
+    ("nothing", None, "None lands as nil"),
+]
+
+# 假值但不是 nil：0、空串、false 都是叶子
+FALSY_CASES = [
+    ("falsy_zero", 0, "0"),
+    ("falsy_empty", "", "an empty str"),
+    ("falsy_falsey", False, "false"),
+]
+
+# 答不出叶子的容器
+NO_LEAF_CASES = [
+    ("answer_a_list", "a list"),
+    ("answer_a_tuple", "a tuple"),
+    ("answer_a_dict", "a dict"),
+]
+
+
 def _host_answers(tmp: Path):
     """宿主返回什么，__ret__ 就是什么；宿主出错就是 VibaProgramErr，不是崩。"""
     host = Host()
     environ = host.environ()
-    for func, want, label in (("leaf", 7, "an int"), ("text", "hi", "a str"),
-                              ("flag", True, "a bool"), ("ratio", 0.5, "a float"),
-                              ("nothing", None, "None lands as nil")):
-        path = write(tmp, f"{func}.viba", f"""
-{func} =
-	int
-	<- $env Environment
-	<- {{ inline }}
-__ret__ = {func} << $env environ
-""")
-        result = interpret(path, environ)
+    for name, want, label in HOST_ANSWER_CASES:
+        result = interpret(_case(name), environ)
         check(isinstance(result, Ok) and value_of(result) == want,
               f"a host function returning {label}: {result!r}")
 
-    # 假值但不是 nil：0、空串、false 都是叶子
-    for func, want, label in (("zero", 0, "0"), ("empty", "", "an empty str"),
-                              ("falsey", False, "false")):
-        path = write(tmp, f"falsy_{func}.viba", f"""
-{func} =
-	int
-	<- $env Environment
-	<- {{ inline }}
-__ret__ = {func} << $env environ
-""")
-        result = interpret(path, environ)
+    for name, want, label in FALSY_CASES:
+        result = interpret(_case(name), environ)
         check(isinstance(result, Ok) and value_of(result) == want,
               f"a host answer of {label} is a leaf, not nil: {result!r}")
 
-    # 答不出叶子的容器
-    for func, label in (("answer_a_list", "a list"), ("answer_a_tuple", "a tuple"),
-                        ("answer_a_dict", "a dict")):
-        path = write(tmp, f"{func}.viba", f"""
-{func} =
-	int
-	<- $env Environment
-	<- {{ inline }}
-__ret__ = {func} << $env environ
-""")
-        checks.failed(interpret(path, environ), "no leaf",
+    for name, label in NO_LEAF_CASES:
+        checks.failed(interpret(_case(name), environ), "no leaf",
                       f"a host answer that is {label}")
 
-    boom = write(tmp, "boom.viba", """
-explode =
-	int
-	<- $env Environment
-	<- { go }
-__ret__ = explode << $env environ
-""")
+    boom = _case("boom")
     exploded = interpret(boom, environ)
     checks.failed(exploded, "ZeroDivision", "a host function that raises")
     check(exploded.step == Step("root", "explode") and exploded.reason == "raised",
@@ -92,14 +90,7 @@ __ret__ = explode << $env environ
     checks.failed(interpret(boom, Host(get_func_raises=True).environ()), "raised",
                   "a get_func that raises")
 
-    missing = write(tmp, "no_impl.viba", """
-ghost =
-	int
-	<- $env Environment
-	<- { nothing implements this }
-__ret__ = ghost << $env environ
-""")
-    stopped = interpret(missing, environ)
+    stopped = interpret(_case("no_impl"), environ)
     check(isinstance(stopped, NotMyDutyException),
           "get_func says None: the run stops with the deferral, not a VibaProgramErr")
     check(not isinstance(stopped, VibaProgramErr),
@@ -109,49 +100,27 @@ __ret__ = ghost << $env environ
     check(stopped.call is None,
           f"a step given no viba_data carries none: {stopped.call!r}")
 
-    echo = write(tmp, "echo.viba", """
-echo =
-	int
-	<- $env Environment
-	<- $x int
-	<- { pass it through }
-__ret__ = echo << $env environ << $x 42
-""")
-    result = interpret(echo, environ)
+    result = interpret(_case("echo"), environ)
     check(isinstance(result, Ok) and value_of(result) == 42,
           f"a host function echoing its argument: {result!r}")
 
-    arity = write(tmp, "arity.viba", """
-wrong_arity =
-	int
-	<- $env Environment
-	<- $a int
-	<- $b int
-	<- { takes two }
-__ret__ = wrong_arity << $env environ << $a 1 << $b 2
-""")
-    checks.failed(interpret(arity, environ), "raised", "a host function of the wrong arity")
+    checks.failed(interpret(_case("arity"), environ), "raised",
+                  "a host function of the wrong arity")
 
-    made = write(tmp, "made.viba", """
-make_node =
-	int
-	<- $env Environment
-	<- { make a node }
-__ret__ = make_node << $env environ
-""")
-    result = interpret(made, environ)
+    result = interpret(_case("made"), environ)
     check(isinstance(result, Ok) and value_of(result) == 11,
           f"a node the host built itself: {result!r}")
 
-    afunc = write(tmp, "afunc.viba", """
-answer_a_function =
-	int
-	<- $env Environment
-	<- { answer a function }
-__ret__ = answer_a_function << $env environ
-""")
-    checks.failed(interpret(afunc, environ), "no leaf",
+    checks.failed(interpret(_case("afunc"), environ), "no leaf",
                   "a host answer that is a function")
+
+
+# (文件, 该跑出什么)
+LITERAL_CASES = [("lit_42", 42, "a literal int"), ("lit_hi", "hi", "a literal str"),
+                 ("lit_true", True, "a literal bool")]
+UNIT_CASES = [("unit_nil", "nil"), ("unit_never", "never"), ("unit_Any", "Any")]
+NOT_A_VALUE_CASES = [("written_application", "a generic application"),
+                     ("written_exponent", "an exponent")]
 
 
 def _written_as_ret(tmp: Path):
@@ -159,54 +128,45 @@ def _written_as_ret(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    for body, want, label in (("42", 42, "a literal int"), ('"hi"', "hi", "a literal str"),
-                              ("true", True, "a literal bool")):
-        path = write(tmp, f"lit_{want}.viba", f"__ret__ = {body}\n")
-        result = interpret(path, environ)
+    for name, want, label in LITERAL_CASES:
+        result = interpret(_case(name), environ)
         check(isinstance(result, Ok) and value_of(result) == want,
               f"__ret__ written as {label}: {result!r}")
-    for body, label in (("nil", "nil"), ("never", "never"), ("Any", "Any")):
-        path = write(tmp, f"unit_{label}.viba", f"__ret__ = {body}\n")
-        result = interpret(path, environ)
+    for name, label in UNIT_CASES:
+        result = interpret(_case(name), environ)
         check(isinstance(result, Ok), f"__ret__ written as {label}: {result!r}")
-    for body, label in (("list[int]", "a generic application"),
-                        ("int <- $x int", "an exponent")):
-        path = write(tmp, f"written_{label.split()[-1]}.viba", f"__ret__ = {body}\n")
-        labelled(interpret(path, environ), "cannot compute",
+    for name, label in NOT_A_VALUE_CASES:
+        labelled(interpret(_case(name), environ), "cannot compute",
                  f"__ret__ written as {label} -> VibaProgramErr")
 
-    # A written sum is viba data: every branch that did not answer never stays.
-    sum_value = write(tmp, "written_sum.viba", "__ret__ = (1 | 2)\n")
-    result = interpret(sum_value, environ)
+    # 写下来的和值是 viba 数据：没答的那几支留下的都是 never
+    result = interpret(_case("written_sum"), environ)
     check(isinstance(result, Ok),
           f"__ret__ written as a sum is viba data, not an error: {result!r}")
 
-    write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
-    module_value = write(tmp, "module_value.viba",
-                         "import late_lib as lib\n__ret__ = lib\n")
-    check(isinstance(interpret(module_value, environ), Ok),
+    check(isinstance(interpret(_case("module_value"), environ), Ok),
           "__ret__ written as a module is the closure it stands for")
 
-    builtin_value = write(tmp, "builtin_value.viba", "__ret__ = str\n")
-    labelled(interpret(builtin_value, environ), "no definition named",
+    labelled(interpret(_case("builtin_value"), environ), "no definition named",
              "a builtin type name used as a value -> VibaProgramErr")
+
+
+# (文件, 有几个成员)
+DATA_CASES = [("written_tuple", 2, "a tuple of two"),
+              ("written_empty_tuple", 0, "the empty tuple")]
 
 
 def _written(tmp: Path):
     """写在值位置上的数据就是可序列化数据：元组、tag、积。"""
     host = Host()
     environ = host.environ()
-    for body, want, label in (("(1, 2)", 2, "a tuple of two"),
-                              ("()", 0, "the empty tuple")):
-        path = write(tmp, f"written_{abs(hash(body))}.viba", f"__ret__ = {body}\n")
-        result = interpret(path, environ)
+    for name, want, label in DATA_CASES:
+        result = interpret(_case(name), environ)
         check(isinstance(result, Ok) and len(result.ok_value) == want,
               f"__ret__ written as {label} is viba data: {result!r}")
 
     # 一份 witness 的写法：tag 与积是可序列化数据，和它的类型写法一样
-    witness = write(tmp, "witness.viba",
-                    '__ret__ = $victim ($x 0 * $y 0) * $suspect ($x 3 * $y 4)\n')
-    result = interpret(witness, environ)
+    result = interpret(_case("witness"), environ)
     check(isinstance(result, Ok), f"a witness written as tags and a product: {result!r}")
     if isinstance(result, Ok):
         node = result.ok_value
@@ -220,35 +180,22 @@ def _names_and_repeats(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    twice_defined = write(tmp, "twice_defined.viba", "x = 1\nx = 2\n__ret__ = x\n")
-    result = interpret(twice_defined, environ)
+    result = interpret(_case("twice_defined"), environ)
     check(isinstance(result, Ok) and value_of(result) == 2,
           f"a name defined twice: the later definition stands: {result!r}")
 
-    defined_after = write(tmp, "defined_after.viba", "__ret__ = x\nx = 7\n")
-    result = interpret(defined_after, environ)
+    result = interpret(_case("defined_after"), environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a definition written after its use: {result!r}")
 
-    nested = write(tmp, "nested.viba", ADD + """
-unused =
-	int
-	<- $env Environment
-	<- { never asked for }
-__ret__ = add << $env environ << $a 1 << $b 2
-""")
-    result = interpret(nested, environ)
+    result = interpret(_case("nested"), environ)
     check(isinstance(result, Ok) and value_of(result) == 3 and
           ("root", "unused") not in host.calls,
           f"a definition nobody asks for is never run: {result!r}")
 
     # 一个定义算一次：两处用它，宿主只被叫一次
-    memo = write(tmp, "memo.viba", ADD + LEAF + """
-half = leaf << $env environ
-__ret__ = add << $env environ << $a half << $b half
-""")
     host.calls.clear()
-    result = interpret(memo, environ)
+    result = interpret(_case("memo"), environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"a definition used twice: {result!r}")
     check(host.calls.count(("root", "leaf")) == 1,
@@ -260,19 +207,7 @@ def _crossing_the_host_boundary(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    higher = write(tmp, "higher.viba", """
-inc =
-	int
-	<- $env Environment
-	<- $x int
-	<- { add one }
-show =
-	int
-	<- $env Environment
-	<- $f (int <- $env Environment <- $x int)
-	<- { hand the argument back }
-__ret__ = show << $env environ << $f inc
-""")
+    higher = _case("higher")
     original = host.get_func
 
     def hand_back(path, func_name):
@@ -295,89 +230,31 @@ __ret__ = show << $env environ << $f inc
                     "a get_func that refuses the call")
     host.knobs.pop("refuse")
 
-    overfeed = write(tmp, "overfeed.viba", """
-overfeed =
-	int
-	<- $env Environment
-	<- $f (int <- $env Environment <- $x int)
-	<- $x int
-	<- { give f one argument too many }
-inc =
-	int
-	<- $env Environment
-	<- $x int
-	<- { add one }
-__ret__ = overfeed << $env environ << $f inc << $x 10
-""")
-    checks.failed(interpret(overfeed, environ), "raised",
+    checks.failed(interpret(_case("overfeed"), environ), "raised",
                   "a host that gives the viba function too many arguments")
 
-    fed = write(tmp, "fed.viba", """
-feed_a_list =
-	int
-	<- $env Environment
-	<- $f (int <- $env Environment <- $x int)
-	<- { hand f a list }
-inc =
-	int
-	<- $env Environment
-	<- $x int
-	<- { add one }
-__ret__ = feed_a_list << $env environ << $f inc
-""")
-    checks.failed(interpret(fed, environ), "raised",
+    checks.failed(interpret(_case("fed"), environ), "raised",
                   "a host handing a viba function something with no leaf")
 
     # 那个参数声明的是 int：把函数递进去是程序错，判定层当场拦下，走不到宿主
-    handed = write(tmp, "handed.viba", LEAF + """
-echo =
-	int
-	<- $env Environment
-	<- $x int
-	<- { hand the argument back }
-__ret__ = echo << $env environ << $x leaf
-""")
-    checks.labelled(interpret(handed, environ), "does not fit $x int",
+    checks.labelled(interpret(_case("handed"), environ), "does not fit $x int",
                     "a viba function handed where an int is declared: a program error")
 
     # 那个参数声明的是 Any：函数装得下，宿主拿到它再交回来，才轮到"没有叶子"
-    handed_any = write(tmp, "handed_any.viba", LEAF + """
-echo =
-	int
-	<- $env Environment
-	<- $x Any
-	<- { hand the argument back }
-__ret__ = echo << $env environ << $x leaf
-""")
-    result = interpret(handed_any, environ)
+    result = interpret(_case("handed_any"), environ)
     check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.TypeRef),
           f"a viba function handed where Any is declared comes back as data: {result!r}")
 
     # 宿主里面再跑一次 interpret：两个 run 互不干扰
-    inner = write(tmp, "inner_module.viba", LEAF + "__ret__ = leaf << $env environ\n")
-    outer = write(tmp, "outer_run.viba", """
-inner_value =
-	int
-	<- $env Environment
-	<- { run another module from inside the host }
-__ret__ = inner_value << $env environ
-""")
-    host.knobs["inner_file"] = inner
-    result = interpret(outer, environ)
+    host.knobs["inner_file"] = _case("inner_module")
+    result = interpret(_case("outer_run"), environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a host function that runs interpret itself: {result!r}")
     host.knobs.pop("inner_file")
 
     # 宿主抛的不是 Exception：interpret 不吞
-    interrupt = write(tmp, "interrupt.viba", """
-interrupt =
-	int
-	<- $env Environment
-	<- { interrupt }
-__ret__ = interrupt << $env environ
-""")
     try:
-        interpret(interrupt, environ)
+        interpret(_case("interrupt"), environ)
         check(False, "a host raising KeyboardInterrupt is not swallowed")
     except KeyboardInterrupt:
         check(True, "a host raising KeyboardInterrupt is not swallowed")

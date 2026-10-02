@@ -23,7 +23,13 @@ from viba.interpret import Environment, EnvironmentCompute
 from viba.reflect import access as reflect_access
 from viba.type import VibaProgramErr, UnderlyingVibaOpFailed, NotMyDutyException, Ok
 
-BACKUP = Path(__file__).resolve().parent / "data" / "compliance" / "backup"
+COMPLIANCE = Path(__file__).resolve().parent / "data" / "compliance"
+BACKUP = COMPLIANCE / "backup"
+
+
+def case_file(name: str) -> str:
+    """One `.viba` case under `tests/data/compliance/`."""
+    return str(COMPLIANCE / f"{name}.viba")
 
 PASS = FAIL = 0
 
@@ -55,13 +61,6 @@ def environ_for(store, backup=None, host=None):
     storage = PreparedStorage("root", None, str(store),
                               None if backup is None else str(backup))
     return Environment(storage, EnvironmentCompute(host.get_func)), host
-
-
-def write(tmp: Path, name: str, source: str) -> str:
-    path = tmp / name
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(source)
-    return str(path)
 
 
 def run(tmp: Path):
@@ -167,38 +166,7 @@ def _judge(tmp: Path):
           f"and the measurement ran once: {host.measured}")
 
     # 另一个案子：12:10 那一刻嫌疑人只在 (0,3)，量出来 3，判定为假
-    write(tmp, "case_at_1210.viba", """
-__ret__ =
-    $victim ($x 0 * $y 0)
-  * $suspect ($x 0 * $y 3)
-  * $at "12:10"
-""")
-    near_rule = write(tmp, "rule_distance_at_1210.viba", """
-import case_at_1210 as case_at_1210
-
-Point = $x int * $y int
-Case = $victim Point * $suspect Point * $at str
-
-measure_distance =
-	int
-	<- $env Environment
-	<- $evidence Environment
-	<- $case Case
-	<- { measure }
-
-distance_ge =
-	bool
-	<- $env Environment
-	<- $d int
-	<- $threshold int
-	<- { at least the threshold? }
-
-case_env = environ.sub_env << environ << "case_at_1210"
-the_case = case_at_1210 << case_env << ()
-distance = measure_distance << $env (environ.tmp_sub_env << environ) << $evidence case_env << $case the_case
-threshold = 5
-__ret__ = distance_ge << $env (environ.tmp_sub_env << environ) << $d distance << $threshold threshold
-""")
+    near_rule = case_file("rule_distance_at_1210")
     env, host = environ_for(tmp / "near-store")
     verdict = is_compliant(near_rule, env)
     check(isinstance(verdict, Ok) and verdict.ok_value is False,
@@ -298,33 +266,19 @@ def _refusals(tmp: Path):
     """判定与 Prepare 的错：不是 bool、没有 __ret__、编不过、记不进备份。"""
     env, host = environ_for(tmp / "refuse-store")
 
-    not_a_verdict = write(tmp, "not_a_verdict.viba", '__ret__ = "yes"\n')
+    not_a_verdict = case_file("not_a_verdict")
     labelled(is_compliant(not_a_verdict, env), "a verdict is a bool",
              "a rule that answers a string -> VibaProgramErr")
 
-    design = write(tmp, "design_only.viba", "Only = $x int\n")
+    design = case_file("design_only")
     labelled(is_compliant(design, env), "has no __ret__",
              "a rule that is not a program -> VibaProgramErr")
 
-    broken = write(tmp, "broken.viba", "__ret__ = -1\n")
+    broken = case_file("broken")
     labelled(is_compliant(broken, env), "cannot parse",
              "a rule that does not compile -> VibaProgramErr")
 
-    write(tmp, "boom_case.viba", "__ret__ = $victim ($x 0 * $y 0) * $at \"12:30\"\n")
-    boom_rule = write(tmp, "boom_rule.viba", """
-import boom_case as boom_case
-
-measure_distance =
-	int
-	<- $env Environment
-	<- $evidence Environment
-	<- $case Any
-	<- { measure }
-
-case_env = environ.sub_env << environ << "boom_case"
-the_case = boom_case << case_env << ()
-__ret__ = measure_distance << $env (environ.tmp_sub_env << environ) << $evidence case_env << $case the_case
-""")
+    boom_rule = case_file("boom_rule")
     failed_verdict = is_compliant(boom_rule, env)
     check(isinstance(failed_verdict, UnderlyingVibaOpFailed) and "raised" in failed_verdict.msg,
           f"a measurement that blows up -> UnderlyingVibaOpFailed: {failed_verdict!r}")

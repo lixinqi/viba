@@ -1,0 +1,4 @@
+__args__ = Object * $a int * $b int
+args = __args__
+sum = int <- $env Environment <- $a int <- $b int <- { add }
+__ret__ = sum << $env environ << $a args.a << $b args.b

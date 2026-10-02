@@ -1,0 +1,2 @@
+import late_lib as lib
+__ret__ = lib

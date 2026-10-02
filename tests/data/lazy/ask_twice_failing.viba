@@ -1,0 +1,10 @@
+ask_twice =
+    int
+  <- $env Environment
+  <- $get_x (int <- $env Environment)
+  <- { add x to itself, asking for x twice }
+
+poison_raises_when_asked =
+    int <- $env Environment <- { a step whose implementation raises }
+
+__ret__ = ask_twice << $env environ << $get_x (poison_raises_when_asked << $env environ)

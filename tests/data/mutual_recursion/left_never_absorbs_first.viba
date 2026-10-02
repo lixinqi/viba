@@ -1,0 +1,5 @@
+import branch
+import right_never_absorbs_first as right
+
+x = never * right.y
+__ret__ = x

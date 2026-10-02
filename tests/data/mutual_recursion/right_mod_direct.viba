@@ -1,0 +1,4 @@
+import branch
+import left_mod_direct as left
+
+__ret__ = left << (environ.tmp_sub_env << environ) << ()

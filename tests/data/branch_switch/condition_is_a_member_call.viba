@@ -1,0 +1,8 @@
+import branch as branch
+import gate as gate
+import inner as inner
+
+__ret__ =
+branch.echo_or_never
+  << $env environ << $cond (gate.true_gate << $env environ)
+  << $get_v (inner.always_nine)

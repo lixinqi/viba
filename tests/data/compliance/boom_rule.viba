@@ -1,0 +1,12 @@
+import boom_case as boom_case
+
+measure_distance =
+	int
+	<- $env Environment
+	<- $evidence Environment
+	<- $case Any
+	<- { measure }
+
+case_env = environ.sub_env << environ << "boom_case"
+the_case = boom_case << case_env << ()
+__ret__ = measure_distance << $env (environ.tmp_sub_env << environ) << $evidence case_env << $case the_case

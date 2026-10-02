@@ -1,0 +1,4 @@
+import branch
+import left_never_absorbs_first as left
+
+y = left.x

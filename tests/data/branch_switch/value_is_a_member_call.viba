@@ -1,0 +1,7 @@
+import branch as branch
+import inner as inner
+
+__ret__ =
+branch.echo_or_never
+  << $env environ << $cond true
+  << $get_v (inner.always_nine)

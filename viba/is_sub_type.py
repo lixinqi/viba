@@ -82,7 +82,7 @@ alias of what it is written as, and judgment is structural throughout.
 """
 
 from viba import viba_ast
-from viba.partial import (by_need_type, module_as_function, product_elements,
+from viba.partial import (module_as_function, product_elements,
                           reduce_partial)
 from viba.type import (
     PartialError,
@@ -121,6 +121,7 @@ _BASE_OF_LITERAL = {
 _SUM_NODES = (viba_ast.Sum, viba_ast.SumChain)
 _PROD_NODES = (viba_ast.Product, viba_ast.ProductChain)
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
+ENVIRON_TAG = "$env"
 
 
 def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> Result:
@@ -255,16 +256,16 @@ class _Checker:
         head, dot, tag = name.rpartition(".")
         if not dot or not head:
             return None
-        body, home = self._head_body(head, module, side)
+        body, written_in = self._head_body(head, module, side)
         if body is None:
             return None
         for factor in product_elements(body):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == "$" + tag:
-                return Ok(AstNodeType(factor.type, home))
+                return Ok(AstNodeType(factor.type, written_in))
         return None
 
     def _head_body(self, name: str, module: ModuleType, side: str):
-        """(body, home) for the name, following aliases to the end."""
+        """(body, written_in) for the name, following aliases to the end."""
         seen = set()
         while name not in seen:
             seen.add(name)
@@ -295,13 +296,6 @@ class _Checker:
         # (`sup is AnyType`: everything fits) is what the walk asks first.
         if isinstance(node, viba_ast.TypeRef):
             return self._lift_ref(node, module, side)
-        if isinstance(node, (viba_ast.Let, viba_ast.Binding)):
-            # `:=` belongs to computation; what a definition judges is a type.
-            # A binding here is misplaced, not a judgment this layer owes
-            # (viba-style.md).
-            raise UnresolvedTypeError(
-                "a binding is computation, not a type: "
-                f"{viba_ast.unparse_type(node)}")
         return None
 
     def _lift_ref(self, node, module: ModuleType, side: str):
@@ -400,7 +394,7 @@ class _Checker:
     def _unfold_ref(self, node, module: ModuleType, side: str):
         """A TypeRef is transparent unless it names a generic: it unfolds,
         name after name, to the bound body, whose own TypeRefs resolve in its
-        home module. A generic parameter bound to inline structure (sum,
+        written-in module. A generic parameter bound to inline structure (sum,
         product, exponent, tag, tuple) unfolds to that structure.
 
         A name whose body is another name is still an alias of that name's
@@ -686,10 +680,10 @@ class _Checker:
 
     def _walk_unfolded(self, entry, side, other, other_mod) -> bool:
         """The generic's body takes the TypeApp's side in the walk."""
-        body, home = entry.ast_node, entry.container_module
+        body, written_in = entry.ast_node, entry.container_module
         if side == "sub":
-            return self._walk(body, home, other, other_mod)
-        return self._walk(other, other_mod, body, home)
+            return self._walk(body, written_in, other, other_mod)
+        return self._walk(other, other_mod, body, written_in)
 
     def _applied_meaning(self, app_key, node, module, side):
         """TypeApp -> the generic's body as an AstNodeType whose
@@ -917,7 +911,7 @@ class _Checker:
                          if isinstance(node, viba_ast.TypeApp) else None)
                 if parts is None:
                     break
-                body, home, app_key, binder = parts
+                body, written_in, app_key, binder = parts
                 if app_key in seen:
                     raise InlineCycleError(
                         f"the inline chain comes back to {node.constructor!r}")
@@ -925,7 +919,7 @@ class _Checker:
                 self._env_stacks[side].append(binder)
                 pushed.append(side)
                 ambient = binder
-                node, node_mod = body, home
+                node, node_mod = body, written_in
             if isinstance(node, _PROD_NODES):
                 return self._split_product(node, node_mod, side, seen, ambient)
             if isinstance(node, viba_ast.Tagged):
@@ -938,8 +932,8 @@ class _Checker:
                 self._env_stacks[side].pop()
 
     def _application_parts(self, node, module, side: str):
-        """(body, home, key, binder) for a generic application with a body to
-        land on: the body as written, its home module, the definition's
+        """(body, written_in, key, binder) for a generic application with a body to
+        land on: the body as written, the module it was written in, the definition's
         identity (the cycle key), and the env that binds the actuals to the
         parameters. None when there is no such body."""
         resolved = self._resolve_name(node.constructor, module, side)
@@ -970,24 +964,13 @@ class _Checker:
         return ("inline", id(resolved.ok_value.ast_node)), node.name
 
     def _normalize(self, node, module, side: str):
-        """Unfold names, read through the lazy marker, give `<<`: until none
-        of the three has anything left."""
+        """Unfold names and give `<<`: until neither has anything left."""
         while True:
             before = (id(node), id(module))
             node, module = self._unfold_ref(node, module, side)
-            node = self._through_marker(node, module)
             node, module = self._partial(node, module, side)
             if (id(node), id(module)) == before:
                 return node, module
-
-    def _through_marker(self, node, module):
-        """`CalledByNeed[T]` is T: the marker says how that one argument is
-        given, not what the type is (viba-interpreter.md)."""
-        while True:
-            marked = by_need_type(node, module)
-            if marked is None:
-                return node
-            node = marked
 
     def _partial(self, node, module, side: str):
         """A design's `<<` reduced: the function with that argument given."""
@@ -995,12 +978,12 @@ class _Checker:
             return node, module
         return reduce_partial(
             node, module,
-            lambda name, home: self._partial_target(name, home, side),
+            lambda name, written_in: self._partial_target(name, written_in, side),
             lambda given, given_module, written, written_module: self._walk(
                 given, given_module, written, written_module))
 
     def _partial_target(self, name, module, side: str):
-        """(body, home) for the name a `<<` gives to, or None.
+        """(body, written_in) for the name a `<<` gives to, or None.
 
         A definition is itself; a bare import name is the module read as a
         function (`module_as_function`), while `module.Name` stays what it
@@ -1058,6 +1041,18 @@ class _Checker:
         Only documentation drops, so `never` is untouched too.
         """
         return [arg for arg in args if not self._carries_documentation(arg)]
+
+    def _drop_env_argument(self, args):
+        """The environment is no argument of the design.
+
+        `$env Environment` is the interpreter's rule — a call gives it, and a
+        function that cannot be given it cannot run — not a parameter somebody
+        wrote a value for. So it is not part of a function's type: two functions
+        that take the same design arguments are the same function, one written as
+        a definition and one as a module.
+        """
+        return [arg for arg in args
+                if not (isinstance(arg, viba_ast.Tagged) and arg.tag == ENVIRON_TAG)]
 
     def _carries_documentation(self, node) -> bool:
         """A code block, or a unit a config names applied to one: where the
@@ -1130,8 +1125,8 @@ class _Checker:
             return False
         sub_res, sub_args = _exponent_parts(sn)
         sup_res, sup_args = _exponent_parts(sp)
-        sub_args = self._drop_unit_args(sub_args)
-        sup_args = self._drop_unit_args(sup_args)
+        sub_args = self._drop_env_argument(self._drop_unit_args(sub_args))
+        sup_args = self._drop_env_argument(self._drop_unit_args(sup_args))
         if len(sub_args) < len(sup_args):
             sub_args += [viba_ast.Never()] * (len(sup_args) - len(sub_args))
         if not self._walk(sub_res, s_mod, sup_res, p_mod):

@@ -10,6 +10,7 @@ show =
   <- $f (int <- $env Environment <- $b int)
   <- { hand it back }
 
+# 把闭包算在一个单独的文件里，再当实参交给 `show`：`$f` 那一格收的是写下来的
+# 那次调用，宿主拿到它之后原样递回来，答案就是那份闭包。
 inner = add << $a 40
-outer = show << $f inner
-__ret__ = outer << (environ.tmp_sub_env << environ)
+__ret__ = show << $f (inner) << $env environ

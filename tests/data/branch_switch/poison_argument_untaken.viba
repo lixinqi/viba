@@ -1,0 +1,15 @@
+import branch as branch
+import poison as poison
+
+__ret__ =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x 42)
+      )
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x (1 << $x 2))
+      )

@@ -1,0 +1,5 @@
+import branch
+import left_edge_through_a_product as left
+
+y = left.x
+z = 1

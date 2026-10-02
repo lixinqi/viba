@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import ADD, CASES, LEAF, Checks, Host, value_of, write
+from interpreter_support import CASES, Checks, Host, value_of
 
 from viba import serialize
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
@@ -21,6 +21,12 @@ from viba.type import VibaProgramErr, NotMyDutyException, Ok, Step
 checks = Checks("interpreter_modules")
 check = checks.check
 labelled = checks.labelled
+
+MODULES = Path(__file__).resolve().parent / "data" / "modules"
+
+
+def _case(name: str) -> str:
+    return str(MODULES / f"{name}.viba")
 
 
 def run(tmp: Path):
@@ -42,12 +48,7 @@ def _deferral(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    write(tmp, "deferred_module.viba",
-          ADD + "__ret__ = add << $env environ << $a 1 << $b 2\n")
-    outer = write(tmp, "deferred_outer.viba", """
-import deferred_module as inner
-__ret__ = inner << (environ.sub_env << environ << "deferred_module") << ()
-""")
+    outer = _case("deferred_outer")
 
     host.knobs["missing"] = ("add",)
     stopped = interpret(outer, environ)
@@ -114,55 +115,23 @@ def _nested_modules(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    write(tmp, "inner.viba", ADD + "__ret__ = add << $env environ << $a 1 << $b 2\n")
-    outer = write(tmp, "outer.viba", """
-import inner as inner
-__ret__ = inner << (environ.sub_env << environ << "inner") << ()
-""")
-    result = interpret(outer, environ)
+    result = interpret(_case("outer"), environ)
     check(isinstance(result, Ok) and value_of(result) == 3,
           f"a module imported by a module: {result!r}")
 
-    write(tmp, "pkg/mod.viba", """
-join =
-	str
-	<- $env Environment
-	<- $a str
-	<- $b str
-	<- { join two strings }
-__ret__ = join << $env environ << $a "a" << $b "b"
-""")
-    dotted = write(tmp, "dotted.viba", """
-import pkg.mod as mod
-__ret__ = mod << (environ.sub_env << environ << "mod") << ()
-""")
-    result = interpret(dotted, environ)
+    result = interpret(_case("dotted"), environ)
     check(isinstance(result, Ok) and value_of(result) == "ab",
           f"a dotted import finds pkg/mod.viba: {result!r}")
 
-    write(tmp, "design_only.viba", "Only = $x int\n")
-    design = write(tmp, "use_design.viba", """
-import design_only as d
-__ret__ = d << (environ.sub_env << environ << "d") << ()
-""")
-    labelled(interpret(design, environ), "has no __ret__",
+    labelled(interpret(_case("use_design"), environ), "has no __ret__",
              "calling a module that is design only -> VibaProgramErr")
 
-    write(tmp, "late_lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
-    dotted_member = write(tmp, "dotted_member.viba",
-                          "import late_lib as lib\n__ret__ = lib.Only.More\n")
-    labelled(interpret(dotted_member, environ), "has no 'Only.More'",
+    labelled(interpret(_case("dotted_member"), environ), "has no 'Only.More'",
              "a dotted rest that names no definition -> VibaProgramErr")
 
     # 同一个模块两次调用：两条自己的路径，跑两次
     host.calls.clear()
-    twice_module = write(tmp, "twice_module.viba", ADD + """
-import late_lib as lib
-__ret__ = add << $env environ
-  << $a (lib << (environ.sub_env << environ << "first") << ())
-  << $b (lib << (environ.sub_env << environ << "second") << ())
-""")
-    result = interpret(twice_module, environ)
+    result = interpret(_case("twice_module"), environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"one module called twice: {result!r}")
     leaf_calls = [call for call in host.calls if call[1] == "leaf"]
@@ -175,62 +144,39 @@ def _cycles(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    write(tmp, "loop.viba", "import loop as loop\n__ret__ = loop << environ << ()\n")
-    labelled(interpret(str(tmp / "loop.viba"), environ), "already running",
+    labelled(interpret(_case("loop"), environ), "already running",
              "a module that calls itself -> VibaProgramErr")
 
-    write(tmp, "cycle_a.viba",
-          "import cycle_b as b\n__ret__ = b << (environ.sub_env << environ << \"b\") << ()\n")
-    write(tmp, "cycle_b.viba",
-          "import cycle_a as a\n__ret__ = a << (environ.sub_env << environ << \"a\") << ()\n")
-    labelled(interpret(str(tmp / "cycle_a.viba"), environ), "already running",
+    labelled(interpret(_case("cycle_a"), environ), "already running",
              "a module call cycle A->B->A -> VibaProgramErr")
 
 
 def _storage_paths(tmp: Path):
-    """模块调用的 storage 路径是它的身份：两次调用不可以用同一个。"""
+    """模块调用的 storage 路径是它的身份。
+
+    同一条地址上：正在跑的调用不能再进去（环）；已经答过的**同一个**模块就是同一个
+    子计算，把它答过的那份交回去；换个模块挤同一条地址才是错的。
+    """
     host = Host()
     environ = host.environ()
-    write(tmp, "lib.viba", LEAF + "__ret__ = leaf << $env environ\n")
-
     # 主文件自己也占着它那个路径：直接拿 environ 调模块就是撞车
-    same_env = write(tmp, "same_env.viba",
-                     "import lib as lib\n__ret__ = lib << environ << ()\n")
+    same_env = _case("same_env")
     labelled(interpret(same_env, environ), "storage path",
              "a module handed the caller's own environment -> VibaProgramErr")
 
-    # 两次调用给同一个子环境（同名子环境就是同一个 storage）→ 第二次撞车
-    repeated = write(tmp, "repeated_path.viba", ADD + """
-import lib as lib
-__ret__ = add << $env environ
-  << $a (lib << (environ.sub_env << environ << "one") << ())
-  << $b (lib << (environ.sub_env << environ << "one") << ())
-""")
-    labelled(interpret(repeated, environ), "storage path",
-             "two calls to one storage path -> VibaProgramErr")
+    # 两次调用给同一个子环境（同名子环境就是同一个 storage）：同一个模块、同一条
+    # 地址 = 同一个子计算，第二次拿的是第一次答过的那份
+    result = interpret(_case("repeated_path"), environ)
+    check(isinstance(result, Ok) and value_of(result) == 14,
+          f"the same call at one storage path is answered once: {result!r}")
 
     # 两个不同的模块，用同一个名字的子环境 → 也撞车
-    write(tmp, "other.viba", LEAF + "__ret__ = leaf << $env environ\n")
-    two_modules = write(tmp, "two_modules.viba", ADD + """
-import lib as one
-import other as two
-__ret__ = add << $env environ
-  << $a (one << (environ.sub_env << environ << "m") << ())
-  << $b (two << (environ.sub_env << environ << "m") << ())
-""")
-    labelled(interpret(two_modules, environ), "storage path",
+    labelled(interpret(_case("two_modules"), environ), "storage path",
              "two modules under one storage path -> VibaProgramErr")
 
     # 各给各的名字：两次都跑得起来，宿主看到两个路径，按书写顺序
     host.calls.clear()
-    two_names = write(tmp, "two_names.viba", ADD + """
-import lib as one
-import other as two
-__ret__ = add << $env environ
-  << $a (one << (environ.sub_env << environ << "one") << ())
-  << $b (two << (environ.sub_env << environ << "two") << ())
-""")
-    result = interpret(two_names, environ)
+    result = interpret(_case("two_names"), environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"two modules, two storage paths: {result!r}")
     check([path for path, func in host.calls if func == "leaf"]

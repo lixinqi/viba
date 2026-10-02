@@ -1,0 +1,5 @@
+explode =
+	int
+	<- $env Environment
+	<- { go }
+__ret__ = explode << $env environ

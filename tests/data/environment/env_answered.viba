@@ -1,0 +1,1 @@
+__ret__ = environ.sub_env << environ << "a" << "b"

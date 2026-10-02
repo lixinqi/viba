@@ -1,0 +1,6 @@
+f =
+	int
+	<- Environment
+	<- $x int
+	<- { inline }
+__ret__ = f << environ << $x 1

@@ -1,0 +1,5 @@
+import branch
+import right_mod_value_from_the_other as right
+
+x = 41
+__ret__ = right << (environ.tmp_sub_env << environ) << ()

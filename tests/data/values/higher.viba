@@ -1,0 +1,12 @@
+
+inc =
+	int
+	<- $env Environment
+	<- $x int
+	<- { add one }
+show =
+	int
+	<- $env Environment
+	<- $f (int <- $env Environment <- $x int)
+	<- { hand the argument back }
+__ret__ = show << $env environ << $f inc

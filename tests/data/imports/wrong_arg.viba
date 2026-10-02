@@ -1,0 +1,2 @@
+import plain_two as p
+__ret__ = p << 7

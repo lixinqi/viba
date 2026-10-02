@@ -1,0 +1,3 @@
+import pkg.mod as mod
+
+__ret__ = mod << (environ.sub_env << environ << "mod") << ()

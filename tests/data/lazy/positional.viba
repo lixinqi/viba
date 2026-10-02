@@ -1,0 +1,13 @@
+positional =
+    int
+  <- $env Environment
+  <- $cond (bool <- $env Environment)
+  <- $get_v (int <- $env Environment)
+  <- { the value when the condition holds }
+
+tick =
+    int <- $env Environment <- { one }
+condition_holds =
+    bool <- $env Environment <- { the condition holds }
+
+__ret__ = positional << environ << condition_holds << tick

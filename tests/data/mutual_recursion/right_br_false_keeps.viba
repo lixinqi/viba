@@ -1,0 +1,13 @@
+import branch
+import left_br_false_keeps as left
+
+y =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (false)
+        << $get_v (builtin.echo << $x 41))
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (false)
+        << $get_v (builtin.echo << $x left.x))

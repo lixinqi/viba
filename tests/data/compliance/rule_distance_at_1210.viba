@@ -1,0 +1,24 @@
+import case_at_1210 as case_at_1210
+
+Point = $x int * $y int
+Case = $victim Point * $suspect Point * $at str
+
+measure_distance =
+	int
+	<- $env Environment
+	<- $evidence Environment
+	<- $case Case
+	<- { measure }
+
+distance_ge =
+	bool
+	<- $env Environment
+	<- $d int
+	<- $threshold int
+	<- { at least the threshold? }
+
+case_env = environ.sub_env << environ << "case_at_1210"
+the_case = case_at_1210 << case_env << ()
+distance = measure_distance << $env (environ.tmp_sub_env << environ) << $evidence case_env << $case the_case
+threshold = 5
+__ret__ = distance_ge << $env (environ.tmp_sub_env << environ) << $d distance << $threshold threshold

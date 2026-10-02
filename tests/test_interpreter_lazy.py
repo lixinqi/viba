@@ -1,8 +1,8 @@
-"""按需参数：写在实参上的 `CalledByNeed[T]`，那个参数不先算。
+"""函数类型的槽：写在那一格上的实参不在这里算，宿主叫它的时候才算。
 
-被标记的那个参数（`branch.viba` 的两个开关就是一个例子）不按平常的方式给：`interpret` 把它包成
-一个无参 lambda 交给宿主，宿主叫了才算。于是"没走的那一支"不会被求值——这才是 if/else；不然
-两条都算完再丢掉一条，只是结果一样。同一个调用里别的实参照旧给值：标记只标那个参数。
+每条用例是一份可以打开的文件（`tests/data/lazy/*.viba`），这里只列它该跑出什么。宿主那一边
+只叫它想叫的那个实参，所以没走的那一支既不做副作用、也不会因为没有实现而挡路。同一份分支文件
+在门槛不同时走不同的那一支，那十份 poison 文件把毒放在走不到的那一支里。
 
     python3 tests/test_interpreter_lazy.py
 """
@@ -16,19 +16,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import Checks, Host, value_of, write
+from interpreter_support import Checks, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import NotMyDutyException, Ok, VibaProgramErr
+from viba.type import NotMyDutyException, Ok, UnderlyingVibaOpFailed, VibaProgramErr
 
 checks = Checks("interpreter_lazy")
 check = checks.check
-labelled = checks.labelled
+
+CASES = Path(__file__).resolve().parent / "data" / "lazy"
+REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
 
-def host_for(calls):
-    """计数宿主：`tick` / `tock` 每被算一次就记一笔。"""
+def host_for(calls, knobs):
+    """计数宿主：每被算一次就记一笔；门槛那一步把一个旋钮交出来。"""
     def get_func(module_path, func_name):
+        if func_name == "threshold_of":
+            return lambda env: knobs["threshold"]
         if func_name == "tick":
             def tick(env):
                 calls.append("tick")
@@ -41,23 +45,19 @@ def host_for(calls):
             return tock
         if func_name == "ignore_x":
             # 完全不碰 get_x：那个实参不该被算
-            return lambda get_env, get_x: 7
+            return lambda env, get_x: 7
         if func_name == "take_x":
             # 叫了 get_x：那个实参这时才算
-            return lambda get_env, get_x: get_x().value
+            return lambda env, get_x: get_x(env).value
         if func_name == "eager_pair":
-            # 没被标记的函数：两个实参都要算（老行为）
+            # 没有函数类型的槽：两个实参都要算
             return lambda env, x, y: 1
         if func_name == "ge":
             return lambda env, x, y: x.value >= y.value
-        if func_name == "poison_raises":
-            def poison_raises(env):
-                raise ZeroDivisionError("poison")
-            return poison_raises
-        if func_name == "poison_get_func_raises":
-            raise RuntimeError("the router broke")
-        if func_name == "poison_answers_a_list":
-            return lambda env: [1, 2]
+        if func_name == "condition_holds":
+            return lambda env: True
+        if func_name == "builtin.echo":
+            return lambda env, x: x
         if func_name == "inner_lambda_record":
             # 分支值本身也是一次调用：它被算过就说明那一支走了
             def inner_lambda_record(env, label):
@@ -65,22 +65,20 @@ def host_for(calls):
                 return 0
             return inner_lambda_record
         if func_name == "ask_twice":
-            # 同一个 getter 问两次：只该算一次
-            def ask_twice(get_env, get_x):
-                first = get_x().value
-                second = get_x().value
-                return first + second
+            # 同一个实参问两次：只该算一次
+            def ask_twice(env, get_x):
+                return get_x(env).value + get_x(env).value
             return ask_twice
         if func_name == "ask_nothing":
             # 两个实参都不问
-            return lambda get_env, get_a, get_b: 0
+            return lambda env, get_a, get_b: 0
         if func_name == "positional":
-            # 三个参数都收，按写下来的顺序给 getter
-            def positional(get_env, get_condition, get_v):
-                return get_v().value if get_condition().value else 0
+            # 两个函数类型的槽都收，按写下来的顺序给
+            def positional(env, get_cond, get_v):
+                return get_v(env).value if get_cond(env).value else 0
             return positional
         if func_name == "poison_raises_when_asked":
-            def poison_raises_when_asked(get_env):
+            def poison_raises_when_asked(env):
                 calls.append("boom")
                 raise ZeroDivisionError("boom")
             return poison_raises_when_asked
@@ -88,346 +86,78 @@ def host_for(calls):
     return get_func
 
 
-def environ_for(calls, store):
-    # `import branch` finds branch.viba the way the branch suite does: the
-    # checkout root is on the module search path.
+def environ_for(store, calls, knobs=None):
     return Environment(EnvironmentStorage("root", None, str(store)),
-                       EnvironmentCompute(host_for(calls)),
-                       viba_path=str(Path(__file__).resolve().parent.parent))
+                       EnvironmentCompute(host_for(calls, knobs or {"threshold": 0})),
+                       viba_path=str(REPOSITORY_ROOT))
 
 
-BRANCHES = """
-import branch
-
-tick =
-    int <- $env Environment <- { the branch that is taken first }
-tock =
-    int <- $env Environment <- { the branch that is taken second }
-ge =
-    bool <- $env Environment <- $x int <- $y int <- { x >= y }
-
-condition = ge << $env environ << $x 1 << $y THRESHOLD
-__ret__ =
-  Oneof
-  | (branch.id_or_never << $env environ << $condition condition << $v (tick << $env environ))
-  | (branch.never_or_id << $env environ << $condition condition << $v (tock << $env environ))
-"""
+# (文件, 该跑出什么, 要看住的副作用, 门槛)：
+#   value   Ok，叶子是这个值
+#   error   VibaProgramErr，话里含这个片段
+#   defer   递延：宿主没实现那一步
+#   fail    UnderlyingVibaOpFailed，话里含这个片段
+CASES_TO_RUN = [
+    # 只有选中那一支的实参被算：门槛由宿主给，同一个文件跑两个方向
+    ("branches", "value", 1, ["tick"], 0),
+    ("branches", "value", 2, ["tock"], 5),
+    # 分支值写成一次调用：只有走的那一支留下记录
+    ("recorded_branches", "value", 0, ["true_branch"], 0),
+    ("recorded_branches", "value", 0, ["false_branch"], 5),
+    # 分支背后那一步没有实现：递延报的是那一步，而且它没被算过
+    ("recorded_missing", "defer", None, [], 0),
+    # 宿主不叫那个实参：它一次都不算，没有实现也不挡路
+    ("ignored_argument", "value", 7, [], 0),
+    # 那一格还没给、别的先给了：这个调用存不下来
+    ("half_given_slot", "error", "was given 1 of its 2 arguments", [], 0),
+    # 一个实参只算一次：问两次不等于做两遍
+    ("ask_twice", "value", 2, ["tick"], 0),
+    ("ask_nothing", "value", 0, [], 0),
+    ("ask_twice_failing", "fail", "poison_raises_when_asked raised", ["boom"], 0),
+    # 两个函数类型的槽：位置实参与乱序 tag 都按参数位置交给宿主
+    ("positional", "value", 1, ["tick"], 0),
+    ("out_of_order", "value", 1, ["tick"], 0),
+    # 没有函数类型的槽：一切照旧，实参先算
+    ("eager_pair", "value", 1, ["tick"], 0),
+    # 叫了那个实参，算它时出的事照常报出来
+    ("called_missing", "defer", None, [], 0),
+    ("called_boom", "error", "is not a function", [], 0),
+    ("no_environment", "error", "was not given an Environment", [], 0),
+]
 
 
 def run(tmp: Path):
-    _only_the_taken_branch_is_computed(tmp)
-    _an_ignored_argument_is_never_computed(tmp)
-    _a_branch_value_is_its_own_call(tmp)
-    _an_argument_is_computed_at_most_once(tmp)
-    _poison_in_the_untaken_branch(tmp)
-    _the_getters_follow_the_slots(tmp)
-    _an_unmarked_function_is_still_eager(tmp)
-    _a_called_getter_carries_what_stopped(tmp)
-    _the_marker_marks_one_slot(tmp)
+    check(len(CASES_TO_RUN) == 16, f"sixteen cases: {len(CASES_TO_RUN)}")
+    for index, (name, kind, want, calls_wanted, threshold) in enumerate(CASES_TO_RUN):
+        program = CASES / f"{name}.viba"
+        check(program.is_file(), f"the case is a file: {program.name}")
+        calls = []
+        result = interpret(str(program),
+                           environ_for(tmp / f"store-{index}", calls,
+                                       {"threshold": threshold}))
+        if kind == "value":
+            check(isinstance(result, Ok) and value_of(result) == want,
+                  f"{name}: expected {want!r}, got {result!r}")
+        elif kind == "error":
+            check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+                  f"{name}: expected an error saying {want!r}, got {result!r}")
+        elif kind == "defer":
+            check(isinstance(result, NotMyDutyException),
+                  f"{name}: expected the deferral, got {result!r}")
+        elif kind == "fail":
+            check(isinstance(result, UnderlyingVibaOpFailed) and want in result.msg,
+                  f"{name}: expected a failure saying {want!r}, got {result!r}")
+        if calls_wanted is not None:
+            check(calls == calls_wanted,
+                  f"{name}: expected the side effects {calls_wanted}, got {calls}")
 
-
-def _only_the_taken_branch_is_computed(tmp: Path):
-    """branch.viba 的开关：只有选中那一支的实参被算。"""
-    taken_first = write(tmp, "taken_first.viba", BRANCHES.replace("THRESHOLD", "0"))
-    calls = []
-    result = interpret(taken_first, environ_for(calls, tmp / "store-a"))
-    check(isinstance(result, Ok) and value_of(result) == 1, f"the first branch: {result!r}")
-    check(calls == ["tick"],
-          f"and only the first branch's value was computed: {calls}")
-
-    taken_second = write(tmp, "taken_second.viba", BRANCHES.replace("THRESHOLD", "5"))
-    calls = []
-    result = interpret(taken_second, environ_for(calls, tmp / "store-b"))
-    check(isinstance(result, Ok) and value_of(result) == 2, f"the second branch: {result!r}")
-    check(calls == ["tock"],
-          f"and only the second branch's value was computed: {calls}")
-
-
-def _an_ignored_argument_is_never_computed(tmp: Path):
-    """宿主不叫那个 getter，实参就不算——哪怕它根本没有实现。"""
-    program = write(tmp, "ignored.viba", """
-ignore_x =
-    int
-  <- $env Environment
-  <- $x CalledByNeed[int]
-  <- { answer seven without looking at x }
-
-poison_no_implementation =
-    int <- $env Environment <- { nothing implements this }
-
-__ret__ = ignore_x << $env environ << $x (poison_no_implementation << $env environ)
-""")
-    calls = []
-    result = interpret(program, environ_for(calls, tmp / "store-c"))
-    check(isinstance(result, Ok) and value_of(result) == 7,
-          f"an argument nobody asks for is not computed, so its missing "
-          f"implementation never shows: {result!r}")
-
-    # 标记过的函数没有闭包形态：它的实参不先算，存不下来，所以只能一次写完
-    half = write(tmp, "half.viba", """
-ignore_x =
-    int
-  <- $env Environment
-  <- $x CalledByNeed[int]
-  <- { answer seven without looking at x }
-
-half = ignore_x << $env environ
-__ret__ = half << $x 1
-""")
-    labelled(interpret(half, environ_for([], tmp / "store-d")),
-             "was given 1 of its 2 arguments",
-             "a marked function is not stored half-way: a program error")
-
-
-def _a_branch_value_is_its_own_call(tmp: Path):
-    """分支值写成一次调用（`inner_lambda_record << env << "true_branch"`）时，
-    只有走的那一支会留下记录。"""
-    source = """
-import branch
-
-ge =
-    bool <- $env Environment <- $x int <- $y int <- { x >= y }
-inner_lambda_record =
-    int <- $env Environment <- $label str <- { record which branch was taken }
-poison_no_implementation =
-    int <- $env Environment <- { nothing implements this }
-
-condition = ge << $env environ << $x 1 << $y THRESHOLD
-__ret__ =
-    Oneof
-  | (branch.id_or_never << environ << condition << (inner_lambda_record << environ << "true_branch"))
-  | (branch.never_or_id << environ << condition << (inner_lambda_record << environ << "false_branch"))
-"""
-    calls = []
-    result = interpret(write(tmp, "recorded_true.viba", source.replace("THRESHOLD", "0")),
-                       environ_for(calls, tmp / "store-true"))
-    check(isinstance(result, Ok) and value_of(result) == 0, f"the true branch: {result!r}")
-    check(calls == ["true_branch"],
-          f"and only it was recorded: {calls}")
-
-    calls = []
-    result = interpret(write(tmp, "recorded_false.viba", source.replace("THRESHOLD", "5")),
-                       environ_for(calls, tmp / "store-false"))
-    check(isinstance(result, Ok) and value_of(result) == 0, f"the false branch: {result!r}")
-    check(calls == ["false_branch"],
-          f"and only it was recorded: {calls}")
-
-    # 分支背后那一步没有实现：递延报的是那一步，而且它没被算过
-    missing = write(tmp, "recorded_missing.viba", source
-                    .replace("THRESHOLD", "0")
-                    .replace('(inner_lambda_record << environ << "true_branch")',
-                             '(poison_no_implementation << environ)'))
-    calls = []
-    result = interpret(missing, environ_for(calls, tmp / "store-missing"))
-    check(isinstance(result, NotMyDutyException),
-          f"an unimplemented step behind a branch defers: {result!r}")
-    check(calls == [],
-          f"and nothing behind that branch was computed: {calls}")
-
-
-def _an_argument_is_computed_at_most_once(tmp: Path):
-    """一个实参只算一次：问两次不等于做两遍。
-
-    按需是"要的时候才算"，不是"每次问都算"——原来 eager 调用里那个实参也只求值一次，
-    宿主问两次不该让副作用发生两次。
-    """
-    twice = write(tmp, "ask_twice.viba", """
-ask_twice =
-    int
-  <- $env Environment
-  <- $x CalledByNeed[int]
-  <- { add x to itself, asking for x twice }
-
-tick =
-    int <- $env Environment <- { a value with a side effect }
-
-__ret__ = ask_twice << $env environ << $x (tick << $env environ)
-""")
-    calls = []
-    result = interpret(twice, environ_for(calls, tmp / "store-once"))
-    check(isinstance(result, Ok) and value_of(result) == 2,
-          f"the answer says the argument was asked for twice: {result!r}")
-    check(calls == ["tick"],
-          f"and computed once: {calls}")
-
-    nothing = write(tmp, "ask_nothing.viba", """
-ask_nothing =
-    int
-  <- $env Environment
-  <- $a CalledByNeed[int]
-  <- $b CalledByNeed[int]
-  <- { answer zero, asking for neither argument }
-
-tick =
-    int <- $env Environment <- { one }
-tock =
-    int <- $env Environment <- { the other }
-
-__ret__ = ask_nothing << $env environ << $a (tick << $env environ) << $b (tock << $env environ)
-""")
-    calls = []
-    result = interpret(nothing, environ_for(calls, tmp / "store-none"))
-    check(isinstance(result, Ok) and value_of(result) == 0,
-          f"a host that asks for nothing still answers: {result!r}")
-    check(calls == [], f"and nothing was computed: {calls}")
-
-    # 失败也只算一次：第二次问拿到的是同一个结果，不是重新求值
-    failing = write(tmp, "ask_twice_failing.viba", """
-ask_twice =
-    int
-  <- $env Environment
-  <- $x CalledByNeed[int]
-  <- { add x to itself, asking for x twice }
-
-poison_raises_when_asked =
-    int <- $env Environment <- { a step whose implementation raises }
-
-__ret__ = ask_twice << $env environ << $x (poison_raises_when_asked << $env environ)
-""")
-    calls = []
-    checks.failed(interpret(failing, environ_for(calls, tmp / "store-fail-once")),
-                  "poison_raises_when_asked raised",
-                  "a getter that stops stops the call the first time it is asked")
-    check(calls == ["boom"],
-          f"and the step behind it ran once, not once per ask: {calls}")
-
-
-def _the_getters_follow_the_slots(tmp: Path):
-    """位置实参与乱序 tag：getter 仍按参数位置交给宿主。"""
-    positional = write(tmp, "positional.viba", """
-positional =
-    int
-  <- $env Environment
-  <- $condition CalledByNeed[bool]
-  <- $v CalledByNeed[int]
-  <- { the value when the condition holds }
-
-tick =
-    int <- $env Environment <- { one }
-ge =
-    bool <- $env Environment <- $x int <- $y int <- { x >= y }
-
-value = tick << $env environ
-condition = ge << $env environ << $x value << $y 0
-__ret__ = positional << environ << condition << value
-""")
-    calls = []
-    result = interpret(positional, environ_for(calls, tmp / "store-pos"))
-    check(isinstance(result, Ok) and value_of(result) == 1,
-          f"arguments written without tags reach the right slots: {result!r}")
-
-    out_of_order = write(tmp, "out_of_order.viba", """
-positional =
-    int
-  <- $env Environment
-  <- $condition CalledByNeed[bool]
-  <- $v CalledByNeed[int]
-  <- { the value when the condition holds }
-
-tick =
-    int <- $env Environment <- { one }
-ge =
-    bool <- $env Environment <- $x int <- $y int <- { x >= y }
-
-condition = ge << $env environ << $x 1 << $y 0
-__ret__ = positional << $env environ << $v (tick << $env environ) << $condition condition
-""")
-    calls = []
-    result = interpret(out_of_order, environ_for(calls, tmp / "store-ooo"))
-    check(isinstance(result, Ok) and value_of(result) == 1,
-          f"tags given in another order reach the same slots: {result!r}")
-    check(calls == ["tick"], f"and the value was computed: {calls}")
-
-
-LAZY_CASES = Path(__file__).resolve().parent / "data" / "lazy"
-
-
-def _poison_in_the_untaken_branch(tmp: Path):
-    """走不到的那一支放毒：只看结果——另一支的值照常出来，毒一次都不发作。
-
-    十份用例就是 `tests/data/lazy/*.viba` 这十个文件，可以直接打开：每份的最后一行是毒，它要是
-    被算过，这一份就会变成递延、失败或程序错误，所以 `Ok(42)` 本身就是"那一支没被算"的证明。
-    """
-    programs = sorted(LAZY_CASES.glob("*.viba"))
-    check(len(programs) == 10, f"ten poison cases are on disk: {len(programs)}")
-    for index, program in enumerate(programs):
-        result = interpret(str(program), environ_for([], tmp / f"store-poison{index}"))
+    # 走不到的那一支放毒：那十份文件可以直接打开，Ok(42) 就是"那一支没被算"的证明
+    poison = sorted(CASES.glob("poison_*.viba"))
+    check(len(poison) == 10, f"ten poison cases are on disk: {len(poison)}")
+    for index, program in enumerate(poison):
+        result = interpret(str(program), environ_for(tmp / f"store-poison{index}", []))
         check(isinstance(result, Ok) and value_of(result) == 42,
               f"poison in the branch that is not taken ({program.name}): {result!r}")
-
-
-def _an_unmarked_function_is_still_eager(tmp: Path):
-    """没标记的函数一切照旧：每个实参都先算出来。"""
-    program = write(tmp, "eager.viba", """
-eager_pair =
-    int
-  <- $env Environment
-  <- $x int
-  <- $y int
-  <- { ignore both arguments, but they are computed first }
-
-tick =
-    int <- $env Environment <- { a value with a side effect }
-
-__ret__ = eager_pair << $env environ << $x (tick << $env environ) << $y 2
-""")
-    calls = []
-    result = interpret(program, environ_for(calls, tmp / "store-e"))
-    check(isinstance(result, Ok) and value_of(result) == 1,
-          f"an unmarked call still answers: {result!r}")
-    check(calls == ["tick"],
-          f"and its arguments were computed eagerly, the way they always were: {calls}")
-
-
-def _a_called_getter_carries_what_stopped(tmp: Path):
-    """宿主叫了那个 getter，实参算的时候出的事就照常报出来。"""
-    missing = write(tmp, "called_missing.viba", """
-take_x =
-    int
-  <- $env Environment
-  <- $x CalledByNeed[int]
-  <- { answer whatever x is }
-
-poison_no_implementation =
-    int <- $env Environment <- { nothing implements this }
-
-__ret__ = take_x << $env environ << $x (poison_no_implementation << $env environ)
-""")
-    calls = []
-    result = interpret(missing, environ_for(calls, tmp / "store-f"))
-    check(isinstance(result, NotMyDutyException),
-          f"a getter that is called and has no implementation defers, as ever: {result!r}")
-
-    boomed = write(tmp, "called_boom.viba", """
-take_x =
-    int
-  <- $env Environment
-  <- $x CalledByNeed[int]
-  <- { answer whatever x is }
-
-__ret__ = take_x << $env environ << $x (1 << $x 2)
-""")
-    calls = []
-    labelled(interpret(boomed, environ_for(calls, tmp / "store-g")), "is not a function",
-             "an argument that is broken when the getter runs -> the same err, "
-             "not a failure of the host that asked for it")
-
-
-def _the_marker_marks_one_slot(tmp: Path):
-    """标记标的是那个参数的实参；函数该有的 environ 漏了也照旧是错。"""
-    no_env = write(tmp, "no_env.viba", """
-ignore_x =
-    int
-  <- $env Environment
-  <- $x CalledByNeed[int]
-  <- { answer seven without looking at x }
-
-__ret__ = ignore_x << 5 << 1
-""")
-    calls = []
-    labelled(interpret(no_env, environ_for(calls, tmp / "store-i")),
-             "was not given an Environment",
-             "a marked function still needs its environment")
 
 
 if __name__ == "__main__":

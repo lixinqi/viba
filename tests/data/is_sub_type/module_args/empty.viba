@@ -1,0 +1,3 @@
+__args__ = Object
+leaf = int <- $env Environment <- { seven }
+__ret__ = leaf << $env environ

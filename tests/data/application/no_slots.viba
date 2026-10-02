@@ -1,0 +1,4 @@
+f =
+	int
+	<- { a function with no argument slot }
+__ret__ = f << 1

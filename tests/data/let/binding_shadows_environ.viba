@@ -1,2 +1,0 @@
-A = (environ := 5  environ)
-__ret__ = A

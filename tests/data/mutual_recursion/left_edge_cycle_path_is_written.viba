@@ -1,0 +1,5 @@
+import branch
+import right_edge_cycle_path_is_written as right
+
+x = right.y
+__ret__ = x

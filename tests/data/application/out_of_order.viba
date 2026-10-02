@@ -1,0 +1,3 @@
+import arithmetic as arithmetic
+
+__ret__ = arithmetic.add << $b 2 << $env environ << $a 1

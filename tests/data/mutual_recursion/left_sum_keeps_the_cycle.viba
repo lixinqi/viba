@@ -1,0 +1,5 @@
+import branch
+import right_sum_keeps_the_cycle as right
+
+x = right.y | 5
+__ret__ = x

@@ -1,7 +1,3 @@
-
-A = (
-  step := B
-  step
-)
+A = B
 B = A
 __ret__ = A

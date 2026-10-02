@@ -1,0 +1,10 @@
+import branch as branch
+import pick as pick
+
+half = pick.add << $a 40
+
+__ret__ =
+    branch.echo_or_never
+    << $env environ
+    << $cond true
+    << $get_v (builtin.echo << $x (half << $b 2 << $env environ))

@@ -1,0 +1,7 @@
+# parts.viba —— 宿主实现的那几步：比较、减、加
+lt =
+    bool <- $env Environment <- $x int <- $y int <- { x 小于 y }
+sub =
+    int <- $env Environment <- $x int <- $y int <- { x 减 y }
+add =
+    int <- $env Environment <- $x int <- $y int <- { x 加 y }

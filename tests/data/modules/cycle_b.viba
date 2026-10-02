@@ -1,0 +1,2 @@
+import cycle_a as a
+__ret__ = a << (environ.sub_env << environ << "a") << ()

@@ -1,0 +1,14 @@
+import branch
+import right_cond_dropped_before_the_other_file as right
+
+x =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (false)
+        << $get_v (builtin.echo << $x 7))
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (false)
+        << $get_v (builtin.echo << $x 0))
+__ret__ = x

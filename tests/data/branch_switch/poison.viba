@@ -1,0 +1,9 @@
+# The branch that is not taken may carry any of these.
+ghost =
+    int <- $env Environment <- { nothing implements this }
+ghost_condition =
+    bool <- $env Environment <- { nothing implements this }
+explode =
+    int <- $env Environment <- { this implementation raises }
+explode_condition =
+    bool <- $env Environment <- { this implementation raises }

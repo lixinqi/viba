@@ -1,0 +1,7 @@
+import arithmetic as arithmetic
+
+explode =
+	int
+	<- $env Environment
+	<- { go }
+__ret__ = arithmetic.add << $env environ << $a (explode << $env environ) << $b 2

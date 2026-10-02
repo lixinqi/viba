@@ -1,0 +1,8 @@
+import branch
+import left_mod_call_environment_without_arguments as left
+
+__args__ =
+  Object
+ * $a int
+
+__ret__ = left << (environ.tmp_sub_env << environ) << ()

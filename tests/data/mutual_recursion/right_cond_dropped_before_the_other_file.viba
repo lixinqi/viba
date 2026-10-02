@@ -1,0 +1,7 @@
+import branch
+import left_cond_dropped_before_the_other_file as left
+
+g =
+    bool
+  <- $env Environment
+  <- { the host answers }

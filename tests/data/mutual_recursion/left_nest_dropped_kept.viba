@@ -1,0 +1,5 @@
+import branch
+import right_nest_dropped_kept as right
+
+x = right.y
+__ret__ = x

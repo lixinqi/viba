@@ -1,0 +1,4 @@
+import branch
+import left_three_cycle_with_a_live_pair as left
+
+y = left.x

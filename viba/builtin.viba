@@ -19,19 +19,10 @@ Environment =
 
 environ = Environment
 
-# The marker that makes one argument be computed only if it is wanted
-# (viba-interpreter.md).
-#
-# A slot written `CalledByNeed[T]` is the type T; what the marker says is how
-# that one argument is given — not computed up front, but handed to the host as
-# something it calls if and when it needs it. So a step that may not need an
-# argument never computes it — an `if/else` that really takes one branch
-# (branch.viba) — while every other argument of the same call is given as usual.
-#
-# The marker is the tag `$__called_by_need_tag_yanatutt__` — a name nobody may
-# use — and `$arg` holds the type being marked. Every layer reads through it
-# and sees T (viba/partial.py::by_need_type).
-CalledByNeed[Arg] =
-    Object
-  * $__called_by_need_tag_yanatutt__ ()
-  * $arg Arg
+# 把自己收到的东西原样交回：`echo << $x V` 是"给它一个环境就答 V"的那个函数。
+# 交出去的活由拿到它的一方决定什么时候算、在哪个环境下算（branch.py）。
+builtin.echo =
+    $x Any
+  <- $env Environment
+  <- $x Any
+  <- { hand the argument back }

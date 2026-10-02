@@ -1,0 +1,11 @@
+import branch
+import left_cond_both_gates as left
+
+g =
+    bool
+  <- $env Environment
+  <- { the host answers }
+g_false =
+    bool
+  <- $env Environment
+  <- { the host answers false }

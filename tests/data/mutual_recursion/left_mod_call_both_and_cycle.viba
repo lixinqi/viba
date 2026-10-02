@@ -1,0 +1,5 @@
+import branch
+import right_mod_call_both_and_cycle as right
+
+x = right << (environ.tmp_sub_env << environ) << ()
+__ret__ = x

@@ -122,8 +122,8 @@ def measure(environ: Environment, name: str, call, compute, evidence: Environmen
     impure step — only when there is nothing to replay, and then written into
     this run's store. The call the Prepare names wins over the one written here:
     the prepared call is the one that was fixed."""
-    home = evidence if isinstance(evidence, Environment) else environ
-    prepare = read_prepare(home, name)
+    store_env = evidence if isinstance(evidence, Environment) else environ
+    prepare = read_prepare(store_env, name)
     value, recorded = measured_of(prepare)
     if recorded:
         return value
@@ -131,7 +131,7 @@ def measure(environ: Environment, name: str, call, compute, evidence: Environmen
     if prepared is None:
         prepared = viba_data(call)
     value = compute(prepared)
-    record_prepare(home, name, prepared, value)
+    record_prepare(store_env, name, prepared, value)
     return value
 
 

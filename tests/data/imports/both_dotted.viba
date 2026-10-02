@@ -1,0 +1,3 @@
+import a.b
+import a.b.c
+__ret__ = a.b.c << (environ.sub_env << environ << "c") << ()

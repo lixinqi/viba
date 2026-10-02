@@ -1,0 +1,15 @@
+import branch as branch
+import inner as inner
+
+__ret__ =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (false)
+        << $get_v (inner.inner_if << $env environ << $cond true << $get_v inner.always_nine)
+      )
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (false)
+        << $get_v (builtin.echo << $x 0)
+      )

@@ -1,0 +1,4 @@
+import branch
+import left_edge_right_imports_twice as left
+
+y = left.x

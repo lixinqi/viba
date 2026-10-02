@@ -1,0 +1,6 @@
+
+text =
+	str
+	<- $env Environment
+	<- { answer some text }
+__ret__ = text << $env environ

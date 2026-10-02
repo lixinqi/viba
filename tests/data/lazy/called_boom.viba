@@ -1,0 +1,7 @@
+take_x =
+    int
+  <- $env Environment
+  <- $get_x (int <- $env Environment)
+  <- { answer whatever x is }
+
+__ret__ = take_x << $env environ << $get_x (1 << $x 2)

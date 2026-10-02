@@ -1,0 +1,7 @@
+import branch
+import left_cond_reads_back_false_side as left
+
+g =
+    bool
+  <- $env Environment
+  <- { the host answers }

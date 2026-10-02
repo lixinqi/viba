@@ -1,0 +1,15 @@
+import branch
+import right_three_all_live as right
+
+x =
+    Oneof
+    | (branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x 1))
+    | (branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x 2))
+    | (branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x 3))
+__ret__ = x

@@ -1,0 +1,16 @@
+import branch as branch
+import gate as gate
+import kinds as kinds
+
+__ret__ =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (gate.false_gate << $env environ)
+        << $get_v (kinds.answer_int)
+      )
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (gate.false_gate << $env environ)
+        << $get_v (builtin.echo << $x 0)
+      )

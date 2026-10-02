@@ -1,0 +1,7 @@
+ignore_x =
+    int
+  <- $env Environment
+  <- $get_x (int <- $env Environment)
+  <- { answer seven without looking at x }
+
+__ret__ = ignore_x << 5 << 1

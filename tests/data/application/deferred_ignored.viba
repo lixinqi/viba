@@ -1,0 +1,11 @@
+watch =
+    int
+  <- $env Environment
+  <- $x (int <- $env Environment)
+  <- { hand x back }
+ignore =
+    int
+  <- $env Environment
+  <- $x (int <- $env Environment)
+  <- { answer seven without looking at x }
+__ret__ = ignore << $env environ << $x (builtin.echo << $x "x")

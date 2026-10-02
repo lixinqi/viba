@@ -1,0 +1,2 @@
+import pkg.inner as inner
+__ret__ = inner << (environ.sub_env << environ << "inner") << ()

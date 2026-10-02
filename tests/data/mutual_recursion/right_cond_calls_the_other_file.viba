@@ -1,0 +1,12 @@
+import branch
+import left_cond_calls_the_other_file as left
+
+g =
+    bool
+  <- $env Environment
+  <- { the host answers }
+f =
+    int
+  <- $env Environment
+  <- $a int
+  <- { the host implements this step }

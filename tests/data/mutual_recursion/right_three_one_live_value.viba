@@ -1,0 +1,4 @@
+import branch
+import left_three_one_live_value as left
+
+y = left.x

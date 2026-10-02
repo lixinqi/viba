@@ -1,0 +1,14 @@
+import branch
+import right_part_in_a_branch as right
+
+x =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (right.f << $a 1))
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (true)
+        << $get_v (right.f << $a 9))
+__ret__ = x

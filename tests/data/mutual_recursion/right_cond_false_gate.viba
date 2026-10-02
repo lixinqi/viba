@@ -1,0 +1,7 @@
+import branch
+import left_cond_false_gate as left
+
+g_false =
+    bool
+  <- $env Environment
+  <- { the host answers false }

@@ -1,0 +1,14 @@
+import branch
+import right_cond_inside_the_kept_side as right
+
+x =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (right.g << $env environ))
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x 0))
+__ret__ = x

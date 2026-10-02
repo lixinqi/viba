@@ -1,0 +1,4 @@
+import branch
+import left_lazy_switch_never_side as left
+
+y = left.x

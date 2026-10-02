@@ -1,0 +1,6 @@
+import program as program
+import design_only
+Program = program << $env environ << ()
+Half = program.add << $env environ << $a 1
+Dotted = design_only.Only
+NotAProgram = design_only << $env environ << ()

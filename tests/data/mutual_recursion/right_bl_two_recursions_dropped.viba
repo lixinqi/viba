@@ -1,0 +1,4 @@
+import branch
+import left_bl_two_recursions_dropped as left
+
+y = left.x

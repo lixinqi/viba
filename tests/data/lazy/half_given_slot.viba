@@ -1,0 +1,9 @@
+ignore_x =
+    int
+  <- $env Environment
+  <- $get_x (int <- $env Environment)
+  <- { answer seven without looking at x }
+
+# 函数类型的那一格还没给，别的先给了：这个调用存不下来。
+half = ignore_x << $env environ
+__ret__ = half << $get_x tick

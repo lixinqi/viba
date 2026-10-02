@@ -1,0 +1,5 @@
+ratio =
+	int
+	<- $env Environment
+	<- { inline }
+__ret__ = ratio << $env environ

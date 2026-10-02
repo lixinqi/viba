@@ -1,0 +1,5 @@
+go =
+	int
+	<- $env Environment
+	<- { nobody calls this }
+__ret__ = environ.sub_env << environ << "child"

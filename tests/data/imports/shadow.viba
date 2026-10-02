@@ -1,0 +1,3 @@
+import plain as plain
+plain = 5
+__ret__ = plain

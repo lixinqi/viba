@@ -1,0 +1,13 @@
+
+add =
+	int
+	<- $env Environment
+	<- $a int
+	<- $b int
+	<- { add two integer }
+
+unused =
+	int
+	<- $env Environment
+	<- { never asked for }
+__ret__ = add << $env environ << $a 1 << $b 2

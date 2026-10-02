@@ -1,0 +1,6 @@
+import branch
+
+__ret__ =
+  Oneof
+  | (branch.never_or_echo << $env environ << $cond false << $get_v (builtin.echo << $x "right"))
+  | (branch.echo_or_never << $env environ << $cond false << $get_v (builtin.echo << $x "left"))

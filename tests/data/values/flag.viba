@@ -1,0 +1,5 @@
+flag =
+	int
+	<- $env Environment
+	<- { inline }
+__ret__ = flag << $env environ

@@ -1,0 +1,4 @@
+import branch
+import left_lazy_two_switches_dropped as left
+
+y = left.x

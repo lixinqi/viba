@@ -1,0 +1,11 @@
+
+add =
+	int
+	<- $env Environment
+	<- $a int
+	<- $b int
+	<- { add two integer }
+import tmp_lib as lib
+__ret__ = add << $env environ
+  << $a (lib << (environ.tmp_sub_env << environ) << ())
+  << $b (lib << (environ.tmp_sub_env << environ) << ())

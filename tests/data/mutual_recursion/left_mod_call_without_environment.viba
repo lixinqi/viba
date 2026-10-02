@@ -1,0 +1,5 @@
+import branch
+import right_mod_call_without_environment as right
+
+x = right << $a 1
+__ret__ = x

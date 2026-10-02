@@ -1,0 +1,5 @@
+answer_a_tuple =
+	int
+	<- $env Environment
+	<- { inline }
+__ret__ = answer_a_tuple << $env environ

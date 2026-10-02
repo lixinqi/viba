@@ -1,0 +1,4 @@
+import branch
+import left_cond_reads_back as left
+
+g = left.x

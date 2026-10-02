@@ -1,0 +1,6 @@
+import branch
+import left_edge_two_left_definitions as left
+
+y = a_reader
+z = left.x
+a_reader = 5

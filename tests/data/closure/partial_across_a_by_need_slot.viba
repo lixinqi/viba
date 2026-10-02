@@ -1,14 +1,19 @@
 import branch
 
 ge =
-    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+    bool
+  <- $env Environment
+  <- $x int
+  <- $y int
+  <- { x >= y }
 
 tick =
-    int <- $env Environment <- { counts as a side effect }
+    int
+  <- $env Environment
+  <- { counts as a side effect }
 
 condition = ge << $env environ << $x 1 << $y 0
 
-# 按需的那个参数还没给：条件先定下来，这还是一个闭包
-switch = branch.id_or_never << $condition condition
-
-__ret__ = switch << $v (tick << environ) << environ
+# 条件先定下来，分支值那一步还没给：这还是一个闭包。
+switch = branch.echo_or_never << $cond condition << $get_v (tick << $env environ)
+__ret__ = switch << $env environ

@@ -1,0 +1,10 @@
+import branch as branch
+import pick as pick
+
+done = pick.add << $a 1 << $b 2
+
+__ret__ =
+    branch.echo_or_never
+    << $env environ
+    << $cond true
+    << $get_v (done << $env environ)

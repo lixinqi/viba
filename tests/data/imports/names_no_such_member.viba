@@ -1,0 +1,2 @@
+import design_two as d
+__ret__ = d.nope

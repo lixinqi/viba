@@ -1,0 +1,19 @@
+import branch
+
+# A switch written as an independent file, called as one step from another.
+inner_if =
+    int
+  <- $env Environment
+  <- $cond bool
+  <- $get_v (int <- $env Environment)
+  <- (branch.echo_or_never << $env environ << $cond args.cond << $get_v args.get_v)
+
+inner_if_not =
+    int
+  <- $env Environment
+  <- $cond bool
+  <- $get_v (int <- $env Environment)
+  <- (branch.never_or_echo << $env environ << $cond args.cond << $get_v args.get_v)
+
+always_nine =
+    int <- $env Environment <- { nine }

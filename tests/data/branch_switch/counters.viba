@@ -1,0 +1,12 @@
+# Every call here records itself in the host.
+tick =
+    int <- $env Environment <- { counts once }
+tock =
+    int <- $env Environment <- { counts too }
+counted_gate =
+    bool <- $env Environment <- { count once and answer true }
+asked_twice =
+    int
+  <- $env Environment
+  <- $get_x (int <- $env Environment)
+  <- { ask for x twice }

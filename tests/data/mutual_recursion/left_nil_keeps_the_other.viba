@@ -1,0 +1,5 @@
+import branch
+import right_nil_keeps_the_other as right
+
+x = nil * right.y
+__ret__ = x

@@ -1,0 +1,26 @@
+import branch
+
+foo =
+    int <- $env Environment <- { the case's value }
+ge =
+    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+pick_high =
+    str <- $env Environment <- { the answer when a is high }
+pick_nonnegative =
+    str <- $env Environment <- { the answer when a is high and not negative }
+pick_negative =
+    str <- $env Environment <- { the answer when a is neither }
+
+a = foo << $env environ
+high = ge << $env environ << $x a << $y 10
+nonnegative = ge << $env environ << $x a << $y 0
+
+# 选中的那一支里还有一个开关：内层的结果当外层那一支的值。
+nonnegative_or_negative =
+  Oneof
+  | (branch.echo_or_never << $env environ << $cond nonnegative << $get_v pick_nonnegative)
+  | (branch.never_or_echo << $env environ << $cond nonnegative << $get_v pick_negative)
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env environ << $cond high << $get_v pick_high)
+  | (branch.never_or_echo << $env environ << $cond high << $get_v (builtin.echo << $x nonnegative_or_negative))

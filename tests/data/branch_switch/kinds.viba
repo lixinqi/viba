@@ -1,0 +1,25 @@
+# One answer of each value kind, in a file of its own.
+answer_int =
+    int <- $env Environment <- { 7 }
+answer_zero =
+    int <- $env Environment <- { 0 }
+answer_text =
+    str <- $env Environment <- { "kept" }
+answer_empty =
+    str <- $env Environment <- { "" }
+answer_flag =
+    bool <- $env Environment <- { false }
+answer_true =
+    bool <- $env Environment <- { true }
+answer_nothing =
+    Any <- $env Environment <- { nil }
+answer_number =
+    float <- $env Environment <- { 0.5 }
+answer_negative =
+    float <- $env Environment <- { -1.5 }
+answer_product =
+    (int * str) <- $env Environment <- { 1 * "one" }
+answer_never =
+    never <- $env Environment <- { never }
+answer_sum =
+    (int | str) <- $env Environment <- { 3 | "three" }

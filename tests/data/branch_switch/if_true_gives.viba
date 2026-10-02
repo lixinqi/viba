@@ -1,0 +1,7 @@
+import branch as branch
+import workshop as workshop
+
+__ret__ =
+    Oneof
+  | (workshop.if_true << $env environ << $get_v (builtin.echo << $x 7))
+  | (workshop.if_false << $env environ << $get_v (builtin.echo << $x 0))

@@ -1,0 +1,10 @@
+ignore_x =
+    int
+  <- $env Environment
+  <- $get_x (int <- $env Environment)
+  <- { answer seven without looking at x }
+
+poison_no_implementation =
+    int <- $env Environment <- { nothing implements this }
+
+__ret__ = ignore_x << $env environ << $get_x (poison_no_implementation << $env environ)

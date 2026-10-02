@@ -1,2 +1,0 @@
-import let_inner as let_inner
-__ret__ = let_inner << (e := (environ.tmp_sub_env << environ)  e) << ()

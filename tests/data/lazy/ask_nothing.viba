@@ -1,0 +1,13 @@
+ask_nothing =
+    int
+  <- $env Environment
+  <- $get_a (int <- $env Environment)
+  <- $get_b (int <- $env Environment)
+  <- { answer zero, asking for neither argument }
+
+tick =
+    int <- $env Environment <- { one }
+tock =
+    int <- $env Environment <- { the other }
+
+__ret__ = ask_nothing << $env environ << $get_a (tick << $env environ) << $get_b (tock << $env environ)

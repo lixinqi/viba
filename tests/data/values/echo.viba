@@ -1,0 +1,6 @@
+echo =
+	int
+	<- $env Environment
+	<- $x int
+	<- { pass it through }
+__ret__ = echo << $env environ << $x 42

@@ -1,0 +1,2 @@
+double = int <- $a int <- { double it }
+__ret__ = double << $a 21

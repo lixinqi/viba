@@ -1,0 +1,10 @@
+import branch
+import left_part_environment_too_early_one_short as left
+
+f2 =
+    int
+  <- $env Environment
+  <- $a int
+  <- $b int
+  <- { the host implements this step }
+y = left.x

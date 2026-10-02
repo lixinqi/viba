@@ -1,0 +1,4 @@
+import branch
+import left_slot_value_kept as left
+
+y = left.x

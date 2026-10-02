@@ -26,7 +26,7 @@ import hashlib
 from typing import Callable, Dict, List, Optional
 
 from viba import viba_ast
-from viba.partial import by_need_type, module_as_function, reduce_partial
+from viba.partial import module_as_function, reduce_partial
 from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
     PartialError,
@@ -437,6 +437,38 @@ def _is_unit(node, names) -> bool:
     return isinstance(node, ast_nodes.TypeRef) and node.name in names
 
 
+def descriptor_of_tagged(tag, inner: VibaTypeDescriptor, node, written_in) -> VibaTypeDescriptor:
+    """A tagged member's descriptor: the tag, over the member's own reading.
+
+    A product's members are addressed by their tags, so the tag has to be part of
+    the reading — and the member's own descriptor is what is underneath it.
+    """
+    return VibaTypeDescriptor(TAGGED, VibaTaggedDescriptor(
+        empty_pool(), AstNodeType(node, written_in), tag, inner))
+
+
+def descriptor_of_values(node, written_in, members) -> VibaTypeDescriptor:
+    """A descriptor for a piece built **from values**, not from text.
+
+    Each member already has a descriptor of its own, and with it the module it
+    was written in. Reading the whole piece again as one node in one module would
+    be wrong the moment a member came from somewhere else — its names would be
+    looked up in the wrong place — so the product keeps the members' own
+    readings, each under the tag that addresses it.
+    """
+    resolvable = AstNodeType(node, written_in)
+    pieces = _left_elements(node, ast_nodes.Product, ast_nodes.ProductChain)
+    elements = []
+    for index, member in enumerate(members):
+        descriptor = member.node.descriptor
+        piece = pieces[index] if index < len(pieces) else None
+        if isinstance(piece, ast_nodes.Tagged):
+            descriptor = descriptor_of_tagged(piece.tag, descriptor, piece, written_in)
+        elements.append(descriptor)
+    return VibaTypeDescriptor(PRODUCT, VibaChainDescriptor(
+        empty_pool(), resolvable, elements))
+
+
 def descriptor_of(node) -> VibaTypeDescriptor:
     """一份语法节点（AstNodeType）的浅描述符：谁手里只有语法、又想用反射读它，
     从这里拿描述符。
@@ -458,7 +490,7 @@ def _fits(given, given_module, written, written_module):
 
 
 def _partial_target(pool, name, module):
-    """(body, home) for the name a `<<` gives to, or None."""
+    """(body, written_in) for the name a `<<` gives to, or None."""
     resolved = module_get_type(module, name)
     if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
         return module_as_function(module, name)
@@ -473,24 +505,13 @@ def _partial_target(pool, name, module):
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
     if isinstance(node, ast_nodes.Any):
         return VibaTypeDescriptor(ANY)
-    if isinstance(node, (ast_nodes.Let, ast_nodes.Binding)):
-        # `:=` belongs to computation, and this file declares types: a binding
-        # in a definition body is misplaced, not a substitution this layer owes
-        # (viba-style.md).
-        raise PartialError("a binding is computation, not a type: "
-                           f"{viba_ast.unparse_type(node)}")
-    marked = by_need_type(node, module)
-    if marked is not None:
-        # A marked slot is the type it marks: the descriptor of
-        # `CalledByNeed[T]` is the descriptor of T.
-        return _build_type(pool, module, marked)
     if isinstance(node, ast_nodes.Partial):
-        reduced, home = reduce_partial(node, module,
-                                       lambda name, home: _partial_target(pool, name, home),
+        reduced, written_in = reduce_partial(node, module,
+                                       lambda name, written_in: _partial_target(pool, name, written_in),
                                        _fits)
         # 归约可能走进另一个模块（模块调用：`__ret__` 是那个模块里写的），
         # 所以接着读要用归约回来的那个模块，不是进来时那个。
-        return _build_type(pool, home, reduced)
+        return _build_type(pool, written_in, reduced)
     resolvable = AstNodeType(node, module)
     if isinstance(node, (ast_nodes.Product, ast_nodes.ProductChain)):
         return VibaTypeDescriptor(PRODUCT, VibaChainDescriptor(

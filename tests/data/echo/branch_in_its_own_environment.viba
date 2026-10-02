@@ -1,0 +1,10 @@
+# 条件成立：echo_or_never 把这一支交给宿主，宿主给它一个自己的子环境 —— 路径就是证据：
+# leaf 看到的是 root/echo_or_never，不是 root。
+import branch
+
+leaf =
+    int
+  <- $env Environment
+  <- { 答一个数 }
+
+__ret__ = branch.echo_or_never << $env environ << $cond true << $get_v leaf

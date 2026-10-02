@@ -1,7 +1,4 @@
 import square_sum as square_sum
 
-__ret__ =
-  (
-    side := 1
-    square_sum << (environ.tmp_sub_env << environ) << side << 4
-  )
+# 模块的实参直接给：`side` 那个中间名现在没有绑定块的写法。
+__ret__ = square_sum << (environ.tmp_sub_env << environ) << 1 << 4

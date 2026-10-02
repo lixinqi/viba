@@ -1,0 +1,5 @@
+inner_value =
+	int
+	<- $env Environment
+	<- { run another module from inside the host }
+__ret__ = inner_value << $env environ

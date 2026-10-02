@@ -1,0 +1,7 @@
+# main_at_1.viba —— 要跑的是 Y F 1，该答 1
+import fib_module as F
+import int_to_int_y
+
+# fib 就是 F 的不动点。只给 $f、不给环境，它是一个半成品（部分计算）。
+fib = int_to_int_y << $f F
+__ret__ = fib << ($sub_env << environ << "y") << $n 1

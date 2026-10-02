@@ -1,0 +1,9 @@
+import branch
+import left_lazy_slot_never_called as left
+
+ignore =
+    int
+  <- $env Environment
+  <- $x (int <- $env Environment)
+  <- { the host does not call the argument }
+y = left.x

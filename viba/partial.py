@@ -36,44 +36,10 @@ RET_NAME = "__ret__"
 ARGS_NAME = "__args__"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
-
-# The tag that marks one argument as computed only when it is wanted
-# (viba/builtin.viba).
-CALLED_BY_NEED_TAG = "$__called_by_need_tag_yanatutt__"
-
-
-def by_need_type(node, module):
-    """The type a slot written `CalledByNeed[T]` asks for, else None.
-
-    A marked slot *is* its type: the marker says how that one argument is given
-    (an argument the host asks for if it wants it, viba-interpreter.md), not what
-    the type is. Every layer reads through it, so a marked slot and a plain one
-    are judged the same, and a marked call reduces everywhere.
-
-    The name alone decides nothing — a module may define `CalledByNeed` itself,
-    and a local definition wins — so the definition the constructor names has to
-    carry the reserved tag.
-    """
-    if not isinstance(node, viba_ast.TypeApp) or len(node.args or []) != 1:
-        return None
-    body = None
-    local = _definition(module, node.constructor)
-    if local is not None:
-        body = local.body
-    else:
-        builtin = BUILTIN_MODULE.lookup(node.constructor)
-        if isinstance(builtin, Ok) and isinstance(builtin.ok_value, AstNodeType):
-            body = builtin.ok_value.ast_node
-    if body is None:
-        return None
-    if not any(isinstance(part, viba_ast.Tagged) and part.tag == CALLED_BY_NEED_TAG
-               for part in viba_ast.walk(body)):
-        return None
-    return node.args[0]
-
+ENVIRON_NAME = "environ"
 
 def module_as_function(module, name):
-    """(body, home) for a bare import name read as a function, or None.
+    """(body, written_in) for a bare import name read as a function, or None.
 
     A module is a function too: `__ret__ <- $env Environment <- __args__`, its
     input the environment and its arguments, its output `__ret__`. A module that
@@ -93,10 +59,11 @@ def module_as_function(module, name):
     ret = _definition(imported.ok_value, RET_NAME)
     if ret is None:
         return None
-    elements = [ret.body,
-                viba_ast.Tagged(ENVIRON_TAG, viba_ast.TypeRef(ENVIRON_TYPE))]
-    elements += _argument_slots(imported.ok_value)
-    return (viba_ast.ExponentChain(elements), imported.ok_value)
+    # 环境不进类型：它是调用的规矩（给环境就是执行），不是设计的一个参数。所以
+    # 模块当函数读出来的类型就是它接收的那些实参，和一份函数定义的类型一样；一个不
+    # 收实参的模块就是这个值本身（跑它得到的就是 __ret__）。
+    return (viba_ast.ExponentChain([ret.body] + _argument_slots(imported.ok_value)),
+            imported.ok_value)
 
 
 def _argument_slots(module):
@@ -155,7 +122,7 @@ def reduce_partial(node, module, resolve: Callable, judge: Callable,
                    outermost: bool = True) -> Tuple[object, object]:
     """(node, module) with every `<<` given.
 
-    `resolve(name, module) -> (body, home) | None` is how a written name is
+    `resolve(name, module) -> (body, written_in) | None` is how a written name is
     unfolded; an alias is followed to the end of the chain.
     `judge(sub, sub_module, sup, sup_module) -> bool` says whether a given
     argument fits the slot it is written to.
@@ -182,18 +149,32 @@ def _nothing_left_to_give(node, module):
     elements = _elements(node)
     if len(elements) > 1 and all(_is_documentation(element)
                                  or _is_the_empty_product(element)
+                                 or _is_the_environment(element)
                                  for element in elements[1:]):
+        # 环境那一格不算实参（`_give` 给环境也不占格），所以链上只剩它也等于没有
+        # 剩下的：这一次调用落在结果上。
         return elements[0], module
     return node, module
 
 
 def _give(base, module, argument, argument_module, resolve, judge):
     if isinstance(base, viba_ast.Member):
+        # `$tag` 的那个成员是从**第一个实参**身上取的，所以环境在这里不是"执行"，是值。
         return _member_of(base.tag, argument, argument_module, resolve, judge)
     base, module = _unfold(base, module, resolve)
     if not isinstance(base, _EXP_NODES):
         raise PartialError(
             f"only a function has arguments to give, not {_written(base)}")
+    if _is_the_environment(argument):
+        # 给环境 = 执行这一步：它从此不在链上占位置。环境不是设计的参数，所以给了
+        # 之后剩下的格子就是全部要给的（没给的时候，环境那一格仍是第一格，别的实参
+        # 落到它上面照样是错的）。
+        elements = _elements(base)
+        rest = [elements[0]] + [one for one in elements[1:]
+                                if not _is_the_environment(one)]
+        if len(rest) == 1:
+            return rest[0], module
+        return viba_ast.ExponentChain(rest), module
     elements = _elements(base)
     for index, written in enumerate(elements[1:], start=1):
         if _matches(written, argument, module, argument_module, judge):
@@ -208,7 +189,7 @@ def _give(base, module, argument, argument_module, resolve, judge):
 
 
 def _member_of(tag, owner, owner_module, resolve, judge):
-    """(type, home) of the `$tag` member of the value a chain gave first, given
+    """(type, written_in) of the `$tag` member of the value a chain gave first, given
     that value.
 
     `$tag << X << a` is `X.tag << X << a`: X is the value the member is taken
@@ -227,12 +208,21 @@ def _member_of(tag, owner, owner_module, resolve, judge):
     if isinstance(owner, (viba_ast.Product, viba_ast.ProductChain)):
         for factor in product_elements(owner):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
-                base, home = _unfold(factor.type, owner_module, resolve)
-                return _give(base, home, written, written_module, resolve, judge)
+                base, written_in = _unfold(factor.type, owner_module, resolve)
+                return _give(base, written_in, written, written_module, resolve, judge)
         raise PartialError(
             f"no member tagged {tag!r} to take from {_written(owner)}")
     raise PartialError(
         f"{_written(owner)} is no value to take the member {tag!r} from")
+
+
+def _is_the_environment(node) -> bool:
+    """Whether this written argument is the environment itself."""
+    if isinstance(node, viba_ast.Tagged):
+        if node.tag == ENVIRON_TAG:
+            return True
+        node = node.type
+    return isinstance(node, viba_ast.TypeRef) and node.name == ENVIRON_NAME
 
 
 def _is_the_empty_product(node) -> bool:
@@ -241,14 +231,9 @@ def _is_the_empty_product(node) -> bool:
 
 
 def _unfold(node, module, resolve):
-    """A name runs to its body, name after name — and a marked slot is the type
-    it marks, so the marker is read through here too."""
+    """A name runs to its body, name after name."""
     seen = set()
     while True:
-        marked = by_need_type(node, module)
-        if marked is not None:
-            node = marked
-            continue
         if not isinstance(node, viba_ast.TypeRef) or node.name in seen:
             return node, module
         seen.add(node.name)
@@ -304,5 +289,4 @@ def _elements(node):
     return [node]
 
 
-__all__ = ["reduce_partial", "module_as_function", "by_need_type",
-           "product_elements"]
+__all__ = ["reduce_partial", "module_as_function", "product_elements"]

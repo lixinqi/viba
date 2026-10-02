@@ -1,0 +1,21 @@
+import branch
+import left_nest_kept_dropped_swapped as left
+
+y =
+    Oneof
+  | (branch.echo_or_never
+      << $env environ << $cond (true)
+      << $get_v (builtin.echo << $x (
+            Oneof
+            | (
+                branch.echo_or_never
+                << $env environ << $cond (false)
+                << $get_v (builtin.echo << $x 41))
+            | (
+                branch.never_or_echo
+                << $env environ << $cond (false)
+                << $get_v (builtin.echo << $x left.x))
+      )))
+  | (branch.never_or_echo
+      << $env environ << $cond (true)
+      << $get_v (builtin.echo << $x 42))

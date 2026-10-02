@@ -34,6 +34,7 @@ from viba.viba_type_descriptor import (empty_pool, parse_viba_file, pool_add_fil
                                        pool_find_definition)
 
 DATA = Path(__file__).resolve().parent / "data" / "is_sub_type"
+FIXTURES = DATA
 PASS = FAIL = 0
 
 
@@ -642,17 +643,8 @@ def run_module_as_function_cases():
     """模块当函数（类型层）：import 绑定的名字读成
     `__ret__ <- $env Environment <- __args__`（没有 `__args__` 就是空的 `()`），
     `module.Name` 照旧是那个模块里的定义，没有 `__ret__` 的模块不是程序。"""
-    sources = {
-        "program": ("add = int <- $env Environment <- $a int <- $b int <- { add }\n"
-                    "__ret__ = add << $env environ << $a 1 << $b 2\n"),
-        "design_only": "Only = $x int\n",
-        "caller": ("import program as program\n"
-                   "import design_only\n"
-                   "Program = program << $env environ << ()\n"
-                   "Half = program.add << $env environ << $a 1\n"
-                   "Dotted = design_only.Only\n"
-                   "NotAProgram = design_only << $env environ << ()\n"),
-    }
+    sources = {name: (FIXTURES / "module_as_function" / f"{name}.viba").read_text()
+               for name in ("program", "design_only", "caller")}
     built = {}
 
     def environment(name):
@@ -694,25 +686,8 @@ def run_module_args_cases():
     给了一半在**类型**上是一种类型（剩下的那个函数）；值层里给一半是程序错
     （tests/test_interpreter_module_args.py）。
     """
-    sources = {
-        "program": ("__args__ = Object * $a int * $b int\n"
-                    "args = __args__\n"
-                    "sum = int <- $env Environment <- $a int <- $b int <- { add }\n"
-                    "__ret__ = sum << $env environ << $a args.a << $b args.b\n"),
-        "empty": ("__args__ = Object\n"
-                  "leaf = int <- $env Environment <- { seven }\n"
-                  "__ret__ = leaf << $env environ\n"),
-        "bad": ("__args__ = int\n"
-                "__ret__ = 1\n"),
-        "caller": ("import program as program\n"
-                   "import empty as empty\n"
-                   "import bad as bad\n"
-                   "All = program << $env environ << 3 << 4\n"
-                   "ByTag = program << $env environ << $b 4 << $a 3\n"
-                   "Half = program << $env environ << $a 3\n"
-                   "NoArgs = empty << $env environ << ()\n"
-                   "Bad = bad << $env environ << ()\n"),
-    }
+    sources = {name: (FIXTURES / "module_args" / f"{name}.viba").read_text()
+               for name in ("program", "empty", "bad", "caller")}
     built = {}
 
     def environment(name):
@@ -1109,70 +1084,6 @@ def _suite_case_nodes():
             yield tup.elts[0].value
 
 
-def run_binding_definition_cases():
-    """绑定是计算的写法：定义体上出现它，答复是"这不是类型"，不是"算不出来"。"""
-    result = is_sub_type(load_entry("A = (a := 7  a)"),
-                         load_entry("A = (a := 7  a)"))
-    check_result(result, "error", "a binding body is no type")
-    check(isinstance(result, VibaProgramErr)
-          and "computation, not a type" in result.err_msg,
-          True, "and the answer names the reason")
-
-
-def run_by_need_cases():
-    """`CalledByNeed[T]` 在判定层就是 T：标记说的是那个参数怎么给，不是类型。
-
-    名字自己不算数——本地定义盖过内建——所以只有带那个保留 tag 的定义才算标记。
-    """
-    marked = """
-mark =
-    int
-  <- $env Environment
-  <- $x CalledByNeed[int]
-"""
-    plain = """
-mark =
-    int
-  <- $env Environment
-  <- $x int
-"""
-    check_result(is_sub_type(load_entry_as(marked, custom_module(marked)),
-                             load_entry_as(plain, custom_module(plain))),
-                 True, "a slot marked by need is the type it marks")
-    check_result(is_sub_type(load_entry_as(plain, custom_module(plain)),
-                             load_entry_as(marked, custom_module(marked))),
-                 True, "and the judgement does not care which way round")
-
-    applied = marked + "X = mark << $env environ\n"
-    left = "X = int <- $x int\n"
-    check_result(is_sub_type(load_entry_as(applied, custom_module(applied)),
-                             load_entry_as(left, custom_module(left))),
-                 True, "a marked call reduces: the environment given, the argument left")
-
-    # 本地那份不带保留 tag：它就是一个普通的类型应用，不是标记
-    shadowed = """
-CalledByNeed[F] =
-    Object
-  * $func F
-mark = int <- $env Environment <- $x CalledByNeed[int]
-"""
-    check_result(is_sub_type(load_entry_as(shadowed, custom_module(shadowed)),
-                             load_entry_as(plain, custom_module(plain))),
-                 False, "a name without the reserved tag is no marker")
-
-    # 带着保留 tag 的本地定义就是标记——判定层和 interpreter 读的是同一条规矩
-    carrying = """
-CalledByNeed[F] =
-    Object
-  * $__called_by_need_tag_yanatutt__ ()
-  * $arg F
-mark = int <- $env Environment <- $x CalledByNeed[int]
-"""
-    check_result(is_sub_type(load_entry_as(carrying, custom_module(carrying)),
-                             load_entry_as(plain, custom_module(plain))),
-                 True, "a local definition carrying the tag is the marker")
-
-
 def run_suite_reflexivity():
     """Every closed parser suite case must be reflexive (others skip)."""
     count = skipped = 0
@@ -1270,8 +1181,6 @@ run_canonical_chain_cases()
 run_apply_cases()
 run_any_cases()
 run_type_object_cases()
-run_binding_definition_cases()
-run_by_need_cases()
 run_module_args_cases()
 run_member_head_cases()
 run_suite_reflexivity()

@@ -1,0 +1,6 @@
+import branch
+import right_edge_in_file_pair as right
+
+A = B
+B = A
+__ret__ = A

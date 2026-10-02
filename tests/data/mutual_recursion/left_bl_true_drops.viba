@@ -1,0 +1,14 @@
+import branch
+import right_bl_true_drops as right
+
+x =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x 42))
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (true)
+        << $get_v (builtin.echo << $x right.y))
+__ret__ = x

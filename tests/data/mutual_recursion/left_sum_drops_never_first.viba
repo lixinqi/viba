@@ -1,0 +1,5 @@
+import branch
+import right_sum_drops_never_first as right
+
+x = never | right.y
+__ret__ = x

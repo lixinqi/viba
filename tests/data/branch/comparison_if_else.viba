@@ -1,0 +1,15 @@
+import branch
+
+foo =
+    int <- $env Environment <- { the case's own value }
+ge =
+    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+threshold_of =
+    int <- $env Environment <- { the threshold the host hands over }
+
+a = foo << $env environ
+condition = ge << $env environ << $x a << $y (threshold_of << $env environ)
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env environ << $cond condition << $get_v (builtin.echo << $x a))
+  | (branch.never_or_echo << $env environ << $cond condition << $get_v (builtin.echo << $x 0))

@@ -1,0 +1,4 @@
+# A file with the empty argument written out.
+__args__ = Object
+
+__ret__ = 5

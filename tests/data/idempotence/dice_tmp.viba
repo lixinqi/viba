@@ -1,0 +1,3 @@
+import dice as d
+
+__ret__ = d << (environ.tmp_sub_env << environ) << ()

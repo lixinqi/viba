@@ -1,0 +1,8 @@
+import arithmetic as arithmetic
+
+x_of =
+	int
+	<- $env Environment
+	<- $p ($x int * $y int)
+	<- { the x of that point }
+__ret__ = x_of << $env environ << $p ($x "s" * $y 1)

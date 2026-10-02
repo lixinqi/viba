@@ -1,0 +1,13 @@
+
+overfeed =
+	int
+	<- $env Environment
+	<- $f (int <- $env Environment <- $x int)
+	<- $x int
+	<- { give f one argument too many }
+inc =
+	int
+	<- $env Environment
+	<- $x int
+	<- { add one }
+__ret__ = overfeed << $env environ << $f inc << $x 10

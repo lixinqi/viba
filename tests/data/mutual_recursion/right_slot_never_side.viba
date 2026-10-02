@@ -1,0 +1,4 @@
+import branch
+import left_slot_never_side as left
+
+y = left.x

@@ -1,0 +1,5 @@
+import branch
+import right_direct_member as right
+
+x = right.y
+__ret__ = x

@@ -1,0 +1,14 @@
+import branch
+import right_cond_calls_the_other_file as right
+
+x =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond (right.g << $env environ)
+        << $get_v (right.f << $env environ << $a 1))
+    | (
+        branch.never_or_echo
+        << $env environ << $cond (right.g << $env environ)
+        << $get_v (builtin.echo << $x 0))
+__ret__ = x

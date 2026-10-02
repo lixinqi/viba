@@ -1,0 +1,6 @@
+watch =
+    int
+  <- $env Environment
+  <- $x (int <- $env Environment)
+  <- { hand x back }
+__ret__ = watch << $env environ << $x (builtin.echo << $x "x")

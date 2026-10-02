@@ -141,8 +141,10 @@ __ret__ = demo.print << environ << ret
 `environ.sub_env << environ << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
 `root/add_demo`。它也可以写成 `$sub_env << environ << "add_demo"`——tag 写在链头时命中的是第一个参数
 的成员，两种写法是同一次调用（第 8 节）。这个模块没有 `__args__`，所以给环境就是执行，不用再写一个 `()`。
-那条路径就是这次调用的身份——宿主拿到的 `module_path` 就是它。所以一次运行里
-**任何两次模块调用不许用同一条路径**，撞了就是 `VibaProgramErr`，并且把写法写在错误里。
+那条路径就是这次调用的身份——宿主拿到的 `module_path` 就是它，所以它是一次调用的**地址**：
+同一条路径上正在跑就是环（报错并把写法写在话里）；已经答过、又是**同一个模块**，就是同一个子
+计算被问了第二次，把它答过的那份交回去；已经答过、却是**另一个模块**，那是两条调用挤一个地址，
+宿主分不出谁是谁，也报错。
 
 不想起名字就用 `tmp_sub_env`：它每次给一个新的子环境（路径是 `root/tmp_<随机>`），也可以写成
 `$tmp_sub_env << environ`。
@@ -189,24 +191,26 @@ __ret__ = same
 
 给环境的那一刻才是执行：`interpret` 去问宿主哪一步来实现，并按这次调用的 storage 路径把它认下来。
 
-## 7. 按需的实参：`CalledByNeed[T]`
+## 7. 可能会用不上的那个实参：写成函数类型
 
-有些实参可能根本用不上，算它要花代价或者有副作用。把那个参数写成 `CalledByNeed[T]`，它就不先算：
+有些实参可能根本用不上，算它要花代价或者有副作用。把那一格写成**函数类型** `(T <- $env Environment)`，
+那个实参就不在这里算：写下来的那次调用连同环境一起交给宿主，宿主叫它的时候才算，在宿主给的那个环境
+里算。`branch.viba` 的两个开关就是这么写的：
 
 ```viba
-id_or_never =
+echo_or_never =
     Any
   <- $env Environment
-  <- $condition bool
-  <- $v CalledByNeed[Any]
-  <- { 条件成立交回 v，否则交回 never }
+  <- $cond bool
+  <- $get_v (Any <- $env Environment)
+  <- { 条件成立就交回 get_v，否则交回 never }
 
-never_or_id =
+never_or_echo =
     Any
   <- $env Environment
-  <- $condition bool
-  <- $v CalledByNeed[Any]
-  <- { 条件成立交回 never，否则交回 v }
+  <- $cond bool
+  <- $get_v (Any <- $env Environment)
+  <- { 条件成立就交回 never，否则交回 get_v }
 ```
 
 ```viba
@@ -223,15 +227,28 @@ tock =
 condition = ge << $env environ << $x 1 << $y 0
 __ret__ =
     Oneof
-  | (branch.id_or_never << $env environ << $condition condition << $v (tick << $env environ))
-  | (branch.never_or_id << $env environ << $condition condition << $v (tock << $env environ))
+  | (branch.echo_or_never
+      << $env environ << $cond condition
+      << $get_v (tick << $env environ))
+  | (branch.never_or_echo
+      << $env environ << $cond condition
+      << $get_v (tock << $env environ))
 ```
 
-宿主拿到的是一个"要用的时候再来拿"的东西；不叫它，那个实参就一次都不算。所以没走的那一支里的副作用
-不会发生，它没有实现也不会挡路。
+`$get_v` 那个实参写成一次调用（`tick << $env environ`）；宿主拿到的是一个能带着环境调它自己的东西，
+不叫它，那个实参就一次都不算。所以没走的那一支里的副作用不会发生，它没有实现也不会挡路。
 
-几条规矩：标记只标那个参数，别的实参照旧先算；同一个实参最多算一次，问两遍不会做两遍；**按需的那个
-参数存不进闭包**（它没算过，不是可序列化数据），"给一半"时只能先给别的参数。
+几条规矩：
+
+- **只写那一格**。别的实参照旧先算，函数的 `$env` 也照旧按值给；
+- **最多算一次**。第一次问出结果（值或停下），之后每一次问都拿同一个，问两遍不会做两遍；
+- **想给一个已经算好的值**，用 `builtin.echo` 把它包成"给它一个环境就答 V"的那个函数：
+  `$get_v (builtin.echo << $x v)`；
+- **半成品调用也能放进去**。一个还欠实参的调用（`add << $a 40`）本身就是个值；放在那一格里，
+  宿主拿到的是它代表的那次调用，补上欠的那些实参就得到答案。
+
+条件、值和开关本身都可以写在别的文件里，用例只写一条链去调它们。这条路子的边角案例见
+[`tests/test_interpreter_branch_switch.py`](tests/test_interpreter_branch_switch.py)。
 
 ## 8. 调用方法：链头写 tag
 
@@ -324,7 +341,7 @@ Point =
 
 - [`viba-style.md`](viba-style.md)：写设计时的规矩——tag 怎么起名、提示怎么写、什么时候用和、什么时候
   用积。
-- [`viba-interpreter.md`](viba-interpreter.md)：执行这一层——环境、模块、闭包、按需的实参、一次执行会得到
+- [`viba-interpreter.md`](viba-interpreter.md)：执行这一层——环境、模块、闭包、函数类型的那个实参、一次执行会得到
   什么、幂等与快照。
 - [`viba_builder.md`](viba_builder.md)：用 Python 拼 viba 源码。
 - [`viba-reflect.md`](viba-reflect.md)：按类型读实例（地址、步子、访问函数）。
@@ -338,4 +355,5 @@ Point =
 python -m viba.parser          # 文法自检 + 文档里的例子能不能编
 python -m viba.viba_ast        # 打印出来的能不能读回去
 python3 tests/test_interpreter_member.py   # 也可以直接跑任何一个 tests/*.py
+python3 tests/test_interpreter_branch_switch.py   # 独立文件 + 部分计算 + branch 的一百条边角案例
 ```

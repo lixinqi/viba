@@ -1,10 +1,8 @@
-"""Branch algebra: products select a branch, and sums drop never.
+"""分支代数：积选择一支，和把 never 剥掉。
 
-The host switches take the branch value and implement their choice through:
-
-    never * a = never
-    nil * a   = a
-    never | a = a
+每条用例是一份可以打开的文件（`tests/data/branch/*.viba`），这里只列它该跑出什么。走哪一支由
+`branch.echo_or_never` / `never_or_echo` 决定，比较、门槛和那个值由宿主给，所以同一份文件能在不同
+输入下走不同的路。
 
     python3 tests/test_interpreter_branch.py
 """
@@ -16,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, value_of, write
+from interpreter_support import Checks, value_of
 
 import branch
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
@@ -25,257 +23,234 @@ from viba import viba_ast
 
 checks = Checks("interpreter_branch")
 check = checks.check
+
+CASES = Path(__file__).resolve().parent / "data" / "branch"
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
 
-def host_for(a_value):
-    """The case's own foo/ge; the two selectors come from branch.py itself."""
+def host_for(a_value, threshold):
+    """宿主：`foo` 给这个用例的值，`threshold_of` 给门槛，别的都照旧。"""
     def get_func(module_path, func_name):
         if func_name == "foo":
             return lambda env: a_value
         if func_name == "ge":
             return lambda env, x, y: x.value >= y.value
+        if func_name == "threshold_of":
+            return lambda env: threshold
+        if func_name == "builtin.echo":
+            return lambda env, x: x
+        if func_name in ("pick_high", "pick_nonnegative", "pick_negative"):
+            return lambda env: func_name[len("pick_"):]
         return branch.get_func(module_path, func_name)
     return get_func
 
 
-def comparison_if_program(threshold, when_true="a", when_false="0", reverse=False):
-    """A complete comparison, selection and merge program."""
-    branches = (
-        f"  | (branch.id_or_never << $env environ << $condition condition << $v {when_true})\n"
-        f"  | (branch.never_or_id << $env environ << $condition condition << $v {when_false})"
-    )
-    if reverse:
-        branches = (
-            f"  | (branch.never_or_id << $env environ << $condition condition << $v {when_false})\n"
-            f"  | (branch.id_or_never << $env environ << $condition condition << $v {when_true})"
-        )
-    return f"""
-import branch
-
-foo =
-    int <- $env Environment <- {{ the case's value }}
-ge =
-    bool <- $env Environment <- $x int <- $y int <- {{ x >= y }}
-
-a = foo << $env environ
-condition = ge << $env environ << $x a << $y {threshold}
-__ret__ =
-  Oneof
-{branches}
-"""
+def _run(tmp: Path, name, a_value=0, threshold=0):
+    store = tmp / f"store-{name}-{a_value}-{threshold}"
+    store.mkdir(parents=True, exist_ok=True)
+    env = Environment(EnvironmentStorage("root", None, str(store)),
+                      EnvironmentCompute(host_for(a_value, threshold)),
+                      str(REPOSITORY_ROOT))
+    return interpret(str(CASES / f"{name}.viba"), env)
 
 
-def literal_if_program(condition, when_true, when_false, reverse=False):
-    """A complete branch program with a written boolean condition."""
-    branches = (
-        f"  | (branch.id_or_never << $env environ << $condition {condition} << $v {when_true})\n"
-        f"  | (branch.never_or_id << $env environ << $condition {condition} << $v {when_false})"
-    )
-    if reverse:
-        branches = (
-            f"  | (branch.never_or_id << $env environ << $condition {condition} << $v {when_false})\n"
-            f"  | (branch.id_or_never << $env environ << $condition {condition} << $v {when_true})"
-        )
-    return f"""import branch
-__ret__ =
-  Oneof
-{branches}
-"""
+# ---- 比较、门槛、选择、汇合：同一个文件跑不同的输入 ----
+COMPARISON_CASES = [
+    (0, -8, 0),
+    (0, -1, 0),
+    (0, 0, 0),
+    (0, 1, 1),
+    (0, 7, 7),
+    (5, 0, 0),
+    (5, 4, 0),
+    (5, 5, 5),
+    (5, 6, 6),
+    (5, 20, 20),
+    (10, 1, 0),
+    (10, 9, 0),
+    (10, 10, 10),
+    (10, 11, 11),
+    (10, 99, 99),
+]
 
+# ---- 选中的那一支里还有一个开关 ----
+NESTED_CASES = [
+    (25, 'high'),
+    (11, 'high'),
+    (10, 'high'),
+    (9, 'nonnegative'),
+    (1, 'nonnegative'),
+    (0, 'nonnegative'),
+    (-1, 'negative'),
+    (-20, 'negative'),
+]
 
-NESTED_BRANCH_PROGRAM = """
-import branch
+# ---- 两个结果、两种分支顺序，每种值的种类一份文件 ----
+LITERAL_CASES = [
+    ('literal_true_int', 7),
+    ('literal_true_int_reversed', 7),
+    ('literal_false_int', 8),
+    ('literal_false_int_reversed', 8),
+    ('literal_true_text', 'left'),
+    ('literal_true_text_reversed', 'left'),
+    ('literal_false_text', 'right'),
+    ('literal_false_text_reversed', 'right'),
+    ('literal_true_flag', True),
+    ('literal_true_flag_reversed', True),
+    ('literal_false_flag', False),
+    ('literal_false_flag_reversed', False),
+    ('literal_true_nil', None),
+    ('literal_true_nil_reversed', None),
+    ('literal_false_nil', None),
+    ('literal_false_nil_reversed', None),
+]
 
-foo =
-    int <- $env Environment <- { the case's value }
-ge =
-    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+# (文件, 活下来的是哪几支)
+GUARD_CASES = [
+    ('guards_0', []),
+    ('guards_1', [1]),
+    ('guards_2', [2]),
+    ('guards_3', [1, 2]),
+    ('guards_4', [3]),
+    ('guards_5', [1, 3]),
+    ('guards_6', [2, 3]),
+    ('guards_7', [1, 2, 3]),
+]
 
-a = foo << $env environ
-high = ge << $env environ << $x a << $y 10
-nonnegative = ge << $env environ << $x a << $y 0
-nonnegative_or_negative =
-  Oneof
-  | (branch.id_or_never
-      << $env environ << $condition nonnegative << $v "nonnegative")
-  | (branch.never_or_id
-      << $env environ << $condition nonnegative << $v "negative")
-__ret__ =
-  Oneof
-  | (branch.id_or_never << $env environ << $condition high << $v "high")
-  | (branch.never_or_id
-      << $env environ << $condition high << $v nonnegative_or_negative)
-"""
+# (文件, 保不保住那个值)
+SELECTOR_CASES = [
+    ('selector_echo_or_never_true_int', True),
+    ('selector_echo_or_never_true_text', True),
+    ('selector_echo_or_never_true_flag', True),
+    ('selector_echo_or_never_true_nil', True),
+    ('selector_echo_or_never_false_int', False),
+    ('selector_echo_or_never_false_text', False),
+    ('selector_echo_or_never_false_flag', False),
+    ('selector_echo_or_never_false_nil', False),
+    ('selector_never_or_echo_true_int', False),
+    ('selector_never_or_echo_true_text', False),
+    ('selector_never_or_echo_true_flag', False),
+    ('selector_never_or_echo_true_nil', False),
+    ('selector_never_or_echo_false_int', True),
+    ('selector_never_or_echo_false_text', True),
+    ('selector_never_or_echo_false_flag', True),
+    ('selector_never_or_echo_false_nil', True),
+]
+
+# 积的单位元：nil / Object / void / None 都不改变那个值
+PRODUCT_IDENTITY_CASES = [
+    'product_identity_0',
+    'product_identity_1',
+    'product_identity_2',
+    'product_identity_3',
+    'product_identity_4',
+    'product_identity_5',
+    'product_identity_6',
+    'product_identity_7',
+    'product_identity_8',
+    'product_identity_9',
+]
+
+# 积的吸收元：never 让整支消失
+PRODUCT_ABSORPTION_CASES = [
+    'product_absorption_0',
+    'product_absorption_1',
+    'product_absorption_2',
+    'product_absorption_3',
+    'product_absorption_4',
+]
+
+# 和的单位元：never 与 Oneof 被剥掉
+SUM_IDENTITY_CASES = [
+    'sum_identity_0',
+    'sum_identity_1',
+    'sum_identity_2',
+    'sum_identity_3',
+    'sum_identity_4',
+    'sum_identity_5',
+]
+
+# 所有分支都是 never：结果是 never
+SUM_NEVER_CASES = [
+    'sum_never_0',
+    'sum_never_1',
+    'sum_never_2',
+]
+
+# 多个非 never 分支同时活着：结果是和值，不擅自选一支
+SUM_LIVE_CASES = [
+    ('sum_live_0', 2),
+    ('sum_live_1', 2),
+    ('sum_live_2', 2),
+    ('sum_live_3', 2),
+    ('sum_live_4', 3),
+]
 
 
 def run(tmp: Path):
-    _comparison_driven_if_else(tmp)
-    _literal_if_else_value_kinds_and_order(tmp)
-    _nested_if_elif_else(tmp)
-    _guarded_multi_branch_merge(tmp)
-    _selectors_keep_or_eliminate_each_value_kind(tmp)
-    _product_identities_and_absorption(tmp)
-    _sum_identities_and_live_branches(tmp)
-
-
-def _run(tmp, name, source, a_value=0):
-    path = write(tmp, name, source)
-    env = Environment(EnvironmentStorage("root", None, str(tmp)),
-                      EnvironmentCompute(host_for(a_value)), str(REPOSITORY_ROOT))
-    return interpret(path, env)
-
-
-def _comparison_driven_if_else(tmp: Path):
-    """Threshold boundaries run through comparison, both selectors and merge."""
-    cases = (
-        (0, -8, 0), (0, -1, 0), (0, 0, 0), (0, 1, 1), (0, 7, 7),
-        (5, 0, 0), (5, 4, 0), (5, 5, 5), (5, 6, 6), (5, 20, 20),
-        (10, 1, 0), (10, 9, 0), (10, 10, 10), (10, 11, 11), (10, 99, 99),
-    )
-    for index, (threshold, a_value, want) in enumerate(cases):
-        source = comparison_if_program(threshold)
-        result = _run(tmp, f"comparison_branch_{index}.viba", source, a_value)
+    for index, (threshold, a_value, want) in enumerate(COMPARISON_CASES):
+        result = _run(tmp, "comparison_if_else", a_value, threshold)
         check(isinstance(result, Ok) and value_of(result) == want,
               f"if a={a_value} >= {threshold} answers {want}: {result!r}")
 
-
-def _literal_if_else_value_kinds_and_order(tmp: Path):
-    """Both outcomes and both branch orders work for each scalar value kind."""
-    cases = (
-        ("true", "7", "8", 7),
-        ("false", "7", "8", 8),
-        ("true", '"left"', '"right"', "left"),
-        ("false", '"left"', '"right"', "right"),
-        ("true", "true", "false", True),
-        ("false", "true", "false", False),
-        ("true", "nil", "9", None),
-        ("false", "9", "nil", None),
-    )
-    for reverse in (False, True):
-        for index, (condition, when_true, when_false, want) in enumerate(cases):
-            source = literal_if_program(condition, when_true, when_false, reverse)
-            result = _run(tmp, f"literal_branch_{reverse}_{index}.viba", source)
-            check(isinstance(result, Ok) and value_of(result) == want,
-                  f"if {condition} with reverse={reverse} answers {want!r}: {result!r}")
-
-
-def _nested_if_elif_else(tmp: Path):
-    """A nested merge implements high / nonnegative / negative classification."""
-    cases = ((25, "high"), (11, "high"), (10, "high"),
-             (9, "nonnegative"), (1, "nonnegative"), (0, "nonnegative"),
-             (-1, "negative"), (-20, "negative"))
-    for index, (a_value, want) in enumerate(cases):
-        result = _run(tmp, f"nested_branch_{index}.viba",
-                      NESTED_BRANCH_PROGRAM, a_value)
+    for a_value, want in NESTED_CASES:
+        result = _run(tmp, "nested_classification", a_value)
         check(isinstance(result, Ok) and value_of(result) == want,
               f"nested branch classifies {a_value} as {want}: {result!r}")
 
+    for name, want in LITERAL_CASES:
+        result = _run(tmp, name)
+        check(isinstance(result, Ok) and value_of(result) == want,
+              f"{name} answers {want!r}: {result!r}")
 
-def _guarded_multi_branch_merge(tmp: Path):
-    """Three independent guards preserve exactly their live branch set."""
-    for mask in range(8):
-        conditions = tuple("true" if mask & (1 << index) else "false"
-                           for index in range(3))
-        source = f"""import branch
-__ret__ =
-  Oneof
-  | (branch.id_or_never << $env environ << $condition {conditions[0]} << $v 1)
-  | (branch.id_or_never << $env environ << $condition {conditions[1]} << $v 2)
-  | (branch.id_or_never << $env environ << $condition {conditions[2]} << $v 3)
-"""
-        result = _run(tmp, f"guarded_merge_{mask}.viba", source)
-        live = [index + 1 for index in range(3) if mask & (1 << index)]
+    for name, live in GUARD_CASES:
+        result = _run(tmp, name)
         if not live:
-            valid = isinstance(result, Ok) and isinstance(result.ok_value.data,
-                                                           viba_ast.Never)
+            valid = (isinstance(result, Ok)
+                     and isinstance(result.ok_value.data, viba_ast.Never))
         elif len(live) == 1:
             valid = isinstance(result, Ok) and value_of(result) == live[0]
         else:
             data = result.ok_value.data if isinstance(result, Ok) else None
             valid = isinstance(data, viba_ast.SumChain) and len(data.elements) == len(live)
-        check(valid, f"guards {conditions} preserve branches {live}: {result!r}")
+        check(valid, f"{name} preserves branches {live}: {result!r}")
 
+    for name, keeps in SELECTOR_CASES:
+        result = _run(tmp, name)
+        data = result.ok_value.data if isinstance(result, Ok) else None
+        if keeps:
+            # 保住了：拿走的那一支就是那个值（`nil` 也算值，只有 `never` 不算）
+            check(isinstance(result, Ok) and not isinstance(data, viba_ast.Never),
+                  f"{name} keeps its value: {result!r}")
+        else:
+            check(isinstance(result, Ok) and isinstance(data, viba_ast.Never),
+                  f"{name} eliminates its branch: {result!r}")
 
-def _selectors_keep_or_eliminate_each_value_kind(tmp: Path):
-    values = (("7", 7), ('"kept"', "kept"), ("false", False), ("nil", None))
-    selectors = (
-        ("id_or_never", "true", True),
-        ("id_or_never", "false", False),
-        ("never_or_id", "true", False),
-        ("never_or_id", "false", True),
-    )
-    for selector, condition, keeps_value in selectors:
-        for written, expected in values:
-            source = f"""import branch
-__ret__ = branch.{selector} << $env environ << $condition {condition} << $v {written}
-"""
-            result = _run(tmp, f"{selector}_{condition}_{written!r}.viba", source)
-            if keeps_value:
-                check(isinstance(result, Ok) and value_of(result) == expected,
-                      f"{selector}({condition}, {written}) keeps {expected!r}: {result!r}")
-            else:
-                check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.Never),
-                      f"{selector}({condition}, {written}) eliminates its branch: {result!r}")
+    for name in PRODUCT_IDENTITY_CASES:
+        result = _run(tmp, name)
+        check(isinstance(result, Ok) and value_of(result) == 7,
+              f"{name} is 7: {result!r}")
 
-
-def _product_identities_and_absorption(tmp: Path):
-    identities = (
-        ("nil * 7", 7),
-        ("7 * nil", 7),
-        ("Object * 7", 7),
-        ("7 * Object", 7),
-        ("void * 7", 7),
-        ("7 * void", 7),
-        ("None * 7", 7),
-        ("7 * None", 7),
-        ("nil * Object * 7", 7),
-        ("7 * Object * nil", 7),
-    )
-    for index, (expression, expected) in enumerate(identities):
-        result = _run(tmp, f"product_identity_{index}.viba", f"__ret__ = {expression}\n")
-        check(isinstance(result, Ok) and value_of(result) == expected,
-              f"{expression} is {expected}: {result!r}")
-
-    absorptions = (
-        "never * 7",
-        "7 * never",
-        "Object * never * 7",
-        "7 * nil * never",
-        "never * nil * Object",
-    )
-    for index, expression in enumerate(absorptions):
-        result = _run(tmp, f"product_absorption_{index}.viba", f"__ret__ = {expression}\n")
+    for name in PRODUCT_ABSORPTION_CASES:
+        result = _run(tmp, name)
         check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.Never),
-              f"{expression} is never: {result!r}")
+              f"{name} is never: {result!r}")
 
+    for name in SUM_IDENTITY_CASES:
+        result = _run(tmp, name)
+        check(isinstance(result, Ok) and value_of(result) == 7,
+              f"{name} is 7: {result!r}")
 
-def _sum_identities_and_live_branches(tmp: Path):
-    identities = (
-        ("never | 7", 7),
-        ("7 | never", 7),
-        ("Oneof | 7", 7),
-        ("7 | Oneof", 7),
-        ("never | Oneof | 7", 7),
-        ("7 | never | Oneof", 7),
-    )
-    for index, (expression, expected) in enumerate(identities):
-        result = _run(tmp, f"sum_identity_{index}.viba", f"__ret__ = {expression}\n")
-        check(isinstance(result, Ok) and value_of(result) == expected,
-              f"{expression} is {expected}: {result!r}")
-
-    for index, expression in enumerate(("never | never", "Oneof | never", "never | Oneof")):
-        result = _run(tmp, f"all_never_sum_{index}.viba", f"__ret__ = {expression}\n")
+    for name in SUM_NEVER_CASES:
+        result = _run(tmp, name)
         check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.Never),
-              f"{expression} is never: {result!r}")
+              f"{name} is never: {result!r}")
 
-    live_sums = (("1 | 2", 2), ("never | 1 | 2", 2), ("1 | never | 2", 2),
-                 ("1 | 2 | never", 2), ("1 | 2 | 3", 3))
-    for index, (expression, count) in enumerate(live_sums):
-        result = _run(tmp, f"live_sum_{index}.viba", f"__ret__ = {expression}\n")
+    for name, count in SUM_LIVE_CASES:
+        result = _run(tmp, name)
         data = result.ok_value.data if isinstance(result, Ok) else None
         check(isinstance(data, viba_ast.SumChain) and len(data.elements) == count,
-              f"{expression} keeps {count} live branches: {result!r}")
+              f"{name} keeps {count} live branches: {result!r}")
 
 
 if __name__ == "__main__":

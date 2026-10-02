@@ -1,0 +1,5 @@
+import branch as branch
+import workshop as workshop
+
+__ret__ =
+    workshop.if_true << $get_v (builtin.echo << $x 7) << $env environ

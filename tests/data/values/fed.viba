@@ -1,0 +1,12 @@
+
+feed_a_list =
+	int
+	<- $env Environment
+	<- $f (int <- $env Environment <- $x int)
+	<- { hand f a list }
+inc =
+	int
+	<- $env Environment
+	<- $x int
+	<- { add one }
+__ret__ = feed_a_list << $env environ << $f inc

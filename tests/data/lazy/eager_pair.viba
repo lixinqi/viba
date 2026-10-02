@@ -1,0 +1,11 @@
+eager_pair =
+    int
+  <- $env Environment
+  <- $x int
+  <- $y int
+  <- { ignore both arguments, but they are computed first }
+
+tick =
+    int <- $env Environment <- { a value with a side effect }
+
+__ret__ = eager_pair << $env environ << $x (tick << $env environ) << $y 2

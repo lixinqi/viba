@@ -1,0 +1,9 @@
+import branch
+import left_slot_full_call as left
+
+f =
+    int
+  <- $env Environment
+  <- $a int
+  <- { the host implements this step }
+y = left.x

@@ -1,0 +1,9 @@
+import branch
+import left_part_in_a_branch_dropped as left
+
+f =
+    int
+  <- $env Environment
+  <- $a int
+  <- { the host implements this step }
+y = left.x

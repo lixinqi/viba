@@ -1,0 +1,6 @@
+import branch
+import right_edge_two_left_definitions as right
+
+x = right.y
+a = right.z
+__ret__ = a

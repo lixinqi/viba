@@ -1,0 +1,6 @@
+roll =
+	int
+	<- $env Environment
+	<- $n int
+	<- { roll a die: not pure }
+__ret__ = roll << $env environ << $n 1

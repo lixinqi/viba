@@ -1,0 +1,9 @@
+import branch
+import left_edge_function_body_is_a_hint as left
+
+f =
+    int
+  <- $env Environment
+  <- $a int
+  <- { the host implements this step }
+y = left.x

@@ -155,37 +155,6 @@ def _check_unit_heads():
     assert isinstance(definition_find_member_by_index(rule, 2), VibaProgramErr)
 
 
-def _check_by_need():
-    """`CalledByNeed[T]`：标记说的是那个参数怎么给，不是类型。
-
-    所以这一层读穿它：一个参数写成 `CalledByNeed[int]`，读出来就是 `int`；带着标记的调用也编得出来。
-    名字自己不算数——本地那份不含保留 tag 的定义就只是个普通的类型应用。
-    """
-    pool = load("by_need", [("case.viba", "by_need")])
-
-    # 一份写着标记的文件编得出来：以前这一步是 PartialError
-    called = pool_find_definition(pool, "by_need.Called").ok_value
-    assert definition_members(called).ok_value == []       # 函数，不是带几个成员的积
-
-    box = pool_find_definition(pool, "by_need.Box").ok_value
-    assert member_type_name(definition_find_member_by_tag(box, "$t").ok_value).ok_value == "int"
-
-    holder = pool_find_definition(pool, "by_need.Holder").ok_value
-    member = definition_find_member_by_tag(holder, "$sw").ok_value
-    assert member_resolved_definition(member).ok_value.full_name == "by_need.id_or_never"
-
-    # 本地同名、不带保留 tag：`CalledByNeed[int]` 就是个普通的类型应用（一个积），
-    # 不是 `int`。这条源故意编不过，所以写在这里而不是放进语料目录（那份语料一份都该是
-    # 干净的）；判定层那边用两份能打开的文件钉了同一条规矩（test_is_sub_type.py）。
-    shadowed = ("CalledByNeed[F] =\n"
-                "    Object\n"
-                "  * $func F\n"
-                "X = int <- $env Environment <- $x CalledByNeed[int]\n"
-                "Try = X << $env environ << $x 1 << $env environ\n")
-    assert isinstance(parse_viba_file(empty_pool(), shadowed, "shadowed.viba", "shadowed"),
-                      VibaProgramErr)
-
-
 def _check_errors():
     """反例：重名文件、重名全名、模块名撞车、import 指向的模块不在池子里。"""
     pool = load("errors", [("amb_a.viba", "err.amb"), ("amb_b.viba", "err.amb")])
@@ -277,14 +246,6 @@ def _check_errors():
         assert isinstance(parse_viba_file(empty_pool(), good, "partial_ok.viba", "partial_ok"), Ok), good
     # 点分定义名编得出来：它定义的是父概念的一个成员（viba-style.md 第 5 节）
     assert isinstance(parse_viba_file(empty_pool(), "a.b = int\n", "dotted.viba", "dotted"), Ok)
-    # 绑定是计算的写法，不是类型的写法：定义体上出现它，这一层就编不出来
-    for bad in ("A = (a := 7  a)\n",
-                "X[T] = (T := int  T)\n"):
-        assert isinstance(parse_viba_file(empty_pool(), bad, "binding.viba", "binding"),
-                          VibaProgramErr), bad
-    # 可序列化数据里也不跑表达式，所以可序列化数据里同样放不进去
-    assert isinstance(parse_viba_file(empty_pool(), "X = $field (p := 7  p)\n",
-                                      "viba_data.viba", "viba_data"), VibaProgramErr)
     # 不是模块的东西：问它要名字，说的是"不认识这种模块"，不是崩
     for not_a_module in ("not a module", None, 7):
         assert isinstance(module_get_type(not_a_module, "X"), VibaProgramErr), not_a_module
@@ -315,7 +276,7 @@ def _check_reprs():
 
 def run():
     checks = [_check_alias_and_depth, _check_import_binding, _check_members,
-              _check_generics, _check_unit_heads, _check_by_need,
+              _check_generics, _check_unit_heads,
               _check_errors, _check_reprs]
     for check in checks:
         check()

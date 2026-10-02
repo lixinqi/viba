@@ -1,0 +1,7 @@
+wrong_arity =
+	int
+	<- $env Environment
+	<- $a int
+	<- $b int
+	<- { takes two }
+__ret__ = wrong_arity << $env environ << $a 1 << $b 2

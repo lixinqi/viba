@@ -1,0 +1,4 @@
+import branch
+import left_mod_value_from_the_other as left
+
+__ret__ = left.x

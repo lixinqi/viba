@@ -1,0 +1,5 @@
+import branch
+import right_edge_three_hop_all as right
+
+x = right.y
+__ret__ = x

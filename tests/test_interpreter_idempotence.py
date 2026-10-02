@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, value_of, write
+from interpreter_support import Checks, value_of
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
@@ -29,14 +29,11 @@ checks = Checks("interpreter_idempotence")
 check = checks.check
 labelled = checks.labelled
 
-ROLL = """
-roll =
-	int
-	<- $env Environment
-	<- $n int
-	<- { roll a die: not a pure function, so its answer is snapshotted }
-__ret__ = roll << $env environ << $n 1
-"""
+CASES = Path(__file__).resolve().parent / "data" / "idempotence"
+ROLL = str(CASES / "roll.viba")
+DICE = str(CASES / "dice.viba")
+DICE_NAMED = str(CASES / "dice_named.viba")
+DICE_TMP = str(CASES / "dice_tmp.viba")
 
 
 def run(tmp: Path):
@@ -57,7 +54,7 @@ def _snapshots_and_replay(tmp: Path):
         return replayed(env, compute, f"roll-{n.value}")
 
     compute = EnvironmentCompute(lambda path, func: roll if func == "roll" else None)
-    source = write(tmp, "roll.viba", ROLL)
+    source = ROLL
 
     def fresh_environ(root=store):
         return Environment(EnvironmentStorage("root", None, str(root)), compute)
@@ -101,7 +98,7 @@ def _store_text(tmp: Path):
         return replayed(env, compute, f"roll-{n.value}")
 
     compute = EnvironmentCompute(lambda path, func: roll if func == "roll" else None)
-    source = write(tmp, "roll.viba", ROLL)
+    source = ROLL
 
     def fresh_environ():
         return Environment(EnvironmentStorage("root", None, str(store)), compute)
@@ -155,18 +152,8 @@ def _tmp_paths_never_replay(tmp: Path):
         return replayed(env, compute, "roll")
 
     compute = EnvironmentCompute(lambda path, func: roll if func == "roll" else None)
-    write(tmp, "dice.viba", """
-roll =
-	int
-	<- $env Environment
-	<- $n int
-	<- { roll a die: not pure }
-__ret__ = roll << $env environ << $n 1
-""")
-    named = write(tmp, "dice_named.viba",
-                  "import dice as d\n__ret__ = d << (environ.sub_env << environ << \"dice\") << ()\n")
-    temporary = write(tmp, "dice_tmp.viba",
-                      "import dice as d\n__ret__ = d << (environ.tmp_sub_env << environ) << ()\n")
+    named = DICE_NAMED
+    temporary = DICE_TMP
 
     def fresh_environ():
         return Environment(EnvironmentStorage("root", None, str(store)), compute)

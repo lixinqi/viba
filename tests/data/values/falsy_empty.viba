@@ -1,0 +1,5 @@
+empty =
+	int
+	<- $env Environment
+	<- { inline }
+__ret__ = empty << $env environ

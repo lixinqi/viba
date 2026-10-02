@@ -1,0 +1,40 @@
+import branch
+
+# Two conditions in another file: one answers the mode it was given, the other
+# answers the opposite. A case reaches them as `gate.gate` / `gate.not_gate`.
+gate =
+    bool
+  <- $env Environment
+  <- $mode bool
+  <- { answer the mode }
+
+not_gate =
+    bool
+  <- $env Environment
+  <- $mode bool
+  <- { answer the opposite of the mode }
+
+true_gate =
+    bool
+  <- $env Environment
+  <- { always true }
+
+mode_gate =
+    bool
+  <- $env Environment
+  <- $mode bool
+  <- { answer the mode, asked once }
+
+false_gate =
+    bool
+  <- $env Environment
+  <- { always false }
+
+# A whole switch in another file, with a bool-typed value: its answer is a
+# condition for the case that calls it.
+boolean_switch =
+    bool
+  <- $env Environment
+  <- $cond bool
+  <- $get_v (bool <- $env Environment)
+  <- (branch.echo_or_never << $env environ << $cond args.cond << $get_v args.get_v)

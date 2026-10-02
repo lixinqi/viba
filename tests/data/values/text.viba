@@ -1,0 +1,5 @@
+text =
+	int
+	<- $env Environment
+	<- { inline }
+__ret__ = text << $env environ

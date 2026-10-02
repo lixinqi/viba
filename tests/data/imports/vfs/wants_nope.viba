@@ -1,0 +1,2 @@
+import nope
+__ret__ = nope << environ

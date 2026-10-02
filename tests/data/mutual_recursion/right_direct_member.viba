@@ -1,0 +1,4 @@
+import branch
+import left_direct_member as left
+
+y = left.x * 1

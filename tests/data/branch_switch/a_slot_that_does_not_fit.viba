@@ -1,0 +1,16 @@
+import branch
+import kinds as kinds
+
+# `$cond` 那一格写的是 bool，给一个算出来的 int：程序写错了。
+__ret__ =
+    Oneof
+  | (
+      branch.echo_or_never
+      << $env environ << $cond (kinds.answer_int << $env environ)
+      << $get_v (builtin.echo << $x 7)
+    )
+  | (
+      branch.never_or_echo
+      << $env environ << $cond (kinds.answer_int << $env environ)
+      << $get_v (builtin.echo << $x 0)
+    )

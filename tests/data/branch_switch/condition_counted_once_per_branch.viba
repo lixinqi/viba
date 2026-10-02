@@ -1,0 +1,16 @@
+import branch as branch
+import gate as gate
+import counters as counters
+
+__ret__ =
+    Oneof
+    | (
+        branch.echo_or_never
+        << $env environ << $cond ((gate.gate << $env environ << $mode true))
+        << $get_v (counters.tick)
+      )
+    | (
+        branch.never_or_echo
+        << $env environ << $cond ((gate.gate << $env environ << $mode true))
+        << $get_v (counters.tock)
+      )
