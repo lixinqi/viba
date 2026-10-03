@@ -1,0 +1,3 @@
+pattern A <- $env Env <- B <- C
+
+__def__ = A <- $env Env <- (A <- $env Env <- B <- C) <- B <- C

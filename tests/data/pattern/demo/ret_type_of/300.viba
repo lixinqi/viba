@@ -1,0 +1,3 @@
+pattern A <- B <- C
+
+__def__ = A

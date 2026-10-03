@@ -1,5 +1,0 @@
-specialize list[A]
-
-Wrapped = $item A
-
-__def__ = Wrapped

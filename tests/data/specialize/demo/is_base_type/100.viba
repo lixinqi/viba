@@ -1,3 +1,0 @@
-specialize bool | int | float | str
-
-__def__ = true

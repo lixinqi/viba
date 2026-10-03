@@ -21,7 +21,7 @@ from viba.viba_ast.nodes import (
     TypeDefinition,
     GenericDefinition,
     Import,
-    Specialize,
+    Pattern,
     Sum,
     Product,
     Exponent,
@@ -44,7 +44,7 @@ from viba.viba_ast.nodes import (
 from viba.viba_ast.chain import convert_to_chain_style, convert_from_chain_style
 from viba.viba_ast.unparse import unparse_module
 __all__ = [
-    "AST", "Module", "TypeDefinition", "GenericDefinition", "Import", "Specialize",
+    "AST", "Module", "TypeDefinition", "GenericDefinition", "Import", "Pattern",
     "Sum", "Product", "Exponent", "Partial", "Tagged", "Member",
     "TypeApp", "Tuple", "TypeRef", "Constant", "Nil", "Never", "Any", "Ellipsis",
     "CodeBlock", "SumChain", "ProductChain", "ExponentChain",

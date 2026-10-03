@@ -10,7 +10,7 @@ from viba.viba_ast.nodes import (
     TypeDefinition,
     GenericDefinition,
     Import,
-    Specialize,
+    Pattern,
     Sum,
     Product,
     Exponent,
@@ -58,7 +58,7 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
         TypeDefinition=lambda d: _unparse_type_definition(d, indent, depth),
         GenericDefinition=lambda d: _unparse_generic_definition(d, indent, depth),
         Import=lambda i: _unparse_import(i),
-        Specialize=lambda s: _unparse_specialize(s, indent, depth),
+        Pattern=lambda s: _unparse_pattern(s, indent, depth),
         Sum=lambda s: _unparse_binary(s, " | ", indent, depth),
         Product=lambda p: _unparse_binary(p, " * ", indent, depth),
         Exponent=lambda e: _unparse_exponent(e, indent, depth),
@@ -102,11 +102,11 @@ def _unparse_import(import_node: Import) -> str:
     return f"import {import_node.module}"
 
 
-def _unparse_specialize(specialize: Specialize, indent: int, depth: int) -> str:
-    """Unparse a Specialize: `specialize <pattern>`."""
+def _unparse_pattern(pattern: Pattern, indent: int, depth: int) -> str:
+    """Unparse a Pattern: `pattern T`."""
     prefix = " " * (indent * (depth + 1))
-    pattern = _dedent(_unparse_type(specialize.pattern, indent, depth + 1), prefix)
-    return f"specialize\n{prefix}{pattern}"
+    pattern = _dedent(_unparse_type(pattern.pattern, indent, depth + 1), prefix)
+    return f"pattern\n{prefix}{pattern}"
 
 
 def _unparse_binary(bin_node: Union[Sum, Product], op: str, indent: int, depth: int) -> str:

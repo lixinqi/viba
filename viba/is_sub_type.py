@@ -84,7 +84,7 @@ alias of what it is written as, and judgment is structural throughout.
 from viba import viba_ast
 from viba.partial import (environment_result_problem, get_args_product,
                           module_as_function, product_elements, reduce_partial)
-from viba.specialize import reduce_application
+from viba.pattern import reduce_application, tagged_reading
 from viba.type import (
     PartialError,
     AnyType,
@@ -193,7 +193,7 @@ class _Checker:
         self._env_stacks = {"sub": [], "sup": []}
         self._unfolding: set = set()
         self._unfolded: dict = {}
-        self._decided: dict = {}          # (id(node), id(module)) -> the decision
+        self._decisions: dict = {}        # (id(node), id(module)) -> the decision
 
     # ------------------------------------------------------------------
     # Type-level dispatch
@@ -288,6 +288,37 @@ class _Checker:
                 return node, entry.container_module
             name, module = node.name, entry.container_module
         return None, module
+
+    def _tagged_side(self, sn, s_mod, sp, p_mod):
+        """Read `__tagged__[...]` as the tag it spells, on either side; else None.
+
+        The symbol is a written string, or a name this comparison resolves — the
+        `env_get` channel a chosen file carries is one of those names
+        (`_resolve_name`), which is what lets a `__def__` build a tag out of the
+        symbol a `pattern` line extracted.
+        """
+        for node, module, side in ((sn, s_mod, "sub"), (sp, p_mod, "sup")):
+            got = tagged_reading(node, module, self._symbol_resolver(side))
+            if isinstance(got, VibaProgramErr):
+                raise UnresolvedTypeError(got.err_msg)
+            if got.ok_value is None:
+                continue
+            if side == "sub":
+                return self._walk(got.ok_value, module, sp, p_mod)
+            return self._walk(sn, s_mod, got.ok_value, module)
+        return None
+
+    def _symbol_resolver(self, side: str):
+        """`resolve(name, module)` -> the string that name stands for, or None."""
+        def resolve(name, module):
+            resolved = self._resolve_name(name, module, side)
+            if isinstance(resolved, VibaProgramErr):
+                return None
+            written = getattr(resolved.ok_value, "ast_node", None)
+            if isinstance(written, viba_ast.Constant) and isinstance(written.value, str):
+                return written.value
+            return None
+        return resolve
 
     def _lift(self, node, module: ModuleType, side: str):
         """Lift a Constant, TypeRef, Nil or Never to a Type; else None.
@@ -431,13 +462,18 @@ class _Checker:
         return node, module
 
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
+        # A written `__tagged__[...]` is the tag it spells, read before anything
+        # else: the symbol may be a name a decision bound (viba-pattern.md).
+        tagged = self._tagged_side(sn, s_mod, sp, p_mod)
+        if tagged is not None:
+            return tagged
         # A generic application is decided before anything else reads it: what
         # the decision picked takes its place, with the parameter names bound
-        # through env_get (viba-specialize.md). A decision that fails is
+        # through env_get (viba-pattern.md). A decision that fails is
         # malformed input, not a judgment.
-        if isinstance(sn, viba_ast.TypeApp) and self._specialized(sn, s_mod):
+        if isinstance(sn, viba_ast.TypeApp) and self._decided(sn, s_mod):
             return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
-        if isinstance(sp, viba_ast.TypeApp) and self._specialized(sp, p_mod):
+        if isinstance(sp, viba_ast.TypeApp) and self._decided(sp, p_mod):
             return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
         if isinstance(sn, viba_ast.Never):
             return True  # bottom fits anywhere
@@ -681,7 +717,7 @@ class _Checker:
         return isinstance(target, AstNodeType) and isinstance(
             target.ast_node, viba_ast.GenericDefinition)
 
-    def _specialized(self, node, module) -> bool:
+    def _decided(self, node, module) -> bool:
         """Whether this application is a generic's, decided: True when the
         decision picked a file. A decision that failed is malformed input —
         there is no type to compare with, and the message names the arguments
@@ -694,9 +730,9 @@ class _Checker:
     def _decision(self, node, module):
         """The decision this application makes, worked out once per node."""
         key = (id(node), id(module))
-        if key not in self._decided:
-            self._decided[key] = reduce_application(node, module)
-        return self._decided[key]
+        if key not in self._decisions:
+            self._decisions[key] = reduce_application(node, module)
+        return self._decisions[key]
 
     def _unfold_typeapp(self, node, module, side, other, other_mod) -> bool:
         app_key = self._app_key(node, module, side)
@@ -727,7 +763,7 @@ class _Checker:
         A generic application is its own case: which file answers is a
         decision over the written arguments, and what answers is the chosen
         file's `__def__` read in that file, its parameter names bound to the
-        argument parts the patterns extracted (viba-specialize.md)."""
+        argument parts the patterns extracted (viba-pattern.md)."""
         if app_key in self._unfolded:
             return self._unfolded[app_key]
         decision = self._decision(node, module)

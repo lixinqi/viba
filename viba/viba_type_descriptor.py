@@ -28,8 +28,9 @@ from typing import Callable, Dict, List, Optional
 from viba import viba_ast
 from viba.partial import (environment_result_problem, get_args_product,
                           module_as_function, reduce_partial)
-from viba.specialize import (GENERIC_FILE, file_specialize_problem,
-                             generic_of_entries, order_of)
+from viba.pattern import (GENERIC_FILE, file_pattern_problem,
+                          generic_of_entries, order_of)
+from viba.viba_ast.tagged import TAGGED_NAME, symbol_of, tag_of
 
 # The builtin name that reads a call's arguments back as a product.
 GET_ARGS_NAME = "__get_args__"
@@ -296,7 +297,7 @@ def _environment(pool: VibaPool) -> Callable[[str], Result]:
     """模块名换模块：在池子里按 $module_name 找，找不到就是 VibaProgramErr。
 
     一个泛型不是一个文件，是一个目录：池子里那几个 `名字.数字` 的文件加上它的
-    `__generic__.viba` 标记，合成一个 GenericModuleType（viba-specialize.md）。
+    `__generic__.viba` 标记，合成一个 GenericModuleType（viba-pattern.md）。
     """
     def environment(module_name: str) -> Result:
         matches = [f for f in pool.files if f.module_name == module_name]
@@ -316,7 +317,7 @@ def _generic_in_pool(pool: VibaPool, module_name: str):
     """The generic the pool holds under this module name, or None.
 
     Its files are the ones named under it: the marker `名字.__generic__`, and
-    one `名字.数字` per specialization. `名字` itself is no file of the pool —
+    one `名字.数字` per pattern. `名字` itself is no file of the pool —
     that is what makes it a generic rather than a module of definitions.
     """
     prefix = module_name + "."
@@ -365,7 +366,7 @@ def parse_viba_file(pool: VibaPool, source: str, file_name: str, module_name: st
         tree = viba_ast.canonical(viba_ast.parse(text))
     except Exception as exc:  # syntax error: the parser raises, turn it into VibaProgramErr
         return VibaProgramErr(f"cannot parse: {exc!r}")
-    problem = file_specialize_problem(tree, module_name.split(".")[-1])
+    problem = file_pattern_problem(tree, module_name.split(".")[-1])
     if problem is not None:
         return VibaProgramErr(problem)
     file_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -593,6 +594,34 @@ def _get_args_call(pool, node, module):
     return get_args_product(argument), written_in
 
 
+def tagged_descriptor(pool, constructor_name: str, args, resolvable):
+    """The tag a `__tagged__[...]` descriptor stands for, or None.
+
+    The symbol is known here when it is a written string — the source folded
+    those into the tag already — and when a decision handed it over: a `pattern`
+    line extracted the symbol from a tag and `__def__` builds the tag back with
+    it (viba-pattern.md). The answer is the tagged type `$S T`, written as that
+    tag, so the descriptor says where the type is addressed and whose module its
+    own names resolve in.
+    """
+    if constructor_name != TAGGED_NAME or len(args) != 2:
+        return None
+    if args[0].kind != LITERAL:
+        return None
+    value = args[0].payload.value
+    symbol = symbol_of(value) if isinstance(value, str) else None
+    if symbol is None:
+        return None
+    inner = args[1]
+    written_in = inner.resolvable_type
+    if written_in is None:
+        return None
+    written = viba_ast.Tagged(tag_of(symbol), written_in.ast_node)
+    return VibaTypeDescriptor(TAGGED, VibaTaggedDescriptor(
+        pool, AstNodeType(written, written_in.container_module), tag_of(symbol),
+        inner))
+
+
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
     if isinstance(node, ast_nodes.Any):
         return VibaTypeDescriptor(ANY)
@@ -620,9 +649,12 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
             pool, resolvable,
             [_build_type(pool, module, e) for e in _exponent_elements(node)]))
     if isinstance(node, ast_nodes.TypeApp):
+        args = [_build_type(pool, module, a) for a in node.args]
+        folded = tagged_descriptor(pool, node.constructor, args, resolvable)
+        if folded is not None:
+            return folded
         return VibaTypeDescriptor(TYPE_APP, VibaTypeAppDescriptor(
-            pool, resolvable, node.constructor,
-            [_build_type(pool, module, a) for a in node.args]))
+            pool, resolvable, node.constructor, args))
     if isinstance(node, ast_nodes.Tuple):
         return VibaTypeDescriptor(TUPLE, VibaTupleDescriptor(
             pool, resolvable, [_build_type(pool, module, e) for e in node.elements]))

@@ -36,7 +36,7 @@ from viba.viba_ast import (  # noqa: E402
     Partial,
     Product,
     ProductChain,
-    Specialize,
+    Pattern,
     Sum,
     SumChain,
     Tagged,
@@ -128,13 +128,13 @@ def run_module_cases():
          unparse(parse("X = A | B | C")), "X =\n  A\n  | B\n  | C")
     same("unparse of an import", unparse(parse("import a.b as c")), "import a.b as c")
 
-    # specialize: 一条语句，写一个形参收什么（viba-specialize.md）
-    specialized = parse("specialize bool | int\n__def__ = true\n")
-    check("a specialize statement is its own node",
-          isinstance(specialized.body[0], Specialize)
-          and specialized.body[1].name == "__def__")
-    same("unparse of a specialize line", unparse(specialized),
-         "specialize\n  bool\n  | int\n\n__def__ =\n  true")
+    # pattern: 一条语句，写一个形参收什么（viba-pattern.md）
+    parsed_pattern = parse("pattern bool | int\n__def__ = true\n")
+    check("a pattern statement is its own node",
+          isinstance(parsed_pattern.body[0], Pattern)
+          and parsed_pattern.body[1].name == "__def__")
+    same("unparse of a pattern line", unparse(parsed_pattern),
+         "pattern\n  bool\n  | int\n\n__def__ =\n  true")
 
     # unparse_type: 单个类型表达式，不带定义
     same("unparse_type on a node", unparse_type(parse("X = A * B").body[0].body),

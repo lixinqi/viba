@@ -1,0 +1,4 @@
+pattern A
+pattern B
+
+__def__ = A

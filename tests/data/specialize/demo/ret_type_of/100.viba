@@ -1,3 +1,0 @@
-specialize A <- (() | nil)
-
-__def__ = A

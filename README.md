@@ -18,13 +18,13 @@ definition with no parameters, a type with no arguments.
 ```ebnf
 program : statement_list | (empty)
 statement_list : statement | statement statement_list
-statement : definition | import_stmt | specialize_stmt
+statement : definition | import_stmt | pattern_stmt
 definition : type_definition | generic_definition
 type_definition : CLASS_NAME ASSIGN partial_expr
 generic_definition : CLASS_NAME LBRACKET CLASS_NAME type_param_list RBRACKET ASSIGN partial_expr
 type_param_list : COMMA CLASS_NAME type_param_list | (empty)
 import_stmt : IMPORT CLASS_NAME optional_alias
-specialize_stmt : SPECIALIZE partial_expr
+pattern_stmt : PATTERN partial_expr
 optional_alias : AS CLASS_NAME | (empty)
 partial_expr : partial_expr APPLY_OP adt_expr | member_head APPLY_OP adt_expr | adt_expr
 member_head : TAGGED_CLASS_NAME
@@ -53,7 +53,7 @@ The terminals it names:
 | `NIL` | `nil`, `void`, `None` — one unit, three spellings |
 | `NEVER`, `ANY`, `ELLIPSIS` | `never`, `Any`, `...` |
 | `CODE_BLOCK` | `{ ... }` — text for the host to read; braces nest |
-| `IMPORT`, `AS`, `SPECIALIZE` | `import`, `as`, `specialize` |
+| `IMPORT`, `AS`, `PATTERN` | `import`, `as`, `pattern` |
 | `ASSIGN` | `=` — a definition |
 | `SUM_OP`, `PROD_OP`, `EXP_OP`, `APPLY_OP` | `\|`, `*`, `<-`, `<<` |
 | `LBRACKET`, `RBRACKET`, `LPAREN`, `RPAREN`, `COMMA` | `[`, `]`, `(`, `)`, `,` |
@@ -68,7 +68,7 @@ The terminals it names:
 | Exponent | `B <- A` | Function from A to B |
 | Partial | `T << $a A` | Function T with that written argument given: `(B <- $a A) << $a A` is `B`; what is given must fit the slot (`A' <: A`) |
 | Generic | `Name[T]` | Parameterized type |
-| Specialization | `Name[T]` | A **generic**: `Name` is a directory of files, one `specialize` line per parameter, and the decision over the written arguments picks one — [`viba-specialize.md`](viba-specialize.md) |
+| Pattern | `Name[T]` | A **generic**: `Name` is a directory of files, one `pattern` line per parameter, and the decision over the written arguments picks one — [`viba-pattern.md`](viba-pattern.md) |
 | Tag | `$label T` | Named field / variant |
 | Nil | `nil` | Product identity (`A * nil = A`); `void`, `None` and `Object` are aliases — `Object` is the same unit, written at the head of a product laid out as a block |
 | Never | `never` | Sum identity (`A \| never = A`), the bottom: it is a subtype of everything; `Oneof` is the same unit, written at the head of a sum laid out as a block |
@@ -83,7 +83,7 @@ The terminals it names:
 Writing one has conventions of its own — every field and argument tagged, a block's head written, a sum written with one branch is no sum, and how the builtin containers are used: [`viba-style.md`](viba-style.md), which
 also says how to check what you wrote.
 
-### Specialization
+### Pattern
 
 A generic is a directory, and one of its files answers. The directory's basename is
 the generic's name, `__generic__.viba` marks it, and every other `.viba` file in it is
@@ -91,9 +91,9 @@ named by its decision order — a number, read smallest first:
 
 ```
 demo/is_base_type/__generic__.viba      # __generic__.viba
-demo/is_base_type/100.viba              specialize bool | int | float | str
+demo/is_base_type/100.viba              pattern bool | int | float | str
                                         __def__ = true
-demo/is_base_type/200.viba              specialize A
+demo/is_base_type/200.viba              pattern A
                                         __def__ = false
 ```
 
@@ -104,16 +104,21 @@ Flag = is_base_type[bool]               # true, from 100.viba
 Other = is_base_type[list[int]]         # false, from 200.viba
 ```
 
-`specialize` writes one line per parameter, in written order. A known type restricts
+`pattern` writes one line per parameter, in written order. A known type restricts
 that argument (the argument must fit it); a name the file never defines is a parameter,
-and what stands in the argument there is extracted — `specialize list[A]` with
+and what stands in the argument there is extracted — `pattern list[A]` with
 `__def__ = A` answers the element type. The chosen file's `__def__` is the answer, read
 in that file. When that answer is a function chain, the application **is** the call the
-chain writes — `wrapper[inc] << args.env << inc << 1` runs the function it was handed.
+chain writes — `wrapper[inc] << args.env << inc << $x 1` runs the function it was handed.
 An argument may write a call of its own (`g[add << $a 2]`): it is read as the type that
 call stands for, the chain left once the argument is given. A decision that finds no
-file is a program error, not `never`. The whole rule, the pattern forms and the errors:
-[`viba-specialize.md`](viba-specialize.md).
+file is a program error, not `never`. A tag may be written as a symbol string:
+`__tagged__["a", T]` is `$a T`, `__tagged__["hello"] << persion` is `$hello << persion`,
+and a pattern line may claim the symbol itself — `pattern __tagged__[name, T]` takes `"a"`
+for `$a int`, so a design builds a tag out of what another one carried. The member a name
+gives as a value is read with `$__getattr__` (`$__getattr__ << args << "name"` is
+`args.name`). The whole rule, the pattern forms and the errors:
+[`viba-pattern.md`](viba-pattern.md).
 
 ### Strings
 
@@ -370,7 +375,7 @@ Color = $red int | $green int | $blue int
 | [`viba_tutorial.md`](viba_tutorial.md) | Learning the language: from one definition to a module that runs |
 | [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, reading an instance |
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__def__` in, `__ret__` out — the executable reading |
-| [`viba-specialize.md`](viba-specialize.md) | A generic is a directory: `specialize`, the decision order, and what each layer reads |
+| [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer reads |
 | [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
 | [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
 | [`viba-style.md`](viba-style.md) | Writing a definition: tags, heads, containers, and how to check what you wrote |
@@ -386,7 +391,7 @@ tools built on those.
 | `viba_ast/` | Node classes, chain canonicalization, unparse, visitors, `dump` |
 | `type.py` | The Type model, the builtin names, `module_get_type` |
 | `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) |
-| `specialize.py` | A generic and its directory of specializations: pattern matching, the decision — see `viba-specialize.md` |
+| `pattern.py` | A generic and its directory of patterns: pattern matching, the decision — see `viba-pattern.md` |
 | `viba_type_descriptor.py` | The descriptor side: files, definitions, members, type expressions |
 | `reflect.py` | The reflection protocol: addressing a type, reading an instance |
 | `serialize.py` | Writes an instance back out as viba source |

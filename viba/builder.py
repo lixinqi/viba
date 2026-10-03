@@ -449,7 +449,7 @@ def _definition_name(name: str) -> str:
 
 
 _RESERVED = ("true", "false", "nil", "void", "None", "never", "Any", "import", "as",
-             "specialize")
+             "pattern")
 
 # The builtin containers are builtin, not names: the parser refuses them as
 # definition names and as generic parameters (viba/parser.py:
@@ -462,6 +462,7 @@ _BUILTIN_TYPE_NAMES = {
     "ListLiteral": "a builtin literal constructor",
     "SetLiteral": "a builtin literal constructor",
     "DictLiteral": "a builtin literal constructor",
+    "__tagged__": "a builtin tag constructor",
 }
 
 

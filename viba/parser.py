@@ -21,7 +21,7 @@ from viba.viba_ast.nodes import (
     TypeDefinition,
     GenericDefinition,
     Import,
-    Specialize,
+    Pattern,
     Sum,
     Product,
     Exponent,
@@ -40,6 +40,7 @@ from viba.viba_ast.nodes import (
     CodeBlock,
     AST,
 )
+from viba.viba_ast.tagged import TAGGED_NAME, fold_written
 
 # ================================================================= #
 # 1. LEXER DEFINITIONS
@@ -61,7 +62,7 @@ tokens = (
     "APPLY_OP",  # <<
     "IMPORT",  # import
     "AS",  # as
-    "SPECIALIZE",  # specialize
+    "PATTERN",  # pattern
     "LBRACKET",  # [
     "RBRACKET",  # ]
     "LPAREN",  # (
@@ -125,8 +126,8 @@ def t_AS(t):
     return t
 
 
-def t_SPECIALIZE(t):
-    r"specialize\b"
+def t_PATTERN(t):
+    r"pattern\b"
     return t
 
 
@@ -243,7 +244,7 @@ def p_statement_list(p):
 def p_statement(p):
     """statement : definition
     | import_stmt
-    | specialize_stmt"""
+    | pattern_stmt"""
     p[0] = p[1]
 
 
@@ -264,6 +265,7 @@ BUILTIN_TYPE_NAMES = {
     "ListLiteral": "a builtin literal constructor",
     "SetLiteral": "a builtin literal constructor",
     "DictLiteral": "a builtin literal constructor",
+    TAGGED_NAME: "a builtin tag constructor",
 }
 
 
@@ -318,9 +320,9 @@ def p_import_stmt(p):
     p[0] = Import(p[2], p[3])
 
 
-def p_specialize_stmt(p):
-    """specialize_stmt : SPECIALIZE partial_expr"""
-    p[0] = Specialize(p[2])
+def p_pattern_stmt(p):
+    """pattern_stmt : PATTERN partial_expr"""
+    p[0] = Pattern(p[2])
 
 
 def p_optional_alias(p):
@@ -516,7 +518,7 @@ GRAMMAR_ORDER = (
     "generic_definition",
     "type_param_list",
     "import_stmt",
-    "specialize_stmt",
+    "pattern_stmt",
     "optional_alias",
     "partial_expr",
     "member_head",
@@ -615,13 +617,15 @@ def parse_source(source: str):
     The lexer keeps `lineno` between calls, so without this a fresh one-line
     file by mistake reports the line it ended on in the file parsed before it.
     Every caller that reads a whole source goes through here, and every source
-    comes out with its dotted definitions expanded (viba-style.md).
+    comes out with its dotted definitions expanded (viba-style.md) and its
+    written `__tagged__[...]` symbols folded into the tags they spell
+    (`viba/viba_ast/tagged.py`).
     """
     lexer.lineno = 1
     statements = parser.parse(source)
     if not statements:
         return statements
-    return expand_dotted_definitions(statements)
+    return expand_dotted_definitions(fold_written(statements))
 
 
 class _DottedNames:
@@ -878,14 +882,16 @@ if __name__ == "__main__":
             "Imports before definitions",
         ),
         ("Crlf = int\r\nCrlf2 = str\r\n", "A source written with CRLF line endings"),
-        # ====== SPECIALIZE TESTS ======
-        ("specialize bool | int | float | str\nKnown = true",
-         "A specialize line restricting a parameter"),
-        ("specialize A\nExtracted = A", "A specialize line extracting a parameter"),
-        ("specialize A <- (() | nil)\nRet = A",
-         "A specialize line whose parameter is a function"),
-        ("specialize list[A]\nElement = A",
-         "A specialize line whose parameter is a container"),
+        # ====== PATTERN TESTS ======
+        ("pattern bool | int | float | str\nKnown = true",
+         "A pattern line restricting a parameter"),
+        ("pattern A\nExtracted = A", "A pattern line extracting a parameter"),
+        ("pattern A <- (() | nil)\nRet = A",
+         "A pattern line whose parameter is a function"),
+        ("pattern list[A]\nElement = A",
+         "A pattern line whose parameter is a container"),
+        ('X = __tagged__["a", int]', "A tag whose symbol is a written string"),
+        ("X = __tagged__[name, int]", "A tag whose symbol is a name"),
     ]
 
     # Sources that must not compile: a caller has to be able to tell. The name
@@ -905,8 +911,12 @@ if __name__ == "__main__":
         ("X = 1.2.3", "A malformed float"),
         ("list = int", "A builtin container as a definition name"),
         ("W[list] = int", "A builtin container as a generic parameter"),
-        ("specialize", "A specialize line with no pattern"),
-        ("specialize = int", "specialize is a keyword, not a definition name"),
+        ("pattern", "A pattern line with no pattern"),
+        ("pattern = int", "pattern is a keyword, not a definition name"),
+        ("__tagged__ = int", "__tagged__ is a builtin, not a definition name"),
+        ('X = __tagged__["a b", int]', "A symbol that is no name"),
+        ("X = __tagged__[1, int]", "A number where the symbol goes"),
+        ("X = __tagged__[a, b, c]", "A tag with too many arguments"),
     ]
 
     print(f"{'TEST CASE':<50} | {'STATUS'}")
@@ -958,7 +968,7 @@ if __name__ == "__main__":
     readme = os.path.join(root, "README.md")
     style = os.path.join(root, "viba-style.md")
     tutorial = os.path.join(root, "viba_tutorial.md")
-    specialize = os.path.join(root, "viba-specialize.md")
+    pattern = os.path.join(root, "viba-pattern.md")
     try:
         with open(readme, encoding="utf-8") as handle:
             manual = handle.read()
@@ -987,7 +997,7 @@ if __name__ == "__main__":
     # sample that does not compile is teaching a mistake.
     try:
         blocks = 0
-        for path in (readme, style, tutorial, specialize):
+        for path in (readme, style, tutorial, pattern):
             with open(path, encoding="utf-8") as handle:
                 text = handle.read()
             samples = _readme_blocks(text, "viba")
@@ -997,7 +1007,7 @@ if __name__ == "__main__":
         doc_count += 1
         print(f"{'every .viba sample in the docs compiles':<50} | OK "
               f"({blocks} blocks: README.md, viba-style.md, viba_tutorial.md, "
-              f"viba-specialize.md)")
+              f"viba-pattern.md)")
     except Exception as e:
         print(f"{'every .viba sample in the docs compiles':<50} | "
               f"{type(e).__name__}: {e}")

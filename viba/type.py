@@ -256,6 +256,7 @@ class BuiltinModuleType(ModuleType):
     _GENERIC_NAMES = {
         "List", "list", "set", "dict",
         "ListLiteral", "SetLiteral", "DictLiteral",
+        "__tagged__",
     }
 
     def __init__(self):
@@ -326,8 +327,8 @@ class CustomModuleType(ModuleType):
         wins, so a dotted module is not read as a shorter one plus a member.
 
         A binding that names a generic answers no name at all: a generic is a
-        directory of specializations, not a module of definitions, and what it
-        has is an application (`gen[T]`, viba-specialize.md)."""
+        directory of patterns, not a module of definitions, and what it
+        has is an application (`gen[T]`, viba-pattern.md)."""
         parts = type_name.split(".")
         for cut in range(len(parts) - 1, 0, -1):
             prefix = ".".join(parts[:cut])

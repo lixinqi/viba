@@ -1,0 +1,5 @@
+pattern A
+pattern B
+pattern C
+
+__def__ = 3

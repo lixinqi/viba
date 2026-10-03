@@ -1,0 +1,6 @@
+# The same tag, inside the chain it was written in: one `pattern` line, however
+# many positions it reads, and the chain it writes is what tells this file from
+# 100.viba.
+pattern A <- int <- __tagged__[arg_name, T]
+
+__def__ = A <- int <- __tagged__[arg_name, T]

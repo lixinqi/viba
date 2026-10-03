@@ -78,6 +78,9 @@ tag 写在链头时，它命中的是**第一个参数的成员**：`$sub_env <<
 `args.env.sub_env << args.env << "x"`（见 [`viba-interpreter.md`](viba-interpreter.md)）。tag 不是值，
 `method = $sub_env` 这种写法编不过。
 
+tag 也可以写在**字符串**里：`__tagged__["hello"] << X` 就是 `$hello << X`，`__tagged__["a", T]`
+就是 `$a T` —— 名字本来就是字符串的时候这样写，见 [`viba-pattern.md`](viba-pattern.md) 第 3 节。
+
 **点分名字定义的是父概念的一个成员。** `a.b = A` 就是 `a = $b A`；`a.b = A` 与 `a.c = C` 一起
 就是 `a = $b A * $c C`（按书写顺序）；`a.b.c = T` 是 `a = $b ($c T)` —— 每一级前缀都是一个概念，
 叶子挂在最后一段上。以叶子为视角写一组有关联的成员，就是一组 API 一个叶子一个叶子地写下来：

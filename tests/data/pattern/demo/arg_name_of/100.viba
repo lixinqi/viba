@@ -1,0 +1,5 @@
+# The tag a written argument carries, answered as the symbol it spells: a
+# `__tagged__` pattern names the tag it claims, so the name is a parameter.
+pattern __tagged__[arg_name, T]
+
+__def__ = arg_name

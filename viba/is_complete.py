@@ -17,10 +17,10 @@ Walking:
   the design incomplete. A generic parameter is walked through the actual
   argument an application binds it to; unbound, it is a placeholder and does
   not affect completeness.
-- A specialization application is decided where it is written: the file whose
-  `specialize` patterns fit the written arguments is the one walked, with its
-  own parameter names standing for the argument parts the patterns extracted
-  (viba-specialize.md). A decision that fails makes the design incomplete.
+- A generic application is decided where it is written: the file whose patterns
+  fit the written arguments is the one walked, with its own parameter names
+  standing for the argument parts the patterns extracted (viba-pattern.md). A
+  decision that fails makes the design incomplete.
 - Code blocks, ellipsis, and anything else that has no members but is not in
   terminators make the design incomplete. To end a walk at a code block, name
   the type that wraps it in terminators: the walk then stops at that
@@ -49,7 +49,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from viba import viba_ast
-from viba.specialize import reduce_application
+from viba.pattern import reduce_application, tagged_reading
 from viba.type import BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
 from viba.viba_type_descriptor import (
     empty_pool,
@@ -219,6 +219,9 @@ class _Checker:
         if isinstance(node, viba_ast.TypeRef):
             return self._name(node.name, module_name, bindings)
         if isinstance(node, viba_ast.TypeApp):
+            tagged = self._tagged(node, module_name, bindings)
+            if tagged is not None:
+                return tagged
             return self._application(node, module_name, bindings)
         if isinstance(node, viba_ast.Tagged):
             return self._walk(node.type, module_name, bindings)
@@ -230,6 +233,46 @@ class _Checker:
         if elements and _is_unit_head(elements[0]):
             elements = elements[1:]  # a unit chain head is not a member
         return all(self._walk(e, module_name, bindings) for e in elements)
+
+    def _tagged(self, node, module_name: str, bindings: dict):
+        """Walk the tag a written `__tagged__[...]` spells; None when it is no tag.
+
+        The symbol is a written string, or a name this walk bound — a decision
+        hands it over as a string, which is how a `__def__` builds a tag out of
+        what a `pattern` line extracted (viba-pattern.md). A symbol that cannot
+        be read here leaves the application to the walk it would have had.
+        """
+        module = self._module(module_name)
+        if module is None:
+            return None
+        got = tagged_reading(
+            node, module,
+            lambda name, _module: self._symbol_text(name, module_name, bindings))
+        if isinstance(got, VibaProgramErr):
+            return False
+        if got.ok_value is None:
+            return None
+        return self._walk(got.ok_value, module_name, bindings)
+
+    def _symbol_text(self, name: str, module_name: str, bindings: dict):
+        """The string a written name stands for in this walk, or None."""
+        bound = bindings.get(name)
+        if isinstance(bound, tuple):
+            written = bound[0]
+            if isinstance(written, viba_ast.Constant) and isinstance(written.value, str):
+                return written.value
+            return None
+        if name in bindings:
+            return None                     # a placeholder: the argument decides
+        found = self._resolve(name, module_name)
+        if found is None:
+            return None
+        written = found[0]
+        if isinstance(written, viba_ast.TypeDefinition):
+            written = written.body
+        if isinstance(written, viba_ast.Constant) and isinstance(written.value, str):
+            return written.value
+        return None
 
     def _name(self, name: str, module_name: str, bindings: dict) -> bool:
         if name in bindings:
@@ -279,7 +322,7 @@ class _Checker:
         The decision is made where the application is written, over the written
         arguments, and what comes back is the chosen file's `__def__` — walked
         with this file's parameter names standing for the argument parts the
-        patterns extracted (viba-specialize.md). A decision that fails is an
+        patterns extracted (viba-pattern.md). A decision that fails is an
         application with nothing to walk, so the design is incomplete.
         """
         module = self._module(module_name)

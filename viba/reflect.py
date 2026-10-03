@@ -55,7 +55,7 @@ import copy
 from typing import Iterable, List, Optional, Sequence
 
 from viba import viba_ast
-from viba.specialize import reduce_application
+from viba.pattern import reduce_application
 from viba.type import AstNodeType, VibaProgramErr, Ok, Result, module_get_type
 from viba.viba_type_descriptor import (
     CODE_BLOCK,
@@ -77,6 +77,7 @@ from viba.viba_type_descriptor import (
     VibaTupleDescriptor,
     VibaTypeAppDescriptor,
     VibaTypeDescriptor,
+    tagged_descriptor,
 )
 
 # The three builtin containers, and the literal forms implementations use.
@@ -482,10 +483,10 @@ class VibaAccess:
 
         Two things, both by the definitions in the pool: a name unfolds to its
         definition body, and a generic application folds its arguments in and
-        lands on the body too. A **specialization** application is decided
+        lands on the body too. A **generic** application is decided
         first: the chosen file's `__def__` takes its place, its parameter names
         bound to the argument parts the patterns extracted
-        (viba-specialize.md). Sum, product and exponent follow one rule; there
+        (viba-pattern.md). Sum, product and exponent follow one rule; there
         are no other exceptions.
 
         A definition already being unfolded stops the walk, since a pool may
@@ -501,7 +502,7 @@ class VibaAccess:
         Same rule as unfold; the returned set is what keeps the inline chain of
         a product finite (see _product_members).
         """
-        decided = self._specialized(descriptor, seen)
+        decided = self._decided(descriptor, seen)
         if decided is not None:
             return decided
         found = self._definition_target(descriptor)
@@ -523,15 +524,15 @@ class VibaAccess:
             return descriptor, seen
         return self._unfold_seen(applied, seen | {key})
 
-    def _specialized(self, descriptor: VibaTypeDescriptor, seen: set):
-        """A specialization application, decided: (the chosen body, seen).
+    def _decided(self, descriptor: VibaTypeDescriptor, seen: set):
+        """A generic application, decided: (the chosen body, seen).
 
         None when this piece is no such application — an ordinary application
         the generic branch below unfolds, a name, a leaf. The decision is made
         where the application was written, and what comes back is the chosen
         file's `__def__`, read in that file with this file's parameter names
         standing for the argument parts the patterns extracted
-        (viba-specialize.md). A decision that finds no file has no body to land
+        (viba-pattern.md). A decision that finds no file has no body to land
         on, so the piece stays the application it is.
         """
         if descriptor.kind != TYPE_APP:
@@ -544,7 +545,7 @@ class VibaAccess:
         if isinstance(decision, VibaProgramErr) or decision.ok_value is None:
             return None
         chosen = decision.ok_value
-        key = ("specialized", id(node), id(resolvable.container_module))
+        key = ("decided", id(node), id(resolvable.container_module))
         if key in seen:
             return descriptor, seen
         # 描述符层还没有公开的"类型表达式换描述符"入口，用它的构造函数。
@@ -615,9 +616,14 @@ class VibaAccess:
                 payload.pool, payload.resolvable_type,
                 [self._substitute(e, bindings) for e in payload.elements]))
         if descriptor.kind == TYPE_APP:
+            args = [self._substitute(a, bindings) for a in payload.args]
+            folded = tagged_descriptor(payload.pool, payload.constructor_name,
+                                       args, payload.resolvable_type)
+            if folded is not None:
+                return folded
             return VibaTypeDescriptor(TYPE_APP, VibaTypeAppDescriptor(
                 payload.pool, payload.resolvable_type, payload.constructor_name,
-                [self._substitute(a, bindings) for a in payload.args]))
+                args))
         if descriptor.kind == TUPLE:
             return VibaTypeDescriptor(TUPLE, VibaTupleDescriptor(
                 payload.pool, payload.resolvable_type,

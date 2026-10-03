@@ -29,8 +29,29 @@ from typing import Callable, Optional, Tuple
 from viba import viba_ast
 from viba.type import (BUILTIN_MODULE, DuplicateTagError, InlineCycleError, Ok,
                        PartialError, UnresolvedTypeError)
+from viba.viba_ast.tagged import (GETATTR_TAG, TAGGED_NAME, literal_symbol,
+                                  symbol_of, symbol_problem, tag_of,
+                                  tagged_node, tagged_problem)
+
+_TAG_NODES = (viba_ast.Tagged, viba_ast.Member)
 
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
+
+
+class _NamedMember:
+    """`$__getattr__ << X` while the name is still to come.
+
+    `$__getattr__` reads a member by a name given as a value, so the member is
+    known when the chain gives that name: the next argument is the name and `X`
+    is the value the member is read out of (viba-interpreter.md). It is gone as
+    soon as the name is in.
+    """
+
+    __slots__ = ("owner", "module")
+
+    def __init__(self, owner, module):
+        self.owner = owner
+        self.module = module
 
 
 RET_NAME = "__ret__"
@@ -274,6 +295,13 @@ def _nothing_left_to_give(node, module, judge=None):
 
 
 def _give(base, module, argument, argument_module, resolve, judge):
+    base = _tagged_base(base, module, resolve)
+    if isinstance(base, _NamedMember):
+        return _named_member(base, argument, argument_module, resolve)
+    if isinstance(base, viba_ast.Member) and base.tag == GETATTR_TAG:
+        # `$__getattr__ << X << <name>`: X is the value the member is read out
+        # of, and the name that tags it is the next argument.
+        return _NamedMember(argument, argument_module), module
     if isinstance(base, viba_ast.Member):
         # `$tag` 的那个成员是从**第一个实参**身上取的，所以环境在这里不是"执行"，是值。
         return _member_of(base.tag, argument, argument_module, resolve, judge)
@@ -331,6 +359,77 @@ def _member_of(tag, owner, owner_module, resolve, judge):
             f"no member tagged {tag!r} to take from {_written(owner)}")
     raise PartialError(
         f"{_written(owner)} is no value to take the member {tag!r} from")
+
+
+def _tagged_base(node, module, resolve):
+    """A written `__tagged__[...]` at a chain head as the tag it stands for.
+
+    `__tagged__["hello"] << X` is `$hello << X`, and the symbol may be a name a
+    decision bound instead of a written string. A node that is no tagged
+    application, or whose symbol this layer cannot read, is handed back as it is
+    (viba/viba_ast/tagged.py).
+    """
+    if not (isinstance(node, viba_ast.TypeApp) and node.constructor == TAGGED_NAME):
+        return node
+    problem = tagged_problem(node.args)
+    if problem is not None:
+        raise PartialError(problem)
+    symbol = literal_symbol(node.args[0])
+    if symbol is None:
+        text = _symbol_text_of(node.args[0], module, resolve)
+        if text is None:
+            return node
+        symbol = symbol_of(text)
+        if symbol is None:
+            raise PartialError(symbol_problem(text))
+    return tagged_node(symbol, node.args)
+
+
+def _named_member(base, name, name_module, resolve):
+    """`$__getattr__ << X << <name>`: the member the name tags.
+
+    `X.<name>` is the same read, and this is where a name that is a *value*
+    becomes a tag: the member is the one the member name addresses. A name this
+    layer cannot read — not a written string, and not a name that stands for one
+    — leaves the member unnamed, so the answer is `Any`: which member it is is
+    known when the program runs, and no design can say it before that
+    (viba-interpreter.md).
+    """
+    text = _symbol_text_of(name, name_module, resolve)
+    if text is None:
+        return viba_ast.Any(), base.module
+    symbol = symbol_of(text)
+    if symbol is None:
+        raise PartialError(symbol_problem(text))
+    tag = tag_of(symbol)
+    owner, owner_module = _unfold(base.owner, base.module, resolve)
+    if isinstance(owner, (viba_ast.Product, viba_ast.ProductChain)):
+        for factor in product_elements(owner):
+            if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
+                return factor.type, owner_module
+    raise PartialError(
+        f"no member tagged {tag!r} to take from {_written(base.owner)}")
+
+
+def _symbol_text_of(node, module, resolve):
+    """The string a written name spells here, or None when it spells none.
+
+    A written string is itself; a name is whatever it stands for — a decision
+    hands a symbol over as the string a `pattern` line extracted.
+    """
+    if isinstance(node, viba_ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if not isinstance(node, viba_ast.TypeRef):
+        return None
+    target = resolve(node.name, module)
+    if target is None:
+        return None
+    body = target[0]
+    while isinstance(body, viba_ast.TypeDefinition):
+        body = body.body
+    if isinstance(body, viba_ast.Constant) and isinstance(body.value, str):
+        return body.value
+    return None
 
 
 def _is_the_environment(node, module=None, judge=None) -> bool:

@@ -21,7 +21,7 @@ interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 按顺序找 `<name>.viba`，dotted 名当路径走；空条目和不存在的目录跳过）；import 的那个文件所在的目录总是
 先找——**被 import 进来、又在自己的文件里 import 的模块，也按它自己的文件找**（链多深都一样）。
 一个名字也可能是一个**泛型目录**（`<name>/__generic__.viba`）：文件先找，目录随后，两者都按这里的
-顺序（见 [`viba-specialize.md`](viba-specialize.md)）。
+顺序（见 [`viba-pattern.md`](viba-pattern.md)）。
 写了 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
 点分名字还有一层意思：`a.b = A` 定义的是 `a` 的 `$b` 成员（[`viba-style.md`](viba-style.md) 第 5 节），
 所以 `a.b` 当类型读是它的声明类型，写在链头就是那一步的调用 —— 宿主拿到的 `func_name` 是写下来的整串。
@@ -537,10 +537,10 @@ square_sum << args.env << 3 <: int <- $b int   # 给了一半：剩下的是函�
 - **`__get_args__ << __def__` 在类型层答的是积类型**：成员就是 `__def__` 的那些参数——`args.env`
   是 `Env`、`args.a` 是 `int`。`__def__` 不是函数链的话，两层都当场报错。
 
-## 特化：一个泛型是一个目录
+## 模式：一个泛型是一个目录
 
 `import demo.is_base_type as is_base_type` 也可能找到的是一个**目录**（目录里有 `__generic__.viba`
-标记）：那是一个泛型，它的每个**数字文件名**是一个特化（[`viba-specialize.md`](viba-specialize.md)）。
+标记）：那是一个泛型，它的每个**数字文件名**是一个模式（[`viba-pattern.md`](viba-pattern.md)）。
 它不是一个模块——单独写 `is_base_type` 不是类型，`is_base_type << $x 1` 不是调用。能写的只有应用：
 
 ```viba
@@ -555,7 +555,7 @@ Flag = is_base_type[bool]              # 决断选中 100.viba；它的 __def__ 
 - 写下来是萃取到的形参，答的就是那份类型（`__def__ = A`，答 `int`）；
 - 写下来是数据，答的就是数据，形参名已经换成实参里写的那份（`__def__ = (A, B)` 答 `(int, str)`）；
 - 写下来是**函数链**，这个应用代表的就是那次**调用**，跟"定义体是函数链"一样：可以接着给实参
-  （`wrapper[add] << args.env << add << 1 << 2`），也可以当闭包递出去。宿主按**泛型的名字**找实现
+  （`wrapper[add] << args.env << add << $a 1 << $b 2`），也可以当闭包递出去。宿主按**泛型的名字**找实现
   （写下来是 `wrapper[...]`，它拿到的是 `"wrapper"`），跟按定义名找实现同一种做法；
 - 其余照平时的规矩：`int` 这个名字在值的位置上不是值。
 
@@ -566,6 +566,25 @@ Flag = is_base_type[bool]              # 决断选中 100.viba；它的 __def__ 
 方括号里的实参本身写成一次 `<<` 时（`wrapper[add << $a 2]`），决断先把它**当类型读出来** ——
 已经给过 `$a 2` 之后剩下的那条链条 —— 再照模式读开，所以"已经给过一部分实参的函数"也是一份
 能收的实参。给实参要写出 tag（`$a 2`）：`$env Env` 是调用的规矩，不是实参的位置。
+
+## 成员按名字读：`__tagged__` 与 `$__getattr__`
+
+名字写在字符串里时，成员照样取得出来。`__tagged__["hello"] << X` 就是 `$hello << X` ——
+一参数的 `__tagged__` 是一个成员，只写在链头（[`viba-pattern.md`](viba-pattern.md) 第 3 节）。
+
+名字是**一份可以算出来的值**时（决断萃取出来的符号、从数据里读到的 str），用内建的成员
+`$__getattr__`：
+
+```viba
+__ret__ = $__getattr__ << args << "name"          # 就是 args.name
+__ret__ = $__getattr__ << box << name << args.env << 1   # name 是算出来的 str
+```
+
+它读一个值的成员：积里那条 tag 的那一份，环境上就是那个宿主属性。成员是函数时，那个值也照样当它
+的第一个实参给出去（跟 `$tag << X` 一样）。名字不是字符串、或者这个值没有那个成员，都是程序错。
+
+判定层读同一条链时，名字是写下来的字符串（或解析得出字符串的名字）就给出**那个成员的类型**；
+名字读不出来时给 `Any`：哪个成员是运行的时候才知道的，设计说不出它的类型。
 
 宿主自己供文件时，`list_files` 也要一起给：决断要问目录里有什么（见上面「目录里有什么：list_files」一节）。
 

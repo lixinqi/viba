@@ -1,0 +1,3 @@
+pattern list[A]
+
+__def__ = A <- $env Env <- A

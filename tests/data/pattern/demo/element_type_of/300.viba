@@ -1,0 +1,3 @@
+pattern dict[A, B]
+
+__def__ = (A, B)

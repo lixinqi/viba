@@ -1,3 +1,0 @@
-specialize dict[A, B]
-
-__def__ = 2

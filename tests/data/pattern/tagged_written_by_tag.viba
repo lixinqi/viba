@@ -1,0 +1,6 @@
+# The same value, written as the tag itself.
+__def__ =
+    Any
+  <- $env Env
+
+__ret__ = $a 3

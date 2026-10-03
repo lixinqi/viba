@@ -18,7 +18,8 @@ from interpreter_support import Checks, Host, value_of
 
 from viba import viba_ast
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Ok
+from viba.is_sub_type import is_sub_type
+from viba.type import AstNodeType, Ok, custom_module
 
 CASES = Path(__file__).resolve().parent / "data" / "member"
 
@@ -41,6 +42,7 @@ def run(tmp: Path):
     _the_same_temporary_child(tmp)
     _the_first_argument_is_the_receiver(tmp)
     _a_member_that_takes_its_owner()
+    _a_member_read_by_a_name()
     _the_tag_is_not_a_value()
     _what_is_not_there_is_reported(tmp)
 
@@ -92,6 +94,51 @@ def _a_member_that_takes_its_owner():
           f"a member that takes its owner: {by_tag!r}")
     check(isinstance(by_dot, Ok) and value_of(by_dot) == 2,
           f"and the dotted spelling is the same call: {by_dot!r}")
+
+
+def _judge(source: str, sub: str, sup: str):
+    """`sub <: sup` read in a module built from `source`."""
+    module = custom_module(source)
+    got = is_sub_type(
+        AstNodeType(viba_ast.parse(f"__x__ = {sub}").body[0].body, module),
+        AstNodeType(viba_ast.parse(f"__x__ = {sup}").body[0].body, module))
+    return got.ok_value if isinstance(got, Ok) else got
+
+
+def _a_member_read_by_a_name():
+    """名字写在字符串里时，成员就按那个名字取：`__tagged__["f"]` 与 `$__getattr__`。
+
+    `__tagged__["f"] << box << …` 是 `$f << box << …`；`$__getattr__ << box << name << …`
+    是 `box.f << …`，区别只在于名字是一份可以算出来的值。
+    """
+    def get_func(path, func_name):
+        if func_name == "inc":
+            # 成员要 owner、环境、x 三样（`$f << box << args.env << 1`）。
+            return lambda box, environ, x: 2
+        return Host().get_func(path, func_name)
+
+    host = Environment(EnvironmentStorage("root", None, None), EnvironmentCompute(get_func))
+    by_tag = interpret(str(CASES / "tagged_member.viba"), host)
+    check(isinstance(by_tag, Ok) and value_of(by_tag) == 2,
+          f"a tag written as a symbol takes the member it names: {by_tag!r}")
+    by_name = interpret(str(CASES / "getattr_member.viba"), host)
+    check(isinstance(by_name, Ok) and value_of(by_name) == 2,
+          f"a member read by the name a value spells: {by_name!r}")
+
+    source = ("Args = Object * $a int * $b str\n"
+              'Picked = $__getattr__ << Args << "a"\n'
+              'Named = "a"\n'
+              "By_name = $__getattr__ << Args << Named\n"
+              "Dynamic = $__getattr__ << Args << SomethingElse\n")
+    check(_judge(source, "Picked", "int") is True,
+          "a written name picks the member it tags")
+    check(_judge(source, "Picked", "str") is False,
+          "and not another member")
+    check(_judge(source, "By_name", "int") is True,
+          "a name that stands for a string picks it too")
+    check(_judge(source, "Dynamic", "Any") is True
+          and _judge(source, "Dynamic", "int") is False,
+          "a name no design can read there is Any")
 
 
 def _the_tag_is_not_a_value():

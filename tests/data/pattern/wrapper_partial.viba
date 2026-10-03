@@ -1,0 +1,19 @@
+import demo.wrapper as wrapper
+
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+add2 = add << $a 2
+
+# `add2` 还欠 `$b`，就按 `$b` 给。
+__ret__ = wrapper[add2] << args.env << add2 << $b 1

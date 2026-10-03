@@ -1,0 +1,20 @@
+# `__tagged__["f"] << box << …` is `$f << box << …`: the symbol spells the tag a
+# member is taken by, so a name that is only a string is a tag after all.
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+Box = Object * $f (int <- $box Box <- $env Env <- $x int) * $y int
+
+inc =
+    int
+  <- $box Box
+  <- $env Env
+  <- $x int
+  <- { add one }
+
+box = Object * $f inc * $y 2
+# 实参按它落的那一位写：`$x` 是 `inc` 自己声明的 tag。
+__ret__ = __tagged__["f"] << box << args.env << $x 1

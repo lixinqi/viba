@@ -1,5 +1,0 @@
-specialize bool
-
-__def__ = Any <- $env Env
-
-__ret__ = true

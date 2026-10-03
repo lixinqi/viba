@@ -77,13 +77,15 @@ from viba import serialize, viba_ast
 from viba.partial import (file_environment_result_problem, parameters_of,
                           product_elements, names_the_environment)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.specialize import (GENERIC_FILE, GenericModuleType,
-                             file_specialize_problem, load_generic,
-                             reduce_application)
+from viba.pattern import (GENERIC_FILE, GenericModuleType,
+                          file_pattern_problem, load_generic,
+                          reduce_application)
 from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
                        InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
                        BUILTIN_MODULE, NilType, NeverType, custom_module)
+from viba.viba_ast.tagged import (GETATTR_TAG, TAGGED_NAME, symbol_of,
+                                  symbol_problem, tag_of, tagged_node)
 from viba.viba_type_descriptor import (descriptor_of, descriptor_of_tagged,
                                         descriptor_of_values)
 
@@ -469,6 +471,22 @@ class _Member:
         self.tag = tag
 
 
+class _GetattrMember:
+    """`$__getattr__ << X` while the name is still to come.
+
+    `$__getattr__` is the builtin member that reads a member by a name given as a
+    value, so what it tags is known when the chain gives that name: the next
+    argument is the name and `X` is the value the member is read out of
+    (viba-interpreter.md). It is gone as soon as the name is in.
+    """
+
+    __slots__ = ("owner", "argument")
+
+    def __init__(self, owner, argument):
+        self.owner = owner          # the value the member is read out of
+        self.argument = argument    # how that value was written, to give it on
+
+
 class _Given:
     """An argument on its way to a call: its address and its value."""
 
@@ -559,7 +577,7 @@ def _substituted(node, scope):
     """A written piece with the names this call bound put in their place.
 
     Viba data is read as it stands, so a name a decision bound
-    (viba-specialize.md) has to be written in before the piece travels on:
+    (viba-pattern.md) has to be written in before the piece travels on:
     what the answer says is the type the decision made, not the parameter name
     the chosen file happened to use. Only names the scope binds are touched —
     everything else stays the file's own text — and a scope that binds nothing
@@ -690,7 +708,7 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
 
     `list_files` is where the names inside a directory come from:
     `Optional[list[str] <- $dir_path str]`. A generic is a directory
-    (`demo/is_base_type/`, viba-specialize.md), so the decision has to know
+    (`demo/is_base_type/`, viba-pattern.md), so the decision has to know
     which files are in it. Left out, the filesystem is listed; a host that
     serves the files itself has to serve the listing too.
     """
@@ -777,7 +795,7 @@ class _Runner:
 
         A path whose file is `__generic__.viba` is no module at all: it is the
         marker of a generic, and what is built for it is the whole directory —
-        every specialization numbered inside it (viba-specialize.md).
+        every pattern file numbered inside it (viba-pattern.md).
         """
         key = self._key(path)
         if key not in self.by_path:
@@ -790,7 +808,7 @@ class _Runner:
             problem = file_environment_result_problem(tree)
             if problem is not None:
                 return VibaProgramErr(f"{path}: {problem}")
-            problem = file_specialize_problem(tree, path.name)
+            problem = file_pattern_problem(tree, path.name)
             if problem is not None:
                 return VibaProgramErr(f"{path}: {problem}")
             imports = {stmt.alias or stmt.module: stmt.module
@@ -806,7 +824,7 @@ class _Runner:
     def _generic_of(self, path: Path, name: str):
         """The generic a `__generic__.viba` marker stands for: its directory.
 
-        The specializations are files like any other: each is parsed by
+        The patterns are files like any other: each is parsed by
         `_file_of`, so its own imports are its own and its own definitions
         resolve in it. `name` is what the generic was imported as, and each
         file is named under it by its order.
@@ -1076,7 +1094,7 @@ class _Activation:
         if args is None:
             args = _VibaData(viba_data(None))
         self.args = args
-        # 一次决策选中这个文件时，它的形参名绑定到实参的哪一部分（viba-specialize.md）：这些
+        # 一次决策选中这个文件时，它的形参名绑定到实参的哪一部分（viba-pattern.md）：这些
         # 名字在这个文件的每一次求值里都算数，包括它自己定义里的那一层 —— 文件写在别处的名
         # 字，仍然在这个文件里读。
         self.bindings = bindings or {}
@@ -1411,10 +1429,10 @@ class _Activation:
             for name, bound in chosen.bindings.items()}
 
     def _generic_application(self, node, scope=()):
-        """`gen[A, B]`: the chosen specialization's `__def__`, read where it is.
+        """`gen[A, B]`: the chosen file's `__def__`, read where it is.
 
         The decision is static — over the written arguments, in the module that
-        wrote them (viba-specialize.md) — and what it picks is a file and a
+        wrote them (viba-pattern.md) — and what it picks is a file and a
         binding: `__def__` with this file's parameter names standing for the
         argument parts the patterns extracted. That type is then read the way
         the same text written here would be read: the bindings are the scope
@@ -1427,7 +1445,12 @@ class _Activation:
         function chain stands for its own call — so the value is the
         application written down, and giving it arguments reads it as the call
         it is (`_generic_target`).
+
+        `__tagged__` is not a directory of files: it is the builtin tag
+        constructor, and its symbol is read as a value here (`_tagged_data`).
         """
+        if node.constructor == TAGGED_NAME:
+            return self._tagged_data(node, scope)
         decision = reduce_application(node, self.module)
         if _stopped(decision):
             return decision
@@ -1443,6 +1466,44 @@ class _Activation:
                             chosen.entry.name, chosen.entry.path,
                             bindings=self._generic_bindings(chosen))
         return other.evaluate(chosen.body)
+
+    def _tagged_data(self, node, scope=()):
+        """`__tagged__[S, T]`: the tag the symbol value spells, as viba data.
+
+        `S` is read here rather than written: a `pattern` line extracted the
+        symbol from a tag and a decision handed it over as a string, so this is
+        the one place a tag comes out of computation (viba-pattern.md). The
+        symbol has to be one — letters, digits and `_`, not starting with a
+        digit — and the answer is the tag itself, so what the decision built is
+        a written type like any other.
+        """
+        if len(node.args) not in (1, 2):
+            return VibaProgramErr(
+                f"{TAGGED_NAME} takes one argument (the symbol) or two (the symbol "
+                f"and the type it marks), not {len(node.args)}")
+        read = self.evaluate(node.args[0], scope)
+        if _stopped(read):
+            return read
+        text = _symbol_text(read.ok_value)
+        if text is None:
+            return VibaProgramErr(
+                f"{TAGGED_NAME} asks for a symbol (a string), not "
+                f"{_one_line(node.args[0])}")
+        symbol = symbol_of(text)
+        if symbol is None:
+            return VibaProgramErr(symbol_problem(text))
+        # The type the tag marks is written in the chosen file, so the names a
+        # decision bound have to be written in before the tag travels on.
+        arguments = [node.args[0]] + [_substituted(argument, scope)
+                                      for argument in node.args[1:]]
+        built = tagged_node(symbol, arguments)
+        # A member does not stand alone, so the reading stays the application it
+        # was written as while the value is the member itself: the chain head is
+        # what reads it (`_target_and_arguments`).
+        described = node if isinstance(built, viba_ast.Member) else built
+        return Ok(_VibaData(VibaNode(
+            reflect_access, descriptor_of(AstNodeType(described, self.module)), built),
+            written_in=self.module))
 
     def _apply_chain(self, node, scope=()):
         """Give the written arguments to what stands at the head of the chain.
@@ -1510,6 +1571,22 @@ class _Activation:
                 return value
             if value.ok_value is None:
                 continue                        # documentation is no argument
+            if isinstance(current, _Member) and current.tag == GETATTR_TAG:
+                # `$__getattr__ << X << <name>`: X is the value the member is
+                # read out of, and the name that tags it is the next argument.
+                current = _GetattrMember(value.ok_value.value, argument)
+                continue
+            if isinstance(current, _GetattrMember):
+                named = _member_tag_of(value.ok_value.value)
+                if _stopped(named):
+                    return named
+                taken = self._take_member(_Member(named.ok_value), current.owner)
+                if _stopped(taken):
+                    return taken
+                # The take is the one `$name << X` does, and the rest of the
+                # chain goes on from there — X given first, as a member is.
+                rest = [current.argument] + list(written[index + 1:])
+                return self._give_all(taken.ok_value, rest, scope, finish=finish)
             if isinstance(current, _Member):
                 taken = self._take_member(current, value.ok_value.value)
                 if _stopped(taken):
@@ -1716,6 +1793,10 @@ class _Activation:
                 head, stored = _call_parts(got.node.data)
                 arguments = stored + arguments
                 continue
+            if isinstance(got, _VibaData) and isinstance(got.node.data, viba_ast.Member):
+                # `__tagged__[S] << X` with a symbol that is a value: the member
+                # the symbol names, taken from the value the chain gives first.
+                return Ok(_Member(got.node.data.tag)), arguments
             if isinstance(got, _VibaData) and isinstance(
                     got.node.data, (viba_ast.TypeRef, viba_ast.TypeApp)):
                 written_in = _writing_module(got)
@@ -1771,7 +1852,7 @@ class _Activation:
         """The call a generic application stands for, or None when it is none.
 
         The decision is made over the written arguments, in the module that
-        wrote them (viba-specialize.md), and what it picks is a file: the call
+        wrote them (viba-pattern.md), and what it picks is a file: the call
         is that file's `__def__` with this file's parameter names written out as
         the argument parts they stand for — which is what lets a function-typed
         parameter be recognized as one, so the host is handed the call it stands
@@ -2101,7 +2182,7 @@ def _is_a_written_call(value) -> bool:
     A closure kept as a value is the chain it was made from (`f << $a 1`), a
     name kept as a value is the call it stands for, and a generic application
     whose decision answers a function chain is that call too
-    (viba-specialize.md), so all three take arguments by being read on. Viba
+    (viba-pattern.md), so all three take arguments by being read on. Viba
     data that is an answer — a literal, a product — does not.
     """
     return (isinstance(value, _VibaData)
@@ -2632,6 +2713,36 @@ def _answer(name, answer, step: Step = None):
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
     return Ok(_VibaData(VibaNode(reflect_access,
                                  descriptor_of(AstNodeType(node, _NO_MODULE)), node)))
+
+
+def _symbol_text(value):
+    """The string a value spells when it is one, or None.
+
+    A symbol travels as a string: a decision wrote the string the `pattern` line
+    extracted, and a host may hand one over. Anything else is no symbol.
+    """
+    if not isinstance(value, _VibaData):
+        return None
+    written = value.node.data
+    if isinstance(written, viba_ast.Constant) and isinstance(written.value, str):
+        return written.value
+    return None
+
+
+def _member_tag_of(value):
+    """The tag a value names when it is a symbol string, or why it names none.
+
+    `$__getattr__` reads a member by this name, so the name has to be one:
+    letters, digits and `_`, not starting with a digit.
+    """
+    text = _symbol_text(value)
+    if text is None:
+        return VibaProgramErr("a member is read by the name a string spells, "
+                              "and this is no string")
+    symbol = symbol_of(text)
+    if symbol is None:
+        return VibaProgramErr(symbol_problem(text))
+    return Ok(tag_of(symbol))
 
 
 def _elements(node):

@@ -1,0 +1,3 @@
+pattern A <- (() | nil)
+
+__def__ = A

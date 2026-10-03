@@ -1,3 +1,0 @@
-specialize A <- B <- C
-
-__def__ = A

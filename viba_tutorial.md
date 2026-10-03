@@ -355,30 +355,30 @@ Point =
 
 ## 12. 泛型：一个目录，由某个文件作答
 
-写一个"什么类型配什么答案"的表时，用的是**特化**：泛型不是一份带形参的定义，而是一个目录，
-里面每个数字文件名是一个特化，数字就是决断顺序。
+写一个"什么类型配什么答案"的表时，用的是**模式**：泛型不是一份带形参的定义，而是一个目录，
+里面每个数字文件名是一个模式，数字就是决断顺序。
 
 ```
 demo/is_base_type/__generic__.viba      标记：这个目录是一个泛型
-demo/is_base_type/100.viba              specialize bool | int | float | str
-demo/is_base_type/200.viba              specialize A
+demo/is_base_type/100.viba              pattern bool | int | float | str
+demo/is_base_type/200.viba              pattern A
 ```
 
 ```viba
 # demo/is_base_type/100.viba
-specialize bool | int | float | str
+pattern bool | int | float | str
 
 __def__ = true
 ```
 
 ```viba
 # demo/is_base_type/200.viba
-specialize A
+pattern A
 
 __def__ = false
 ```
 
-`specialize` 一行管一个形参，按书写顺序。写下来的类型是**限定**（实参要落得进去），文件里没定义的
+`pattern` 一行管一个形参，按书写顺序。写下来的类型是**限定**（实参要落得进去），文件里没定义的
 名字是**形参**（实参在那个位置是什么就萃取出来）。`__def__` 是这个文件答的类型。应用写在方括号里：
 
 ```viba
@@ -390,8 +390,9 @@ __ret__ = $flag is_base_type[bool] * $n 1
 ```
 
 决断按数字从小到大，第一个命中的赢；一个都没命中是程序错误，不是 `never`。答案写成函数链时，
-这个应用代表的就是那次调用；方括号里的实参本身也可以写成一次调用。整个规矩、各种写法和报错，
-见 [`viba-specialize.md`](viba-specialize.md)。
+这个应用代表的就是那次调用；方括号里的实参本身也可以写成一次调用。tag 也可以写在字符串里：
+`__tagged__["a", T]` 就是 `$a T`，`pattern __tagged__[name, T]` 还能把实参那个 tag 的名字
+萃取成一个字符串。整个规矩、各种写法和报错，见 [`viba-pattern.md`](viba-pattern.md)。
 
 ## 13. 接下来读什么
 
@@ -399,7 +400,7 @@ __ret__ = $flag is_base_type[bool] * $n 1
   用积。
 - [`viba-interpreter.md`](viba-interpreter.md)：执行这一层——环境、模块、闭包、函数类型的那个实参、一次执行会得到
   什么、幂等与快照。
-- [`viba-specialize.md`](viba-specialize.md)：特化——泛型的目录、`specialize` 的写法、决断顺序。
+- [`viba-pattern.md`](viba-pattern.md)：模式——泛型的目录、`pattern` 的写法、决断顺序。
 - [`viba_builder.md`](viba_builder.md)：用 Python 拼 viba 源码。
 - [`viba-reflect.md`](viba-reflect.md)：按类型读实例（地址、步子、访问函数）。
 - [`viba-compliance.md`](viba-compliance.md)：一次运行算不算数——规则、呈证、判定。

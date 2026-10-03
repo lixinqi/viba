@@ -17,7 +17,7 @@ def viba_type_match(
     TypeDefinition: Callable[[Any], Any] = None,
     GenericDefinition: Callable[[Any], Any] = None,
     Import: Callable[[Any], Any] = None,
-    Specialize: Callable[[Any], Any] = None,
+    Pattern: Callable[[Any], Any] = None,
     Sum: Callable[[Any], Any] = None,
     Product: Callable[[Any], Any] = None,
     Exponent: Callable[[Any], Any] = None,

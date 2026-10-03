@@ -1,0 +1,18 @@
+import demo.wrapper as wrapper
+
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+inc =
+    int
+  <- $env Env
+  <- $x int
+  <- { add one }
+
+Kept = wrapper[inc]
+
+# 存下来的那次调用一样按位给：`$x` 是 `inc` 自己声明的 tag。
+__ret__ = Kept << args.env << inc << $x 1

@@ -1,4 +1,0 @@
-specialize A
-specialize B
-
-__def__ = false

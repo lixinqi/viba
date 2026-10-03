@@ -1,0 +1,6 @@
+# `__tagged__["a", 3]` answers the same thing `$a 3` does.
+__def__ =
+    Any
+  <- $env Env
+
+__ret__ = __tagged__["a", 3]
