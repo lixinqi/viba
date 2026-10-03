@@ -389,8 +389,9 @@ __def__ = Any <- $env Env
 __ret__ = $flag is_base_type[bool] * $n 1
 ```
 
-决断按数字从小到大，第一个命中的赢；一个都没命中是程序错误，不是 `never`。整个规矩、各种写法和
-报错，见 [`viba-specialize.md`](viba-specialize.md)。
+决断按数字从小到大，第一个命中的赢；一个都没命中是程序错误，不是 `never`。答案写成函数链时，
+这个应用代表的就是那次调用；方括号里的实参本身也可以写成一次调用。整个规矩、各种写法和报错，
+见 [`viba-specialize.md`](viba-specialize.md)。
 
 ## 13. 接下来读什么
 

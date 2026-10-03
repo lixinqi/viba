@@ -230,8 +230,11 @@ def _crossing_the_host_boundary(tmp: Path):
                     "a get_func that refuses the call")
     host.knobs.pop("refuse")
 
-    checks.failed(interpret(_case("overfeed"), environ), "raised",
-                  "a host that gives the viba function too many arguments")
+    # 函数类型的实参交给宿主的是"它代表的那次调用"：宿主可以带上自己的实参叫它
+    # （wrapper 就是这么转发的），多喂的那一个由 viba 这边说清楚 —— 这次调用不
+    # 再有槽位收它，所以是程序错，而不是把 Python 的 TypeError 报成实现坏了。
+    checks.labelled(interpret(_case("overfeed"), environ), "takes no more arguments",
+                    "a host that gives the viba function too many arguments")
 
     checks.failed(interpret(_case("fed"), environ), "raised",
                   "a host handing a viba function something with no leaf")

@@ -1397,6 +1397,19 @@ class _Activation:
 
     # ---- calls ----
 
+    def _generic_bindings(self, chosen):
+        """The chosen file's parameter names, as the types they were bound to.
+
+        Each is viba data written where the argument was written, so the names
+        inside it resolve where the caller wrote them.
+        """
+        return {
+            name: _VibaData(VibaNode(
+                reflect_access,
+                descriptor_of(AstNodeType(bound.ast_node, bound.container_module)),
+                bound.ast_node), written_in=bound.container_module)
+            for name, bound in chosen.bindings.items()}
+
     def _generic_application(self, node, scope=()):
         """`gen[A, B]`: the chosen specialization's `__def__`, read where it is.
 
@@ -1408,6 +1421,12 @@ class _Activation:
         the chosen file's own definitions run under, and a literal is the value
         it is. A constructor that is no generic is no value, the way it never
         was (`list[int]` included).
+
+        When the chosen `__def__` is a function chain, what the application
+        stands for is that call — the same way a definition whose body is a
+        function chain stands for its own call — so the value is the
+        application written down, and giving it arguments reads it as the call
+        it is (`_generic_target`).
         """
         decision = reduce_application(node, self.module)
         if _stopped(decision):
@@ -1415,15 +1434,14 @@ class _Activation:
         chosen = decision.ok_value
         if chosen is None:
             return VibaProgramErr(f"cannot compute {type(node).__name__}")
-        bindings = {
-            name: _VibaData(VibaNode(
+        if isinstance(chosen.body, (viba_ast.Exponent, viba_ast.ExponentChain)):
+            return Ok(_VibaData(VibaNode(
                 reflect_access,
-                descriptor_of(AstNodeType(bound.ast_node, bound.container_module)),
-                bound.ast_node), written_in=bound.container_module)
-            for name, bound in chosen.bindings.items()}
+                descriptor_of(AstNodeType(node, self.module)), node),
+                written_in=self.module))
         other = _Activation(self.runner, chosen.module, self.environ,
                             chosen.entry.name, chosen.entry.path,
-                            bindings=bindings)
+                            bindings=self._generic_bindings(chosen))
         return other.evaluate(chosen.body)
 
     def _apply_chain(self, node, scope=()):
@@ -1554,7 +1572,8 @@ class _Activation:
         written_in = _writing_module(value)
         if whole or (written_in is not None and written_in is not self.module):
             other = self._in_module(written_in) if written_in is not None else None
-            if other is not None and isinstance(head, viba_ast.TypeRef):
+            if other is not None and isinstance(
+                    head, (viba_ast.TypeRef, viba_ast.TypeApp)):
                 target = other._call_target(head, scope)
                 if target is None:
                     return None
@@ -1563,7 +1582,7 @@ class _Activation:
                 return self._give_all(target.ok_value, passed, scope, finish=finish)
         return None
 
-    def _apply_without_environ(self, node, scope, environ):
+    def _apply_without_environ(self, node, scope, environ, arguments=()):
         """Run the call `node` writes with the environment the host handed over.
 
         A function-typed slot names the argument as the call it stands for
@@ -1574,6 +1593,14 @@ class _Activation:
         left alone, and one that did not is run under the environment the host
         chose. `finish=False` is what keeps the call from being stored as a
         closure before that environment is in.
+
+        `arguments` are the values the host gives the call it holds, if it gives
+        any: a slot written as a function type hands the host a callable, and a
+        host that wants to run it **with arguments of its own** — a wrapper
+        around a function calls the function it was handed
+        (`f << $env args.env << f << 1 << 2`) — passes them here. They land in
+        the slots the chain still owes, so a chain that is already an answer
+        takes none.
         """
         target, written = self._target_and_arguments(node, scope)
         if written is None:
@@ -1582,15 +1609,25 @@ class _Activation:
         if _stopped(given):
             return given
         current = given.ok_value
-        if isinstance(current, _Pending):
-            if current.environ is None:
-                handed = environ if _is_environ_value(environ) else _Host(environ)
-                current = current.give(ENVIRON_TAG, handed)
-                if _stopped(current):
-                    return current
-                current = current.ok_value
-            return self._finish(current)
-        return Ok(current)
+        if not isinstance(current, _Pending):
+            if arguments:
+                return VibaProgramErr(
+                    "the host gave this argument arguments, but it is already "
+                    "the answer")
+            return Ok(current)
+        if current.environ is None:
+            handed = environ if _is_environ_value(environ) else _Host(environ)
+            current = current.give(ENVIRON_TAG, handed)
+            if _stopped(current):
+                return current
+            current = current.ok_value
+        for argument in arguments:
+            value = _given_value(argument)
+            current = current.give(None, value)
+            if _stopped(current):
+                return current
+            current = current.ok_value
+        return self._finish(current)
 
     def _is_the_environment(self, argument) -> bool:
         """Whether this written argument says the environment, by its tag.
@@ -1649,7 +1686,7 @@ class _Activation:
         while True:
             if isinstance(head, viba_ast.Member):
                 return Ok(_Member(head.tag)), arguments
-            if isinstance(head, viba_ast.TypeRef):
+            if isinstance(head, (viba_ast.TypeRef, viba_ast.TypeApp)):
                 # None 是"这个名字不是一次调用"，不是"停下了"：停下只有 Result 能表达。
                 target = self._call_target(head, scope)
                 if target is not None:
@@ -1679,7 +1716,8 @@ class _Activation:
                 head, stored = _call_parts(got.node.data)
                 arguments = stored + arguments
                 continue
-            if isinstance(got, _VibaData) and isinstance(got.node.data, viba_ast.TypeRef):
+            if isinstance(got, _VibaData) and isinstance(
+                    got.node.data, (viba_ast.TypeRef, viba_ast.TypeApp)):
                 written_in = _writing_module(got)
                 if written_in is not None and written_in is not self.module:
                     other = self._in_module(written_in)
@@ -1697,9 +1735,13 @@ class _Activation:
         """The call a written name stands for, or None when it is no call.
 
         A definition that is a function is the call; a bare import name is the
-        module, whose environment runs it. Everything else is not a call here and
-        the caller reads the name as a value instead.
+        module, whose environment runs it; a generic application whose decision
+        answers a function chain is the call that file's `__def__` writes
+        (`_generic_target`). Everything else is not a call here and the caller
+        reads the name as a value instead.
         """
+        if isinstance(name_node, viba_ast.TypeApp):
+            return self._generic_target(name_node)
         name = name_node.name
         definition = _definition(self.module, name)
         if definition is not None:
@@ -1724,6 +1766,31 @@ class _Activation:
                 f"not a call")
         return Ok(_Pending.module(self.runner, imported.ok_value, module_name,
                                   name_node, written_in=self.module))
+
+    def _generic_target(self, node):
+        """The call a generic application stands for, or None when it is none.
+
+        The decision is made over the written arguments, in the module that
+        wrote them (viba-specialize.md), and what it picks is a file: the call
+        is that file's `__def__` with this file's parameter names written out as
+        the argument parts they stand for — which is what lets a function-typed
+        parameter be recognized as one, so the host is handed the call it stands
+        for instead of a value. The host finds the implementation under the
+        generic's own name, the way it finds a definition under its name.
+
+        None when the decision picks no function chain: the application is then
+        a type, not a call.
+        """
+        decision = reduce_application(node, self.module)
+        if _stopped(decision):
+            return decision
+        chosen = decision.ok_value
+        if chosen is None or not isinstance(chosen.body,
+                                            (viba_ast.Exponent, viba_ast.ExponentChain)):
+            return None
+        chain = _substituted(chosen.body, (self._generic_bindings(chosen),))
+        return self._func_pending(node, _one_line(node), chosen.module, chain,
+                                  node.constructor, written_in=self.module)
 
     def _builtin_member(self, name):
         """`builtin.echo`：内建库里那个概念的一个成员。"""
@@ -1901,9 +1968,9 @@ class _HostArgument:
                 self.closure = answer.ok_value.node
         return self.closure
 
-    def __call__(self, environ):
+    def __call__(self, environ, *arguments):
         if self.answer is None:
-            self.answer = self._compute(environ)
+            self.answer = self._compute(environ, arguments)
         if not isinstance(self.answer, Ok):
             raise _Raised(self.answer)  # 停下就照原样报回去，不变成一份值
         value = self.answer.ok_value
@@ -1914,7 +1981,7 @@ class _HostArgument:
             return value.node
         return _argument_value(_as_given_value(value))
 
-    def _compute(self, environ):
+    def _compute(self, environ, arguments=()):
         pending = self.pending
         source = pending.activation
         written_in = pending.written_in or pending.module
@@ -1952,7 +2019,7 @@ class _HostArgument:
                 if problem is not None:
                     return VibaProgramErr(problem)
                 return answer
-        answer = caller._apply_without_environ(self.node, self.scope, given)
+        answer = caller._apply_without_environ(self.node, self.scope, given, arguments)
         if not isinstance(answer, Ok):
             return answer
         if self.slot is None:
@@ -1968,15 +2035,15 @@ def _function_slot(pending, index):
 
     A function type is `T <- $env Environment`: the result is the left of the
     exponent and the environment is what it is called with. The result is what
-    the host's answer has to fit, so that is what comes back.
+    the host's answer has to fit, so that is what comes back. A chain is read
+    apart result-first whether it was written as one (`A <- B <- C`) or already
+    canonicalized (`ExponentChain`), the way every layer reads it.
     """
     if index >= len(pending.elements):
         return None
     written = pending.elements[index]
     inner = written.type if isinstance(written, viba_ast.Tagged) else written
-    if isinstance(inner, viba_ast.Exponent):
-        return inner.result
-    if isinstance(inner, viba_ast.ExponentChain):
+    if isinstance(inner, (viba_ast.Exponent, viba_ast.ExponentChain)):
         parts = _elements(inner)
         return parts[0] if parts else None
     return None
@@ -2031,12 +2098,15 @@ def _closure_module(value):
 def _is_a_written_call(value) -> bool:
     """Whether this value is a call written down rather than an answer.
 
-    A closure kept as a value is the chain it was made from (`f << $a 1`), and a
-    name kept as a value is the call it stands for, so both take arguments by
-    being read on. Viba data that is an answer — a literal, a product — does not.
+    A closure kept as a value is the chain it was made from (`f << $a 1`), a
+    name kept as a value is the call it stands for, and a generic application
+    whose decision answers a function chain is that call too
+    (viba-specialize.md), so all three take arguments by being read on. Viba
+    data that is an answer — a literal, a product — does not.
     """
     return (isinstance(value, _VibaData)
-            and isinstance(value.node.data, (viba_ast.Partial, viba_ast.TypeRef)))
+            and isinstance(value.node.data,
+                           (viba_ast.Partial, viba_ast.TypeRef, viba_ast.TypeApp)))
 
 
 def _host_give(function, item):

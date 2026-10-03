@@ -1,0 +1,17 @@
+import demo.wrapper as wrapper
+
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+inc =
+    int
+  <- $env Env
+  <- $x int
+  <- { add one }
+
+Kept = wrapper[inc]
+
+__ret__ = Kept << args.env << inc << 1

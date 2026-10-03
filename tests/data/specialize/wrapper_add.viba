@@ -1,0 +1,16 @@
+import demo.wrapper as wrapper
+
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__ret__ = wrapper[add] << args.env << add << 1 << 2

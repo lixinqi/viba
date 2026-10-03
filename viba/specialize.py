@@ -39,9 +39,11 @@ import os
 from typing import Callable, Dict, List, Optional
 
 from viba import viba_ast
-from viba.partial import DEF_NAME, product_elements
+from viba.partial import (DEF_NAME, module_as_function, product_elements,
+                          reduce_partial)
 from viba.type import (AstNodeType, BuiltinGenericType, CustomModuleType,
-                       ModuleType, Ok, Result, VibaProgramErr, module_get_type)
+                       ModuleType, Ok, PartialError, Result, VibaProgramErr,
+                       module_get_type)
 
 GENERIC_FILE = "__generic__.viba"
 
@@ -422,11 +424,20 @@ def structural_pattern_match(pattern, pattern_module: ModuleType, argument,
     same type as the first (`specialize A` twice is an equality). `bindings`
     carries what an earlier pattern already extracted, so two `specialize`
     lines of one file share their parameters.
+
+    An argument that writes a call (`add << $a 2`) is read as the type that call
+    stands for — the chain with that argument already given — before it is read
+    apart, so a claim about the argument's positions reaches a function a
+    caller wrote by giving an argument (viba-specialize.md). A call that cannot
+    be given at all is a mistake in the argument, reported here rather than read
+    as a mismatch.
     """
     bindings = {} if bindings is None else bindings
     try:
         matched = _match(pattern, pattern_module, argument, argument_module, bindings)
     except _BadPattern as exc:
+        return VibaProgramErr(str(exc))
+    except PartialError as exc:
         return VibaProgramErr(str(exc))
     return Ok(matched)
 
@@ -452,7 +463,7 @@ def _match(pattern, pattern_module: ModuleType, argument,
         return bindings if _judge(AstNodeType(argument, argument_module),
                                   AstNodeType(pattern, pattern_module)) else None
 
-    node, module = _unfold(argument, argument_module)
+    node, module = _read_argument(argument, argument_module)
     if isinstance(pattern, _SUM_NODES):
         return _match_sum(pattern, pattern_module, node, module, bindings)
     if isinstance(pattern, _PROD_NODES):
@@ -536,10 +547,22 @@ def exponent_elements(node) -> List[viba_ast.AST]:
     """A written function read apart: the result first, the arguments after.
 
     `A <- B <- C` is `[A, B, C]` — one element per position, in written order,
-    which is how the judgment layer reads a chain too.
+    which is how the judgment layer reads a chain too. A chain that ends in a
+    body — documentation, or the call the chain ends on — reads as the function
+    it is: that last element is no position (`parameters_of` and `_slots_of`
+    drop it the same way).
     """
+    elements = _exponent_elements(node)
+    if len(elements) > 1 and isinstance(elements[-1],
+                                        (viba_ast.CodeBlock, viba_ast.Partial)):
+        elements = elements[:-1]
+    return elements
+
+
+def _exponent_elements(node) -> List[viba_ast.AST]:
+    """The elements of a written exponent chain, body and all."""
     if isinstance(node, viba_ast.Exponent):
-        return exponent_elements(node.result) + [node.argument]
+        return _exponent_elements(node.result) + [node.argument]
     if isinstance(node, viba_ast.ExponentChain):
         return list(node.elements)
     return [node]
@@ -561,6 +584,48 @@ def _is_parameter(node, module: ModuleType) -> bool:
 def _has_parameter(node, module: ModuleType) -> bool:
     """Whether a parameter sits anywhere in this pattern."""
     return any(_is_parameter(part, module) for part in viba_ast.walk(node))
+
+
+def _read_argument(node, module: ModuleType):
+    """The argument as a type: its names unfolded, its written `<<` given.
+
+    `add << $a 2` is `add` with that argument already given, so as a type it is
+    the chain that is left — the same reading the judgment layer gives a written
+    call (`viba.partial.reduce_partial`). A pattern that reads the argument
+    apart needs that chain rather than the `<<` that produces it, while every
+    argument that writes no `<<` stays exactly as it was written: a chain ending
+    in `()` is a chain with an empty product in it, not the result alone.
+    """
+    node, module = _unfold(node, module)
+    if not isinstance(node, viba_ast.Partial):
+        return node, module
+    return reduce_partial(node, module, _partial_target, _partial_judge)
+
+
+def _partial_target(name, module: ModuleType):
+    """(body, written_in) for the name a written `<<` gives to, or None.
+
+    A definition is itself, and a bare import name is the module read as a
+    function (`module_as_function`) — the same two readings the judgment layer
+    gives a call's head, kept in `viba.partial` so a written call means one
+    thing wherever a design is read.
+    """
+    resolved = module_get_type(module, name)
+    if isinstance(resolved, Ok) and isinstance(resolved.ok_value, AstNodeType):
+        target = resolved.ok_value
+        body = target.ast_node
+        if isinstance(body, viba_ast.GenericDefinition):
+            return None                     # a bare generic name has no body
+        if isinstance(body, viba_ast.TypeDefinition):
+            body = body.body
+        return body, target.container_module
+    return module_as_function(module, name)
+
+
+def _partial_judge(given, given_module, written, written_module) -> bool:
+    """Does the argument a `<<` gives fit the slot it is written to?"""
+    return _judge(AstNodeType(given, given_module),
+                  AstNodeType(written, written_module))
 
 
 def _unfold(node, module: ModuleType):

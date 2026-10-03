@@ -105,13 +105,60 @@ specialize A
 __def__ = (int <- $env Env <- int)   # 答一个函数类型（带环境的那个写法也照写）
 ```
 
-函数类型照平时的两种读法：在类型层读，`$env Env` 那个参数是调用的规矩、不进类型，所以它就是
-`int <- int`；在值的位置上，函数类型与别处一样不是值（值那一层读的是写在那儿的类型本身）。
+函数类型照平时的两种读法：
+
+- **在类型层读**：`$env Env` 那个参数是调用的规矩、不进类型，所以上面那条就是 `int <- int`；
+- **在值那一层读**：这个应用代表的就是那次**调用**，跟"一个定义体是函数链"完全一样 ——
+  `X = gen[T]` 是一份写下来的调用，可以继续给实参（`gen[T] << args.env << …`），也可以
+  当闭包递出去。宿主按**泛型的名字**找这一步的实现（写下来是 `wrap[...]`，它拿到的是
+  `"wrap"`），跟按定义名找实现同一种做法。
+
+这一点让"拿一个函数换一个调用"的泛型写得出来。模式读的是**写下来的链条**，所以函数自己的
+`$env Env` 那一位也写在模式里；`__def__` 按同一条链条答回去，只是在函数本身前面多要一份
+那份函数：
+
+```viba
+# demo/wrapper/100.viba
+specialize A <- $env Env <- B
+
+__def__ = A <- $env Env <- (A <- $env Env <- B) <- B
+```
+
+```viba
+# 调用方：add 是两元的，inc 是一元的
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__ret__ = wrapper[add] << args.env << add << 1 << 2      # 3
+```
+
+给环境是执行，给 `add` 的是函数本身，`1`、`2` 是它的实参。`(A <- $env Env <- B)` 那一位写着
+函数类型，所以交给宿主的是**它代表的那次调用**：宿主带着环境叫它，还可以带上自己的实参
+（`f(env, 1, 2)`），那些实参落进这次调用还欠的槽位 —— `wrapper` 的实现就是 `f(env, *rest)`，
+把收到的实参原样转给那个函数。
+
+方括号里的实参本身也可以是一次 `<<`。`add << $a 2` 是"已经给过 `$a 2` 的那次调用"，所以它
+**作为一个类型读出来就是剩下的那条链条**（`int <- $env Env <- $b int`），决断照这条链条读开。
+上面那份泛型的 100.viba 收一元函数、200.viba 收二元函数，所以一个已经给过一部分实参的函数
+落在一元那一支上：
+
+```viba
+add2 = add << $a 2
+
+__ret__ = wrapper[add2] << args.env << add2 << 1        # 3
+```
+
+给实参要写出它落在哪个 tag 上（`$a 2`）：`$env Env` 是调用的规矩，不是实参的位置，不写 tag 的
+实参先去撞这个参数，报 `2 does not fit $env Env`。
 
 一个文件里也可以有自己的定义，`__def__` 读到自己定义的名字就在这个文件里读：
 
 ```viba
-# demo/wrapper/100.viba
+# demo/wrapped_item/100.viba
 specialize list[A]
 
 Wrapped = $item A
@@ -261,7 +308,7 @@ Two = num_variadic_args[bool, str]           # 2
 | `viba/is_sub_type.py` | 应用在判定里展开（`env_get` 绑定形参） |
 | `viba/viba_type_descriptor.py` | 描述符池把 `名字.数字` 那几个文件合成一个泛型 |
 | `viba/reflect.py` | 按类型读实例时，泛型应用先决断再展开 |
-| `viba/interpret.py` | 目录当模块导入、应用求值、`list_files` 这个取目录内容的钩子 |
+| `viba/interpret.py` | 目录当模块导入、应用求值（函数链的答案就是那次调用）、`list_files` 这个取目录内容的钩子 |
 | `viba/is_complete.py` | 完整性按决断往下走 |
 | `tests/test_specialize.py` + `tests/data/specialize/` | 本文的例子与全部报错 |
 

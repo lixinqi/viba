@@ -1,5 +1,5 @@
-import demo.wrapper as wrapper
+import demo.wrapped_item as wrapped_item
 
 __def__ = Any <- $env Env
 
-__ret__ = wrapper[list[int]]
+__ret__ = wrapped_item[list[int]]

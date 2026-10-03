@@ -15,8 +15,17 @@ The four worked examples of `viba-specialize.md` live in `tests/data/specialize/
     demo/num_generic_args/  dict[A, B] -> 2, list[A] -> 1, A -> 0: the pattern
                             itself holds the structure that is counted
     demo/num_variadic_args/ one file per arity, so [] -> 0, [A] -> 1, [A, B] -> 2
+    demo/wrapper/           a function in, the same function's call out: the
+                            answer is a function chain, so the application is
+                            the call it stands for — `wrapper[inc] << args.env
+                            << inc << 1`, and the host's "wrapper" forwards to
+                            the function it was handed. 100 takes a one-argument
+                            function and 200 a two-argument one, so an argument
+                            that writes a partial call (`wrapper_partial.viba`:
+                            `add2 = add << $a 2`) is read as the type that call
+                            stands for and lands on 100
 
-`demo/wrapper/` is the one file whose answer is its own definition, so the
+`demo/wrapped_item/` is the one file whose answer is its own definition, so the
 call's parameter has to reach into that definition too. `broken/` and
 `loose_specialize.viba` are the mistakes: a file named anything but its order,
 a directory with no marker, a file with no `__def__`, a decision that fails, a
@@ -25,7 +34,8 @@ and `specialize` written outside a generic's directory.
 
 Read where a design is read (the judgment and the descriptor pool), a generic
 application is the type its decision picked; read where a program runs (the
-interpreter), it is that type as viba data.
+interpreter), it is that type as viba data — and when the type is a function
+chain, it is the call that chain stands for.
 
     python3 tests/test_specialize.py
 """
@@ -102,7 +112,8 @@ def run(scratch: Path):
     _the_arity_is_the_file()
     _the_decision_fails_loudly()
     _a_generic_is_no_module()
-    _a_function_type_is_no_value()
+    _a_function_type_is_a_call()
+    _the_wrapper_forwards()
     _a_design_is_complete_through_it()
     _the_pool_holds_a_generic()
     _the_reflection_reads_it()
@@ -110,6 +121,24 @@ def run(scratch: Path):
 
 def _environ():
     return Host().environ(viba_path=str(CASES))
+
+
+class _WrapperHost(Host):
+    """The host side of `demo/wrapper/`: the wrapper runs the function it got.
+
+    The slot is a function type, so what the host is handed is the call it
+    stands for, not a value: calling it with the environment and the arguments
+    it was given is how the wrapper forwards (`f << $env args.env << f << 1 << 2`).
+    """
+
+    def get_func(self, module_path, func_name):
+        if func_name == "wrapper":
+            return lambda env, f, *rest: f(env, *rest)
+        return super().get_func(module_path, func_name)
+
+
+def _wrapper_environ():
+    return _WrapperHost().environ(viba_path=str(CASES))
 
 
 def _the_runtime_answers():
@@ -221,7 +250,7 @@ JUDGMENT_CASES = [
     ("import demo.element_type_of as g\nLocal = int\nX = g[list[Local]]\n",
      "X", "int", True,
      "the extracted name is read in the module that wrote the argument"),
-    ("import demo.wrapper as g\nX = g[list[int]]\n", "X", "$item int", True,
+    ("import demo.wrapped_item as g\nX = g[list[int]]\n", "X", "$item int", True,
      "the chosen file's own definition is read in that file"),
     ("import demo.ret_type_of as g\nX = g[float <- ()]\n", "X", "float", True,
      "a one-argument chain whose argument is a unit"),
@@ -317,6 +346,21 @@ def _the_pattern_matcher():
     check(_match(patterns[0], module, "int <- int <- int").ok_value is None,
           "a longer chain does not fit a one-argument pattern")
 
+    module, patterns = _pattern_case(
+        "specialize A <- $env Env <- B\n"
+        "add = int <- $env Env <- $a int <- $b int\n"
+        "add2 = add << $a 2\n")
+    got = _match(patterns[0], module, "add2")
+    check(isinstance(got.ok_value, dict)
+          and viba_ast.unparse_type(got.ok_value["A"].ast_node) == "int"
+          and viba_ast.unparse_type(got.ok_value["B"].ast_node) == "$b int",
+          f"an argument that writes a call is read as the type it stands "
+          f"for: {got!r}")
+    got = _match(patterns[0], module, "add << $b 1 << $b 2")
+    check(isinstance(got, VibaProgramErr) and "no such argument" in got.err_msg,
+          f"a call that cannot be given is a mistake in the argument, not a "
+          f"mismatch: {got!r}")
+
     module, patterns = _pattern_case("specialize A\nspecialize A\n")
     first = _match(patterns[0], module, "int")
     check(isinstance(first.ok_value, dict)
@@ -387,10 +431,48 @@ def _a_generic_is_no_module():
              "is a generic", "a generic is not a program either")
 
 
-def _a_function_type_is_no_value():
-    """选中的 `__def__` 是函数类型时，值的位置上它照旧不是值。"""
-    labelled(interpret(_case("call_it_answer"), _environ()), "cannot compute Exponent",
-             "a chosen __def__ that is a function type is read as a type, not a value")
+def _a_function_type_is_a_call():
+    """选中的 `__def__` 是函数链时，这个应用代表的就是那次调用。"""
+    result = interpret(_case("call_it_answer"), _environ())
+    written = (viba_ast.unparse_type(result.ok_value.data)
+               if isinstance(result, Ok) else repr(result))
+    check(isinstance(result, Ok) and written == "call_it[list[int]]",
+          f"the application is the call it stands for: {written!r}")
+
+
+def _the_wrapper_forwards():
+    """拿一个函数换一个调用：环境、函数自己、它的实参，按写下来的顺序给。"""
+    check(value_of(interpret(_case("wrapper_inc"), _wrapper_environ())) == 2,
+          "wrapper[inc] << args.env << inc << 1 answers inc(1)")
+    check(value_of(interpret(_case("wrapper_add"), _wrapper_environ())) == 3,
+          "wrapper[add] << args.env << add << 1 << 2 answers add(1, 2)")
+    check(value_of(interpret(_case("wrapper_kept"), _wrapper_environ())) == 2,
+          "kept as a value, the application is still the call it stands for")
+    check(value_of(interpret(_case("wrapper_partial"), _wrapper_environ())) == 3,
+          "an argument that writes a call is read as the type it stands for: "
+          "add << $a 2 is the one-argument function left, so the one-argument "
+          "wrapper answers it")
+
+    got = _judge("import demo.wrapper as g\nadd = int <- $env Env <- $a int <- $b int\n"
+                 "X = g[add]\n", "X",
+                 "int <- $env Env <- (int <- $env Env <- int <- int) <- int <- int")
+    check(got is True,
+          f"the wrapper's type is the wrapped function's own type, plus itself: {got!r}")
+    got = _judge("import demo.wrapper as g\nadd = int <- $env Env <- $a int <- $b int\n"
+                 "X = g[add]\n", "X",
+                 "int <- $env Env <- (int <- $env Env <- int) <- int")
+    check(got is False,
+          f"two arguments given leave a two-argument wrapped function: {got!r}")
+    got = _judge("import demo.wrapper as g\nadd = int <- $env Env <- $a int <- $b int\n"
+                 "add2 = add << $a 2\nX = g[add2]\n", "X",
+                 "int <- $env Env <- (int <- $env Env <- int) <- int")
+    check(got is True,
+          f"an argument that writes a call is read apart as the type it stands "
+          f"for: {got!r}")
+    got = _judge("import demo.wrapper as g\ninc = int <- $env Env <- $x int\nX = g[inc]\n",
+                 "X", "int <- $env Env <- (int <- $env Env <- int <- int) <- int <- int")
+    check(got is False,
+          f"a one-argument wrapped function is not the two-argument wrapper: {got!r}")
 
 
 # ----------------------------------------------------------------------
@@ -419,6 +501,10 @@ def _a_design_is_complete_through_it():
     check(not is_complete('import demo.element_type_of as g\nX = g[list[{todo}]]\n',
                           library),
           "an extracted piece with no leaf is incomplete")
+    check(is_complete("import demo.wrapper as g\n"
+                      "add = int <- $env Env <- $a int <- $b int\n"
+                      "X = g[add << $a 2]\n", library),
+          "an argument that writes a call is decided the same way here")
 
 
 def _the_pool_holds_a_generic():
@@ -445,13 +531,13 @@ def _the_pool_holds_a_generic():
 def _the_reflection_reads_it():
     """一份设计里写着泛型应用时，读实例也按决断往下走。"""
     pool = empty_pool()
-    wanted = ("demo.element_type_of", "demo.wrapper", "design")
+    wanted = ("demo.element_type_of", "demo.wrapped_item", "design")
     sources = [(path, source, module) for path, source, module in _library()
                if module.startswith("demo.element_type_of")
-               or module.startswith("demo.wrapper")]
+               or module.startswith("demo.wrapped_item")]
     sources.append(("design.viba",
                     "import demo.element_type_of as g\n"
-                    "import demo.wrapper as w\n"
+                    "import demo.wrapped_item as w\n"
                     "Picked = $value g[list[int]]\n"
                     "Boxed = $value w[list[str]]\n", "design"))
     for path, source, module in sources:

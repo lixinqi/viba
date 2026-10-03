@@ -108,8 +108,12 @@ Other = is_base_type[list[int]]         # false, from 200.viba
 that argument (the argument must fit it); a name the file never defines is a parameter,
 and what stands in the argument there is extracted — `specialize list[A]` with
 `__def__ = A` answers the element type. The chosen file's `__def__` is the answer, read
-in that file. A decision that finds no file is a program error, not `never`. The whole
-rule, the pattern forms and the errors: [`viba-specialize.md`](viba-specialize.md).
+in that file. When that answer is a function chain, the application **is** the call the
+chain writes — `wrapper[inc] << args.env << inc << 1` runs the function it was handed.
+An argument may write a call of its own (`g[add << $a 2]`): it is read as the type that
+call stands for, the chain left once the argument is given. A decision that finds no
+file is a program error, not `never`. The whole rule, the pattern forms and the errors:
+[`viba-specialize.md`](viba-specialize.md).
 
 ### Strings
 

@@ -1,5 +1,3 @@
-specialize list[A]
+specialize A <- $env Env <- B
 
-Wrapped = $item A
-
-__def__ = Wrapped
+__def__ = A <- $env Env <- (A <- $env Env <- B) <- B
