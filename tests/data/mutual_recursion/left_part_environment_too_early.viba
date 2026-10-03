@@ -1,5 +1,11 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_part_environment_too_early as right
 
-x = right.f2 << $env environ
+x = right.f2 << $env args.env
 __ret__ = x

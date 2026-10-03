@@ -1,7 +1,7 @@
 """幂等：结果要能回放，不纯的宿主函数靠 EnvironmentStorage 的快照做到这一点。
 
 一次运行的结果可回放，靠的是同一条 storage 路径上留着上一次的值。快照是序列化的 viba 数据，
-放在 `store_root_dir` 底下；`tmp_sub_env` 的路径每次都不同，所以挂在它底下的调用回放不到——
+放在 `store_root_dir` 底下；`tmp_env` 的路径每次都不同，所以挂在它底下的调用回放不到——
 这不是缺陷，而是"这个函数需要显名保存"的信号。
 
     python3 tests/test_interpreter_idempotence.py
@@ -137,9 +137,9 @@ def _store_text(tmp: Path):
 
 
 def _tmp_paths_never_replay(tmp: Path):
-    """tmp_sub_env 的随机路径不许用来存要回放的东西：它是给纯函数和无返回值用的。
+    """tmp_env 的随机路径不许用来存要回放的东西：它是给纯函数和无返回值用的。
 
-    一个需要幂等的函数如果挂在 tmp_sub_env 底下，回放永远命中不了——每次的路径
+    一个需要幂等的函数如果挂在 tmp_env 底下，回放永远命中不了——每次的路径
     都是新的，快照会一次次写进不同的 tmp_ 目录。幂等检查因此失败，这正是给用户
     的信号：换成显名子环境。"""
     store = tmp / "tmp-store"

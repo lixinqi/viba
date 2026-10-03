@@ -4,16 +4,22 @@
 # `never_or_echo` takes the second — the one carrying the poison. The run must
 # answer the first branch's value (42); counting it would be a program error.
 
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import poison_missing_module as poison_missing_module
 
 ge =
-    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+    bool <- $env Env <- $x int <- $y int <- { x >= y }
 healthy = 42
-condition = ge << $env environ << $x 1 << $y 0
+condition = ge << $env args.env << $x 1 << $y 0
 __ret__ =
     Oneof
-  | (branch.echo_or_never << $env environ << $cond condition << $get_v (builtin.echo << $x healthy))
+  | (branch.echo_or_never << $env args.env << $cond condition << $get_v (builtin.echo << $x healthy))
   | (branch.never_or_echo
-      << $env environ << $cond condition
-      << $get_v (poison_missing_module << (environ.tmp_sub_env << environ)))
+      << $env args.env << $cond condition
+      << $get_v (poison_missing_module << (args.env.tmp_env << args.env)))

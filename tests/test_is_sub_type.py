@@ -640,17 +640,18 @@ def run_cross_module_inline_cases():
 
 
 def run_module_as_function_cases():
-    """模块当函数（类型层）：import 绑定的名字读成
-    `__ret__ <- $env Environment <- __args__`（没有 `__args__` 就是空的 `()`），
+    """模块当函数（类型层）：import 绑定的名字读成 `__def__` 去掉环境那一格，
     `module.Name` 照旧是那个模块里的定义，没有 `__ret__` 的模块不是程序。"""
+    names = ("program", "design_only", "caller", "env_answer",
+             "env_answer_function")
     sources = {name: (FIXTURES / "module_as_function" / f"{name}.viba").read_text()
-               for name in ("program", "design_only", "caller")}
+               for name in names}
     built = {}
 
     def environment(name):
         return Ok(built[name]) if name in built else VibaProgramErr(f"module {name!r} not found")
 
-    for name in ("program", "design_only", "caller"):
+    for name in names:
         tree = viba_ast.parse(sources[name])
         imports = {stmt.alias or stmt.module: stmt.module
                    for stmt in tree.body if isinstance(stmt, viba_ast.Import)}
@@ -665,10 +666,10 @@ def run_module_as_function_cases():
                  "a bare import name reads as the module's __ret__")
     check_result(judge("int", "Program"), True,
                  "and the two are the same type the other way round")
-    check_result(judge("program << $env environ << ()", "int"), True,
+    check_result(judge("program << $env args.env", "int"), True,
                  "written inline too")
-    check_result(judge("program << $env environ", "int"), True,
-                 "a module with no __args__ is run by its environment alone")
+    check_result(judge("program << $env args.env", "int"), True,
+                 "a module that declares no parameter is run by its environment alone")
     check_result(judge("Half", "int <- $b int"), True,
                  "a module's function may be given part of its arguments")
     check_result(judge("Dotted", "$x int"), True,
@@ -678,11 +679,22 @@ def run_module_as_function_cases():
     check_result(judge("design_only.Only", "$x int"), True,
                  "and its own definitions still resolve")
 
+    # 环境不是答案：模块当函数读时、模块里的函数当函数读时，都当场拒绝
+    check_result(judge("env_answer << $env args.env", "int"), "error",
+                 "a module answering the environment is refused as a function")
+    check_result(judge("EnvAnswer", "Env"), "error",
+                 "and refused as a value too")
+    check_result(judge("env_answer_function.env_of << $env args.env", "Env"), "error",
+                 "a definition answering the environment is refused where it is given to")
+    # 内建函数不在此列：`Environment` 的成员就是内建的那几个
+    check_result(judge("$tmp_env << args.env", "Env"), True,
+                 "a builtin function answering the environment still holds")
+
 
 def run_module_args_cases():
-    """`__args__`（类型层）：模块的签名是 `__ret__ <- $env Environment <- 它的实参`。
+    """`__def__`（类型层）：模块的签名就是 `__def__` 去掉环境那一格。
 
-    每个成员按 tag 给、或者按位置给（值层就是这么给的），`__args__` 不是积就是不合法输入。
+    每个参数按 tag 给、或者按位置给（值层就是这么给的），`__def__` 不是函数链就是不合法输入。
     给了一半在**类型**上是一种类型（剩下的那个函数）；值层里给一半是程序错
     （tests/test_interpreter_module_args.py）。
     """
@@ -708,20 +720,35 @@ def run_module_args_cases():
                  "every argument given: the module's __ret__")
     check_result(judge("ByTag", "int"), True,
                  "given by tag, in any order")
-    check_result(judge("program << $env environ << 3 << 4", "int"), True,
+    check_result(judge("program << $env args.env << 3 << 4", "int"), True,
                  "given positionally, written inline")
     check_result(judge("Half", "int <- $b int"), True,
                  "given up to the last member: what is left is a function")
     check_result(judge("Half", "int"), False,
                  "and it is not yet the result")
     check_result(judge("NoArgs", "int"), True,
-                 "an empty __args__ is still given, as ()")
-    check_result(judge("empty << $env environ", "int"), True,
-                 "and the empty () need not be written either")
-    check_result(judge("program << $env environ << 3 << 4 << $c 5", "never"), "error",
+                 "a module that declares no parameter is run by its environment alone")
+    check_result(judge("empty << $env args.env", "int"), True,
+                 "written inline too, and nothing else is given")
+    check_result(judge("program << $env args.env << 3 << 4 << $c 5", "never"), "error",
                  "an argument the module does not have -> VibaProgramErr")
     check_result(judge("Bad", "never"), "error",
-                 "a __args__ that is no product -> VibaProgramErr")
+                 "a __def__ that is no function chain -> VibaProgramErr")
+
+    # `__get_args__ << __def__` 读成一份积类型：成员就是 `__def__` 的那些参数
+    program = built["program"]
+
+    def judge_in_program(sub, sup):
+        return is_sub_type(entry_type(sub, program), entry_type(sup, program))
+
+    check_result(judge_in_program("args", "$env Env * $a int * $b int"), True,
+                 "__get_args__ answers the __def__ parameters as a product type")
+    check_result(judge_in_program("$env Env * $a int * $b int", "args"), True,
+                 "and that product is the same type the other way round")
+    check_result(judge_in_program("args.a", "int"), True,
+                 "a member of it is the type that parameter declares")
+    check_result(judge_in_program("args.env", "Env"), True,
+                 "the environment is one of them")
 
 
 def run_function_chain_cases():
@@ -1144,32 +1171,34 @@ def run_member_head_cases():
     第一个参数是取成员的那个值，所以它的类型决定成员是谁；成员不在、或者第一个参数根本不是那个
     值，都在这里拒绝，不留到运行时。
     """
-    child = 'X = $sub_env << environ << "c"\n'
+    # 那份环境是一个值（这里用 `E = Environment` 起个名字）：判定层按类型认它
+    env = 'E = Environment\n'
+    child = env + 'X = $sub_env << E << "c"\n'
     check_result(is_sub_type(load_entry(child), load_entry("X = Environment\n")),
                  True, "taking $sub_env off the environment names a child")
     check_result(is_sub_type(load_entry(child), load_entry("X = int\n")),
                  False, "and not an int")
-    check_result(is_sub_type(load_entry('X = $tmp_sub_env << environ\n'),
+    check_result(is_sub_type(load_entry(env + 'X = $tmp_env << E\n'),
                              load_entry("X = Environment\n")),
                  True, "a member that takes no argument is read as its result")
-    check_result(is_sub_type(load_entry('X = $sub_env << $env environ << $sub_env_name "c"\n'),
+    check_result(is_sub_type(load_entry(env + 'X = $sub_env << $env E << $sub_env_name "c"\n'),
                              load_entry("X = Environment\n")),
                  True, "the first argument may be written by tag")
-    check_result(is_sub_type(load_entry('X = $sub_env << environ\n'),
+    check_result(is_sub_type(load_entry(env + 'X = $sub_env << E\n'),
                              load_entry("X = Environment <- $sub_env_name str\n")),
                  True, "giving no name leaves the member itself")
 
     # 非法：成员不在，第一个参数不是有那个成员的值，或者给成员的实参装不下
-    for bad in ('X = $nope << environ',
+    for bad in ('X = $nope << E',
                 'X = $sub_env << $sub_env_name "kid"',
                 'X = $sub_env << 7',
-                'X = environ.tmp_sub_env << nil'):
-        check_result(is_sub_type(load_entry(bad + "\n"),
+                'X = E.tmp_env << nil'):
+        check_result(is_sub_type(load_entry(env + bad + "\n"),
                                  load_entry("X = Environment\n")),
                      "error", f"{bad} is a design mistake")
 
     # 只给名字、环境没给：装不进 `$env Environment`，当场拒绝
-    check_result(is_sub_type(load_entry('X = environ.sub_env << "child"\n'),
+    check_result(is_sub_type(load_entry(env + 'X = E.sub_env << "child"\n'),
                              load_entry("X = Environment\n")),
                  "error", "the spelling without the environment does not hold")
 

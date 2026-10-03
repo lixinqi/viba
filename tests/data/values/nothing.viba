@@ -1,5 +1,11 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 nothing =
 	int
-	<- $env Environment
+	<- $env Env
 	<- { inline }
-__ret__ = nothing << $env environ
+__ret__ = nothing << $env args.env

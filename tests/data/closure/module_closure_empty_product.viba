@@ -1,4 +1,10 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import zero_lib
 
-sg = zero_lib << ()
-__ret__ = sg << (environ.tmp_sub_env << environ)
+sg = zero_lib
+__ret__ = sg << (args.env.tmp_env << args.env)

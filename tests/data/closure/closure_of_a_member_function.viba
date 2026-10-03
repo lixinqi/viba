@@ -1,4 +1,10 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import tools
 
 h = tools.inc << $x 41
-__ret__ = h << (environ.tmp_sub_env << environ)
+__ret__ = h << (args.env.tmp_env << args.env)

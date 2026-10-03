@@ -1,2 +1,8 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import nope as n
-__ret__ = n << environ
+__ret__ = n << args.env

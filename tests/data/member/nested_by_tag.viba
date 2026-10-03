@@ -1,2 +1,8 @@
 # The first argument may itself be a call: a child of a child.
-__ret__ = $sub_env << ($sub_env << environ << "a") << "b"
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+__ret__ = $sub_env << ($sub_env << args.env << "a") << "b"

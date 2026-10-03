@@ -1,4 +1,10 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import answers as answers
 
 __ret__ =
-answers << (environ.tmp_sub_env << environ)
+answers << (args.env.tmp_env << args.env)

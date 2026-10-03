@@ -1,5 +1,11 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_part_two_arguments_completed as right
 
-x = (right.f2 << $a 1 << $b 2) << $env environ
+x = (right.f2 << $a 1 << $b 2) << $env args.env
 __ret__ = x

@@ -2,8 +2,14 @@
 # next to it, so `interpret` has to be told where to look.
 #
 # Verdicts (tests/test_interpreter_imports.py):
-#   interpret(main.viba, environ, viba_path=<elsewhere>)  => Ok(7)
+#   interpret(main.viba, args.env, viba_path=<elsewhere>)  => Ok(7)
+
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
 
 import pkg.inner
 
-__ret__ = pkg.inner << (environ.sub_env << environ << "inner") << ()
+__ret__ = pkg.inner << (args.env.sub_env << args.env << "inner")

@@ -1,11 +1,16 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
 
 add =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $a int
 	<- $b int
 	<- { add two integer }
 import late_lib as lib
-__ret__ = add << $env environ
-  << $a (lib << (environ.sub_env << environ << "first") << ())
-  << $b (lib << (environ.sub_env << environ << "second") << ())
+__ret__ = add << $env args.env
+  << $a (lib << (args.env.sub_env << args.env << "first"))
+  << $b (lib << (args.env.sub_env << args.env << "second"))

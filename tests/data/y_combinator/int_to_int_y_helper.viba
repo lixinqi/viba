@@ -2,19 +2,20 @@
 #
 # IntToIntYHelper 是这个模块当函数读时的类型。环境不写在这里：它是调用的规矩，
 # 不是设计的一个参数，判定层也不把它算进类型。
+__def__ =
+    int
+  <- $env Env
+  <- $f ((int <- (int <- int)) <- int)
+  <- $y_helper IntToIntYHelper
+  <- $n int
+
+args = __get_args__ << __def__
+
 IntToIntYHelper =
     int
   <- $f (int <- (int <- int) <- int)
   <- $y_helper IntToIntYHelper
   <- $n int
-
-__args__ =
-  Object
-  * $f (int <- (int <- int) <- int)
-  * $y_helper IntToIntYHelper
-  * $n int
-
-args = __args__
 
 # y(f, y)：只给两个实参、不给环境，停在半成品上 —— 这就是 eta 展开那一步
 recursive =
@@ -25,6 +26,6 @@ recursive =
 # 再按 tag 给 `$n` —— 参数的地址由收的那一方定，不由声明的那一方猜。
 __ret__ =
     args.f
-  << ($sub_env << environ << "step")
+  << ($sub_env << args.env << "step")
   << recursive
   << $n args.n

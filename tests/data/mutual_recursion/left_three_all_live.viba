@@ -1,15 +1,21 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_three_all_live as right
 
 x =
     Oneof
     | (branch.echo_or_never
-        << $env environ << $cond (true)
+        << $env args.env << $cond (true)
         << $get_v (builtin.echo << $x 1))
     | (branch.echo_or_never
-        << $env environ << $cond (true)
+        << $env args.env << $cond (true)
         << $get_v (builtin.echo << $x 2))
     | (branch.echo_or_never
-        << $env environ << $cond (true)
+        << $env args.env << $cond (true)
         << $get_v (builtin.echo << $x 3))
 __ret__ = x

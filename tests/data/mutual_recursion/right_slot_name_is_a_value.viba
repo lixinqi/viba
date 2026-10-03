@@ -3,7 +3,7 @@ import left_slot_name_is_a_value as left
 
 f =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- { the host implements this step }
 y = left.x

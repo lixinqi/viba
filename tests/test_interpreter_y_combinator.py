@@ -10,12 +10,12 @@
     main_at_1.viba         Y F 1，答 1（base case 在顶层就走通）
     main_at_5.viba         Y F 5，答 5
 
-三份 `main_*` 是**真正要跑通的**：文件就是函数（`__args__` 进、`__ret__` 出），递归靠
+三份 `main_*` 是**真正要跑通的**：文件就是函数（`__def__` 进、`__ret__` 出），递归靠
 "欠着实参的调用就是值"（Y 的 eta 展开）和"一次调用的身份是它的 storage 路径"。
 
-另外两条是记录，不是目标：一份**声明了 `__args__` 的模块不能当主文件跑**（没有调用方，
-`args` 读到的是声明的类型而不是实参），所以 `int_to_int_y.viba` / `fib_module.viba` 单独跑
-只会报那句话；`parts.viba` 只有设计、没有 `__ret__`，本来就不是程序。
+另外几条是记录，不是目标：一份**要别的文件把实参给它的模块不能当主文件跑**（宿主只给环境，
+没人写下 `$f`、`$n`），所以 `int_to_int_y.viba` / `fib_module.viba` 单独跑只会报那句话；
+`parts.viba` 只有设计、没有 `__ret__`，本来就不是程序。
 
     python3 tests/test_interpreter_y_combinator.py
 """
@@ -72,9 +72,9 @@ ANSWERS = [
 
 # (文件, 停在哪种结果, 话里的片段)：记录，不是目标 —— 见上面那段说明
 RECORDED = [
-    ("int_to_int_y", "error", "takes no $env Environment argument"),
-    ("int_to_int_y_helper", "error", "takes no $env Environment argument"),
-    ("fib_module", "failed", "is not a leaf"),
+    ("int_to_int_y", "error", "has no member tagged '$f'"),
+    ("int_to_int_y_helper", "error", "has no member tagged '$f'"),
+    ("fib_module", "error", "has no member tagged '$n'"),
     ("parts", "error", "has no __ret__"),
 ]
 

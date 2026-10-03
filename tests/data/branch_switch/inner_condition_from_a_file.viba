@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import gate as gate
 import inner as inner
@@ -6,11 +12,11 @@ __ret__ =
     Oneof
     | (
         inner.inner_if
-        << $env environ << $cond ((gate.gate << $env environ << $mode true))
+        << $env args.env << $cond ((gate.gate << $env args.env << $mode true))
         << $get_v (inner.always_nine)
       )
     | (
         inner.inner_if_not
-        << $env environ << $cond ((gate.gate << $env environ << $mode true))
+        << $env args.env << $cond ((gate.gate << $env args.env << $mode true))
         << $get_v (builtin.echo << $x 0)
       )

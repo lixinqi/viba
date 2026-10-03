@@ -1,12 +1,17 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
 
 inc =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $x int
 	<- { add one }
 show =
 	int
-	<- $env Environment
-	<- $f (int <- $env Environment <- $x int)
+	<- $env Env
+	<- $f (int <- $env Env <- $x int)
 	<- { hand the argument back }
-__ret__ = show << $env environ << $f inc
+__ret__ = show << $env args.env << $f inc

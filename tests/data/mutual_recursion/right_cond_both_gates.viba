@@ -3,9 +3,9 @@ import left_cond_both_gates as left
 
 g =
     bool
-  <- $env Environment
+  <- $env Env
   <- { the host answers }
 g_false =
     bool
-  <- $env Environment
+  <- $env Env
   <- { the host answers false }

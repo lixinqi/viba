@@ -1,5 +1,11 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 answer_a_tuple =
 	int
-	<- $env Environment
+	<- $env Env
 	<- { inline }
-__ret__ = answer_a_tuple << $env environ
+__ret__ = answer_a_tuple << $env args.env

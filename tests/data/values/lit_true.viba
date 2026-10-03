@@ -1,1 +1,3 @@
+__def__ = bool <- $env Env
+
 __ret__ = true

@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_cond_inside_the_kept_side as right
 
@@ -5,10 +11,10 @@ x =
     Oneof
     | (
         branch.echo_or_never
-        << $env environ << $cond (true)
-        << $get_v (right.g << $env environ))
+        << $env args.env << $cond (true)
+        << $get_v (right.g << $env args.env))
     | (
         branch.never_or_echo
-        << $env environ << $cond (true)
+        << $env args.env << $cond (true)
         << $get_v (builtin.echo << $x 0))
 __ret__ = x

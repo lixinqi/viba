@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import poison as poison
 import counters as counters
@@ -6,11 +12,11 @@ __ret__ =
     Oneof
     | (
         branch.echo_or_never
-        << $env environ << $cond (true)
+        << $env args.env << $cond (true)
         << $get_v (counters.tick)
       )
     | (
         branch.never_or_echo
-        << $env environ << $cond (true)
+        << $env args.env << $cond (true)
         << $get_v (poison.ghost)
       )

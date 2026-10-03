@@ -1,3 +1,5 @@
+__def__ = int <- $env Env
+
 import plain as plain
 plain = 5
 __ret__ = plain

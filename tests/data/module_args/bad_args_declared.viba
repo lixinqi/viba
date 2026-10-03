@@ -1,2 +1,8 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import bad_args
-__ret__ = bad_args << (environ.tmp_sub_env << environ) << ()
+__ret__ = bad_args << (args.env.tmp_env << args.env)

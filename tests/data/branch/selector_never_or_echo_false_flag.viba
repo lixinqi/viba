@@ -1,6 +1,12 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 
 __ret__ =
   branch.never_or_echo
-  << $env environ << $cond false
+  << $env args.env << $cond false
   << $get_v (builtin.echo << $x false)

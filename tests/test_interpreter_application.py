@@ -78,7 +78,7 @@ def _order_and_slots(tmp: Path):
           f"tags may be given in any order: {result!r}")
 
     labelled(interpret(str(CASES / "no_slots.viba"), environ),
-             "takes no $env Environment argument",
+             "takes no $env Env parameter",
              "a function with no environment slot can never run -> VibaProgramErr")
 
     # 参数出错：那个函数根本不会被调用

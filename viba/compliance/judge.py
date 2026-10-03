@@ -1,6 +1,6 @@
 """Running a rule: compliance is what the program answers.
 
-A rule is a viba program — `environ` in, a verdict out. Running it *is* the
+A rule is a viba program — the environment in, a verdict out. Running it *is* the
 judgment, so there is no judgment layer here: `is_compliant` runs the file and
 reads the `bool` it answered.
 

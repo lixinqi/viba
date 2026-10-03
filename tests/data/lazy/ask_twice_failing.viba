@@ -1,10 +1,16 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 ask_twice =
     int
-  <- $env Environment
-  <- $get_x (int <- $env Environment)
+  <- $env Env
+  <- $get_x (int <- $env Env)
   <- { add x to itself, asking for x twice }
 
 poison_raises_when_asked =
-    int <- $env Environment <- { a step whose implementation raises }
+    int <- $env Env <- { a step whose implementation raises }
 
-__ret__ = ask_twice << $env environ << $get_x (poison_raises_when_asked << $env environ)
+__ret__ = ask_twice << $env args.env << $get_x (poison_raises_when_asked << $env args.env)

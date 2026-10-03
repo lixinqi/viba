@@ -1,5 +1,11 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_mod_call_environment_without_arguments as right
 
-x = right << (environ.tmp_sub_env << environ)
+x = right << (args.env.tmp_env << args.env)
 __ret__ = x

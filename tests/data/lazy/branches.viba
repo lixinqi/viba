@@ -1,17 +1,23 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 
 tick =
-    int <- $env Environment <- { the branch that is taken first }
+    int <- $env Env <- { the branch that is taken first }
 tock =
-    int <- $env Environment <- { the branch that is taken second }
+    int <- $env Env <- { the branch that is taken second }
 ge =
-    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+    bool <- $env Env <- $x int <- $y int <- { x >= y }
 threshold_of =
-    int <- $env Environment <- { the threshold the host hands over }
+    int <- $env Env <- { the threshold the host hands over }
 
 # 门槛由宿主给：同一个文件跑不同的门槛，走的是不同的那一支。
-condition = ge << $env environ << $x 1 << $y (threshold_of << $env environ)
+condition = ge << $env args.env << $x 1 << $y (threshold_of << $env args.env)
 __ret__ =
   Oneof
-  | (branch.echo_or_never << $env environ << $cond condition << $get_v tick)
-  | (branch.never_or_echo << $env environ << $cond condition << $get_v tock)
+  | (branch.echo_or_never << $env args.env << $cond condition << $get_v tick)
+  | (branch.never_or_echo << $env args.env << $cond condition << $get_v tock)

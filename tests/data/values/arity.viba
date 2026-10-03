@@ -1,7 +1,13 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 wrong_arity =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $a int
 	<- $b int
 	<- { takes two }
-__ret__ = wrong_arity << $env environ << $a 1 << $b 2
+__ret__ = wrong_arity << $env args.env << $a 1 << $b 2

@@ -1,19 +1,25 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 
 # A switch written as an independent file, called as one step from another.
 inner_if =
     int
-  <- $env Environment
+  <- $env Env
   <- $cond bool
-  <- $get_v (int <- $env Environment)
-  <- (branch.echo_or_never << $env environ << $cond args.cond << $get_v args.get_v)
+  <- $get_v (int <- $env Env)
+  <- (branch.echo_or_never << $env env << $cond cond << $get_v get_v)
 
 inner_if_not =
     int
-  <- $env Environment
+  <- $env Env
   <- $cond bool
-  <- $get_v (int <- $env Environment)
-  <- (branch.never_or_echo << $env environ << $cond args.cond << $get_v args.get_v)
+  <- $get_v (int <- $env Env)
+  <- (branch.never_or_echo << $env env << $cond cond << $get_v get_v)
 
 always_nine =
-    int <- $env Environment <- { nine }
+    int <- $env Env <- { nine }

@@ -1,5 +1,11 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_edge_function_body_is_a_hint as right
 
-x = right.f << $env environ << $a 1
+x = right.f << $env args.env << $a 1
 __ret__ = x

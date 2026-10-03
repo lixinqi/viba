@@ -1,7 +1,13 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import workshop as workshop
 
 __ret__ =
     Oneof
-  | (workshop.only_if << $env environ << $cond (false) << $get_v (builtin.echo << $x 7))
-  | (workshop.only_if_not << $env environ << $cond (false) << $get_v (builtin.echo << $x 0))
+  | (workshop.only_if << $env args.env << $cond (false) << $get_v (builtin.echo << $x 7))
+  | (workshop.only_if_not << $env args.env << $cond (false) << $get_v (builtin.echo << $x 0))

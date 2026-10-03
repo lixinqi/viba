@@ -2,27 +2,28 @@
 # a custom module's own definitions and environment win.
 #
 # The environment a running module is handed (viba-interpreter.md). Read as
-# a type, `environ` is an Environment — that is what a module's `$env` slot
-# asks for; read as computation, it is the real environment. `Environment` is
+# a type, `Env` is an Environment — that is what a module's `$env` parameter
+# asks for; read as computation it is the real environment, and a module reads
+# it as `args.env` (with `args = __get_args__ << __def__`). `Environment` is
 # a plain function of the environment and the sub-environment's name, which is
 # how a module call hands a module its own — `$viba_path` is where its imports
-# are looked up, and a child keeps the parent's — and `$tmp_sub_env` is the same
+# are looked up, and a child keeps the parent's — and `$tmp_env` is the same
 # thing under a name nobody chose, fresh every call. Both take the environment
 # as their first argument, so nothing is bound to the environment they came
-# from: `environ.sub_env << environ << "child"` is the same call as
-# `$sub_env << environ << "child"` (viba-interpreter.md).
+# from: `args.env.sub_env << args.env << "child"` is the same call as
+# `$sub_env << args.env << "child"` (viba-interpreter.md).
 Environment =
     Object
   * $viba_path str
-  * $sub_env (Environment <- $env Environment <- $sub_env_name str)
-  * $tmp_sub_env (Environment <- $env Environment)
+  * $sub_env (Environment <- $env Env <- $sub_env_name str)
+  * $tmp_env (Environment <- $env Env)
 
-environ = Environment
+Env = Environment
 
 # 把自己收到的东西原样交回：`echo << $x V` 是"给它一个环境就答 V"的那个函数。
 # 交出去的活由拿到它的一方决定什么时候算、在哪个环境下算（branch.py）。
 builtin.echo =
     $x Any
-  <- $env Environment
+  <- $env Env
   <- $x Any
   <- { hand the argument back }

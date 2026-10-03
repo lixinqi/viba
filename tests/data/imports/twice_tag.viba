@@ -1,8 +1,13 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
 
 add =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $a int
 	<- $b int
 	<- { add two integer }
-__ret__ = add << $env environ << $a 1 << $a 2 << $b 3
+__ret__ = add << $env args.env << $a 1 << $a 2 << $b 3

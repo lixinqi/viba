@@ -3,10 +3,10 @@ import left_cond_calls_the_other_file as left
 
 g =
     bool
-  <- $env Environment
+  <- $env Env
   <- { the host answers }
 f =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- { the host implements this step }

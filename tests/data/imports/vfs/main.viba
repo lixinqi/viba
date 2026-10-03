@@ -1,2 +1,8 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import pkg.inner
-__ret__ = pkg.inner << (environ.sub_env << environ << "inner") << ()
+__ret__ = pkg.inner << (args.env.sub_env << args.env << "inner")

@@ -1,13 +1,19 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 ask_nothing =
     int
-  <- $env Environment
-  <- $get_a (int <- $env Environment)
-  <- $get_b (int <- $env Environment)
+  <- $env Env
+  <- $get_a (int <- $env Env)
+  <- $get_b (int <- $env Env)
   <- { answer zero, asking for neither argument }
 
 tick =
-    int <- $env Environment <- { one }
+    int <- $env Env <- { one }
 tock =
-    int <- $env Environment <- { the other }
+    int <- $env Env <- { the other }
 
-__ret__ = ask_nothing << $env environ << $get_a (tick << $env environ) << $get_b (tock << $env environ)
+__ret__ = ask_nothing << $env args.env << $get_a (tick << $env args.env) << $get_b (tock << $env args.env)

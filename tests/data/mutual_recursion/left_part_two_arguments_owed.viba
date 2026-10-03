@@ -1,3 +1,5 @@
+__def__ = int <- $env Env
+
 import branch
 import right_part_two_arguments_owed as right
 

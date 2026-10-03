@@ -1,3 +1,5 @@
+__def__ = Any <- $env Env
+
 import branch
 import right_edge_through_a_product as right
 

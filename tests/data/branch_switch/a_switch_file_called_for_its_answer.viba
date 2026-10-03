@@ -1,4 +1,10 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import inner as inner
 
 __ret__ =
-inner.inner_if << $env environ << $cond true << $get_v inner.always_nine
+inner.inner_if << $env args.env << $cond true << $get_v inner.always_nine

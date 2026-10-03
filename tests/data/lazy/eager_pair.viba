@@ -1,11 +1,17 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 eager_pair =
     int
-  <- $env Environment
+  <- $env Env
   <- $x int
   <- $y int
   <- { ignore both arguments, but they are computed first }
 
 tick =
-    int <- $env Environment <- { a value with a side effect }
+    int <- $env Env <- { a value with a side effect }
 
-__ret__ = eager_pair << $env environ << $x (tick << $env environ) << $y 2
+__ret__ = eager_pair << $env args.env << $x (tick << $env args.env) << $y 2

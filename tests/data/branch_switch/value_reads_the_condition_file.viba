@@ -1,8 +1,14 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import gate as gate
 
 __ret__ =
     branch.echo_or_never
-    << $env environ
-    << $cond (gate.gate << $env environ << $mode true)
-    << $get_v (builtin.echo << $x (gate.true_gate << $env environ))
+    << $env args.env
+    << $cond (gate.gate << $env args.env << $mode true)
+    << $get_v (builtin.echo << $x (gate.true_gate << $env args.env))

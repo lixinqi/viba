@@ -1,5 +1,5 @@
 inc =
     int
-  <- $env Environment
+  <- $env Env
   <- $x int
   <- { add one }

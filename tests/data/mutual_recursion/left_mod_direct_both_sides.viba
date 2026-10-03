@@ -1,4 +1,10 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_mod_direct_both_sides as right
 
-__ret__ = right << (environ.tmp_sub_env << environ) << ()
+__ret__ = right << (args.env.tmp_env << args.env)

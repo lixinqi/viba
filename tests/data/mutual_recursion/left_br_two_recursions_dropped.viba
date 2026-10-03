@@ -1,3 +1,5 @@
+__def__ = Any <- $env Env
+
 import branch
 import right_br_two_recursions_dropped as right
 

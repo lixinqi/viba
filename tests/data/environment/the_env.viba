@@ -1,1 +1,10 @@
-__ret__ = environ
+# The environment is no answer: only a builtin function may declare one as its
+# result, so this module declares `Any` and hands back the very environment it was
+# given — the test pins that `args.env` is that object, not a copy.
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+__ret__ = args.env

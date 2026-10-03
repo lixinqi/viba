@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import pick as pick
 
@@ -6,8 +12,8 @@ left = pick.add << $a 1
 right = pick.add << $a 2
 __ret__ =
     branch.echo_or_never
-    << $env environ << $cond true
+    << $env args.env << $cond true
     << $get_v (pick.add
-        << $env environ
-        << $a (left << $b 3 << $env environ)
-        << $b (right << $b 4 << $env environ))
+        << $env args.env
+        << $a (left << $b 3 << $env args.env)
+        << $b (right << $b 4 << $env args.env))

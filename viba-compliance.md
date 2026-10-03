@@ -11,11 +11,15 @@
 的是一件事——**那一刻两人是不是至少隔了 5**。
 
 这条规则读的就是呈证（第 2 节）里的三个事实：`$victim`、`$suspect`、`$at`，然后把它问的那
-件事答成 `bool`。规则就是一个 viba 程序：`environ` 进、`bool` 出；判定不是另一套推理，就是
-把文件跑起来。
+件事答成 `bool`。规则就是一个 viba 程序：`__def__` 是 `bool <- $env Env`，判定不是另一套推理，
+就是把文件跑起来。
 
 ```viba
 # viba/compliance/demo/rule_distance.viba
+__def__ = bool <- $env Env
+
+args = __get_args__ << __def__
+
 import case_at_1230 as case_at_1230
 
 Point = $x int * $y int
@@ -42,7 +46,7 @@ distance_ge =
 
 # the address of this case: the witness is read under it, and this is where the
 # case's evidence — its Prepare — is kept
-case_env = environ.sub_env << environ << "case_at_1230"
+case_env = args.env.sub_env << args.env << "case_at_1230"
 
 # the witness: the three facts of that moment
 the_case = case_at_1230 << case_env
@@ -52,7 +56,7 @@ the_case = case_at_1230 << case_env
 # goes: this case's address. Not pure, so what it answers becomes the Prepare.
 distance =
     measure_distance
-    << $env (environ.tmp_sub_env << environ)
+    << $env (args.env.tmp_env << args.env)
     << $evidence case_env
     << $case the_case
 
@@ -61,7 +65,7 @@ threshold = 5
 
 __ret__ =
     distance_ge
-    << $env (environ.tmp_sub_env << environ)
+    << $env (args.env.tmp_env << args.env)
     << $d distance
     << $threshold threshold
 ```
@@ -73,8 +77,8 @@ __ret__ =
   实例本身。
 - **`case_env` 是这个案子的地址**：`case_at_1230` 这个名字同时是模块名、子环境名，也落在
   storage 路径上（`root/case_at_1230`）。读呈证用它，这个案子的证据也存在它下面。
-- **调用用临时环境，证据才要地址**。函数调用给 `(environ.tmp_sub_env << environ)`：一次调用没有
-  自己的地址，也不该占一个（`tmp_sub_env` 每次都是新的，见
+- **调用用临时环境，证据才要地址**。函数调用给 `(args.env.tmp_env << args.env)`：一次调用没有
+  自己的地址，也不该占一个（`tmp_env` 每次都是新的，见
   [`viba-interpreter.md`](viba-interpreter.md)）。要给
   证据落地址的是**测量**：它多收一个槽位 `$evidence Environment`，明说"这次测量属于哪个案子"。
   两者分开，规则里才没有人把任意一次调用钉到案子的地址上。
@@ -86,11 +90,13 @@ __ret__ =
 - **函数体里的 `{...}` 是说明**：实现来自宿主的 `get_func(module_path, func_name)`（见
   [`viba-interpreter.md`](viba-interpreter.md)），interpret 不带任何库函数——提示写给的正是要
   照着它把实现补出来的 agent。
-- **每个可执行函数都要 `$env Environment`**：这是 interpreter 的规矩，规则也不例外。
+- **每个要执行的函数都要 `$env Env`**：这是 interpreter 的规矩，规则也不例外。
+- **环境不是答案**：只有内建函数能把它声明成返回值，规则文件也一样写不了——要读环境就写
+  `args.env`，别把环境当结果交出去（见 [`viba-interpreter.md`](viba-interpreter.md)）。
 
 ## 2. 呈证答出实例
 
-呈证是规则要判的那份实例，它自己也是一个程序：`environ` 进、实例出。
+呈证是规则要判的那份实例，它自己也是一个程序：环境进、实例出。
 
 **事实是问来的，不是写死的。** 呈证文件说的是"这个案子里有哪几件事"，不是"这几件事是什么"：它
 定义一个函数（`at_1230`），函数的类型就是那份实例的写法，实现落在宿主侧——真实案子里读的是记录、
@@ -98,12 +104,18 @@ __ret__ =
 
 ```viba
 # viba/compliance/demo/case_at_1230.viba
+__def__ =
+    ($victim ($x int * $y int) * $suspect ($x int * $y int) * $at str)
+  <- $env Env
+
+args = __get_args__ << __def__
+
 at_1230 =
     ($victim ($x int * $y int) * $suspect ($x int * $y int) * $at str)
-  <- $env Environment
+  <- $env Env
   <- { where each of them was at 12:30, and when it was }
 
-__ret__ = at_1230 << $env environ
+__ret__ = at_1230 << $env args.env
 ```
 
 它答出来的就是那份实例——受害人 (0,0)，嫌疑人 (3,4)，时刻 12:30，横竖各差 3 与 4 于是相距 5，
@@ -218,7 +230,7 @@ Prepare（`root/case_at_1230/prepare/measure_distance.viba`）：拿它当 `prep
 那条不纯的路一次都不走，判定仍是同一个。
 
 **换一个案子**（比如 12:10 那一刻，嫌疑人在 (0,3)）：呈证写成 `case_at_1210.viba`，规则里
-`case_env` 换成 `environ.sub_env << environ << "case_at_1210"`——量出来 3，判定 `Ok(false)`。名字换了，
+`case_env` 换成 `args.env.sub_env << args.env << "case_at_1210"`——量出来 3，判定 `Ok(false)`。名字换了，
 环境与证据也跟着换到 `root/case_at_1210` 下面，两起案子不会互相踩到对方的 Prepare。
 
 ## 6. 句柄一览

@@ -1,2 +1,8 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import sums_its_args
-__ret__ = sums_its_args << (environ.tmp_sub_env << environ) << 3 << 4
+__ret__ = sums_its_args << (args.env.tmp_env << args.env) << 3 << 4

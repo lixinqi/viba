@@ -1,2 +1,8 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import broken as b
-__ret__ = b << environ
+__ret__ = b << args.env

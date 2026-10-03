@@ -1,24 +1,25 @@
 # fib_module.viba —— 一步 fib。$fib 是"下一层怎么算"，$n 是这一层的 n。
+__def__ =
+    Any
+  <- $env Env
+  <- $fib (int <- int)
+  <- $n int
+
+args = __get_args__ << __def__
+
 import branch
 import parts as parts
 
-__args__ =
-  Object
-  * $fib (int <- int)
-  * $n int
-
-args = __args__
-
-small = parts.lt << $env environ << $x args.n << $y 2
-below_one = parts.sub << $env environ << $x args.n << $y 1
-below_two = parts.sub << $env environ << $x args.n << $y 2
+small = parts.lt << $env args.env << $x args.n << $y 2
+below_one = parts.sub << $env args.env << $x args.n << $y 1
+below_two = parts.sub << $env args.env << $x args.n << $y 2
 
 # 每一层给一条自己的子环境，名字写在这个文件里 —— 这次调用的地址因此是可复现的
-low = args.fib << ($sub_env << environ << "low") << $n below_one
-high = args.fib << ($sub_env << environ << "high") << $n below_two
+low = args.fib << ($sub_env << args.env << "low") << $n below_one
+high = args.fib << ($sub_env << args.env << "high") << $n below_two
 __ret__ =
   Oneof
-  | (branch.echo_or_never << $env environ << $cond small
+  | (branch.echo_or_never << $env args.env << $cond small
       << $get_v (builtin.echo << $x args.n))
-  | (branch.never_or_echo << $env environ << $cond small
-      << $get_v (parts.add << $env environ << $x low << $y high))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (parts.add << $env args.env << $x low << $y high))

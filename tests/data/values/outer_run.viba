@@ -1,5 +1,11 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 inner_value =
 	int
-	<- $env Environment
+	<- $env Env
 	<- { run another module from inside the host }
-__ret__ = inner_value << $env environ
+__ret__ = inner_value << $env args.env

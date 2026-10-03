@@ -1,11 +1,17 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import inner_with_args as inner
 
 twice =
     int
-  <- $env Environment
+  <- $env Env
   <- $n int
   <- { the number twice over }
 
 __ret__ = twice
-  << environ
-  << (inner << (environ.sub_env << environ << "inner") << 3 << 4)
+  << args.env
+  << (inner << (args.env.sub_env << args.env << "inner") << 3 << 4)

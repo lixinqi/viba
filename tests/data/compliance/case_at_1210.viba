@@ -1,3 +1,5 @@
+__def__ = Any <- $env Env
+
 __ret__ =
     $victim ($x 0 * $y 0)
   * $suspect ($x 0 * $y 3)

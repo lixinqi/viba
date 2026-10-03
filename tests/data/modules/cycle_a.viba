@@ -1,2 +1,8 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import cycle_b as b
-__ret__ = b << (environ.sub_env << environ << "b") << ()
+__ret__ = b << (args.env.sub_env << args.env << "b")

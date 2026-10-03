@@ -1,5 +1,11 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_lazy_slot_never_called as right
 
-x = right.ignore << $env environ << $x (builtin.echo << $x right.y)
+x = right.ignore << $env args.env << $x (builtin.echo << $x right.y)
 __ret__ = x

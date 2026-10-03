@@ -1,6 +1,6 @@
 """Rule/Witness 用 interpret 重做的第一批：跑规则、Prepare 与回放。
 
-一个规则是程序（`environ` 进、`bool` 出），判定就是跑它；witness 是它判的可序列化数据。
+一个规则是程序（环境进、`bool` 出），判定就是跑它；witness 是它判的可序列化数据。
 不纯的那一步（量距离）走 `measure`：Prepare 是调用（参数定了、结果声明了）加量出来的
 值，放在 storage 里——运行之前就备份好的那份直接回放，没有的才当场量、写进本轮 store。
 

@@ -1,6 +1,12 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 f =
 	int
 	<- Environment
 	<- $x int
 	<- { inline }
-__ret__ = f << environ << $x 1
+__ret__ = f << args.env << $x 1

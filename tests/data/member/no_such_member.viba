@@ -1,3 +1,9 @@
 # The environment has no member by that tag: the design names something that is
 # not there, and the run says so.
-__ret__ = $nope << environ
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+__ret__ = $nope << args.env

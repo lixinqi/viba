@@ -1,2 +1,4 @@
+__def__ = int <- $env Env
+
 import plain_two as p
 __ret__ = p << 7

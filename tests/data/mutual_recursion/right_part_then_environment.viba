@@ -3,7 +3,7 @@ import left_part_then_environment as left
 
 f =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- { the host implements this step }
 y = 41

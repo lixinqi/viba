@@ -1,8 +1,14 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 x_of =
     int
-  <- $env Environment
+  <- $env Env
   <- $p ($x int * $y int)
   <- { the x of that point }
 
 h = x_of << $p ($x 2 * $y 5)
-__ret__ = h << (environ.tmp_sub_env << environ)
+__ret__ = h << (args.env.tmp_env << args.env)

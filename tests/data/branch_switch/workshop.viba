@@ -1,33 +1,40 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 
-# The two switches behind names this directory can call. A function's own
-# parameters are read as `args.<tag>`, so what the caller wrote goes on to the
-# switch. The body is written in parentheses: a call after `<-` needs them.
+# The two switches behind names this directory can call. A step's own parameters
+# are written in its hint by the name of their tag (`env`, `cond`, `get_v`): what
+# the caller gave goes on to the switch unchanged. The body is written in
+# parentheses: a call after `<-` needs them.
 
 only_if =
     int
-  <- $env Environment
+  <- $env Env
   <- $cond bool
-  <- $get_v (int <- $env Environment)
-  <- (branch.echo_or_never << $env environ << $cond args.cond << $get_v args.get_v)
+  <- $get_v (int <- $env Env)
+  <- (branch.echo_or_never << $env env << $cond cond << $get_v get_v)
 
 only_if_not =
     int
-  <- $env Environment
+  <- $env Env
   <- $cond bool
-  <- $get_v (int <- $env Environment)
-  <- (branch.never_or_echo << $env environ << $cond args.cond << $get_v args.get_v)
+  <- $get_v (int <- $env Env)
+  <- (branch.never_or_echo << $env env << $cond cond << $get_v get_v)
 
 # The condition is written in, so the call still owes the value and the
 # environment: `if_true << $get_v v` is that whole branch, half given.
 if_true =
     int
-  <- $env Environment
-  <- $get_v (int <- $env Environment)
-  <- (branch.echo_or_never << $env environ << $cond true << $get_v args.get_v)
+  <- $env Env
+  <- $get_v (int <- $env Env)
+  <- (branch.echo_or_never << $env env << $cond true << $get_v get_v)
 
 if_false =
     int
-  <- $env Environment
-  <- $get_v (int <- $env Environment)
-  <- (branch.echo_or_never << $env environ << $cond false << $get_v args.get_v)
+  <- $env Env
+  <- $get_v (int <- $env Env)
+  <- (branch.echo_or_never << $env env << $cond false << $get_v get_v)

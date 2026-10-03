@@ -1,8 +1,14 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import program as program
 import empty as empty
 import bad as bad
-All = program << $env environ << 3 << 4
-ByTag = program << $env environ << $b 4 << $a 3
-Half = program << $env environ << $a 3
-NoArgs = empty << $env environ << ()
-Bad = bad << $env environ << ()
+All = program << $env args.env << 3 << 4
+ByTag = program << $env args.env << $b 4 << $a 3
+Half = program << $env args.env << $a 3
+NoArgs = empty << $env args.env
+Bad = bad << $env args.env

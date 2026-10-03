@@ -1,8 +1,11 @@
+__def__ =
+    Any
+  <- $env Env
+  <- $a int
+
+args = __get_args__ << __def__
+
 import branch
 import left_mod_call_environment_without_arguments as left
 
-__args__ =
-  Object
- * $a int
-
-__ret__ = left << (environ.tmp_sub_env << environ) << ()
+__ret__ = left << (args.env.tmp_env << args.env)

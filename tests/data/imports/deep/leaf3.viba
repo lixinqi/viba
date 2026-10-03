@@ -1,2 +1,8 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import leaf4 as down
-__ret__ = down << (environ.sub_env << environ << "leaf4") << ()
+__ret__ = down << (args.env.sub_env << args.env << "leaf4")

@@ -1,3 +1,9 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import arithmetic as arithmetic
 
-__ret__ = arithmetic.add << $env environ << { a note } << $a 1 << $b 2
+__ret__ = arithmetic.add << $env args.env << { a note } << $a 1 << $b 2

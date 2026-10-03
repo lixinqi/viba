@@ -1,4 +1,4 @@
-"""`__args__`：模块的实参是一份积类型，调用时必须给全。
+"""`__def__`：模块的实参写在它的函数链里，`args` 读回这次调用收到的那份积。
 
     python3 tests/test_interpreter_module_args.py
 
@@ -38,9 +38,7 @@ def host_for(calls):
         if func_name == "leaf":
             return lambda env: 7
         if func_name == "sum_of":
-            # 整份实参积交到宿主手里，宿主按 tag 读它的两个成员
-            return lambda env, pair: (reflect_access.leaf(pair.by_tag("a")).ok_value
-                                      + reflect_access.leaf(pair.by_tag("b")).ok_value)
+            return lambda env, a, b: a.value + b.value
         if func_name == "x_of":
             return lambda env, point: reflect_access.leaf(point.by_tag("x")).ok_value
         return None
@@ -64,7 +62,7 @@ CASES_TO_RUN = [
     ("too_many", "error", "takes no more arguments", None),
     ("unknown_tag", "error", "takes no $c argument", None),
     ("tag_twice", "error", "was given $a twice", None),
-    ("bad_args_declared", "error", "__args__ is not a product", None),
+    ("bad_args_declared", "error", "__def__ is not a function type", None),
     ("asked_without_the_environment", "ok", None, None),
     ("closure_then_execute", "value", 25, None),
     ("closure_runs_twice", "value", 50, None),
@@ -74,18 +72,19 @@ CASES_TO_RUN = [
     ("member_missing", "error", "no member tagged", None),
     ("nested_product_argument", "value", 2, None),
     ("no_args_called", "value", 7, None),
-    ("no_args_without_the_slot", "value", 7, None),
-    ("empty_args_called", "value", 7, None),
-    ("empty_args_without_the_slot", "value", 7, None),
+    ("empty_args_called", "error", "has no __def__", None),
     ("module_calls_module_with_args", "value", 14, None),
     ("args_inside_a_binding", "value", 17, None),
+    ("no_env_in_def_called", "error", "has no $env Env parameter", None),
+    ("two_envs_called", "error", "exactly one", None),
+    ("env_not_env_called", "error", "must be Env", None),
     ("wrong_type_positionally", "error", 'does not fit $a int', None),
     ("wrong_type_by_tag", "error", 'does not fit $b int', None),
 ]
 
 
 def run(tmp: Path):
-    check(len(CASES_TO_RUN) == 23, f"twenty-three cases: {len(CASES_TO_RUN)}")
+    check(len(CASES_TO_RUN) == 24, f"twenty-four cases: {len(CASES_TO_RUN)}")
     for index, (name, kind, want, calls_wanted) in enumerate(CASES_TO_RUN):
         program = CASES / f"{name}.viba"
         check(program.is_file(), f"the case is a file: {program.name}")

@@ -3,7 +3,7 @@ import left_lazy_slot_called as left
 
 take =
     int
-  <- $env Environment
-  <- $x (int <- $env Environment)
+  <- $env Env
+  <- $x (int <- $env Env)
   <- { the host calls the argument }
 y = left.x

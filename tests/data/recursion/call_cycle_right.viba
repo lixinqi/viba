@@ -1,2 +1,8 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import call_cycle_left
-__ret__ = call_cycle_left << (environ.sub_env << environ << "left") << ()
+__ret__ = call_cycle_left << (args.env.sub_env << args.env << "left")

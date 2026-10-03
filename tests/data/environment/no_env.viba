@@ -1,2 +1,4 @@
+__def__ = int <- $env Env
+
 double = int <- $a int <- { double it }
 __ret__ = double << $a 21

@@ -1,3 +1,5 @@
+__def__ = int <- $env Env
+
 import branch
 import right_edge_two_left_definitions as right
 

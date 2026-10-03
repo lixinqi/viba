@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import CASES, Checks, Host, value_of
 
-from viba.interpret import interpret, sub_env, tmp_sub_env
+from viba.interpret import interpret, sub_env, tmp_env
 from viba.type import VibaProgramErr, Ok
 
 checks = Checks("interpreter_imports")
@@ -166,7 +166,7 @@ def _paths(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a five-deep import chain: {result!r}")
     check(sub_env(on_path, "child").viba_path == on_path.viba_path and
-          tmp_sub_env(on_path).viba_path == on_path.viba_path,
+          tmp_env(on_path).viba_path == on_path.viba_path,
           "a child environment keeps the parent's module search path")
 
 

@@ -1,2 +1,4 @@
+__def__ = int <- $env Env
+
 import late_lib as lib
 __ret__ = lib

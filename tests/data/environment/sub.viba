@@ -1,5 +1,11 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 go =
 	int
-	<- $env Environment
+	<- $env Env
 	<- { nobody calls this }
-__ret__ = environ.sub_env << environ << "child"
+__ret__ = args.env.sub_env << args.env << "child"

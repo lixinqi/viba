@@ -1,25 +1,26 @@
-__args__ =
-  Object
-  * $a int
-  * $b int
+__def__ =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
 
-args = __args__
+args = __get_args__ << __def__
 
 add =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- $b int
   <- { add the two }
 
 mul =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- $b int
   <- { multiply the two }
 
 __ret__ = add
-  << environ
-  << (mul << environ << args.a << args.a)
-  << (mul << environ << args.b << args.b)
+  << args.env
+  << (mul << args.env << args.a << args.a)
+  << (mul << args.env << args.b << args.b)

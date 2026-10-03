@@ -1,2 +1,4 @@
+__def__ = Any <- $env Env
+
 A = A
 __ret__ = A

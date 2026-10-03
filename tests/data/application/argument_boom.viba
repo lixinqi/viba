@@ -1,7 +1,13 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import arithmetic as arithmetic
 
 explode =
 	int
-	<- $env Environment
+	<- $env Env
 	<- { go }
-__ret__ = arithmetic.add << $env environ << $a (explode << $env environ) << $b 2
+__ret__ = arithmetic.add << $env args.env << $a (explode << $env args.env) << $b 2

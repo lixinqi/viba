@@ -1,4 +1,8 @@
 # A file with the empty argument written out.
-__args__ = Object
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
 
 __ret__ = 5

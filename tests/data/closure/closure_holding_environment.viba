@@ -1,8 +1,14 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 takes =
     int
-  <- $env Environment
+  <- $env Env
   <- $x Environment
   <- { where that is }
 
-bad = takes << $x (environ.tmp_sub_env << environ)
+bad = takes << $x (args.env.tmp_env << args.env)
 __ret__ = bad

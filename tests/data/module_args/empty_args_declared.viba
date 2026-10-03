@@ -1,8 +1,2 @@
-__args__ = Object
-
-leaf =
-    int
-  <- $env Environment
-  <- { answer seven }
-
-__ret__ = leaf << environ
+# 一个要执行、却没有声明 __def__ 的模块：调用它是程序错。
+__ret__ = 7

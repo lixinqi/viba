@@ -1,1 +1,3 @@
+__def__ = str <- $env Env
+
 __ret__ = "yes"

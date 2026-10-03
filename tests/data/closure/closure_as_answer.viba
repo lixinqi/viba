@@ -1,6 +1,8 @@
+__def__ = int <- $env Env
+
 add =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- $b int
   <- { add the two }

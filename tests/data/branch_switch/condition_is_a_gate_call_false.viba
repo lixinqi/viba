@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import gate as gate
 import kinds as kinds
@@ -6,11 +12,11 @@ __ret__ =
     Oneof
     | (
         branch.echo_or_never
-        << $env environ << $cond ((gate.gate << $env environ << $mode false))
+        << $env args.env << $cond ((gate.gate << $env args.env << $mode false))
         << $get_v (kinds.answer_int)
       )
     | (
         branch.never_or_echo
-        << $env environ << $cond ((gate.gate << $env environ << $mode false))
+        << $env args.env << $cond ((gate.gate << $env args.env << $mode false))
         << $get_v (builtin.echo << $x 0)
       )

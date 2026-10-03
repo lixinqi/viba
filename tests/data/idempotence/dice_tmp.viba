@@ -1,3 +1,9 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import dice as d
 
-__ret__ = d << (environ.tmp_sub_env << environ) << ()
+__ret__ = d << (args.env.tmp_env << args.env)

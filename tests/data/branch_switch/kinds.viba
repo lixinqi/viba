@@ -1,25 +1,25 @@
 # One answer of each value kind, in a file of its own.
 answer_int =
-    int <- $env Environment <- { 7 }
+    int <- $env Env <- { 7 }
 answer_zero =
-    int <- $env Environment <- { 0 }
+    int <- $env Env <- { 0 }
 answer_text =
-    str <- $env Environment <- { "kept" }
+    str <- $env Env <- { "kept" }
 answer_empty =
-    str <- $env Environment <- { "" }
+    str <- $env Env <- { "" }
 answer_flag =
-    bool <- $env Environment <- { false }
+    bool <- $env Env <- { false }
 answer_true =
-    bool <- $env Environment <- { true }
+    bool <- $env Env <- { true }
 answer_nothing =
-    Any <- $env Environment <- { nil }
+    Any <- $env Env <- { nil }
 answer_number =
-    float <- $env Environment <- { 0.5 }
+    float <- $env Env <- { 0.5 }
 answer_negative =
-    float <- $env Environment <- { -1.5 }
+    float <- $env Env <- { -1.5 }
 answer_product =
-    (int * str) <- $env Environment <- { 1 * "one" }
+    (int * str) <- $env Env <- { 1 * "one" }
 answer_never =
-    never <- $env Environment <- { never }
+    never <- $env Env <- { never }
 answer_sum =
-    (int | str) <- $env Environment <- { 3 | "three" }
+    (int | str) <- $env Env <- { 3 | "three" }

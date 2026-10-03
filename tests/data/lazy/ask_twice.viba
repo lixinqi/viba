@@ -1,10 +1,16 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 ask_twice =
     int
-  <- $env Environment
-  <- $get_x (int <- $env Environment)
+  <- $env Env
+  <- $get_x (int <- $env Env)
   <- { add x to itself, asking for x twice }
 
 tick =
-    int <- $env Environment <- { a value with a side effect }
+    int <- $env Env <- { a value with a side effect }
 
-__ret__ = ask_twice << $env environ << $get_x (tick << $env environ)
+__ret__ = ask_twice << $env args.env << $get_x (tick << $env args.env)

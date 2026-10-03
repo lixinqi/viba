@@ -1,8 +1,14 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import arithmetic as arithmetic
 
 x_of =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $p ($x int * $y int)
 	<- { the x of that point }
-__ret__ = x_of << $env environ << $p ($x "s" * $y 1)
+__ret__ = x_of << $env args.env << $p ($x "s" * $y 1)

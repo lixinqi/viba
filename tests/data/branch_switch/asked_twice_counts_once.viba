@@ -1,5 +1,11 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import counters as counters
 
 __ret__ =
-    counters.asked_twice << $env environ << $get_x counters.tick
+    counters.asked_twice << $env args.env << $get_x counters.tick

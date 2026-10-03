@@ -1,0 +1,15 @@
+# A definition written in a module, declaring the environment itself as its
+# result: refused like a module's own __def__ is (only a builtin function may
+# answer an environment).
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+env_of =
+    Env
+  <- $env Env
+  <- { hand the environment back }
+
+__ret__ = env_of << $env args.env

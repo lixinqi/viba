@@ -75,7 +75,7 @@ add =
 `<<` 是给实参。给函数一个实参就是**一次调用**；给全了就是结果：
 
 ```viba
-Call = add << $env environ << $a 1 << $b 2
+Call = add << $env args.env << $a 1 << $b 2
 ```
 
 实参可以按位置给，也可以按 tag 给（顺序随意）；按位置给时，落在写下来的第一个还没给的参数上。
@@ -87,19 +87,33 @@ Call = add << $env environ << $a 1 << $b 2
 
 ```viba
 # add_demo.viba
+__def__ =
+    void
+  <- $env Env
+
+args = __get_args__ << __def__
+
 add =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- $b int
   <- { 把两个整数加起来 }
 
 __ret__ =
     add
-    << $env environ
+    << args.env
     << $a 999999
     << $b 1
 ```
+
+`__def__` 是这份模块当函数读时的整条链：结果在前，参数在后；要执行的模块在里面声明恰好一个
+`$env Env`（`Env` 是内建的名字，就是 `Environment`）。`args = __get_args__ << __def__` 读回这次调用
+收到的那份实参：`args.env` 是环境本身。
+
+结果不能写 `Env`：只有内建函数（`viba/builtin.viba` 里 `Environment` 的成员）答得了一个环境，
+别的函数写了当场报错——环境是调用的规矩，不是能交出去的值。运行时的答案不受这条限制：
+`__ret__ = args.env` 交回去的还是那个环境，只是声明成 `Any`。
 
 宿主给两样东西：答案存在哪（`EnvironmentStorage`，默认一个临时目录）和每一步的实现
 （`EnvironmentCompute`，里面一个 `get_func(module_path, func_name)`）。`interpret` 读文件、跑起来。
@@ -133,46 +147,48 @@ print(answer.ok_value.value)   # 1000000
 # main.viba
 import add_demo as demo
 
-ret = demo << (environ.sub_env << environ << "add_demo")
+ret = demo << (args.env.sub_env << args.env << "add_demo")
 
-__ret__ = demo.print << environ << ret
+__ret__ = demo.print << args.env << ret
 ```
 
-`environ.sub_env << environ << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
-`root/add_demo`。它也可以写成 `$sub_env << environ << "add_demo"`——tag 写在链头时命中的是第一个参数
-的成员，两种写法是同一次调用（第 8 节）。这个模块没有 `__args__`，所以给环境就是执行，不用再写一个 `()`。
+`args.env.sub_env << args.env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
+`root/add_demo`。它也可以写成 `$sub_env << args.env << "add_demo"`——tag 写在链头时命中的是第一个参数
+的成员，两种写法是同一次调用（第 8 节）。这个模块只收环境这一个参数，所以给环境就是执行。
 那条路径就是这次调用的身份——宿主拿到的 `module_path` 就是它，所以它是一次调用的**地址**：
 同一条路径上正在跑就是环（报错并把写法写在话里）；已经答过、又是**同一个模块**，就是同一个子
 计算被问了第二次，把它答过的那份交回去；已经答过、却是**另一个模块**，那是两条调用挤一个地址，
 宿主分不出谁是谁，也报错。
 
-不想起名字就用 `tmp_sub_env`：它每次给一个新的子环境（路径是 `root/tmp_<随机>`），也可以写成
-`$tmp_sub_env << environ`。
+不想起名字就用 `tmp_env`：它每次给一个新的子环境（路径是 `root/tmp_<随机>`），也可以写成
+`$tmp_env << args.env`。
 
 ```viba
-lib_call = lib << (environ.tmp_sub_env << environ)
+lib_call = lib << (args.env.tmp_env << args.env)
 ```
 
-模块要收实参，就声明 `__args__`（一份积，成员就是实参）：
+模块要收实参，就把它们写进 `__def__`（结果在前，参数在后），再写 `args = __get_args__ << __def__`：
 
 ```viba
 # square_sum.viba
-__args__ =
-  Object
-  * $a int
-  * $b int
+__def__ =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
 
-args = __args__
+args = __get_args__ << __def__
 
 __ret__ =
     add
-    << environ
-    << (mul << environ << args.a << args.a)
-    << (mul << environ << args.b << args.b)
+    << args.env
+    << (mul << args.env << args.a << args.a)
+    << (mul << args.env << args.b << args.b)
 ```
 
-调用时按位置给（`<< 3 << 4`）或按 tag 给（`<< $b 4 << $a 3`）都行；**环境给了，成员就得齐**，少一个
-当场报错，话里点名少了谁。
+调用时每个参数一个 `<<`：按位置给（`<< 3 << 4`）或按 tag 给（`<< $b 4 << $a 3`）都行；**环境给了，
+参数就得齐**，少一个当场报错，话里点名少了谁。环境那一格不带 tag 的实参跳过它，所以 `<< 3 << 4`
+给的是 `$a` 和 `$b`。
 
 ## 6. 不给环境，链就是一个值
 
@@ -183,7 +199,7 @@ __ret__ = same
 ```
 
 `add << $a 40` 是一个**闭包**：写下来的函数名加上已经算好的实参。它能存、能传、能当 `__ret__`、能序列
-化，也能**换一个环境再执行一次**（`same << (environ.tmp_sub_env << environ)`）。"必须给全"只对执行
+化，也能**换一个环境再执行一次**（`same << (args.env.tmp_env << args.env)`）。"必须给全"只对执行
 成立，对闭包不成立。
 
 闭包里只能装可序列化数据（只读、能写下来）；环境从来不装在闭包里，它是执行那一刻才给的。所以同一个
@@ -193,23 +209,23 @@ __ret__ = same
 
 ## 7. 可能会用不上的那个实参：写成函数类型
 
-有些实参可能根本用不上，算它要花代价或者有副作用。把那一格写成**函数类型** `(T <- $env Environment)`，
+有些实参可能根本用不上，算它要花代价或者有副作用。把那一格写成**函数类型** `(T <- $env Env)`，
 那个实参就不在这里算：写下来的那次调用连同环境一起交给宿主，宿主叫它的时候才算，在宿主给的那个环境
 里算。`branch.viba` 的两个开关就是这么写的：
 
 ```viba
 echo_or_never =
     Any
-  <- $env Environment
+  <- $env Env
   <- $cond bool
-  <- $get_v (Any <- $env Environment)
+  <- $get_v (Any <- $env Env)
   <- { 条件成立就交回 get_v，否则交回 never }
 
 never_or_echo =
     Any
-  <- $env Environment
+  <- $env Env
   <- $cond bool
-  <- $get_v (Any <- $env Environment)
+  <- $get_v (Any <- $env Env)
   <- { 条件成立就交回 never，否则交回 get_v }
 ```
 
@@ -218,24 +234,24 @@ never_or_echo =
 import branch
 
 ge =
-    bool <- $env Environment <- $x int <- $y int <- { x >= y }
+    bool <- $env Env <- $x int <- $y int <- { x >= y }
 tick =
-    int <- $env Environment <- { 算它会有副作用 }
+    int <- $env Env <- { 算它会有副作用 }
 tock =
-    int <- $env Environment <- { 算它也有副作用 }
+    int <- $env Env <- { 算它也有副作用 }
 
-condition = ge << $env environ << $x 1 << $y 0
+condition = ge << $env args.env << $x 1 << $y 0
 __ret__ =
     Oneof
   | (branch.echo_or_never
-      << $env environ << $cond condition
-      << $get_v (tick << $env environ))
+      << $env args.env << $cond condition
+      << $get_v (tick << $env args.env))
   | (branch.never_or_echo
-      << $env environ << $cond condition
-      << $get_v (tock << $env environ))
+      << $env args.env << $cond condition
+      << $get_v (tock << $env args.env))
 ```
 
-`$get_v` 那个实参写成一次调用（`tick << $env environ`）；宿主拿到的是一个能带着环境调它自己的东西，
+`$get_v` 那个实参写成一次调用（`tick << $env args.env`）；宿主拿到的是一个能带着环境调它自己的东西，
 不叫它，那个实参就一次都不算。所以没走的那一支里的副作用不会发生，它没有实现也不会挡路。
 
 几条规矩：
@@ -256,11 +272,11 @@ __ret__ =
 被交给成员当第一个实参**。环境成员因此有两种写法，一样长：
 
 ```viba
-child = environ.sub_env << environ << "add_demo"   # 点号，环境自己写出来
+child = args.env.sub_env << args.env << "add_demo"   # 点号，环境自己写出来
 ```
 
 ```viba
-child = $sub_env << environ << "add_demo"          # 同一个调用，短一些
+child = $sub_env << args.env << "add_demo"           # 同一个调用，短一些
 ```
 
 `viba/builtin.viba` 里 `Environment` 的成员就是这样声明的——环境是它的第一个参数：
@@ -269,8 +285,8 @@ child = $sub_env << environ << "add_demo"          # 同一个调用，短一些
 Environment =
     Object
   * $viba_path str
-  * $sub_env (Environment <- $env Environment <- $sub_env_name str)
-  * $tmp_sub_env (Environment <- $env Environment)
+  * $sub_env (Environment <- $env Env <- $sub_env_name str)
+  * $tmp_env (Environment <- $env Env)
 ```
 
 tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头、后面跟着第一个参数时才成立。第一个参数
@@ -307,8 +323,8 @@ def roll(env, n):
 `replayed(env, compute, name)` 读 `<这次调用的路径>/<name>.viba`；没有就算出来、存下来。快照是序列化
 的 viba 数据，不是 pickle：人能读，类型侧也能当实例读。
 
-路径必须稳定才回放得上：`environ.sub_env << environ << "一个稳定的名字"` 稳定；
-`tmp_sub_env` 每次都是新路径，挂在它底下的不纯步骤每次都重走——这是它给出的信号：这一步该显名保存了
+路径必须稳定才回放得上：`args.env.sub_env << args.env << "一个稳定的名字"` 稳定；
+`tmp_env` 每次都是新路径，挂在它底下的不纯步骤每次都重走——这是它给出的信号：这一步该显名保存了
 （[`viba-interpreter.md`](viba-interpreter.md)）。
 
 ## 11. 写下来的东西可以再读回来

@@ -3,7 +3,7 @@ import left_part_in_a_branch as left
 
 f =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- { the host implements this step }
 y = left.x

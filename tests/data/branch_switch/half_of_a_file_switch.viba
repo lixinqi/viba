@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import inner as inner
 
@@ -5,5 +11,5 @@ when = inner.inner_if << $cond true
 
 __ret__ =
     branch.echo_or_never
-    << $env environ << $cond true
-    << $get_v (when << $env environ << $get_v inner.always_nine)
+    << $env args.env << $cond true
+    << $get_v (when << $env args.env << $get_v inner.always_nine)

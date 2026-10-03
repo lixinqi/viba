@@ -1,6 +1,6 @@
 """Compliance: rules and witnesses, as executable viba modules.
 
-A rule is a program (`environ` in, a `bool` verdict out) and a witness is the
+A rule is a program (the environment in, a `bool` verdict out) and a witness is the
 program that answers the viba data it judges, so a judgment is a run —
 `is_compliant(rule_file, environ)`.
 The impure part of a rule (measuring something) goes through `measure`, which

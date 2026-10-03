@@ -1,11 +1,17 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 watch =
     int
-  <- $env Environment
-  <- $x (int <- $env Environment)
+  <- $env Env
+  <- $x (int <- $env Env)
   <- { hand x back }
 ignore =
     int
-  <- $env Environment
-  <- $x (int <- $env Environment)
+  <- $env Env
+  <- $x (int <- $env Env)
   <- { answer seven without looking at x }
-__ret__ = ignore << $env environ << $x (builtin.echo << $x "x")
+__ret__ = ignore << $env args.env << $x (builtin.echo << $x "x")

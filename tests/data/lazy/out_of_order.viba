@@ -1,13 +1,19 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 positional =
     int
-  <- $env Environment
-  <- $cond (bool <- $env Environment)
-  <- $get_v (int <- $env Environment)
+  <- $env Env
+  <- $cond (bool <- $env Env)
+  <- $get_v (int <- $env Env)
   <- { the value when the condition holds }
 
 tick =
-    int <- $env Environment <- { one }
+    int <- $env Env <- { one }
 condition_holds =
-    bool <- $env Environment <- { the condition holds }
+    bool <- $env Env <- { the condition holds }
 
-__ret__ = positional << $env environ << $get_v tick << $cond condition_holds
+__ret__ = positional << $env args.env << $get_v tick << $cond condition_holds

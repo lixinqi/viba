@@ -1,14 +1,16 @@
-__args__ =
-  Object
-  * $a int
-  * $b int
+__def__ =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
 
-args = __args__
+args = __get_args__ << __def__
 
 sum_of =
     int
-  <- $env Environment
-  <- $pair ($a int * $b int)
-  <- { add up the two members }
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add up the two }
 
-__ret__ = sum_of << environ << args
+__ret__ = sum_of << args.env << $a args.a << $b args.b

@@ -1,3 +1,5 @@
+__def__ = int <- $env Env
+
 import branch
 import left_mod_value_from_the_other as left
 

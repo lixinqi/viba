@@ -1,1 +1,7 @@
-__ret__ = environ.sub_env << environ << "a"
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+__ret__ = args.env.sub_env << args.env << "a"

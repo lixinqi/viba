@@ -3,5 +3,5 @@ import left_cond_true_gate as left
 
 g =
     bool
-  <- $env Environment
+  <- $env Env
   <- { the host answers }

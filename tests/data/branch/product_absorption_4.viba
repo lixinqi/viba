@@ -1,1 +1,3 @@
+__def__ = Any <- $env Env
+
 __ret__ = never * nil * Object

@@ -74,8 +74,8 @@ Handler = Response <- $request Request
 不要写成 `Point = float * float`（读的人不知道哪个是横、哪个是竖）、`Handler = Response <-
 Request`（这个参数是什么）或 `$d int`（哪个 d？）。
 
-tag 写在链头时，它命中的是**第一个参数的成员**：`$sub_env << environ << "x"` 就是
-`environ.sub_env << environ << "x"`（见 [`viba-interpreter.md`](viba-interpreter.md)）。tag 不是值，
+tag 写在链头时，它命中的是**第一个参数的成员**：`$sub_env << args.env << "x"` 就是
+`args.env.sub_env << args.env << "x"`（见 [`viba-interpreter.md`](viba-interpreter.md)）。tag 不是值，
 `method = $sub_env` 这种写法编不过。
 
 **点分名字定义的是父概念的一个成员。** `a.b = A` 就是 `a = $b A`；`a.b = A` 与 `a.c = C` 一起
@@ -187,15 +187,17 @@ Distance =
 - **一行放不下就折行**：每个实参占一行，续行以 `<-` / `<<` 起头。可打开的例子：
   [`tests/data/interpreter/add_demo.viba`](tests/data/interpreter/add_demo.viba)、
   [`tests/data/closure/closure_with_module_call_argument.viba`](tests/data/closure/closure_with_module_call_argument.viba)。
-- **实参是表达式时把它括起来**：`$get_v (f << $env environ)`，不是 `$get_v f << $env environ`——`<<`
+- **实参是表达式时把它括起来**：`$get_v (f << $env args.env)`，不是 `$get_v f << $env args.env`——`<<`
   比 tag 松，后者会被读成两个实参（先给 `$get_v f`，再给一个位置实参）。**函数体写成一次调用也要括**：
-  `<- (f << $env environ)`，不然那次调用会被当成又一个参数格。
+  `<- (f << $env args.env)`，不然那次调用会被当成又一个参数格。
 - **实参要装得下那个参数**：`$a int` 那里写 `"x"` 是程序写错，`interpret` 当场报
   `VibaProgramErr`（不是等宿主崩了再报）。所以参数的类型写准，不要用 `Any` 顶替——写着 `Any`
   就等于说"这个参数什么都收"。
 - **没有死参数**：一个实参不参与任何判断、不影响结果，就删掉它——读的人会一路找它在哪生效，找不到
-  就是浪费。**唯一例外是 `$env Environment`**：它对 interpreter 是规矩（每个可执行函数都要依赖
-  environ），不是死参数——所以它也不进类型：写一个函数的类型时不写这一格，它只写在链上。
+  就是浪费。**唯一例外是 `$env Env`**：它对 interpreter 是规矩（每个要执行的函数都要依赖环境），
+  不是死参数——所以它也不进类型：写一个函数的类型时不写这一格，它只写在链上。
+- **结果不是环境**：`Env` / `Environment` 只出现在参数位置上。只有内建函数答得了一个环境，
+  别的函数在结果那里写它就当场报错；`__ret__ = args.env` 是值，声明写 `Any`。
 - `{...}` 是**提示**：写给照着它补实现的人（常常是 agent），说这一步要干什么。它不是参数，也不被
   执行——`<<` 会把说明跳过去。所以提示里可以写清"读哪些字段、怎么比、对不上返回什么"（顺着类型能
   一路读出字段路径），但不要指望它是代码。
@@ -215,29 +217,31 @@ Distance =
 ## 11. 其它
 
 - **内建名字不用 import。** [`viba/builtin.viba`](viba/builtin.viba) 对每个模块可见（最低优先级，自己
-  模块的同名定义优先）：`Environment` / `environ`、`Object` / `Oneof` / `nil` / `never` / `Any`、
+  模块的同名定义优先）：`Environment` / `Env`、`Object` / `Oneof` / `nil` / `never` / `Any`、
   标量 `bool` / `int` / `float` / `str`、容器名 `list` / `set` / `dict`，以及 `builtin.echo`。
-  所以 `Environment` / `environ` 和 `builtin.echo` 都不需要写任何 import。
+  所以 `Environment` / `Env` 和 `builtin.echo` 都不需要写任何 import。
 - **内建标量是 `bool` / `int` / `float` / `str`。** `string` 不是内建名：它什么都解析不到，而且
   语法层不会报——类型层会（`module_get_type`、`is_sub_type`）。
 - **一份定义一个表达式**，各自一行：没有逗号，也没有语句分隔符。
 - **有 `__ret__` 才是程序**：没有它的文件是类型，不是程序，跑它是错。
-- **模块要收参数就声明 `__args__`**，写成一份积类型，成员就是实参，顺序就是给的顺序：
+- **模块要收参数就写成 `__def__`**：它是模块当函数读时的整条链，结果在前，参数在后；要执行的模块
+  在里面声明恰好一个 `$env Env`：
 
 ```viba
-__args__ =
-  Object
-  * $a int
-  * $b int
+__def__ =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
 
-args = __args__
+args = __get_args__ << __def__
 ```
 
-  调用时每个成员一个 `<<`（`square_sum << environ << 3 << 4`，或者按 tag 给 `<< $a 3`）。
+  调用时每个参数一个 `<<`（`square_sum << args.env << 3 << 4`，或者按 tag 给 `<< $a 3`）。
   **给了环境就是要执行，那时必须给全**，少一个当场报错；不给环境的话它就是闭包，可以先存下来
-  （`sg = square_sum << 3 << 4`），以后再 `sg << environ` 执行。零实参的模块执行时不用写 `()`
-  （`lib << environ` 就是执行），`lib << ()` 只在要显式写出那份空实参时才写。模块体里 `args.a`
-  是那个实参。别用 `__args__` 装"可能有也可能没有"的东西——那些是分支（第 8 条），不是实参。
+  （`sg = square_sum << $a 3 << $b 4`），以后再 `sg << args.env` 执行。参数不写 `()` 那一套：
+  一个参数都不收的模块，执行就是 `lib << args.env`。模块体里 `args.a` 是那个实参，`args.env`
+  是环境。别用 `__def__` 的参数装"可能有也可能没有"的东西——那些是分支（第 8 条），不是参数。
 
 ## 12. 写完怎么查
 
@@ -313,7 +317,7 @@ Lookup =
 - [ ] 一行有没有多写头？多行块有没有漏头？
 - [ ] `Oneof` / `Object` 用对了，没把单个 `Object` 包进 `Oneof`？
 - [ ] 字段 tag 自解释吗？函数实参都带 tag 吗？
-- [ ] 模块收参数是声明了 `__args__`（积类型），还是把参数藏进了模块名里？调用给全了吗？
+- [ ] 模块的参数都写在 `__def__` 里了吗（含那个 `$env Env`）？还是把参数藏进了模块名里？调用给全了吗？
 - [ ] 注释有没有混进"这是 product 块"这类语法絮叨？
 - [ ] 这个概念是问题域真实的，还是我臆测的？别名有没有装作它能阻止错填？
 - [ ] 有没有死参数（`$env` 除外）？

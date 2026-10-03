@@ -1,13 +1,18 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
 
 overfeed =
 	int
-	<- $env Environment
-	<- $f (int <- $env Environment <- $x int)
+	<- $env Env
+	<- $f (int <- $env Env <- $x int)
 	<- $x int
 	<- { give f one argument too many }
 inc =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $x int
 	<- { add one }
-__ret__ = overfeed << $env environ << $f inc << $x 10
+__ret__ = overfeed << $env args.env << $f inc << $x 10

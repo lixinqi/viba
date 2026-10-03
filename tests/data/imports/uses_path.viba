@@ -1,2 +1,8 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import lib as lib
-__ret__ = lib << (environ.sub_env << environ << "lib") << ()
+__ret__ = lib << (args.env.sub_env << args.env << "lib")

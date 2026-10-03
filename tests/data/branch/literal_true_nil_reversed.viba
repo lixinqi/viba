@@ -1,6 +1,12 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 
 __ret__ =
   Oneof
-  | (branch.never_or_echo << $env environ << $cond true << $get_v (builtin.echo << $x 9))
-  | (branch.echo_or_never << $env environ << $cond true << $get_v (builtin.echo << $x nil))
+  | (branch.never_or_echo << $env args.env << $cond true << $get_v (builtin.echo << $x 9))
+  | (branch.echo_or_never << $env args.env << $cond true << $get_v (builtin.echo << $x nil))

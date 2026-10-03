@@ -1,6 +1,12 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 echo =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $x int
 	<- { pass it through }
-__ret__ = echo << $env environ << $x 42
+__ret__ = echo << $env args.env << $x 42

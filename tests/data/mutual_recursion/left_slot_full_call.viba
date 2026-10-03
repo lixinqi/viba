@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_slot_full_call as right
 
@@ -5,10 +11,10 @@ x =
     Oneof
     | (
         branch.echo_or_never
-        << $env environ << $cond (true)
-        << $get_v (right.f << $env environ << $a 1))
+        << $env args.env << $cond (true)
+        << $get_v (right.f << $env args.env << $a 1))
     | (
         branch.never_or_echo
-        << $env environ << $cond (true)
+        << $env args.env << $cond (true)
         << $get_v (builtin.echo << $x 0))
 __ret__ = x

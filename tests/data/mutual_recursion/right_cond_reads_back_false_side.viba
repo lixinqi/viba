@@ -3,5 +3,5 @@ import left_cond_reads_back_false_side as left
 
 g =
     bool
-  <- $env Environment
+  <- $env Env
   <- { the host answers }

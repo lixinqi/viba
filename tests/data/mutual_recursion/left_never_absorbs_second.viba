@@ -1,3 +1,5 @@
+__def__ = Any <- $env Env
+
 import branch
 import right_never_absorbs_second as right
 

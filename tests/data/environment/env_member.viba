@@ -1,1 +1,7 @@
-__ret__ = environ.storage
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+__ret__ = args.env.storage

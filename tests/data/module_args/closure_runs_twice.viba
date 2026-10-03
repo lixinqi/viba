@@ -1,15 +1,21 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import square_sum
 
 add =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- $b int
   <- { add the two }
 
 sg = square_sum << 3 << 4
-first = sg << (environ.tmp_sub_env << environ)
+first = sg << (args.env.tmp_env << args.env)
 __ret__ = add
-  << (environ.tmp_sub_env << environ)
+  << (args.env.tmp_env << args.env)
   << $a first
-  << $b (sg << (environ.tmp_sub_env << environ))
+  << $b (sg << (args.env.tmp_env << args.env))

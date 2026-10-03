@@ -1,19 +1,25 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 
 ge =
     bool
-  <- $env Environment
+  <- $env Env
   <- $x int
   <- $y int
   <- { x >= y }
 
 tick =
     int
-  <- $env Environment
+  <- $env Env
   <- { counts as a side effect }
 
-condition = ge << $env environ << $x 1 << $y 0
+condition = ge << $env args.env << $x 1 << $y 0
 
 # 条件先定下来，分支值那一步还没给：这还是一个闭包。
-switch = branch.echo_or_never << $cond condition << $get_v (tick << $env environ)
-__ret__ = switch << $env environ
+switch = branch.echo_or_never << $cond condition << $get_v (tick << $env args.env)
+__ret__ = switch << $env args.env

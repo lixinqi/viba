@@ -1,2 +1,8 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import square_sum
-__ret__ = square_sum << (environ.tmp_sub_env << environ) << "x" << 4
+__ret__ = square_sum << (args.env.tmp_env << args.env) << "x" << 4

@@ -1,2 +1,8 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import design_two as d
-__ret__ = environ.nope
+__ret__ = args.env.nope

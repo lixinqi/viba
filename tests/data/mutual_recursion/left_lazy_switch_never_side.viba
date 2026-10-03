@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_lazy_switch_never_side as right
 
@@ -5,10 +11,10 @@ x =
     Oneof
     | (
         branch.echo_or_never
-        << $env environ << $cond (false)
+        << $env args.env << $cond (false)
         << $get_v (builtin.echo << $x right.y))
     | (
         branch.never_or_echo
-        << $env environ << $cond (false)
+        << $env args.env << $cond (false)
         << $get_v (builtin.echo << $x never))
 __ret__ = x

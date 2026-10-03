@@ -1,2 +1,8 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import tag_adds
-__ret__ = tag_adds << (environ.tmp_sub_env << environ) << 3 << 4
+__ret__ = tag_adds << (args.env.tmp_env << args.env) << 3 << 4

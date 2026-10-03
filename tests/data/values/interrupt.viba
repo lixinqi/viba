@@ -1,5 +1,11 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 interrupt =
 	int
-	<- $env Environment
+	<- $env Env
 	<- { interrupt }
-__ret__ = interrupt << $env environ
+__ret__ = interrupt << $env args.env

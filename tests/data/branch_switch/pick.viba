@@ -2,7 +2,7 @@
 # giving it to a function-typed slot is giving that call.
 add =
     int
-  <- $env Environment
+  <- $env Env
   <- $a int
   <- $b int
   <- { add the two }

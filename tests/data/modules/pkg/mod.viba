@@ -1,7 +1,13 @@
+__def__ =
+    str
+  <- $env Env
+
+args = __get_args__ << __def__
+
 join =
 	str
-	<- $env Environment
+	<- $env Env
 	<- $a str
 	<- $b str
 	<- { join two strings }
-__ret__ = join << $env environ << $a "a" << $b "b"
+__ret__ = join << $env args.env << $a "a" << $b "b"

@@ -1,3 +1,5 @@
+__def__ = int <- $env Env
+
 x = 1
 x = 2
 __ret__ = x

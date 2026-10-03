@@ -1,3 +1,5 @@
+__def__ = int <- $env Env
+
 import arithmetic as arithmetic
 
 __ret__ = 1 << $x 2

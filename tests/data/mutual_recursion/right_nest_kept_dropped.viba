@@ -1,21 +1,27 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import left_nest_kept_dropped as left
 
 y =
     Oneof
   | (branch.echo_or_never
-      << $env environ << $cond (true)
+      << $env args.env << $cond (true)
       << $get_v (builtin.echo << $x (
             Oneof
             | (
                 branch.echo_or_never
-                << $env environ << $cond (false)
+                << $env args.env << $cond (false)
                 << $get_v (builtin.echo << $x left.x))
             | (
                 branch.never_or_echo
-                << $env environ << $cond (false)
+                << $env args.env << $cond (false)
                 << $get_v (builtin.echo << $x 41))
       )))
   | (branch.never_or_echo
-      << $env environ << $cond (true)
+      << $env args.env << $cond (true)
       << $get_v (builtin.echo << $x 42))

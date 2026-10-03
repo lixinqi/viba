@@ -1,6 +1,12 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 leaf =
     int
-  <- $env Environment
+  <- $env Env
   <- { answer seven }
 
-__ret__ = leaf << environ
+__ret__ = leaf << args.env

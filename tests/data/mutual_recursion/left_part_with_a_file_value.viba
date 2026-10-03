@@ -1,6 +1,12 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import right_part_with_a_file_value as right
 import leaf as leaf
 
-x = (right.f << $a (leaf.answer << $env environ)) << $env environ
+x = (right.f << $a (leaf.answer << $env args.env)) << $env args.env
 __ret__ = x

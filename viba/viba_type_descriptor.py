@@ -26,11 +26,16 @@ import hashlib
 from typing import Callable, Dict, List, Optional
 
 from viba import viba_ast
-from viba.partial import module_as_function, reduce_partial
+from viba.partial import (environment_result_problem, get_args_product,
+                          module_as_function, reduce_partial)
+
+# The builtin name that reads a call's arguments back as a product.
+GET_ARGS_NAME = "__get_args__"
 from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
     PartialError,
     AstNodeType,
+    BUILTIN_MODULE,
     CustomModuleType,
     VibaProgramErr,
     ModuleType,
@@ -490,7 +495,12 @@ def _fits(given, given_module, written, written_module):
 
 
 def _partial_target(pool, name, module):
-    """(body, written_in) for the name a `<<` gives to, or None."""
+    """(body, written_in) for the name a `<<` gives to, or None.
+
+    A function written in a module never answers the environment itself: only a
+    builtin function does, and the builtin library is the one module the check
+    steps aside for.
+    """
     resolved = module_get_type(module, name)
     if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
         return module_as_function(module, name)
@@ -499,13 +509,57 @@ def _partial_target(pool, name, module):
         return None
     if isinstance(node, ast_nodes.TypeDefinition):
         node = node.body
+    if (resolved.ok_value.container_module is not BUILTIN_MODULE
+            and isinstance(node, (ast_nodes.Exponent, ast_nodes.ExponentChain))):
+        problem = environment_result_problem(node, name)
+        if problem is not None:
+            raise PartialError(problem)
     return node, resolved.ok_value.container_module
+
+
+def _partial_parts(node):
+    """（链头, 实参表）for a written `<<` chain, arguments in written order."""
+    arguments = []
+    while isinstance(node, ast_nodes.Partial):
+        arguments.append(node.argument)
+        node = node.function
+    return node, list(reversed(arguments))
+
+
+def _get_args_call(pool, node, module):
+    """(product, written_in) for `__get_args__ << <chain>`, or None.
+
+    What a call was handed, read as a type: the product of the parameters the
+    chain declares, the environment among them — which is how a module names the
+    environment (`args.env`) and its arguments (`args.a`), and what makes
+    `args = __get_args__ << __def__` a product here (viba-interpreter.md).
+    """
+    head, arguments = _partial_parts(node)
+    if not (isinstance(head, ast_nodes.TypeRef) and head.name == GET_ARGS_NAME):
+        return None
+    if len(arguments) != 1:
+        return None
+    argument, written_in = arguments[0], module
+    if isinstance(argument, ast_nodes.TypeRef):
+        resolved = module_get_type(module, argument.name)
+        if not (isinstance(resolved, Ok) and isinstance(resolved.ok_value, AstNodeType)):
+            return None
+        argument = resolved.ok_value.ast_node
+        written_in = resolved.ok_value.container_module
+    if isinstance(argument, ast_nodes.TypeDefinition):
+        argument = argument.body
+    if not isinstance(argument, (ast_nodes.Exponent, ast_nodes.ExponentChain)):
+        return None
+    return get_args_product(argument), written_in
 
 
 def _build_type(pool, module, node) -> VibaTypeDescriptor:
     if isinstance(node, ast_nodes.Any):
         return VibaTypeDescriptor(ANY)
     if isinstance(node, ast_nodes.Partial):
+        product = _get_args_call(pool, node, module)
+        if product is not None:
+            return _build_type(pool, product[1], product[0])
         reduced, written_in = reduce_partial(node, module,
                                        lambda name, written_in: _partial_target(pool, name, written_in),
                                        _fits)

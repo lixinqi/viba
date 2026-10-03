@@ -1,10 +1,16 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 ignore_x =
     int
-  <- $env Environment
-  <- $get_x (int <- $env Environment)
+  <- $env Env
+  <- $get_x (int <- $env Env)
   <- { answer seven without looking at x }
 
 poison_no_implementation =
-    int <- $env Environment <- { nothing implements this }
+    int <- $env Env <- { nothing implements this }
 
-__ret__ = ignore_x << $env environ << $get_x (poison_no_implementation << $env environ)
+__ret__ = ignore_x << $env args.env << $get_x (poison_no_implementation << $env args.env)

@@ -1,15 +1,20 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
 
 add =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $a int
 	<- $b int
 	<- { add two integer }
 
 leaf =
 	int
-	<- $env Environment
+	<- $env Env
 	<- { answer seven }
 
-half = leaf << $env environ
-__ret__ = add << $env environ << $a half << $b half
+half = leaf << $env args.env
+__ret__ = add << $env args.env << $a half << $b half

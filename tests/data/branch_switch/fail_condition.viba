@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import poison as poison
 
@@ -5,11 +11,11 @@ __ret__ =
     Oneof
     | (
         branch.echo_or_never
-        << $env environ << $cond (poison.explode_condition << $env environ)
+        << $env args.env << $cond (poison.explode_condition << $env args.env)
         << $get_v (builtin.echo << $x 42)
       )
     | (
         branch.never_or_echo
-        << $env environ << $cond (poison.explode_condition << $env environ)
+        << $env args.env << $cond (poison.explode_condition << $env args.env)
         << $get_v (builtin.echo << $x 0)
       )

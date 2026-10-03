@@ -145,27 +145,36 @@ print(viba_ast.unparse(tree))   # canonical chain-style source
 
 ### Running a module
 
-The same file is also a program: a module is a function whose input is `environ`
-and whose answer is `__ret__`. A file with no `__ret__` is a type, not a
-program, and running it raises `VibaProgramErr`.
+The same file is also a program: a module is a function whose chain `__def__`
+says what it answers and what it takes — the environment among the parameters —
+and whose answer is `__ret__`. A file with no `__ret__` is a type, not a program,
+and running it raises `VibaProgramErr`.
 
-A module that wants arguments declares them: `__args__` is a product type, and a
-call gives every member of it. Giving the environment is what runs the call, and
-a call without one is a closure — a value you can keep, pass on, or serialize and
-run later. See [`viba-interpreter.md`](viba-interpreter.md) for the whole rule.
+A module that wants arguments declares them in `__def__` and reads them back with
+`args = __get_args__ << __def__`: as a type that chain's parameters are a product
+type, and as a computation `args` is the data the call was handed. Giving the
+environment is what runs the call, and a call without one is a closure — a value
+you can keep, pass on, or serialize and run later. See
+[`viba-interpreter.md`](viba-interpreter.md) for the whole rule.
 
 ```viba
 # add_demo.viba
+__def__ =
+    void
+  <- $env Env
+
+args = __get_args__ << __def__
+
 add =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $a int
 	<- $b int
 	<- { add two integers }
 
 __ret__ =
 	add
-	<< $env environ
+	<< args.env
 	<< $a 999999
 	<< $b 1
 ```
@@ -194,14 +203,21 @@ print(answer)                    # Ok(VibaNode(root))
 print(answer.ok_value.value)     # 1000000 — the number the host answered
 ```
 
-- An executable function takes `$env Environment` as one of its slots, and every
-  call gives it: `environ` is the builtin standing for the environment the run
-  was handed. A function without that slot, or a call that leaves it out, is an
+- An executable function takes `$env Env` as one of its parameters, and every
+  call gives it: `args.env` is the environment the run was handed, and `Env` is
+  the builtin name of the environment's type (`Env = Environment`). A function
+  without that parameter, or a call that leaves it out, is a
   `VibaProgramErr`.
+- The environment is no answer: only a builtin function may declare `Env` as its
+  result, and writing `Env` (or `Environment`) as the result of a module's
+  `__def__`, of a definition inside a module, or of a chain a product carries as
+  a member refuses the file with a `VibaProgramErr` — the environment is the
+  call's rule, not a value to hand back. (A `__ret__` may still be the
+  environment: `args.env` is that object, it is simply declared `Any`.)
 - A written argument arrives at the host as an instance — the literal
   `999999` lands as a node, whose `.value` is the bare number — while the
   environment arrives as itself.
-- A slot written as a function type — `$get_v (T <- $env Environment)` — is the
+- A slot written as a function type — `$get_v (T <- $env Env)` — is the
   one exception: the host is handed the written call and runs it with an
   environment it picks, so an argument nobody asks for is never computed and one
   asked for twice is computed once. `builtin.echo << $x v` is the builtin that
@@ -223,11 +239,11 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
 ```viba
 import add_demo as demo
 
-__ret__ = demo << (environ.sub_env << environ << "add_demo")
+__ret__ = demo << (args.env.sub_env << args.env << "add_demo")
 ```
 
 A module is called with the environment it should run under, and then with its
-arguments. The name given to `environ.sub_env` is what `get_func` sees as
+arguments. The name given to `args.env.sub_env` is what `get_func` sees as
 `module_path`, and the storage path is the call's identity — its address. Three things
 can happen at one address: a call already running there is a cycle (`the storage path '...' is
 already running a call`, with the fix spelled out); a call that already answered there **by the
@@ -237,12 +253,12 @@ could not tell them apart:
 
 ```
 VibaProgramErr("module 'add_demo' was handed the storage path 'root', which another module call
-already used: give each module call a sub-environment of its own (environ.sub_env << environ << ...)")
+already used: give each module call a sub-environment of its own (args.env.sub_env << args.env << ...)")
 ```
 
-`environ.sub_env << environ << "name"` hands back the same child whenever that name is asked
-for, so calling one module twice means choosing two names; `environ.tmp_sub_env
-<< environ` (also written `$tmp_sub_env << environ`) is for the calls that need
+`args.env.sub_env << args.env << "name"` hands back the same child whenever that name is asked
+for, so calling one module twice means choosing two names; `args.env.tmp_env
+<< args.env` (also written `$tmp_env << args.env`) is for the calls that need
 no name, and hands out a fresh child every time. Where an `import` is looked for is the environment's business: next to the
 file that wrote it, then along `Environment`'s `viba_path` (directories, like
 `PYTHONPATH`).
@@ -265,7 +281,7 @@ def roll(env, n):
 store root; finding nothing, it runs `compute()` and writes the answer. Snapshots
 are serialized viba data, not pickle: a person can read them, and the type side
 reads them as instances. Two runs against one store therefore give one value and
-walk the impure step once. It is the path that has to be stable: a `tmp_sub_env`
+walk the impure step once. It is the path that has to be stable: a `tmp_env`
 child is new on every call, so what hangs under it never replays.
 
 The whole chapter — `get_file`, the typed reading of a module, the error list —
@@ -319,7 +335,7 @@ Color = $red int | $green int | $blue int
 |----------|---------|
 | [`viba_tutorial.md`](viba_tutorial.md) | Learning the language: from one definition to a module that runs |
 | [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, reading an instance |
-| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `environ` in, `__ret__` out — the executable reading |
+| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__def__` in, `__ret__` out — the executable reading |
 | [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
 | [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
 | [`viba-style.md`](viba-style.md) | Writing a definition: tags, heads, containers, and how to check what you wrote |
@@ -341,8 +357,8 @@ tools built on those.
 | `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
 | `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
 | `is_complete.py` | Whether a type can be reflected through |
-| `interpret.py` | Runs a module: `environ` in, `__ret__` out — see `viba-interpreter.md` |
-| `builtin.viba` | Builtin vocabulary visible from every module — `Environment` among them |
+| `interpret.py` | Runs a module: `__def__` in, `__ret__` out — see `viba-interpreter.md` |
+| `builtin.viba` | Builtin vocabulary visible from every module — `Environment` and `Env` among them |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY

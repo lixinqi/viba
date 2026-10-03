@@ -1,6 +1,8 @@
-__args__ =
-  Object
-  * $a int
+__def__ =
+    Any
+  <- $env Env
+  <- $a int
 
-args = __args__
+args = __get_args__ << __def__
+
 __ret__ = args.zzz

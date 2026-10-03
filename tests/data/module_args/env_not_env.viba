@@ -1,0 +1,6 @@
+# $env 那个参数的类型不是 Env。
+__def__ =
+    int
+  <- $env int
+
+__ret__ = 1

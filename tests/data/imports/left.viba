@@ -1,2 +1,8 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import shared as s
-__ret__ = s << (environ.sub_env << environ << "s") << ()
+__ret__ = s << (args.env.sub_env << args.env << "s")

@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import kinds as kinds
 
@@ -5,11 +11,11 @@ __ret__ =
     Oneof
     | (
         branch.echo_or_never
-        << $env environ << $cond (true)
+        << $env args.env << $cond (true)
         << $get_v (builtin.echo << $x 0)
       )
     | (
         branch.never_or_echo
-        << $env environ << $cond (true)
+        << $env args.env << $cond (true)
         << $get_v (kinds.answer_true)
       )

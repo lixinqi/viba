@@ -1,9 +1,11 @@
 """viba.interpret — run a viba module.
 
-A module is a file, and a file is also a function: its input is `environ`,
-its output is `__ret__`. Type inference reads the same file as a type
-(viba.is_sub_type); computation runs it (here). A file that wants to be
-runnable defines `__ret__`; a file that does not is design only.
+A module is a file, and a file is also a function: `__def__` is that function
+(the environment among its parameters), and its output is `__ret__`. Type
+inference reads the same file as a type (viba.is_sub_type); computation runs it
+(here). A file that wants to be runnable defines `__ret__`; a file that does not
+is design only. Inside the module, `args = __get_args__ << __def__` is what the
+call handed over — `args.env` above all.
 
     from viba.interpret import interpret
 
@@ -46,7 +48,7 @@ The host side, spelled out:
         can tell one module's `add` from another's.
 
     Environment(storage, compute, viba_path=None)
-        the three together, and `sub_env(name)` / `tmp_sub_env()` for a child —
+        the three together, and `sub_env(name)` / `tmp_env()` for a child —
         which keeps the parent's compute and its module search path.
 
 A host function is called with the arguments already evaluated, in the order
@@ -71,7 +73,8 @@ from pathlib import Path
 from typing import Optional
 
 from viba import serialize, viba_ast
-from viba.partial import product_elements
+from viba.partial import (file_environment_result_problem, parameters_of,
+                          product_elements, names_the_environment)
 from viba.reflect import VibaNode, access as reflect_access
 from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
@@ -86,10 +89,11 @@ _NO_MODULE = custom_module("")
 
 TMP_PREFIX = "tmp_"
 RET_NAME = "__ret__"
-ARGS_NAME = "__args__"
-ENVIRON_NAME = "environ"
+DEF_NAME = "__def__"
+GET_ARGS_NAME = "__get_args__"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
+ENV_TYPE = "Env"
 
 # Where a snapshot goes when the storage did not name a store root, and what
 # the definition in a snapshot file is called.
@@ -167,7 +171,7 @@ class EnvironmentCompute:
 class Environment:
     """Storage, compute and the module search path, and the children under it."""
 
-    __slots__ = ("storage", "compute", "viba_path", "sub_env", "tmp_sub_env")
+    __slots__ = ("storage", "compute", "viba_path", "sub_env", "tmp_env")
 
     def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute,
                  viba_path=None):
@@ -180,17 +184,17 @@ class Environment:
         self.viba_path = viba_path
         # The members a design hangs off the environment are plain functions of
         # the environment itself: nothing is bound to the one they were read
-        # from, so `environ.sub_env << environ << "child"` and
-        # `$sub_env << environ << "child"` are the same call (viba-interpreter.md).
+        # from, so `args.env.sub_env << args.env << "child"` and
+        # `$sub_env << args.env << "child"` are the same call (viba-interpreter.md).
         self.sub_env = sub_env
-        self.tmp_sub_env = tmp_sub_env
+        self.tmp_env = tmp_env
 
 
 def sub_env(environ: "Environment", name) -> "Environment":
     """A child environment: its own storage, the parent's compute.
 
     `name` is what the viba side wrote: a viba data node lands as the leaf it
-    carries, so `environ.sub_env << environ << "add_demo"` names the module. The
+    carries, so `args.env.sub_env << args.env << "add_demo"` names the module. The
     same name is the same child, handed back again.
     """
     if isinstance(name, VibaNode):
@@ -198,7 +202,7 @@ def sub_env(environ: "Environment", name) -> "Environment":
     return Environment(environ.storage.sub(str(name)), environ.compute, environ.viba_path)
 
 
-def tmp_sub_env(environ: "Environment") -> "Environment":
+def tmp_env(environ: "Environment") -> "Environment":
     """A child environment under a name of its own, fresh every time: no name to
     pick, and no two calls share a storage path."""
     return Environment(environ.storage.tmp(), environ.compute, environ.viba_path)
@@ -449,7 +453,7 @@ class _Host:
 class _Member:
     """`$tag` at the head of a chain: the member `$tag` of the value given first.
 
-    The chain gives that value first (`$sub_env << environ << "c"`), and giving
+    The chain gives that value first (`$sub_env << args.env << "c"`), and giving
     it is what takes the member: the first argument is never an argument of the
     member itself. A tag is not a value, so this only ever stands at the head of
     a chain and is gone as soon as the chain has run (viba-interpreter.md).
@@ -733,6 +737,9 @@ class _Runner:
                 tree = viba_ast.parse(source)
             except SyntaxError as exc:
                 return VibaProgramErr(f"cannot parse {path}: {exc}")
+            problem = file_environment_result_problem(tree)
+            if problem is not None:
+                return VibaProgramErr(f"{path}: {problem}")
             imports = {stmt.alias or stmt.module: stmt.module
                        for stmt in tree.body if isinstance(stmt, viba_ast.Import)}
             # 这份模块自己知道怎么找它的 import：描述符/判定层要用（它们不经过
@@ -784,11 +791,14 @@ class _Runner:
 
 def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                name: str, file: Optional[str], args=None, members=None) -> InterpretResult:
-    """The module as a function: `environ` in, `__ret__` out.
+    """The module as a function: the environment in, `__ret__` out.
 
-    A module that declares `__args__` is called with its members as well; `args`
-    is the product they were given as, and inside the module that product is what
-    `__args__` (and every name that aliases it) means (viba-interpreter.md).
+    A module that declares `__def__` is called with its parameters as well; `args`
+    is the product they were given as — the environment among its members, which
+    is what the module reads as `args.env` (`args = __get_args__ << __def__`).
+
+    The module the host runs has no caller to write its arguments, so the
+    environment it is handed is the only member of that product.
 
     The storage path a module runs under is its identity: it is what the host
     is handed as `module_path`, so two activations under one path cannot be
@@ -800,6 +810,13 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     ret = _definition(module, RET_NAME)
     if ret is None:
         return VibaProgramErr(f"module {name!r} has no {RET_NAME}: it is design, not a program")
+    params, problem = _module_params(module)
+    if problem is not None:
+        return VibaProgramErr(f"module {name!r}: {problem}")
+    if members is None:
+        members = [(ENVIRON_TAG, _Host(environ))]
+    if args is None:
+        args = _VibaData(viba_data(None))
     path = _storage_path(environ)
     signature = _call_signature(members)
     for seen, running_name, running_signature in runner.running:
@@ -807,7 +824,7 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
             return VibaProgramErr(
                 f"the storage path {path!r} is already running a call, so {name!r} "
                 f"cannot run there too: give each module call a sub-environment of "
-                f"its own (environ.sub_env << environ << ...)")
+                f"its own (args.env.sub_env << args.env << ...)")
         if running_name == name and running_signature == signature:
             return VibaProgramErr(
                 f"module {name!r} is already running with the same arguments: "
@@ -819,7 +836,7 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
             return Ok(answered)
         return VibaProgramErr(f"module {name!r} was handed the storage path {path!r}, which "
                    f"another module call already used: give each module call a "
-                   f"sub-environment of its own (environ.sub_env << environ << ...)")
+                   f"sub-environment of its own (args.env.sub_env << args.env << ...)")
     runner.running.append((path, name, signature))
     try:
         value = _Activation(runner, module, environ, name, file, args,
@@ -841,10 +858,21 @@ def _call_signature(members) -> tuple:
     The path is a call's identity, so the same path twice is the same call; this
     is what tells a call that made no progress from one that did — a module
     running with the same arguments again has the same inputs it already has.
+    The environment is not one of those inputs: it is the address the call runs
+    at, which the path guard already answers, so two calls that differ only in
+    the environment they were handed are the same call with the same arguments.
     """
     if not members:
         return ()
-    return tuple(viba_ast.unparse_type(value.node.data) for _tag, value in members)
+    return tuple(_signature_of(value) for _tag, value in members
+                 if not _is_environ_value(value))
+
+
+def _signature_of(value) -> str:
+    """One argument, written the same way every time."""
+    if isinstance(value, _VibaData):
+        return viba_ast.unparse_type(value.node.data)
+    return type(value).__name__
 
 
 def _storage_path(environ: Environment) -> str:
@@ -853,32 +881,55 @@ def _storage_path(environ: Environment) -> str:
     return getattr(storage, "cur_storage_path", "") if storage else ""
 
 
-def _module_arg_slots(module: ModuleType):
-    """(slots, problem) for a module's `__args__`, or (None, None) for none.
+def _module_params(module: ModuleType):
+    """(params, problem) for a module's `__def__`, or (None, None) for none.
 
-    `__args__` is a product type and its members are the call's arguments, in
-    written order: `__args__ = Object * $a int * $b int` is a module called with
-    two. `__args__ = Object` declares a module that still takes none, and a
-    `__args__` that is no product at all is a program error, reported at the
-    call.
+    `__def__` is the module read as a function: the result first, then the
+    call's parameters in written order — `__def__ = int <- $env Env <- $a int`
+    is a module answering an int, asking for an environment and an `$a`. Each
+    parameter comes back as (tag, written type, is the environment, argument
+    slot); the slot counts arguments only, so the environment has none: giving
+    it is what runs the call, it is not an argument.
+
+    A module that runs declares exactly one environment parameter, tagged
+    `$env`: a module that takes the environment is a module that can be run. Its
+    answer is never the environment itself — a file that writes such a function is
+    refused where it is read (`file_environment_result_problem`).
     """
-    definition = _definition(module, ARGS_NAME)
+    definition = _definition(module, DEF_NAME)
     if definition is None:
         return None, None
     body = definition.body
-    if _builtin_unit(body) is NilType:
-        return [], None
-    if not isinstance(body, (viba_ast.Product, viba_ast.ProductChain)):
-        return None, (f"{ARGS_NAME} is not a product: {viba_ast.unparse_type(body)}")
-    slots = []
-    for factor in product_elements(body):
-        if _builtin_unit(factor) is NilType:
-            continue                        # the head, not a member
-        if isinstance(factor, viba_ast.Tagged):
-            slots.append((factor.tag, factor.type))
-        else:
-            slots.append((None, factor))    # a member with no tag: position only
-    return slots, None
+    if not isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
+        return None, (f"{DEF_NAME} is not a function type: {viba_ast.unparse_type(body)}")
+    params = parameters_of(body)
+    envs = [one for one in params if one[2]]
+    if _definition(module, RET_NAME) is not None and not envs:
+        return None, (f"{DEF_NAME} has no {ENVIRON_TAG} {ENV_TYPE} parameter: "
+                      f"every module that runs depends on the environment")
+    if len(envs) > 1:
+        return None, (f"{DEF_NAME} has {len(envs)} {ENVIRON_TAG} {ENV_TYPE} parameters: "
+                      f"a module that runs takes exactly one")
+    for _tag, written, _is_env, _slot in envs:
+        if not names_the_environment(written):
+            return None, (f"the {ENVIRON_TAG} parameter of {DEF_NAME} must be "
+                          f"{ENV_TYPE}, not {viba_ast.unparse_type(written)}")
+    return params, None
+
+
+def _module_arg_slots(module: ModuleType):
+    """(slots, problem) for a module's arguments: its `__def__` less the
+    environment parameter, which is the call's rule rather than an argument."""
+    params, problem = _module_params(module)
+    if problem is not None:
+        return None, problem
+    if params is None:
+        if _definition(module, RET_NAME) is None:
+            return [], None                  # design only: it never runs
+        return None, (f"module has no {DEF_NAME}: a module that runs declares its "
+                      f"parameters, its {ENVIRON_TAG} {ENV_TYPE} among them")
+    return ([(tag, written) for tag, written, is_env, _slot in params if not is_env],
+            None)
 
 
 def _viba_data_factors(node: VibaNode):
@@ -908,12 +959,18 @@ class _Activation:
         self.environ = environ
         self.name = name
         self.file = file
-        self.args = args                     # the `__args__` product, if any
+        self.args = args                     # 这次调用收到的实参积（`__get_args__` 答的那份）
         self.path = _storage_path(environ)   # 这次调用跑在哪个地址上
         self.signature = _call_signature(members)   # 这次调用收到的是什么
         # 这次调用收到的每个成员，按它给进来时的样子留着（各自记着写它的那个模块）：`args.a`
         # 是"这次调用收到的那份值"，不是把值压成节点之后重新读出来的东西。
-        self.members = members or []
+        #
+        # 没有调用方写实参的那一次激活（读另一个模块的定义、宿主递回来的那段文本），收到的
+        # 只有环境：那份积里就只有 `env` 这一个成员，和一次模块调用收到的一样。
+        self.members = members if members is not None else [(ENVIRON_TAG, _Host(environ))]
+        if args is None:
+            args = _VibaData(viba_data(None))
+        self.args = args
         self.defined: dict = {}
 
     # ---- expressions ----
@@ -1010,15 +1067,20 @@ class _Activation:
         bound = _in_scope(scope, name)
         if bound is not None:
             return Ok(bound)
-        if name == ENVIRON_NAME:
-            return Ok(_Host(self.environ))
-        if name == ARGS_NAME and self.args is not None:
-            # Read as a type `__args__` is the product of the call's arguments;
-            # read as a value inside the module it is that product (the one the
-            # call was given), which is why a name aliasing it works too.
-            return Ok(self.args)
-        if name.startswith(ENVIRON_NAME + "."):
-            return self._environ_member(name[len(ENVIRON_NAME) + 1:])
+        if name == GET_ARGS_NAME:
+            # 这次调用收到的那份实参：给一个环境就答它。推导层读同一个名字，读出来的
+            # 是那次调用的参数的积类型（viba-interpreter.md）。
+            return Ok(_GetArgs(self))
+        if name == DEF_NAME:
+            # Read as a type `__def__` is the module's own function chain; read as
+            # a value it is that same written chain, which is what `__get_args__`
+            # is given.
+            definition = _definition(self.module, DEF_NAME)
+            if definition is not None:
+                node = definition.body
+                return Ok(_VibaData(VibaNode(
+                    reflect_access,
+                    descriptor_of(AstNodeType(node, self.module)), node)))
         definition = _definition(self.module, name)
         if definition is not None:
             return self._value_of_definition(name, definition, self.module)
@@ -1039,6 +1101,9 @@ class _Activation:
         builtin = self._builtin_member(name)
         if builtin is not None:
             return builtin
+        member = self._environment_member(name, scope)
+        if member is not None:
+            return member
         return VibaProgramErr(f"no definition named {name!r} in module {self.name!r}")
 
     def _tagged_member(self, name: str, scope=()):
@@ -1047,8 +1112,8 @@ class _Activation:
         A dotted name is a member of an imported module (`demo.print`), which is
         settled before this; when the head is not an import, it is the tag of a
         member of the product the head stands for — the arguments of the call
-        among them (`args.a`, `__args__.a`). None when the head is no such
-        value, so the caller reports the name the way it always did.
+        among them (`args.a`). None when the head is no such value, so the
+        caller reports the name the way it always did.
         """
         head, dot, tag = name.rpartition(".")
         if not dot or not head:
@@ -1164,7 +1229,7 @@ class _Activation:
         """The member `$tag` of the value the chain gave first.
 
         An environment hands over the function it hangs off itself — the same
-        thing `environ.sub_env` reads, only reached from the value the chain was
+        thing `args.env.sub_env` reads, only reached from the value the chain was
         given. A product hands over the piece its tag addresses. Anything else
         keeps no members here.
         """
@@ -1175,8 +1240,8 @@ class _Activation:
             if not callable(attributed):
                 return VibaProgramErr(f"the environment has no {name!r}")
             # The value the member is taken from is also what the member is
-            # given first: `$sub_env << environ << "child"` is
-            # `environ.sub_env << environ << "child"`.
+            # given first: `$sub_env << args.env << "child"` is
+            # `args.env.sub_env << args.env << "child"`.
             return Ok(_HostFunction(name, attributed,
                                     slots=_required_arguments(attributed),
                                     given=[value.obj],
@@ -1191,12 +1256,28 @@ class _Activation:
             return VibaProgramErr(f"no member tagged {tag!r} to take from it")
         return VibaProgramErr(f"{type(value).__name__} has no member tagged {tag!r}")
 
-    def _environ_member(self, rest: str):
-        member = getattr(self.environ, rest, None)
+    def _environment_member(self, name: str, scope=()):
+        """`args.env.sub_env`: a member of the environment this module names.
+
+        The environment is a host value, and what a design hangs off it are
+        plain functions of the environment itself, so the value the member is
+        read from is also what it is given first:
+        `args.env.sub_env << args.env << "child"` is the same call as
+        `$sub_env << args.env << "child"`. None when the head is no environment,
+        so the caller reports the name the way it always did.
+        """
+        head, dot, rest = name.rpartition(".")
+        if not dot or not head:
+            return None
+        value = self._resolve(head, scope)
+        if _stopped(value) or not _is_environ_value(value.ok_value):
+            return None
+        environ = value.ok_value.obj
+        member = getattr(environ, rest, None)
         if not callable(member):
             return VibaProgramErr(f"the environment has no {rest!r}")
         return Ok(_HostFunction(rest, member, slots=_required_arguments(member),
-                                module_path=_storage_path(self.environ)))
+                                module_path=_storage_path(environ)))
 
     # ---- calls ----
 
@@ -1215,12 +1296,18 @@ class _Activation:
             return target
         return self._give_all(target.ok_value, written, scope)
 
-    def _give_all(self, current, written, scope):
+    def _give_all(self, current, written, scope, finish=True):
         """Give a list of written arguments to what the chain calls, in order.
 
         An entry is either a written piece — computed here, in the module that
         wrote it — or an argument a call already kept (`_Given`), which is the
         value it was given, and the module it was written in.
+
+        `finish` says what to do with a call the chain leaves incomplete: the end
+        of a written chain finishes it (it runs when the environment is in, and
+        is stored as a closure when it is not), while a host that hands over an
+        environment of its own calls this with `finish=False` and gives that
+        environment itself.
         """
         for index, argument in enumerate(written):
             if _is_a_written_call(current):
@@ -1229,11 +1316,12 @@ class _Activation:
                 # the way it would at the head: read the chain it is and keep
                 # giving. Nothing is computed twice: the arguments still to be
                 # given have not been touched yet.
-                target = self._read_stored_call(current, scope)
+                target = self._read_stored_call(current, scope, finish=finish)
                 if target is not None:
                     if _stopped(target):
                         return target
-                    return self._give_all(target.ok_value, written[index:], scope)
+                    return self._give_all(target.ok_value, written[index:], scope,
+                                          finish=finish)
                 node = current.node.data
                 for later in written[index:]:
                     node = viba_ast.Partial(node, later)
@@ -1243,7 +1331,7 @@ class _Activation:
                     return self._apply_chain(node, scope)
                 # 存下来的那一段写在 writing_module 那个模块里：只把**它**读成一次调用，
                 # 后面的实参写在这里，仍在这里算。
-                stored = self._read_stored_call(current, scope, whole=True)
+                stored = self._read_stored_call(current, scope, whole=True, finish=finish)
                 if stored is None:
                     return self._apply_chain(node, scope)
                 if _stopped(stored):
@@ -1285,13 +1373,16 @@ class _Activation:
                 return current
             current = current.ok_value
         if isinstance(current, _Pending):
-            return self._finish(current)
+            return self._finish(current) if finish else Ok(current)
         if isinstance(current, _HostFunction):
             if current.filled():
                 return current.run()
             return VibaProgramErr(
-                f"environ.{current.name} was given {len(current.given)} of its "
-                f"{current.slots} arguments")
+                f"the environment's {current.name} was given {len(current.given)} "
+                f"of its {current.slots} arguments")
+        if isinstance(current, _GetArgs):
+            return VibaProgramErr(
+                f"{GET_ARGS_NAME} asks for the module's {DEF_NAME}, and none was given")
         return Ok(current)
 
     def _in_module(self, module):
@@ -1303,7 +1394,7 @@ class _Activation:
                                    self.runner.path_of.get(name))
         return None
 
-    def _read_stored_call(self, value, scope, whole=False):
+    def _read_stored_call(self, value, scope, whole=False, finish=True):
         """Read a call kept as a value: (what it calls, its kept arguments).
 
         The head resolves in the module the call was written in — that is what
@@ -1324,41 +1415,61 @@ class _Activation:
                     return None
                 if _stopped(target):
                     return target
-                return self._give_all(target.ok_value, passed, scope)
+                return self._give_all(target.ok_value, passed, scope, finish=finish)
         return None
 
     def _apply_without_environ(self, node, scope, environ):
-        """Run the call `node` writes with `environ` given, without writing it.
+        """Run the call `node` writes with the environment the host handed over.
 
         A function-typed slot names the argument as the call it stands for
-        (`tick`, or `poison << $env environ`). Giving it the environment is what
-        runs it, and the environment may come from the host at any time, so the
-        written chain gets the environment the host handed over as its last step.
+        (`tick`, or `poison << $x 1`). The environment is what runs a call and it
+        is never an argument of the written chain, so the chain is given first
+        and the host's environment lands in the `$env` slot it still owes: a
+        chain that wrote one of its own (`branch.echo_or_never << $env ...`) is
+        left alone, and one that did not is run under the environment the host
+        chose. `finish=False` is what keeps the call from being stored as a
+        closure before that environment is in.
         """
-        head, written = _call_parts(node)
-        rebuilt = head
-        for argument in written:
-            rebuilt = viba_ast.Partial(rebuilt, argument)
-        if not any(self._is_the_environment(argument) for argument in written):
-            rebuilt = viba_ast.Partial(rebuilt, viba_ast.Tagged(
-                ENVIRON_TAG, viba_ast.TypeRef(ENVIRON_NAME)))
-        return self._apply_chain(rebuilt, scope)
+        target, written = self._target_and_arguments(node, scope)
+        if written is None:
+            return target
+        given = self._give_all(target.ok_value, written, scope, finish=False)
+        if _stopped(given):
+            return given
+        current = given.ok_value
+        if isinstance(current, _Pending):
+            if current.environ is None:
+                handed = environ if _is_environ_value(environ) else _Host(environ)
+                current = current.give(ENVIRON_TAG, handed)
+                if _stopped(current):
+                    return current
+                current = current.ok_value
+            return self._finish(current)
+        return Ok(current)
 
     def _is_the_environment(self, argument) -> bool:
-        """Whether this written argument is the environment, by tag or by name."""
+        """Whether this written argument says the environment, by its tag.
+
+        The environment is what `args.env` answers; a written argument is that
+        environment when the call gives it the `$env` tag the runtime function
+        declares. The value itself says it too — an environment handed to a call
+        is what runs it (`_Pending.give`) — which is what the layers that hold an
+        argument, rather than its text, read.
+        """
         if isinstance(argument, viba_ast.Tagged):
-            if argument.tag == ENVIRON_TAG:
-                return True
-            argument = argument.type
-        return (isinstance(argument, viba_ast.TypeRef)
-                and argument.name == ENVIRON_NAME)
+            return argument.tag == ENVIRON_TAG
+        return False
 
     def _argument_is_deferred(self, current, argument):
         """Whether this written argument lands on a function-typed slot — then it
         is not computed here at all: the host runs it with an environment of its
         own. The environment is never deferred: giving it is what runs the call.
+
+        A module's arguments are values it receives as one product, so nothing is
+        deferred there: what a module's slot asks for is computed here, and a
+        function-typed one is the closure it writes.
         """
-        if not isinstance(current, _Pending):
+        if not isinstance(current, _Pending) or current.kind != "func":
             return False
         if self._is_the_environment(argument):
             return False
@@ -1445,8 +1556,6 @@ class _Activation:
         the caller reads the name as a value instead.
         """
         name = name_node.name
-        if name == ENVIRON_NAME or name.startswith(ENVIRON_NAME + "."):
-            return None                        # 宿主那一侧按值读（另有安排）
         definition = _definition(self.module, name)
         if definition is not None:
             return self._pending_of(definition, name_node, name, self.module, name)
@@ -1520,11 +1629,16 @@ class _Activation:
         the environment, so a chain without that slot can never run: saying so
         here is what keeps such a call from becoming a closure that never runs."""
         slots = _slots_of(chain)
-        if not any(isinstance(one, viba_ast.Tagged) and one.tag == ENVIRON_TAG
-                   for one in slots):
+        envs = [one for one in slots
+                if isinstance(one, viba_ast.Tagged) and one.tag == ENVIRON_TAG]
+        if not envs:
             return VibaProgramErr(
-                f"{written} takes no {ENVIRON_TAG} {ENVIRON_TYPE} argument: "
-                f"every executable function depends on the environment")
+                f"{written} takes no {ENVIRON_TAG} {ENV_TYPE} parameter: "
+                f"every function that runs depends on the environment")
+        if not names_the_environment(envs[0].type):
+            return VibaProgramErr(
+                f"{written}: the {ENVIRON_TAG} parameter must be {ENV_TYPE}, "
+                f"not {viba_ast.unparse_type(envs[0].type)}")
         return Ok(_Pending.func(self, name_node, written, owner_module, slots,
                                 name=name, written_in=written_in))
 
@@ -1785,6 +1899,8 @@ def _host_give(function, item):
     """
     if isinstance(function, _HostFunction):
         return function.give(item)
+    if isinstance(function, _GetArgs):
+        return function.give(item)
     if isinstance(function, _VibaData):
         return VibaProgramErr(f"{function.node!r} is not a function: it is a value")
     if isinstance(function, _Host):
@@ -1834,13 +1950,6 @@ def _as_environ_value(value):
     return None
 
 
-def _is_empty_product(value) -> bool:
-    """Whether this value is the written empty product, `()`."""
-    return (isinstance(value, _VibaData)
-            and isinstance(value.node.data, viba_ast.Tuple)
-            and not value.node.data.elements)
-
-
 class _Pending:
     """A call being prepared: a function or a module, and what it has been given.
 
@@ -1866,7 +1975,6 @@ class _Pending:
         self.module_name = module_name
         self.environ = None                  # 环境；给了就是执行
         self.given = {}                      # 参数序号 -> 值
-        self.empty = False                   # 模块：那份空实参被显式写出来了
 
     @classmethod
     def func(cls, activation, head, written, owner_module, elements, name="",
@@ -1889,7 +1997,7 @@ class _Pending:
 
     def slot_tags(self):
         """The tags of the slots this pending call fills, in order — a module's
-        slots come from its `__args__`, a function's from its chain."""
+        slots come from its `__def__`, a function's from its chain."""
         if self.kind == "module":
             return [tag for tag, _written in (_module_arg_slots(self.module)[0] or [])]
         return self.slots
@@ -1927,10 +2035,12 @@ class _Pending:
         return free[0], None
 
     def ready(self) -> bool:
+        """Whether the call can run: the environment is in and every argument."""
         if self.environ is None:
             return False
         if self.kind == "module":
-            return self.empty or len(self.given) == len(self.elements)
+            slots, _problem = _module_arg_slots(self.module)
+            return len(self.given) == len(slots or [])
         return len(self.given) == len(self.elements)
 
     def missing(self):
@@ -1955,7 +2065,7 @@ class _Pending:
         if not left:
             return None
         return (f"module {self.module_name!r} was given {len(self.given)} of its "
-                f"{len(slots)} {ARGS_NAME}: {', '.join(left)} missing")
+                f"{len(slots)} parameters: {', '.join(left)} missing")
 
     # ---- taking arguments ----
 
@@ -1995,29 +2105,25 @@ class _Pending:
         slots, problem = _module_arg_slots(self.module)
         if problem is not None:
             return VibaProgramErr(f"module {self.module_name!r}: {problem}")
-        # 环境不是 __args__ 的成员：它就是执行这一步，按值认，或者按 $env 这个 tag 认。
+        # 环境不是实参：它就是执行这一步，按值认，或者按 $env 这个 tag 认。
         if self.environ is None and (tag == ENVIRON_TAG or _is_environ_value(value)):
             if not _is_environ_value(value):
-                return VibaProgramErr(f"module {self.module_name!r} needs an Environment")
+                return VibaProgramErr(
+                    f"module {self.module_name!r} was not given an {ENVIRON_TYPE}: "
+                    f"its {ENVIRON_TAG} parameter asks for {ENV_TYPE}")
             self.environ = value.obj
             return Ok(self)
         if not slots:
-            if self.empty:
-                return VibaProgramErr(
-                    f"module {self.module_name!r} takes no more arguments: its "
-                    f"{ARGS_NAME} is empty, written ()")
-            if tag is not None or not _is_empty_product(value):
-                return VibaProgramErr(
-                    f"module {self.module_name!r} needs an Environment here "
-                    f"(its {ARGS_NAME} is empty, written ())")
-            self.empty = True                  # 那份空实参，是被写出来的
-            return Ok(self)
+            # 这个模块只收环境：环境之外的实参一个都没有，所以给什么都不对。
+            return VibaProgramErr(
+                f"module {self.module_name!r} needs an {ENVIRON_TYPE}: its "
+                f"{DEF_NAME} takes no other parameters")
         tags = [one for one, _written in slots]
         if tag is not None:
             if tag not in tags:
                 return VibaProgramErr(
                     f"module {self.module_name!r} takes no {tag} argument: its "
-                    f"{ARGS_NAME} are {_written_slots(slots)}")
+                    f"{DEF_NAME} parameters are {_written_slots(slots)}")
             index = tags.index(tag)
             if index in self.given:
                 return VibaProgramErr(
@@ -2027,7 +2133,7 @@ class _Pending:
             if not free:
                 return VibaProgramErr(
                     f"module {self.module_name!r} takes no more arguments: its "
-                    f"{ARGS_NAME} are all given")
+                    f"{DEF_NAME} parameters are all given")
             index = free[0]
         slot_tag, declared = slots[index]
         problem = _fits_slot(value,
@@ -2149,11 +2255,18 @@ class _Pending:
         return _answer(self.name, answer, step)
 
     def _run_module_call(self):
-        """Every `__args__` member is in: hand them to the module as one product."""
-        slots, _problem = _module_arg_slots(self.module)
+        """Every parameter of `__def__` is in: hand them to the module, as one
+        product, the environment among its members (`args.env`)."""
+        params, problem = _module_params(self.module)
+        if problem is not None:
+            return VibaProgramErr(f"module {self.module_name!r}: {problem}")
         nodes = []
         kept = []
-        for index, (tag, _written) in enumerate(slots or []):
+        members = []
+        for tag, _written, is_env, index in params or []:
+            if is_env:
+                members.append((tag, _Host(self.environ)))
+                continue
             value = self.given.get(index)
             if value is None:
                 return VibaProgramErr(
@@ -2161,10 +2274,12 @@ class _Pending:
             if not isinstance(value, _VibaData):
                 return VibaProgramErr(
                     f"module {self.module_name!r}: the {_slot_name(index, tag)} argument "
-                    f"is not viba data, so it cannot be part of {ARGS_NAME}")
+                    f"is not viba data, so it cannot be part of {DEF_NAME}")
             nodes.append(viba_ast.Tagged(tag, value.node.data) if tag else value.node.data)
             kept.append(value)
+            members.append((tag, value))
         if not nodes:
+            # 只有环境：这次调用收到的是那份环境，没有别的成员（`args.env` 走的就是它）。
             args = _VibaData(viba_data(None))
         elif len(nodes) == 1:
             descriptor = kept[0].node.descriptor
@@ -2178,8 +2293,6 @@ class _Pending:
             args = _VibaData(VibaNode(
                 reflect_access,
                 descriptor_of_values(chain, self.written_in, kept), chain))
-        members = [(tag, self.given[index])
-                   for index, (tag, _written) in enumerate(slots or [])]
         answer = _run_module(self.runner, self.module, self.environ, self.module_name,
                              None, args, members=members)
         if _stopped(answer):
@@ -2190,8 +2303,33 @@ class _Pending:
         return Ok(_VibaData(node) if isinstance(node, VibaNode) else _Host(node))
 
 
+class _GetArgs:
+    """`__get_args__ << __def__`: the arguments this call was handed.
+
+    Read as a type, the same call answers the product of `__def__`'s parameters
+    (viba.is_sub_type reads it that way); run, it answers the product the module
+    received, the environment among its members — which is how a module reads the
+    environment (`args = __get_args__ << __def__`, then `args.env`). What it is
+    given is the module's own `__def__`: what a call received is not a property
+    of the text it was written with.
+    """
+
+    __slots__ = ("activation",)
+
+    def __init__(self, activation):
+        self.activation = activation
+
+    def give(self, item):
+        """One argument — the module's `__def__` — and this call's arguments."""
+        if self.activation.args is None:
+            return VibaProgramErr(
+                f"{GET_ARGS_NAME} is the arguments of a module call, and no module "
+                f"call is running here")
+        return Ok(self.activation.args)
+
+
 class _HostFunction:
-    """A function the host hangs off the environment: `environ.sub_env`."""
+    """A function the host hangs off the environment: `args.env.sub_env`."""
 
     def __init__(self, name: str, func, slots: int = 1, given=None,
                  module_path: str = ""):

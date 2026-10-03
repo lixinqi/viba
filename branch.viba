@@ -17,14 +17,14 @@
 # branch that is taken runs under a path of its own.
 echo_or_never =
     Any
-  <- $env Environment
+  <- $env Env
   <- $cond bool
-  <- $get_v (Any <- $env Environment)
+  <- $get_v (Any <- $env Env)
   <- { run get_v in its own child environment when cond holds, else never }
 
 never_or_echo =
     Any
-  <- $env Environment
+  <- $env Env
   <- $cond bool
-  <- $get_v (Any <- $env Environment)
+  <- $get_v (Any <- $env Env)
   <- { run get_v in its own child environment when cond does not hold, else never }

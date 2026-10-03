@@ -4,16 +4,21 @@
 # suspect at (3,4) — 3 and 4 along the two axes, so 5 apart, which is the rule's
 # threshold to the point.
 #
-# A witness is a program too — `environ` in, the viba data out — and it *asks*
-# for its facts: `at_1230` is a step like any other, a hint and an implementation
-# on the host side. What it answers is the viba data, written the way its design
-# is written. Where those facts really come from — a log, a database, a service —
-# is the implementation's business, not the witness's: this file says which facts
-# there are, never what they are.
+# A witness is a program too — the environment in, the viba data out — and it
+# *asks* for its facts: `at_1230` is a step like any other, a hint and an
+# implementation on the host side. What it answers is the viba data, written the
+# way its design is written. Where those facts really come from — a log, a
+# database, a service — is the implementation's business, not the witness's:
+# this file says which facts there are, never what they are.
+__def__ =
+    ($victim ($x int * $y int) * $suspect ($x int * $y int) * $at str)
+  <- $env Env
+
+args = __get_args__ << __def__
 
 at_1230 =
     ($victim ($x int * $y int) * $suspect ($x int * $y int) * $at str)
-  <- $env Environment
+  <- $env Env
   <- { where each of them was at 12:30, and when it was }
 
-__ret__ = at_1230 << $env environ
+__ret__ = at_1230 << $env args.env

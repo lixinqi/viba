@@ -82,14 +82,15 @@ alias of what it is written as, and judgment is structural throughout.
 """
 
 from viba import viba_ast
-from viba.partial import (module_as_function, product_elements,
-                          reduce_partial)
+from viba.partial import (environment_result_problem, get_args_product,
+                          module_as_function, product_elements, reduce_partial)
 from viba.type import (
     PartialError,
     AnyType,
     AstNodeType,
     BoolLiteralType,
     BoolType,
+    BUILTIN_MODULE,
     BuiltinGenericType,
     DuplicateTagError,
     VibaProgramErr,
@@ -122,6 +123,7 @@ _SUM_NODES = (viba_ast.Sum, viba_ast.SumChain)
 _PROD_NODES = (viba_ast.Product, viba_ast.ProductChain)
 _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 ENVIRON_TAG = "$env"
+GET_ARGS_NAME = "__get_args__"
 
 
 def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> Result:
@@ -245,13 +247,15 @@ class _Checker:
         return next((h for h in hits if isinstance(h, Ok)), resolved)
 
     def _product_member_type(self, name: str, module: ModuleType, side: str):
-        """`point.x` read as a type: the `$x` member's declared type.
+        """`args.a` read as a type: the `$a` member's declared type.
 
         A member of a product is addressed by its tag, and that is what a dotted
-        name does — `__args__.a` is `int` when the module declares
-        `__args__ = Object * $a int`. The value layer reads the same name as the
-        argument the call was given (viba-interpreter.md): one name, two layers,
-        what it denotes each time. None when the head is no product.
+        name does — `args.a` is `int` when the call was handed an `$a`, and
+        `args.env` is `Env`. A definition whose body is a call is the value that
+        call answers (`args = __get_args__ << __def__`), so its product is read
+        from there. The value layer reads the same name as the argument the call
+        was given (viba-interpreter.md): one name, two layers, what it denotes
+        each time. None when the head is no product.
         """
         head, dot, tag = name.rpartition(".")
         if not dot or not head:
@@ -259,6 +263,8 @@ class _Checker:
         body, written_in = self._head_body(head, module, side)
         if body is None:
             return None
+        if isinstance(body, viba_ast.Partial):
+            body, written_in = self._partial(body, written_in, side)
         for factor in product_elements(body):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == "$" + tag:
                 return Ok(AstNodeType(factor.type, written_in))
@@ -973,21 +979,51 @@ class _Checker:
                 return node, module
 
     def _partial(self, node, module, side: str):
-        """A design's `<<` reduced: the function with that argument given."""
+        """A design's `<<` reduced: the function with that argument given.
+
+        `__get_args__ << __def__` is read before any of that: it is the arguments
+        a call was handed, read as one product (get_args_product).
+        """
         if not isinstance(node, viba_ast.Partial):
             return node, module
+        product = self._get_args_call(node, module, side)
+        if product is not None:
+            return product
         return reduce_partial(
             node, module,
             lambda name, written_in: self._partial_target(name, written_in, side),
             lambda given, given_module, written, written_module: self._walk(
                 given, given_module, written, written_module))
 
+    def _get_args_call(self, node, module, side: str):
+        """(product, written_in) for `__get_args__ << <chain>`, or None.
+
+        What a call was handed, read as a type: every parameter the chain
+        declares, in written order, the environment among them — which is how a
+        module names the environment (`args.env`) and its arguments (`args.a`).
+        The chain is usually the module's own `__def__`, a name like any other.
+        """
+        head, arguments = _partial_parts(node)
+        if not (isinstance(head, viba_ast.TypeRef) and head.name == GET_ARGS_NAME):
+            return None
+        if len(arguments) != 1:
+            raise PartialError(
+                f"{GET_ARGS_NAME} takes one argument, the function type it reads")
+        chain, written_in = self._normalize(arguments[0], module, side)
+        if not isinstance(chain, _EXP_NODES):
+            raise PartialError(
+                f"{GET_ARGS_NAME} asks for a function type, not "
+                f"{_one_line(chain)}")
+        return get_args_product(chain), written_in
+
     def _partial_target(self, name, module, side: str):
         """(body, written_in) for the name a `<<` gives to, or None.
 
         A definition is itself; a bare import name is the module read as a
         function (`module_as_function`), while `module.Name` stays what it
-        always was — that module's own definition.
+        always was — that module's own definition. A function written in a module
+        never answers the environment itself: only a builtin function does, and
+        the builtin library is the one module the check steps aside for.
         """
         resolved = self._resolve_name(name, module, side)
         if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
@@ -997,6 +1033,11 @@ class _Checker:
             return None                     # a bare generic name has no body
         if isinstance(node, viba_ast.TypeDefinition):
             node = node.body
+        if (resolved.ok_value.container_module is not BUILTIN_MODULE
+                and isinstance(node, (viba_ast.Exponent, viba_ast.ExponentChain))):
+            problem = environment_result_problem(node, name)
+            if problem is not None:
+                raise PartialError(problem)
         return node, resolved.ok_value.container_module
 
     def _config_unit(self, node):
@@ -1330,6 +1371,20 @@ def _exponent_parts(node):
     if not isinstance(node, _EXP_NODES):
         raise TypeError(f"not an exponent: {node!r}")
     return elements[0], list(elements[1:])
+
+
+def _partial_parts(node):
+    """（链头, 实参表）for a written `<<` chain, arguments in written order."""
+    arguments = []
+    while isinstance(node, viba_ast.Partial):
+        arguments.append(node.argument)
+        node = node.function
+    return node, list(reversed(arguments))
+
+
+def _one_line(node) -> str:
+    """一个片段写成一行：报错的话不带排版读起来更清楚。"""
+    return " ".join(viba_ast.unparse_type(node).split())
 
 
 def _type_key(t: Type, env: tuple = ()):

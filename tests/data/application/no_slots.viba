@@ -1,3 +1,5 @@
+__def__ = int <- $env Env
+
 f =
 	int
 	<- { a function with no argument slot }

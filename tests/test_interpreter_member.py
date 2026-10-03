@@ -1,7 +1,7 @@
 """`$tag << X << …`：从第一个参数身上取成员，再往后给。
 
-`$sub_env << environ << "child"` 就是 `environ.sub_env << environ << "child"`，`$tmp_sub_env << environ`
-就是 `environ.tmp_sub_env << environ`。tag 不是值（`method = $sub_env` 编不过），只有把它写在链头、后面
+`$sub_env << args.env << "child"` 就是 `args.env.sub_env << args.env << "child"`，`$tmp_env << args.env`
+就是 `args.env.tmp_env << args.env`。tag 不是值（`method = $sub_env` 编不过），只有把它写在链头、后面
 跟着第一个参数时才有意义；第一个参数既是被取成员的那个值，也是交给成员的第一个实参。
 
     python3 tests/test_interpreter_member.py
@@ -46,7 +46,7 @@ def run(tmp: Path):
 
 
 def _the_same_child(tmp: Path):
-    """`$sub_env << environ << "child"` 和 `environ.sub_env << environ << "child"` 是同一次调用。"""
+    """`$sub_env << args.env << "child"` 和 `args.env.sub_env << args.env << "child"` 是同一次调用。"""
     by_tag = interpret(str(CASES / "child_by_tag.viba"), environ_for())
     by_dot = interpret(str(CASES / "child_by_dot.viba"), environ_for())
     check(isinstance(by_tag, Ok) and isinstance(by_tag.ok_value, Environment),
@@ -58,7 +58,7 @@ def _the_same_child(tmp: Path):
 
 
 def _the_same_temporary_child(tmp: Path):
-    """空实参不用写：`$tmp_sub_env << environ` 就是执行。"""
+    """空实参不用写：`$tmp_env << environ` 就是执行。"""
     result = interpret(str(CASES / "temporary_by_tag.viba"), environ_for())
     check(isinstance(result, Ok) and isinstance(result.ok_value, Environment),
           f"a member that takes no argument runs when the member is taken: {result!r}")

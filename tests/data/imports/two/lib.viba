@@ -1,6 +1,11 @@
+__def__ =
+    str
+  <- $env Env
+
+args = __get_args__ << __def__
 
 text =
 	str
-	<- $env Environment
+	<- $env Env
 	<- { answer some text }
-__ret__ = text << $env environ
+__ret__ = text << $env args.env

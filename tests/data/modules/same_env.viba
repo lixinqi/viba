@@ -1,2 +1,8 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import lib as lib
-__ret__ = lib << environ << ()
+__ret__ = lib << args.env

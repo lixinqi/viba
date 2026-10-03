@@ -1,2 +1,8 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import x_of_the_point
-__ret__ = x_of_the_point << (environ.tmp_sub_env << environ) << ($x 2 * $y 5)
+__ret__ = x_of_the_point << (args.env.tmp_env << args.env) << ($x 2 * $y 5)

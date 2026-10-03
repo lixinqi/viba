@@ -1,4 +1,10 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import square_sum as square_sum
 
 # 模块的实参直接给：`side` 那个中间名现在没有绑定块的写法。
-__ret__ = square_sum << (environ.tmp_sub_env << environ) << 1 << 4
+__ret__ = square_sum << (args.env.tmp_env << args.env) << 1 << 4

@@ -1,3 +1,5 @@
+__def__ = Any <- $env Env
+
 A = B
 B = A
 __ret__ = A

@@ -1,3 +1,9 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch
 import counters as counters
 
@@ -6,11 +12,11 @@ __ret__ =
     Oneof
   | (
       branch.echo_or_never
-      << $env environ << $cond (counters.counted_gate << $env environ)
+      << $env args.env << $cond (counters.counted_gate << $env args.env)
       << $get_v (builtin.echo << $x 1)
     )
   | (
       branch.never_or_echo
-      << $env environ << $cond (counters.counted_gate << $env environ)
+      << $env args.env << $cond (counters.counted_gate << $env args.env)
       << $get_v (builtin.echo << $x 0)
     )

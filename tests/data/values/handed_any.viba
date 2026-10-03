@@ -1,12 +1,17 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
 
 leaf =
 	int
-	<- $env Environment
+	<- $env Env
 	<- { answer seven }
 
 echo =
 	int
-	<- $env Environment
+	<- $env Env
 	<- $x Any
 	<- { hand the argument back }
-__ret__ = echo << $env environ << $x leaf
+__ret__ = echo << $env args.env << $x leaf

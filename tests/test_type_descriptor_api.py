@@ -192,6 +192,14 @@ def _check_errors():
                 "X[K, set] = K\n",
                 "X[dict, K] = K\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "literal.viba", "literal"), VibaProgramErr), bad
+    # 环境不是答案：只有内建函数能把它声明成返回值，模块里写的函数一概不行
+    for bad in ("f =\n    Env\n  <- $env Env\nX = f << $env Env\n",
+                "env_of =\n    Environment\n  <- $env Env\nX = env_of << $env Environment\n"):
+        assert isinstance(parse_viba_file(empty_pool(), bad, "env.viba", "env"),
+                          VibaProgramErr), bad
+    # 内建函数不在此列：`Environment` 的成员照旧编得出来
+    good = "E = Environment\nX = $tmp_env << E\n"
+    assert isinstance(parse_viba_file(empty_pool(), good, "env_ok.viba", "env_ok"), Ok)
     # 差一点的名字照旧能编：只认完全同名的六个
     for good in ("List = int\n",
                  "lists[T] = T\n",

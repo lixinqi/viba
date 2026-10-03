@@ -1,3 +1,9 @@
 # Giving the first argument by tag is the same thing, and the member's own
 # argument is addressed by its tag as usual.
-__ret__ = $sub_env << $env environ << $sub_env_name "kid"
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
+__ret__ = $sub_env << $env args.env << $sub_env_name "kid"

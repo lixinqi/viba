@@ -1,3 +1,9 @@
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import inner as inner
 
-__ret__ = inner << (environ.sub_env << environ << "inner") << ()
+__ret__ = inner << (args.env.sub_env << args.env << "inner")

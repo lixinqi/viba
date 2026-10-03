@@ -1,8 +1,14 @@
+__def__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __def__
+
 import branch as branch
 import workshop as workshop
 import kinds as kinds
 
 __ret__ =
     Oneof
-  | (workshop.only_if_not << $env environ << $cond (true) << $get_v (kinds.answer_int))
-  | (workshop.only_if << $env environ << $cond (true) << $get_v (builtin.echo << $x 7))
+  | (workshop.only_if_not << $env args.env << $cond (true) << $get_v (kinds.answer_int))
+  | (workshop.only_if << $env args.env << $cond (true) << $get_v (builtin.echo << $x 7))
