@@ -1,0 +1,5 @@
+import demo.element_type_of as element_type_of
+
+__def__ = Any <- $env Env
+
+__ret__ = element_type_of[set[float]]

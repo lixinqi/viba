@@ -28,6 +28,8 @@ from typing import Callable, Dict, List, Optional
 from viba import viba_ast
 from viba.partial import (environment_result_problem, get_args_product,
                           module_as_function, reduce_partial)
+from viba.specialize import (GENERIC_FILE, file_specialize_problem,
+                             generic_of_entries, order_of)
 
 # The builtin name that reads a call's arguments back as a product.
 GET_ARGS_NAME = "__get_args__"
@@ -291,16 +293,51 @@ def empty_pool() -> VibaPool:
 
 
 def _environment(pool: VibaPool) -> Callable[[str], Result]:
-    """模块名换模块：在池子里按 $module_name 找，找不到就是 VibaProgramErr。"""
+    """模块名换模块：在池子里按 $module_name 找，找不到就是 VibaProgramErr。
+
+    一个泛型不是一个文件，是一个目录：池子里那几个 `名字.数字` 的文件加上它的
+    `__generic__.viba` 标记，合成一个 GenericModuleType（viba-specialize.md）。
+    """
     def environment(module_name: str) -> Result:
         matches = [f for f in pool.files if f.module_name == module_name]
         if not matches:
+            generic = _generic_in_pool(pool, module_name)
+            if generic is not None:
+                return generic
             return VibaProgramErr(f"no module named {module_name!r} in pool")
         if len(matches) > 1:
             return VibaProgramErr(f"module {module_name!r} is served by {len(matches)} files")
         return Ok(CustomModuleType(matches[0]._tree, pool.module_environment,
                                    _import_locals(matches[0])))
     return environment
+
+
+def _generic_in_pool(pool: VibaPool, module_name: str):
+    """The generic the pool holds under this module name, or None.
+
+    Its files are the ones named under it: the marker `名字.__generic__`, and
+    one `名字.数字` per specialization. `名字` itself is no file of the pool —
+    that is what makes it a generic rather than a module of definitions.
+    """
+    prefix = module_name + "."
+    under = [f for f in pool.files if f.module_name.startswith(prefix)]
+    marker_name = prefix + GENERIC_FILE[: -len(".viba")]
+    marker = next((f for f in under if f.module_name == marker_name), None)
+    if marker is None:
+        return None
+    parts = []
+    for file in under:
+        if file is marker:
+            continue
+        order = order_of(file.module_name[len(prefix):])
+        if order is None:
+            return VibaProgramErr(
+                f"{file.file_name}: a file of the generic {module_name!r} is "
+                f"named by its order, a number")
+        parts.append((order, file.file_name, file.module_name,
+                      CustomModuleType(file._tree, pool.module_environment,
+                                       _import_locals(file))))
+    return generic_of_entries(module_name, marker.file_name, marker._tree, parts)
 
 
 def _import_locals_for(tree) -> dict:
@@ -328,6 +365,9 @@ def parse_viba_file(pool: VibaPool, source: str, file_name: str, module_name: st
         tree = viba_ast.canonical(viba_ast.parse(text))
     except Exception as exc:  # syntax error: the parser raises, turn it into VibaProgramErr
         return VibaProgramErr(f"cannot parse: {exc!r}")
+    problem = file_specialize_problem(tree, module_name.split(".")[-1])
+    if problem is not None:
+        return VibaProgramErr(problem)
     file_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
     try:
         return Ok(_build_file(pool, tree, file_name, module_name, file_hash))

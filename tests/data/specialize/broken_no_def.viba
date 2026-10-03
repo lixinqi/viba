@@ -1,0 +1,5 @@
+import broken.no_def as g
+
+__def__ = Any <- $env Env
+
+__ret__ = g[bool]

@@ -84,6 +84,7 @@ alias of what it is written as, and judgment is structural throughout.
 from viba import viba_ast
 from viba.partial import (environment_result_problem, get_args_product,
                           module_as_function, product_elements, reduce_partial)
+from viba.specialize import reduce_application
 from viba.type import (
     PartialError,
     AnyType,
@@ -192,6 +193,7 @@ class _Checker:
         self._env_stacks = {"sub": [], "sup": []}
         self._unfolding: set = set()
         self._unfolded: dict = {}
+        self._decided: dict = {}          # (id(node), id(module)) -> the decision
 
     # ------------------------------------------------------------------
     # Type-level dispatch
@@ -307,7 +309,9 @@ class _Checker:
     def _lift_ref(self, node, module: ModuleType, side: str):
         resolved = self._resolve_name(node.name, module, side)
         if isinstance(resolved, VibaProgramErr):
-            raise UnresolvedTypeError(f"unresolvable TypeRef {node.name!r}")
+            # 这句为什么解不出来，比"解不出来"本身有用：一个泛型名字、一个模块
+            # 名字，都在它自己的话里说清楚了。
+            raise UnresolvedTypeError(resolved.err_msg)
         return resolved.ok_value
 
     def _check_uncached(self, sub: Type, sup: Type) -> bool:
@@ -427,6 +431,14 @@ class _Checker:
         return node, module
 
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
+        # A generic application is decided before anything else reads it: what
+        # the decision picked takes its place, with the parameter names bound
+        # through env_get (viba-specialize.md). A decision that fails is
+        # malformed input, not a judgment.
+        if isinstance(sn, viba_ast.TypeApp) and self._specialized(sn, s_mod):
+            return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
+        if isinstance(sp, viba_ast.TypeApp) and self._specialized(sp, p_mod):
+            return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
         if isinstance(sn, viba_ast.Never):
             return True  # bottom fits anywhere
         if isinstance(sp, viba_ast.Any):
@@ -669,6 +681,23 @@ class _Checker:
         return isinstance(target, AstNodeType) and isinstance(
             target.ast_node, viba_ast.GenericDefinition)
 
+    def _specialized(self, node, module) -> bool:
+        """Whether this application is a generic's, decided: True when the
+        decision picked a file. A decision that failed is malformed input —
+        there is no type to compare with, and the message names the arguments
+        the decision was made over."""
+        decision = self._decision(node, module)
+        if isinstance(decision, VibaProgramErr):
+            raise UnresolvedTypeError(decision.err_msg)
+        return isinstance(decision, Ok) and decision.ok_value is not None
+
+    def _decision(self, node, module):
+        """The decision this application makes, worked out once per node."""
+        key = (id(node), id(module))
+        if key not in self._decided:
+            self._decided[key] = reduce_application(node, module)
+        return self._decided[key]
+
     def _unfold_typeapp(self, node, module, side, other, other_mod) -> bool:
         app_key = self._app_key(node, module, side)
         if app_key in self._unfolding:
@@ -693,9 +722,22 @@ class _Checker:
 
     def _applied_meaning(self, app_key, node, module, side):
         """TypeApp -> the generic's body as an AstNodeType whose
-        env_get binds formal parameters to the actual arguments."""
+        env_get binds formal parameters to the actual arguments.
+
+        A generic application is its own case: which file answers is a
+        decision over the written arguments, and what answers is the chosen
+        file's `__def__` read in that file, its parameter names bound to the
+        argument parts the patterns extracted (viba-specialize.md)."""
         if app_key in self._unfolded:
             return self._unfolded[app_key]
+        decision = self._decision(node, module)
+        if isinstance(decision, VibaProgramErr):
+            raise UnresolvedTypeError(decision.err_msg)
+        if isinstance(decision, Ok) and decision.ok_value is not None:
+            chosen = decision.ok_value
+            entry = AstNodeType(chosen.body, chosen.module, chosen.env_get)
+            self._unfolded[app_key] = entry
+            return entry
         target = self._constructor_target(node, module, side)
         if not isinstance(target, AstNodeType):
             return None

@@ -3,7 +3,7 @@
 这个包是 parser 之上的一层公共 API（cf. 标准库 ast），前面只有一份
 `python -m viba.viba_ast` 的自测在跑，没有进套件。这里把它压一遍：
 
-- 语料就是 `viba/parser.py` 里那份正例表（131 条）：每条都 parse 一遍，
+- 语料就是 `viba/parser.py` 里那份正例表（135 条）：每条都 parse 一遍，
   写到不动点，链式规范化再还原回来还是同一份源码；
 - 遍历与访问器：BFS 次序、`visit_<Class>` 分派、替换、删除、坏返回值；
 - 链式规范化：分组不丢（`A * (B * C)` 与 `A * B * C` 不同形）、空链的
@@ -36,6 +36,7 @@ from viba.viba_ast import (  # noqa: E402
     Partial,
     Product,
     ProductChain,
+    Specialize,
     Sum,
     SumChain,
     Tagged,
@@ -126,6 +127,14 @@ def run_module_cases():
     same("unparse writes canonical chains",
          unparse(parse("X = A | B | C")), "X =\n  A\n  | B\n  | C")
     same("unparse of an import", unparse(parse("import a.b as c")), "import a.b as c")
+
+    # specialize: 一条语句，写一个形参收什么（viba-specialize.md）
+    specialized = parse("specialize bool | int\n__def__ = true\n")
+    check("a specialize statement is its own node",
+          isinstance(specialized.body[0], Specialize)
+          and specialized.body[1].name == "__def__")
+    same("unparse of a specialize line", unparse(specialized),
+         "specialize\n  bool\n  | int\n\n__def__ =\n  true")
 
     # unparse_type: 单个类型表达式，不带定义
     same("unparse_type on a node", unparse_type(parse("X = A * B").body[0].body),

@@ -448,7 +448,8 @@ def _definition_name(name: str) -> str:
     raise TypeError(f"{name!r} is not a definition name")
 
 
-_RESERVED = ("true", "false", "nil", "void", "None", "never", "Any", "import", "as")
+_RESERVED = ("true", "false", "nil", "void", "None", "never", "Any", "import", "as",
+             "specialize")
 
 # The builtin containers are builtin, not names: the parser refuses them as
 # definition names and as generic parameters (viba/parser.py:

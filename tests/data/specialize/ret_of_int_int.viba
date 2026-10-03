@@ -1,0 +1,5 @@
+import demo.ret_type_of as ret_type_of
+
+__def__ = Any <- $env Env
+
+__ret__ = ret_type_of[int <- int]

@@ -323,7 +323,11 @@ class CustomModuleType(ModuleType):
         the name is that module's own. What an import binds is its alias when it
         has one and its whole module name when it has none: `import a.b as c`
         answers `c.Name`, `import a.b` answers `a.b.Name`. The longest prefix
-        wins, so a dotted module is not read as a shorter one plus a member."""
+        wins, so a dotted module is not read as a shorter one plus a member.
+
+        A binding that names a generic answers no name at all: a generic is a
+        directory of specializations, not a module of definitions, and what it
+        has is an application (`gen[T]`, viba-specialize.md)."""
         parts = type_name.split(".")
         for cut in range(len(parts) - 1, 0, -1):
             prefix = ".".join(parts[:cut])
@@ -332,7 +336,25 @@ class CustomModuleType(ModuleType):
             imported = self.module_environment(self.imports[prefix])
             if isinstance(imported, VibaProgramErr):
                 return VibaProgramErr(f"{prefix!r} names {self.imports[prefix]!r}: {imported.err_msg}")
-            return imported.ok_value.lookup_local(".".join(parts[cut:]))
+            rest = ".".join(parts[cut:])
+            if not isinstance(imported.ok_value, CustomModuleType):
+                return VibaProgramErr(
+                    f"{self.imports[prefix]!r} is a generic: it answers an "
+                    f"application ({rest}[T, ...]), not the bare name {type_name!r}")
+            return imported.ok_value.lookup_local(rest)
+        # 整个名字就是绑定名自己（`import a.b as c` 写的那个 `c`）：它不是一个
+        # 类型，是那个模块 —— 除非它是泛型，那就说清它等的是一个应用。
+        if len(parts) == 1 and parts[0] in self.imports:
+            module_name = self.imports[parts[0]]
+            imported = self.module_environment(module_name)
+            if isinstance(imported, VibaProgramErr):
+                return VibaProgramErr(f"{parts[0]!r} names {module_name!r}: {imported.err_msg}")
+            if not isinstance(imported.ok_value, CustomModuleType):
+                return VibaProgramErr(
+                    f"{module_name!r} is a generic: it answers an application "
+                    f"({parts[0]}[T, ...]), not the bare name {type_name!r}")
+            return VibaProgramErr(
+                f"{type_name!r} names the module {module_name!r}: a module is no type")
         return VibaProgramErr(f"no type named {type_name!r} in module")
 
 
@@ -403,7 +425,9 @@ def module_get_type(module: ModuleType, type_name: str, _seen=None) -> Result:
         return module.lookup(type_name)
     if isinstance(module, CustomModuleType):
         return _lookup_custom(module, type_name, set() if _seen is None else _seen)
-    return VibaProgramErr(f"unknown module kind: {module!r}")
+    return VibaProgramErr(
+        f"no type named {type_name!r}: {module!r} is a generic, and a generic "
+        f"is applied with [T, ...]")
 
 
 def _lookup_custom(module: CustomModuleType, type_name: str, seen) -> Result:

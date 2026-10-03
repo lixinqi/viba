@@ -1,0 +1,5 @@
+import demo.call_it as call_it
+
+__def__ = Any <- $env Env
+
+__ret__ = call_it[list[int]]

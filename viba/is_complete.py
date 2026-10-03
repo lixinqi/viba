@@ -17,6 +17,10 @@ Walking:
   the design incomplete. A generic parameter is walked through the actual
   argument an application binds it to; unbound, it is a placeholder and does
   not affect completeness.
+- A specialization application is decided where it is written: the file whose
+  `specialize` patterns fit the written arguments is the one walked, with its
+  own parameter names standing for the argument parts the patterns extracted
+  (viba-specialize.md). A decision that fails makes the design incomplete.
 - Code blocks, ellipsis, and anything else that has no members but is not in
   terminators make the design incomplete. To end a walk at a code block, name
   the type that wraps it in terminators: the walk then stops at that
@@ -45,6 +49,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from viba import viba_ast
+from viba.specialize import reduce_application
 from viba.type import BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
 from viba.viba_type_descriptor import (
     empty_pool,
@@ -250,6 +255,9 @@ class _Checker:
             return all(self._walk(arg, module_name, bindings) for arg in node.args)
         if constructor in LEAF_NAMES or constructor in UNIT_NAMES:
             return True
+        decided = self._decide(node, module_name, bindings)
+        if decided is not None:
+            return decided
         caller_module = module_name  # arguments are written at the call site
         found = self._resolve(constructor, caller_module)
         if found is None:
@@ -264,6 +272,36 @@ class _Checker:
         for param, arg in zip(params, node.args):
             inner[param] = (arg, caller_module, bindings)
         return self._definition(definition, target_module, inner)
+
+    def _decide(self, node, module_name: str, bindings: dict):
+        """Read a generic application: None when the constructor names none.
+
+        The decision is made where the application is written, over the written
+        arguments, and what comes back is the chosen file's `__def__` — walked
+        with this file's parameter names standing for the argument parts the
+        patterns extracted (viba-specialize.md). A decision that fails is an
+        application with nothing to walk, so the design is incomplete.
+        """
+        module = self._module(module_name)
+        if module is None:
+            return None
+        decision = reduce_application(node, module)
+        if isinstance(decision, VibaProgramErr):
+            return False
+        if not (isinstance(decision, Ok) and decision.ok_value is not None):
+            return None
+        chosen = decision.ok_value
+        inner = dict(bindings)
+        for name, bound in chosen.bindings.items():
+            # The argument part was written here, at the call site, so its own
+            # names resolve in this module.
+            inner[name] = (bound.ast_node, module_name, bindings)
+        return self._walk(chosen.body, chosen.entry.name, inner)
+
+    def _module(self, module_name: str):
+        """The module a name stands for in the pool, or None."""
+        module = self.pool.module_environment(module_name)
+        return module.ok_value if isinstance(module, Ok) else None
 
     def _definition(self, node, module_name: str, bindings: dict = None) -> bool:
         bindings = dict(bindings or {})

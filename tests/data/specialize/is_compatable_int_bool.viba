@@ -1,0 +1,5 @@
+import demo.is_compatable as is_compatable
+
+__def__ = Any <- $env Env
+
+__ret__ = is_compatable[int, bool]

@@ -21,6 +21,7 @@ from viba.viba_ast.nodes import (
     TypeDefinition,
     GenericDefinition,
     Import,
+    Specialize,
     Sum,
     Product,
     Exponent,
@@ -60,6 +61,7 @@ tokens = (
     "APPLY_OP",  # <<
     "IMPORT",  # import
     "AS",  # as
+    "SPECIALIZE",  # specialize
     "LBRACKET",  # [
     "RBRACKET",  # ]
     "LPAREN",  # (
@@ -120,6 +122,11 @@ def t_IMPORT(t):
 
 def t_AS(t):
     r"as\b"
+    return t
+
+
+def t_SPECIALIZE(t):
+    r"specialize\b"
     return t
 
 
@@ -235,7 +242,8 @@ def p_statement_list(p):
 
 def p_statement(p):
     """statement : definition
-    | import_stmt"""
+    | import_stmt
+    | specialize_stmt"""
     p[0] = p[1]
 
 
@@ -308,6 +316,11 @@ def p_generic_definition(p):
 def p_import_stmt(p):
     """import_stmt : IMPORT CLASS_NAME optional_alias"""
     p[0] = Import(p[2], p[3])
+
+
+def p_specialize_stmt(p):
+    """specialize_stmt : SPECIALIZE partial_expr"""
+    p[0] = Specialize(p[2])
 
 
 def p_optional_alias(p):
@@ -503,6 +516,7 @@ GRAMMAR_ORDER = (
     "generic_definition",
     "type_param_list",
     "import_stmt",
+    "specialize_stmt",
     "optional_alias",
     "partial_expr",
     "member_head",
@@ -864,6 +878,14 @@ if __name__ == "__main__":
             "Imports before definitions",
         ),
         ("Crlf = int\r\nCrlf2 = str\r\n", "A source written with CRLF line endings"),
+        # ====== SPECIALIZE TESTS ======
+        ("specialize bool | int | float | str\nKnown = true",
+         "A specialize line restricting a parameter"),
+        ("specialize A\nExtracted = A", "A specialize line extracting a parameter"),
+        ("specialize A <- (() | nil)\nRet = A",
+         "A specialize line whose parameter is a function"),
+        ("specialize list[A]\nElement = A",
+         "A specialize line whose parameter is a container"),
     ]
 
     # Sources that must not compile: a caller has to be able to tell. The name
@@ -883,6 +905,8 @@ if __name__ == "__main__":
         ("X = 1.2.3", "A malformed float"),
         ("list = int", "A builtin container as a definition name"),
         ("W[list] = int", "A builtin container as a generic parameter"),
+        ("specialize", "A specialize line with no pattern"),
+        ("specialize = int", "specialize is a keyword, not a definition name"),
     ]
 
     print(f"{'TEST CASE':<50} | {'STATUS'}")
@@ -934,6 +958,7 @@ if __name__ == "__main__":
     readme = os.path.join(root, "README.md")
     style = os.path.join(root, "viba-style.md")
     tutorial = os.path.join(root, "viba_tutorial.md")
+    specialize = os.path.join(root, "viba-specialize.md")
     try:
         with open(readme, encoding="utf-8") as handle:
             manual = handle.read()
@@ -962,7 +987,7 @@ if __name__ == "__main__":
     # sample that does not compile is teaching a mistake.
     try:
         blocks = 0
-        for path in (readme, style, tutorial):
+        for path in (readme, style, tutorial, specialize):
             with open(path, encoding="utf-8") as handle:
                 text = handle.read()
             samples = _readme_blocks(text, "viba")
@@ -971,7 +996,8 @@ if __name__ == "__main__":
             blocks += len(samples)
         doc_count += 1
         print(f"{'every .viba sample in the docs compiles':<50} | OK "
-              f"({blocks} blocks: README.md, viba-style.md, viba_tutorial.md)")
+              f"({blocks} blocks: README.md, viba-style.md, viba_tutorial.md, "
+              f"viba-specialize.md)")
     except Exception as e:
         print(f"{'every .viba sample in the docs compiles':<50} | "
               f"{type(e).__name__}: {e}")

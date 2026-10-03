@@ -1,0 +1,4 @@
+specialize bool | int
+specialize bool | int
+
+__def__ = true

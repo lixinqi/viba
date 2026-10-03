@@ -65,6 +65,7 @@ both sides), and the next run of the same call finds it and plays it again
 they are serialized viba data, so what was stored can be read and checked.
 """
 
+import copy
 import inspect
 import os
 import tempfile
@@ -76,6 +77,9 @@ from viba import serialize, viba_ast
 from viba.partial import (file_environment_result_problem, parameters_of,
                           product_elements, names_the_environment)
 from viba.reflect import VibaNode, access as reflect_access
+from viba.specialize import (GENERIC_FILE, GenericModuleType,
+                             file_specialize_problem, load_generic,
+                             reduce_application)
 from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
                        InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
@@ -551,6 +555,34 @@ def _in_scope(scope, name):
     return None
 
 
+def _substituted(node, scope):
+    """A written piece with the names this call bound put in their place.
+
+    Viba data is read as it stands, so a name a decision bound
+    (viba-specialize.md) has to be written in before the piece travels on:
+    what the answer says is the type the decision made, not the parameter name
+    the chosen file happened to use. Only names the scope binds are touched —
+    everything else stays the file's own text — and a scope that binds nothing
+    (every call but a decision) leaves the piece as it is.
+    """
+    if not scope:
+        return node
+    return _NameSubstitution(scope).visit(copy.deepcopy(node))
+
+
+class _NameSubstitution(viba_ast.NodeTransformer):
+    """`_substituted`'s walk: a bound name becomes the type bound to it."""
+
+    def __init__(self, scope):
+        self.scope = scope
+
+    def visit_TypeRef(self, node):
+        bound = _in_scope(self.scope, node.name)
+        if not isinstance(bound, _VibaData):
+            return node
+        return bound.node.data
+
+
 def _addressed(node):
     """(tag, inner) of a written argument: the tag it is addressed by, if any."""
     if isinstance(node, viba_ast.Tagged):
@@ -632,7 +664,8 @@ def _refused(deferred: NotMyDutyException, step: Step, call) -> NotMyDutyExcepti
 # ----------------------------------------------------------------------
 
 
-def interpret(viba_main_file: str, environ: Environment, get_file=None) -> InterpretResult:
+def interpret(viba_main_file: str, environ: Environment, get_file=None,
+              list_files=None) -> InterpretResult:
     """Run `viba_main_file` with `environ`; its `__ret__` is the `Ok` value.
 
     What it answers is `Result[VibaNode]` with two more branches, both naming the
@@ -654,6 +687,12 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None) -> Inter
     a `FileNotFoundError`) when that path has no file. Left out, the
     filesystem is read; given, nothing else is — a host can serve the whole
     run out of memory, a database, or anything else.
+
+    `list_files` is where the names inside a directory come from:
+    `Optional[list[str] <- $dir_path str]`. A generic is a directory
+    (`demo/is_base_type/`, viba-specialize.md), so the decision has to know
+    which files are in it. Left out, the filesystem is listed; a host that
+    serves the files itself has to serve the listing too.
     """
     if not isinstance(environ, Environment):
         return VibaProgramErr("interpret needs an Environment")
@@ -663,16 +702,20 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None) -> Inter
                    f"not {type(environ.viba_path).__name__}")
     if get_file is not None and not callable(get_file):
         return VibaProgramErr(f"get_file is a function (or None), not {type(get_file).__name__}")
-    return _Runner(environ.viba_path, get_file).run_file(viba_main_file, environ)
+    if list_files is not None and not callable(list_files):
+        return VibaProgramErr(f"list_files is a function (or None), not {type(list_files).__name__}")
+    return _Runner(environ.viba_path, get_file,
+                   list_files).run_file(viba_main_file, environ)
 
 
 class _Runner:
     """One run: the files it has loaded, and where it looks for more."""
 
-    def __init__(self, viba_path=None, get_file=None):
+    def __init__(self, viba_path=None, get_file=None, list_files=None):
         text = "" if viba_path is None else os.fspath(viba_path)
         self.paths = [Path(p) for p in text.split(":") if p]
         self.get_file = get_file
+        self.list_files = list_files
         self.by_path: dict = {}        # normalized path -> module
         self.by_name: dict = {}        # module name -> module
         self.path_of: dict = {}        # module name -> file it was loaded from
@@ -730,14 +773,24 @@ class _Runner:
         return os.path.normpath(str(path))
 
     def _file_of(self, path: Path, name: str, source: str):
-        """Parse one source, remember it under its path, bind it to `name`."""
+        """Parse one source, remember it under its path, bind it to `name`.
+
+        A path whose file is `__generic__.viba` is no module at all: it is the
+        marker of a generic, and what is built for it is the whole directory —
+        every specialization numbered inside it (viba-specialize.md).
+        """
         key = self._key(path)
         if key not in self.by_path:
+            if path.name == GENERIC_FILE:
+                return self._generic_of(path, name)
             try:
                 tree = viba_ast.parse(source)
             except SyntaxError as exc:
                 return VibaProgramErr(f"cannot parse {path}: {exc}")
             problem = file_environment_result_problem(tree)
+            if problem is not None:
+                return VibaProgramErr(f"{path}: {problem}")
+            problem = file_specialize_problem(tree, path.name)
             if problem is not None:
                 return VibaProgramErr(f"{path}: {problem}")
             imports = {stmt.alias or stmt.module: stmt.module
@@ -749,6 +802,53 @@ class _Runner:
             module.imports = imports
             self.by_path[key] = module
         return self._bind(self.by_path[key], path, name)
+
+    def _generic_of(self, path: Path, name: str):
+        """The generic a `__generic__.viba` marker stands for: its directory.
+
+        The specializations are files like any other: each is parsed by
+        `_file_of`, so its own imports are its own and its own definitions
+        resolve in it. `name` is what the generic was imported as, and each
+        file is named under it by its order.
+        """
+        generic = load_generic(
+            str(path.parent), name, self._read_source, self._list_files,
+            lambda entry_path, entry_name, text: self._file_of(
+                Path(entry_path), entry_name, text))
+        if _stopped(generic):
+            return generic
+        self.by_path[self._key(path)] = generic.ok_value
+        return self._bind(generic.ok_value, path, name)
+
+    def _read_source(self, file_path: str):
+        """One file's text for the generic loader: None when there is none."""
+        source, _problem = self._source(Path(file_path))
+        return source
+
+    def _list_files(self, directory: str):
+        """The names directly inside a directory, or why they cannot be read."""
+        if self.list_files is not None:
+            try:
+                names = self.list_files(directory)
+            except FileNotFoundError:
+                return VibaProgramErr(f"cannot read {directory}: no such directory")
+            except Exception as exc:            # the host's business, reported
+                return VibaProgramErr(f"list_files({directory}) raised {exc!r}")
+            if names is None:
+                return VibaProgramErr(f"cannot read {directory}: no such directory")
+            if not isinstance(names, (list, tuple)):
+                return VibaProgramErr(
+                    f"list_files({directory}) answered {type(names).__name__}, "
+                    f"not the names inside it")
+            return Ok([str(one) for one in names])
+        if self.get_file is not None:
+            return VibaProgramErr(
+                f"cannot read {directory}: a host that serves the files itself "
+                f"serves the names inside a directory too (list_files)")
+        try:
+            return Ok(os.listdir(directory))
+        except OSError as exc:
+            return VibaProgramErr(f"cannot read {directory}: {exc}")
 
     def _bind(self, module, path: Path, name: str):
         self.by_name[name] = module
@@ -775,13 +875,17 @@ class _Runner:
         """Where `name` may be, in the order it is looked for: next to the
         file that wrote the import first, then VIBA_PATH in order. A dotted
         name is a path, and also one file named with the dots (`pkg.inner.viba`).
-        The same place twice is asked once."""
+        A generic is the directory of that path (`pkg/inner/__generic__.viba`),
+        looked for after the file of the same name. The same place twice is
+        asked once."""
         rel = Path(*name.split(".")).with_suffix(".viba")
+        generic = Path(*name.split(".")) / GENERIC_FILE
         places = []
         if near:
-            places += [Path(near).parent / rel, Path(near).parent / f"{name}.viba"]
+            places += [Path(near).parent / rel, Path(near).parent / generic,
+                       Path(near).parent / f"{name}.viba"]
         for base in self.paths:
-            places += [base / rel, base / f"{name}.viba"]
+            places += [base / rel, base / generic, base / f"{name}.viba"]
         out = []
         for place in places:
             if place not in out:
@@ -953,7 +1057,8 @@ class _Activation:
     """One module running with one environment."""
 
     def __init__(self, runner: _Runner, module: ModuleType, environ: Environment,
-                 name: str, file: Optional[str], args=None, members=None):
+                 name: str, file: Optional[str], args=None, members=None,
+                 bindings=None):
         self.runner = runner
         self.module = module
         self.environ = environ
@@ -971,6 +1076,10 @@ class _Activation:
         if args is None:
             args = _VibaData(viba_data(None))
         self.args = args
+        # 一次决策选中这个文件时，它的形参名绑定到实参的哪一部分（viba-specialize.md）：这些
+        # 名字在这个文件的每一次求值里都算数，包括它自己定义里的那一层 —— 文件写在别处的名
+        # 字，仍然在这个文件里读。
+        self.bindings = bindings or {}
         self.defined: dict = {}
 
     # ---- expressions ----
@@ -987,10 +1096,15 @@ class _Activation:
 
         `scope` is the frames written around this piece; nothing binds a name
         inside an expression, so a definition's own body runs with the empty
-        scope.
+        scope. A module a decision picked is the one exception: its parameter
+        names are bound for every piece it writes (`self.bindings`), including
+        the bodies of its own definitions.
         """
+        if self.bindings:
+            scope = (self.bindings,) + tuple(scope)
         if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never,
                              viba_ast.Any, viba_ast.Tuple, viba_ast.Tagged)):
+            node = _substituted(node, scope)
             return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(node), node)))
         if isinstance(node, (viba_ast.Product, viba_ast.ProductChain)):
             return self._product(node, scope)
@@ -998,6 +1112,8 @@ class _Activation:
             return self._sum(node, scope)
         if isinstance(node, viba_ast.Partial):
             return self._apply_chain(node, scope)
+        if isinstance(node, viba_ast.TypeApp):
+            return self._generic_application(node, scope)
         if isinstance(node, viba_ast.TypeRef):
             return self._resolve(node.name, scope)
         if isinstance(node, viba_ast.CodeBlock):
@@ -1280,6 +1396,35 @@ class _Activation:
                                 module_path=_storage_path(environ)))
 
     # ---- calls ----
+
+    def _generic_application(self, node, scope=()):
+        """`gen[A, B]`: the chosen specialization's `__def__`, read where it is.
+
+        The decision is static — over the written arguments, in the module that
+        wrote them (viba-specialize.md) — and what it picks is a file and a
+        binding: `__def__` with this file's parameter names standing for the
+        argument parts the patterns extracted. That type is then read the way
+        the same text written here would be read: the bindings are the scope
+        the chosen file's own definitions run under, and a literal is the value
+        it is. A constructor that is no generic is no value, the way it never
+        was (`list[int]` included).
+        """
+        decision = reduce_application(node, self.module)
+        if _stopped(decision):
+            return decision
+        chosen = decision.ok_value
+        if chosen is None:
+            return VibaProgramErr(f"cannot compute {type(node).__name__}")
+        bindings = {
+            name: _VibaData(VibaNode(
+                reflect_access,
+                descriptor_of(AstNodeType(bound.ast_node, bound.container_module)),
+                bound.ast_node), written_in=bound.container_module)
+            for name, bound in chosen.bindings.items()}
+        other = _Activation(self.runner, chosen.module, self.environ,
+                            chosen.entry.name, chosen.entry.path,
+                            bindings=bindings)
+        return other.evaluate(chosen.body)
 
     def _apply_chain(self, node, scope=()):
         """Give the written arguments to what stands at the head of the chain.
@@ -1572,6 +1717,11 @@ class _Activation:
         if rest:
             return self._member_target(imported.ok_value, module_name, rest, name_node,
                                        name, written_in=self.module)
+        if isinstance(imported.ok_value, GenericModuleType):
+            # 泛型不是模块：它没有 __def__，也没有 __ret__，它有的是应用。
+            return VibaProgramErr(
+                f"{name!r} is a generic: it answers an application ({name}[T, ...]), "
+                f"not a call")
         return Ok(_Pending.module(self.runner, imported.ok_value, module_name,
                                   name_node, written_in=self.module))
 

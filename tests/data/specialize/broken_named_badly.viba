@@ -1,0 +1,5 @@
+import broken.named_badly as g
+
+__def__ = Any <- $env Env
+
+__ret__ = g[bool]

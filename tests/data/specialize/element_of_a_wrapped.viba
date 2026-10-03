@@ -1,0 +1,5 @@
+import demo.wrapper as wrapper
+
+__def__ = Any <- $env Env
+
+__ret__ = wrapper[list[int]]

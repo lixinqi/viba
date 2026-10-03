@@ -1116,8 +1116,8 @@ def run_suite_reflexivity():
     count = skipped = 0
     for src in _suite_case_nodes():
         body = viba_ast.parse(src).body[0]
-        if isinstance(body, viba_ast.Import):
-            continue
+        if isinstance(body, (viba_ast.Import, viba_ast.Specialize)):
+            continue                # a statement, not a definition to judge
         text = viba_ast.unparse(viba_ast.Module([body]))
         if "..." in text:
             skipped += 1  # open types are lint errors, not judgments

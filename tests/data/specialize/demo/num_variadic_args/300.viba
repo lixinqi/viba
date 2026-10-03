@@ -1,0 +1,5 @@
+specialize A
+specialize B
+specialize C
+
+__def__ = 3

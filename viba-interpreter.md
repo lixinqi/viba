@@ -17,9 +17,11 @@ from viba.interpret import interpret
 interpret("add_demo.viba", environ)      # -> Result[VibaNode]
 ```
 
-`interpret(viba_main_file, environ, viba_path=None, get_file=None)`：`viba_path` 相当于 PYTHONPATH（冒号分隔，
+`interpret(viba_main_file, environ, viba_path=None, get_file=None, list_files=None)`：`viba_path` 相当于 PYTHONPATH（冒号分隔，
 按顺序找 `<name>.viba`，dotted 名当路径走；空条目和不存在的目录跳过）；import 的那个文件所在的目录总是
 先找——**被 import 进来、又在自己的文件里 import 的模块，也按它自己的文件找**（链多深都一样）。
+一个名字也可能是一个**泛型目录**（`<name>/__generic__.viba`）：文件先找，目录随后，两者都按这里的
+顺序（见 [`viba-specialize.md`](viba-specialize.md)）。
 写了 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
 点分名字还有一层意思：`a.b = A` 定义的是 `a` 的 `$b` 成员（[`viba-style.md`](viba-style.md) 第 5 节），
 所以 `a.b` 当类型读是它的声明类型，写在链头就是那一步的调用 —— 宿主拿到的 `func_name` 是写下来的整串。
@@ -45,6 +47,20 @@ interpret("main.viba", environ, get_file=files.get)   # 一次运行全在内存
 - **返回非字符串、或者抛别的异常，是 `VibaProgramErr`**（`get_file(...) raised ...` / `... not the file's text`），
   不是把异常扔给调用方；源编不过照旧是 `cannot parse ...`。
 - **同一个文件只问一次**：模块按路径认，已经加载过的（哪怕换了别名）不会再问第二次。
+
+## 目录里有什么：list_files
+
+`list_files` 是 `Optional[list[str] <- $dir_path str]`，答的是这个目录**直接**装着的名字：
+
+```python
+interpret("main.viba", environ, get_file=files.get, list_files=names_of)
+```
+
+- **留空（`None`）就列文件系统**（`os.listdir`）。
+- **自己供文件的宿主，也要自己供目录内容**：泛型是一个目录，决断的第一件事就是问这个目录里
+  有哪些文件。只给了 `get_file`、又要用泛型，是 `VibaProgramErr`，说清楚要一起给 `list_files`。
+- **"这个目录读不到"**：返回 `None`、抛 `FileNotFoundError`，或者返回的不是字符串表，都是
+  `VibaProgramErr`。
 
 ## 一个可执行的模块
 
@@ -132,7 +148,7 @@ __ret__ = g                    # 一次运行可以答一个闭包：给出去�
 - **给了环境的链要么跑完，要么报错**：环境给了、实参还欠着，是"准备不完整"的程序错——这种
   半成品存不下来，也不该存。所以"给了一半"和"没给环境"是两件完全不同的事。
 - 宿主那一侧永远只见得到可序列化数据（见「宿主侧：Environment」）：闭包到了宿主手里就是数据，可以拿着、存着、递回来。
-- **写给函数类型的那一格是例外**：`$get_v (Any <- $env Env)` 这种格子交给宿主的，是一个**能带着环境调它自己**的东西 —— 宿主决定算不算、在哪个环境下算。它同时也记得自己代表哪份值，所以只把活转手交出去的宿主把它递回来，拿到的还是那份值。`branch.py` 就是这么用的：它给 `get_v` 一个子环境（`sub_env(env, "echo_or_never")`），于是那一支在自己的路径下算出来。
+- **写给函数类型的那个参数是例外**：`$get_v (Any <- $env Env)` 这种参数交给宿主的，是一个**能带着环境调它自己**的东西 —— 宿主决定算不算、在哪个环境下算。它同时也记得自己代表哪份值，所以只把活转手交出去的宿主把它递回来，拿到的还是那份值。`branch.py` 就是这么用的：它给 `get_v` 一个子环境（`sub_env(env, "echo_or_never")`），于是那一支在自己的路径下算出来。
 
 ## 模块的参数：`__def__`
 
@@ -177,7 +193,7 @@ __ret__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
   `__ret__ = args.env` 交回去的仍然是那个环境，只是没人声明它的类型
   （[`tests/data/environment/the_env.viba`](tests/data/environment/the_env.viba)）。
 - **给环境就是执行**：每个参数一个 `<<`，按位置给（`<< 3 << 4`）或按 tag 给（`<< $b 4 << $a 3`）
-  都行；按 tag 给时顺序随意。环境那一格按值认：给一个 `Environment`、或者按 `$env` 这个 tag 给，
+  都行；按 tag 给时顺序随意。环境那个参数按值认：给一个 `Environment`、或者按 `$env` 这个 tag 给，
   都落在那里；不带 tag 的实参跳过它，依次落到其余参数上——所以 `square_sum << 3 << 4` 是把 3 和 4
   给 `$a`、`$b`，不是给环境。**环境给了，参数就得齐**：少一个就是 `VibaProgramErr`，话里点名少了谁
   （`module 'square_sum' was given 1 of its 2 parameters: $b missing`）。多给、给重、给了没有的 tag，
@@ -410,7 +426,7 @@ never | a = a
 和里只剩一个非 never 分支时，结果就是该分支；所有分支都是 never 时，结果是 never；
 多个非 never 分支同时存在时，结果保留为和值，不擅自选择其中一支。
 
-`branch.viba` 与 `branch.py` 提供两个开关。它们接收分支值，返回 `Any`；`$get_v` 那一格写着函数类型
+`branch.viba` 与 `branch.py` 提供两个开关。它们接收分支值，返回 `Any`；`$get_v` 那个参数写着函数类型
 `(Any <- $env Env)`（见「环境就是执行」），所以那次实参不在这里算——宿主叫它的时候才算，
 在宿主给的那个环境里算：
 
@@ -476,7 +492,7 @@ __ret__ =
 那个实参**最多算一次**：第一次问出结果（值或停下），之后每一次问都拿同一个。所以宿主问两遍不会让
 副作用发生两遍——和 eager 调用里那个实参只求值一次是同一件事。
 
-函数类型只写在那一格上：别的实参照旧先算，函数的 `$env` 也照旧按值给。想给一个算好的值，用
+函数类型只写在那一个参数上：别的实参照旧先算，函数的 `$env` 也照旧按值给。想给一个算好的值，用
 `builtin.echo` 把它包成"给它一个环境就答 V"的那个函数。
 
 条件、值和开关本身都可以写在别的文件里，用例只写一条链去调它们；一个调用先给一半、剩下的由用例
@@ -489,13 +505,13 @@ __ret__ =
 ## 类型层的模块
 
 同一个文件在**类型推导**里也是"参数进、`__ret__` 出"：名字绑到的是一个模块（import 的名字）
-时，它当函数读，类型就是它的 `__def__` 去掉环境那一格：
+时，它当函数读，类型就是它的 `__def__` 去掉环境那个参数：
 
 ```viba
 int <- $a int <- $b int       # `__def__ = int <- $env Env <- $a int <- $b int` 读出来的类型
 ```
 
-**环境不在类型里。** `$env Env` 是调用的规矩——给环境就是执行，一份函数定义没有那一格就跑不起来
+**环境不在类型里。** `$env Env` 是调用的规矩——给环境就是执行，一份函数定义没有那个参数就跑不起来
 ——不是设计的一个参数：没有人替它写一个值。所以运行、判定、描述符三层读出来的函数类型里都没有它，
 `int <- $env Env <- $n int` 与 `int <- $n int` 是同一个类型；写成模块、写成函数定义，只要是同样的
 设计参数，就是同一个类型。
@@ -514,12 +530,33 @@ square_sum << args.env << 3 <: int <- $b int   # 给了一半：剩下的是函�
 - 只认 **import 绑定的那个名字**（`import a.b as c` 的 `c`，`import a.b` 的 `a.b`）。`module.Name`
   仍然是那个模块里的定义，按最长的前缀解析。
 - 没有 `__ret__` 的模块不是程序：`demo << args.env` 在类型层也是 `VibaProgramErr`。
-- 不带 tag 的实参跳过环境那一格，和值层同一套规矩；环境那一格给的就是环境本身，写 `args.env`
+- 不带 tag 的实参跳过环境那个参数，和值层同一套规矩；环境那个参数给的就是环境本身，写 `args.env`
   或按 `$env` 这个 tag 给都认。
 - 实参按 tag 给（`<< $a 3`）或按位置给（`<< 3`）都认；位置那一支要求给的实参装得下那个参数
   （`3 <: int`）。**给一半在类型上是一种类型**——剩下的那个函数；在值层给一半是程序错。
 - **`__get_args__ << __def__` 在类型层答的是积类型**：成员就是 `__def__` 的那些参数——`args.env`
   是 `Env`、`args.a` 是 `int`。`__def__` 不是函数链的话，两层都当场报错。
+
+## 特化：一个泛型是一个目录
+
+`import demo.is_base_type as is_base_type` 也可能找到的是一个**目录**（目录里有 `__generic__.viba`
+标记）：那是一个泛型，它的每个**数字文件名**是一个特化（[`viba-specialize.md`](viba-specialize.md)）。
+它不是一个模块——单独写 `is_base_type` 不是类型，`is_base_type << $x 1` 不是调用。能写的只有应用：
+
+```viba
+Flag = is_base_type[bool]              # 决断选中 100.viba；它的 __def__ 是 true
+```
+
+跑起来的时候，决断**只看写下来的那几个类型**（静态动作），选中谁，就把谁的 `__def__` 拿到
+**那个文件**里读：形参名（文件里没定义的那个名字，比如 `A`）绑定到实参里对应的那一部分，
+这个绑定在那个文件的每一次求值里都算数，包括它自己定义里的那一层。
+
+- 写下来是字面量，答的就是那个值（`__def__ = true` 答 `true`）；
+- 写下来是萃取到的形参，答的就是那份类型（`__def__ = A`，答 `int`）；
+- 写下来是数据，答的就是数据，形参名已经换成实参里写的那份（`__def__ = (A, B)` 答 `(int, str)`）；
+- 其余照平时的规矩：`int` 这个名字在值的位置上不是值，函数类型在值的位置上也不是值。
+
+宿主自己供文件时，`list_files` 也要一起给：决断要问目录里有什么（见上面「目录里有什么：list_files」一节）。
 
 ## 一份文件跑不出递归
 
@@ -550,7 +587,7 @@ B = A
 - **两份文件互调的边角**：这条路子本身有一份用例集，
   [`tests/test_interpreter_mutual_recursion.py`](tests/test_interpreter_mutual_recursion.py)：100 条，
   每条是一对互相 import 的文件（`tests/data/mutual_recursion/left_*.viba` 与 `right_*.viba`）。
-  分支与部分计算决定那条路走不走：写在函数类型那一格里的递归调用，条件不成立时一次都不发作；
+  分支与部分计算决定那条路走不走：写在函数类型那个参数里的递归调用，条件不成立时一次都不发作；
   一个调用先给一半（`right.f << $a 1`）是一个值，没进入另一份文件，也不发作；而条件那个参数照旧
   先算，所以写在条件里的递归调用一定发作。每条用例跑出值、跨文件绕回去、模块调用成环、闭包、
   `never`、和值、积或写下来的名字之一。

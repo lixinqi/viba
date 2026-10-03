@@ -55,6 +55,7 @@ import copy
 from typing import Iterable, List, Optional, Sequence
 
 from viba import viba_ast
+from viba.specialize import reduce_application
 from viba.type import AstNodeType, VibaProgramErr, Ok, Result, module_get_type
 from viba.viba_type_descriptor import (
     CODE_BLOCK,
@@ -481,7 +482,10 @@ class VibaAccess:
 
         Two things, both by the definitions in the pool: a name unfolds to its
         definition body, and a generic application folds its arguments in and
-        lands on the body too. Sum, product and exponent follow one rule; there
+        lands on the body too. A **specialization** application is decided
+        first: the chosen file's `__def__` takes its place, its parameter names
+        bound to the argument parts the patterns extracted
+        (viba-specialize.md). Sum, product and exponent follow one rule; there
         are no other exceptions.
 
         A definition already being unfolded stops the walk, since a pool may
@@ -497,6 +501,9 @@ class VibaAccess:
         Same rule as unfold; the returned set is what keeps the inline chain of
         a product finite (see _product_members).
         """
+        decided = self._specialized(descriptor, seen)
+        if decided is not None:
+            return decided
         found = self._definition_target(descriptor)
         if found is None:
             return descriptor, seen  # a builtin leaf, a generic parameter: stop
@@ -515,6 +522,39 @@ class VibaAccess:
         if applied is None:
             return descriptor, seen
         return self._unfold_seen(applied, seen | {key})
+
+    def _specialized(self, descriptor: VibaTypeDescriptor, seen: set):
+        """A specialization application, decided: (the chosen body, seen).
+
+        None when this piece is no such application — an ordinary application
+        the generic branch below unfolds, a name, a leaf. The decision is made
+        where the application was written, and what comes back is the chosen
+        file's `__def__`, read in that file with this file's parameter names
+        standing for the argument parts the patterns extracted
+        (viba-specialize.md). A decision that finds no file has no body to land
+        on, so the piece stays the application it is.
+        """
+        if descriptor.kind != TYPE_APP:
+            return None
+        resolvable = descriptor.payload.resolvable_type
+        node = getattr(resolvable, "ast_node", None)
+        if node is None:
+            return None
+        decision = reduce_application(node, resolvable.container_module)
+        if isinstance(decision, VibaProgramErr) or decision.ok_value is None:
+            return None
+        chosen = decision.ok_value
+        key = ("specialized", id(node), id(resolvable.container_module))
+        if key in seen:
+            return descriptor, seen
+        # 描述符层还没有公开的"类型表达式换描述符"入口，用它的构造函数。
+        from viba.viba_type_descriptor import _build_type
+
+        pool = descriptor.payload.pool
+        bindings = {name: _build_type(pool, bound.container_module, bound.ast_node)
+                    for name, bound in chosen.bindings.items()}
+        body = _build_type(pool, chosen.module, chosen.body)
+        return self._unfold_seen(self._substitute(body, bindings), seen | {key})
 
     def _definition_target(self, descriptor: VibaTypeDescriptor):
         """(key, definition) for a descriptor written as a name or an

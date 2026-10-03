@@ -1,0 +1,4 @@
+specialize A
+specialize B
+
+__def__ = A

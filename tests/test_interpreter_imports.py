@@ -205,8 +205,9 @@ def _virtual_files(tmp: Path):
     files[missing] = _text_of(VFS / "wants_nope.viba")
     labelled(interpret(missing, environ, get_file=get_file), "not found",
              "a name the hook does not serve -> not found")
-    check(asked == ["/vfs/wants_nope.viba", "/vfs/nope.viba"],
-          f"the main file, then one place for the name that is not there: {asked}")
+    check(asked == ["/vfs/wants_nope.viba", "/vfs/nope.viba",
+                    "/vfs/nope/__generic__.viba"],
+          f"the main file, then every place the name could be: {asked}")
 
     # 模块已经加载过就不再问
     asked.clear()

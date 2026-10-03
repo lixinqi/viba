@@ -161,6 +161,18 @@ class Import(AST):
     _fields = ("module", "alias")
 
 
+class Specialize(AST):
+    """specialize <pattern> — one generic parameter, as this file takes it.
+
+    A file inside a generic's directory writes one of these per parameter, in
+    written order: a name the file never defines is a parameter to extract,
+    while a known type restricts what that argument may be
+    (viba-specialize.md).
+    """
+
+    _fields = ("pattern",)
+
+
 class SumChain(AST):
     """Canonical main chain of a sum: the left-nested run of |.
 
