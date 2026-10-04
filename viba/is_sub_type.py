@@ -290,7 +290,7 @@ class _Checker:
         return None, module
 
     def _tagged_side(self, sn, s_mod, sp, p_mod):
-        """Read `__tagged__[...]` as the tag it spells, on either side; else None.
+        """Read `tagged[...]` as the tag it spells, on either side; else None.
 
         The symbol is a written string, or a name this comparison resolves — the
         `env_get` channel a chosen file carries is one of those names
@@ -462,7 +462,7 @@ class _Checker:
         return node, module
 
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
-        # A written `__tagged__[...]` is the tag it spells, read before anything
+        # A written `tagged[...]` is the tag it spells, read before anything
         # else: the symbol may be a name a decision bound (viba-pattern.md).
         tagged = self._tagged_side(sn, s_mod, sp, p_mod)
         if tagged is not None:

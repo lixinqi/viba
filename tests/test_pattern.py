@@ -26,10 +26,10 @@ The four worked examples of `viba-pattern.md` live in `tests/data/pattern/demo/`
                             stands for and lands on 100
 
 `demo/arg_name_of/` and `demo/tagged_again/` are the two sides of a tag written as
-a symbol: `pattern __tagged__[arg_name, T]` takes the symbol the argument carries
-(`arg_name_of[$a int]` answers `"a"`), and `__decl__ = __tagged__[arg_name, T]`
+a symbol: `pattern tagged[arg_name, T]` takes the symbol the argument carries
+(`arg_name_of[$a int]` answers `"a"`), and `__decl__ = tagged[arg_name, T]`
 builds the same tag back out of it. `tests/data/member/` holds the chain-head
-side: `__tagged__["f"] << box << …` takes the member the symbol names, and
+side: `tagged["f"] << box << …` takes the member the symbol names, and
 `$__getattr__ << box << name << …` reads it by the name a value spells.
 
 `demo/wrapped_item/` is the one file whose answer is its own definition, so the
@@ -493,19 +493,19 @@ def _the_wrapper_forwards():
 
 
 def _a_tag_written_as_a_symbol():
-    """`__tagged__[...]`：符号写在字符串里，字符串就是那个 tag。"""
-    folded = _node('__tagged__["a", int]')
+    """`tagged[...]`：符号写在字符串里，字符串就是那个 tag。"""
+    folded = _node('tagged["a", int]')
     check(isinstance(folded, viba_ast.Tagged) and folded.tag == "$a"
           and viba_ast.unparse_type(folded.type) == "int",
           f"a written symbol is the tag it spells: {folded!r}")
-    check(isinstance(_node('__tagged__["hello"]'), viba_ast.TypeApp),
+    check(isinstance(_node('tagged["hello"]'), viba_ast.TypeApp),
           "one argument stays as written: a member does not stand alone, so a "
           "chain head is what reads it (test_interpreter_member.py)")
-    check(isinstance(_node("__tagged__[name, int]"), viba_ast.TypeApp),
+    check(isinstance(_node("tagged[name, int]"), viba_ast.TypeApp),
           "a symbol that is a name is left for the decision to read")
 
-    for written in ('__tagged__["a b", int]', "__tagged__[1, int]",
-                    "__tagged__[a, b, c]"):
+    for written in ('tagged["a b", int]', "tagged[1, int]",
+                    "tagged[a, b, c]"):
         try:
             viba_ast.parse(f"X = {written}\n")
             check(False, f"{written} is refused where it is written")
@@ -513,11 +513,11 @@ def _a_tag_written_as_a_symbol():
             check("no symbol" in str(exc) or "takes one argument" in str(exc),
                   f"{written} is refused where it is written: {exc}")
 
-    got = _judge('X = __tagged__["a", int]\n', "X", "$a int")
+    got = _judge('X = tagged["a", int]\n', "X", "$a int")
     check(got is True, f"a written tag is the tagged type: {got!r}")
-    got = _judge('X = __tagged__["a", int]\n', "$a int", "X")
+    got = _judge('X = tagged["a", int]\n', "$a int", "X")
     check(got is True, f"and the other way round: {got!r}")
-    got = _judge('X = __tagged__["a", int]\n', "X", "$b int")
+    got = _judge('X = tagged["a", int]\n', "X", "$b int")
     check(got is False, f"another symbol is another tag: {got!r}")
 
     tagged = interpret(_case("tagged_written"), _environ())
@@ -528,7 +528,7 @@ def _a_tag_written_as_a_symbol():
           "the application answers the value the tag writes")
 
     check(value_of(interpret(_case("arg_name_of_a"), _environ())) == "a",
-          "a __tagged__ pattern takes the symbol the argument carries")
+          "a tagged pattern takes the symbol the argument carries")
     got = _judge("import demo.arg_name_of as g\nX = g[$a int].value\n", "X", '"a"')
     check(got is True, f"and the answer is that string: {got!r}")
     got = _judge("import demo.arg_name_of as g\nX = g[$a int].value\n", "X", '"b"')

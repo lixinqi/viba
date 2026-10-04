@@ -1,4 +1,4 @@
-# `__tagged__["f"] << box << …` is `$f << box << …`: the symbol spells the tag a
+# `tagged["f"] << box << …` is `$f << box << …`: the symbol spells the tag a
 # member is taken by, so a name that is only a string is a tag after all.
 __decl__ =
     Any
@@ -17,4 +17,4 @@ inc =
 
 box = Object * $f inc * $y 2
 # 实参按它落的那一位写：`$x` 是 `inc` 自己声明的 tag。
-__impl__ = __tagged__["f"] << box << args.env << $x 1
+__impl__ = tagged["f"] << box << args.env << $x 1

@@ -3,27 +3,27 @@
 # `Ret` the result, `Env` the environment, `F` the next computation, `Arg0`…`Arg2` arguments;
 # Tag symbols (`env_name`, `arg0_name`…`arg2_name`) are extracted from the actual arguments;
 # so this file knows no name but `$env`, and no result, function or argument types.
-pattern Ret <- __tagged__[env_name, Env] <- F <- __tagged__[arg0_name, Arg0] <- __tagged__[arg1_name, Arg1] <- __tagged__[arg2_name, Arg2]
+pattern Ret <- tagged[env_name, Env] <- F <- tagged[arg0_name, Arg0] <- tagged[arg1_name, Arg1] <- tagged[arg2_name, Arg2]
 
 YHelper =
     Ret
-  <- $f (Ret <- __tagged__[env_name, Env] <- F <- __tagged__[arg0_name, Arg0] <- __tagged__[arg1_name, Arg1] <- __tagged__[arg2_name, Arg2])
+  <- $f (Ret <- tagged[env_name, Env] <- F <- tagged[arg0_name, Arg0] <- tagged[arg1_name, Arg1] <- tagged[arg2_name, Arg2])
   <- $y_helper YHelper
   <- $env Env
-  <- __tagged__[arg0_name, Arg0]
-  <- __tagged__[arg1_name, Arg1]
-  <- __tagged__[arg2_name, Arg2]
+  <- tagged[arg0_name, Arg0]
+  <- tagged[arg1_name, Arg1]
+  <- tagged[arg2_name, Arg2]
 
 # Each layer reads the chain as written: a name, even one pointing at the same chain,
 # is not "the call this application stands for" to them, so the signature is written out again.
 __decl__ =
     Ret
-  <- $f (Ret <- __tagged__[env_name, Env] <- F <- __tagged__[arg0_name, Arg0] <- __tagged__[arg1_name, Arg1] <- __tagged__[arg2_name, Arg2])
+  <- $f (Ret <- tagged[env_name, Env] <- F <- tagged[arg0_name, Arg0] <- tagged[arg1_name, Arg1] <- tagged[arg2_name, Arg2])
   <- $y_helper YHelper
   <- $env Env
-  <- __tagged__[arg0_name, Arg0]
-  <- __tagged__[arg1_name, Arg1]
-  <- __tagged__[arg2_name, Arg2]
+  <- tagged[arg0_name, Arg0]
+  <- tagged[arg1_name, Arg1]
+  <- tagged[arg2_name, Arg2]
 
 args = __get_args__ << __decl__
 

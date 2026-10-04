@@ -661,7 +661,7 @@ def parse_source(source: str):
     The lexer keeps `lineno` between calls, so without this a fresh one-line
     file by mistake reports the line it ended on in the file parsed before it.
     Every caller that reads a whole source goes through here, and every source
-    comes out with its written `__tagged__[...]` symbols folded into the tags
+    comes out with its written `tagged[...]` symbols folded into the tags
     they spell (`viba/viba_ast/tagged.py`).
     """
     lexer.lineno = 1
@@ -873,8 +873,8 @@ if __name__ == "__main__":
          "A pattern line whose parameter is a function"),
         ("pattern list[A]\nElement = A",
          "A pattern line whose parameter is a container"),
-        ('X = __tagged__["a", int]', "A tag whose symbol is a written string"),
-        ("X = __tagged__[name, int]", "A tag whose symbol is a name"),
+        ('X = tagged["a", int]', "A tag whose symbol is a written string"),
+        ("X = tagged[name, int]", "A tag whose symbol is a name"),
     ]
 
     # Sources that must not compile: a caller has to be able to tell. The name
@@ -896,10 +896,10 @@ if __name__ == "__main__":
         ("W[list] = int", "A builtin container as a generic parameter"),
         ("pattern", "A pattern line with no pattern"),
         ("pattern = int", "pattern is a keyword, not a definition name"),
-        ("__tagged__ = int", "__tagged__ is a builtin, not a definition name"),
-        ('X = __tagged__["a b", int]', "A symbol that is no name"),
-        ("X = __tagged__[1, int]", "A number where the symbol goes"),
-        ("X = __tagged__[a, b, c]", "A tag with too many arguments"),
+        ("tagged = int", "tagged is a builtin, not a definition name"),
+        ('X = tagged["a b", int]', "A symbol that is no name"),
+        ("X = tagged[1, int]", "A number where the symbol goes"),
+        ("X = tagged[a, b, c]", "A tag with too many arguments"),
     ]
 
     print(f"{'TEST CASE':<50} | {'STATUS'}")

@@ -33,8 +33,8 @@ answers the extracted type and `__decl__ = (int <- $env Env <- int)` is a
 function type like any other.
 
 A tag may also be written as a symbol string, and that is where a name that only
-exists as a string comes from: `__tagged__["a", T]` is `$a T`, a `pattern` line
-may claim the symbol (`pattern __tagged__[name, T]` takes `"a"` for `$a int`),
+exists as a string comes from: `tagged["a", T]` is `$a T`, a `pattern` line
+may claim the symbol (`pattern tagged[name, T]` takes `"a"` for `$a int`),
 and a `__decl__` builds the tag back out of it (viba-pattern.md). What a written
 string spells is read in `viba/viba_ast/tagged.py`; a symbol that is a name is
 read in `tagged_reading` below, where the decision's bindings are known.
@@ -336,9 +336,9 @@ def _generic_of(module: ModuleType, module_name: str) -> Result:
 
 
 def tagged_reading(node, module: ModuleType, resolve=None) -> Result:
-    """The tag a written `__tagged__[...]` stands for, or Ok(None) when it is none.
+    """The tag a written `tagged[...]` stands for, or Ok(None) when it is none.
 
-    `__tagged__[S, T]` is the tagged type `$S T` and `__tagged__[S]` is the
+    `tagged[S, T]` is the tagged type `$S T` and `tagged[S]` is the
     member `$S`, so a symbol can be written where only a tag would otherwise
     fit (`viba/viba_ast/tagged.py`). A written string literal is already folded
     where the source was read; what is read here is the symbol that is a *name*
@@ -574,14 +574,14 @@ def _match(pattern, pattern_module: ModuleType, argument,
 
 def _match_tagged(pattern, pattern_module: ModuleType, argument, argument_module,
                   bindings: Dict[str, AstNodeType]):
-    """`__tagged__[S, T]`: the argument has to be the tag S spells.
+    """`tagged[S, T]`: the argument has to be the tag S spells.
 
     `S` is either a written symbol — the tag it has to be — or a parameter,
     which takes the symbol as a string. Taking it as a string is what lets the
-    same design hand it back to `__tagged__` and build the tag again:
+    same design hand it back to `tagged` and build the tag again:
 
-        pattern A <- __tagged__[arg_name, T]           # arg_name is "a" for `$a int`
-        __decl__ = A <- int <- __tagged__[arg_name, T]  # and this is `$a int` again
+        pattern A <- tagged[arg_name, T]           # arg_name is "a" for `$a int`
+        __decl__ = A <- int <- tagged[arg_name, T]  # and this is `$a int` again
 
     One written argument claims the member `$S`, two the tagged type `$S T`
     (viba-pattern.md).

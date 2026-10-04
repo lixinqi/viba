@@ -1615,7 +1615,7 @@ class _Activation:
         application written down, and giving it arguments reads it as the call
         it is (`_generic_target`).
 
-        `__tagged__` is not a directory of files: it is the builtin tag
+        `tagged` is not a directory of files: it is the builtin tag
         constructor, and its symbol is read as a value here (`_tagged_data`).
         """
         if node.constructor == TAGGED_NAME:
@@ -1683,7 +1683,7 @@ class _Activation:
         return other.evaluate(target.body)
 
     def _tagged_data(self, node, scope=()):
-        """`__tagged__[S, T]`: the tag the symbol value spells, as viba data.
+        """`tagged[S, T]`: the tag the symbol value spells, as viba data.
 
         `S` is read here rather than written: a `pattern` line extracted the
         symbol from a tag and a decision handed it over as a string, so this is
@@ -2028,7 +2028,7 @@ class _Activation:
                 arguments = stored + arguments
                 continue
             if isinstance(got, _VibaData) and isinstance(got.node.data, viba_ast.Member):
-                # `__tagged__[S] << X` with a symbol that is a value: the member
+                # `tagged[S] << X` with a symbol that is a value: the member
                 # the symbol names, taken from the value the chain gives first.
                 return Ok(_Member(got.node.data.tag)), arguments
             if isinstance(got, _VibaData) and isinstance(
@@ -2117,7 +2117,7 @@ class _Activation:
             return None
         chain = _substituted(chosen.body, (self._generic_bindings(chosen),))
         # The symbol the decision bound is written into the chain, but
-        # `__tagged__["n", T]` is still an application: the parameter table reads
+        # `tagged["n", T]` is still an application: the parameter table reads
         # tags, so that application is folded into the tag it spells.
         chain = _WrittenTags(chosen.module).visit(chain)
         if _definition(chosen.module, RET_NAME) is not None:
@@ -3039,7 +3039,7 @@ def _answer(name, answer, step: Step = None):
 
 
 class _WrittenTags(viba_ast.NodeTransformer):
-    """`__tagged__[<symbol>, T]` written in by a decision → the tag it spells.
+    """`tagged[<symbol>, T]` written in by a decision → the tag it spells.
 
     A decision hands a symbol over as the string a `pattern` line extracted, so
     after the substitution a parameter the chosen file only *names* is that

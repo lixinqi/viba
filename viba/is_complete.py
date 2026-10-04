@@ -294,7 +294,7 @@ class _Checker:
         return self._definition(definition, chosen.entry.name, inner)
 
     def _tagged(self, node, module_name: str, bindings: dict):
-        """Walk the tag a written `__tagged__[...]` spells; None when it is no tag.
+        """Walk the tag a written `tagged[...]` spells; None when it is no tag.
 
         The symbol is a written string, or a name this walk bound — a decision
         hands it over as a string, which is how a `__decl__` builds a tag out of

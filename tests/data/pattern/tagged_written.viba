@@ -1,6 +1,6 @@
-# `__tagged__["a", 3]` answers the same thing `$a 3` does.
+# `tagged["a", 3]` answers the same thing `$a 3` does.
 __decl__ =
     Any
   <- $env Env
 
-__impl__ = __tagged__["a", 3]
+__impl__ = tagged["a", 3]

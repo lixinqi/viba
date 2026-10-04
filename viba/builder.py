@@ -462,7 +462,7 @@ _BUILTIN_TYPE_NAMES = {
     "ListLiteral": "a builtin literal constructor",
     "SetLiteral": "a builtin literal constructor",
     "DictLiteral": "a builtin literal constructor",
-    "__tagged__": "a builtin tag constructor",
+    "tagged": "a builtin tag constructor",
 }
 
 

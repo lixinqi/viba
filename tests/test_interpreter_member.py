@@ -106,9 +106,9 @@ def _judge(source: str, sub: str, sup: str):
 
 
 def _a_member_read_by_a_name():
-    """名字写在字符串里时，成员就按那个名字取：`__tagged__["f"]` 与 `$__getattr__`。
+    """名字写在字符串里时，成员就按那个名字取：`tagged["f"]` 与 `$__getattr__`。
 
-    `__tagged__["f"] << box << …` 是 `$f << box << …`；`$__getattr__ << box << name << …`
+    `tagged["f"] << box << …` 是 `$f << box << …`；`$__getattr__ << box << name << …`
     是 `box.f << …`，区别只在于名字是一份可以算出来的值。
     """
     def get_func(path, func_name):

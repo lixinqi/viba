@@ -1,6 +1,6 @@
 # apply_impl, 5 arguments: the product of arguments has 5 members,
 # and each one is read out of it by the tag the `pattern` line extracted.
-pattern __tagged__[arg0_name, Arg0] * __tagged__[arg1_name, Arg1] * __tagged__[arg2_name, Arg2] * __tagged__[arg3_name, Arg3] * __tagged__[arg4_name, Arg4]
+pattern tagged[arg0_name, Arg0] * tagged[arg1_name, Arg1] * tagged[arg2_name, Arg2] * tagged[arg3_name, Arg3] * tagged[arg4_name, Arg4]
 
 # The module's own signature: it answers whatever the function answers, and it takes
 # the function and the product of arguments — the environment is the call's rule.

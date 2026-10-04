@@ -1,10 +1,10 @@
-"""`__tagged__`: a tag written as a symbol string.
+"""`tagged`: a tag written as a symbol string.
 
 A tag is an address (`$a`) and a design writes it, so a tag that only exists as
-a string value has no place in a type. `__tagged__` is that place:
+a string value has no place in a type. `tagged` is that place:
 
-    __tagged__["a", T]      the tagged type `$a T`
-    __tagged__["a"]         the member `$a`
+    tagged["a", T]      the tagged type `$a T`
+    tagged["a"]         the member `$a`
 
 The symbol is written as a string (`"a"`, or `"$a"` with the sigil), and it has
 to be one: letters, digits and `_`, not starting with a digit. A string literal
@@ -18,7 +18,7 @@ from typing import List, Optional
 
 from viba.viba_ast.nodes import (AST, Constant, Member, Module, Tagged, TypeApp)
 
-TAGGED_NAME = "__tagged__"
+TAGGED_NAME = "tagged"
 
 # The builtin member that reads a member by a name given as a value: `$__getattr__`.
 GETATTR_TAG = "$__getattr__"
@@ -68,10 +68,10 @@ def literal_symbol(node) -> Optional[str]:
 
 
 def tagged_node(symbol: str, arguments: List[AST]):
-    """The tag a written `__tagged__[symbol, ...]` stands for.
+    """The tag a written `tagged[symbol, ...]` stands for.
 
     One argument is the member `$symbol` — the member a chain takes from the
-    value it gives first (`__tagged__["hello"] << persion` is `$hello <<
+    value it gives first (`tagged["hello"] << persion` is `$hello <<
     persion`). Two are the tagged type `$symbol T`.
     """
     if len(arguments) == 1:
@@ -80,7 +80,7 @@ def tagged_node(symbol: str, arguments: List[AST]):
 
 
 def tagged_problem(arguments: List[AST]) -> Optional[str]:
-    """Why this written `__tagged__[...]` is no tag, or None when it is one."""
+    """Why this written `tagged[...]` is no tag, or None when it is one."""
     if len(arguments) not in (1, 2):
         return (f"{TAGGED_NAME} takes one argument (the symbol) or two (the symbol "
                 f"and the type it marks), not {len(arguments)}")
@@ -96,7 +96,7 @@ def tagged_problem(arguments: List[AST]) -> Optional[str]:
 def fold_written(tree):
     """A parsed tree with every written string symbol folded into its tag.
 
-    A `__tagged__[symbol, T]` whose symbol is a string literal is the tagged
+    A `tagged[symbol, T]` whose symbol is a string literal is the tagged
     type `$symbol T`, so every layer reads a tag where the source wrote a
     string. The one-argument form, and every symbol that is a name, is left
     standing: a member does not stand alone (it is read where a chain head is),

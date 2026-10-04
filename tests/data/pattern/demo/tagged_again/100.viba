@@ -1,4 +1,4 @@
 # The same tag, built again from the symbol the pattern extracted.
-pattern __tagged__[arg_name, T]
+pattern tagged[arg_name, T]
 
-type = __tagged__[arg_name, T]
+type = tagged[arg_name, T]

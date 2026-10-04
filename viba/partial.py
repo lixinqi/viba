@@ -368,9 +368,9 @@ def _member_of(tag, owner, owner_module, resolve, judge):
 
 
 def _tagged_base(node, module, resolve):
-    """A written `__tagged__[...]` at a chain head as the tag it stands for.
+    """A written `tagged[...]` at a chain head as the tag it stands for.
 
-    `__tagged__["hello"] << X` is `$hello << X`, and the symbol may be a name a
+    `tagged["hello"] << X` is `$hello << X`, and the symbol may be a name a
     decision bound instead of a written string. A node that is no tagged
     application, or whose symbol this layer cannot read, is handed back as it is
     (viba/viba_ast/tagged.py).

@@ -78,7 +78,7 @@ tag 写在链头时，它命中的是**第一个参数的成员**：`$sub_env <<
 `args.env.sub_env << args.env << "x"`（见 [`viba-interpreter.md`](viba-interpreter.md)）。tag 不是值，
 `method = $sub_env` 这种写法编不过。
 
-tag 也可以写在**字符串**里：`__tagged__["hello"] << X` 就是 `$hello << X`，`__tagged__["a", T]`
+tag 也可以写在**字符串**里：`tagged["hello"] << X` 就是 `$hello << X`，`tagged["a", T]`
 就是 `$a T` —— 名字本来就是字符串的时候这样写，见 [`viba-pattern.md`](viba-pattern.md) 第 3 节。
 
 **点号读的是成员，定义左边只有一个名字。** 定义永远是 `A = …`：`a.b = A` 编不过。`a.b` 是在 `a`

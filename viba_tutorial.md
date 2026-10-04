@@ -407,7 +407,7 @@ __impl__ = $flag is_base_type[bool] * $n 1
 
 决断按数字从小到大，第一个命中的赢；一个都没命中是程序错误，不是 `never`。答案写成函数链时，
 这个应用代表的就是那次调用；方括号里的实参本身也可以写成一次调用。tag 也可以写在字符串里：
-`__tagged__["a", T]` 就是 `$a T`，`pattern __tagged__[name, T]` 还能把实参那个 tag 的名字
+`tagged["a", T]` 就是 `$a T`，`pattern tagged[name, T]` 还能把实参那个 tag 的名字
 萃取成一个字符串。整个规矩、各种写法和报错，见 [`viba-pattern.md`](viba-pattern.md)。
 
 ## 13. 接下来读什么

@@ -591,10 +591,10 @@ Flag = is_base_type[bool]              # 决断选中 100.viba；它的 __decl__
 `tests/data/y_combinator/` 的两份泛型用的就是这一点（`y_impl/100.viba` 的 `impl` 里写着
 `y_helper[F]`，`F` 是它的形参）。
 
-## 成员按名字读：`__tagged__` 与 `$__getattr__`
+## 成员按名字读：`tagged` 与 `$__getattr__`
 
-名字写在字符串里时，成员照样取得出来。`__tagged__["hello"] << X` 就是 `$hello << X` ——
-一参数的 `__tagged__` 是一个成员，只写在链头（[`viba-pattern.md`](viba-pattern.md) 第 3 节）。
+名字写在字符串里时，成员照样取得出来。`tagged["hello"] << X` 就是 `$hello << X` ——
+一参数的 `tagged` 是一个成员，只写在链头（[`viba-pattern.md`](viba-pattern.md) 第 3 节）。
 
 名字是**一份可以算出来的值**时（决断萃取出来的符号、从数据里读到的 str），用内建的成员
 `$__getattr__`：

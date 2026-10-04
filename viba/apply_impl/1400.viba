@@ -1,6 +1,6 @@
 # apply_impl, 14 arguments: the product of arguments has 14 members,
 # and each one is read out of it by the tag the `pattern` line extracted.
-pattern __tagged__[arg0_name, Arg0] * __tagged__[arg1_name, Arg1] * __tagged__[arg2_name, Arg2] * __tagged__[arg3_name, Arg3] * __tagged__[arg4_name, Arg4] * __tagged__[arg5_name, Arg5] * __tagged__[arg6_name, Arg6] * __tagged__[arg7_name, Arg7] * __tagged__[arg8_name, Arg8] * __tagged__[arg9_name, Arg9] * __tagged__[arg10_name, Arg10] * __tagged__[arg11_name, Arg11] * __tagged__[arg12_name, Arg12] * __tagged__[arg13_name, Arg13]
+pattern tagged[arg0_name, Arg0] * tagged[arg1_name, Arg1] * tagged[arg2_name, Arg2] * tagged[arg3_name, Arg3] * tagged[arg4_name, Arg4] * tagged[arg5_name, Arg5] * tagged[arg6_name, Arg6] * tagged[arg7_name, Arg7] * tagged[arg8_name, Arg8] * tagged[arg9_name, Arg9] * tagged[arg10_name, Arg10] * tagged[arg11_name, Arg11] * tagged[arg12_name, Arg12] * tagged[arg13_name, Arg13]
 
 # The module's own signature: it answers whatever the function answers, and it takes
 # the function and the product of arguments — the environment is the call's rule.

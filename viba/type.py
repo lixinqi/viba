@@ -256,7 +256,7 @@ class BuiltinModuleType(ModuleType):
     _GENERIC_NAMES = {
         "List", "list", "set", "dict",
         "ListLiteral", "SetLiteral", "DictLiteral",
-        "__tagged__",
+        "tagged",
     }
 
     def __init__(self):

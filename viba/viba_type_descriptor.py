@@ -659,7 +659,7 @@ def _get_args_call(pool, node, module):
 
 
 def tagged_descriptor(pool, constructor_name: str, args, resolvable):
-    """The tag a `__tagged__[...]` descriptor stands for, or None.
+    """The tag a `tagged[...]` descriptor stands for, or None.
 
     The symbol is known here when it is a written string — the source folded
     those into the tag already — and when a decision handed it over: a `pattern`

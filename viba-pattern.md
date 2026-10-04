@@ -95,7 +95,7 @@ type = A
 |------------|--------|--------------|
 | `B` | 任何 tag | 整块（`$a int`） |
 | `$a B` | tag 必须是 `$a` | 里面那一层（`int`） |
-| `__tagged__[n, B]` | 任何 tag | `n` 是符号（`"a"`），`B` 是里面那一层 |
+| `tagged[n, B]` | 任何 tag | `n` 是符号（`"a"`），`B` 是里面那一层 |
 
 **哪个形参带 tag、哪个不带，由模式自己说了算**：要原样传下去就写裸名字（`wrapper` 就是靠这个
 把调用方的 tag 一路带过去的），要把 tag 认下来 —— 限定它、改名、或者拿它跟别处比 —— 就在模式里
@@ -236,25 +236,25 @@ impl = (y_helper[F] << $f F << $y_helper y_helper[F])
 成立。`tests/data/y_functions/` 拿它跑 20 个递归函数（阶乘、斐波那契、阿克曼……）。这也是第 4 节那条"行数与实参个数不同就跳过"的另一种用法：这里的实参只有
 一个（函数本身），分的是函数自己的签名有多长。
 
-## 3. 符号写在字符串里：`__tagged__`
+## 3. 符号写在字符串里：`tagged`
 
-tag 是地址（`$a`），设计里写的就是它，所以一个只作为**字符串**存在的名字没有地方放。`__tagged__`
+tag 是地址（`$a`），设计里写的就是它，所以一个只作为**字符串**存在的名字没有地方放。`tagged`
 就是那个地方 —— 它是内建的，收一个符号，或者一个符号加一个类型：
 
 ```viba
-Tagged = __tagged__["a", T]                   # 就是 Tagged = $a T
+Tagged = tagged["a", T]                   # 就是 Tagged = $a T
 
-__impl__ = __tagged__["hello"] << persion      # 就是 $hello << persion
+__impl__ = tagged["hello"] << persion      # 就是 $hello << persion
 ```
 
 符号写在字符串里（`"a"`，或者带 `$` 的 `"$a"`），而且必须是一个合法符号：字母、数字、`_`，不以数字
 开头。写错了当场报错（`'a b' is no symbol for a tag`），参数个数不是 1 或 2 也当场报错。
-`__tagged__` 是内建名，谁也不能拿它定义（`__tagged__ = int` 编不过）。
+`tagged` 是内建名，谁也不能拿它定义（`tagged = int` 编不过）。
 
 一参数的写法是一个**成员**，跟 `$hello` 一样只写在链头：
 
 ```viba
-__impl__ = __tagged__["hello"] << persion        # 就是 $hello << persion
+__impl__ = tagged["hello"] << persion        # 就是 $hello << persion
 ```
 
 两参数的写法是一个类型，各层读到的就是那个 tag。
@@ -264,7 +264,7 @@ __impl__ = __tagged__["hello"] << persion        # 就是 $hello << persion
 
 ```viba
 # demo/arg_name_of/100.viba
-pattern __tagged__[arg_name, T]
+pattern tagged[arg_name, T]
 
 value = arg_name                # 答 "a"
 ```
@@ -274,9 +274,9 @@ value = arg_name                # 答 "a"
 
 ```viba
 # demo/tagged_again/100.viba
-pattern __tagged__[arg_name, T]
+pattern tagged[arg_name, T]
 
-type = __tagged__[arg_name, T]           # 又建回 `$a int`
+type = tagged[arg_name, T]           # 又建回 `$a int`
 ```
 
 读各层的时候，符号要么是写下来的字符串，要么是一个解析得出字符串的名字（决断绑给它的那个）；
@@ -429,7 +429,7 @@ Two = num_variadic_args[bool, str]           # 2
 | `viba/reflect.py` | 按类型读实例时，泛型应用先决断再展开 |
 | `viba/interpret.py` | 目录当模块导入、应用求值（函数链的答案就是那次调用）、`list_files` 这个取目录内容的钩子 |
 | `viba/is_complete.py` | 完整性按决断往下走 |
-| `viba/viba_ast/tagged.py` | `__tagged__`：符号写在字符串里的读法，写下来的字符串在这里折成 tag |
+| `viba/viba_ast/tagged.py` | `tagged`：符号写在字符串里的读法，写下来的字符串在这里折成 tag |
 | `tests/test_pattern.py` + `tests/data/pattern/` | 本文的例子与全部报错 |
 
 宿主要自己供文件时（`interpret(..., get_file=...)`），目录里有什么也要一起供

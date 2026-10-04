@@ -145,8 +145,8 @@ argument written at the call site.
 An argument may write a call of its own (`g[add << $a 2]`): it is read as the type that
 call stands for, the chain left once the argument is given. A decision that finds no
 file is a program error, not `never`. A tag may be written as a symbol string:
-`__tagged__["a", T]` is `$a T`, `__tagged__["hello"] << persion` is `$hello << persion`,
-and a pattern line may claim the symbol itself — `pattern __tagged__[name, T]` takes `"a"`
+`tagged["a", T]` is `$a T`, `tagged["hello"] << persion` is `$hello << persion`,
+and a pattern line may claim the symbol itself — `pattern tagged[name, T]` takes `"a"`
 for `$a int`, so a design builds a tag out of what another one carried. The member a name
 gives as a value is read with `$__getattr__` (`$__getattr__ << args << "name"` is
 `args.name`). The whole rule, the pattern forms and the errors:
