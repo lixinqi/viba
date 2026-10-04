@@ -18,7 +18,8 @@ Y 与 y_helper 住在包的内建目录里（`viba/Y/`、`viba/y_helper/`，各�
 调用方写下的那一份实参，不是形参那个名字"（写的是 `Y[step]`，Y 里那一位叫 `F`）。
 
 `main/gcd_zero.viba` 是从基例那一侧进来的那一份（b 是 0）：`steps/gcd.viba` 把
-`rest`、`deeper` 写在分支外面，靠的是定义"读到时才算"，这一份把这个"读到"钉住。
+`rest`、`deeper` 写在分支外面，靠的是定义按需求值（call-by-need，用到才算、只算一次），这一份
+把"那一侧不用它们"钉住。
 
     python3 tests/test_interpreter_y_functions.py
 """
@@ -69,8 +70,8 @@ ANSWERS = [
 ]
 
 # (名字, 该答什么)：从基例那一侧进来。`steps/gcd.viba` 把 `rest`（a 除以 b 的余数）和
-# `deeper`（再往下的一层）写在分支外面 —— 定义是读到时才算的，b 是 0 时那一侧一个字都不读，
-# 所以这里既不该出现除以 0，也不该再往下调一层。
+# `deeper`（再往下的一层）写在分支外面 —— 定义按需求值（call-by-need），b 是 0 时那一侧一个都
+# 用不到，所以这里既不该出现除以 0，也不该再往下调一层。
 BASE_ENTRY = [
     ("gcd_zero", 7),             # gcd(7, 0) = 7
 ]

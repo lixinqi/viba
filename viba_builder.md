@@ -107,7 +107,9 @@ vb.Map[vb.K, vb.V] = vb.V         # Map[K, V] = V
 ```
 
 - 定义名要是一个普通标识符：不能是关键字（`nil` / `never` / `true` / `false` / `void` / `None` / `import` / `as` / `pattern`），不能带点、不能带横杠 —— Python 的属性名里没有点。源码里的点分名字（`a.b = A`，见 [`viba-style.md`](viba-style.md) 第 5 节）在 builder 里就写展开后的形式：`vb.a = tag.b(vb.A) * tag.c(vb.C)`。
-- 同一个名字可以写多次，顺序就是写的顺序（第 10 节的"既有文件里已有这个名字"是另一回事）。
+- 同一个名字可以写多次，顺序就是写的顺序（第 10 节的"既有文件里已有这个名字"是另一回事）。写的
+  顺序只是源码的顺序：定义是绑定，求值按需求值，写的次序不是求值的次序（[`viba-interpreter.md`](viba-interpreter.md)
+  的「求值策略：按需求值（call-by-need）」一节）。
 - 没有别的定义形式：Viba 的定义只有"带形参"和"不带形参"两种。
 
 ## 5. 和 / 积 / 指数

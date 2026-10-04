@@ -31,7 +31,7 @@ viba 把三类交流翻译成同一种语言——类型。它自己只是个转
 | 一个东西能不能被唯一寻址 | [`viba/check_tag_and_inline.py`](viba/check_tag_and_inline.py) |
 | 交回来的实例顶不顶得上那个槽位 | [`viba/is_sub_type.py`](viba/is_sub_type.py) |
 | 这一次回答算不算数 | 规则与呈证，[`viba-compliance.md`](viba-compliance.md) |
-| 程序怎么跑、结果存哪 | [`viba/interpret.py`](viba/interpret.py) |
+| 程序怎么跑、结果存哪 | [`viba/interpret.py`](viba/interpret.py)；求值策略是按需求值（call-by-need，[`viba-interpreter.md`](viba-interpreter.md)） |
 
 这些零件合起来是一台离群点探测器：`is_sub_type` 发现交回来的实例顶不上槽位，`compliance` 发现一次运行违没违规，`replayed` 发现两次运行悄悄发散。没有一个是"保证不出错"，全是"这里对不对"。
 

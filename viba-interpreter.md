@@ -464,7 +464,7 @@ def echo_or_never(env, cond, get_v):
 ```
 
 - `echo_or_never`：condition 为真时按单位元 `nil * v = v` 返回 `get_v`，否则按 `never * v = never`
-  返回 never——**`get_v` 不会被叫**，那一支的实参表达式根本不算；
+  返回 never——**`get_v` 不会被叫**，那一支写下来的实参根本不求值（非严格求值）；
 - `never_or_echo`：condition 为真时按 `never * v = never` 返回 never，否则按单位元 `nil * v = v`
   返回 `get_v`。
 
@@ -490,11 +490,13 @@ __ret__ =
   | (branch.never_or_echo << $env args.env << $cond condition << $get_v (builtin.echo << $x 0))
 ```
 
-那个实参**最多算一次**：第一次问出结果（值或停下），之后每一次问都拿同一个。所以宿主问两遍不会让
-副作用发生两遍——和 eager 调用里那个实参只求值一次是同一件事。
+那个实参**最多求值一次**（memoization，也叫 sharing）：第一次问出结果（值或停下），之后每一次问都拿
+同一个。所以宿主问两遍不会让副作用发生两遍。
 
-函数类型只写在那一个参数上：别的实参照旧先算，函数的 `$env` 也照旧按值给。想给一个算好的值，用
-`builtin.echo` 把它包成"给它一个环境就答 V"的那个函数。
+只有函数类型的那个参数是非严格的（non-strict）；别的实参按值求值（call-by-value），函数的 `$env`
+也照旧按值给。想给一个求好的值，用 `builtin.echo` 把它包成"给它一个环境就答 V"的那个函数。
+
+这跟一份定义什么时候求值是同一条策略，见下面「求值策略：按需求值（call-by-need）」一节。
 
 条件、值和开关本身都可以写在别的文件里，用例只写一条链去调它们；一个调用先给一半、剩下的由用例
 补齐，也是同一个值。`echo_or_never` / `never_or_echo` 本身也是这样一份可以 import 的文件。这条
@@ -603,10 +605,38 @@ __ret__ = $__getattr__ << box << name << args.env << 1   # name 是算出来的 
 
 宿主自己供文件时，`list_files` 也要一起给：决断要问目录里有什么（见上面「目录里有什么：list_files」一节）。
 
+## 求值策略：按需求值（call-by-need）
+
+viba 是**声明式**（declarative）的，不是命令式执行的：一份文件里的定义是**绑定**（binding，跟 let
+绑定的地位一样），不是按写下来的次序一条一条跑的语句。求值由需求驱动（demand-driven）—— 一个绑定
+在被**用到**的时候才求值，而且求值一次就把结果留下来（memoization，也叫 sharing），那次的结果就是
+它以后的值。这就是**按需求值**（call-by-need），也就是惰性求值（lazy evaluation）。
+
+- **没人用到的绑定不参与求值**：[`tests/data/values/nested.viba`](tests/data/values/nested.viba)
+  里那份 `unused` 没人用，宿主一次都没被叫。
+- **绑定可以前向引用**（forward reference）：`__ret__ = x` 与 `x = 7` 换个次序还是 7
+  （[`defined_after.viba`](tests/data/values/defined_after.viba)）。写下来的次序不是求值的次序。
+- **一个绑定只求值一次**：两处用同一个名字，宿主只被叫一次
+  （[`memo.viba`](tests/data/values/memo.viba)）；同名写两份时，后写的**遮蔽**（shadow）前一份
+  （[`twice_defined.viba`](tests/data/values/twice_defined.viba)）。
+
+这条策略不是省一次求值：递归要"再一次进到同一个定义"，而一份文件里的绑定不许成环（下一节），所以
+往下那一层只能先写成一个名字 —— 名字就是一份文件手里那个**还没求值的计算**（thunk）。写它的那一层
+不用它，用它的那一层才把它求出来。`tests/data/y_functions/steps/` 那批用例就是这样写的：往下调一层
+与取余各是一个绑定，基例那一侧不用它们，于是那一侧既不会去算 `a` 除以 0 的余数，也不会再往下调一层
+（从基例那一侧进来的那一份是
+[`main/gcd_zero.viba`](tests/data/y_functions/main/gcd_zero.viba)）。
+
+一个调用的实参默认**按值求值**（call-by-value）；只有函数类型的那个参数**非严格**（non-strict）——
+写在那个参数上的调用连同环境交给宿主，宿主用到它时才算，见上面「分支：用积选择，用和汇合」那一节。
+求值到一半的绑定被自己用到（`A = B` 与 `B = A`，或者 `A = use << $env args.env << $x A`）是循环定义，
+当场报 `one file's definitions may not go round`，而不是等栈崩（下一节）。
+
 ## 一份文件跑不出递归
 
-函数递归执行要"再一次进到同一个定义"。一份文件自己的定义图是无环的——**文件里的定义不许绕回
-自己**——所以单独给一份文件，怎么跑都跑不出递归：写出来的调用点就那么多，`<<` 一处一处写死。
+递归要"再一次进到同一个定义"，而按需求值不会把一份文件里的绑定反复求出来：一个绑定就是它那一个
+thunk，求一次就定了。一份文件自己的定义图因此是无环的——**文件里的定义不许绕回自己**——所以单独
+给一份文件，怎么跑都跑不出递归：写出来的调用点就那么多，`<<` 一处一处写死。
 
 ```viba
 A = B
@@ -614,11 +644,11 @@ B = A
 # A -> B -> A: one file's definitions may not go round — recursion takes two files
 ```
 
-- **绕回自己当场报错**，不是等栈崩：一份文件里 `A = A`、`A = B` 与 `B = A`、以及"算 A 的时候
-  又去要 A"（`A = use << $env args.env << $x A`）都是 `VibaProgramErr`，话里给出绕的路径。
-- **没真跑起来的不算**：函数类型的实参没人叫就不算递归（`A = ignore << $env args.env << $x A` 答 7，
+- **绕回自己当场报错**，不是等栈崩：一份文件里 `A = A`、`A = B` 与 `B = A`、以及"求 A 的时候
+  又要 A"（`A = use << $env args.env << $x A`）都是 `VibaProgramErr`，话里给出绕的路径。
+- **没被求值的不算**：函数类型的实参没人叫就不算递归（`A = ignore << $env args.env << $x A` 答 7，
   因为 `ignore` 不叫那个实参）；`List[T] = Object * $tail List[T] | nil` 这种**类型**自引用也
-  不算——类型不执行。
+  不算——类型不求值。
 - **跨文件不设这条限制**：两份文件可以互相 import、互相调用，设计层不拦。真的绕回去（`a.x` 要
   `b.y`、`b.y` 又要 `a.x`）时，这次运行报
   `a.x -> b.y -> a.x: the run came back to where it started`；模块调用再进同一条路径报

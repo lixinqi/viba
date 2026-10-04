@@ -83,6 +83,22 @@ The terminals it names:
 Writing one has conventions of its own — every field and argument tagged, a block's head written, a sum written with one branch is no sum, and how the builtin containers are used: [`viba-style.md`](viba-style.md), which
 also says how to check what you wrote.
 
+### Evaluation
+
+Viba is **declarative**, not imperative: definitions are **bindings**, not statements, and a file
+is not executed top to bottom. Evaluation is demand-driven — a binding is evaluated when it is
+used, and only once (call-by-need, with memoization) — so written order is not evaluation order, a
+definition may refer to one written after it (a forward reference), of two definitions of one name
+the later one shadows the earlier, and a binding nobody uses is never evaluated. A binding used
+while it is still being evaluated is a cyclic definition, reported rather than left to overflow
+the stack.
+
+That is one half of the strategy; the other half is at the call: arguments are call-by-value, and
+only a function-typed parameter is non-strict — the call written there is handed over with its
+environment and evaluated only if the callee asks for it. [`viba-interpreter.md`](viba-interpreter.md)
+states both halves and names the cases that pin them; [`viba-style.md`](viba-style.md) §9 is where
+writing such a parameter belongs.
+
 ### Pattern
 
 A generic is a directory, and one of its files answers. The directory's basename is
@@ -196,8 +212,9 @@ A module that wants arguments declares them in `__def__` and reads them back wit
 `args = __get_args__ << __def__`: as a type that chain's parameters are a product
 type, and as a computation `args` is the data the call was handed. Giving the
 environment is what runs the call, and a call without one is a closure — a value
-you can keep, pass on, or serialize and run later. See
-[`viba-interpreter.md`](viba-interpreter.md) for the whole rule.
+you can keep, pass on, or serialize and run later. Running a module evaluates
+`__ret__` and, on demand, the bindings it uses: see [Evaluation](#evaluation)
+above and [`viba-interpreter.md`](viba-interpreter.md) for the whole rule.
 
 ```viba
 # add_demo.viba
@@ -379,7 +396,7 @@ Color = $red int | $green int | $blue int
 |----------|---------|
 | [`viba_tutorial.md`](viba_tutorial.md) | Learning the language: from one definition to a module that runs |
 | [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, reading an instance |
-| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__def__` in, `__ret__` out — the executable reading |
+| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__def__` in, `__ret__` out — the executable reading, and the call-by-need evaluation strategy |
 | [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer reads |
 | [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
 | [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
