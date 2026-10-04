@@ -2,7 +2,7 @@
 __decl__ =
     Any
   <- $env Env
-  <- $fib (int <- int)
+  <- $fib ...
   <- $n int
 
 args = __get_args__ << __decl__

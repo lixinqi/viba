@@ -1031,7 +1031,14 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                 # it was given is not one of its members, and the call its body answers is
                 # the one that still wants it — `apply << f << args << env` is
                 # `f << 1 << 2 << env`.
-                given = pending.give(ENVIRON_TAG, _Host(environ))
+                handed = environ
+                if pending.kind == "module" and pending.declares_environ():
+                    # That call is a module that writes `$env Env`, so the environment it
+                    # is handed is the one it runs in — and this call is running in ours.
+                    # It gets one of its own, named by the module it is written as (the
+                    # same rule that gives a module with no `$env Env` its own).
+                    handed = sub_env(environ, pending.written)
+                given = pending.give(ENVIRON_TAG, _Host(handed))
                 if _stopped(given):
                     return given
                 pending = given.ok_value
@@ -1727,13 +1734,12 @@ class _Activation:
         return other.evaluate(chosen.body)
 
     def _definition_generic(self, node, scope=()):
-        """`Y[step]`: the application of a generic defined in the module (`Y[F] = …`); it is
-        that generic with the parameters substituted in.
+        """`List[T]`: the application of a generic defined in the module (`List[T] = …`); it
+        is that generic with the parameters substituted in.
 
         The arguments are written in the caller's own file, so after substitution the read
         happens here in the caller (a directory generic in viba-pattern.md goes through the
-        decision; this one is a generic defined inside a module).
-        """
+        decision; this one is a generic defined inside a module)."""
         resolved = module_get_type(self.module, node.constructor)
         if not (isinstance(resolved, Ok)
                 and isinstance(resolved.ok_value, AstNodeType)):
@@ -1924,6 +1930,11 @@ class _Activation:
                     current = run.ok_value
                 continue
             if isinstance(current, _Pending):
+                if current.kind == "module":
+                    member, stop = self._members_as_values(value.ok_value.value)
+                    if stop is not None:
+                        return stop
+                    value = Ok(_Given(value.ok_value.tag, member))
                 current = current.give(value.ok_value.tag, value.ok_value.value)
             else:
                 current = _host_give(current, value.ok_value)
@@ -1942,6 +1953,43 @@ class _Activation:
             return VibaProgramErr(
                 f"{GET_ARGS_NAME} asks for the module's {DEF_NAME}, and none was given")
         return Ok(current)
+
+    def _members_as_values(self, value):
+        """(the value, the stop) of a product handed to a module call.
+
+        What a module receives are values, and not calls it works out later
+        (viba-interpreter.md): a member written as a name (`$n below`) is that
+        name's value, worked out here — in the call the product was written in,
+        so the names in it mean what they meant there. The tag is the member's
+        address and stays where it was written. Anything else is handed on as it
+        came: a member that is already a value is one, and a product another
+        module wrote is that module's to read.
+        """
+        if not isinstance(value, _VibaData):
+            return value, None
+        if value.written_in is not None and value.written_in is not self.module:
+            return value, None
+        factors = _viba_data_factors(value.node)
+        if not any(isinstance(factor, viba_ast.Tagged) for factor in factors):
+            return value, None
+        pieces = []
+        for factor in factors:
+            if not isinstance(factor, viba_ast.Tagged):
+                pieces.append(factor)
+                continue
+            member = self.evaluate(factor.type)
+            if _stopped(member):
+                return value, member
+            answered = member.ok_value
+            if not isinstance(answered, _VibaData):
+                return value, VibaProgramErr(
+                    f"the {factor.tag} member of an argument is not viba data, "
+                    f"so it cannot be part of {DEF_NAME}")
+            pieces.append(viba_ast.Tagged(factor.tag, answered.node.data))
+        chain = (pieces[0] if len(pieces) == 1
+                 else viba_ast.ProductChain(pieces))
+        return (_VibaData(VibaNode(reflect_access, self._descriptor(chain), chain)),
+                None)
 
     def _in_module(self, module, bindings=None):
         """An activation for another module — the one a piece's text was written

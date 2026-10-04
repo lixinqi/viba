@@ -415,11 +415,13 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
            argument_module: ModuleType, argument_modules=None) -> Result:
     """The first file whose patterns fit, or why none does.
 
-    The files are read in decision order — the numbers, smallest first. A file
-    whose `pattern` line count is not the argument count cannot be the one, so
-    it is passed over; the first file every pattern fits is the answer. Nothing
-    fitting is a program error: the decision failed, and a generic with no
-    answer is no design.
+    A generic application is a call made at design time: the chosen file's
+    `pattern` parameters are replaced by the arguments the call site wrote, so a
+    parameter's own name never matters. The files are read in decision order —
+    the numbers, smallest first. A file whose `pattern` line count is not the
+    argument count cannot be the one, so it is passed over; the first file every
+    pattern fits is the answer. Nothing fitting is a program error: the decision
+    failed, and a generic with no answer is no design.
 
     Each argument is read in the module it was written in (`argument_modules`;
     `argument_module` where that is not said), because an argument written as a

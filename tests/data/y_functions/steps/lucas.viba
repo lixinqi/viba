@@ -10,7 +10,7 @@ import primitives as primitives
 __decl__ =
     int
   <- $env Env
-  <- $lucas (int <- int)
+  <- $lucas ...
   <- $n int
 
 args = __get_args__ << __decl__

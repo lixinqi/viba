@@ -1,13 +1,13 @@
-# main/binomial.viba —— 用内建目录里的 ycombinator.Y 跑 steps/binomial：答 252
+# main/binomial.viba —— 用内建目录里的 Y 跑 steps/binomial：答 252
 #
-# Y 是内建的泛型（`viba/Y/`）：`ycombinator.Y[step]` 就是那一步的不动点，再给环境与这次要跑的实参。
+# Y 住在包的内建目录里（`viba/Y.viba`）：`Y << step` 就是那一步的不动点，再给环境与这次要跑的实参。
 __decl__ =
     int
   <- $env Env
 
 args = __get_args__ << __decl__
 
-import ycombinator
+import Y
 import steps.binomial as step
 
-__impl__ = ycombinator.Y[step] << args.env << $n 10 << $k 5
+__impl__ = Y << step << args.env << ($n 10 * $k 5)

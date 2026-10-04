@@ -9,7 +9,7 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-import ycombinator
+import Y
 import steps.gcd as step
 
-__impl__ = ycombinator.Y[step] << args.env << $a 7 << $b 0
+__impl__ = Y << step << args.env << ($a 7 * $b 0)

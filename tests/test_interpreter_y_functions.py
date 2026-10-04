@@ -1,21 +1,22 @@
-"""内建目录里的 Y（`viba/Y/`）：20 个递归函数各自跑出该答的值。
+"""内建目录里的 Y（`viba/Y.viba`）：20 个递归函数各自跑出该答的值。
 
 用例在 `tests/data/y_functions/`：
 
     primitives.viba        宿主那几步：lt / eq / add / sub / mul / div / rem / add_f
     steps/<名字>.viba      一步 f：头一个参数（按这份文件的名字叫它，比如 gcd.viba 里是 `$gcd`）
                           是 Y 交回来的"下一层怎么算"，剩下的就是这一层的实参
-    main/<名字>.viba       用 Y 跑那一步：`Y[step] << args.env << <实参>`
+    main/<名字>.viba       用 Y 跑那一步：`Y << step << args.env << <实参>`
 
 每个 `main/<名字>.viba` 就是一份可以打开、可以直接跑的程序（文件就是函数）：`__impl__` 里那一次
 调用就是"Y 跑这一步"。`steps/<名字>.viba` 是那一步本身 —— 它只管自己这一层，往下几层交给
 自己那个参数（`steps/gcd.viba` 里它叫 `$gcd`，就是它自己的名字），所以一份文件里的定义不必
-绕回自己。
+绕回自己。往下那几层是一次新的调用，所以头一个参数的类型写的是 `...`：交回来的那个函数是什么
+类型，只有给它的那一方（`y_helper`）说得出来，这一步只知道自己会拿环境与这一层的实参去叫它。
 
-Y 与 y_helper 住在包的内建目录里（`viba/Y/`、`viba/y_helper/`，各自是一个泛型目录），搜索路径的
-最后一站就是那个目录，所以写 `import Y` 就能拿到它，任何 `viba_path` 都不用再写上包的位置。
-`import steps.<名字> as step` 的别名与 Y 那一位形参的名字不同，所以这里也顺带钉住"决断读的是
-调用方写下的那一份实参，不是形参那个名字"（写的是 `Y[step]`，Y 里那一位叫 `F`）。
+Y 与 y_helper 住在包的内建目录里（`viba/Y.viba` 与 `viba/y_helper.viba`，各自是一个模块），
+搜索路径的最后一站就是那个目录，所以写 `import Y` 就能拿到它，任何 `viba_path` 都不用再写上包
+的位置。这一步写成什么样都不影响：`Y << step` 把 step 本身当一个值收下 —— 不是泛型，也不按
+参数个数分文件；这一层的实参写成一份积，`apply` 按积里有几个成员选 `apply_impl` 那一支。
 
 `main/gcd_zero.viba` 是从基例那一侧进来的那一份（b 是 0）：`steps/gcd.viba` 把
 `rest`、`deeper` 写在分支外面，靠的是定义按需求值（call-by-need，用到才算、只算一次），这一份
@@ -109,14 +110,11 @@ def environ_for(store):
 
 
 def run(tmp: Path):
-    # y_impl and y_helper are part of the package, not case files: both generic
-    # directories live in the builtin directory, and `Y` is the line in `ycombinator.viba`.
-    for name in ("y_impl", "y_helper"):
-        check((BUILTIN_DIR / name / "__generic__.viba").is_file()
-              and (BUILTIN_DIR / name / "100.viba").is_file(),
-              f"the builtin directory holds the generic {name}")
-    check((BUILTIN_DIR / "ycombinator.viba").is_file(),
-          "the builtin directory holds ycombinator.viba, where Y is defined")
+    # Y and y_helper are part of the package, not case files: both are modules in
+    # the builtin directory (`viba/Y.viba`, `viba/y_helper.viba`).
+    for name in ("Y", "y_helper"):
+        check((BUILTIN_DIR / f"{name}.viba").is_file(),
+              f"the builtin directory holds {name}.viba")
 
     for index, (name, want) in enumerate(ANSWERS):
         step = CASES / "steps" / f"{name}.viba"

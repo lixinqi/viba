@@ -4,6 +4,10 @@
 调用方把实参写在方括号里（`is_base_type[bool]`），**决断**是一个静态动作 ——
 它只看写下来的那几个实参，不看程序跑到哪儿了。
 
+**特化是一次编译时的调用**：`g[实参]` 就是调用 `g`，把选中的那份文件 `pattern` 里的形参换成
+这次给的实参。所以形参叫什么名字不要紧，它代表的是调用方给的那一份；形参换成实参之后，实参里
+带着的名字按调用方那份文件算（第 4 节）。
+
 ```viba
 import demo.is_base_type as is_base_type
 
@@ -217,31 +221,17 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 「求值策略：按需求值（call-by-need）」一节）。写的次序不是求值的次序，没人用到的那一份不参与求值 ——
 `tests/data/y_functions/steps/` 那批用例就靠这一点：往下调一层是一个绑定，基例那一侧不用它。
 
-一份模式文件的成员里也可以把别的泛型应用在自己的形参上：
+一份模式文件的成员里也可以拿自己的形参再特化一次：那次特化同样是编译时的调用，换成的是
+**调用方给的那个实参**，不是这个形参名本身。这样建起来的半成品记着这次替换，交给另一个模块当
+实参、或者存成闭包之后再给实参时，仍然是那次替换。
 
-```viba
-# viba/y_impl/100.viba
-pattern F
-
-import y_helper
-
-impl = (y_helper[F] << $f F << $y_helper y_helper[F])
-```
-
-`F` 是这个文件的形参，它指的是调用方写下的那份实参，所以 `y_helper[F]` 的决断在**写那份实参的
-模块**里读它（第 4 节）—— 决断读的是写下来的那一份（`ycombinator.Y[step]` 里的 `step`），不是形参那个名字。
-这样建起来的半成品记着决断绑下的名字，递到别处再读时仍然指回那一份；`ycombinator.Y[F]` 是 `F`
-的不动点。
-
-`y_impl/`、`y_helper/` 与 `ycombinator.viba` 就住在包的内建目录里（`viba/`，`builtin.viba` 旁边），
-那里是搜索路径的最后一站，所以写 `import ycombinator` 就拿到 `ycombinator.Y`，谁也不必把包的目录
-写进 `viba_path`（`viba-interpreter.md`）。`y_impl/100.viba` 是那个模式文件（成员 `impl`），
-`ycombinator.viba` 里一条 `Y[F] = y_impl[F].impl`：模块里定义的一个泛型，应用时形参换成实参。
-
-`y_helper` 的哪一份文件答，看 `F` 的参数列表有多长：每个文件的 `pattern` 写的是整条签名，长度
-不同就是不同的模式，所以 1 到 16 每个长度一个文件（`viba/y_helper/`），Y 对每个长度的函数都
-成立。`tests/data/y_functions/` 拿它跑 20 个递归函数（阶乘、斐波那契、阿克曼……）。这也是第 4 节那条"行数与实参个数不同就跳过"的另一种用法：这里的实参只有
-一个（函数本身），分的是函数自己的签名有多长。
+`Y.viba`、`y_helper.viba` 与 `apply.viba`、`apply_impl/` 就住在包的内建目录里（`viba/`，
+`builtin.viba` 旁边），那里是搜索路径的最后一站，所以写 `import Y` 就拿到 `Y`，谁也不必把包的
+目录写进 `viba_path`（`viba-interpreter.md`）。Y 与 helper 都是**普通模块**，都不写 `pattern`：
+`Y << f` 就是那一步的不动点（`y_helper << $f f << $y_helper y_helper`），`y_helper` 是自应用
+那一步 —— 它给这一步的是"上一步拿到的自己"，也就是下一次 `y_helper` 调用。这一层的实参写成
+**一份积**，`apply` 按积里有几个成员选 `apply_impl` 那一支，所以这两个模块都不必按参数个数分
+文件。`tests/data/y_functions/` 拿它跑 20 个递归函数（阶乘、斐波那契、阿克曼……）。
 
 ## 3. 符号写在字符串里：`tagged`
 
@@ -303,13 +293,13 @@ type = tagged[arg_name, T]           # 又建回 `$a int`
 
 **决断失败是程序错误**，不是 `never`，也不是 `false`：一个没有答案的泛型应用是写错的设计。
 
-实参写在哪一层，萃取到的类型就归哪一层：`element_type_of[list[Local]]` 里 `A` 是 `Local`，
-它在**写这个实参的模块**里解析（`Local = int` 的话它就是 `int`）。
+形参换成实参之后，实参里的名字按**调用方那份文件**算：`element_type_of[list[Local]]` 里
+`A` 换成 `Local`，`Local` 是调用方文件里的名字（那份文件里 `Local = int` 的话，`A` 就是 `int`）。
 
-同一个规矩也管**别处的应用**：一个模式文件的成员里可以把另一个泛型应用在自己那个形参上
-（`viba/y_impl/100.viba` 里的 `y_helper[F]`）。那个实参写的是调用方给的那一份，所以决断读它时回到**写它的
-那个模块**去读，而不是在写着 `F` 这个名字的文件里读 —— 一个名字只是一个名字，它的意思在写它的
-地方。
+方括号里写的是**这个文件的形参**时，替换的落点由调用方定：`apply.viba` 的成员里写着
+`apply_impl[args.args]`，而 `args.args` 是这次调用收到的一个成员 —— 换成的是**调用方给的那份积**
+（调用方写 `apply << add << ($a 1 * $b 2)`，积就是它给的）。数成员、认 tag 都在这份积上做，积里
+带着调用方文件里的名字（`$n below` 里的 `below`）也按那份文件算。
 
 ## 5. 同一个应用，三层各读一次
 

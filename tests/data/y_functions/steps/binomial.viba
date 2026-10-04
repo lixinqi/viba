@@ -10,7 +10,7 @@ import primitives as primitives
 __decl__ =
     int
   <- $env Env
-  <- $binomial (int <- int <- int)
+  <- $binomial ...
   <- $n int
   <- $k int
 
@@ -20,9 +20,7 @@ zero_k = primitives.eq << $env args.env << $x args.k << $y 0
 same = primitives.eq << $env args.env << $x args.n << $y args.k
 n_below = primitives.sub << $env args.env << $x args.n << $y 1
 k_below = primitives.sub << $env args.env << $x args.k << $y 1
-left = args.binomial << ($sub_env << args.env << "left") << $n n_below << $k k_below
-right = args.binomial << ($sub_env << args.env << "right") << $n n_below << $k args.k
-
+left = args.binomial << ($sub_env << args.env << "left") << ($n n_below * $k k_below)right = args.binomial << ($sub_env << args.env << "right") << ($n n_below * $k args.k)
 __impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond zero_k

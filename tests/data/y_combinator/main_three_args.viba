@@ -1,6 +1,6 @@
 # main_three_args.viba —— 要跑的是 Y Three 3 4 5，该答 12
 #
-# 别名同样不叫 `F`：三个参数的 `F` 要落到 y_helper/300.viba 那一份上。
+# 别名同样不叫 `F`：`Y << Three` 收下的是那个模块本身，与它叫什么名字无关。
 __decl__ =
     int
   <- $env Env
@@ -8,7 +8,7 @@ __decl__ =
 args = __get_args__ << __decl__
 
 import add3_module as Three
-import ycombinator
+import Y
 
-# 落到哪一份 y_helper 上是按 `Three` 的参数列表有几个参数定的：这里三个，所以是 300.viba 那一份。
-__impl__ = ycombinator.Y[Three] << args.env << $n 3 << $m 4 << $k 5
+# 这一层的实参写成一份积（三个成员），`apply` 按成员个数选 apply_impl 那一支。
+__impl__ = Y << Three << args.env << ($n 3 * $m 4 * $k 5)

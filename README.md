@@ -342,8 +342,9 @@ for, so calling one module twice means choosing two names; `args.env.tmp_env
 no name, and hands out a fresh child every time. Where an `import` is looked for is the environment's business: next to the
 file that wrote it, then along `Environment`'s `viba_path` (directories, like
 `PYTHONPATH`), and last in the builtin directory (`viba/`, where `builtin.viba`
-and the package's own vocabulary lives) — so `import ycombinator` reaches the
-builtin `ycombinator.Y` from anywhere.
+and the package's own vocabulary lives) — so `import Y` reaches the builtin
+`Y.viba` (the fixed point of a step, with `y_helper.viba` beside it) from
+anywhere.
 
 ### Idempotence: answers have to replay
 

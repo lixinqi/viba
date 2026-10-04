@@ -6,6 +6,6 @@ __decl__ =
 args = __get_args__ << __decl__
 
 import fib_module as F
-import ycombinator
+import Y
 
-__impl__ = ycombinator.Y[F] << args.env << $n 1
+__impl__ = Y << F << args.env << $n 1

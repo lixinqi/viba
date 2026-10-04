@@ -1,6 +1,6 @@
 # main_in_a_sub_env.viba —— 同一次 Y F 10，调用方自己写一层子环境，答 55
 #
-# `ycombinator.Y[F]` 要环境，给哪一层由调用方写：这里给的是 `y` 这个名字下的一层子环境，
+# `Y << F` 要环境，给哪一层由调用方写：这里给的是 `y` 这个名字下的一层子环境，
 # 于是这次调用的地址是 `…/y`，而不是调用方脚下那一层。
 __decl__ =
     int
@@ -9,6 +9,6 @@ __decl__ =
 args = __get_args__ << __decl__
 
 import fib_module as F
-import ycombinator
+import Y
 
-__impl__ = ycombinator.Y[F] << ($sub_env << args.env << "y") << $n 10
+__impl__ = Y << F << ($sub_env << args.env << "y") << $n 10

@@ -13,7 +13,7 @@ import primitives as primitives
 __decl__ =
     int
   <- $env Env
-  <- $gcd (int <- int <- int)
+  <- $gcd ...
   <- $a int
   <- $b int
 
@@ -21,8 +21,7 @@ args = __get_args__ << __decl__
 
 zero = primitives.eq << $env args.env << $x args.b << $y 0
 rest = primitives.rem << $env args.env << $x args.a << $y args.b
-deeper = args.gcd << ($sub_env << args.env << "deeper") << $a args.b << $b rest
-
+deeper = args.gcd << ($sub_env << args.env << "deeper") << ($a args.b * $b rest)
 __impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond zero

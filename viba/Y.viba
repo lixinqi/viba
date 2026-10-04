@@ -1,0 +1,15 @@
+# Y: the fixed point of a step. `Y << f << <this layer's arguments> << args.env` is the
+# step given the next layer, and this layer's arguments with it.
+#
+# The next layer the step is handed is `y_helper << $f f << $y_helper y_helper` — the same
+# call as this one, so the entry and the recursion are the same thing.
+import y_helper
+
+__decl__ =
+    Any
+  <- $f Any
+  <- $args ...
+
+args = __get_args__ << __decl__
+
+__impl__ = y_helper << $f args.f << $y_helper y_helper << $args args.args
