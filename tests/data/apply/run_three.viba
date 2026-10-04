@@ -1,0 +1,16 @@
+# 三个实参走同一套：add3(1, 2, 3) 答 6。
+__decl__ = int <- $env Env
+
+import main_three
+
+add3 =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- $c int
+  <- { add three }
+
+args = __get_args__ << __decl__
+
+__impl__ = main_three << ($sub_env << args.env << "main_three") << $f add3 << $args ($a 1 * $b 2 * $c 3)

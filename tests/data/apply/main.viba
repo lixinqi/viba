@@ -1,0 +1,13 @@
+# 收到一个函数与它那份实参积：`apply` 把它们对上，答的是那个函数答的东西。
+# 实参个数不用写出来 —— apply_impl 的决定在那份积上做。
+__decl__ =
+    int
+  <- $env Env
+  <- $f (int <- $env Env <- $a int <- $b int)
+  <- $args ($a int * $b int)
+
+args = __get_args__ << __decl__
+
+import apply
+
+__impl__ = apply << ($sub_env << args.env << "apply") << args.f << args.args

@@ -1,0 +1,15 @@
+# `apply` 的入口用例：把 add 与 ($a 1 * $b 2) 交给 main，答 3。
+__decl__ = int <- $env Env
+
+import main
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two }
+
+args = __get_args__ << __decl__
+
+__impl__ = main << ($sub_env << args.env << "main") << $f add << $args ($a 1 * $b 2)

@@ -1,0 +1,12 @@
+# 三个实参的那一份：同一个 `apply`，只是积多一个成员。
+__decl__ =
+    int
+  <- $env Env
+  <- $f (int <- $env Env <- $a int <- $b int <- $c int)
+  <- $args ($a int * $b int * $c int)
+
+args = __get_args__ << __decl__
+
+import apply
+
+__impl__ = apply << ($sub_env << args.env << "apply") << args.f << args.args

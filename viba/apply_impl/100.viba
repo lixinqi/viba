@@ -1,0 +1,19 @@
+# apply_impl, 1 argument: the product of arguments has 1 member,
+# and each one is read out of it by the tag the `pattern` line extracted.
+pattern __tagged__[arg0_name, Arg0]
+
+# The module's own signature: it answers whatever the function answers, and it takes
+# the function and the product of arguments — the environment is the call's rule.
+# What the product's members are is what the `pattern` line reads, not this.
+__decl__ =
+    Any
+  <- $f (Any <- ...)
+  <- $env Env
+  <- $args Any
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    args.f
+  << args.env
+  << ($__getattr__ << args.args << arg0_name)

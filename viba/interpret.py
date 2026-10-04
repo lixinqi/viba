@@ -580,6 +580,14 @@ def _in_scope(scope, name):
     return None
 
 
+def _is_get_args_call(node) -> bool:
+    """Whether this definition body is the call that reads a call's arguments:
+    `__get_args__ << __decl__`."""
+    return (isinstance(node, viba_ast.Partial)
+            and isinstance(node.function, viba_ast.TypeRef)
+            and node.function.name == GET_ARGS_NAME)
+
+
 def _substituted(node, scope):
     """A written piece with the names this call bound put in their place.
 
@@ -1536,6 +1544,8 @@ class _Activation:
         for argument in node.args:
             value = self._bound_value(argument, scope)
             if value is None:
+                value = self._product_member_given(argument)
+            if value is None:
                 nodes.append(argument)
                 modules.append(self.module)
                 continue
@@ -1543,6 +1553,25 @@ class _Activation:
             nodes.append(value.node.data)
             modules.append(_writing_module(value) or self.module)
         return (nodes, modules) if bound else (None, None)
+
+    def _product_member_given(self, argument):
+        """`args.args`: the part this call was handed for that member, or None.
+
+        A member of the call's own argument product, written by name
+        (`args.args`, `args.a`), stands for what the caller wrote in that slot:
+        the decision over it is made over that part, in the module it was
+        written in — which is how `apply_impl[args.args]` sees the product the
+        caller declared (viba-pattern.md). None when the written piece is no
+        such member.
+        """
+        path = viba_ast.written_path(argument)
+        head, dot, tag = path.rpartition(".") if path else ("", "", "")
+        if not dot:
+            return None
+        definition = _definition(self.module, head)
+        if definition is None or not _is_get_args_call(definition.body):
+            return None
+        return self._as_given("$" + tag)
 
     def _bound_value(self, argument, scope):
         """The value this call bound the written argument to, or None.

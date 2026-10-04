@@ -1,0 +1,17 @@
+# A general apply: give it a function and the product of that function's
+# arguments, and it answers what the function answers. `$f` is written as any
+# function at all (`Any <- ...`) and `$args` as `Any`: which members that product
+# has is what the decision over `args.args` below reads, not this declaration.
+# Giving the environment is what runs that call; the chosen file then runs in
+# its own sub-environment, named by its decision order.
+import apply_impl
+
+__decl__ =
+    Any
+  <- $f (Any <- ...)
+  <- $env Env
+  <- $args Any
+
+args = __get_args__ << __decl__
+
+__impl__ = apply_impl[args.args] << args.env << args.f << args.args

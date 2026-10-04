@@ -1,0 +1,29 @@
+# apply_impl, 11 arguments: the product of arguments has 11 members,
+# and each one is read out of it by the tag the `pattern` line extracted.
+pattern __tagged__[arg0_name, Arg0] * __tagged__[arg1_name, Arg1] * __tagged__[arg2_name, Arg2] * __tagged__[arg3_name, Arg3] * __tagged__[arg4_name, Arg4] * __tagged__[arg5_name, Arg5] * __tagged__[arg6_name, Arg6] * __tagged__[arg7_name, Arg7] * __tagged__[arg8_name, Arg8] * __tagged__[arg9_name, Arg9] * __tagged__[arg10_name, Arg10]
+
+# The module's own signature: it answers whatever the function answers, and it takes
+# the function and the product of arguments — the environment is the call's rule.
+# What the product's members are is what the `pattern` line reads, not this.
+__decl__ =
+    Any
+  <- $f (Any <- ...)
+  <- $env Env
+  <- $args Any
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    args.f
+  << args.env
+  << ($__getattr__ << args.args << arg0_name)
+  << ($__getattr__ << args.args << arg1_name)
+  << ($__getattr__ << args.args << arg2_name)
+  << ($__getattr__ << args.args << arg3_name)
+  << ($__getattr__ << args.args << arg4_name)
+  << ($__getattr__ << args.args << arg5_name)
+  << ($__getattr__ << args.args << arg6_name)
+  << ($__getattr__ << args.args << arg7_name)
+  << ($__getattr__ << args.args << arg8_name)
+  << ($__getattr__ << args.args << arg9_name)
+  << ($__getattr__ << args.args << arg10_name)
