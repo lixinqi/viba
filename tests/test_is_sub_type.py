@@ -34,7 +34,7 @@ from viba.viba_type_descriptor import (empty_pool, parse_viba_file, pool_add_fil
                                        pool_find_definition)
 
 DATA = Path(__file__).resolve().parent / "data" / "is_sub_type"
-FIXTURES = DATA
+CASES = DATA
 PASS = FAIL = 0
 
 
@@ -644,7 +644,7 @@ def run_module_as_function_cases():
     `module.Name` 照旧是那个模块里的定义，没有 `__ret__` 的模块不是程序。"""
     names = ("program", "design_only", "caller", "env_answer",
              "env_answer_function")
-    sources = {name: (FIXTURES / "module_as_function" / f"{name}.viba").read_text()
+    sources = {name: (CASES / "module_as_function" / f"{name}.viba").read_text()
                for name in names}
     built = {}
 
@@ -698,7 +698,7 @@ def run_module_args_cases():
     给了一半在**类型**上是一种类型（剩下的那个函数）；值层里给一半是程序错
     （tests/test_interpreter_module_args.py）。
     """
-    sources = {name: (FIXTURES / "module_args" / f"{name}.viba").read_text()
+    sources = {name: (CASES / "module_args" / f"{name}.viba").read_text()
                for name in ("program", "empty", "bad", "caller")}
     built = {}
 

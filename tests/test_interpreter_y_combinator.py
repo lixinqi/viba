@@ -74,7 +74,7 @@ def host_for():
 
 
 def environ_for(store, also=()):
-    """This host: files come from the fixture directory, the repository (for
+    """This host: files come from the case directory, the repository (for
     `branch.viba`), and anything else a check wrote for itself."""
     return Environment(EnvironmentStorage("root", None, str(store)),
                        EnvironmentCompute(host_for()),

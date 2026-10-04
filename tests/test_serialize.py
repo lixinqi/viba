@@ -134,7 +134,7 @@ def _node(design, body):
     return access, rooted.ok_value
 
 
-def run_fixture_cases():
+def run_case_files():
     """两份手搓的可序列化数据：一个 int/积/list 的报告，一个 list/set/dict 的节点。"""
     from viba.reflect import access
 
@@ -1361,7 +1361,7 @@ def run_inline_member_cases():
 
 
 def run():
-    for case in (run_fixture_cases, run_empty_container_cases, run_nil_slot_cases,
+    for case in (run_case_files, run_empty_container_cases, run_nil_slot_cases,
                  run_set_order_cases, run_exponent_cases, run_code_block_cases,
                  run_member_corner_cases, run_sum_corner_cases,
                  run_leaf_corner_cases, run_exponent_corner_cases,
