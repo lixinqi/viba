@@ -1,0 +1,15 @@
+# 环境给在第一位的那一份：答出来的数一样是 3。
+__decl__ = int <- $env Env
+
+import main_first
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two }
+
+args = __get_args__ << __decl__
+
+__impl__ = main_first << ($sub_env << args.env << "main") << $f add << $args ($a 1 * $b 2)

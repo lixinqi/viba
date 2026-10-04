@@ -580,6 +580,38 @@ def _in_scope(scope, name):
     return None
 
 
+def _takes_a_product(written) -> bool:
+    """Whether a slot written like this holds a product: `Any`, `Object`, `...`,
+    or a product chain. A one-member product is written as the member itself, so
+    a piece that carries a tag of its own may land here."""
+    if isinstance(written, (viba_ast.Any, viba_ast.Nil, viba_ast.Never,
+                            viba_ast.Ellipsis)):
+        return True
+    if isinstance(written, (viba_ast.Product, viba_ast.ProductChain)):
+        return True
+    if isinstance(written, viba_ast.TypeRef):
+        return written.name in ("Any", "Object", "nil")
+    return False
+
+
+def _kept_as_its_own_tag(tag, value):
+    """A piece given to a slot that is not named `tag`: the piece keeps its tag.
+
+    A product of one member is written as that member (`$x 1`), so a piece whose
+    tag names no parameter is still a product of one member: it lands in the slot
+    that takes a product, and what the call received reads back as `$tag <value>`
+    — otherwise the tag would be left behind at the call site, and a decision over
+    the product (viba-pattern.md) would see the bare member.
+    """
+    if tag is None or not isinstance(value, _VibaData):
+        return value
+    node = viba_ast.Tagged(tag, value.node.data)
+    descriptor = descriptor_of_tagged(tag, value.node.descriptor, node, value.written_in)
+    return _VibaData(VibaNode(reflect_access, descriptor, node),
+                     written_in=value.written_in, given=value.given,
+                     bindings=value.bindings)
+
+
 def _is_get_args_call(node) -> bool:
     """Whether this definition body is the call that reads a call's arguments:
     `__get_args__ << __decl__`."""
@@ -931,12 +963,18 @@ class _Runner:
 
 def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                name: str, file: Optional[str], args=None, members=None,
-               bindings=()) -> InterpretResult:
+               bindings=(), passes_environ=False) -> InterpretResult:
     """The module as a function: the environment in, `__impl__` out.
 
     A module that declares `__decl__` is called with its parameters as well; `args`
-    is the product they were given as — the environment among its members, which
-    is what the module reads as `args.env` (`args = __get_args__ << __decl__`).
+    is the product they were given as. A `$env Env` parameter among them is the
+    environment the module reads as `args.env` (`args = __get_args__ << __decl__`).
+
+    A module whose `__decl__` writes no `$env Env` parameter was handed the
+    environment as a piece of its own (`passes_environ`): it is no member of this
+    call, and the call this module's body answers wants it — so it is given to
+    that call below, in this module's own activation, where the body's own names
+    still stand for what the caller wrote.
 
     The module the host runs has no caller to write its arguments, so the
     environment it is handed is the only member of that product.
@@ -980,9 +1018,24 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                    f"another module call already used: give each module call a "
                    f"sub-environment of its own (args.env.sub_env << args.env << ...)")
     runner.running.append((path, name, signature))
+    activation = _Activation(runner, module, environ, name, file, args,
+                             members=members, bindings=bindings)
     try:
-        value = _Activation(runner, module, environ, name, file, args,
-                            members=members, bindings=bindings).evaluate(ret.body)
+        # The body's own chain is left unfinished: a call it answers may still be
+        # waiting for the environment, which is given to it below.
+        value = activation.evaluate(ret.body, (), finish=False)
+        if not _stopped(value) and isinstance(value.ok_value, _Pending):
+            pending = value.ok_value
+            if passes_environ and pending.takes_environ():
+                # This module's `__decl__` writes no `$env Env` parameter: the environment
+                # it was given is not one of its members, and the call its body answers is
+                # the one that still wants it — `apply << f << args << env` is
+                # `f << 1 << 2 << env`.
+                given = pending.give(ENVIRON_TAG, _Host(environ))
+                if _stopped(given):
+                    return given
+                pending = given.ok_value
+            value = activation._finish(pending)
     finally:
         runner.running.pop()
     if _stopped(value):
@@ -1033,10 +1086,18 @@ def _module_params(module: ModuleType):
     slot); the slot counts arguments only, so the environment has none: giving
     it is what runs the call, it is not an argument.
 
-    A module that runs declares exactly one environment parameter, tagged
-    `$env`: a module that takes the environment is a module that can be run. Its
-    answer is never the environment itself — a file that writes such a function is
-    refused where it is read (`file_environment_result_problem`).
+    A module that runs may declare one environment parameter, tagged `$env` — or
+    declare none. A call gives the environment either way: to that parameter when
+    it is written, and otherwise with a `<<` of its own, which lands in no
+    parameter. Giving it is what runs the call, and it takes no argument slot.
+
+    With that parameter the environment is one of the call's members and the body
+    reads it as `args.env`. Without it the environment is no member — the body
+    cannot write `args.env` — and it is handed on instead: the call this module
+    answers still wants an environment, and `_run_module` gives it that one.
+
+    A module's answer is never the environment itself — a file that writes such a
+    function is refused where it is read (`file_environment_result_problem`).
     """
     definition = _definition(module, DEF_NAME)
     if definition is None:
@@ -1046,9 +1107,6 @@ def _module_params(module: ModuleType):
         return None, (f"{DEF_NAME} is not a function type: {viba_ast.unparse_type(body)}")
     params = parameters_of(body)
     envs = [one for one in params if one[2]]
-    if _definition(module, RET_NAME) is not None and not envs:
-        return None, (f"{DEF_NAME} has no {ENVIRON_TAG} {ENV_TYPE} parameter: "
-                      f"every module that runs depends on the environment")
     if len(envs) > 1:
         return None, (f"{DEF_NAME} has {len(envs)} {ENVIRON_TAG} {ENV_TYPE} parameters: "
                       f"a module that runs takes exactly one")
@@ -1069,7 +1127,7 @@ def _module_arg_slots(module: ModuleType):
         if _definition(module, RET_NAME) is None:
             return [], None                  # design only: it never runs
         return None, (f"module has no {DEF_NAME}: a module that runs declares its "
-                      f"parameters, its {ENVIRON_TAG} {ENV_TYPE} among them")
+                      f"parameters there")
     return ([(tag, written) for tag, written, is_env, _slot in params if not is_env],
             None)
 
@@ -1124,7 +1182,7 @@ class _Activation:
 
     # ---- expressions ----
 
-    def evaluate(self, node, scope=()):
+    def evaluate(self, node, scope=(), finish=True):
         """Result: the value this piece writes — or why the chain stopped: an
         `VibaProgramErr`, or the deferral of a step nobody here implements.
 
@@ -1151,7 +1209,7 @@ class _Activation:
         if isinstance(node, (viba_ast.Sum, viba_ast.SumChain)):
             return self._sum(node, scope)
         if isinstance(node, viba_ast.Partial):
-            return self._apply_chain(node, scope)
+            return self._apply_chain(node, scope, finish)
         if isinstance(node, viba_ast.TypeApp):
             return self._generic_application(node, scope)
         if isinstance(node, viba_ast.TypeRef):
@@ -1290,6 +1348,12 @@ class _Activation:
             given = self._as_given(wanted)
             if given is not None:
                 return Ok(given)
+            if wanted == ENVIRON_TAG and not self.declares_environ():
+                # The environment is no member of a call whose `__decl__` writes no
+                # `$env Env` parameter: it runs that call instead of entering it.
+                return VibaProgramErr(
+                    f"module {self.name!r} declares no {ENVIRON_TAG} {ENV_TYPE} "
+                    f"parameter: its body cannot use args.env")
         for factor in _viba_data_factors(value.ok_value.node):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == wanted:
                 inner = factor.type          # the member's value, not its address
@@ -1441,6 +1505,15 @@ class _Activation:
                 reflect_access, descriptor_of(AstNodeType(node, written_in)), node)))
         return self._defined(name, definition)
 
+    def declares_environ(self) -> bool:
+        """Whether this module's `__decl__` writes a `$env Env` parameter.
+
+        With it the environment is a member of the call and the body uses it as
+        `args.env`; without it the environment ran the call and is no member.
+        """
+        params, _problem = _module_params(self.module)
+        return any(is_env for _tag, _written, is_env, _slot in (params or []))
+
     def _as_given(self, tag):
         """This call's member with that tag, exactly as it was given — or None.
 
@@ -1482,9 +1555,13 @@ class _Activation:
             for factor in _viba_data_factors(value.node):
                 if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
                     inner = factor.type       # the member's value, not its address
-                    return Ok(_VibaData(VibaNode(
-                        reflect_access,
-                        descriptor_of(AstNodeType(inner, self.module)), inner)))
+                    # The member stays a piece of the product it was read out of: the
+                    # module the product was written in still says what that member's
+                    # names mean (`_getting`), so a name read out of a product travels.
+                    return Ok(_VibaData(
+                        VibaNode(reflect_access,
+                                 descriptor_of(AstNodeType(inner, self.module)), inner),
+                        written_in=value.written_in, bindings=value.bindings))
             return VibaProgramErr(f"no member tagged {tag!r} to take from it")
         return VibaProgramErr(f"{type(value).__name__} has no member tagged {tag!r}")
 
@@ -1720,7 +1797,7 @@ class _Activation:
             reflect_access, descriptor_of(AstNodeType(described, self.module)), built),
             written_in=self.module))
 
-    def _apply_chain(self, node, scope=()):
+    def _apply_chain(self, node, scope=(), finish=True):
         """Give the written arguments to what stands at the head of the chain.
 
         The chain nests left: `((f << a) << b) << c` is read by walking the
@@ -1733,7 +1810,7 @@ class _Activation:
         target, written = self._target_and_arguments(node, scope)
         if written is None:
             return target
-        return self._give_all(target.ok_value, written, scope)
+        return self._give_all(target.ok_value, written, scope, finish=finish)
 
     def _give_all(self, current, written, scope, finish=True):
         """Give a list of written arguments to what the chain calls, in order.
@@ -1796,10 +1873,13 @@ class _Activation:
                 named = _member_tag_of(value.ok_value.value)
                 if _stopped(named):
                     return named
-                # The take is the one `$name << X` does, and the chain goes on
-                # from there: `X` comes first, the way a member written as a tag
-                # is given the value it was taken from (`$f << box << …`).
-                rest = [current.argument] + list(written[index + 1:])
+                # The member that name picks. The chain goes on from there: with
+                # arguments written after the name (`$__getattr__ << box << name
+                # << $x 1`) the member is called as a method of X, which means X
+                # comes first (`box.f << box << $x 1`); read on its own — passed
+                # on as an argument, say — it is the value or the call it names.
+                further = list(written[index + 1:])
+                rest = ([current.argument] if further else []) + further
                 taken = self._take_member(_Member(named.ok_value), current.owner)
                 if _stopped(taken):
                     return taken
@@ -1808,7 +1888,17 @@ class _Activation:
                     node = current.node.data
                     for later in rest:
                         node = viba_ast.Partial(node, later)
-                    return self._apply_chain(node, scope)
+                    written_in = _writing_module(current)
+                    other = (self._in_module(written_in, _writing_bindings(current))
+                             if written_in is not None else None)
+                    if other is None or written_in is self.module:
+                        return self._apply_chain(node, scope)
+                    # The member is written in that module, so its names mean what they
+                    # mean there; the arguments after it are written here, and read here.
+                    target, arguments = other._target_and_arguments(node, scope)
+                    if arguments is None or _stopped(target):
+                        return target
+                    return self._give_all(target.ok_value, arguments, scope)
                 if isinstance(current, _HostFunction) and current.filled():
                     run = current.run()
                     if _stopped(run):
@@ -1973,6 +2063,11 @@ class _Activation:
         Giving the environment is what execution is, so a pending call that has
         one is a call being made — its arguments have to be complete. A pending
         call without one is a value: a closure, written down and serializable.
+
+        A call whose `__decl__` writes no `$env Env` parameter received the
+        environment for its own run, and what it answers is a call that still
+        wants one: `_run_module` gives that environment to the call the body
+        answers, so `apply << f << args << env` becomes `f << 1 << 2 << env`.
         """
         if pending.environ is None:
             return pending.as_viba_data()
@@ -2222,10 +2317,33 @@ class _Activation:
         if isinstance(node, viba_ast.CodeBlock):
             return Ok(None)
         tag, inner = _addressed(node)
+        if tag is None:
+            tag = self._tag_read_by_getattr(node, scope)
         value = self.evaluate(inner, scope)
         if _stopped(value):
             return value
         return Ok(_Given(tag, value.ok_value))
+
+    def _tag_read_by_getattr(self, node, scope):
+        """`$__getattr__ << X << <name>`: the tag that name spells.
+
+        The member such a chain reads is given on under its own tag (`$a 1`), not
+        by position: `apply_impl` reads the product's members one by one, and each
+        one lands in the parameter it was written for, wherever it stands in the
+        product. None for anything else, and for a name that is not a name.
+        """
+        head, arguments = _call_parts(node)
+        if not (isinstance(head, viba_ast.Member) and head.tag == GETATTR_TAG):
+            return None
+        if len(arguments) < 2 or not isinstance(arguments[-1], viba_ast.TypeRef):
+            return None
+        spelled = self.evaluate(arguments[-1], scope)
+        if _stopped(spelled):
+            return None
+        named = _member_tag_of(spelled.ok_value)
+        if _stopped(named):
+            return None
+        return named.ok_value
 
     def _lazy_argument(self, node, scope=()):
         """Result: the `_Given` this argument is, with its value not computed.
@@ -2561,6 +2679,7 @@ class _Pending:
         self.pattern_env = pattern_env       # the chosen pattern file: this call runs in its own sub-environment
         self.params_override = slots         # the parameter table with the bindings written in
         self.written_bindings = written_bindings   # the decision that owns the module this call was written in
+        self.appends_environ = False         # the environment goes on the call the body answers
 
     @classmethod
     def func(cls, activation, head, written, owner_module, elements, name="",
@@ -2602,6 +2721,30 @@ class _Pending:
                  for tag, written, is_env, _slot in self.params_override
                  if not is_env], None)
 
+    def takes_environ(self) -> bool:
+        """Whether this call is still waiting for its environment.
+
+        A module call is: the environment either fills its `$env Env` parameter or
+        is the one its own answer still wants. A function call is when its chain
+        writes that parameter and it has not been given yet.
+        """
+        if self.environ is not None:
+            return False
+        if self.kind == "module":
+            return True
+        slot = self.environ_slot()
+        return slot is not None and slot not in self.given
+
+    def declares_environ(self) -> bool:
+        """Whether the declaration this call is read against writes `$env Env`.
+
+        With that parameter the environment is one of the call's members and the
+        body reads it as `args.env`; without it the environment is no member, and
+        it is appended to the call the body answers (`_finish`).
+        """
+        params, _problem = self.params()
+        return any(is_env for _tag, _written, is_env, _slot in (params or []))
+
     # ---- what this call is ----
 
     @property
@@ -2642,12 +2785,30 @@ class _Pending:
             return None, f"{self.written} takes no more arguments"
         if tag is not None:
             if tag not in slots:
+                # This tag is no slot's name: it is the tag of the *piece itself* —
+                # a product of one member is written as that member (`$x 1`). It
+                # goes to the next free slot when that slot takes a product
+                # (`Any`, `Object`, or a product chain); anywhere else the tag is
+                # still a mistake.
+                free = [one for one in range(len(slots))
+                        if one not in self.given and _takes_a_product(self.slot_written(one))]
+                if free:
+                    return free[0], None
                 return None, f"{self.written} takes no {tag} argument"
             return slots.index(tag), None
         free = [one for one in range(len(slots)) if one not in self.given]
         if not free:
             return None, f"{self.written} takes no more arguments"
         return free[0], None
+
+    def slot_written(self, index):
+        """The type written on the slot at this index (the environment slot
+        included for a function; a module's slots are its `__decl__` parameters)."""
+        if self.kind == "module":
+            slots, _problem = self.arg_slots()
+            written = [one for one in (slots or [])]
+            return written[index][1] if index < len(written) else None
+        return self.elements[index] if index < len(self.elements) else None
 
     def ready(self) -> bool:
         """Whether the call can run: the environment is in and every argument."""
@@ -2727,11 +2888,21 @@ class _Pending:
                 return VibaProgramErr(
                     f"module {self.module_name!r} was not given an {ENVIRON_TYPE}: "
                     f"its {ENVIRON_TAG} parameter asks for {ENV_TYPE}")
-            # A chosen pattern file runs in its own sub-environment: its name is the
-            # file's own decision order, so the address is still written down and can
-            # be replayed — the caller need not give a sub-environment of its own.
-            self.environ = (sub_env(value.obj, self.pattern_env)
-                            if self.pattern_env else value.obj)
+            if self.declares_environ():
+                # The module declares `$env Env`: that parameter is where the environment
+                # goes. A chosen pattern file runs in its own sub-environment: its name is
+                # the file's own decision order, so the address is still written down and
+                # can be replayed — the caller need not give a sub-environment of its own.
+                self.environ = (sub_env(value.obj, self.pattern_env)
+                                if self.pattern_env else value.obj)
+                return Ok(self)
+            # No `$env Env` parameter: the environment is no member of this call — the body
+            # cannot write `args.env` — and this call runs in a sub-environment of its own,
+            # named by the module. What the body answers is a call that still wants the
+            # environment, so the environment is appended to it (`_finish`): that is how
+            # `apply << f << args << env` becomes `f << 1 << 2 << env`.
+            self.environ = sub_env(value.obj, self.pattern_env or self.written)
+            self.appends_environ = True
             return Ok(self)
         if not slots:
             # This module takes only the environment: there is no argument besides it, so
@@ -2740,15 +2911,27 @@ class _Pending:
                 f"module {self.module_name!r} needs an {ENVIRON_TYPE}: its "
                 f"{DEF_NAME} takes no other parameters")
         tags = [one for one, _written in slots]
+        own_tag = None
         if tag is not None:
             if tag not in tags:
-                return VibaProgramErr(
-                    f"module {self.module_name!r} takes no {tag} argument: its "
-                    f"{DEF_NAME} parameters are {_written_slots(slots)}")
-            index = tags.index(tag)
-            if index in self.given:
-                return VibaProgramErr(
-                    f"module {self.module_name!r} was given {tag} twice")
+                # This tag is no parameter's name: it is the tag of the *piece
+                # itself* — a product of one member is written as that member
+                # (`$x 1`). It goes to the next free parameter that holds a
+                # product (`Any`, `Object`, or a product chain) and keeps its tag
+                # there; anywhere else the tag is still a mistake.
+                free = [one for one in range(len(slots))
+                        if one not in self.given and _takes_a_product(slots[one][1])]
+                if not free:
+                    return VibaProgramErr(
+                        f"module {self.module_name!r} takes no {tag} argument: its "
+                        f"{DEF_NAME} parameters are {_written_slots(slots)}")
+                index = free[0]
+                own_tag = tag
+            else:
+                index = tags.index(tag)
+                if index in self.given:
+                    return VibaProgramErr(
+                        f"module {self.module_name!r} was given {tag} twice")
         else:
             free = [one for one in range(len(slots)) if one not in self.given]
             if not free:
@@ -2762,7 +2945,7 @@ class _Pending:
                              self.module, f"module {self.module_name!r}")
         if problem is not None:
             return VibaProgramErr(problem)
-        self.given[index] = value
+        self.given[index] = _kept_as_its_own_tag(own_tag, value)
         return Ok(self)
 
     # ---- finishing ----
@@ -2877,8 +3060,11 @@ class _Pending:
         return _answer(self.name, answer, step)
 
     def _run_module_call(self):
-        """Every parameter of `__decl__` is in: hand them to the module, as one
-        product, the environment among its members (`args.env`)."""
+        """Every parameter of `__decl__` is in: hand them to the module, as one product.
+
+        A `$env Env` parameter is one of those members (`args.env`); a call that
+        writes none was handed the environment as a piece of its own, and that
+        environment goes on to the call this module answers (`passes_environ`)."""
         params, problem = self.params()
         if problem is not None:
             return VibaProgramErr(f"module {self.module_name!r}: {problem}")
@@ -2918,7 +3104,8 @@ class _Pending:
                 reflect_access,
                 descriptor_of_values(chain, self.written_in, kept), chain))
         answer = _run_module(self.runner, self.module, self.environ, self.module_name,
-                             None, args, members=members, bindings=self.bindings)
+                             None, args, members=members, bindings=self.bindings,
+                             passes_environ=self.appends_environ)
         if _stopped(answer):
             return answer
         # `interpret` hands the node out; inside a run a module's answer is a

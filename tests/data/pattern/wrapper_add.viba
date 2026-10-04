@@ -11,7 +11,7 @@ add =
   <- $env Env
   <- $a int
   <- $b int
-  <- { add the two }
+  <- { add two }
 
-# 实参按它落的那一位写：`$a`、`$b` 是 `add` 自己声明的 tag。
-__impl__ = wrapper[add].type << args.env << add << $a 1 << $b 2
+# 实参按它落的那一位写：积有两个成员，wrapper 就走两个成员的那一支。
+__impl__ = wrapper << add << $a 1 * $b 2 << args.env

@@ -15,5 +15,5 @@ add =
 
 add2 = add << $a 2
 
-# `add2` 还欠 `$b`，就按 `$b` 给。
-__impl__ = wrapper[add2].type << args.env << add2 << $b 1
+# `add2` 还欠 `$b`：那边少一个参数，wrapper 就按少一个参数接。
+__impl__ = wrapper << add2 << $b 1 << args.env

@@ -143,47 +143,54 @@ type = (int <- $env Env <- int)   # 答一个函数类型（带环境的那个�
   当闭包递出去。宿主按**泛型的名字**找这一步的实现（写下来是 `wrap[...]`，它拿到的是
   `"wrap"`），跟按定义名找实现同一种做法。
 
-这一点让"拿一个函数换一个调用"的泛型写得出来。模式读的是**写下来的链条**，所以函数自己的
-`$env Env` 那一位也写在模式里；成员按同一条链条答回去，只是在函数本身前面多要一份
-那份函数：
+### 摊开实参积：`apply`
+
+"拿一个函数换一个调用"写成一份普通的模块：[`demo/wrapper.viba`](tests/data/pattern/demo/wrapper.viba)
+收下一个函数和它那一份实参积，把活交给 `apply`（[`viba/apply.viba`](viba/apply.viba)）。`apply`
+自己也不知道实参有几个 —— 它把那份积交给泛型 `apply_impl[args.args]`，由那份决定数出来：
 
 ```viba
-# demo/wrapper/100.viba
-pattern A <- $env Env <- B
+# viba/apply_impl/100.viba：积里一个成员就选这一份
+pattern tagged[arg0_name, Arg0]
 
-type = A <- $env Env <- (A <- $env Env <- B) <- B
+__decl__ =
+    Any
+  <- $f Any
+  <- $args ...
+
+__impl__ =
+    args.f
+  << args.env
+  << ($__getattr__ << args.args << arg0_name)
 ```
 
-```viba
-# 调用方：add 是两元的，inc 是一元的
-add =
-    int
-  <- $env Env
-  <- $a int
-  <- $b int
-  <- { add the two }
+`pattern tagged[arg0_name, Arg0]` 每一位收下积里一个成员的 tag（`arg0_name` 是符号 `"x"`），
+`$__getattr__ << args.args << arg0_name` 再按那个名字把成员取回来 —— 成员原来带什么 tag，取回来
+还是那个 tag，于是它落进函数对应的那个参数。积里有几个成员就选哪一份文件，1 到 16 各一份
+（[`viba/apply_impl/`](viba/apply_impl)），所以调用方不用写实参个数。
 
-__impl__ = wrapper[add] << args.env << add << $a 1 << $b 2     # 3
-```
-
-给环境是执行，给 `add` 的是函数本身，`$a 1`、`$b 2` 是它的实参（按它们落的那一位的 tag 写）。
-`(A <- $env Env <- B)` 那一位写着函数类型，所以交给宿主的是**它代表的那次调用**：宿主带着
-环境叫它，还可以带上自己的实参（`f(env, 1, 2)`），那些实参落进这次调用还欠的槽位 ——
-`wrapper` 的实现就是 `f(env, *rest)`，把收到的实参原样转给那个函数。
-
-方括号里的实参本身也可以是一次 `<<`。`add << $a 2` 是"已经给过 `$a 2` 的那次调用"，所以它
-**作为一个类型读出来就是剩下的那条链条**（`int <- $env Env <- $b int`），决断照这条链条读开。
-上面那份泛型的 100.viba 收一元函数、200.viba 收二元函数，所以一个已经给过一部分实参的函数
-落在一元那一支上：
+**环境不必是一个参数**：`$env Env` 可以不写，环境由调用方单独给一个 `<<`。这时环境不进门：模块体
+取不到 `args.env`（写它是程序错），环境只用来跑这次调用，再缀在这次调用答出来的那次调用末尾。
+`apply << f << args` 只是把这两件收下（这时它还是个闭包），给了环境才跑：
 
 ```viba
 add2 = add << $a 2
 
-__impl__ = wrapper[add2] << args.env << add2 << $b 1     # 3
+__impl__ = wrapper << add2 << $b 1 << args.env     # 3
 ```
 
-给实参要写出它落在哪个 tag 上（`$a 2`）：`$env Env` 是调用的规矩，不是实参的位置，不写 tag 的
-实参先去撞这个参数，报 `2 does not fit $env Env`。
+这四步都有用例，都在 [`tests/data/apply/`](tests/data/apply)：`direct`（不套 `apply`）、
+`apply_once`、`apply_twice`、`apply_thrice` —— 一个函数被 `apply` 套 0 到 3 层，每套一层，环境就往后
+缀一次；外面那份积里的成员用 `$f`、`$args` 两个 tag 写，因为决断的 `pattern tagged[...]` 是按 tag 认
+它们的。
+
+`add2` 是给过 `$a 2` 的那次调用，还欠 `$b` 和环境；`wrapper` 把函数与积交给 `apply`，`apply` 跑出
+`add2 << $b 1`，环境再缀到这次调用的末尾，于是它凑齐了。答出一层缀一次：`wrapper` 答出来的那次调用、
+`apply` 答出来的那次调用、`apply_impl` 答出来的那次调用，一层层往后递，直到落进函数自己的 `$env Env`
+那一位。
+
+给实参要写出它落在哪个 tag 上（`$a 2`）：不写 tag 的实参按位置落到函数自己的参数上，环境不占位置
+（`viba-interpreter.md` 的「模块的参数」一节）。
 
 一个文件里也可以有自己的定义，成员读到自己定义的名字就在这个文件里读：
 

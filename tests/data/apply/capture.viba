@@ -1,0 +1,18 @@
+# `apply << f << args` 只把两件收下：还没有环境，它就是一个闭包，存成名字之后
+# 再给环境，给的还是那次调用。
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two }
+
+import apply
+
+kept = apply << add << ($a 1 * $b 2)
+
+__impl__ = kept << args.env

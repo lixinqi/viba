@@ -1,3 +1,0 @@
-pattern A <- $env Env <- B <- C
-
-type = A <- $env Env <- (A <- $env Env <- B <- C) <- B <- C

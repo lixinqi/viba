@@ -138,10 +138,12 @@ fit it); a name the file never defines is a parameter, and what stands in the ar
 is extracted — `pattern list[A]` answers the element type with `type = A`. An object that is
 a module is read as its `__decl__` for a structured pattern (`pattern A <- B`). A member that
 is a function chain **is** the call the chain writes when it stands at a chain head —
-`wrapper[inc].type << args.env << inc << $x 1` runs the function it was handed;
-when that file also writes `__impl__`, the call is the file's own run, in a sub-environment
-named by its decision order, and a name the enclosing decision bound still stands for the
-argument written at the call site.
+`call_it[list[int]].type` is the one-argument function `int <- int`, and
+[`demo/wrapper.viba`](tests/data/pattern/demo/wrapper.viba) answers the call it was handed by
+handing that function and its product of arguments to `apply`; when the chosen file also
+writes `__impl__`, the call is the file's own run, in a sub-environment named by its decision
+order, and a name the enclosing decision bound still stands for the argument written at the
+call site.
 An argument may write a call of its own (`g[add << $a 2]`): it is read as the type that
 call stands for, the chain left once the argument is given. A decision that finds no
 file is a program error, not `never`. A tag may be written as a symbol string:
@@ -279,11 +281,13 @@ print(answer)                    # Ok(VibaNode(root))
 print(answer.ok_value.value)     # 1000000 — the number the host answered
 ```
 
-- An executable function takes `$env Env` as one of its parameters, and every
-  call gives it: `args.env` is the environment the run was handed, and `Env` is
-  the builtin name of the environment's type (`Env = Environment`). A function
-  without that parameter, or a call that leaves it out, is a
-  `VibaProgramErr`.
+- An executable function may write `$env Env` as one of its parameters, or write
+  none. With none the environment stays out of the call — it is no member, so
+  `args.env` is only there when that parameter is — and it is what runs this call
+  and is then appended to the call this one answers: `apply << f << args << env`
+  is `f << 1 << 2 << env`. `Env` is the builtin name of the environment's type
+  (`Env = Environment`). Giving an environment is what runs a call; a call that is
+  given none is the closure it stands for.
 - The environment is no answer: only a builtin function may declare `Env` as its
   result, and writing `Env` (or `Environment`) as the result of a module's
   `__decl__`, of a definition inside a module, or of a chain a product carries as

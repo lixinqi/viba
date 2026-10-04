@@ -75,7 +75,8 @@ CASES_TO_RUN = [
     ("empty_args_called", "error", "has no __decl__", None),
     ("module_calls_module_with_args", "value", 14, None),
     ("args_inside_a_binding", "value", 17, None),
-    ("no_env_in_def_called", "error", "has no $env Env parameter", None),
+    ("no_env_in_def_called", "value", 25, None),
+    ("no_env_args_env_called", "error", "declares no $env Env parameter", None),
     ("two_envs_called", "error", "exactly one", None),
     ("env_not_env_called", "error", "must be Env", None),
     ("wrong_type_positionally", "error", 'does not fit $a int', None),
@@ -84,7 +85,7 @@ CASES_TO_RUN = [
 
 
 def run(tmp: Path):
-    check(len(CASES_TO_RUN) == 24, f"twenty-four cases: {len(CASES_TO_RUN)}")
+    check(len(CASES_TO_RUN) == 25, f"twenty-five cases: {len(CASES_TO_RUN)}")
     for index, (name, kind, want, calls_wanted) in enumerate(CASES_TO_RUN):
         program = CASES / f"{name}.viba"
         check(program.is_file(), f"the case is a file: {program.name}")

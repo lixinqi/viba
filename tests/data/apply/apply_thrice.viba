@@ -1,0 +1,15 @@
+# 再套一层：三层 `apply`，环境一层层往后缀，最后落进 `add` 的 `$env Env`。
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two }
+
+import apply
+
+__impl__ = apply << apply << ($f apply * $args ($f add * $args ($a 1 * $b 2))) << args.env

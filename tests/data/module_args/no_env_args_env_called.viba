@@ -1,0 +1,7 @@
+# 被调的模块没有 $env Env 参数，它的模块体却用了 args.env：错在那一份声明上。
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+import no_env_args_env
+__impl__ = no_env_args_env << (args.env.tmp_env << args.env) << $a 3

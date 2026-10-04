@@ -1,0 +1,14 @@
+# 要执行的模块没有 $env Env 参数，模块体里却用了 args.env：环境不是它收到的一员，
+# 它只是跑这次调用的那一位。
+__decl__ = int <- $a int
+
+args = __get_args__ << __decl__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__impl__ = add << args.env << $a args.a << $b args.a

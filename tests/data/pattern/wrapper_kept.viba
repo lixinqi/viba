@@ -12,7 +12,7 @@ inc =
   <- $x int
   <- { add one }
 
-Kept = wrapper[inc].type
+# 还欠着实参积的那次调用存成一个名字，之后再给：存下来的还是这次调用。
+kept = wrapper << inc
 
-# 存下来的那次调用一样按位给：`$x` 是 `inc` 自己声明的 tag。
-__impl__ = Kept << args.env << inc << $x 1
+__impl__ = kept << $x 1 << args.env

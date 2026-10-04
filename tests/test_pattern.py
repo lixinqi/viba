@@ -15,15 +15,14 @@ The four worked examples of `viba-pattern.md` live in `tests/data/pattern/demo/`
     demo/num_generic_args/  dict[A, B] -> 2, list[A] -> 1, A -> 0: the pattern
                             itself holds the structure that is counted
     demo/num_variadic_args/ one file per arity, so [] -> 0, [A] -> 1, [A, B] -> 2
-    demo/wrapper/           a function in, the same function's call out: the
-                            answer is a function chain, so the application is
-                            the call it stands for — `wrapper[inc] << args.env
-                            << inc << $x 1`, and the host's "wrapper" forwards to
-                            the function it was handed. 100 takes a one-argument
-                            function and 200 a two-argument one, so an argument
-                            that writes a partial call (`wrapper_partial.viba`:
-                            `add2 = add << $a 2`) is read as the type that call
-                            stands for and lands on 100
+    demo/wrapper.viba        a function in, the same function's call out: a module
+                            that hands what it was given to `apply` —
+                            `wrapper << inc << $x 1 << args.env` answers inc(1).
+                            The product of arguments has 1 member for `inc` and 2
+                            for `add`, and `apply_impl` picks its file by that
+                            count, so a partial call (`wrapper_partial.viba`:
+                            `add2 = add << $a 2`) arrives with one member and
+                            lands on the one-member file
 
 `demo/arg_name_of/` and `demo/tagged_again/` are the two sides of a tag written as
 a symbol: `pattern tagged[arg_name, T]` takes the symbol the argument carries
@@ -140,16 +139,11 @@ def _environ():
 
 
 class _WrapperHost(Host):
-    """The host side of `demo/wrapper/`: the wrapper runs the function it got.
-
-    The slot is a function type, so what the host is handed is the call it
-    stands for, not a value: calling it with the environment and the arguments
-    it was given is how the wrapper forwards (`f << $env args.env << f << 1 << 2`).
-    """
+    """`demo/wrapper.viba` 转手给谁：这里它包的是 `inc`（`add` 是共用宿主答的）。"""
 
     def get_func(self, module_path, func_name):
-        if func_name == "wrapper":
-            return lambda env, f, *rest: f(env, *rest)
+        if func_name == "inc":
+            return lambda env, x: x.value + 1
         return super().get_func(module_path, func_name)
 
 
@@ -458,39 +452,16 @@ def _a_function_type_is_a_call():
 
 
 def _the_wrapper_forwards():
-    """拿一个函数换一个调用：环境、函数自己、它的实参，按写下来的顺序给。"""
+    """拿一个函数换一个调用：函数与实参积先给，环境最后给，缀在答出来的那次调用末尾。"""
     check(value_of(interpret(_case("wrapper_inc"), _wrapper_environ())) == 2,
-          "wrapper[inc] << args.env << inc << $x 1 answers inc(1)")
+          "wrapper << inc << $x 1 << args.env answers inc(1)")
     check(value_of(interpret(_case("wrapper_add"), _wrapper_environ())) == 3,
-          "wrapper[add] << args.env << add << $a 1 << $b 2 answers add(1, 2)")
+          "wrapper << add << $a 1 * $b 2 << args.env answers add(1, 2)")
     check(value_of(interpret(_case("wrapper_kept"), _wrapper_environ())) == 2,
-          "kept as a value, the application is still the call it stands for")
+          "kept as a value, the call is still the call it stands for")
     check(value_of(interpret(_case("wrapper_partial"), _wrapper_environ())) == 3,
-          "an argument that writes a call is read as the type it stands for: "
-          "add << $a 2 is the one-argument function left, so the one-argument "
-          "wrapper answers it")
-
-    got = _judge("import demo.wrapper as g\nadd = int <- $env Env <- $a int <- $b int\n"
-                 "X = g[add].type\n", "X",
-                 "int <- $env Env <- (int <- $env Env <- int <- int) <- int <- int")
-    check(got is True,
-          f"the wrapper's type is the wrapped function's own type, plus itself: {got!r}")
-    got = _judge("import demo.wrapper as g\nadd = int <- $env Env <- $a int <- $b int\n"
-                 "X = g[add].type\n", "X",
-                 "int <- $env Env <- (int <- $env Env <- int) <- int")
-    check(got is False,
-          f"two arguments given leave a two-argument wrapped function: {got!r}")
-    got = _judge("import demo.wrapper as g\nadd = int <- $env Env <- $a int <- $b int\n"
-                 "add2 = add << $a 2\nX = g[add2].type\n", "X",
-                 "int <- $env Env <- (int <- $env Env <- int) <- int")
-    check(got is True,
-          f"an argument that writes a call is read apart as the type it stands "
-          f"for: {got!r}")
-    got = _judge("import demo.wrapper as g\ninc = int <- $env Env <- $x int\nX = g[inc].type\n",
-                 "X", "int <- $env Env <- (int <- $env Env <- int <- int) <- int <- int")
-    check(got is False,
-          f"a one-argument wrapped function is not the two-argument wrapper: {got!r}")
-
+          "add2 = add << $a 2 还欠一个实参，积里就只有一个成员，"
+          "所以走一个成员的那一支")
 
 def _a_tag_written_as_a_symbol():
     """`tagged[...]`：符号写在字符串里，字符串就是那个 tag。"""
@@ -579,10 +550,6 @@ def _a_design_is_complete_through_it():
     check(not is_complete('import demo.element_type_of as g\nX = g[list[{todo}]].type\n',
                           library),
           "an extracted piece with no leaf is incomplete")
-    check(is_complete("import demo.wrapper as g\n"
-                      "add = int <- $env Env <- $a int <- $b int\n"
-                      "X = g[add << $a 2].type\n", library),
-          "an argument that writes a call is decided the same way here")
     check(is_complete("import demo.tagged_again as g\nX = g[$a int].type\n", library),
           "a tag a decision built is a complete design")
 

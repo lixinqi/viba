@@ -1,0 +1,15 @@
+# 函数与它的实参积分开给 `apply`：环境最后给，缀在它答出来的那次调用末尾。
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two }
+
+import apply
+
+__impl__ = apply << add << ($a 1 * $b 2) << args.env

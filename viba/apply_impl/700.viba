@@ -3,19 +3,19 @@
 pattern tagged[arg0_name, Arg0] * tagged[arg1_name, Arg1] * tagged[arg2_name, Arg2] * tagged[arg3_name, Arg3] * tagged[arg4_name, Arg4] * tagged[arg5_name, Arg5] * tagged[arg6_name, Arg6]
 
 # The module's own signature: it answers whatever the function answers, and it takes
-# the function and the product of arguments — the environment is the call's rule.
-# What the product's members are is what the `pattern` line reads, not this.
+# the function and the product of arguments. The call this file builds wants the
+# environment too, and this file declares no `$env Env` parameter: the environment is
+# appended to that call when this call's body answers it. What the product's members
+# are is what the `pattern` line reads, not this.
 __decl__ =
     Any
-  <- $f (Any <- ...)
-  <- $env Env
-  <- $args Any
+  <- $f Any
+  <- $args ...
 
 args = __get_args__ << __decl__
 
 __impl__ =
     args.f
-  << args.env
   << ($__getattr__ << args.args << arg0_name)
   << ($__getattr__ << args.args << arg1_name)
   << ($__getattr__ << args.args << arg2_name)

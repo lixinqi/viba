@@ -1,0 +1,15 @@
+# 积里的成员按 tag 落位，不按位置：写成 ($b 2 * $a 1)，函数收到的还是 a=1、b=2。
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+arrange =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { arrange two }
+
+import apply
+
+__impl__ = apply << arrange << ($b 2 * $a 1) << args.env

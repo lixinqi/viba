@@ -1,0 +1,13 @@
+# 通用的 wrapper：给它一个函数与它那一份实参积，把这次调用接起来 —— 摊开实参的活
+# 交给 `apply`：`apply_impl` 按积里有几个成员选文件，一个成员一个成员地给。
+# 环境照 `apply` 的规矩最后给，这一份自己不用声明 `$env Env` 参数。
+import apply
+
+__decl__ =
+    Any
+  <- $f Any
+  <- $args ...
+
+args = __get_args__ << __decl__
+
+__impl__ = apply << args.f << args.args

@@ -90,7 +90,8 @@ __impl__ =
 - **函数体里的 `{...}` 是说明**：实现来自宿主的 `get_func(module_path, func_name)`（见
   [`viba-interpreter.md`](viba-interpreter.md)），interpret 不带任何库函数——提示写给的正是要
   照着它把实现补出来的 agent。
-- **每个要执行的函数都要 `$env Env`**：这是 interpreter 的规矩，规则也不例外。
+- **每个要执行的函数都得拿到环境**：`__decl__` 里可以写 `$env Env` 这个参数，也可以不写 —— 写了就给
+  这个参数，不写就随这次调用的答案往后走，直到落进某一个函数的 `$env Env` 那一处。规则也不例外。
 - **环境不是答案**：只有内建函数能把它声明成返回值，规则文件也一样写不了——要读环境就写
   `args.env`，别把环境当结果交出去（见 [`viba-interpreter.md`](viba-interpreter.md)）。
 

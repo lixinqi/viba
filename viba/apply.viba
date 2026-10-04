@@ -1,17 +1,15 @@
 # A general apply: give it a function and the product of that function's
-# arguments, and it answers what the function answers. `$f` is written as any
-# function at all (`Any <- ...`) and `$args` as `Any`: which members that product
-# has is what the decision over `args.args` below reads, not this declaration.
-# Giving the environment is what runs that call; the chosen file then runs in
-# its own sub-environment, named by its decision order.
+# arguments, and it answers what the function answers. `apply << f << args` only
+# captures the two; the environment comes last and is not a parameter of this
+# module, so the call this module answers is left wanting it, and the environment
+# is appended there — `apply << f << args << env` is `f << 1 << 2 << env`.
 import apply_impl
 
 __decl__ =
     Any
-  <- $f (Any <- ...)
-  <- $env Env
-  <- $args Any
+  <- $f Any
+  <- $args ...
 
 args = __get_args__ << __decl__
 
-__impl__ = apply_impl[args.args] << args.env << args.f << args.args
+__impl__ = apply_impl[args.args] << args.f << args.args

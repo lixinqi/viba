@@ -1,4 +1,4 @@
-# 三个实参的那一份：同一个 `apply`，只是积多一个成员。
+# 三个实参的那一份：同一个 `apply`，只是积多一个成员，环境照样最后给。
 __decl__ =
     int
   <- $env Env
@@ -9,4 +9,4 @@ args = __get_args__ << __decl__
 
 import apply
 
-__impl__ = apply << ($sub_env << args.env << "apply") << args.f << args.args
+__impl__ = apply << args.f << args.args << args.env

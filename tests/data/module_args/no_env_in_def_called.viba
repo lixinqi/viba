@@ -1,7 +1,7 @@
-# 被调的模块要执行，__decl__ 里却没有 $env 参数：错的不是实参，是声明。
+# 被调的模块没有声明 $env 参数：环境作为那次调用的规矩给它，实参照给，答案照答。
 __decl__ = int <- $env Env
 
 args = __get_args__ << __decl__
 
 import no_env_in_def
-__impl__ = no_env_in_def << (args.env.tmp_env << args.env)
+__impl__ = no_env_in_def << (args.env.tmp_env << args.env) << $a 25

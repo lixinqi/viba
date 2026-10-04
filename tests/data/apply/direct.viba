@@ -1,0 +1,13 @@
+# 不用 `apply` 的那一份，作对照：函数、实参、环境一个个给。
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two }
+
+__impl__ = add << $a 1 << $b 2 << args.env
