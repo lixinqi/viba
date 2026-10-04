@@ -1,11 +1,11 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 ghost =
 	int
 	<- $env Env
 	<- { nothing implements this }
-__ret__ = ghost << $env args.env
+__impl__ = ghost << $env args.env

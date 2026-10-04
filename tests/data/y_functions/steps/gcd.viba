@@ -4,26 +4,26 @@
 # 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
 #
 # `rest` 与 `deeper` 写在分支外面，不等于一进来就往下调一层：定义是按需求值的绑定
-# （call-by-need），用到它才算，而且只算一次，而下面那个 `__ret__` 只在 b 不是 0 的那一侧用它俩。
+# （call-by-need），用到它才算，而且只算一次，而下面那个 `__impl__` 只在 b 不是 0 的那一侧用它俩。
 # b 是 0 时 `rest` 是 a 除以 0 的余数、`deeper` 是再往下的一层，两者都不会被求值。
 # `main/gcd_zero.viba` 就是从基例那一侧进来钉这一点的。
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $gcd (int <- int <- int)
   <- $a int
   <- $b int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 zero = primitives.eq << $env args.env << $x args.b << $y 0
 rest = primitives.rem << $env args.env << $x args.a << $y args.b
 deeper = args.gcd << ($sub_env << args.env << "deeper") << $a args.b << $b rest
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond zero
       << $get_v (builtin.echo << $x args.a))

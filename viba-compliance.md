@@ -11,14 +11,14 @@
 的是一件事——**那一刻两人是不是至少隔了 5**。
 
 这条规则读的就是呈证（第 2 节）里的三个事实：`$victim`、`$suspect`、`$at`，然后把它问的那
-件事答成 `bool`。规则就是一个 viba 程序：`__def__` 是 `bool <- $env Env`，判定不是另一套推理，
+件事答成 `bool`。规则就是一个 viba 程序：`__decl__` 是 `bool <- $env Env`，判定不是另一套推理，
 就是把文件跑起来。
 
 ```viba
 # viba/compliance/demo/rule_distance.viba
-__def__ = bool <- $env Env
+__decl__ = bool <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import case_at_1230 as case_at_1230
 
@@ -63,7 +63,7 @@ distance =
 # the rule's question: at least this far apart?
 threshold = 5
 
-__ret__ =
+__impl__ =
     distance_ge
     << $env (args.env.tmp_env << args.env)
     << $d distance
@@ -82,7 +82,7 @@ __ret__ =
   [`viba-interpreter.md`](viba-interpreter.md)）。要给
   证据落地址的是**测量**：它多收一个槽位 `$evidence Environment`，明说"这次测量属于哪个案子"。
   两者分开，规则里才没有人把任意一次调用钉到案子的地址上。
-- **`__ret__` 是判定**。它是 `bool`，跑完就是答案：真合规、假不合规。这条规则跑出来是
+- **`__impl__` 是判定**。它是 `bool`，跑完就是答案：真合规、假不合规。这条规则跑出来是
   `Ok(true)`——量出来恰好 5，够门槛。
 - **条件是它自己的函数，判据是它的参数**。`distance_ge` 问的是"距离至少到没到门槛"，门槛由
   `$threshold` 给——`threshold = 5` 是这条规则自己的选择，换个案子换个门槛，写的还是同一个
@@ -104,18 +104,18 @@ __ret__ =
 
 ```viba
 # viba/compliance/demo/case_at_1230.viba
-__def__ =
+__decl__ =
     ($victim ($x int * $y int) * $suspect ($x int * $y int) * $at str)
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 at_1230 =
     ($victim ($x int * $y int) * $suspect ($x int * $y int) * $at str)
   <- $env Env
   <- { where each of them was at 12:30, and when it was }
 
-__ret__ = at_1230 << $env args.env
+__impl__ = at_1230 << $env args.env
 ```
 
 它答出来的就是那份实例——受害人 (0,0)，嫌疑人 (3,4)，时刻 12:30，横竖各差 3 与 4 于是相距 5，
@@ -154,7 +154,7 @@ verdict = is_compliant("rule_distance.viba", environ)   # -> Result[bool]
   不归这台机器跑完。递延带着 `$step`（哪条模块路径上的哪个定义）与 `$call`——`$call` 就是一份
   Prepare 要固定的那份实例，所以工单可以照它直接写出来，不必再跑一次。`prepare_run` 在这种情形
   下什么都不记进备份——没发生的判定不准备案子。
-- 规则编不过、没有 `__ret__`、`$env` 没给、宿主函数抛了……都是 `VibaProgramErr`，说明哪一步不行。
+- 规则编不过、没有 `__impl__`、`$env` 没给、宿主函数抛了……都是 `VibaProgramErr`，说明哪一步不行。
 - 一次运行的环境（`Environment`、storage、`get_func`）怎么给，见
   [`viba-interpreter.md`](viba-interpreter.md)：
   `is_compliant` 就是 `interpret` 加"读出那个 bool"。
@@ -267,9 +267,9 @@ record_text(file_path, content)          # 写进备份本身（prepare_run 用�
 
 1. **给案子起个名字**：这个名字会同时是呈证的模块名、规则的子环境名与 storage 路径
    （`case_at_1230`）。案子多起来之后，这条路径就是证据的归属。
-2. **写呈证**：一个模块（`<案子>.viba`），`__ret__` 是实例。事实从函数问来——定义一个
+2. **写呈证**：一个模块（`<案子>.viba`），`__impl__` 是实例。事实从函数问来——定义一个
    函数，它的类型就是那份实例的写法，实现交给宿主（第 2 节）；只有真的是常量的东西才写进文件。
-3. **写规则**：一个模块，`__ret__` 是 `bool`；一步一个定义（案子的地址、呈证、测量、判定），
+3. **写规则**：一个模块，`__impl__` 是 `bool`；一步一个定义（案子的地址、呈证、测量、判定），
    别把调用套进调用里；条件写成它自己的函数，每个函数带 `$env Environment`。
 4. **实现宿主那侧**：这一步是交给 agent 的——照着文件里 `{...}` 的提示，把每个函数写出来。
    `get_func(module_path, func_name)` 给出这些函数的实现；纯的照常写，

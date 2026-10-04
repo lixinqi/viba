@@ -1,4 +1,4 @@
 pattern bool | int
 pattern bool | int
 
-__def__ = true
+value = true

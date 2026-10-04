@@ -1,7 +1,7 @@
 # 被调的模块声明了两个 $env 参数。
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import two_envs
-__ret__ = two_envs << (args.env.tmp_env << args.env)
+__impl__ = two_envs << (args.env.tmp_env << args.env)

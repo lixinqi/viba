@@ -27,7 +27,7 @@ The four worked examples of `viba-pattern.md` live in `tests/data/pattern/demo/`
 
 `demo/arg_name_of/` and `demo/tagged_again/` are the two sides of a tag written as
 a symbol: `pattern __tagged__[arg_name, T]` takes the symbol the argument carries
-(`arg_name_of[$a int]` answers `"a"`), and `__def__ = __tagged__[arg_name, T]`
+(`arg_name_of[$a int]` answers `"a"`), and `__decl__ = __tagged__[arg_name, T]`
 builds the same tag back out of it. `tests/data/member/` holds the chain-head
 side: `__tagged__["f"] << box << …` takes the member the symbol names, and
 `$__getattr__ << box << name << …` reads it by the name a value spells.
@@ -35,7 +35,7 @@ side: `__tagged__["f"] << box << …` takes the member the symbol names, and
 `demo/wrapped_item/` is the one file whose answer is its own definition, so the
 call's parameter has to reach into that definition too. `broken/` and
 `loose_pattern.viba` are the mistakes: a file named anything but its order,
-a directory with no marker, a file with no `__def__`, a decision that fails, a
+a directory with no marker, a file with no `__decl__`, a decision that fails, a
 number of `pattern` lines that is not the argument count, a marker that writes
 `pattern`,
 and `pattern` written outside a generic's directory.
@@ -109,6 +109,13 @@ EXTRACTED_CASES = [
     ("ret_of_int_int", "int", "ret_type_of[int <- int]"),
     ("ret_of_float_unit", "float", "ret_type_of[float <- ()]"),
     ("ret_of_three", "(int, str)", "ret_type_of[(int, str) <- bool <- str]"),
+    ("itself_of_a_list", "list[int]", "a bare `pattern A` takes the object itself"),
+    ("itself_of_a_function", "int <- str", "…and a function chain as it was written"),
+    ("itself_of_a_tuple", "(int, str)", "…and a tuple, with nothing extracted"),
+    ("itself_of_a_literal", "true", "…and a literal value"),
+    ("ret_of_a_module", "int", "a module argument is matched as its `__decl__`"),
+    ("decl_pair_of_a_module", "(int, $env Env)",
+     "…and that chain is read apart positionally"),
 ]
 
 
@@ -242,51 +249,51 @@ def _judge(source: str, sub: str, sup: str):
 
 # (源, 左, 右, 想要什么, 这是哪一条)
 JUDGMENT_CASES = [
-    ("import demo.is_base_type as g\nX = g[bool]\n", "X", "true", True,
+    ("import demo.is_base_type as g\nX = g[bool].value\n", "X", "true", True,
      "a known base type answers true"),
-    ("import demo.is_base_type as g\nX = g[list[int]]\n", "X", "false", True,
+    ("import demo.is_base_type as g\nX = g[list[int]].value\n", "X", "false", True,
      "anything else answers false"),
-    ("import demo.is_base_type as g\nX = g[str]\n", "X", "int", False,
+    ("import demo.is_base_type as g\nX = g[str].value\n", "X", "int", False,
      "a literal bool type is not an int"),
-    ("import demo.element_type_of as g\nX = g[list[int]]\n", "X", "int", True,
+    ("import demo.element_type_of as g\nX = g[list[int]].type\n", "X", "int", True,
      "list[A] extracts A"),
-    ("import demo.element_type_of as g\nX = g[set[float]]\n", "X", "float", True,
+    ("import demo.element_type_of as g\nX = g[set[float]].type\n", "X", "float", True,
      "set[A] extracts A"),
-    ("import demo.element_type_of as g\nX = g[dict[int, str]]\n", "X", "(int, str)", True,
+    ("import demo.element_type_of as g\nX = g[dict[int, str]].type\n", "X", "(int, str)", True,
      "dict[A, B] extracts the pair"),
-    ("import demo.element_type_of as g\nX = g[list[int]]\n", "X", "str", False,
+    ("import demo.element_type_of as g\nX = g[list[int]].type\n", "X", "str", False,
      "the extraction is not some other type"),
-    ("import demo.element_type_of as g\nLocal = int\nX = g[list[Local]]\n",
+    ("import demo.element_type_of as g\nLocal = int\nX = g[list[Local]].type\n",
      "X", "int", True,
      "the extracted name is read in the module that wrote the argument"),
-    ("import demo.wrapped_item as g\nX = g[list[int]]\n", "X", "$item int", True,
+    ("import demo.wrapped_item as g\nX = g[list[int]].type\n", "X", "$item int", True,
      "the chosen file's own definition is read in that file"),
-    ("import demo.ret_type_of as g\nX = g[float <- ()]\n", "X", "float", True,
+    ("import demo.ret_type_of as g\nX = g[float <- ()].type\n", "X", "float", True,
      "a one-argument chain whose argument is a unit"),
-    ("import demo.ret_type_of as g\nX = g[int <- int]\n", "X", "int", True,
+    ("import demo.ret_type_of as g\nX = g[int <- int].type\n", "X", "int", True,
      "a one-argument chain the first file refuses falls to the second"),
-    ("import demo.ret_type_of as g\nX = g[(int, str) <- bool <- str]\n",
+    ("import demo.ret_type_of as g\nX = g[(int, str) <- bool <- str].type\n",
      "X", "(int, str)", True,
      "a three-part chain extracts its result"),
-    ("import demo.call_it as g\nX = g[list[int]]\n", "X", "int <- int", True,
-     "a chosen __def__ may be a function type, its $env not a parameter"),
-    ("import demo.call_it as g\nX = g[list[int]]\n", "X", "int <- int <- int", False,
+    ("import demo.call_it as g\nX = g[list[int]].type\n", "X", "int <- int", True,
+     "a chosen __decl__ may be a function type, its $env not a parameter"),
+    ("import demo.call_it as g\nX = g[list[int]].type\n", "X", "int <- int <- int", False,
      "and it is that function type and no other"),
-    ("import demo.num_generic_args as g\nX = g[dict[int, str]]\n", "X", "2", True,
+    ("import demo.num_generic_args as g\nX = g[dict[int, str]].value\n", "X", "2", True,
      "the pattern's own structure is what is counted"),
-    ("import demo.num_generic_args as g\nX = g[list[int]]\n", "X", "1", True,
+    ("import demo.num_generic_args as g\nX = g[list[int]].value\n", "X", "1", True,
      "one argument, one"),
-    ("import demo.num_generic_args as g\nX = g[bool]\n", "X", "0", True,
+    ("import demo.num_generic_args as g\nX = g[bool].value\n", "X", "0", True,
      "no application at all is none"),
-    ("import demo.num_generic_args as g\nX = g[list[int]]\n", "X", "2", False,
+    ("import demo.num_generic_args as g\nX = g[list[int]].value\n", "X", "2", False,
      "and the count is the one the file says, not another"),
-    ("import demo.is_compatable as g\nX = g[bool, int]\n", "X", "true", True,
+    ("import demo.is_compatable as g\nX = g[bool, int].value\n", "X", "true", True,
      "one restriction for both positions"),
-    ("import demo.is_compatable as g\nX = g[float, str]\n", "X", "false", True,
+    ("import demo.is_compatable as g\nX = g[float, str].value\n", "X", "false", True,
      "an equality that does not hold falls through to the last file"),
-    ("import demo.element_type_of as g\nX = g[list[int]]\n", "int", "X", True,
+    ("import demo.element_type_of as g\nX = g[list[int]].type\n", "int", "X", True,
      "the extraction reads the same from the other side"),
-    ("import demo.element_type_of as g\nX = g[bool]\n", "X", "never", "error",
+    ("import demo.element_type_of as g\nX = g[bool].type\n", "X", "never", "error",
      "a decision that fails is a VibaProgramErr"),
 ]
 
@@ -397,11 +404,11 @@ def _the_pattern_matcher():
 
 def _the_arity_is_the_file():
     """一个文件写几行 pattern，就收几个实参；没有这个个数的，当场报个数。"""
-    check(_judge("import demo.num_variadic_args as g\nX = g[]\n", "X", "0") is True,
+    check(_judge("import demo.num_variadic_args as g\nX = g[].value\n", "X", "0") is True,
           "no line at all is the generic of no parameters")
-    check(_judge("import demo.num_variadic_args as g\nX = g[bool, str]\n", "X", "2") is True,
+    check(_judge("import demo.num_variadic_args as g\nX = g[bool, str].value\n", "X", "2") is True,
           "two lines are the generic of two")
-    got = _judge("import demo.num_variadic_args as g\nX = g[bool, str, int, float]\n",
+    got = _judge("import demo.num_variadic_args as g\nX = g[bool, str, int, float].value\n",
                  "X", "0")
     check(isinstance(got, VibaProgramErr)
           and "takes 0, 1, 2 or 3 parameters, not 4" in got.err_msg,
@@ -416,7 +423,7 @@ def _the_arity_is_the_file():
 BROKEN_CASES = [
     ("broken_no_marker", "not found", "a directory without the marker is no generic"),
     ("broken_named_badly", "named by its order", "a file named anything but a number"),
-    ("broken_no_def", "__def__", "a pattern file with no answer"),
+    ("broken_no_def", "answers a module", "a pattern file that writes no answer member"),
     ("broken_no_answer", "no pattern", "a decision that fails"),
     ("broken_two_params", "takes 2 parameters",
      "a number of `pattern` lines that is not the argument count"),
@@ -442,12 +449,12 @@ def _a_generic_is_no_module():
 
 
 def _a_function_type_is_a_call():
-    """选中的 `__def__` 是函数链时，这个应用代表的就是那次调用。"""
+    """选中的那份文件的成员是个函数链时，这个名字代表的就是那次调用。"""
     result = interpret(_case("call_it_answer"), _environ())
     written = (viba_ast.unparse_type(result.ok_value.data)
                if isinstance(result, Ok) else repr(result))
-    check(isinstance(result, Ok) and written == "call_it[list[int]]",
-          f"the application is the call it stands for: {written!r}")
+    check(isinstance(result, Ok) and written == "call_it[list[int]].type",
+          f"the member stands for the call it is: {written!r}")
 
 
 def _the_wrapper_forwards():
@@ -464,22 +471,22 @@ def _the_wrapper_forwards():
           "wrapper answers it")
 
     got = _judge("import demo.wrapper as g\nadd = int <- $env Env <- $a int <- $b int\n"
-                 "X = g[add]\n", "X",
+                 "X = g[add].type\n", "X",
                  "int <- $env Env <- (int <- $env Env <- int <- int) <- int <- int")
     check(got is True,
           f"the wrapper's type is the wrapped function's own type, plus itself: {got!r}")
     got = _judge("import demo.wrapper as g\nadd = int <- $env Env <- $a int <- $b int\n"
-                 "X = g[add]\n", "X",
+                 "X = g[add].type\n", "X",
                  "int <- $env Env <- (int <- $env Env <- int) <- int")
     check(got is False,
           f"two arguments given leave a two-argument wrapped function: {got!r}")
     got = _judge("import demo.wrapper as g\nadd = int <- $env Env <- $a int <- $b int\n"
-                 "add2 = add << $a 2\nX = g[add2]\n", "X",
+                 "add2 = add << $a 2\nX = g[add2].type\n", "X",
                  "int <- $env Env <- (int <- $env Env <- int) <- int")
     check(got is True,
           f"an argument that writes a call is read apart as the type it stands "
           f"for: {got!r}")
-    got = _judge("import demo.wrapper as g\ninc = int <- $env Env <- $x int\nX = g[inc]\n",
+    got = _judge("import demo.wrapper as g\ninc = int <- $env Env <- $x int\nX = g[inc].type\n",
                  "X", "int <- $env Env <- (int <- $env Env <- int <- int) <- int <- int")
     check(got is False,
           f"a one-argument wrapped function is not the two-argument wrapper: {got!r}")
@@ -522,9 +529,9 @@ def _a_tag_written_as_a_symbol():
 
     check(value_of(interpret(_case("arg_name_of_a"), _environ())) == "a",
           "a __tagged__ pattern takes the symbol the argument carries")
-    got = _judge("import demo.arg_name_of as g\nX = g[$a int]\n", "X", '"a"')
+    got = _judge("import demo.arg_name_of as g\nX = g[$a int].value\n", "X", '"a"')
     check(got is True, f"and the answer is that string: {got!r}")
-    got = _judge("import demo.arg_name_of as g\nX = g[$a int]\n", "X", '"b"')
+    got = _judge("import demo.arg_name_of as g\nX = g[$a int].value\n", "X", '"b"')
     check(got is False, f"not another symbol: {got!r}")
 
     again = interpret(_case("tagged_again_a"), _environ())
@@ -533,15 +540,15 @@ def _a_tag_written_as_a_symbol():
           f"the symbol a decision bound builds the tag again: {again!r}")
     for sub, sup, want in (("X", "$a int", True), ("$a int", "X", True),
                            ("X", "$b int", False)):
-        got = _judge("import demo.tagged_again as g\nX = g[$a int]\n", sub, sup)
+        got = _judge("import demo.tagged_again as g\nX = g[$a int].type\n", sub, sup)
         check(got is want,
               f"the type a decision builds: {sub} <: {sup} -> {got!r}")
 
-    got = _judge("import demo.tagged_again as g\nX = g[bool <- int <- $a str]\n",
+    got = _judge("import demo.tagged_again as g\nX = g[bool <- int <- $a str].type\n",
                  "X", "bool <- int <- $a str")
     check(got is True,
           f"a tag inside the chain it was written in: {got!r}")
-    got = _judge("import demo.tagged_again as g\nX = g[bool <- int <- $a str]\n",
+    got = _judge("import demo.tagged_again as g\nX = g[bool <- int <- $a str].type\n",
                  "X", "bool <- int <- $b str")
     check(got is False, f"and the symbol is still the one it took: {got!r}")
 
@@ -563,20 +570,20 @@ def _library():
 
 def _a_design_is_complete_through_it():
     library = [(path, source) for path, source, _module in _library()]
-    check(is_complete("import demo.is_base_type as g\nX = g[bool]\n", library),
+    check(is_complete("import demo.is_base_type as g\nX = g[bool].value\n", library),
           "a decision that picks a literal is complete")
-    check(is_complete("import demo.element_type_of as g\nX = g[list[int]]\n", library),
+    check(is_complete("import demo.element_type_of as g\nX = g[list[int]].type\n", library),
           "a decision that extracts a leaf name is complete")
-    check(not is_complete("import demo.element_type_of as g\nX = g[bool]\n", library),
+    check(not is_complete("import demo.element_type_of as g\nX = g[bool].type\n", library),
           "a decision that fails is incomplete")
-    check(not is_complete('import demo.element_type_of as g\nX = g[list[{todo}]]\n',
+    check(not is_complete('import demo.element_type_of as g\nX = g[list[{todo}]].type\n',
                           library),
           "an extracted piece with no leaf is incomplete")
     check(is_complete("import demo.wrapper as g\n"
                       "add = int <- $env Env <- $a int <- $b int\n"
-                      "X = g[add << $a 2]\n", library),
+                      "X = g[add << $a 2].type\n", library),
           "an argument that writes a call is decided the same way here")
-    check(is_complete("import demo.tagged_again as g\nX = g[$a int]\n", library),
+    check(is_complete("import demo.tagged_again as g\nX = g[$a int].type\n", library),
           "a tag a decision built is a complete design")
 
 
@@ -592,7 +599,7 @@ def _the_pool_holds_a_generic():
             check(False, f"the pool takes {module}: {added!r}")
             return
         pool = added.ok_value
-    entry = "import demo.is_base_type as g\nX = g[bool]\n"
+    entry = "import demo.is_base_type as g\nX = g[bool].value\n"
     parsed = parse_viba_file(pool, entry, "entry.viba", "entry")
     pool = pool_add_file(pool, parsed.ok_value).ok_value
     module = pool.module_environment("entry").ok_value
@@ -614,10 +621,10 @@ def _the_reflection_reads_it():
                     "import demo.wrapped_item as w\n"
                     "import demo.tagged_again as t\n"
                     "import demo.arg_name_of as n\n"
-                    "Picked = $value g[list[int]]\n"
-                    "Boxed = $value w[list[str]]\n"
-                    "Again = $value t[$a int]\n"
-                    "Named = $value n[$a int]\n", "design"))
+                    "Picked = $value g[list[int]].type\n"
+                    "Boxed = $value w[list[str]].type\n"
+                    "Again = $value t[$a int].type\n"
+                    "Named = $value n[$a int].value\n", "design"))
     for path, source, module in sources:
         parsed = parse_viba_file(pool, source, path, module)
         if isinstance(parsed, VibaProgramErr):

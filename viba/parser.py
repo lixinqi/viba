@@ -28,8 +28,8 @@ from viba.viba_ast.nodes import (
     Partial,
     Tagged,
     Member,
+    MemberRead,
     TypeApp,
-    ProductChain,
     Tuple,
     TypeRef,
     Constant,
@@ -75,6 +75,7 @@ tokens = (
     "ANY",
     "ELLIPSIS",  # ...
     "CODE_BLOCK",  # { ... }
+    "DOT",  # .
 )
 
 t_ASSIGN = r"="
@@ -169,12 +170,19 @@ def t_ANY(t):
 
 
 def t_TAGGED_CLASS_NAME(t):
-    r"\$\w+(\.\w+)*"
+    r"\$\w+"
     return t
 
 
 def t_CLASS_NAME(t):
-    r"\w+(\.\w+)*"
+    r"\w+"
+    return t
+
+
+# A `.` appears only between names, or between a name and an application: a token, not a name part.
+# The dot must come after t_FLOAT (`.5` is a float) and avoid `...` (ellipsis) and `5.` (a float).
+def t_DOT(t):
+    r"\.(?![\d.])"
     return t
 
 
@@ -316,8 +324,14 @@ def p_generic_definition(p):
 
 
 def p_import_stmt(p):
-    """import_stmt : IMPORT CLASS_NAME optional_alias"""
+    """import_stmt : IMPORT class_path optional_alias"""
     p[0] = Import(p[2], p[3])
+
+
+def p_class_path(p):
+    """class_path : CLASS_NAME
+    | class_path DOT CLASS_NAME"""
+    p[0] = p[1] if len(p) == 2 else f"{p[1]}.{p[3]}"
 
 
 def p_pattern_stmt(p):
@@ -371,22 +385,48 @@ def p_exponent_expr(p):
 
 
 def p_unary_expr(p):
-    """unary_expr : TAGGED_CLASS_NAME type_app_expr
-    | type_app_expr"""
+    """unary_expr : tag_path member_expr
+    | member_expr"""
     if len(p) == 3:
         p[0] = Tagged(p[1], p[2])
     else:
         p[0] = p[1]
 
 
+def p_tag_path(p):
+    """tag_path : TAGGED_CLASS_NAME
+    | tag_path DOT CLASS_NAME"""
+    p[0] = p[1] if len(p) == 2 else f"{p[1]}.{p[3]}"
+
+
+# `a.b` reads a member: a name is one segment, so the read happens wherever the dot is written,
+# and `g[T].value` reads a member of the module that application picked.
+def p_member_expr(p):
+    """member_expr : member_expr DOT CLASS_NAME
+    | type_app_expr"""
+    if len(p) == 4:
+        p[0] = MemberRead(p[1], p[3])
+    else:
+        p[0] = p[1]
+
+
+# A dot is not part of a name, so `m.Hint` is one name put together by a grammar action (after
+# `import m`, `m.Hint[$x]` uses that name): the same holds on the `$` side (`$env.scope`).
+def p_name_tail(p):
+    """name_tail : DOT CLASS_NAME name_tail
+    | epsilon"""
+    p[0] = "." + p[2] + p[3] if len(p) == 4 else ""
+
+
 def p_type_app_expr(p):
-    """type_app_expr : CLASS_NAME optional_type_args
+    """type_app_expr : CLASS_NAME name_tail optional_type_args
     | primary_expr"""
-    if len(p) == 3:
-        if p[2] is not None:
-            p[0] = TypeApp(p[1], p[2])
+    if len(p) == 4:
+        name = p[1] + p[2]
+        if p[3] is not None:
+            p[0] = TypeApp(name, p[3])
         else:
-            p[0] = TypeRef(p[1])
+            p[0] = TypeRef(name)
     else:
         p[0] = p[1]
 
@@ -520,12 +560,16 @@ GRAMMAR_ORDER = (
     "import_stmt",
     "pattern_stmt",
     "optional_alias",
+    "class_path",
     "partial_expr",
     "member_head",
     "adt_expr",
     "product_expr",
     "exponent_expr",
     "unary_expr",
+    "tag_path",
+    "name_tail",
+    "member_expr",
     "type_app_expr",
     "optional_type_args",
     "adt_arg_list",
@@ -617,94 +661,33 @@ def parse_source(source: str):
     The lexer keeps `lineno` between calls, so without this a fresh one-line
     file by mistake reports the line it ended on in the file parsed before it.
     Every caller that reads a whole source goes through here, and every source
-    comes out with its dotted definitions expanded (viba-style.md) and its
-    written `__tagged__[...]` symbols folded into the tags they spell
-    (`viba/viba_ast/tagged.py`).
+    comes out with its written `__tagged__[...]` symbols folded into the tags
+    they spell (`viba/viba_ast/tagged.py`).
     """
     lexer.lineno = 1
     statements = parser.parse(source)
     if not statements:
         return statements
-    return expand_dotted_definitions(fold_written(statements))
+    _refuse_repeated_names([n for n in statements
+                            if isinstance(n, (TypeDefinition, GenericDefinition))])
+    return fold_written(statements)
 
 
-class _DottedNames:
-    """点分名字写下来的那棵树：每个前缀一个节点，节点下面是它的成员。
+def _refuse_repeated_names(definitions):
+    """A module may not define the same name twice.
 
-    只管组织，不管类型：谁是谁的孩子按名字算，按书写顺序排。
+    Written twice, a reader of that name has to guess which one it means, and the answer
+    depends on which of the two was written first — and written order is no part of the
+    design. A definition is `A = …`: one name on the left, with no dot.
     """
-
-    def __init__(self):
-        self.leaves = {}   # 路径 -> 写在这一路径下的定义（同一个写两次就有两个）
-        self.order = {}    # 路径 -> 孩子段，按书写顺序
-
-    def add(self, segments, definition):
-        for cut in range(1, len(segments)):
-            order = self.order.setdefault(tuple(segments[:cut]), [])
-            if segments[cut] not in order:
-                order.append(segments[cut])
-        # 同一个叶子写两次：以后一个为准（覆盖）
-        self.leaves[tuple(segments)] = [definition]
-
-    def body(self, segments):
-        """这一级概念的类型：它的孩子们按书写顺序组成的积。
-
-        一个孩子就写那个成员自己（`a = $b A`），多于一个才是一条积（`a = $b A * $c C`）。
-        """
-        members = []
-        for segment in self.order.get(tuple(segments), []):
-            members.extend(self._members(segments, segment))
-        return members[0] if len(members) == 1 else ProductChain(members)
-
-    def _members(self, prefix, segment):
-        """前缀下那一段成员：写在这一路径下的定义赢，它下面的定义不再展开。"""
-        path = tuple(prefix) + (segment,)
-        if path in self.leaves:
-            return [Tagged("$" + segment, self.leaves[path][0].body)]
-        return [Tagged("$" + segment, self.body(path))]
-
-
-def expand_dotted_definitions(statements):
-    """点分名字的定义展开成它父概念的成员。
-
-    `a.b = A` 就是 `a = $b A`；`a.b = A` 与 `a.c = C` 一起就是 `a = $b A * $c C`。
-    每一级前缀都是一个概念，叶子挂在最后一段上，所以 `a.b.c = T` 是 `a = $b ($c T)`。
-
-    后写的覆盖先写的：同一个叶子写两次，以后一个为准；一个不带点的定义（`a = …`）压在
-    `a.…` 上时，那一整棵子树不再展开；写了 `a.b = …` 又写了 `a.b.c = …` 时，`a.b` 那一份赢。
-    """
-    definitions = [n for n in statements
-                   if isinstance(n, (TypeDefinition, GenericDefinition))]
-    dotted = [d for d in definitions if "." in d.name]
-    if not dotted:
-        return statements
-    for definition in dotted:
-        if isinstance(definition, GenericDefinition):
+    seen = set()
+    for definition in definitions:
+        if definition.name in seen:
             raise SyntaxError(
-                f"Viba parse error: {definition.name} is a generic definition: a "
-                f"dotted name defines one member of its parent, and a member is no "
-                f"generic")
+                f"Viba parse error: {definition.name} is defined twice: a module "
+                f"defines each name once")
+        seen.add(definition.name)
 
-    names = _DottedNames()
-    for definition in dotted:
-        names.add(definition.name.split("."), definition)
-
-    plain = {d.name for d in definitions if "." not in d.name}
-    expanded = []
-    done = set()
-    for statement in statements:
-        if (isinstance(statement, (TypeDefinition, GenericDefinition))
-                and "." in statement.name):
-            top = statement.name.split(".")[0]
-            if top in done:
-                continue
-            done.add(top)
-            if top in plain:                # 显式写的那个赢
-                continue
-            expanded.append(TypeDefinition(top, names.body([top])))
-            continue
-        expanded.append(statement)
-    return expanded
 
 # ================================================================= #
 # 4. TEST RUN

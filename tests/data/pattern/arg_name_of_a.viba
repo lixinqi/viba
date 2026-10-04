@@ -1,5 +1,5 @@
 import demo.arg_name_of as arg_name_of
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = arg_name_of[$a int]
+__impl__ = arg_name_of[$a int].value

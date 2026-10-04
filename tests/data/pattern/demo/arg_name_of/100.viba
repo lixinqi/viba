@@ -2,4 +2,4 @@
 # `__tagged__` pattern names the tag it claims, so the name is a parameter.
 pattern __tagged__[arg_name, T]
 
-__def__ = arg_name
+value = arg_name

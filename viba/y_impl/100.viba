@@ -1,0 +1,10 @@
+# The fixed point, one step: `$f` is given F itself, and `$y_helper` is given this
+# very step. The environment and `$n` are not given yet, so this member stays
+# partially applied; the caller goes on giving.
+#
+# This file answers its own module (module semantics): its definitions are its
+# members, and `impl` is that step.
+pattern F
+import y_helper
+
+impl = (y_helper[F] << $f F << $y_helper y_helper[F])

@@ -1,5 +1,5 @@
 import broken.two_params as g
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = g[bool]
+__impl__ = g[bool]

@@ -1,7 +1,7 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 import branch
 import right_part_is_a_closure as right
 
 x = right.f << $a 1
-__ret__ = x
+__impl__ = x

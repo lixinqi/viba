@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import nope as n
-__ret__ = n << args.env
+__impl__ = n << args.env

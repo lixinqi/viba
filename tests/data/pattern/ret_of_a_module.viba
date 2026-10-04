@@ -1,0 +1,6 @@
+import demo.ret_type_of as ret_type_of
+import a_module
+
+__decl__ = Any <- $env Env
+
+__impl__ = ret_type_of[a_module].type

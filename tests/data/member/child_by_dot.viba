@@ -1,8 +1,8 @@
 # The dotted reading the tag form stands for: the environment is written out.
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
-__ret__ = args.env.sub_env << args.env << "child"
+__impl__ = args.env.sub_env << args.env << "child"

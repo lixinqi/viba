@@ -1,0 +1,5 @@
+# The Y combinator: the template lives in a module, and this is its application to its
+# own step. `y_impl[F]` is the chosen file itself (module semantics) and `impl` is its member.
+import y_impl
+
+Y[F] = y_impl[F].impl

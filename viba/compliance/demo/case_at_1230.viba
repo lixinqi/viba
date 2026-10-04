@@ -10,15 +10,15 @@
 # way its design is written. Where those facts really come from — a log, a
 # database, a service — is the implementation's business, not the witness's:
 # this file says which facts there are, never what they are.
-__def__ =
+__decl__ =
     ($victim ($x int * $y int) * $suspect ($x int * $y int) * $at str)
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 at_1230 =
     ($victim ($x int * $y int) * $suspect ($x int * $y int) * $at str)
   <- $env Env
   <- { where each of them was at 12:30, and when it was }
 
-__ret__ = at_1230 << $env args.env
+__impl__ = at_1230 << $env args.env

@@ -1,4 +1,4 @@
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
 import design_two as d
-__ret__ = d.nope
+__impl__ = d.nope

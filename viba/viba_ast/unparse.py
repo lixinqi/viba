@@ -17,6 +17,7 @@ from viba.viba_ast.nodes import (
     Partial,
     Tagged,
     Member,
+    MemberRead,
     TypeApp,
     Tuple,
     TypeRef,
@@ -64,6 +65,7 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
         Exponent=lambda e: _unparse_exponent(e, indent, depth),
         Partial=lambda a: _unparse_partial(a, indent, depth),
         Member=lambda m: f"{unparse_tag(m)}",
+        MemberRead=lambda m: _unparse_member_read(m, indent, depth),
         Tagged=lambda t: f"{unparse_tag(t)}{_tagged_body_parens(t.type, _unparse_type(t.type, indent, depth), ' ' * (indent * depth))}",
         TypeApp=lambda a: _unparse_typeapp(a, indent, depth),
         Tuple=lambda t: _unparse_tuple(t, indent, depth),
@@ -78,6 +80,15 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
         ProductChain=lambda p: _unparse_productchain(p, indent, depth),
         ExponentChain=lambda e: _unparse_exponentchain(e, indent, depth),
     )
+
+
+def _unparse_member_read(node: MemberRead, indent: int, depth: int) -> str:
+    """`owner.name`, the member read. The owner is a name chain or an application;
+    anything else is parenthesized."""
+    owner = _unparse_type(node.owner, indent, depth)
+    if isinstance(node.owner, (TypeRef, MemberRead, TypeApp)):
+        return f"{owner}.{node.name}"
+    return f"({owner}).{node.name}"
 
 
 def _unparse_type_definition(defn: TypeDefinition, indent: int, depth: int) -> str:

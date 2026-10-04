@@ -1,14 +1,14 @@
 # Found only on VIBA_PATH: `pkg/inner.viba` under the directory that is
-# handed in is module `pkg.inner`, and it is a program (`__ret__`).
+# handed in is module `pkg.inner`, and it is a program (`__impl__`).
 #
 # Verdicts (tests/test_interpreter_imports.py):
 #   the host implements `leaf`; it answers 7, so pkg.inner answers 7.
 
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 leaf =
 	int
@@ -17,4 +17,4 @@ leaf =
 		answer seven
 	}
 
-__ret__ = leaf << $env args.env
+__impl__ = leaf << $env args.env

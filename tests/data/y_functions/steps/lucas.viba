@@ -7,13 +7,13 @@
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $lucas (int <- int)
   <- $n int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 one = primitives.eq << $env args.env << $x args.n << $y 1
 zero = primitives.eq << $env args.env << $x args.n << $y 0
@@ -22,7 +22,7 @@ below_two = primitives.sub << $env args.env << $x args.n << $y 2
 low = args.lucas << ($sub_env << args.env << "low") << $n below_one
 high = args.lucas << ($sub_env << args.env << "high") << $n below_two
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond one
       << $get_v (builtin.echo << $x 1))

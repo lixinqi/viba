@@ -1,3 +1,3 @@
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = 7 * nil * never
+__impl__ = 7 * nil * never

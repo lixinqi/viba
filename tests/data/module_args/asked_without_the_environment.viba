@@ -1,4 +1,4 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 import square_sum
-__ret__ = square_sum
+__impl__ = square_sum

@@ -1,5 +1,5 @@
 import demo.call_it as call_it
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = call_it[list[int]]
+__impl__ = call_it[list[int]].type

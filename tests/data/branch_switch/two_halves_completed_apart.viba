@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 import pick as pick
@@ -10,7 +10,7 @@ import pick as pick
 # 两个半成品各自补完，再把两个答案加在一起。
 left = pick.add << $a 1
 right = pick.add << $a 2
-__ret__ =
+__impl__ =
     branch.echo_or_never
     << $env args.env << $cond true
     << $get_v (pick.add

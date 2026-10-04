@@ -1,3 +1,3 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
-__ret__ = 42
+__impl__ = 42

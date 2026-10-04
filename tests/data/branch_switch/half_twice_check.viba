@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 import pick as pick
@@ -10,7 +10,7 @@ import pick as pick
 # 同一个半成品补两次：一次在这里，一次在下面 —— 它就是一个值。
 half = pick.add << $a 40
 once = half << $b 2 << $env args.env
-__ret__ =
+__impl__ =
   branch.echo_or_never
   << $env args.env
   << $cond true

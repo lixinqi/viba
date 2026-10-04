@@ -1,3 +1,3 @@
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = Oneof | never
+__impl__ = Oneof | never

@@ -106,7 +106,7 @@ vb.UserName = str                 # UserName = str
 vb.Map[vb.K, vb.V] = vb.V         # Map[K, V] = V
 ```
 
-- 定义名要是一个普通标识符：不能是关键字（`nil` / `never` / `true` / `false` / `void` / `None` / `import` / `as` / `pattern`），不能带点、不能带横杠 —— Python 的属性名里没有点。源码里的点分名字（`a.b = A`，见 [`viba-style.md`](viba-style.md) 第 5 节）在 builder 里就写展开后的形式：`vb.a = tag.b(vb.A) * tag.c(vb.C)`。
+- 定义名要是一个普通标识符：不能是关键字（`nil` / `never` / `true` / `false` / `void` / `None` / `import` / `as` / `pattern`），不能带点、不能带横杠 —— Python 的属性名里没有点，Viba 的定义左边也只有一段名字。要写"一个概念的几个成员"，就写 `vb.a = tag.b(vb.A) * tag.c(vb.C)`，读的时候 `a.b`、`a.c` 这样取成员。
 - 同一个名字可以写多次，顺序就是写的顺序（第 10 节的"既有文件里已有这个名字"是另一回事）。写的
   顺序只是源码的顺序：定义是绑定，求值按需求值，写的次序不是求值的次序（[`viba-interpreter.md`](viba-interpreter.md)
   的「求值策略：按需求值（call-by-need）」一节）。

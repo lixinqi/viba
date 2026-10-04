@@ -152,7 +152,7 @@ def _written(node):
 
 
 def _judge(tmp: Path):
-    """跑一个规则：判定就是 __ret__，可序列化数据是 witness 那个程序问来的。"""
+    """跑一个规则：判定就是 __impl__，可序列化数据是 witness 那个程序问来的。"""
     store = tmp / "judge-store"
     env, host = environ_for(store)
     verdict = is_compliant(str(RULE), env)
@@ -263,7 +263,7 @@ def _storage(tmp: Path):
 
 
 def _refusals(tmp: Path):
-    """判定与 Prepare 的错：不是 bool、没有 __ret__、编不过、记不进备份。"""
+    """判定与 Prepare 的错：不是 bool、没有 __impl__、编不过、记不进备份。"""
     env, host = environ_for(tmp / "refuse-store")
 
     not_a_verdict = case_file("not_a_verdict")
@@ -271,7 +271,7 @@ def _refusals(tmp: Path):
              "a rule that answers a string -> VibaProgramErr")
 
     design = case_file("design_only")
-    labelled(is_compliant(design, env), "has no __ret__",
+    labelled(is_compliant(design, env), "has no __impl__",
              "a rule that is not a program -> VibaProgramErr")
 
     broken = case_file("broken")

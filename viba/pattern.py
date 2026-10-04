@@ -22,20 +22,20 @@ patterns fit the written arguments:
     is_bool = is_base_type[bool]        # true, from 100.viba
 
 Nothing fits: that is a program error, not a `never` answer. What the chosen
-file answers is its `__def__` — a type where a design is read, and, when that
-type is a function chain and the file writes `__ret__`, the call the file runs
+file answers is its `__decl__` — a type where a design is read, and, when that
+type is a function chain and the file writes `__impl__`, the call the file runs
 itself where a program runs: a decision is static either way, and a chosen file
-that carries its own `__ret__` answers in its own sub-environment, named by its
+that carries its own `__impl__` answers in its own sub-environment, named by its
 decision order (viba-pattern.md). The parameter names are bound to the written
 argument parts — each in the module it was written in, so a name an enclosing
-decision bound still stands for what stood at the call site. `__def__ = A`
-answers the extracted type and `__def__ = (int <- $env Env <- int)` is a
+decision bound still stands for what stood at the call site. `__decl__ = A`
+answers the extracted type and `__decl__ = (int <- $env Env <- int)` is a
 function type like any other.
 
 A tag may also be written as a symbol string, and that is where a name that only
 exists as a string comes from: `__tagged__["a", T]` is `$a T`, a `pattern` line
 may claim the symbol (`pattern __tagged__[name, T]` takes `"a"` for `$a int`),
-and a `__def__` builds the tag back out of it (viba-pattern.md). What a written
+and a `__decl__` builds the tag back out of it (viba-pattern.md). What a written
 string spells is read in `viba/viba_ast/tagged.py`; a symbol that is a name is
 read in `tagged_reading` below, where the decision's bindings are known.
 
@@ -121,7 +121,7 @@ class GenericModuleType(ModuleType):
     so every layer reaches it through an application, never through a lookup.
     `module` is the marker file read as a module; it defines nothing, and it is
     here so that a generic answered to code that treats modules alike answers
-    "no `__ret__`" instead of breaking.
+    "no `__impl__`" instead of breaking.
     """
 
     def __init__(self, name: str, directory: str, entries: List[PatternFile],
@@ -138,8 +138,9 @@ class GenericModuleType(ModuleType):
 class Choice:
     """What the decision picked: the body to read, and the names it binds.
 
-    `body` is the chosen file's `__def__`, read in `module` — the file that
-    wrote it. `bindings` holds every parameter the patterns extracted, each as
+    `body` is the chosen file's `__decl__`, read in `module` — the file that
+    wrote it — or None when the file writes none: it is then a module, and a
+    member of it is read by name (`g[T].value`). `bindings` holds every parameter the patterns extracted, each as
     the `AstNodeType` the argument part was. `env_get` is that binding as the
     free-name channel the judgment layer already reads generic parameters
     through (`AstNodeType.env_get`).
@@ -207,7 +208,7 @@ def load_generic(directory: str, name: str,
 
     The marker `__generic__.viba` must be there and must compile; its content is
     otherwise nobody's business. Every other `.viba` file directly inside is a
-    pattern: its name is its order, and it writes `__def__`, the type it
+    pattern: its name is its order, and it writes `__decl__`, the type it
     answers. A `.viba` file named anything else is refused — the order is how
     the decision reads the directory.
     """
@@ -257,7 +258,7 @@ def generic_of_entries(name: str, directory: str,
     `parts` is one `(order, path, module name, module)` per pattern
     file, each already compiled by the layer that owns its files. What the file
     declares is read here — its `pattern` lines in written order, and the
-    `__def__` it answers — so a file means the same thing wherever it was
+    `__decl__` it answers — so a file means the same thing wherever it was
     compiled. A generic directory a layer serves out of a table rather than out
     of a filesystem goes through here (the descriptor pool does).
     """
@@ -266,9 +267,6 @@ def generic_of_entries(name: str, directory: str,
         body = getattr(getattr(module, "module", None), "body", None)
         if body is None:
             return VibaProgramErr(f"{path} is not a module of definitions")
-        if _definition(body, DEF_NAME) is None:
-            return VibaProgramErr(
-                f"{path}: a pattern file writes {DEF_NAME}, the type it answers")
         entries.append(PatternFile(order, path, module_name, module,
                                    patterns_of(body)))
     entries.sort(key=lambda entry: entry.order)
@@ -447,11 +445,11 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
             bindings = got.ok_value
         if not fits:
             continue
-        body = _definition(entry.module.module.body, DEF_NAME)
-        if body is None:
-            return VibaProgramErr(
-                f"{entry.path}: a pattern file writes {DEF_NAME}, the type it answers")
-        return Ok(Choice(entry, body.body, entry.module, bindings))
+        # A file with no `__decl__` puts its "answer" in a named definition (`value`, `impl`): it is
+        # its own module, and the caller writes which definition it takes (module semantics).
+        declared = _definition(entry.module.module.body, DEF_NAME)
+        body = declared.body if declared is not None else None
+        return Ok(Choice(entry, body, entry.module, bindings))
 
     written = ", ".join(viba_ast.unparse_type(argument) for argument in arguments)
     if arities and len(arguments) not in arities:
@@ -583,7 +581,7 @@ def _match_tagged(pattern, pattern_module: ModuleType, argument, argument_module
     same design hand it back to `__tagged__` and build the tag again:
 
         pattern A <- __tagged__[arg_name, T]           # arg_name is "a" for `$a int`
-        __def__ = A <- int <- __tagged__[arg_name, T]  # and this is `$a int` again
+        __decl__ = A <- int <- __tagged__[arg_name, T]  # and this is `$a int` again
 
     One written argument claims the member `$S`, two the tagged type `$S T`
     (viba-pattern.md).
@@ -770,7 +768,7 @@ def _unfold(node, module: ModuleType):
         seen.add(node.name)
         resolved = module_get_type(module, node.name)
         if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
-            # A module name: what it is as a type is the `__def__` it wrote, read as
+            # A module name: what it is as a type is the `__decl__` it wrote, read as
             # that chain (the environment position included — this reads the type as
             # **written**, not the "module as a function" one with the environment
             # dropped).
@@ -789,12 +787,12 @@ def _unfold(node, module: ModuleType):
 
 
 def _module_def_body(module: ModuleType, name: str):
-    """(the `__def__` chain of the module this name binds, that module) or None.
+    """(the `__decl__` chain of the module this name binds, that module) or None.
 
     A written name may be a module — `import fib_module as F` then `F` — and what
-    that module *is* as a type is the function it wrote in `__def__`, the
+    that module *is* as a type is the function it wrote in `__decl__`, the
     environment position included. None when the name is no import here, or when
-    what it binds is not a module (a generic has no `__def__` of its own).
+    what it binds is not a module (a generic has no `__decl__` of its own).
     """
     imports = getattr(module, "imports", None) or {}
     if name not in imports:

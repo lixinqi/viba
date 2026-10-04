@@ -1,5 +1,5 @@
 import demo.element_type_of as element_type_of
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = element_type_of[list[int]]
+__impl__ = element_type_of[list[int]].type

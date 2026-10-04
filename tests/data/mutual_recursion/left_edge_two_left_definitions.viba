@@ -1,8 +1,8 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 import branch
 import right_edge_two_left_definitions as right
 
 x = right.y
 a = right.z
-__ret__ = a
+__impl__ = a

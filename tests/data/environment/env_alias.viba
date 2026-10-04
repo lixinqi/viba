@@ -1,9 +1,9 @@
 # 名字就是名字：import 绑到 env 上，也压不过这次调用收到的那份环境（`args.env`）。
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import late_lib as env
-__ret__ = env << (args.env.sub_env << args.env << "late")
+__impl__ = env << (args.env.sub_env << args.env << "late")

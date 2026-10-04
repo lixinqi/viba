@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 import right_bl_two_recursions_dropped as right
@@ -17,4 +17,4 @@ x =
         branch.never_or_echo
         << $env args.env << $cond (false)
         << $get_v (builtin.echo << $x right.y))
-__ret__ = x
+__impl__ = x

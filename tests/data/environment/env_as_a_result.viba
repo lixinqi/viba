@@ -1,9 +1,9 @@
-# A module whose __def__ declares the environment itself as its result: refused
+# A module whose __decl__ declares the environment itself as its result: refused
 # where the file is read (only a builtin function may answer an environment).
-__def__ =
+__decl__ =
     Environment
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
-__ret__ = args.env
+__impl__ = args.env

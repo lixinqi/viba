@@ -1,13 +1,13 @@
-# main/factorial.viba —— 用内建目录里的 Y 跑 steps/factorial：答 120
+# main/factorial.viba —— 用内建目录里的 ycombinator.Y 跑 steps/factorial：答 120
 #
-# Y 是内建的泛型（`viba/Y/`）：`Y[step]` 就是那一步的不动点，再给环境与这次要跑的实参。
-__def__ =
+# Y 是内建的泛型（`viba/Y/`）：`ycombinator.Y[step]` 就是那一步的不动点，再给环境与这次要跑的实参。
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
-import Y
+import ycombinator
 import steps.factorial as step
 
-__ret__ = Y[step] << args.env << $n 5
+__impl__ = ycombinator.Y[step] << args.env << $n 5

@@ -1,9 +1,9 @@
 # never_or_echo 是另一个方向：条件不成立时才跑那一支，也在它自己的子环境里。
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 
@@ -12,4 +12,4 @@ leaf =
   <- $env Env
   <- { 答一个数 }
 
-__ret__ = branch.never_or_echo << $env args.env << $cond false << $get_v leaf
+__impl__ = branch.never_or_echo << $env args.env << $cond false << $get_v leaf

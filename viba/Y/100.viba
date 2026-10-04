@@ -1,6 +1,0 @@
-# 不动点：把 `F` 交给自应用那一步 —— 给 `$f` 的是 F 自己，给 `$y_helper` 的是这一步
-# 自己。环境和 `$n` 还没给，所以它是一个半成品；调用方接着给就是了。
-pattern F
-import y_helper
-
-__def__ = y_helper[F] << $f F << $y_helper y_helper[F]

@@ -1,9 +1,9 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import a.b
 import a.b.c
-__ret__ = a.b.c << (args.env.sub_env << args.env << "c")
+__impl__ = a.b.c << (args.env.sub_env << args.env << "c")

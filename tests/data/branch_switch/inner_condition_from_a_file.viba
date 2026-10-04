@@ -1,14 +1,14 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch as branch
 import gate as gate
 import inner as inner
 
-__ret__ =
+__impl__ =
     Oneof
     | (
         inner.inner_if

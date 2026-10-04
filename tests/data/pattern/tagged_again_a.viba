@@ -1,6 +1,6 @@
 import demo.tagged_again as tagged_again
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-# 决断把 `arg_name` 绑成字符串 `"a"`，`__def__` 用它把同一个 tag 建回来。
-__ret__ = tagged_again[$a int]
+# 决断把 `arg_name` 绑成字符串 `"a"`，`__decl__` 用它把同一个 tag 建回来。
+__impl__ = tagged_again[$a int].type

@@ -7,7 +7,7 @@
                           是 Y 交回来的"下一层怎么算"，剩下的就是这一层的实参
     main/<名字>.viba       用 Y 跑那一步：`Y[step] << args.env << <实参>`
 
-每个 `main/<名字>.viba` 就是一份可以打开、可以直接跑的程序（文件就是函数）：`__ret__` 里那一次
+每个 `main/<名字>.viba` 就是一份可以打开、可以直接跑的程序（文件就是函数）：`__impl__` 里那一次
 调用就是"Y 跑这一步"。`steps/<名字>.viba` 是那一步本身 —— 它只管自己这一层，往下几层交给
 自己那个参数（`steps/gcd.viba` 里它叫 `$gcd`，就是它自己的名字），所以一份文件里的定义不必
 绕回自己。
@@ -109,11 +109,14 @@ def environ_for(store):
 
 
 def run(tmp: Path):
-    # Y 与 y_helper 是包的一部分，不是用例文件：两个泛型目录都在内建目录里
-    for name in ("Y", "y_helper"):
+    # y_impl and y_helper are part of the package, not case files: both generic
+    # directories live in the builtin directory, and `Y` is the line in `ycombinator.viba`.
+    for name in ("y_impl", "y_helper"):
         check((BUILTIN_DIR / name / "__generic__.viba").is_file()
               and (BUILTIN_DIR / name / "100.viba").is_file(),
               f"the builtin directory holds the generic {name}")
+    check((BUILTIN_DIR / "ycombinator.viba").is_file(),
+          "the builtin directory holds ycombinator.viba, where Y is defined")
 
     for index, (name, want) in enumerate(ANSWERS):
         step = CASES / "steps" / f"{name}.viba"

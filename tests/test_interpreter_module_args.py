@@ -1,4 +1,4 @@
-"""`__def__`：模块的实参写在它的函数链里，`args` 读回这次调用收到的那份积。
+"""`__decl__`：模块的实参写在它的函数链里，`args` 读回这次调用收到的那份积。
 
     python3 tests/test_interpreter_module_args.py
 
@@ -62,7 +62,7 @@ CASES_TO_RUN = [
     ("too_many", "error", "takes no more arguments", None),
     ("unknown_tag", "error", "takes no $c argument", None),
     ("tag_twice", "error", "was given $a twice", None),
-    ("bad_args_declared", "error", "__def__ is not a function type", None),
+    ("bad_args_declared", "error", "__decl__ is not a function type", None),
     ("asked_without_the_environment", "ok", None, None),
     ("closure_then_execute", "value", 25, None),
     ("closure_runs_twice", "value", 50, None),
@@ -72,7 +72,7 @@ CASES_TO_RUN = [
     ("member_missing", "error", "no member tagged", None),
     ("nested_product_argument", "value", 2, None),
     ("no_args_called", "value", 7, None),
-    ("empty_args_called", "error", "has no __def__", None),
+    ("empty_args_called", "error", "has no __decl__", None),
     ("module_calls_module_with_args", "value", 14, None),
     ("args_inside_a_binding", "value", 17, None),
     ("no_env_in_def_called", "error", "has no $env Env parameter", None),

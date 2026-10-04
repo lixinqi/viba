@@ -1,0 +1,5 @@
+import demo.itself as itself
+
+__decl__ = Any <- $env Env
+
+__impl__ = itself[list[int]].type

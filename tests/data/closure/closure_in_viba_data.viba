@@ -1,5 +1,5 @@
-# __ret__ 答的是一份积，它的 $f 成员是一个闭包：这里只声明模块收环境。
-__def__ = Any <- $env Env
+# __impl__ 答的是一份积，它的 $f 成员是一个闭包：这里只声明模块收环境。
+__decl__ = Any <- $env Env
 
 add =
     int
@@ -7,4 +7,4 @@ add =
   <- $a int
   <- $b int
   <- { add the two }
-__ret__ = $f (add << $a 1)
+__impl__ = $f (add << $a 1)

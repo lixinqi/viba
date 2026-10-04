@@ -33,7 +33,7 @@ class VibaProgramErr:
     """`$viba_program_err str`: the program or the environment is at fault.
 
     The source does not compile, a name resolves to nothing, a module has no
-    `__ret__`, the environment cannot run the file: `err_msg` says which. It
+    `__impl__`, the environment cannot run the file: `err_msg` says which. It
     names no step — that is what `UnderlyingVibaOpFailed` is for.
     """
 
@@ -320,7 +320,7 @@ class CustomModuleType(ModuleType):
         found = None
         for node in self.module.body:
             if _is_definition(node) and node.name == type_name:
-                found = node          # 后写的覆盖先写的
+                found = node          # the parser blocks a name written twice, so take that one
         if found is not None:
             return Ok(AstNodeType(found, self))
         return self._lookup_imported(type_name)
@@ -349,8 +349,8 @@ class CustomModuleType(ModuleType):
                     f"{self.imports[prefix]!r} is a generic: it answers an "
                     f"application ({rest}[T, ...]), not the bare name {type_name!r}")
             return imported.ok_value.lookup_local(rest)
-        # 整个名字就是绑定名自己（`import a.b as c` 写的那个 `c`）：它不是一个
-        # 类型，是那个模块 —— 除非它是泛型，那就说清它等的是一个应用。
+        # The whole name is the binding name (the `c` of `import a.b as c`): not a type but that
+        # module — unless it is a generic, and then it stands for an application.
         if len(parts) == 1 and parts[0] in self.imports:
             module_name = self.imports[parts[0]]
             imported = self.module_environment(module_name)
@@ -389,6 +389,14 @@ class AstNodeType(Type):
         container_module: ModuleType,
         env_get: Callable[[str], Result] = None,
     ):
+        # On a name chain a member read is that name (`a.b.c` reads as `a.b.c`), so the layers that
+        # resolve by name (judgment, descriptors) see it; a member read whose left side is an
+        # application (`g[T].value`) is no name, and stays as it is for the layer that knows it
+        # (viba-style.md).
+        if isinstance(ast_node, viba_ast.MemberRead):
+            path = viba_ast.written_path(ast_node)
+            if path is not None:
+                ast_node = viba_ast.TypeRef(path)
         self.ast_node = ast_node
         self.container_module = container_module
         self.env_get = env_get

@@ -8,9 +8,9 @@
 # is a definition of its own, so nothing nests; the step that is not pure (the
 # measurement) goes through `measure` and its answer becomes this case's Prepare
 # in the storage (see viba-compliance.md).
-__def__ = bool <- $env Env
+__decl__ = bool <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import case_at_1230 as case_at_1230
 
@@ -51,4 +51,4 @@ distance = measure_distance << $env (args.env.tmp_env << args.env) << $evidence 
 # the rule's question: at least this far apart?
 threshold = 5
 
-__ret__ = distance_ge << $env (args.env.tmp_env << args.env) << $d distance << $threshold threshold
+__impl__ = distance_ge << $env (args.env.tmp_env << args.env) << $d distance << $threshold threshold

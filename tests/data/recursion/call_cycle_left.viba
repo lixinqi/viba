@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import call_cycle_right
-__ret__ = call_cycle_right << (args.env.sub_env << args.env << "right")
+__impl__ = call_cycle_right << (args.env.sub_env << args.env << "right")

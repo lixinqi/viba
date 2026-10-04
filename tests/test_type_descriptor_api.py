@@ -252,8 +252,8 @@ def _check_errors():
     for good in ("G = (int <- $b str) << $b str\n",
                  "H = (int <- $b str <- $c bool) << $c bool << $b str\n"):
         assert isinstance(parse_viba_file(empty_pool(), good, "partial_ok.viba", "partial_ok"), Ok), good
-    # 点分定义名编得出来：它定义的是父概念的一个成员（viba-style.md 第 5 节）
-    assert isinstance(parse_viba_file(empty_pool(), "a.b = int\n", "dotted.viba", "dotted"), Ok)
+    # a definition's left side is one name: `a.b = int` does not compile
+    assert isinstance(parse_viba_file(empty_pool(), "a.b = int\n", "dotted.viba", "dotted"), VibaProgramErr)
     # 不是模块的东西：问它要名字，说的是"不认识这种模块"，不是崩
     for not_a_module in ("not a module", None, 7):
         assert isinstance(module_get_type(not_a_module, "X"), VibaProgramErr), not_a_module

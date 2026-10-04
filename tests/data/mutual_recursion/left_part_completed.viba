@@ -1,11 +1,11 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 import right_part_completed as right
 
 x = (right.f << $a 1) << $env args.env
-__ret__ = x
+__impl__ = x

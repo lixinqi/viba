@@ -1,4 +1,4 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 ignore_x =
     int
@@ -6,4 +6,4 @@ ignore_x =
   <- $get_x (int <- $env Env)
   <- { answer seven without looking at x }
 
-__ret__ = ignore_x << 5 << 1
+__impl__ = ignore_x << 5 << 1

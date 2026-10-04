@@ -1,9 +1,9 @@
 # The tag names the member, and the value it is taken from is also what the member
 # is given first: `$tmp_env << args.env` is `args.env.tmp_env << args.env`.
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
-__ret__ = $tmp_env << args.env
+__impl__ = $tmp_env << args.env

@@ -1,5 +1,5 @@
 import demo.is_base_type as is_base_type
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = is_base_type[str]
+__impl__ = is_base_type[str].value

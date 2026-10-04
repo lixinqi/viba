@@ -1,4 +1,4 @@
-"""模块当函数：__ret__ 进出的那一层，以及模块调用的 storage 路径。
+"""模块当函数：__impl__ 进出的那一层，以及模块调用的 storage 路径。
 
 模块就是函数，它的 storage 路径是它的身份——所以两次模块调用不许用同一条路径。
 
@@ -98,7 +98,7 @@ def _spec_modules():
 
     result = interpret(str(CASES / "add_demo.viba"), environ)
     check(isinstance(result, Ok) and value_of(result) == 1000000,
-          f"add_demo's __ret__ is what add answered: {result!r}")
+          f"add_demo's __impl__ is what add answered: {result!r}")
     check(("root", "add") in host.calls,
           f"the implementation is looked up at the environment's path: {host.calls}")
 
@@ -123,7 +123,7 @@ def _nested_modules(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == "ab",
           f"a dotted import finds pkg/mod.viba: {result!r}")
 
-    labelled(interpret(_case("use_design"), environ), "has no __ret__",
+    labelled(interpret(_case("use_design"), environ), "has no __impl__",
              "calling a module that is design only -> VibaProgramErr")
 
     labelled(interpret(_case("dotted_member"), environ), "has no 'Only.More'",

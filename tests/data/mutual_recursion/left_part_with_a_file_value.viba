@@ -1,12 +1,12 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 import right_part_with_a_file_value as right
 import leaf as leaf
 
 x = (right.f << $a (leaf.answer << $env args.env)) << $env args.env
-__ret__ = x
+__impl__ = x

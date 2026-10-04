@@ -1,7 +1,7 @@
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
 import branch
 import right_direct_product as right
 
 x = right.y * 1
-__ret__ = x
+__impl__ = x

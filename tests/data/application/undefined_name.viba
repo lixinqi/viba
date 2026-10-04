@@ -1,5 +1,5 @@
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
 import arithmetic as arithmetic
 
-__ret__ = Nope
+__impl__ = Nope

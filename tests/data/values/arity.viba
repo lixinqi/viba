@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 wrong_arity =
 	int
@@ -10,4 +10,4 @@ wrong_arity =
 	<- $a int
 	<- $b int
 	<- { takes two }
-__ret__ = wrong_arity << $env args.env << $a 1 << $b 2
+__impl__ = wrong_arity << $env args.env << $a 1 << $b 2

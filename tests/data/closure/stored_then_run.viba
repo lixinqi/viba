@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 add =
     int
@@ -13,4 +13,4 @@ add =
 
 # 一份闭包存进一个定义里，过一会儿再给剩下的实参和环境：同一个闭包再跑一次。
 half = add << $a 40
-__ret__ = half << $b 2 << args.env
+__impl__ = half << $b 2 << args.env

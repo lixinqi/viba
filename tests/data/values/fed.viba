@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 feed_a_list =
 	int
@@ -14,4 +14,4 @@ inc =
 	<- $env Env
 	<- $x int
 	<- { add one }
-__ret__ = feed_a_list << $env args.env << $f inc
+__impl__ = feed_a_list << $env args.env << $f inc

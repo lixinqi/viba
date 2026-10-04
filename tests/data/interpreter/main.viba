@@ -1,11 +1,11 @@
-__def__ =
+__decl__ =
     nil
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import add_demo as demo
 
 ret = demo << (args.env.sub_env << args.env << "add_demo")
 
-__ret__ = demo.print << args.env << ret
+__impl__ = demo.print << args.env << ret

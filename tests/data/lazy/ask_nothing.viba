@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 ask_nothing =
     int
@@ -16,4 +16,4 @@ tick =
 tock =
     int <- $env Env <- { the other }
 
-__ret__ = ask_nothing << $env args.env << $get_a (tick << $env args.env) << $get_b (tock << $env args.env)
+__impl__ = ask_nothing << $env args.env << $get_a (tick << $env args.env) << $get_b (tock << $env args.env)

@@ -140,15 +140,15 @@ def run():
 
     # `args.a` 写在链头：一次调用的实参积是那个成员的声明类型，`args.next << …` 读的就是它。
     # 这条在池子里编得过（`_product_member`），编不过的话后面那些成员一个都读不出来。
-    step = ("__def__ =\n"
+    step = ("__decl__ =\n"
             "    Any\n"
             "  <- $env Env\n"
             "  <- $next (int <- $env Env <- $n int)\n"
             "  <- $n int\n"
             "\n"
-            "args = __get_args__ << __def__\n"
+            "args = __get_args__ << __decl__\n"
             "\n"
-            "__ret__ = args.next << ($sub_env << args.env << \"low\") << $n 1\n")
+            "__impl__ = args.next << ($sub_env << args.env << \"low\") << $n 1\n")
     step_pool = empty_pool()
     built = parse_viba_file(step_pool, step, "step.viba", "step")
     assert isinstance(built, Ok), built

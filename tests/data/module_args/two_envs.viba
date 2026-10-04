@@ -1,7 +1,7 @@
-# __def__ 里两个 $env 参数：一次调用只有一个环境。
-__def__ =
+# __decl__ 里两个 $env 参数：一次调用只有一个环境。
+__decl__ =
     int
   <- $env Env
   <- $env Env
 
-__ret__ = 1
+__impl__ = 1

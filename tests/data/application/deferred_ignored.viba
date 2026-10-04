@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 watch =
     int
@@ -14,4 +14,4 @@ ignore =
   <- $env Env
   <- $x (int <- $env Env)
   <- { answer seven without looking at x }
-__ret__ = ignore << $env args.env << $x (builtin.echo << $x "x")
+__impl__ = ignore << $env args.env << $x (builtin.echo << $x "x")

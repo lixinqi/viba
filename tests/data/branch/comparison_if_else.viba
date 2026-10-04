@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 
@@ -15,7 +15,7 @@ threshold_of =
 
 a = foo << $env args.env
 condition = ge << $env args.env << $x a << $y (threshold_of << $env args.env)
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond condition << $get_v (builtin.echo << $x a))
   | (branch.never_or_echo << $env args.env << $cond condition << $get_v (builtin.echo << $x 0))

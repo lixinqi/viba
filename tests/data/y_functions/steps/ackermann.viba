@@ -7,14 +7,14 @@
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $ackermann (int <- int <- int)
   <- $m int
   <- $n int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 zero_m = primitives.eq << $env args.env << $x args.m << $y 0
 zero_n = primitives.eq << $env args.env << $x args.n << $y 0
@@ -25,7 +25,7 @@ inner = args.ackermann << ($sub_env << args.env << "inner") << $m args.m << $n n
 at_zero_n = args.ackermann << ($sub_env << args.env << "at_zero_n") << $m m_below << $n 1
 outer = args.ackermann << ($sub_env << args.env << "outer") << $m m_below << $n inner
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond zero_m
       << $get_v (builtin.echo << $x n_above))

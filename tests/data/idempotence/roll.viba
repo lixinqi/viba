@@ -1,12 +1,12 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 roll =
 	int
 	<- $env Env
 	<- $n int
 	<- { roll a die: not a pure function, so its answer is snapshotted }
-__ret__ = roll << $env args.env << $n 1
+__impl__ = roll << $env args.env << $n 1

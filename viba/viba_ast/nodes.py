@@ -5,7 +5,7 @@ canonicalization, dump and visitors all work on this single hierarchy.
 
 Composite nodes:
     Module, TypeDefinition, GenericDefinition, Sum, Product, Exponent,
-    Tagged, TypeApp, Tuple
+    Tagged, MemberRead, TypeApp, Tuple
 Atomic nodes:
     TypeRef, Constant, Nil, Never, Ellipsis, CodeBlock
 Canonical (chain-style) nodes, produced by convert_to_chain_style:
@@ -97,6 +97,20 @@ class Member(AST):
     """
 
     _fields = ("tag",)
+
+
+class MemberRead(AST):
+    """owner.name — the member `name`, read out of what `owner` is.
+
+    A name is one segment, so `a.b.c` is `MemberRead(MemberRead(TypeRef(a), b), c)`:
+    each dot is read where it is written, and the member is the member of what
+    the step before it is (viba-style.md). The owner may also be an application
+    — `g[T].value` is the member `value` of the module the decision picked —
+    which is how a pattern file hands back a definition of its own
+    (viba-pattern.md).
+    """
+
+    _fields = ("owner", "name")
 
 
 class TypeApp(AST):

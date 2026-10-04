@@ -1,10 +1,10 @@
 # `$__getattr__ << box << "f" << …` is `box.f << …`: the member is read by a
 # name given as a value, not by a tag written on the chain.
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 Box = Object * $f (int <- $box Box <- $env Env <- $x int) * $y int
 
@@ -18,4 +18,4 @@ inc =
 box = Object * $f inc * $y 2
 name = "f"
 # 实参按它落的那一位写：`$x` 是 `inc` 自己声明的 tag。
-__ret__ = $__getattr__ << box << name << args.env << $x 1
+__impl__ = $__getattr__ << box << name << args.env << $x 1

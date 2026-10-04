@@ -1,10 +1,10 @@
 # `$sub_env << args.env << "child"` is `args.env.sub_env << args.env << "child"`: the tag
 # names a member of the first argument, and that value is given to the member first —
 # a member of an environment is a plain function of the environment.
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
-__ret__ = $sub_env << args.env << "child"
+__impl__ = $sub_env << args.env << "child"

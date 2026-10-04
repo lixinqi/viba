@@ -1,12 +1,12 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond true << $get_v (builtin.echo << $x 7))
   | (branch.never_or_echo << $env args.env << $cond true << $get_v (builtin.echo << $x 8))

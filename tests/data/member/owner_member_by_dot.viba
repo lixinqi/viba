@@ -1,10 +1,10 @@
 # The same call with the member read by its dotted name: the value it came from
 # is written out as its first argument.
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 Box = Object * $f (int <- $box Box <- $env Env <- $x int) * $y int
 
@@ -16,4 +16,4 @@ inc =
   <- { add one }
 
 box = Object * $f inc * $y 2
-__ret__ = box.f << box << args.env << 1
+__impl__ = box.f << box << args.env << 1

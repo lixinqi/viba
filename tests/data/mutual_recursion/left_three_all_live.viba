@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 import right_three_all_live as right
@@ -18,4 +18,4 @@ x =
     | (branch.echo_or_never
         << $env args.env << $cond (true)
         << $get_v (builtin.echo << $x 3))
-__ret__ = x
+__impl__ = x

@@ -49,6 +49,7 @@ from viba.type import (
 
 # Branch names of the spec's VibaTypeDescriptor sum.
 TYPE_REF = "type_ref"
+MEMBER_READ = "member_read"
 TYPE_APP = "type_app"
 TUPLE = "tuple"
 TAGGED = "tagged"
@@ -62,13 +63,13 @@ ANY = "any"
 ELLIPSIS = "ellipsis"
 CODE_BLOCK = "code_block"
 
-PRODUCT_UNIT = ("Object", "nil")  # 积链链头的单位元
-SUM_UNIT = ("Oneof", "never")  # 和链链头的单位元
-EXPONENT_UNIT = ("never",)  # 指数链链头（结果那一元）的单位元
+PRODUCT_UNIT = ("Object", "nil")  # the unit of a product chain head
+SUM_UNIT = ("Oneof", "never")  # the unit of a sum chain head
+EXPONENT_UNIT = ("never",)  # the unit of an exponent chain head (the result element)
 
 
 # ----------------------------------------------------------------------
-# 类型表达式：和类型的十二支
+# Type expressions: the twelve branches of the spec's sum
 # ----------------------------------------------------------------------
 
 
@@ -91,6 +92,27 @@ class VibaTypeDescriptor:
 
     def __repr__(self):
         return f"VibaTypeDescriptor({self.kind}, {self.payload!r})"
+
+
+class VibaMemberReadDescriptor:
+    """`g[T].name` — a member of what an application answers.
+
+    Which member that is a definition of is known once the application is
+    decided, so the descriptor keeps the owner's own descriptor and the name;
+    the layer that reads designs decides, and reads the member there
+    (viba-pattern.md).
+    """
+
+    __slots__ = ("pool", "resolvable_type", "owner", "name")
+
+    def __init__(self, pool, resolvable_type, owner, name: str):
+        self.pool = pool
+        self.resolvable_type = resolvable_type
+        self.owner = owner
+        self.name = name
+
+    def __repr__(self):
+        return f"VibaMemberReadDescriptor({self.owner!r}, {self.name!r})"
 
 
 class VibaTypeRefDescriptor:
@@ -194,7 +216,7 @@ class VibaCodeBlockDescriptor:
 
 
 # ----------------------------------------------------------------------
-# 成员 / 定义 / import / 文件
+# Members / definitions / imports / files
 # ----------------------------------------------------------------------
 
 
@@ -282,7 +304,7 @@ class VibaPool:
 
 
 # ----------------------------------------------------------------------
-# 建池子、建描述符
+# Building the pool, building descriptors
 # ----------------------------------------------------------------------
 
 
@@ -294,10 +316,10 @@ def empty_pool() -> VibaPool:
 
 
 def _environment(pool: VibaPool) -> Callable[[str], Result]:
-    """模块名换模块：在池子里按 $module_name 找，找不到就是 VibaProgramErr。
+    """A module name for a module: looked up in the pool by $module_name, else a VibaProgramErr.
 
-    一个泛型不是一个文件，是一个目录：池子里那几个 `名字.数字` 的文件加上它的
-    `__generic__.viba` 标记，合成一个 GenericModuleType（viba-pattern.md）。
+    A generic is not a file but a directory: the `name.number` files in the pool plus its
+    `__generic__.viba` marker make one GenericModuleType (viba-pattern.md).
     """
     def environment(module_name: str) -> Result:
         matches = [f for f in pool.files if f.module_name == module_name]
@@ -316,8 +338,8 @@ def _environment(pool: VibaPool) -> Callable[[str], Result]:
 def _generic_in_pool(pool: VibaPool, module_name: str):
     """The generic the pool holds under this module name, or None.
 
-    Its files are the ones named under it: the marker `名字.__generic__`, and
-    one `名字.数字` per pattern. `名字` itself is no file of the pool —
+    Its files are the ones named under it: the marker `name.__generic__`, and
+    one `name.number` per pattern. `name` itself is no file of the pool —
     that is what makes it a generic rather than a module of definitions.
     """
     prefix = module_name + "."
@@ -342,8 +364,9 @@ def _generic_in_pool(pool: VibaPool, module_name: str):
 
 
 def _import_locals_for(tree) -> dict:
-    """一份语法树的 import 表：绑定名 -> 模块名。带了 as 就是那个别名；没带
-    as，绑定的是模块全名（`import a.b` 的引用写成 a.b.Name）。"""
+    """A syntax tree's import table: binding name -> module name. With `as` that is the
+    alias; without `as`, the module's full name is bound (a reference to `import a.b` is
+    written a.b.Name)."""
     return {stmt.alias or stmt.module: stmt.module
             for stmt in tree.body if isinstance(stmt, ast_nodes.Import)}
 
@@ -357,9 +380,10 @@ def _normalize_source(source: str) -> str:
 
 
 def parse_viba_file(pool: VibaPool, source: str, file_name: str, module_name: str) -> Result:
-    """源码编成文件描述符（描述符绑在这个池子上）。
+    """Source compiled into a file descriptor (the descriptor is bound to this pool).
 
-    文件是哪一个、它算哪个模块，都由调用方给，两者不必同名。
+    Which file it is and which module it counts as are both given by the caller; the two
+    need not share a name.
     """
     text = _normalize_source(source)
     try:
@@ -380,18 +404,19 @@ def _build_file(pool: VibaPool, tree, file_name: str, module_name: str, file_has
     module = CustomModuleType(tree, pool.module_environment,
                               _import_locals_for(tree))
     imports = []
-    written = []                    # 一份文件里的定义，按书写顺序
-    where = {}                      # 名字 -> 它在 written 里的位置
+    written = []                    # the definitions in one file, in written order
+    where = {}                      # name -> its position in written
     for stmt in tree.body:
         if isinstance(stmt, ast_nodes.Import):
             local = stmt.alias or stmt.module
             imports.append(VibaImportDescriptor(pool, stmt.module, local))
         elif isinstance(stmt, (ast_nodes.TypeDefinition, ast_nodes.GenericDefinition)):
-            if stmt.name in where:  # 后写的覆盖先写的
-                written[where[stmt.name]] = stmt
-            else:
-                where[stmt.name] = len(written)
-                written.append(stmt)
+            if stmt.name in where:  # a module may not define the same name twice
+                raise PartialError(
+                    f"{stmt.name!r} is defined twice: a module defines each "
+                    f"name once")
+            where[stmt.name] = len(written)
+            written.append(stmt)
     definitions = [_build_definition(pool, module, stmt, module_name, file_name, file_hash)
                    for stmt in written]
     return VibaFileDescriptor(pool, file_name, file_hash, module_name, imports, definitions, tree)
@@ -414,7 +439,8 @@ def _build_definition(pool, module, stmt, module_name, file_name, file_hash) -> 
 
 
 def _left_elements(node, kind, chain_kind) -> List:
-    """写成一串的积/和读成元素表（书写顺序）：沿 $left 那条脊柱收 $right。"""
+    """A product/sum written as a chain, read as an element list (written order): collect
+    $right along the $left spine."""
     if isinstance(node, chain_kind):
         return list(node.elements)
     elements = []
@@ -427,7 +453,8 @@ def _left_elements(node, kind, chain_kind) -> List:
 
 
 def _exponent_elements(node) -> List:
-    """写成一串的指数读成元素表（书写顺序）：沿 $result 那条脊柱收 $argument。"""
+    """An exponent written as a chain, read as an element list (written order): collect
+    $argument along the $result spine."""
     if isinstance(node, ast_nodes.ExponentChain):
         return list(node.elements)
     elements = []
@@ -440,9 +467,10 @@ def _exponent_elements(node) -> List:
 
 
 def _body_elements(body):
-    """定义体是写成一串的积/和/指数时，给出 (元素表, 链头单位元)。
+    """A definition body written as a product/sum/exponent chain: (elements, chain-head unit).
 
-    三种链一个规矩：成员就是那一串的元素，链头的单位元不算。
+    All three chains follow one rule: the members are that chain's elements, and the
+    chain-head unit does not count.
     """
     if isinstance(body, (ast_nodes.Product, ast_nodes.ProductChain)):
         return _left_elements(body, ast_nodes.Product, ast_nodes.ProductChain), PRODUCT_UNIT
@@ -454,13 +482,14 @@ def _body_elements(body):
 
 
 def _build_members(pool, module, body, full_name: str) -> List[VibaMemberDescriptor]:
-    """写成一串的积/和/指数的元素就是成员；链头的单位元不算。"""
+    """The elements of a written product/sum/exponent chain are its members; the chain-head
+    unit does not count."""
     elements, unit = _body_elements(body)
     if elements is not None:
         if elements and _is_unit(elements[0], unit):
             elements = elements[1:]
     elif isinstance(body, ast_nodes.Tagged):
-        elements = [body]  # 体就是一整个带标签的类型：一个成员的积
+        elements = [body]  # the body is one whole tagged type: a product of one member
     else:
         return []
     members = []
@@ -516,11 +545,11 @@ def descriptor_of_values(node, written_in, members) -> VibaTypeDescriptor:
 
 
 def descriptor_of(node) -> VibaTypeDescriptor:
-    """一份语法节点（AstNodeType）的浅描述符：谁手里只有语法、又想用反射读它，
-    从这里拿描述符。
+    """A shallow descriptor of a syntax node (AstNodeType).
 
-    池子是空的：这里没有按名字查池子的地方，名字由这份设计所写的那个模块解析
-    （描述符随身带着它）。"""
+    Whoever has only syntax and wants to read it through reflection takes the descriptor
+    here. The pool is empty: there is no place to look a pool up by name here, so a name is
+    resolved in the module this design was written in (the descriptor carries it along)."""
     return _build_type(empty_pool(), node.container_module, node.ast_node)
 
 
@@ -566,7 +595,7 @@ def _partial_target(pool, name, module):
 def _product_member(pool, name, module):
     """(body, written_in) for `args.a`: the member of the product a name stands for.
 
-    `args = __get_args__ << __def__` is the product of the call's parameters
+    `args = __get_args__ << __decl__` is the product of the call's parameters
     (`_get_args_call`), so `args.a` is the `$a` member's declared type: what a
     chain gives its arguments to (`args.fib << …`) and what the judgment layer
     reads through the same dotted name (`is_sub_type._product_member_type`). None
@@ -594,7 +623,7 @@ def _product_member(pool, name, module):
 
 
 def _partial_parts(node):
-    """（链头, 实参表）for a written `<<` chain, arguments in written order."""
+    """(chain head, argument list) for a written `<<` chain, arguments in written order."""
     arguments = []
     while isinstance(node, ast_nodes.Partial):
         arguments.append(node.argument)
@@ -608,7 +637,7 @@ def _get_args_call(pool, node, module):
     What a call was handed, read as a type: the product of the parameters the
     chain declares, the environment among them — which is how a module names the
     environment (`args.env`) and its arguments (`args.a`), and what makes
-    `args = __get_args__ << __def__` a product here (viba-interpreter.md).
+    `args = __get_args__ << __decl__` a product here (viba-interpreter.md).
     """
     head, arguments = _partial_parts(node)
     if not (isinstance(head, ast_nodes.TypeRef) and head.name == GET_ARGS_NAME):
@@ -634,7 +663,7 @@ def tagged_descriptor(pool, constructor_name: str, args, resolvable):
 
     The symbol is known here when it is a written string — the source folded
     those into the tag already — and when a decision handed it over: a `pattern`
-    line extracted the symbol from a tag and `__def__` builds the tag back with
+    line extracted the symbol from a tag and `__decl__` builds the tag back with
     it (viba-pattern.md). The answer is the tagged type `$S T`, written as that
     tag, so the descriptor says where the type is addressed and whose module its
     own names resolve in.
@@ -667,8 +696,8 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
         reduced, written_in = reduce_partial(node, module,
                                        lambda name, written_in: _partial_target(pool, name, written_in),
                                        _fits)
-        # 归约可能走进另一个模块（模块调用：`__ret__` 是那个模块里写的），
-        # 所以接着读要用归约回来的那个模块，不是进来时那个。
+        # The reduction may step into another module (a module call: `__impl__` is written there):
+        # the read then continues in the module that came back, not the one it came in with.
         return _build_type(pool, written_in, reduced)
     resolvable = AstNodeType(node, module)
     if isinstance(node, (ast_nodes.Product, ast_nodes.ProductChain)):
@@ -698,6 +727,18 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
             pool, resolvable, node.tag, _build_type(pool, module, node.type)))
     if isinstance(node, ast_nodes.TypeRef):
         return VibaTypeDescriptor(TYPE_REF, VibaTypeRefDescriptor(pool, resolvable, node.name))
+    if isinstance(node, ast_nodes.MemberRead):
+        # A member read written segment by segment reads as the dotted name it was; the descriptor
+        # is built from that name. With an application on the left (`g[T].value`) the member is a
+        # definition of the file the decision chose, and is left to the decision layer.
+        path = viba_ast.written_path(node)
+        if path is None:
+            # The left side is an application: which member it is comes out of the decision over
+            # that application, so the descriptor keeps the left descriptor and the member name, and
+            # the layer that reads the design settles it (reflect._decided_member).
+            return VibaTypeDescriptor(MEMBER_READ, VibaMemberReadDescriptor(
+                pool, resolvable, _build_type(pool, module, node.owner), node.name))
+        return VibaTypeDescriptor(TYPE_REF, VibaTypeRefDescriptor(pool, resolvable, path))
     if isinstance(node, ast_nodes.Constant):
         return VibaTypeDescriptor(LITERAL, VibaLiteralDescriptor(
             pool, resolvable, node.value))
@@ -713,12 +754,12 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
 
 
 # ----------------------------------------------------------------------
-# 池子上的查询
+# Queries on the pool
 # ----------------------------------------------------------------------
 
 
 def pool_add_file(pool: VibaPool, file: VibaFileDescriptor) -> Result:
-    """得到一份多了一个文件的池子；池子里的描述符重新绑到新池子上。"""
+    """A pool with one more file; the descriptors in it are rebound to the new pool."""
     if file.pool is not pool:
         return VibaProgramErr("the file was not built into this pool")
     if file.file_name in pool.file_name2file:
@@ -771,7 +812,7 @@ def pool_find_member(pool: VibaPool, full_name: str) -> Result:
 
 
 # ----------------------------------------------------------------------
-# 文件上的查询
+# Queries on a file
 # ----------------------------------------------------------------------
 
 
@@ -783,7 +824,7 @@ def file_find_import_by_local_name(file: VibaFileDescriptor, local_name: str) ->
 
 
 # ----------------------------------------------------------------------
-# 定义上的查询
+# Queries on a definition
 # ----------------------------------------------------------------------
 
 
@@ -809,7 +850,7 @@ def definition_file(definition: VibaDefinitionDescriptor) -> Result:
 
 
 # ----------------------------------------------------------------------
-# 成员上的查询
+# Queries on a member
 # ----------------------------------------------------------------------
 
 
@@ -820,8 +861,9 @@ def member_type_name(member: VibaMemberDescriptor) -> Result:
 
 
 def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
-    """把成员类型里的名字落到定义：先切 import 前缀（带 as 是别名，不带 as 是
-    模块全名，最长的匹配优先），再交给 ModuleGetType。"""
+    """Settle a name in a member type onto a definition: first cut the import prefix (with
+    `as` it is an alias, without `as` the module's full name, longest match first), then hand
+    it to ModuleGetType."""
     name = member_type_name(member)
     if isinstance(name, VibaProgramErr):
         return name

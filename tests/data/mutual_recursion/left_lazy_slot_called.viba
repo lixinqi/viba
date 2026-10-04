@@ -1,11 +1,11 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 import right_lazy_slot_called as right
 
 x = right.take << $env args.env << $x (builtin.echo << $x right.y)
-__ret__ = x
+__impl__ = x

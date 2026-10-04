@@ -1,10 +1,10 @@
 import demo.wrapper as wrapper
 
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 inc =
     int
@@ -13,4 +13,4 @@ inc =
   <- { add one }
 
 # 实参按它落的那一位写：`$x` 是 `inc` 自己声明的 tag。
-__ret__ = wrapper[inc] << args.env << inc << $x 1
+__impl__ = wrapper[inc].type << args.env << inc << $x 1

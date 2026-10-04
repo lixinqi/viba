@@ -1,5 +1,5 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 import right
 x = right.y
-__ret__ = x
+__impl__ = x

@@ -5,19 +5,19 @@
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $bin_digits (int <- int)
   <- $n int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 small = primitives.lt << $env args.env << $x args.n << $y 2
 below = primitives.div << $env args.env << $x args.n << $y 2
 deeper = args.bin_digits << ($sub_env << args.env << "deeper") << $n below
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond small
       << $get_v (builtin.echo << $x 1))

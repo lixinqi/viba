@@ -1,5 +1,5 @@
 pattern bool
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = true
+__impl__ = true

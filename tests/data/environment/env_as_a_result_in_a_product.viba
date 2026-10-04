@@ -1,13 +1,13 @@
 # A chain written inside a product answers the environment as well: the file is
 # refused where it is read, and the definition that wrote it is named.
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 Box =
     Object
   * $make (Env <- $env Env)
 
-__ret__ = args.env
+__impl__ = args.env

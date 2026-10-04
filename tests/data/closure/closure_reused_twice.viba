@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 add =
     int
@@ -12,7 +12,7 @@ add =
   <- { add the two }
 half = add << $a 40
 first = half << $b 1 << (args.env.sub_env << args.env << "one")
-__ret__ = add
+__impl__ = add
   << (args.env.sub_env << args.env << "two")
   << $a first
   << $b (half << $b 2 << (args.env.sub_env << args.env << "three"))

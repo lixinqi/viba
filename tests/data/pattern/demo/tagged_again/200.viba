@@ -3,4 +3,4 @@
 # 100.viba.
 pattern A <- int <- __tagged__[arg_name, T]
 
-__def__ = A <- int <- __tagged__[arg_name, T]
+type = A <- int <- __tagged__[arg_name, T]

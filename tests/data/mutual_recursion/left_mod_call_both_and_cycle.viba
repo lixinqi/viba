@@ -1,11 +1,11 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 import right_mod_call_both_and_cycle as right
 
 x = right << (args.env.tmp_env << args.env)
-__ret__ = x
+__impl__ = x

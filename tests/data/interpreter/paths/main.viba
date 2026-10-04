@@ -4,12 +4,12 @@
 # Verdicts (tests/test_interpreter_imports.py):
 #   interpret(main.viba, args.env, viba_path=<elsewhere>)  => Ok(7)
 
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import pkg.inner
 
-__ret__ = pkg.inner << (args.env.sub_env << args.env << "inner")
+__impl__ = pkg.inner << (args.env.sub_env << args.env << "inner")

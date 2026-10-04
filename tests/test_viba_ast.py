@@ -129,12 +129,12 @@ def run_module_cases():
     same("unparse of an import", unparse(parse("import a.b as c")), "import a.b as c")
 
     # pattern: 一条语句，写一个形参收什么（viba-pattern.md）
-    parsed_pattern = parse("pattern bool | int\n__def__ = true\n")
+    parsed_pattern = parse("pattern bool | int\n__decl__ = true\n")
     check("a pattern statement is its own node",
           isinstance(parsed_pattern.body[0], Pattern)
-          and parsed_pattern.body[1].name == "__def__")
+          and parsed_pattern.body[1].name == "__decl__")
     same("unparse of a pattern line", unparse(parsed_pattern),
-         "pattern\n  bool\n  | int\n\n__def__ =\n  true")
+         "pattern\n  bool\n  | int\n\n__decl__ =\n  true")
 
     # unparse_type: 单个类型表达式，不带定义
     same("unparse_type on a node", unparse_type(parse("X = A * B").body[0].body),

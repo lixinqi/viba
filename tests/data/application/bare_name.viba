@@ -1,5 +1,5 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 import arithmetic as arithmetic
 
-__ret__ = arithmetic.add
+__impl__ = arithmetic.add

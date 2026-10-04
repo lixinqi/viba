@@ -254,7 +254,7 @@ class _Checker:
         A member of a product is addressed by its tag, and that is what a dotted
         name does — `args.a` is `int` when the call was handed an `$a`, and
         `args.env` is `Env`. A definition whose body is a call is the value that
-        call answers (`args = __get_args__ << __def__`), so its product is read
+        call answers (`args = __get_args__ << __decl__`), so its product is read
         from there. The value layer reads the same name as the argument the call
         was given (viba-interpreter.md): one name, two layers, what it denotes
         each time. None when the head is no product.
@@ -294,7 +294,7 @@ class _Checker:
 
         The symbol is a written string, or a name this comparison resolves — the
         `env_get` channel a chosen file carries is one of those names
-        (`_resolve_name`), which is what lets a `__def__` build a tag out of the
+        (`_resolve_name`), which is what lets a `__decl__` build a tag out of the
         symbol a `pattern` line extracted.
         """
         for node, module, side in ((sn, s_mod, "sub"), (sp, p_mod, "sup")):
@@ -340,8 +340,8 @@ class _Checker:
     def _lift_ref(self, node, module: ModuleType, side: str):
         resolved = self._resolve_name(node.name, module, side)
         if isinstance(resolved, VibaProgramErr):
-            # 这句为什么解不出来，比"解不出来"本身有用：一个泛型名字、一个模块
-            # 名字，都在它自己的话里说清楚了。
+            # Why it is unresolved is more useful than "unresolved": a generic name, a module
+            # name — each is spelled out in its own message.
             raise UnresolvedTypeError(resolved.err_msg)
         return resolved.ok_value
 
@@ -360,7 +360,7 @@ class _Checker:
         if isinstance(sup, AstNodeType) and isinstance(sub, AstNodeType):
             return self._check_ast_pair(sub, sup)
         if isinstance(sup, AstNodeType) and isinstance(sup.ast_node, viba_ast.CodeBlock):
-            return isinstance(sub, NilType)     # 代码块没有成员，单位是它的居民
+            return isinstance(sub, NilType)     # code block: no members, the unit is its resident
         return False
 
     def _probe_leaves(self, sub: Type, sup: Type):
@@ -423,7 +423,7 @@ class _Checker:
         senv, penv = self._env_ids("sub"), self._env_ids("sup")
         key = (id(sn), id(sp), id(s_mod), id(p_mod), senv, penv)
         if key in self._walking:
-            return True  # coinductive assumption (design: 假设表)
+            return True  # coinductive assumption (design: the assumption table)
         if key in self._walk_memo:
             return self._walk_memo[key]
         self._walking.add(key)
@@ -467,6 +467,15 @@ class _Checker:
         tagged = self._tagged_side(sn, s_mod, sp, p_mod)
         if tagged is not None:
             return tagged
+        # `g[T].value` / `g[T].type`: this reads a member of the file the decision chose (module
+        # semantics); the reading is that definition itself. A member read on a name chain is a name
+        # already when the AstNodeType is built, so it never reaches here (viba-style.md).
+        sub_member = self._member_meaning(sn, s_mod)
+        if sub_member is not None:
+            return self._unfold_member(sub_member, "sub", sp, p_mod)
+        sup_member = self._member_meaning(sp, p_mod)
+        if sup_member is not None:
+            return self._unfold_member(sup_member, "sup", sn, s_mod)
         # A generic application is decided before anything else reads it: what
         # the decision picked takes its place, with the parameter names bound
         # through env_get (viba-pattern.md). A decision that fails is
@@ -484,16 +493,17 @@ class _Checker:
             # ordinary walk already says so.
             return True
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
-            # 叶子对叶子：写名字（含泛型形参）也要认出来，名字是透明的。
+            # Leaf on leaf: a written name (a generic parameter too) must be recognized; names are
+            # transparent.
             sub_leaf = self._lift(sn, s_mod, "sub")
             sup_leaf = self._lift(sp, p_mod, "sup")
             if sub_leaf is not None and sup_leaf is not None:
                 return type(sub_leaf) is type(sup_leaf)
             if isinstance(sn, viba_ast.TypeApp):
-                # 应用形的 sub 一样要展开：X[T] = nil 的居民就是 nil。
+                # An application on the sub side unfolds too: the resident of X[T] = nil is nil.
                 return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
             if isinstance(sn, viba_ast.CodeBlock) and isinstance(sp, viba_ast.Nil):
-                return True                     # 代码块是单位，nil 收得下
+                return True                     # a code block is a unit, and nil takes it
             return type(sn) is type(sp)
         if self.terminators:
             operand = self._never_head_operand(sp, p_mod)
@@ -717,6 +727,38 @@ class _Checker:
         return isinstance(target, AstNodeType) and isinstance(
             target.ast_node, viba_ast.GenericDefinition)
 
+    def _member_meaning(self, node, module):
+        """`g[T].name` -> the chosen file's definition `name`, or None.
+
+        None when the node is no such member read: a name chain is read as the
+        name it spells before it gets here, and an owner that is no decided
+        application is read the way it always was.
+        """
+        if not isinstance(node, viba_ast.MemberRead):
+            return None
+        owner = node.owner
+        if not isinstance(owner, viba_ast.TypeApp):
+            return None
+        decision = self._decision(owner, module)
+        if isinstance(decision, VibaProgramErr):
+            raise UnresolvedTypeError(decision.err_msg)
+        if not (isinstance(decision, Ok) and decision.ok_value is not None):
+            return None
+        chosen = decision.ok_value
+        definition = _definition_named(chosen.entry.module, node.name)
+        if definition is None:
+            raise UnresolvedTypeError(
+                f"{chosen.entry.path}: no definition named {node.name!r}")
+        return AstNodeType(definition.body, chosen.module, chosen.env_get)
+
+    def _unfold_member(self, entry, side, other, other_mod) -> bool:
+        """The member's body takes the member read's side in the walk."""
+        self._env_stacks[side].append(entry.env_get)
+        try:
+            return self._walk_unfolded(entry, side, other, other_mod)
+        finally:
+            self._env_stacks[side].pop()
+
     def _decided(self, node, module) -> bool:
         """Whether this application is a generic's, decided: True when the
         decision picked a file. A decision that failed is malformed input —
@@ -737,7 +779,7 @@ class _Checker:
     def _unfold_typeapp(self, node, module, side, other, other_mod) -> bool:
         app_key = self._app_key(node, module, side)
         if app_key in self._unfolding:
-            return True  # coinductive assumption (递归展开兜底)
+            return True  # coinductive assumption (fallback when unfolding)
         entry = self._applied_meaning(app_key, node, module, side)
         if entry is None:
             return False
@@ -762,7 +804,7 @@ class _Checker:
 
         A generic application is its own case: which file answers is a
         decision over the written arguments, and what answers is the chosen
-        file's `__def__` read in that file, its parameter names bound to the
+        file's `__decl__` read in that file, its parameter names bound to the
         argument parts the patterns extracted (viba-pattern.md)."""
         if app_key in self._unfolded:
             return self._unfolded[app_key]
@@ -771,6 +813,10 @@ class _Checker:
             raise UnresolvedTypeError(decision.err_msg)
         if isinstance(decision, Ok) and decision.ok_value is not None:
             chosen = decision.ok_value
+            if chosen.body is None:
+                # This file writes no `__decl__`: it answers its own module, so a member has to be
+                # read before there is anything to read.
+                return None
             entry = AstNodeType(chosen.body, chosen.module, chosen.env_get)
             self._unfolded[app_key] = entry
             return entry
@@ -1059,7 +1105,7 @@ class _Checker:
     def _partial(self, node, module, side: str):
         """A design's `<<` reduced: the function with that argument given.
 
-        `__get_args__ << __def__` is read before any of that: it is the arguments
+        `__get_args__ << __decl__` is read before any of that: it is the arguments
         a call was handed, read as one product (get_args_product).
         """
         if not isinstance(node, viba_ast.Partial):
@@ -1079,7 +1125,7 @@ class _Checker:
         What a call was handed, read as a type: every parameter the chain
         declares, in written order, the environment among them — which is how a
         module names the environment (`args.env`) and its arguments (`args.a`).
-        The chain is usually the module's own `__def__`, a name like any other.
+        The chain is usually the module's own `__decl__`, a name like any other.
         """
         head, arguments = _partial_parts(node)
         if not (isinstance(head, viba_ast.TypeRef) and head.name == GET_ARGS_NAME):
@@ -1364,6 +1410,16 @@ class _Checker:
 # ----------------------------------------------------------------------
 
 
+def _definition_named(module, name: str):
+    """A module's own top-level definition under this name, or None."""
+    body = getattr(getattr(module, "module", None), "body", None)
+    for stmt in body or ():
+        if (isinstance(stmt, (viba_ast.TypeDefinition, viba_ast.GenericDefinition))
+                and stmt.name == name):
+            return stmt
+    return None
+
+
 def _as_definition(node):
     kinds = (viba_ast.TypeDefinition, viba_ast.GenericDefinition)
     return node if isinstance(node, kinds) else None
@@ -1427,10 +1483,10 @@ def _param_index(node, params) -> "Optional[int]":
 
 
 def _exponent_elements(node):
-    """指数的元素表（书写顺序）：首元是结果，其余是参数。
+    """An exponent's elements (written order): the first is the result, the rest are arguments.
 
-    链与二元写法一样：``A <- B <- C`` 与 ``(A <- B) <- C`` 都是 [A, B, C]；
-    ``A <- (B <- C)`` 是 [A, [B, C]]，支链算一个元素。
+    A chain is the same as the binary spelling: ``A <- B <- C`` and ``(A <- B) <- C`` are
+    both [A, B, C]; ``A <- (B <- C)`` is [A, [B, C]], a branch chain counting as one element.
     """
     if isinstance(node, viba_ast.ExponentChain):
         return list(node.elements)
@@ -1440,10 +1496,11 @@ def _exponent_elements(node):
 
 
 def _exponent_parts(node):
-    """指数读成 (结果, 参数表)：结果在前，参数按书写顺序（$arg0 在前）。
+    """An exponent read as (result, arguments): result first, arguments in written order.
 
-    ``A <- B <- C`` 读成 (A, [B, C])：头一个是 ``$arg0`` 那一位，链长不等
-    时按这一头截。支链（``A <- (B <- C)``）算一个参数。
+    ``A <- B <- C`` reads as (A, [B, C]): the first is the ``$arg0`` slot, and when the
+    chains differ in length the cut is made at this end. A branch chain (``A <- (B <- C)``)
+    counts as one argument.
     """
     elements = _exponent_elements(node)
     if not isinstance(node, _EXP_NODES):
@@ -1452,7 +1509,7 @@ def _exponent_parts(node):
 
 
 def _partial_parts(node):
-    """（链头, 实参表）for a written `<<` chain, arguments in written order."""
+    """(chain head, argument list) for a written `<<` chain, arguments in written order."""
     arguments = []
     while isinstance(node, viba_ast.Partial):
         arguments.append(node.argument)
@@ -1461,7 +1518,7 @@ def _partial_parts(node):
 
 
 def _one_line(node) -> str:
-    """一个片段写成一行：报错的话不带排版读起来更清楚。"""
+    """One piece written on one line: an error reads more clearly without layout."""
     return " ".join(viba_ast.unparse_type(node).split())
 
 

@@ -1,11 +1,11 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 flag =
 	int
 	<- $env Env
 	<- { inline }
-__ret__ = flag << $env args.env
+__impl__ = flag << $env args.env

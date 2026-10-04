@@ -1,6 +1,6 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 f =
 	int
 	<- { a function with no argument slot }
-__ret__ = f << 1
+__impl__ = f << 1

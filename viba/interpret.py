@@ -1,10 +1,10 @@
 """viba.interpret — run a viba module.
 
-A module is a file, and a file is also a function: `__def__` is that function
-(the environment among its parameters), and its output is `__ret__`. Type
+A module is a file, and a file is also a function: `__decl__` is that function
+(the environment among its parameters), and its output is `__impl__`. Type
 inference reads the same file as a type (viba.is_sub_type); computation runs it
-(here). A file that wants to be runnable defines `__ret__`; a file that does not
-is design only. Inside the module, `args = __get_args__ << __def__` is what the
+(here). A file that wants to be runnable defines `__impl__`; a file that does not
+is design only. Inside the module, `args = __get_args__ << __decl__` is what the
 call handed over — `args.env` above all.
 
     from viba.interpret import interpret
@@ -17,7 +17,7 @@ and answers `NotMyDutyException` — `$not_my_duty_exception Duty` — the defer
 that says this host is not the one to finish it, and carries the step, the
 viba data it was given and why (`roadmap.md`). A step whose implementation broke
 answers `UnderlyingVibaOpFailed` — `$underlying_viba_op_failed Failure` — with
-the same step in it. What is left is `Ok(node)`, for the `__ret__` that came
+the same step in it. What is left is `Ok(node)`, for the `__impl__` that came
 out, and `VibaProgramErr(message)` — `$viba_program_err str` — for a program or
 an environment that cannot run at all.
 
@@ -84,7 +84,7 @@ from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLE
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
                        InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
                        BUILTIN_DIR, BUILTIN_MODULE, NilType, NeverType,
-                       custom_module)
+                       custom_module, module_get_type)
 from viba.viba_ast.tagged import (GETATTR_TAG, TAGGED_NAME, symbol_of,
                                   symbol_problem, tag_of, tagged_node)
 from viba.viba_type_descriptor import (descriptor_of, descriptor_of_tagged,
@@ -95,8 +95,8 @@ from viba.viba_type_descriptor import (descriptor_of, descriptor_of_tagged,
 _NO_MODULE = custom_module("")
 
 TMP_PREFIX = "tmp_"
-RET_NAME = "__ret__"
-DEF_NAME = "__def__"
+RET_NAME = "__impl__"
+DEF_NAME = "__decl__"
 GET_ARGS_NAME = "__get_args__"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
@@ -371,7 +371,8 @@ def _fits_slot(value, element, module, owner: str):
         return None
     written = _slot_type(element)
     from viba.is_sub_type import is_sub_type
-    # 这个名字写在哪个模块，就在哪个模块里读 —— 跟着值走，不跟着收它的那一方走。
+    # A name is read in the module it was written in — it follows the value, not the side that
+    # receives it.
     judged = is_sub_type(AstNodeType(given, _writing_module(value) or module),
                          AstNodeType(written, module))
     if not isinstance(judged, Ok) or judged.ok_value is True:
@@ -690,7 +691,7 @@ def _refused(deferred: NotMyDutyException, step: Step, call) -> NotMyDutyExcepti
 
 def interpret(viba_main_file: str, environ: Environment, get_file=None,
               list_files=None) -> InterpretResult:
-    """Run `viba_main_file` with `environ`; its `__ret__` is the `Ok` value.
+    """Run `viba_main_file` with `environ`; its `__impl__` is the `Ok` value.
 
     What it answers is `Result[VibaNode]` with two more branches, both naming the
     step that stopped: `$not_my_duty_exception Duty`, when the compute side does
@@ -746,11 +747,11 @@ class _Runner:
         self.by_path: dict = {}        # normalized path -> module
         self.by_name: dict = {}        # module name -> module
         self.path_of: dict = {}        # module name -> file it was loaded from
-        # 一次调用的身份是它的 storage 路径：路径正在跑就是环；同一条路径答过了就把那份
-        # 答案回放出来。另外一条：同一个模块 + 同一份实参还在跑，是"没有进展"，也算环 ——
-        # 同样输入的一次计算正在里面进行，它停不下来。
-        self.running: list = []        # (path, module name, arguments) 正在跑的调用
-        self.done: dict = {}           # 路径 -> (module name, answer) 答过的调用
+        # A call's identity is its storage path: a running path is a cycle; an answered path
+        # repeats its answer. The other one: the same module with the same arguments still running
+        # is "no progress", also a cycle: the same input is computed inside it and cannot stop.
+        self.running: list = []        # (path, module name, arguments) calls that are running
+        self.done: dict = {}           # path -> (module name, answer) calls that were answered
         self.computing: list = []      # (module, definition) being computed, innermost last
 
     def run_file(self, file: str, environ: Environment) -> InterpretResult:
@@ -822,8 +823,8 @@ class _Runner:
                 return VibaProgramErr(f"{path}: {problem}")
             imports = {stmt.alias or stmt.module: stmt.module
                        for stmt in tree.body if isinstance(stmt, viba_ast.Import)}
-            # 这份模块自己知道怎么找它的 import：描述符/判定层要用（它们不经过
-            # `_Runner.imported`），而按文件找模块这件事仍然由 run 说了算。
+            # The module knows how to find its own imports: the descriptor/judgment layers need that
+            # (they do not go through `_Runner.imported`); finding modules by file is run's call.
             module = custom_module(source)
             module.module_environment = lambda asked, near=str(path): self.imported(asked, near)
             module.imports = imports
@@ -923,11 +924,11 @@ class _Runner:
 def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                name: str, file: Optional[str], args=None, members=None,
                bindings=()) -> InterpretResult:
-    """The module as a function: the environment in, `__ret__` out.
+    """The module as a function: the environment in, `__impl__` out.
 
-    A module that declares `__def__` is called with its parameters as well; `args`
+    A module that declares `__decl__` is called with its parameters as well; `args`
     is the product they were given as — the environment among its members, which
-    is what the module reads as `args.env` (`args = __get_args__ << __def__`).
+    is what the module reads as `args.env` (`args = __get_args__ << __decl__`).
 
     The module the host runs has no caller to write its arguments, so the
     environment it is handed is the only member of that product.
@@ -964,7 +965,8 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     if path in runner.done:
         answered_as, answered = runner.done[path]
         if answered_as == name:
-            # 同一条地址、同一个模块：这是同一个子计算被问了第二次，把它答过的那份交回去。
+            # One storage path, one module: the same sub-computation asked a second time, so
+            # hand back the answer it gave.
             return Ok(answered)
         return VibaProgramErr(f"module {name!r} was handed the storage path {path!r}, which "
                    f"another module call already used: give each module call a "
@@ -1014,10 +1016,10 @@ def _storage_path(environ: Environment) -> str:
 
 
 def _module_params(module: ModuleType):
-    """(params, problem) for a module's `__def__`, or (None, None) for none.
+    """(params, problem) for a module's `__decl__`, or (None, None) for none.
 
-    `__def__` is the module read as a function: the result first, then the
-    call's parameters in written order — `__def__ = int <- $env Env <- $a int`
+    `__decl__` is the module read as a function: the result first, then the
+    call's parameters in written order — `__decl__ = int <- $env Env <- $a int`
     is a module answering an int, asking for an environment and an `$a`. Each
     parameter comes back as (tag, written type, is the environment, argument
     slot); the slot counts arguments only, so the environment has none: giving
@@ -1050,7 +1052,7 @@ def _module_params(module: ModuleType):
 
 
 def _module_arg_slots(module: ModuleType):
-    """(slots, problem) for a module's arguments: its `__def__` less the
+    """(slots, problem) for a module's arguments: its `__decl__` less the
     environment parameter, which is the call's rule rather than an argument."""
     params, problem = _module_params(module)
     if problem is not None:
@@ -1092,21 +1094,23 @@ class _Activation:
         self.environ = environ
         self.name = name
         self.file = file
-        self.args = args                     # 这次调用收到的实参积（`__get_args__` 答的那份）
-        self.path = _storage_path(environ)   # 这次调用跑在哪个地址上
-        self.signature = _call_signature(members)   # 这次调用收到的是什么
-        # 这次调用收到的每个成员，按它给进来时的样子留着（各自记着写它的那个模块）：`args.a`
-        # 是"这次调用收到的那份值"，不是把值压成节点之后重新读出来的东西。
+        self.args = args                     # argument product (`__get_args__` answers it)
+        self.path = _storage_path(environ)   # the storage path this call runs on
+        self.signature = _call_signature(members)   # what this call received
+        # Each member this call received stays as it was handed in (each remembers its writing
+        # module): `args.a` is "the value this call received", not the value read back out of a node
+        # it was pressed into.
         #
-        # 没有调用方写实参的那一次激活（读另一个模块的定义、宿主递回来的那段文本），收到的
-        # 只有环境：那份积里就只有 `env` 这一个成员，和一次模块调用收到的一样。
+        # An activation no caller wrote arguments for (reading another module's definition, the text
+        # the host hands back) receives only the environment: that product has `env` as its only
+        # member, the same as a module call receives.
         self.members = members if members is not None else [(ENVIRON_TAG, _Host(environ))]
         if args is None:
             args = _VibaData(viba_data(None))
         self.args = args
-        # 一次决策选中这个文件时，它的形参名绑定到实参的哪一部分（viba-pattern.md）：这些
-        # 名字在这个文件的每一次求值里都算数，包括它自己定义里的那一层 —— 文件写在别处的名
-        # 字，仍然在这个文件里读。
+        # Which part of the arguments this file's parameter names are bound to when a decision
+        # picks it (viba-pattern.md): those names hold in every evaluation here, including the one
+        # inside its own definition — names the file wrote elsewhere are still read here.
         self.bindings = bindings or {}
         self.defined: dict = {}
 
@@ -1144,6 +1148,13 @@ class _Activation:
             return self._generic_application(node, scope)
         if isinstance(node, viba_ast.TypeRef):
             return self._resolve(node.name, scope)
+        if isinstance(node, viba_ast.MemberRead):
+            # `a.b` is the dotted name it was: read as a name, it takes the name path. When the
+            # left side is not a name (an application), it reads the member the application picked.
+            path = viba_ast.written_path(node)
+            if path is not None:
+                return self._resolve(path, scope)
+            return self._application_member(node, scope)
         if isinstance(node, viba_ast.CodeBlock):
             return VibaProgramErr("a code block is documentation: it is not a value")
         return VibaProgramErr(f"cannot compute {type(node).__name__}")
@@ -1212,11 +1223,12 @@ class _Activation:
         if bound is not None:
             return Ok(bound)
         if name == GET_ARGS_NAME:
-            # 这次调用收到的那份实参：给一个环境就答它。推导层读同一个名字，读出来的
-            # 是那次调用的参数的积类型（viba-interpreter.md）。
+            # The arguments this call received: give it an environment and it answers them.
+            # The deduction layer reads the same name and gets the product type of that call's
+            # parameters (viba-interpreter.md).
             return Ok(_GetArgs(self))
         if name == DEF_NAME:
-            # Read as a type `__def__` is the module's own function chain; read as
+            # Read as a type `__decl__` is the module's own function chain; read as
             # a value it is that same written chain, which is what `__get_args__`
             # is given.
             definition = _definition(self.module, DEF_NAME)
@@ -1319,9 +1331,10 @@ class _Activation:
         """
         mine = (self.name, name, self.signature)
         path = self.runner.computing[self.runner.computing.index(mine):] + [mine]
-        # 同一个模块、同一份实参还在算，就是没有进展：一份文件的定义不许成环。两个
-        # **不同**的模块互相读才是"绕回起点"；同名不同实参的两次调用是两次调用，不是环
-        # （固定点就是这样展开的）。
+        # The same module with the same arguments still computing means no progress: one file's
+        # definitions may not go round. Two **different** modules reading each other is "the run
+        # came back to where it started"; calls differing only in arguments are two calls, not a
+        # cycle (that is how a fixed point unfolds).
         if len({module for module, _defined, _signature in path}) == 1:
             written = " -> ".join(defined for _module, defined, _signature in path)
             return (f"{written}: one file's definitions may not go round — "
@@ -1331,8 +1344,8 @@ class _Activation:
         return f"{written}: the run came back to where it started"
 
     def _compute(self, name: str, definition):
-        # 函数名不经过这里：它当一个值读时是它代表的那个闭包（见
-        # `_value_of_definition`），当链头读时是一次调用（见 `_pending_of`）。
+        # A function name does not come through here: read as a value it is the closure it stands
+        # for (see `_value_of_definition`), read as a chain head it is a call (see `_pending_of`).
         return self.evaluate(definition.body)
 
     def _member_of(self, module, module_name: str, rest: str, written: str = ""):
@@ -1350,6 +1363,58 @@ class _Activation:
         return other._value_of_definition(rest, definition, module,
                                           written_in=self.module, written=written or rest)
 
+    def _application_member(self, node, scope=()):
+        """`g[T].value`: take a member of the file that application picked.
+
+        A generic application answers the chosen file itself (module semantics), so taking a
+        member is reading one of its definitions in that file; a parameter a `pattern` line
+        pulled out still holds in its own module, so this read is done in an activation
+        carrying those bindings (viba-pattern.md).
+        """
+        written, modules = self._application_reading(node.owner, scope)
+        decision = reduce_application(written, self.module, modules)
+        if _stopped(decision):
+            return decision
+        chosen = decision.ok_value
+        if chosen is None:
+            return VibaProgramErr(f"cannot compute {type(node.owner).__name__}")
+        definition = _definition(chosen.module, node.name)
+        if definition is None:
+            return VibaProgramErr(
+                f"module {chosen.entry.name!r} has no {node.name!r}")
+        # The activation reading this definition carries the bindings the decision pulled out: a
+        # `pattern` name the file wrote still means the call site's argument, inside its own
+        # definition (viba-pattern.md).
+        other = _Activation(self.runner, chosen.module, self.environ,
+                            chosen.entry.name, chosen.entry.path,
+                            bindings=self._generic_bindings(chosen))
+        return other._value_of_definition(
+            node.name, definition, chosen.module, written_in=self.module,
+            written=node)
+
+    def _application_member_target(self, node, scope=()):
+        """`g[T].type` at a chain head: a definition of the chosen file, and that chain is
+        this step's call."""
+        written, modules = self._application_reading(node.owner, scope)
+        decision = reduce_application(written, self.module, modules)
+        if _stopped(decision):
+            return decision
+        chosen = decision.ok_value
+        if chosen is None:
+            return None
+        definition = _definition(chosen.module, node.name)
+        if definition is None:
+            return VibaProgramErr(
+                f"module {chosen.entry.name!r} has no {node.name!r}")
+        body = _substituted(definition.body, (self._generic_bindings(chosen),))
+        if not isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
+            return None                     # the member is a value: this name is not a call
+        written_name = f"{_one_line(node.owner)}.{node.name}"
+        # The implementation is looked up under the generic's own name (as in
+        # `_generic_target`); the written name goes only into errors and messages.
+        return self._func_pending(node, written_name, chosen.module, body,
+                                  node.owner.constructor, written_in=self.module)
+
     def _value_of_definition(self, name, definition, owner_module, written_in=None,
                              written=None):
         """A name read as a value: a function is the closure it stands for, which
@@ -1362,7 +1427,8 @@ class _Activation:
         written_in = written_in or self.module
         body = definition.body
         if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
-            node = viba_ast.TypeRef(written or name)
+            node = (written if isinstance(written, viba_ast.AST)
+                    else viba_ast.TypeRef(written or name))
             return Ok(_VibaData(VibaNode(
                 reflect_access, descriptor_of(AstNodeType(node, written_in)), node)))
         return self._defined(name, definition)
@@ -1503,18 +1569,18 @@ class _Activation:
         return viba_ast.TypeApp(node.constructor, nodes), modules
 
     def _generic_application(self, node, scope=()):
-        """`gen[A, B]`: the chosen file's `__def__`, read where it is.
+        """`gen[A, B]`: the chosen file's `__decl__`, read where it is.
 
         The decision is static — over the written arguments, in the module that
         wrote them (viba-pattern.md) — and what it picks is a file and a
-        binding: `__def__` with this file's parameter names standing for the
+        binding: `__decl__` with this file's parameter names standing for the
         argument parts the patterns extracted. That type is then read the way
         the same text written here would be read: the bindings are the scope
         the chosen file's own definitions run under, and a literal is the value
         it is. A constructor that is no generic is no value, the way it never
         was (`list[int]` included).
 
-        When the chosen `__def__` is a function chain, what the application
+        When the chosen `__decl__` is a function chain, what the application
         stands for is that call — the same way a definition whose body is a
         function chain stands for its own call — so the value is the
         application written down, and giving it arguments reads it as the call
@@ -1531,7 +1597,16 @@ class _Activation:
             return decision
         chosen = decision.ok_value
         if chosen is None:
+            applied = self._definition_generic(node, scope)
+            if applied is not None:
+                return applied
             return VibaProgramErr(f"cannot compute {type(node).__name__}")
+        if chosen.body is None:
+            # This file writes no `__decl__`: it answers its own module, so a member must be read
+            # before there is anything to read.
+            return VibaProgramErr(
+                f"{chosen.entry.path} answers a module: read one of its members by "
+                f"name, `{_one_line(node)}.value`")
         if isinstance(chosen.body, (viba_ast.Exponent, viba_ast.ExponentChain)):
             # The application written down is the call it stands for: the names
             # in it are the ones this file wrote, so the decision that owns them
@@ -1544,6 +1619,39 @@ class _Activation:
                             chosen.entry.name, chosen.entry.path,
                             bindings=self._generic_bindings(chosen))
         return other.evaluate(chosen.body)
+
+    def _definition_generic(self, node, scope=()):
+        """`Y[step]`: the application of a generic defined in the module (`Y[F] = …`); it is
+        that generic with the parameters substituted in.
+
+        The arguments are written in the caller's own file, so after substitution the read
+        happens here in the caller (a directory generic in viba-pattern.md goes through the
+        decision; this one is a generic defined inside a module).
+        """
+        resolved = module_get_type(self.module, node.constructor)
+        if not (isinstance(resolved, Ok)
+                and isinstance(resolved.ok_value, AstNodeType)):
+            return None
+        target = resolved.ok_value.ast_node
+        if not isinstance(target, viba_ast.GenericDefinition):
+            return None
+        params = list(target.generic_params or [])
+        if len(params) != len(node.args):
+            return VibaProgramErr(
+                f"{node.constructor!r} takes {len(params)} parameters, "
+                f"not {len(node.args)}")
+        # The definition is written in its own file and the arguments here at the caller: the
+        # parameters are bound to "the data the caller wrote" and read in the definition's own
+        # file (the same path as a decision's bindings).
+        bindings = {
+            param: _VibaData(VibaNode(
+                reflect_access,
+                descriptor_of(AstNodeType(argument, self.module)), argument))
+            for param, argument in zip(params, node.args)}
+        other = _Activation(self.runner, resolved.ok_value.container_module,
+                            self.environ, node.constructor, self.file,
+                            bindings=bindings)
+        return other.evaluate(target.body)
 
     def _tagged_data(self, node, scope=()):
         """`__tagged__[S, T]`: the tag the symbol value spells, as viba data.
@@ -1632,8 +1740,8 @@ class _Activation:
                          if written_in is not None else None)
                 if other is None or written_in is self.module:
                     return self._apply_chain(node, scope)
-                # 存下来的那一段写在 writing_module 那个模块里：只把**它**读成一次调用，
-                # 后面的实参写在这里，仍在这里算。
+                # The stored piece is written in the module `writing_module`: read **it** as a call;
+                # the arguments after it are written here and still computed here.
                 stored = self._read_stored_call(current, scope, whole=True, finish=finish)
                 if stored is None:
                     return self._apply_chain(node, scope)
@@ -1856,8 +1964,9 @@ class _Activation:
         while True:
             if isinstance(head, viba_ast.Member):
                 return Ok(_Member(head.tag)), arguments
-            if isinstance(head, (viba_ast.TypeRef, viba_ast.TypeApp)):
-                # None 是"这个名字不是一次调用"，不是"停下了"：停下只有 Result 能表达。
+            if isinstance(head, (viba_ast.TypeRef, viba_ast.TypeApp,
+                                 viba_ast.MemberRead)):
+                # None means "not a call", not "it stopped": only a Result can express a stop.
                 target = self._call_target(head, scope)
                 if target is not None:
                     if _stopped(target):
@@ -1875,7 +1984,8 @@ class _Activation:
                     target = (other._call_target(stored_head, scope)
                               if other is not None
                               and isinstance(stored_head,
-                                              (viba_ast.TypeRef, viba_ast.TypeApp))
+                                              (viba_ast.TypeRef, viba_ast.TypeApp,
+                                               viba_ast.MemberRead))
                               else None)
                     if target is not None:
                         if _stopped(target):
@@ -1893,7 +2003,8 @@ class _Activation:
                 # the symbol names, taken from the value the chain gives first.
                 return Ok(_Member(got.node.data.tag)), arguments
             if isinstance(got, _VibaData) and isinstance(
-                    got.node.data, (viba_ast.TypeRef, viba_ast.TypeApp)):
+                    got.node.data, (viba_ast.TypeRef, viba_ast.TypeApp,
+                                    viba_ast.MemberRead)):
                 written_in = _writing_module(got)
                 if written_in is not None and written_in is not self.module:
                     other = self._in_module(written_in, _writing_bindings(got))
@@ -1912,12 +2023,20 @@ class _Activation:
 
         A definition that is a function is the call; a bare import name is the
         module, whose environment runs it; a generic application whose decision
-        answers a function chain is the call that file's `__def__` writes
+        answers a function chain is the call that file's `__decl__` writes
         (`_generic_target`). Everything else is not a call here and the caller
         reads the name as a value instead.
         """
         if isinstance(name_node, viba_ast.TypeApp):
             return self._generic_target(name_node, scope)
+        if isinstance(name_node, viba_ast.MemberRead):
+            # A member read written at the chain head: as a name it is the dotted name it was
+            # (`demo.print << …`); an application on the left gives the chosen file's definition
+            # (`g[T].type << …`).
+            path = viba_ast.written_path(name_node)
+            if path is not None:
+                return self._call_target(viba_ast.TypeRef(path), scope)
+            return self._application_member_target(name_node, scope)
         name = name_node.name
         definition = _definition(self.module, name)
         if definition is not None:
@@ -1936,7 +2055,8 @@ class _Activation:
             return self._member_target(imported.ok_value, module_name, rest, name_node,
                                        name, written_in=self.module)
         if isinstance(imported.ok_value, GenericModuleType):
-            # 泛型不是模块：它没有 __def__，也没有 __ret__，它有的是应用。
+            # A generic is not a module: it has no __decl__ and no __impl__; what it has is an
+            # application.
             return VibaProgramErr(
                 f"{name!r} is a generic: it answers an application ({name}[T, ...]), "
                 f"not a call")
@@ -1949,7 +2069,7 @@ class _Activation:
 
         The decision is made over the written arguments, in the module that
         wrote them (viba-pattern.md), and what it picks is a file: the call
-        is that file's `__def__` with this file's parameter names written out as
+        is that file's `__decl__` with this file's parameter names written out as
         the argument parts they stand for — which is what lets a function-typed
         parameter be recognized as one, so the host is handed the call it stands
         for instead of a value. The host finds the implementation under the
@@ -1972,10 +2092,10 @@ class _Activation:
         # tags, so that application is folded into the tag it spells.
         chain = _WrittenTags(chosen.module).visit(chain)
         if _definition(chosen.module, RET_NAME) is not None:
-            # The chosen pattern file is a module that can run (it writes `__ret__`):
+            # The chosen pattern file is a module that can run (it writes `__impl__`):
             # this call is that module call — the environment and the arguments come
-            # from its `__def__`, and its own body does the work, so the host is not
-            # asked. A file with no `__ret__` is still the host's implementation,
+            # from its `__decl__`, and its own body does the work, so the host is not
+            # asked. A file with no `__impl__` is still the host's implementation,
             # found under the generic's name.
             return Ok(_Pending.module(
                 self.runner, chosen.module, chosen.entry.name, node,
@@ -1988,7 +2108,7 @@ class _Activation:
                                   node.constructor, written_in=self.module)
 
     def _builtin_member(self, name):
-        """`builtin.echo`：内建库里那个概念的一个成员。"""
+        """`builtin.echo`: a member of that concept in the builtin library."""
         head, dot, tag = name.rpartition(".")
         if not dot:
             return None
@@ -2006,11 +2126,13 @@ class _Activation:
         return VibaProgramErr(f"{head!r} has no member tagged {'$' + tag!r}")
 
     def _member_function(self, name):
-        """`a.b` 写在链头、而 `b` 是 `a` 的一个函数成员时，这一步的函数体。
+        """`a.b` written at a chain head, with `b` a function member of `a`: this step's
+        function body.
 
-        点分名字定义的是父概念的一个成员（viba-style.md），所以 `a.b << …` 调的
-        就是那一步，而名字仍然是写下来的整串 —— 宿主拿到的 `func_name` 就是它。
-        不是函数成员、或者父概念下没有这个成员时，答 None，交给别的读法。
+        A dotted name defines a member of the parent concept (viba-style.md), so `a.b << …`
+        calls that step, and the name stays the whole written string — the `func_name` the
+        host gets is that string. When it is not a function member, or the parent concept
+        has no such member, it answers None and other readings take over.
         """
         if "." not in name:
             return None
@@ -2168,12 +2290,12 @@ class _HostArgument:
         if self.answer is None:
             self.answer = self._compute(environ, arguments)
         if not isinstance(self.answer, Ok):
-            raise _Raised(self.answer)  # 停下就照原样报回去，不变成一份值
+            raise _Raised(self.answer)  # a stop is reported as it is, not turned into a value
         value = self.answer.ok_value
         if (isinstance(self.node, viba_ast.TypeRef)
                 and isinstance(value, _VibaData)
                 and isinstance(value.node.data, viba_ast.Partial)):
-            # 给的名字本身就是一份闭包：宿主拿到的就是那份闭包，不是这个名字。
+            # The name given is itself a closure: what the host gets is that closure, not the name.
             return value.node
         return _argument_value(_as_given_value(value))
 
@@ -2206,8 +2328,8 @@ class _HostArgument:
         if isinstance(self.node, viba_ast.Partial):
             head, _written = _call_parts(self.node)
             if isinstance(head, viba_ast.Partial):
-                # 写下来的是一份闭包（存下来的那次调用）：它代表的那次调用还没
-                # 给环境，交回去的就是它。
+                # What is written is a closure (the stored call): the call it stands for has not
+                # been given an environment yet, so it is what is handed back.
                 answer = caller.evaluate(self.node, self.scope)
                 if not isinstance(answer, Ok):
                     return answer
@@ -2395,17 +2517,17 @@ class _Pending:
                  module_name=None, bindings=(), pattern_env=None, slots=None,
                  written_bindings=None):
         self.kind = kind                     # "func" | "module"
-        self.activation = activation         # 函数：定义在哪个模块里
-        self.head = head                     # 闭包写成什么：函数名或模块名那个节点
-        self.written = written               # 写出来的样子：给人和闭包用
-        self.name = name or written          # 定义名：宿主按这个名字找实现
-        self.module = module                 # 参数声明在哪个模块：核对类型用
-        self.written_in = written_in or module           # 这次调用写在哪个模块：写回可序列化数据用
-        self.elements = list(elements)       # 各参数，按书写顺序
-        self.runner = runner                 # 模块：谁来跑它
+        self.activation = activation         # func: the module its definition is written in
+        self.head = head                     # the function- or module-name node it is written as
+        self.written = written               # how it is written: for people and the closure
+        self.name = name or written          # the name the host finds the implementation by
+        self.module = module                 # module the parameters are declared in: type checks
+        self.written_in = written_in or module           # the module this call was written in
+        self.elements = list(elements)       # the arguments, in written order
+        self.runner = runner                 # the module: who runs it
         self.module_name = module_name
-        self.environ = None                  # 环境；给了就是执行
-        self.given = {}                      # 参数序号 -> 值
+        self.environ = None                  # the environment; giving it means execute
+        self.given = {}                      # argument index -> value
         self.bindings = bindings             # parameter names the decision bound: the file's own body reads them
         self.pattern_env = pattern_env       # the chosen pattern file: this call runs in its own sub-environment
         self.params_override = slots         # the parameter table with the bindings written in
@@ -2429,11 +2551,11 @@ class _Pending:
     def params(self):
         """(params, problem): this call's parameters, environment among them.
 
-        A call of a chosen pattern file takes them from that file's `__def__`
+        A call of a chosen pattern file takes them from that file's `__decl__`
         with the decision's bindings already written in (`params_override`), so a
         parameter the file only names (`Arg0`) carries the tag the argument was
         written with — both for routing an argument and for the product `args`
-        the file reads it back from. A plain module call reads its own `__def__`.
+        the file reads it back from. A plain module call reads its own `__decl__`.
         """
         if self.params_override is not None:
             return self.params_override, None
@@ -2443,7 +2565,7 @@ class _Pending:
         """(slots, problem): the same, less the environment (the call's rule).
 
         A plain module call asks `_module_arg_slots`, which also says when a
-        module that runs declares no `__def__` at all.
+        module that runs declares no `__decl__` at all.
         """
         if self.params_override is None:
             return _module_arg_slots(self.module)
@@ -2461,7 +2583,7 @@ class _Pending:
 
     def slot_tags(self):
         """The tags of the slots this pending call fills, in order — a module's
-        slots come from its `__def__`, a function's from its chain."""
+        slots come from its `__decl__`, a function's from its chain."""
         if self.kind == "module":
             return [tag for tag, _written in (self.arg_slots()[0] or [])]
         return self.slots
@@ -2552,8 +2674,8 @@ class _Pending:
             return Ok(self)
         wanted = _function_slot(self, index)
         if wanted is not None and isinstance(value, _Getter):
-            # 函数类型的槽收的是写下来的那次调用：这里不算它，宿主叫它的时候才算，
-            # 在宿主给的那个环境里算（`_HostArgument`）。
+            # A function-typed slot takes the written call: not computed here, but when the
+            # host calls it, in the environment the host gave (`_HostArgument`).
             self.given[index] = _HostArgument(
                 value.node, value.scope, self, wanted, self.module, self.written,
                 value.file, written_in=value.written_in, name=value.name,
@@ -2569,7 +2691,8 @@ class _Pending:
         slots, problem = self.arg_slots()
         if problem is not None:
             return VibaProgramErr(f"module {self.module_name!r}: {problem}")
-        # 环境不是实参：它就是执行这一步，按值认，或者按 $env 这个 tag 认。
+        # The environment is not an argument: it is the executing step, recognized by value or
+        # by the $env tag.
         if self.environ is None and (tag == ENVIRON_TAG or _is_environ_value(value)):
             if not _is_environ_value(value):
                 return VibaProgramErr(
@@ -2582,7 +2705,8 @@ class _Pending:
                             if self.pattern_env else value.obj)
             return Ok(self)
         if not slots:
-            # 这个模块只收环境：环境之外的实参一个都没有，所以给什么都不对。
+            # This module takes only the environment: there is no argument besides it, so
+            # anything given is wrong.
             return VibaProgramErr(
                 f"module {self.module_name!r} needs an {ENVIRON_TYPE}: its "
                 f"{DEF_NAME} takes no other parameters")
@@ -2724,7 +2848,7 @@ class _Pending:
         return _answer(self.name, answer, step)
 
     def _run_module_call(self):
-        """Every parameter of `__def__` is in: hand them to the module, as one
+        """Every parameter of `__decl__` is in: hand them to the module, as one
         product, the environment among its members (`args.env`)."""
         params, problem = self.params()
         if problem is not None:
@@ -2748,12 +2872,14 @@ class _Pending:
             kept.append(value)
             members.append((tag, value))
         if not nodes:
-            # 只有环境：这次调用收到的是那份环境，没有别的成员（`args.env` 走的就是它）。
+            # Only the environment: that is what this call received, no other member (it is
+            # what `args.env` goes through).
             args = _VibaData(viba_data(None))
         elif len(nodes) == 1:
             descriptor = kept[0].node.descriptor
             if isinstance(nodes[0], viba_ast.Tagged):
-                # 一个成员也是按 tag 寻址的：那一位是值的读数，tag 另加在外面。
+                # A member is addressed by tag too: that slot holds the value's descriptor and the
+                # tag is added outside.
                 descriptor = descriptor_of_tagged(nodes[0].tag, descriptor,
                                                   nodes[0], self.written_in)
             args = _VibaData(VibaNode(reflect_access, descriptor, nodes[0]))
@@ -2773,13 +2899,13 @@ class _Pending:
 
 
 class _GetArgs:
-    """`__get_args__ << __def__`: the arguments this call was handed.
+    """`__get_args__ << __decl__`: the arguments this call was handed.
 
-    Read as a type, the same call answers the product of `__def__`'s parameters
+    Read as a type, the same call answers the product of `__decl__`'s parameters
     (viba.is_sub_type reads it that way); run, it answers the product the module
     received, the environment among its members — which is how a module reads the
-    environment (`args = __get_args__ << __def__`, then `args.env`). What it is
-    given is the module's own `__def__`: what a call received is not a property
+    environment (`args = __get_args__ << __decl__`, then `args.env`). What it is
+    given is the module's own `__decl__`: what a call received is not a property
     of the text it was written with.
     """
 
@@ -2789,7 +2915,7 @@ class _GetArgs:
         self.activation = activation
 
     def give(self, item):
-        """One argument — the module's `__def__` — and this call's arguments."""
+        """One argument — the module's `__decl__` — and this call's arguments."""
         if self.activation.args is None:
             return VibaProgramErr(
                 f"{GET_ARGS_NAME} is the arguments of a module call, and no module "
@@ -2849,9 +2975,9 @@ def _written_slots(slots) -> str:
 
 def _answer(name, answer, step: Step = None):
     if isinstance(answer, _HostArgument):
-        # 宿主把那个写下来的调用原样递回来：它代表的那份值就是这次调用。名字代
-        # 表的那份闭包由 `__call__` 算出来，所以这里先问它一次。
-        # 宿主把那个写下来的调用原样递回来：它代表的那份值就是这次调用。
+        # The host hands that written call straight back: the value it stands for is this call.
+        # The closure the name stands for is worked out by `__call__`, so ask it once here.
+        # The host hands that written call straight back: the value it stands for is this call.
         closure = answer.closure_of()
         if closure is not None:
             return Ok(_VibaData(closure))

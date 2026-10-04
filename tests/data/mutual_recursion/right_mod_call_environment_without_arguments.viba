@@ -1,11 +1,11 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
   <- $a int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 import left_mod_call_environment_without_arguments as left
 
-__ret__ = left << (args.env.tmp_env << args.env)
+__impl__ = left << (args.env.tmp_env << args.env)

@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 ignore_x =
     int
@@ -12,4 +12,4 @@ ignore_x =
 
 # 函数类型的那一格还没给，别的先给了：这个调用存不下来。
 half = ignore_x << $env args.env
-__ret__ = half << $get_x tick
+__impl__ = half << $get_x tick

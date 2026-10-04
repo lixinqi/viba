@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch
 
@@ -26,7 +26,7 @@ nonnegative_or_negative =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond nonnegative << $get_v pick_nonnegative)
   | (branch.never_or_echo << $env args.env << $cond nonnegative << $get_v pick_negative)
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond high << $get_v pick_high)
   | (branch.never_or_echo << $env args.env << $cond high << $get_v (builtin.echo << $x nonnegative_or_negative))

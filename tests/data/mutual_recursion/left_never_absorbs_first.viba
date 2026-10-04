@@ -1,7 +1,7 @@
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
 import branch
 import right_never_absorbs_first as right
 
 x = never * right.y
-__ret__ = x
+__impl__ = x

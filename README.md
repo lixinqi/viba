@@ -23,16 +23,20 @@ definition : type_definition | generic_definition
 type_definition : CLASS_NAME ASSIGN partial_expr
 generic_definition : CLASS_NAME LBRACKET CLASS_NAME type_param_list RBRACKET ASSIGN partial_expr
 type_param_list : COMMA CLASS_NAME type_param_list | (empty)
-import_stmt : IMPORT CLASS_NAME optional_alias
+import_stmt : IMPORT class_path optional_alias
 pattern_stmt : PATTERN partial_expr
 optional_alias : AS CLASS_NAME | (empty)
+class_path : CLASS_NAME | class_path DOT CLASS_NAME
 partial_expr : partial_expr APPLY_OP adt_expr | member_head APPLY_OP adt_expr | adt_expr
 member_head : TAGGED_CLASS_NAME
 adt_expr : adt_expr SUM_OP product_expr | product_expr
 product_expr : product_expr PROD_OP exponent_expr | exponent_expr
 exponent_expr : exponent_expr EXP_OP unary_expr | unary_expr
-unary_expr : TAGGED_CLASS_NAME type_app_expr | type_app_expr
-type_app_expr : CLASS_NAME optional_type_args | primary_expr
+unary_expr : tag_path member_expr | member_expr
+tag_path : TAGGED_CLASS_NAME | tag_path DOT CLASS_NAME
+name_tail : DOT CLASS_NAME name_tail | (empty)
+member_expr : member_expr DOT CLASS_NAME | type_app_expr
+type_app_expr : CLASS_NAME name_tail optional_type_args | primary_expr
 optional_type_args : LBRACKET partial_expr adt_arg_list RBRACKET | LBRACKET RBRACKET | (empty)
 adt_arg_list : COMMA partial_expr adt_arg_list | (empty)
 primary_expr : CLASS_NAME | literal | NIL | NEVER | ANY | ELLIPSIS | LPAREN partial_expr RPAREN | LPAREN adt_expr_list RPAREN | CODE_BLOCK
@@ -44,8 +48,9 @@ The terminals it names:
 
 | Terminal | Written as |
 |----------|------------|
-| `CLASS_NAME` | `Option`, `fx.GraphModule` — `\w+(\.\w+)*` |
-| `TAGGED_CLASS_NAME` | `$x`, `$meta.id` — a `$` before a name |
+| `CLASS_NAME` | `Option`, `GraphModule` — `\w+` (one segment; a `.` is its own token) |
+| `TAGGED_CLASS_NAME` | `$x`, `$meta` — a `$` before a name (one segment) |
+| `DOT` | `.` — reads a member: `a.b`, `$meta.id`, `g[T].value` |
 | `INT`, `FLOAT` | `42`, `3.14`, `.5` |
 | `STRING`, `SINGLE_STRING` | `"one line"`, `'one line'` — escapes yes, raw newline no |
 | `TRIPLE_STRING` | `'''keeps newlines, spacing and quotes'''` |
@@ -88,8 +93,8 @@ also says how to check what you wrote.
 Viba is **declarative**, not imperative: definitions are **bindings**, not statements, and a file
 is not executed top to bottom. Evaluation is demand-driven — a binding is evaluated when it is
 used, and only once (call-by-need, with memoization) — so written order is not evaluation order, a
-definition may refer to one written after it (a forward reference), of two definitions of one name
-the later one shadows the earlier, and a binding nobody uses is never evaluated. A binding used
+definition may refer to one written after it (a forward reference), one module may not define the
+same name twice, and a binding nobody uses is never evaluated. A binding used
 while it is still being evaluated is a cyclic definition, reported rather than left to overflow
 the stack.
 
@@ -108,25 +113,33 @@ named by its decision order — a number, read smallest first:
 ```
 demo/is_base_type/__generic__.viba      # __generic__.viba
 demo/is_base_type/100.viba              pattern bool | int | float | str
-                                        __def__ = true
+                                        value = true
 demo/is_base_type/200.viba              pattern A
-                                        __def__ = false
+                                        value = false
 ```
 
 ```viba
 import demo.is_base_type as is_base_type
 
-Flag = is_base_type[bool]               # true, from 100.viba
-Other = is_base_type[list[int]]         # false, from 200.viba
+Flag = is_base_type[bool].value         # true, from 100.viba
+Other = is_base_type[list[int]].value   # false, from 200.viba
 ```
 
-`pattern` writes one line per parameter, in written order. A known type restricts
-that argument (the argument must fit it); a name the file never defines is a parameter,
-and what stands in the argument there is extracted — `pattern list[A]` with
-`__def__ = A` answers the element type. The chosen file's `__def__` is the answer, read
-in that file. When that answer is a function chain, the application **is** the call the
-chain writes — `wrapper[inc] << args.env << inc << $x 1` runs the function it was handed;
-when that file also writes `__ret__`, the call is the file's own run, in a sub-environment
+What the decision picks is **that file as a module** (module semantics): the caller reads a
+member of it by name. A file that is not a function names its answer for what it is —
+`type = A` when it answers a type, `value = true` when it answers a value, the way a C++
+template says `::type` and `::value` — so `ret_type_of[int <- int].type` is `int` and
+`is_base_type[bool].value` is `true`; a generic file writes no `__decl__` unless the file
+itself is a function.
+
+`pattern` writes one line per parameter, in written order. A bare `pattern A` with no
+restriction takes the object itself; a known type restricts that argument (the argument must
+fit it); a name the file never defines is a parameter, and what stands in the argument there
+is extracted — `pattern list[A]` answers the element type with `type = A`. An object that is
+a module is read as its `__decl__` for a structured pattern (`pattern A <- B`). A member that
+is a function chain **is** the call the chain writes when it stands at a chain head —
+`wrapper[inc].type << args.env << inc << $x 1` runs the function it was handed;
+when that file also writes `__impl__`, the call is the file's own run, in a sub-environment
 named by its decision order, and a name the enclosing decision bound still stands for the
 argument written at the call site.
 An argument may write a call of its own (`g[add << $a 2]`): it is read as the type that
@@ -203,26 +216,30 @@ print(viba_ast.unparse(tree))   # canonical chain-style source
 
 ### Running a module
 
-The same file is also a program: a module is a function whose chain `__def__`
-says what it answers and what it takes — the environment among the parameters —
-and whose answer is `__ret__`. A file with no `__ret__` is a type, not a program,
-and running it raises `VibaProgramErr`.
+The same file is a module and — when it says so — a function, and those are the only two
+things it is. As a module it is a map of definitions: every top-level definition is a member of
+it, read by name (`foo_module.Bar`, and the same way off a generic application: `g[T].value`,
+`g[T].type`). As a function it is a declaration and a body: `__decl__` is the chain that says
+what the module returns and which parameters it takes (the environment among them), `__impl__`
+is what it returns, and a file that declares no `__decl__` is no function at all — calling it
+is a program error. A file with no `__impl__` is a type, not a program, and running it raises
+`VibaProgramErr`. One module may not define the same name twice.
 
-A module that wants arguments declares them in `__def__` and reads them back with
-`args = __get_args__ << __def__`: as a type that chain's parameters are a product
+A module that wants arguments declares them in `__decl__` and reads them back with
+`args = __get_args__ << __decl__`: as a type that chain's parameters are a product
 type, and as a computation `args` is the data the call was handed. Giving the
 environment is what runs the call, and a call without one is a closure — a value
 you can keep, pass on, or serialize and run later. Running a module evaluates
-`__ret__` and, on demand, the bindings it uses: see [Evaluation](#evaluation)
+`__impl__` and, on demand, the bindings it uses: see [Evaluation](#evaluation)
 above and [`viba-interpreter.md`](viba-interpreter.md) for the whole rule.
 
 ```viba
 # add_demo.viba
-__def__ =
+__decl__ =
     void
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 add =
 	int
@@ -231,7 +248,7 @@ add =
 	<- $b int
 	<- { add two integers }
 
-__ret__ =
+__impl__ =
 	add
 	<< args.env
 	<< $a 999999
@@ -269,9 +286,9 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
   `VibaProgramErr`.
 - The environment is no answer: only a builtin function may declare `Env` as its
   result, and writing `Env` (or `Environment`) as the result of a module's
-  `__def__`, of a definition inside a module, or of a chain a product carries as
+  `__decl__`, of a definition inside a module, or of a chain a product carries as
   a member refuses the file with a `VibaProgramErr` — the environment is the
-  call's rule, not a value to hand back. (A `__ret__` may still be the
+  call's rule, not a value to hand back. (A `__impl__` may still be the
   environment: `args.env` is that object, it is simply declared `Any`.)
 - A written argument arrives at the host as an instance — the literal
   `999999` lands as a node, whose `.value` is the bare number — while the
@@ -298,7 +315,7 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
 ```viba
 import add_demo as demo
 
-__ret__ = demo << (args.env.sub_env << args.env << "add_demo")
+__impl__ = demo << (args.env.sub_env << args.env << "add_demo")
 ```
 
 A module is called with the environment it should run under, and then with its
@@ -321,8 +338,8 @@ for, so calling one module twice means choosing two names; `args.env.tmp_env
 no name, and hands out a fresh child every time. Where an `import` is looked for is the environment's business: next to the
 file that wrote it, then along `Environment`'s `viba_path` (directories, like
 `PYTHONPATH`), and last in the builtin directory (`viba/`, where `builtin.viba`
-and the package's own generics live) — so `import Y` reaches the builtin `Y`
-from anywhere.
+and the package's own vocabulary lives) — so `import ycombinator` reaches the
+builtin `ycombinator.Y` from anywhere.
 
 ### Idempotence: answers have to replay
 
@@ -396,7 +413,7 @@ Color = $red int | $green int | $blue int
 |----------|---------|
 | [`viba_tutorial.md`](viba_tutorial.md) | Learning the language: from one definition to a module that runs |
 | [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, reading an instance |
-| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__def__` in, `__ret__` out — the executable reading, and the call-by-need evaluation strategy |
+| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__decl__` in, `__impl__` out — the executable reading, and the call-by-need evaluation strategy |
 | [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer reads |
 | [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
 | [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
@@ -420,7 +437,7 @@ tools built on those.
 | `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
 | `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
 | `is_complete.py` | Whether a type can be reflected through |
-| `interpret.py` | Runs a module: `__def__` in, `__ret__` out — see `viba-interpreter.md` |
+| `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — `Environment` and `Env` among them |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 

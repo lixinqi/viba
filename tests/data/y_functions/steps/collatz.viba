@@ -7,13 +7,13 @@
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $collatz (int <- int)
   <- $n int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 small = primitives.lt << $env args.env << $x args.n << $y 2
 rest = primitives.rem << $env args.env << $x args.n << $y 2
@@ -23,7 +23,7 @@ tripled = primitives.add << $env args.env << $x (primitives.mul << $env args.env
 down_even = args.collatz << ($sub_env << args.env << "down_even") << $n half
 down_odd = args.collatz << ($sub_env << args.env << "down_odd") << $n tripled
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond small
       << $get_v (builtin.echo << $x 0))

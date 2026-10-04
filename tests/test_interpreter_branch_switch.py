@@ -1,6 +1,6 @@
 """branch 的开关 + 独立文件里的那些调用 + 部分计算：边角案例。
 
-每条用例是一份可以打开的文件（`tests/data/branch_switch/*.viba`）。它自己只写 `__ret__` 那一条链：
+每条用例是一份可以打开的文件（`tests/data/branch_switch/*.viba`）。它自己只写 `__impl__` 那一条链：
 分支值总是别的文件里写下的一次调用（`kinds.answer_text`、`pick.half`、`inner.inner_if`），条件、值、
 开关的实现分别落在各自的文件里。开关本身是 `branch.viba` 里的那一步，由 `branch.py` 实现。
 

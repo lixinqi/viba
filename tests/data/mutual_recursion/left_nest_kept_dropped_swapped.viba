@@ -1,7 +1,7 @@
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
 import branch
 import right_nest_kept_dropped_swapped as right
 
 x = right.y
-__ret__ = x
+__impl__ = x

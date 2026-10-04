@@ -1,5 +1,5 @@
 import demo.num_generic_args as num_generic_args
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = num_generic_args[int <- int]
+__impl__ = num_generic_args[int <- int].value

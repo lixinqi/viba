@@ -63,6 +63,7 @@ from viba.viba_type_descriptor import (
     EXPONENT,
     LITERAL,
     NEVER,
+    MEMBER_READ,
     NIL,
     PRODUCT,
     SUM,
@@ -484,7 +485,7 @@ class VibaAccess:
         Two things, both by the definitions in the pool: a name unfolds to its
         definition body, and a generic application folds its arguments in and
         lands on the body too. A **generic** application is decided
-        first: the chosen file's `__def__` takes its place, its parameter names
+        first: the chosen file's `__decl__` takes its place, its parameter names
         bound to the argument parts the patterns extracted
         (viba-pattern.md). Sum, product and exponent follow one rule; there
         are no other exceptions.
@@ -505,6 +506,9 @@ class VibaAccess:
         decided = self._decided(descriptor, seen)
         if decided is not None:
             return decided
+        member = self._decided_member(descriptor, seen)
+        if member is not None:
+            return member
         found = self._definition_target(descriptor)
         if found is None:
             return descriptor, seen  # a builtin leaf, a generic parameter: stop
@@ -530,7 +534,7 @@ class VibaAccess:
         None when this piece is no such application — an ordinary application
         the generic branch below unfolds, a name, a leaf. The decision is made
         where the application was written, and what comes back is the chosen
-        file's `__def__`, read in that file with this file's parameter names
+        file's `__decl__`, read in that file with this file's parameter names
         standing for the argument parts the patterns extracted
         (viba-pattern.md). A decision that finds no file has no body to land
         on, so the piece stays the application it is.
@@ -548,7 +552,8 @@ class VibaAccess:
         key = ("decided", id(node), id(resolvable.container_module))
         if key in seen:
             return descriptor, seen
-        # 描述符层还没有公开的"类型表达式换描述符"入口，用它的构造函数。
+        # The descriptor layer has no public "type expression to descriptor" entry point, so use
+        # its constructor.
         from viba.viba_type_descriptor import _build_type
 
         pool = descriptor.payload.pool
@@ -556,6 +561,44 @@ class VibaAccess:
                     for name, bound in chosen.bindings.items()}
         body = _build_type(pool, chosen.module, chosen.body)
         return self._unfold_seen(self._substitute(body, bindings), seen | {key})
+
+    def _decided_member(self, descriptor: VibaTypeDescriptor, seen: set):
+        """`g[T].name`: the definition in the chosen file, with the decision's bindings.
+
+        None when this piece is no such member read, or when the decision finds
+        no file: the piece then stays what it is.
+        """
+        if descriptor.kind != MEMBER_READ:
+            return None
+        owner = descriptor.payload.owner
+        if owner.kind != TYPE_APP:
+            return None
+        resolvable = owner.payload.resolvable_type
+        node = getattr(resolvable, "ast_node", None)
+        if node is None:
+            return None
+        decision = reduce_application(node, resolvable.container_module)
+        if isinstance(decision, VibaProgramErr) or decision.ok_value is None:
+            return None
+        chosen = decision.ok_value
+        body = getattr(getattr(chosen.entry.module, "module", None), "body", ())
+        definition = next(
+            (stmt for stmt in body
+             if isinstance(stmt, (viba_ast.TypeDefinition, viba_ast.GenericDefinition))
+             and stmt.name == descriptor.payload.name), None)
+        if definition is None:
+            return None
+        key = ("member", id(node), id(resolvable.container_module),
+               descriptor.payload.name)
+        if key in seen:
+            return descriptor, seen
+        from viba.viba_type_descriptor import _build_type
+
+        pool = owner.payload.pool
+        bindings = {name: _build_type(pool, bound.container_module, bound.ast_node)
+                    for name, bound in chosen.bindings.items()}
+        built = _build_type(pool, chosen.module, definition.body)
+        return self._unfold_seen(self._substitute(built, bindings), seen | {key})
 
     def _definition_target(self, descriptor: VibaTypeDescriptor):
         """(key, definition) for a descriptor written as a name or an

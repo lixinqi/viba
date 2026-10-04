@@ -1,10 +1,10 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import square_sum
 
 sg = square_sum
-__ret__ = sg << (args.env.tmp_env << args.env) << 3 << 4
+__impl__ = sg << (args.env.tmp_env << args.env) << 3 << 4

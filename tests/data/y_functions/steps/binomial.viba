@@ -7,14 +7,14 @@
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $binomial (int <- int <- int)
   <- $n int
   <- $k int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 zero_k = primitives.eq << $env args.env << $x args.k << $y 0
 same = primitives.eq << $env args.env << $x args.n << $y args.k
@@ -23,7 +23,7 @@ k_below = primitives.sub << $env args.env << $x args.k << $y 1
 left = args.binomial << ($sub_env << args.env << "left") << $n n_below << $k k_below
 right = args.binomial << ($sub_env << args.env << "right") << $n n_below << $k args.k
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond zero_k
       << $get_v (builtin.echo << $x 1))

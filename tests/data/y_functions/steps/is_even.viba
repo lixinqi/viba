@@ -5,14 +5,14 @@
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     bool
   <- $env Env
   <- $is_even (bool <- int <- int)
   <- $n int
   <- $acc int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 small = primitives.lt << $env args.env << $x args.n << $y 1
 below = primitives.sub << $env args.env << $x args.n << $y 1
@@ -20,7 +20,7 @@ flipped = primitives.sub << $env args.env << $x 1 << $y args.acc
 deeper = args.is_even << ($sub_env << args.env << "deeper") << $n below << $acc flipped
 even = primitives.eq << $env args.env << $x args.acc << $y 0
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond small
       << $get_v (builtin.echo << $x even))

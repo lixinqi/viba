@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import missing_member
-__ret__ = missing_member << (args.env.tmp_env << args.env) << 1
+__impl__ = missing_member << (args.env.tmp_env << args.env) << 1

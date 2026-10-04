@@ -1,9 +1,9 @@
-# A module whose __def__ declares the environment as its result: only a builtin
+# A module whose __decl__ declares the environment as its result: only a builtin
 # function may answer one, so the judgment refuses it where it is read.
-__def__ =
+__decl__ =
     Env
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
-__ret__ = args.env
+__impl__ = args.env

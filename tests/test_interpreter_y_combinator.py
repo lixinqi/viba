@@ -1,7 +1,7 @@
 """简版 Y 组合子（int -> int）：现有的解释器撑不撑得住。
 
 Y 与 y_helper 是**内建**的：`viba/Y/` 与 `viba/y_helper/` 就在内建词汇那一份旁边，是搜索路径的
-最后一站，所以任何模块写 `import Y` 都拿得到它（`viba-interpreter.md`）。用例在
+最后一站，所以任何模块写 `import ycombinator` 就拿到 `Y`（`viba-interpreter.md`）。用例在
 `tests/data/y_combinator/`：
 
     parts.viba             宿主实现的几步：lt / sub / add
@@ -16,19 +16,19 @@ Y 与 y_helper 是**内建**的：`viba/Y/` 与 `viba/y_helper/` 就在内建词
     main_three_args.viba   Y F 3 4 5，答 12（`F` 三个参数 → y_helper/300.viba）
     helper_by_hand.viba    不用 Y，直接把 helper 用起来，答 55
 
-内建的那两份（`viba/Y/100.viba`、`viba/y_helper/` 下 1 到 16 每个长度一份）也在这里一起看。
+内建的那两份（`viba/y_impl/100.viba`、`viba/y_helper/` 下 1 到 16 每个长度一份）也在这里一起看。
 
-`main_*` 与 `helper_by_hand` 是**真正要跑通的**：文件就是函数（`__def__` 进、`__ret__` 出），
+`main_*` 与 `helper_by_hand` 是**真正要跑通的**：文件就是函数（`__decl__` 进、`__impl__` 出），
 递归靠"欠着实参的调用就是值"（Y 的 eta 展开）和"一次调用的身份是它的 storage 路径"。
-`Y[F]` 只用一个参数（`F` 本身）：`F` 的 `__def__` 怎么写、helper 那一位怎么接，都由
+`ycombinator.Y[F]` 只用一个参数（`F` 本身）：`F` 的 `__decl__` 怎么写、helper 那一位怎么接，都由
 `y_helper` 的 `pattern` 行从实参里读出来 —— 所以参数多的 `F` 落到另一份文件上。`y_helper`
 里 1 到 16 每个长度一个文件，那 16 个长度在最后那一遍里**各跑一次**：step 模块由这一遍当场
 写出来（那里只有参数个数要紧），跑通了才说明每个长度都接得上。
 
 另外几条是记录，不是目标：一份**要别的文件把实参给它的模块不能当主文件跑**（宿主只给环境，
 没人写下 `$f`、`$n`），所以 `fib_module.viba` / `add2_module.viba` / `add3_module.viba` 与
-`viba/y_helper/` 下那些 pattern 文件单独跑只会报那句话；`parts.viba` 与 `viba/Y/100.viba`
-只有设计、没有 `__ret__`，本来就不是程序。
+`viba/y_helper/` 下那些 pattern 文件单独跑只会报那句话；`parts.viba` 与 `viba/y_impl/100.viba`
+只有设计、没有 `__impl__`，本来就不是程序。
 
     python3 tests/test_interpreter_y_combinator.py
 """
@@ -95,13 +95,13 @@ ANSWERS = [
 
 # (文件, 停在哪种结果, 话里的片段)：记录，不是目标 —— 见上面那段说明
 RECORDED = [
-    (BUILTIN_DIR / "Y" / "100.viba", "error", "has no __ret__"),
+    (BUILTIN_DIR / "y_impl" / "100.viba", "error", "has no __impl__"),
     (BUILTIN_DIR / "y_helper" / "100.viba", "error", "has no member tagged '$f'"),
     (BUILTIN_DIR / "y_helper" / "1600.viba", "error", "has no member tagged '$f'"),
     (CASES / "fib_module.viba", "error", "has no member tagged '$n'"),
     (CASES / "add2_module.viba", "error", "has no member tagged '$n'"),
     (CASES / "add3_module.viba", "error", "has no member tagged '$n'"),
-    (CASES / "parts.viba", "error", "has no __ret__"),
+    (CASES / "parts.viba", "error", "has no __impl__"),
 ]
 
 
@@ -116,13 +116,13 @@ def _a_step_of(length: int) -> str:
     names = [f"n{index}" for index in range(length)]
     return "\n".join([
         f"# written by the test: a step of {length} parameters",
-        "__def__ =",
+        "__decl__ =",
         "    Any",
         "  <- $env Env",
         f"  <- $self ({' <- '.join(['int'] * (length + 1))})",
     ] + [f"  <- ${name} int" for name in names] + [
         "",
-        "args = __get_args__ << __def__",
+        "args = __get_args__ << __decl__",
         "",
         "import branch",
         "import parts as parts",
@@ -132,7 +132,7 @@ def _a_step_of(length: int) -> str:
         "low = " + " << ".join(['args.self', '($sub_env << args.env << "low")',
                                  '$n0 below']
                                 + [f"${name} args.{name}" for name in names[1:]]),
-        "__ret__ =",
+        "__impl__ =",
         "  Oneof",
         "  | (branch.echo_or_never << $env args.env << $cond small",
         "      << $get_v (builtin.echo << $x 0))",
@@ -146,11 +146,11 @@ def _a_main_of(length: int) -> str:
     given = " << ".join([f"$n0 {length}"]
                         + [f"$n{index} 0" for index in range(1, length)])
     return "\n".join([
-        "__def__ = int <- $env Env",
-        "args = __get_args__ << __def__",
+        "__decl__ = int <- $env Env",
+        "args = __get_args__ << __decl__",
         "import step as F",
-        "import Y",
-        f"__ret__ = Y[F] << args.env << {given}",
+        "import ycombinator",
+        f"__impl__ = ycombinator.Y[F] << args.env << {given}",
     ]) + "\n"
 
 

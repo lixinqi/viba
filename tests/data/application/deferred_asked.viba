@@ -1,12 +1,12 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 watch =
     int
   <- $env Env
   <- $x (int <- $env Env)
   <- { hand x back }
-__ret__ = watch << $env args.env << $x (builtin.echo << $x "x")
+__impl__ = watch << $env args.env << $x (builtin.echo << $x "x")

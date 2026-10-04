@@ -1,13 +1,13 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch as branch
 import workshop as workshop
 
-__ret__ =
+__impl__ =
     Oneof
   | (workshop.only_if << $env args.env << $cond (true) << $get_v (builtin.echo << $x 7))
   | (workshop.only_if_not << $env args.env << $cond (true) << $get_v (builtin.echo << $x 0))

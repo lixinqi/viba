@@ -1,4 +1,4 @@
 pattern A
 pattern A
 
-__def__ = true
+value = true

@@ -1,4 +1,4 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 import late_lib as lib
-__ret__ = lib
+__impl__ = lib

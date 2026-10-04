@@ -1,6 +1,6 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import empty_args_declared
-__ret__ = empty_args_declared << (args.env.tmp_env << args.env)
+__impl__ = empty_args_declared << (args.env.tmp_env << args.env)

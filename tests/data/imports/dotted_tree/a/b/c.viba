@@ -1,4 +1,4 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 X = 2
-__ret__ = 2
+__impl__ = 2

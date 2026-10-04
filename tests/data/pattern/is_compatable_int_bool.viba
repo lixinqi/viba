@@ -1,5 +1,5 @@
 import demo.is_compatable as is_compatable
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = is_compatable[int, bool]
+__impl__ = is_compatable[int, bool].value

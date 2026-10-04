@@ -2,14 +2,14 @@
 #
 # 别名故意不叫 `F`（Y 那一位形参的名字）：决断读的是调用方写下的那一份实参（`Two`），
 # 不是形参那个名字。
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import add2_module as Two
-import Y
+import ycombinator
 
 # 落到哪一份 y_helper 上是按 `Two` 的参数列表有几个参数定的：这里两个，所以是 200.viba 那一份。
-__ret__ = Y[Two] << args.env << $n 3 << $m 4
+__impl__ = ycombinator.Y[Two] << args.env << $n 3 << $m 4

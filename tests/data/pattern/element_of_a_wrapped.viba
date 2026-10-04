@@ -1,5 +1,5 @@
 import demo.wrapped_item as wrapped_item
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = wrapped_item[list[int]]
+__impl__ = wrapped_item[list[int]].type

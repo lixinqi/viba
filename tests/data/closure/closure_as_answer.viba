@@ -1,4 +1,4 @@
-__def__ = int <- $env Env
+__decl__ = int <- $env Env
 
 add =
     int
@@ -7,4 +7,4 @@ add =
   <- $b int
   <- { add the two }
 g = add << $a 1 << $b 2
-__ret__ = g
+__impl__ = g

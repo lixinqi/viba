@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import plain
-__ret__ = plain << (args.env.sub_env << args.env << "plain")
+__impl__ = plain << (args.env.sub_env << args.env << "plain")

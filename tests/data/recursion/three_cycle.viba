@@ -1,6 +1,6 @@
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
 A = B
 B = C
 C = A
-__ret__ = A
+__impl__ = A

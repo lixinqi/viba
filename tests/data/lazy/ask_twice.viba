@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 ask_twice =
     int
@@ -13,4 +13,4 @@ ask_twice =
 tick =
     int <- $env Env <- { a value with a side effect }
 
-__ret__ = ask_twice << $env args.env << $get_x (tick << $env args.env)
+__impl__ = ask_twice << $env args.env << $get_x (tick << $env args.env)

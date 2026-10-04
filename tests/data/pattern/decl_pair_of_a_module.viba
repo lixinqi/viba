@@ -1,0 +1,6 @@
+import demo.decl_pair as decl_pair
+import a_module
+
+__decl__ = Any <- $env Env
+
+__impl__ = decl_pair[a_module].type

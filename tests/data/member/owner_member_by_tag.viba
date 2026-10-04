@@ -1,10 +1,10 @@
 # A member may be a function that takes the value it was taken from as its first
 # argument. The tag form gives that value first, so this is `box.f << box << …`.
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 Box = Object * $f (int <- $box Box <- $env Env <- $x int) * $y int
 
@@ -16,4 +16,4 @@ inc =
   <- { add one }
 
 box = Object * $f inc * $y 2
-__ret__ = $f << box << args.env << 1
+__impl__ = $f << box << args.env << 1

@@ -5,14 +5,14 @@
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $reverse_number (int <- int <- int)
   <- $n int
   <- $acc int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 small = primitives.lt << $env args.env << $x args.n << $y 1
 below = primitives.div << $env args.env << $x args.n << $y 10
@@ -20,7 +20,7 @@ last = primitives.rem << $env args.env << $x args.n << $y 10
 shifted = primitives.add << $env args.env << $x (primitives.mul << $env args.env << $x args.acc << $y 10) << $y last
 deeper = args.reverse_number << ($sub_env << args.env << "deeper") << $n below << $acc shifted
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond small
       << $get_v (builtin.echo << $x args.acc))

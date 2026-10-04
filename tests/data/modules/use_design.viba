@@ -1,9 +1,9 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import design_only as d
 
-__ret__ = d << (args.env.sub_env << args.env << "d")
+__impl__ = d << (args.env.sub_env << args.env << "d")

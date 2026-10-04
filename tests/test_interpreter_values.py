@@ -1,4 +1,4 @@
-"""值：宿主答什么、__ret__ 能写成什么、一个名字算几次。
+"""值：宿主答什么、__impl__ 能写成什么、一个名字算几次。
 
 不纯的东西从这里出去（宿主函数），回来的必须是叶子或可序列化数据；函数、模块、泛型应用都不是值。
 每条用例是一份可以打开的文件（`tests/data/values/*.viba`），这里只列它该跑出什么。
@@ -65,7 +65,7 @@ NO_LEAF_CASES = [
 
 
 def _host_answers(tmp: Path):
-    """宿主返回什么，__ret__ 就是什么；宿主出错就是 VibaProgramErr，不是崩。"""
+    """宿主返回什么，__impl__ 就是什么；宿主出错就是 VibaProgramErr，不是崩。"""
     host = Host()
     environ = host.environ()
     for name, want, label in HOST_ANSWER_CASES:
@@ -124,28 +124,28 @@ NOT_A_VALUE_CASES = [("written_application", "a generic application"),
 
 
 def _written_as_ret(tmp: Path):
-    """__ret__ 写成字面量、单位、和/积、名字：哪些是值。"""
+    """__impl__ 写成字面量、单位、和/积、名字：哪些是值。"""
     host = Host()
     environ = host.environ()
 
     for name, want, label in LITERAL_CASES:
         result = interpret(_case(name), environ)
         check(isinstance(result, Ok) and value_of(result) == want,
-              f"__ret__ written as {label}: {result!r}")
+              f"__impl__ written as {label}: {result!r}")
     for name, label in UNIT_CASES:
         result = interpret(_case(name), environ)
-        check(isinstance(result, Ok), f"__ret__ written as {label}: {result!r}")
+        check(isinstance(result, Ok), f"__impl__ written as {label}: {result!r}")
     for name, label in NOT_A_VALUE_CASES:
         labelled(interpret(_case(name), environ), "cannot compute",
-                 f"__ret__ written as {label} -> VibaProgramErr")
+                 f"__impl__ written as {label} -> VibaProgramErr")
 
     # 写下来的和值是 viba 数据：没答的那几支留下的都是 never
     result = interpret(_case("written_sum"), environ)
     check(isinstance(result, Ok),
-          f"__ret__ written as a sum is viba data, not an error: {result!r}")
+          f"__impl__ written as a sum is viba data, not an error: {result!r}")
 
     check(isinstance(interpret(_case("module_value"), environ), Ok),
-          "__ret__ written as a module is the closure it stands for")
+          "__impl__ written as a module is the closure it stands for")
 
     labelled(interpret(_case("builtin_value"), environ), "no definition named",
              "a builtin type name used as a value -> VibaProgramErr")
@@ -163,7 +163,7 @@ def _written(tmp: Path):
     for name, want, label in DATA_CASES:
         result = interpret(_case(name), environ)
         check(isinstance(result, Ok) and len(result.ok_value) == want,
-              f"__ret__ written as {label} is viba data: {result!r}")
+              f"__impl__ written as {label} is viba data: {result!r}")
 
     # 一份 witness 的写法：tag 与积是可序列化数据，和它的类型写法一样
     result = interpret(_case("witness"), environ)
@@ -176,17 +176,21 @@ def _written(tmp: Path):
 
 
 def _names_and_repeats(tmp: Path):
-    """名字与次序：同名取后写的、定义写在用之后也算、一个定义只算一次。"""
+    """名字与次序：定义写在用之后也算、一个定义只算一次、同一个名字不许写两次。"""
     host = Host()
     environ = host.environ()
 
-    result = interpret(_case("twice_defined"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 2,
-          f"a name defined twice: the later definition stands: {result!r}")
+    labelled(interpret(_case("twice_defined"), environ), "is defined twice",
+             "one name defined twice in one module -> VibaProgramErr")
 
     result = interpret(_case("defined_after"), environ)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a definition written after its use: {result!r}")
+
+    # `__impl__` first, everything it uses after it: the same answer either way
+    result = interpret(_case("impl_written_first"), environ)
+    check(isinstance(result, Ok) and value_of(result) == 3,
+          f"__impl__ written before everything it uses: {result!r}")
 
     result = interpret(_case("nested"), environ)
     check(isinstance(result, Ok) and value_of(result) == 3 and

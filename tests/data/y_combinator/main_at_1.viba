@@ -1,11 +1,11 @@
 # main_at_1.viba —— 要跑的是 Y F 1，该答 1（base case 在顶层就走通）
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import fib_module as F
-import Y
+import ycombinator
 
-__ret__ = Y[F] << args.env << $n 1
+__impl__ = ycombinator.Y[F] << args.env << $n 1

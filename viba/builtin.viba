@@ -4,7 +4,7 @@
 # The environment a running module is handed (viba-interpreter.md). Read as
 # a type, `Env` is an Environment — that is what a module's `$env` parameter
 # asks for; read as computation it is the real environment, and a module reads
-# it as `args.env` (with `args = __get_args__ << __def__`). `Environment` is
+# it as `args.env` (with `args = __get_args__ << __decl__`). `Environment` is
 # a plain function of the environment and the sub-environment's name, which is
 # how a module call hands a module its own — `$viba_path` is where its imports
 # are looked up, and a child keeps the parent's — and `$tmp_env` is the same
@@ -20,10 +20,14 @@ Environment =
 
 Env = Environment
 
-# 把自己收到的东西原样交回：`echo << $x V` 是"给它一个环境就答 V"的那个函数。
-# 交出去的活由拿到它的一方决定什么时候算、在哪个环境下算（branch.py）。
-builtin.echo =
-    $x Any
-  <- $env Env
-  <- $x Any
-  <- { hand the argument back }
+# Hands back what it receives unchanged: `echo << $x V` answers V given an environment. The
+# work handed out is computed in the environment and at the time its receiver decides
+# (branch.py); one name on the left, so this writes `builtin` and its member `$echo`.
+builtin =
+    $echo
+    (
+        $x Any
+      <- $env Env
+      <- $x Any
+      <- { hand the argument back }
+    )

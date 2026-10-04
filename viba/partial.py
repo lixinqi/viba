@@ -54,8 +54,8 @@ class _NamedMember:
         self.module = module
 
 
-RET_NAME = "__ret__"
-DEF_NAME = "__def__"
+RET_NAME = "__impl__"
+DEF_NAME = "__decl__"
 GET_ARGS_NAME = "__get_args__"
 ENVIRON_TAG = "$env"
 ENV_TYPE = "Env"
@@ -64,15 +64,16 @@ ENVIRONMENT_TYPE = "Environment"
 def module_as_function(module, name):
     """(body, written_in) for a bare import name read as a function, or None.
 
-    A module is a function too, and `__def__` is that function: the result first,
-    then the call's parameters — `__def__ = int <- $env Env <- $a int` is a module
-    answering an int and asking for an environment and an `$a`. The environment is
-    the call's rule rather than an argument (giving it is what runs the call), so
-    it is not one of the slots; everything else is, in written order. A module that
-    declares no `__def__` takes no arguments at all, and one that declares no
-    `__ret__` is design, not a program. `name` has to be one of this module's
-    imports — the name the import binds, not a member of it (a dotted name is that
-    module's own definition and resolves as it always did).
+    A module is a function too, and `__decl__` is that function — the declaration,
+    the result first, then the call's parameters: `__decl__ = int <- $env Env <-
+    $a int` is a module answering an int and asking for an environment and an
+    `$a`. The environment is the call's rule rather than an argument (giving it is
+    what runs the call), so it is not one of the slots; everything else is, in
+    written order. A module that writes no `__decl__` is no function at all (it is
+    a module of definitions), and one that declares no `__impl__` is design, not a
+    program. `name` has to be one of this module's imports — the name the import
+    binds, not a member of it (a dotted name is that module's own definition and
+    resolves as it always did).
     """
     imports = getattr(module, "imports", None)
     if not imports or name not in imports:
@@ -85,12 +86,15 @@ def module_as_function(module, name):
         return None
     slots = [parameter_node(tag, written) for tag, written, is_env, _slot
              in _def_parameters(imported.ok_value) if not is_env]
-    # 环境不进类型：它是调用的规矩（给环境就是执行），不是设计的一个参数。所以
-    # 模块当函数读出来的类型就是 `__def__` 去掉环境那一格：结果在前，实参在后，
-    # 和一份函数定义的类型一样；不收实参的模块就是这个结果本身。
+    # The environment does not go into the type: it is a rule of the call (giving it means
+    # execute), not a parameter of the design. The type a module reads as when it is read as a
+    # function is `__decl__` without the environment slot: result first, arguments after, the same
+    # as a function definition's type; a module taking no arguments is that result itself.
     declared = _definition(imported.ok_value, DEF_NAME)
-    result = result_of(declared.body) if declared is not None else ret.body
-    chain = declared.body if declared is not None else ret.body
+    if declared is None:
+        return None                  # no function signature, no function: a module is only a module
+    result = result_of(declared.body)
+    chain = declared.body
     problem = environment_result_problem(chain, f"module {name!r}")
     if problem is not None:
         raise PartialError(problem)
@@ -100,10 +104,10 @@ def module_as_function(module, name):
 
 
 def _def_parameters(module):
-    """The parameters a module's `__def__` declares, or the empty list.
+    """The parameters a module's `__decl__` declares, or the empty list.
 
-    `__def__` is a chain, so it reads as `parameters_of` reads one; a module with
-    no `__def__` declares no parameters at all.
+    `__decl__` is a chain, so it reads as `parameters_of` reads one; a module with
+    no `__decl__` declares no parameters at all.
     """
     definition = _definition(module, DEF_NAME)
     if definition is None:
@@ -193,7 +197,7 @@ def file_environment_result_problem(tree) -> Optional[str]:
     """Why a parsed file may not answer the environment, or None when it does not.
 
     Every function the file writes is read here: a definition's own chain
-    (`__def__` among them) and the chains its products carry as members, however
+    (`__decl__` among them) and the chains its products carry as members, however
     deep they sit. A file is no builtin library, so a file that writes a function
     answering the environment is refused where it is read — one place for the
     interpreter and the descriptor to ask (`viba-interpreter.md`).
@@ -217,7 +221,7 @@ def parameter_node(tag, written):
 def get_args_product(chain):
     """The product `__get_args__` answers for a chain: its parameters, as a type.
 
-    `__get_args__ << __def__` is the arguments a call received. Read as a type
+    `__get_args__ << __decl__` is the arguments a call received. Read as a type
     that is the product of the parameters the chain declares — the environment
     among its members, which is how a module names it (`args.env`) — and run it is
     the product the call was handed (viba.interpret reads it that way).
@@ -288,8 +292,8 @@ def _nothing_left_to_give(node, module, judge=None):
                                  or _is_the_empty_product(element)
                                  or _is_the_environment(element, module, judge)
                                  for element in elements[1:]):
-        # 环境那一格不算实参（`_give` 给环境也不占格），所以链上只剩它也等于没有
-        # 剩下的：这一次调用落在结果上。
+        # The environment slot is no argument (`_give` does not fill it), so leaving only it on the
+        # chain is like leaving nothing: this call lands on the result.
         return elements[0], module
     return node, module
 
@@ -303,12 +307,14 @@ def _give(base, module, argument, argument_module, resolve, judge):
         # of, and the name that tags it is the next argument.
         return _NamedMember(argument, argument_module), module
     if isinstance(base, viba_ast.Member):
-        # `$tag` 的那个成员是从**第一个实参**身上取的，所以环境在这里不是"执行"，是值。
+        # The member for `$tag` is taken from the **first argument**, so the environment here is a
+        # value, not "execute".
         return _member_of(base.tag, argument, argument_module, resolve, judge)
     if _is_the_environment(argument, argument_module, judge):
-        # 给环境 = 执行这一步：它从此不在链上占位置。环境不是设计的参数，所以给了
-        # 之后剩下的格子就是全部要给的（没给的时候，环境那一格仍是第一格，别的实参
-        # 落到它上面照样是错的）。
+        # Giving the environment = executing this step: it stops taking a place on the chain. The
+        # environment is no parameter of the design, so once it is given, the slots left are
+        # everything there is to give (when it is not given, the environment slot is still the
+        # first, and other arguments landing on it are still wrong).
         base, module = _unfold(base, module, resolve)
         elements = _elements(base) if isinstance(base, _EXP_NODES) else [base]
         rest = [elements[0]] + [one for one in elements[1:]
@@ -419,6 +425,13 @@ def _symbol_text_of(node, module, resolve):
     """
     if isinstance(node, viba_ast.Constant) and isinstance(node.value, str):
         return node.value
+    if isinstance(node, viba_ast.MemberRead):
+        # On a name chain, a member read is that name; when the left side is an application it is no
+        # name, and is left to the other readings.
+        path = viba_ast.written_path(node)
+        if path is None:
+            return None
+        node = viba_ast.TypeRef(path)
     if not isinstance(node, viba_ast.TypeRef):
         return None
     target = resolve(node.name, module)
@@ -471,6 +484,11 @@ def _unfold(node, module, resolve):
     """A name runs to its body, name after name."""
     seen = set()
     while True:
+        if isinstance(node, viba_ast.MemberRead):
+            path = viba_ast.written_path(node)
+            if path is None:
+                return node, module
+            node = viba_ast.TypeRef(path)
         if not isinstance(node, viba_ast.TypeRef) or node.name in seen:
             return node, module
         seen.add(node.name)
@@ -497,7 +515,7 @@ def _matches(written, given, module, given_module, judge) -> bool:
     given type has to fit the declared one, so `(A <- $b B) << $b C` is legal
     only when `C <: B`. An argument written without a tag takes the next free
     slot, the way a call gives one, if it fits there: that is how a module's
-    `__def__` parameters are given one by one. Without a tag on either side there is no
+    `__decl__` parameters are given one by one. Without a tag on either side there is no
     address to name: the two are the same piece, or they are not.
     """
     if isinstance(written, viba_ast.Tagged) and isinstance(given, viba_ast.Tagged):

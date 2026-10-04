@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 add =
 	int
@@ -12,4 +12,4 @@ add =
 	<- { add two integer }
 import lib as one
 import lib as two
-__ret__ = add << $env args.env << $a (one << (args.env.sub_env << args.env << "one")) << $b (two << (args.env.sub_env << args.env << "two"))
+__impl__ = add << $env args.env << $a (one << (args.env.sub_env << args.env << "one")) << $b (two << (args.env.sub_env << args.env << "two"))

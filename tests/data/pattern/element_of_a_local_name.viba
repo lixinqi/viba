@@ -1,7 +1,7 @@
 import demo.element_type_of as element_type_of
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
 Local = int
 
-__ret__ = element_type_of[list[Local]]
+__impl__ = element_type_of[list[Local]].type

@@ -5,13 +5,13 @@
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $fib (int <- int)
   <- $n int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 small = primitives.lt << $env args.env << $x args.n << $y 2
 below_one = primitives.sub << $env args.env << $x args.n << $y 1
@@ -19,7 +19,7 @@ below_two = primitives.sub << $env args.env << $x args.n << $y 2
 low = args.fib << ($sub_env << args.env << "low") << $n below_one
 high = args.fib << ($sub_env << args.env << "high") << $n below_two
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond small
       << $get_v (builtin.echo << $x args.n))

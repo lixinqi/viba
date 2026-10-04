@@ -1,8 +1,8 @@
-# 9 个参数的那一支：同一条接线，参数列表有 9 个参数。
+# The 9-argument branch: the same wiring, with 9 arguments in the argument list.
 #
-# `Ret` 是结果、`Env` 是环境那一位、`F` 是"下一层怎么算"那一位，`Arg0`…`Arg8` 是参数那几位；
-# 这些 tag 的符号（`env_name`、`arg0_name`…`arg8_name`）都从实参里萃取，所以这个文件不认识 `$env` 以外的
-# 任何一个名字，也不认识返回类型、函数类型、参数类型分别是什么。
+# `Ret` the result, `Env` the environment, `F` the next computation, `Arg0`…`Arg8` arguments;
+# Tag symbols (`env_name`, `arg0_name`…`arg8_name`) are extracted from the actual arguments;
+# so this file knows no name but `$env`, and no result, function or argument types.
 pattern Ret <- __tagged__[env_name, Env] <- F <- __tagged__[arg0_name, Arg0] <- __tagged__[arg1_name, Arg1] <- __tagged__[arg2_name, Arg2] <- __tagged__[arg3_name, Arg3] <- __tagged__[arg4_name, Arg4] <- __tagged__[arg5_name, Arg5] <- __tagged__[arg6_name, Arg6] <- __tagged__[arg7_name, Arg7] <- __tagged__[arg8_name, Arg8]
 
 YHelper =
@@ -20,9 +20,9 @@ YHelper =
   <- __tagged__[arg7_name, Arg7]
   <- __tagged__[arg8_name, Arg8]
 
-# 各层读的是写下来的那一条链，一个名字（哪怕指到同一条链）在它们眼里不是"这个应用
-# 代表的那次调用"，所以签名照写一遍。
-__def__ =
+# Each layer reads the chain as written: a name, even one pointing at the same chain,
+# is not "the call this application stands for" to them, so the signature is written out again.
+__decl__ =
     Ret
   <- $f (Ret <- __tagged__[env_name, Env] <- F <- __tagged__[arg0_name, Arg0] <- __tagged__[arg1_name, Arg1] <- __tagged__[arg2_name, Arg2] <- __tagged__[arg3_name, Arg3] <- __tagged__[arg4_name, Arg4] <- __tagged__[arg5_name, Arg5] <- __tagged__[arg6_name, Arg6] <- __tagged__[arg7_name, Arg7] <- __tagged__[arg8_name, Arg8])
   <- $y_helper YHelper
@@ -37,15 +37,15 @@ __def__ =
   <- __tagged__[arg7_name, Arg7]
   <- __tagged__[arg8_name, Arg8]
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
-# y(f, y)：只给两样、不给环境，停在半成品上 —— 这就是 eta 展开那一步
+# y(f, y): with only those two and no environment, it stops partially applied — the eta step.
 recursive =
     args.y_helper
   << $f args.f
   << $y_helper args.y_helper
-# 参数按它自己的 tag 取：那个 tag 是萃取出来的符号，所以这里用 `$__getattr__`。
-__ret__ =
+# The argument is fetched by its own tag: that tag is an extracted symbol, hence `$__getattr__`.
+__impl__ =
     args.f
   << ($sub_env << args.env << "step")
   << recursive

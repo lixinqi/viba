@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 add =
     int
@@ -19,4 +19,4 @@ show =
 # 把闭包算在一个单独的文件里，再当实参交给 `show`：`$f` 那一格收的是写下来的
 # 那次调用，宿主拿到它之后原样递回来，答案就是那份闭包。
 inner = add << $a 40
-__ret__ = show << $f (inner) << $env args.env
+__impl__ = show << $f (inner) << $env args.env

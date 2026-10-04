@@ -1,11 +1,11 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 inner_value =
 	int
 	<- $env Env
 	<- { run another module from inside the host }
-__ret__ = inner_value << $env args.env
+__impl__ = inner_value << $env args.env

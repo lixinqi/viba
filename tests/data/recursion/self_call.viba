@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 use =
     int
@@ -10,4 +10,4 @@ use =
   <- $x int
   <- { hand x back }
 A = use << $env args.env << $x A
-__ret__ = A
+__impl__ = A

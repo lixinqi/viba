@@ -640,8 +640,8 @@ def run_cross_module_inline_cases():
 
 
 def run_module_as_function_cases():
-    """模块当函数（类型层）：import 绑定的名字读成 `__def__` 去掉环境那一格，
-    `module.Name` 照旧是那个模块里的定义，没有 `__ret__` 的模块不是程序。"""
+    """模块当函数（类型层）：import 绑定的名字读成 `__decl__` 去掉环境那一格，
+    `module.Name` 照旧是那个模块里的定义，没有 `__impl__` 的模块不是程序。"""
     names = ("program", "design_only", "caller", "env_answer",
              "env_answer_function")
     sources = {name: (CASES / "module_as_function" / f"{name}.viba").read_text()
@@ -663,7 +663,7 @@ def run_module_as_function_cases():
         return is_sub_type(entry_type(sub, caller), entry_type(sup, caller))
 
     check_result(judge("Program", "int"), True,
-                 "a bare import name reads as the module's __ret__")
+                 "a bare import name reads as the module's __impl__")
     check_result(judge("int", "Program"), True,
                  "and the two are the same type the other way round")
     check_result(judge("program << $env args.env", "int"), True,
@@ -675,7 +675,7 @@ def run_module_as_function_cases():
     check_result(judge("Dotted", "$x int"), True,
                  "module.MyType still resolves to that module's definition")
     check_result(judge("NotAProgram", "int"), "error",
-                 "a module without __ret__ is not a program, even as a function")
+                 "a module without __impl__ is not a program, even as a function")
     check_result(judge("design_only.Only", "$x int"), True,
                  "and its own definitions still resolve")
 
@@ -692,9 +692,9 @@ def run_module_as_function_cases():
 
 
 def run_module_args_cases():
-    """`__def__`（类型层）：模块的签名就是 `__def__` 去掉环境那一格。
+    """`__decl__`（类型层）：模块的签名就是 `__decl__` 去掉环境那一格。
 
-    每个参数按 tag 给、或者按位置给（值层就是这么给的），`__def__` 不是函数链就是不合法输入。
+    每个参数按 tag 给、或者按位置给（值层就是这么给的），`__decl__` 不是函数链就是不合法输入。
     给了一半在**类型**上是一种类型（剩下的那个函数）；值层里给一半是程序错
     （tests/test_interpreter_module_args.py）。
     """
@@ -717,7 +717,7 @@ def run_module_args_cases():
         return is_sub_type(entry_type(sub, caller), entry_type(sup, caller))
 
     check_result(judge("All", "int"), True,
-                 "every argument given: the module's __ret__")
+                 "every argument given: the module's __impl__")
     check_result(judge("ByTag", "int"), True,
                  "given by tag, in any order")
     check_result(judge("program << $env args.env << 3 << 4", "int"), True,
@@ -733,16 +733,16 @@ def run_module_args_cases():
     check_result(judge("program << $env args.env << 3 << 4 << $c 5", "never"), "error",
                  "an argument the module does not have -> VibaProgramErr")
     check_result(judge("Bad", "never"), "error",
-                 "a __def__ that is no function chain -> VibaProgramErr")
+                 "a __decl__ that is no function chain -> VibaProgramErr")
 
-    # `__get_args__ << __def__` 读成一份积类型：成员就是 `__def__` 的那些参数
+    # `__get_args__ << __decl__` reads as a product type: the members are `__decl__`'s parameters
     program = built["program"]
 
     def judge_in_program(sub, sup):
         return is_sub_type(entry_type(sub, program), entry_type(sup, program))
 
     check_result(judge_in_program("args", "$env Env * $a int * $b int"), True,
-                 "__get_args__ answers the __def__ parameters as a product type")
+                 "__get_args__ answers the __decl__ parameters as a product type")
     check_result(judge_in_program("$env Env * $a int * $b int", "args"), True,
                  "and that product is the same type the other way round")
     check_result(judge_in_program("args.a", "int"), True,

@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     int
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 eager_pair =
     int
@@ -14,4 +14,4 @@ eager_pair =
 tick =
     int <- $env Env <- { a value with a side effect }
 
-__ret__ = eager_pair << $env args.env << $x (tick << $env args.env) << $y 2
+__impl__ = eager_pair << $env args.env << $x (tick << $env args.env) << $y 2

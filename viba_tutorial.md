@@ -80,18 +80,18 @@ Call = add << $env args.env << $a 1 << $b 2
 
 实参可以按位置给，也可以按 tag 给（顺序随意）；按位置给时，落在写下来的第一个还没给的参数上。
 
-## 4. 一份能跑的文件：`__ret__` 与环境
+## 4. 一份能跑的文件：`__impl__` 与环境
 
-文件里写 `__ret__` 的那份定义就是这份程序的答案；**没有 `__ret__` 的文件是类型，不是程序**，跑它报
+文件里写 `__impl__` 的那份定义就是这份程序的答案；**没有 `__impl__` 的文件是类型，不是程序**，跑它报
 `VibaProgramErr`。
 
 ```viba
 # add_demo.viba
-__def__ =
+__decl__ =
     void
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 add =
     int
@@ -100,15 +100,19 @@ add =
   <- $b int
   <- { 把两个整数加起来 }
 
-__ret__ =
+__impl__ =
     add
     << args.env
     << $a 999999
     << $b 1
 ```
 
-`__def__` 是这份模块当函数读时的整条链：结果在前，参数在后；要执行的模块在里面声明恰好一个
-`$env Env`（`Env` 是内建的名字，就是 `Environment`）。`args = __get_args__ << __def__` 读回这次调用
+一份文件是一个模块，它只有两种意思：模块语义是"一份定义的映射"，顶层每份定义都是它的成员，按名字取
+（`foo_module.Bar`，泛型应用选中那份文件时也一样：`g[T].value`）；函数语义要一份签名加一份答案 ——
+不写 `__decl__` 就没有函数语义，它只是模块。
+
+`__decl__` 是这份模块当函数读时的整条链：结果在前，参数在后；要执行的模块在里面声明恰好一个
+`$env Env`（`Env` 是内建的名字，就是 `Environment`）。`args = __get_args__ << __decl__` 读回这次调用
 收到的那份实参：`args.env` 是环境本身。
 
 viba 是**声明式**的，不是命令式执行的：一份文件里的定义是**绑定**（binding），不是按写下来的次序
@@ -119,7 +123,7 @@ viba 是**声明式**的，不是命令式执行的：一份文件里的定义�
 
 结果不能写 `Env`：只有内建函数（`viba/builtin.viba` 里 `Environment` 的成员）答得了一个环境，
 别的函数写了当场报错——环境是调用的规矩，不是能交出去的值。运行时的答案不受这条限制：
-`__ret__ = args.env` 交回去的还是那个环境，只是声明成 `Any`。
+`__impl__ = args.env` 交回去的还是那个环境，只是声明成 `Any`。
 
 宿主给两样东西：答案存在哪（`EnvironmentStorage`，默认一个临时目录）和每一步的实现
 （`EnvironmentCompute`，里面一个 `get_func(module_path, func_name)`）。`interpret` 读文件、跑起来。
@@ -146,7 +150,7 @@ print(answer.ok_value.value)   # 1000000
 
 ## 5. 模块：文件是函数，调用要给环境
 
-一个 `.viba` 文件就是一个模块，而模块也是函数：输入是环境，输出是 `__ret__`。跨文件调用要给它一个
+一个 `.viba` 文件就是一个模块，而模块也是函数：输入是环境，输出是 `__impl__`。跨文件调用要给它一个
 属于这次调用的环境：
 
 ```viba
@@ -155,7 +159,7 @@ import add_demo as demo
 
 ret = demo << (args.env.sub_env << args.env << "add_demo")
 
-__ret__ = demo.print << args.env << ret
+__impl__ = demo.print << args.env << ret
 ```
 
 `args.env.sub_env << args.env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
@@ -173,19 +177,19 @@ __ret__ = demo.print << args.env << ret
 lib_call = lib << (args.env.tmp_env << args.env)
 ```
 
-模块要收实参，就把它们写进 `__def__`（结果在前，参数在后），再写 `args = __get_args__ << __def__`：
+模块要收实参，就把它们写进 `__decl__`（结果在前，参数在后），再写 `args = __get_args__ << __decl__`：
 
 ```viba
 # square_sum.viba
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $a int
   <- $b int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
-__ret__ =
+__impl__ =
     add
     << args.env
     << (mul << args.env << args.a << args.a)
@@ -201,10 +205,10 @@ __ret__ =
 ```viba
 half = add << $a 40
 same = add << $a 1 << $b 2
-__ret__ = same
+__impl__ = same
 ```
 
-`add << $a 40` 是一个**闭包**：写下来的函数名加上已经算好的实参。它能存、能传、能当 `__ret__`、能序列
+`add << $a 40` 是一个**闭包**：写下来的函数名加上已经算好的实参。它能存、能传、能当 `__impl__`、能序列
 化，也能**换一个环境再执行一次**（`same << (args.env.tmp_env << args.env)`）。"必须给全"只对执行
 成立，对闭包不成立。
 
@@ -247,7 +251,7 @@ tock =
     int <- $env Env <- { 算它也有副作用 }
 
 condition = ge << $env args.env << $x 1 << $y 0
-__ret__ =
+__impl__ =
     Oneof
   | (branch.echo_or_never
       << $env args.env << $cond condition
@@ -308,9 +312,9 @@ tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头�
 
 `interpret` 给的答案有四支：
 
-- `Ok(VibaNode)`：`__ret__` 的值。
+- `Ok(VibaNode)`：`__impl__` 的值。
 - `$viba_program_err str`（Python 侧 `VibaProgramErr`）：**这份程序或环境不行**——编不过、文件不在、
-  没有 `__ret__`、`$env` 没给。它不说"哪一步的实现坏了"，所以不带步名。
+  没有 `__impl__`、`$env` 没给。它不说"哪一步的实现坏了"，所以不带步名。
 - `$underlying_viba_op_failed Failure`（`UnderlyingVibaOpFailed`）：**某一步的实现坏了**，或者它答了
   没有叶子的东西。`$msg` 给人读，`$step`、`$reason` 给程序读。
 - `$not_my_duty_exception Duty`（`NotMyDutyException`）：**这一步不在这台机器上作答**。这不是失败，是
@@ -380,25 +384,25 @@ demo/is_base_type/200.viba              pattern A
 # demo/is_base_type/100.viba
 pattern bool | int | float | str
 
-__def__ = true
+__decl__ = true
 ```
 
 ```viba
 # demo/is_base_type/200.viba
 pattern A
 
-__def__ = false
+__decl__ = false
 ```
 
 `pattern` 一行管一个形参，按书写顺序。写下来的类型是**限定**（实参要落得进去），文件里没定义的
-名字是**形参**（实参在那个位置是什么就萃取出来）。`__def__` 是这个文件答的类型。应用写在方括号里：
+名字是**形参**（实参在那个位置是什么就萃取出来）。`__decl__` 是这个文件答的类型。应用写在方括号里：
 
 ```viba
 import demo.is_base_type as is_base_type
 
-__def__ = Any <- $env Env
+__decl__ = Any <- $env Env
 
-__ret__ = $flag is_base_type[bool] * $n 1
+__impl__ = $flag is_base_type[bool] * $n 1
 ```
 
 决断按数字从小到大，第一个命中的赢；一个都没命中是程序错误，不是 `never`。答案写成函数链时，

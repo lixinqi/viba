@@ -7,7 +7,7 @@
 
 Type =
   Oneof
-  | $any_type ()                  # Any：所有类型的上界
+  | $any_type ()                  # Any: the top type, above every type
   | $never_type ()
   | $nil_type ()
   | $bool_type ()

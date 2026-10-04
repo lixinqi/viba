@@ -5,21 +5,21 @@
 import branch
 import primitives as primitives
 
-__def__ =
+__decl__ =
     int
   <- $env Env
   <- $factorial_acc (int <- int <- int)
   <- $n int
   <- $acc int
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 small = primitives.lt << $env args.env << $x args.n << $y 1
 below = primitives.sub << $env args.env << $x args.n << $y 1
 product = primitives.mul << $env args.env << $x args.n << $y args.acc
 deeper = args.factorial_acc << ($sub_env << args.env << "deeper") << $n below << $acc product
 
-__ret__ =
+__impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond small
       << $get_v (builtin.echo << $x args.acc))

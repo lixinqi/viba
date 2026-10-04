@@ -220,6 +220,8 @@ class _Checker:
             return False  # no leaf to read; only the wrapping name can end here
         if isinstance(node, viba_ast.TypeRef):
             return self._name(node.name, module_name, bindings)
+        if isinstance(node, viba_ast.MemberRead):
+            return self._member(node, module_name, bindings)
         if isinstance(node, viba_ast.TypeApp):
             tagged = self._tagged(node, module_name, bindings)
             if tagged is not None:
@@ -258,11 +260,44 @@ class _Checker:
                    for argument in arguments
                    if not isinstance(argument, viba_ast.CodeBlock))
 
+    def _member(self, node, module_name: str, bindings: dict) -> bool:
+        """`g[T].value` / `g[T].type`: go through the definition itself in the file the
+        decision chose.
+
+        A member read on a name chain (`args.env`, `demo.print`) takes the name path; this
+        one handles the kind whose left side is an application (module semantics,
+        viba-pattern.md).
+        """
+        owner = node.owner
+        if not isinstance(owner, viba_ast.TypeApp):
+            return False
+        module = self._module(module_name)
+        if module is None:
+            return False
+        decision = reduce_application(
+            owner, module, self._argument_modules(owner, module_name, bindings))
+        if isinstance(decision, VibaProgramErr):
+            return False
+        if not (isinstance(decision, Ok) and decision.ok_value is not None):
+            return False
+        chosen = decision.ok_value
+        inner = dict(bindings)
+        for name, bound in chosen.bindings.items():
+            inner[name] = (bound.ast_node, module_name, bindings)
+        body = getattr(chosen.entry.module.module, "body", ())
+        definition = next(
+            (stmt for stmt in body
+             if isinstance(stmt, (viba_ast.TypeDefinition, viba_ast.GenericDefinition))
+             and stmt.name == node.name), None)
+        if definition is None:
+            return False
+        return self._definition(definition, chosen.entry.name, inner)
+
     def _tagged(self, node, module_name: str, bindings: dict):
         """Walk the tag a written `__tagged__[...]` spells; None when it is no tag.
 
         The symbol is a written string, or a name this walk bound — a decision
-        hands it over as a string, which is how a `__def__` builds a tag out of
+        hands it over as a string, which is how a `__decl__` builds a tag out of
         what a `pattern` line extracted (viba-pattern.md). A symbol that cannot
         be read here leaves the application to the walk it would have had.
         """
@@ -344,7 +379,7 @@ class _Checker:
         """Read a generic application: None when the constructor names none.
 
         The decision is made where the application is written, over the written
-        arguments, and what comes back is the chosen file's `__def__` — walked
+        arguments, and what comes back is the chosen file's `__decl__` — walked
         with this file's parameter names standing for the argument parts the
         patterns extracted (viba-pattern.md). A decision that fails is an
         application with nothing to walk, so the design is incomplete.

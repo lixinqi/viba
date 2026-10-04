@@ -1,8 +1,8 @@
-__def__ =
+__decl__ =
     Any
   <- $env Env
 
-args = __get_args__ << __def__
+args = __get_args__ << __decl__
 
 import branch as branch
 import pick as pick
@@ -10,7 +10,7 @@ import counters as counters
 
 half = pick.add << $a 40
 
-__ret__ =
+__impl__ =
     branch.echo_or_never
     << $env args.env
     << $cond true

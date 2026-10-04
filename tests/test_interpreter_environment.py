@@ -39,9 +39,9 @@ def _the_env_is_no_answer(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    # 模块自己的 __def__
+    # the module's own __decl__
     labelled(interpret(str(CASES / "env_as_a_result.viba"), environ),
-             "answers the environment", "__def__ answering Env -> VibaProgramErr")
+             "answers the environment", "__decl__ answering Env -> VibaProgramErr")
     # 模块里写的一个函数
     labelled(interpret(str(CASES / "env_as_a_result_function.viba"), environ),
              "answers the environment", "a definition answering Env -> VibaProgramErr")
@@ -137,7 +137,7 @@ def _children(tmp: Path):
 
 
 def _written_in_viba(tmp: Path):
-    """viba 那边调 environ.sub_env / tmp_env，以及 __ret__ 就是环境。"""
+    """viba 那边调 environ.sub_env / tmp_env，以及 __impl__ 就是环境。"""
     host = Host()
     environ = host.environ()
 
@@ -162,7 +162,7 @@ def _written_in_viba(tmp: Path):
 
     result = interpret(str(CASES / "the_env.viba"), environ)
     check(isinstance(result, Ok) and result.ok_value is environ,
-          f"a module whose __ret__ is the environment: {result!r}")
+          f"a module whose __impl__ is the environment: {result!r}")
 
     # 已经答完的 sub_env 再给参数：那不是函数
     labelled(interpret(str(CASES / "env_answered.viba"), environ), "is not a function",
