@@ -1,0 +1,25 @@
+# steps/bin_digits.viba —— 一步 bin_digits，写成二进制要几位：n 小于 2 答 1，否则下一层加一
+#
+# `$bin_digits` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
+# 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $bin_digits (int <- int)
+  <- $n int
+
+args = __get_args__ << __def__
+
+small = primitives.lt << $env args.env << $x args.n << $y 2
+below = primitives.div << $env args.env << $x args.n << $y 2
+deeper = args.bin_digits << ($sub_env << args.env << "deeper") << $n below
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x 1))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (primitives.add << $env args.env << $x deeper << $y 1))

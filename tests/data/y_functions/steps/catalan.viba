@@ -1,0 +1,28 @@
+# steps/catalan.viba —— 一步 catalan，卡特兰数：n 小于 1 答 1，否则下一层乘 (4n - 2) 再除以 n 加 1
+#
+# `$catalan` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
+# 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $catalan (int <- int)
+  <- $n int
+
+args = __get_args__ << __def__
+
+small = primitives.lt << $env args.env << $x args.n << $y 1
+below = primitives.sub << $env args.env << $x args.n << $y 1
+deeper = args.catalan << ($sub_env << args.env << "deeper") << $n below
+top = primitives.sub << $env args.env << $x (primitives.mul << $env args.env << $x 4 << $y args.n) << $y 2
+bottom = primitives.add << $env args.env << $x args.n << $y 1
+scaled = primitives.mul << $env args.env << $x deeper << $y top
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x 1))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (primitives.div << $env args.env << $x scaled << $y bottom))

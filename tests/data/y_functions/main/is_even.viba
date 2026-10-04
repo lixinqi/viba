@@ -1,0 +1,13 @@
+# main/is_even.viba —— 用内建目录里的 Y 跑 steps/is_even：答 true
+#
+# Y 是内建的泛型（`viba/Y/`）：`Y[step]` 就是那一步的不动点，再给环境与这次要跑的实参。
+__def__ =
+    bool
+  <- $env Env
+
+args = __get_args__ << __def__
+
+import Y
+import steps.is_even as step
+
+__ret__ = Y[step] << args.env << $n 10 << $acc 0

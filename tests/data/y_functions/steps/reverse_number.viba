@@ -1,0 +1,28 @@
+# steps/reverse_number.viba —— 一步 reverse_number，各位数字倒过来：n 小于 1 答累加器，否则往下走一层、累加器左移一位再放上末位
+#
+# `$reverse_number` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
+# 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $reverse_number (int <- int <- int)
+  <- $n int
+  <- $acc int
+
+args = __get_args__ << __def__
+
+small = primitives.lt << $env args.env << $x args.n << $y 1
+below = primitives.div << $env args.env << $x args.n << $y 10
+last = primitives.rem << $env args.env << $x args.n << $y 10
+shifted = primitives.add << $env args.env << $x (primitives.mul << $env args.env << $x args.acc << $y 10) << $y last
+deeper = args.reverse_number << ($sub_env << args.env << "deeper") << $n below << $acc shifted
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x args.acc))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (builtin.echo << $x deeper))

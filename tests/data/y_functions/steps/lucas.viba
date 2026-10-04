@@ -1,0 +1,36 @@
+# steps/lucas.viba —— 一步 lucas，卢卡斯数：n 是 1 答 1、是 0 答 2，否则下两层相加
+#
+# 条件分三个岔：外面先按 `one` 分一次，剩下的那一侧里再按 `zero` 分一次。
+# 两个开关都是 `branch` 的那一对；交给 `$get_v` 的得是**一次调用**（内层那个和整份和都用
+# `builtin.echo` 包起来），因为那一份要等到环境来了才算。往下那一层要一次自己的子环境，
+# 名字写在这个文件里。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $lucas (int <- int)
+  <- $n int
+
+args = __get_args__ << __def__
+
+one = primitives.eq << $env args.env << $x args.n << $y 1
+zero = primitives.eq << $env args.env << $x args.n << $y 0
+below_one = primitives.sub << $env args.env << $x args.n << $y 1
+below_two = primitives.sub << $env args.env << $x args.n << $y 2
+low = args.lucas << ($sub_env << args.env << "low") << $n below_one
+high = args.lucas << ($sub_env << args.env << "high") << $n below_two
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond one
+      << $get_v (builtin.echo << $x 1))
+  | (branch.never_or_echo << $env args.env << $cond one
+      << $get_v (builtin.echo << $x (
+        Oneof
+        | (branch.echo_or_never << $env args.env << $cond zero
+            << $get_v (builtin.echo << $x 2))
+        | (branch.never_or_echo << $env args.env << $cond zero
+            << $get_v (primitives.add << $env args.env << $x low << $y high))
+      )))

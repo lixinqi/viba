@@ -1,0 +1,37 @@
+# steps/collatz.viba —— 一步 collatz，走到 1 要几步：n 小于 2 答 0；偶数砍一半、奇数乘三加一，都再加一
+#
+# 条件分三个岔：外面先按 `small` 分一次，剩下的那一侧里再按 `even` 分一次。
+# 两个开关都是 `branch` 的那一对；交给 `$get_v` 的得是**一次调用**（内层那个和整份和都用
+# `builtin.echo` 包起来），因为那一份要等到环境来了才算。往下那一层要一次自己的子环境，
+# 名字写在这个文件里。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $collatz (int <- int)
+  <- $n int
+
+args = __get_args__ << __def__
+
+small = primitives.lt << $env args.env << $x args.n << $y 2
+rest = primitives.rem << $env args.env << $x args.n << $y 2
+even = primitives.eq << $env args.env << $x rest << $y 0
+half = primitives.div << $env args.env << $x args.n << $y 2
+tripled = primitives.add << $env args.env << $x (primitives.mul << $env args.env << $x 3 << $y args.n) << $y 1
+down_even = args.collatz << ($sub_env << args.env << "down_even") << $n half
+down_odd = args.collatz << ($sub_env << args.env << "down_odd") << $n tripled
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x 0))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (builtin.echo << $x (
+        Oneof
+        | (branch.echo_or_never << $env args.env << $cond even
+            << $get_v (primitives.add << $env args.env << $x down_even << $y 1))
+        | (branch.never_or_echo << $env args.env << $cond even
+            << $get_v (primitives.add << $env args.env << $x down_odd << $y 1))
+      )))

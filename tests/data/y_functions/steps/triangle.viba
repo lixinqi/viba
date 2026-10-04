@@ -1,0 +1,25 @@
+# steps/triangle.viba —— 一步 triangle，1 到 n 的和：n 小于 1 答 0，否则 n 加下一层
+#
+# `$triangle` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
+# 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $triangle (int <- int)
+  <- $n int
+
+args = __get_args__ << __def__
+
+small = primitives.lt << $env args.env << $x args.n << $y 1
+below = primitives.sub << $env args.env << $x args.n << $y 1
+deeper = args.triangle << ($sub_env << args.env << "deeper") << $n below
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x 0))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (primitives.add << $env args.env << $x args.n << $y deeper))

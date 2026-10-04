@@ -1,0 +1,39 @@
+# steps/ackermann.viba —— 一步 ackermann，阿克曼函数：m 是 0 答 n 加 1；n 是 0 答 (m-1, 1)；否则答 (m-1, (m, n-1))
+#
+# 条件分三个岔：外面先按 `zero_m` 分一次，剩下的那一侧里再按 `zero_n` 分一次。
+# 两个开关都是 `branch` 的那一对；交给 `$get_v` 的得是**一次调用**（内层那个和整份和都用
+# `builtin.echo` 包起来），因为那一份要等到环境来了才算。往下那一层要一次自己的子环境，
+# 名字写在这个文件里。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $ackermann (int <- int <- int)
+  <- $m int
+  <- $n int
+
+args = __get_args__ << __def__
+
+zero_m = primitives.eq << $env args.env << $x args.m << $y 0
+zero_n = primitives.eq << $env args.env << $x args.n << $y 0
+m_below = primitives.sub << $env args.env << $x args.m << $y 1
+n_below = primitives.sub << $env args.env << $x args.n << $y 1
+n_above = primitives.add << $env args.env << $x args.n << $y 1
+inner = args.ackermann << ($sub_env << args.env << "inner") << $m args.m << $n n_below
+at_zero_n = args.ackermann << ($sub_env << args.env << "at_zero_n") << $m m_below << $n 1
+outer = args.ackermann << ($sub_env << args.env << "outer") << $m m_below << $n inner
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond zero_m
+      << $get_v (builtin.echo << $x n_above))
+  | (branch.never_or_echo << $env args.env << $cond zero_m
+      << $get_v (builtin.echo << $x (
+        Oneof
+        | (branch.echo_or_never << $env args.env << $cond zero_n
+            << $get_v (builtin.echo << $x at_zero_n))
+        | (branch.never_or_echo << $env args.env << $cond zero_n
+            << $get_v (builtin.echo << $x outer))
+      )))

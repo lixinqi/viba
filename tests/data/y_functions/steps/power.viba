@@ -1,0 +1,26 @@
+# steps/power.viba —— 一步 power，x 的 n 次方：n 小于 1 答 1，否则 x 乘下一层
+#
+# `$power` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
+# 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $power (int <- int <- int)
+  <- $x int
+  <- $n int
+
+args = __get_args__ << __def__
+
+small = primitives.lt << $env args.env << $x args.n << $y 1
+below = primitives.sub << $env args.env << $x args.n << $y 1
+deeper = args.power << ($sub_env << args.env << "deeper") << $x args.x << $n below
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x 1))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (primitives.mul << $env args.env << $x args.x << $y deeper))

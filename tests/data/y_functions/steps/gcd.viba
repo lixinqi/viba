@@ -1,0 +1,30 @@
+# steps/gcd.viba —— 一步 gcd，欧几里得：b 是 0 答 a，否则拿 b 和 a 除以 b 的余数往下走
+#
+# `$gcd` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
+# 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
+#
+# `rest` 与 `deeper` 写在分支外面，不等于一进来就往下调一层：定义是读到时才算的，而下面那个
+# `__ret__` 只在 b 不是 0 的那一侧读它俩。b 是 0 时 `rest` 是 a 除以 0 的余数、`deeper` 是再往
+# 下的一层，两者都不会被读到。`main/gcd_zero.viba` 就是从基例那一侧进来钉这一点的。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $gcd (int <- int <- int)
+  <- $a int
+  <- $b int
+
+args = __get_args__ << __def__
+
+zero = primitives.eq << $env args.env << $x args.b << $y 0
+rest = primitives.rem << $env args.env << $x args.a << $y args.b
+deeper = args.gcd << ($sub_env << args.env << "deeper") << $a args.b << $b rest
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond zero
+      << $get_v (builtin.echo << $x args.a))
+  | (branch.never_or_echo << $env args.env << $cond zero
+      << $get_v (builtin.echo << $x deeper))

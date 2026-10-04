@@ -1,0 +1,15 @@
+# main/gcd_zero.viba —— 基例当入口：b 是 0，一进来就答 a，答 7
+#
+# 这一层不该去算 `rest`（a 除以 b 的余数，b 是 0），也不该往下调一层。两份定义都写在
+# steps/gcd.viba 里，而那里的 `__ret__` 只在 b 不是 0 的那一侧读它俩；定义是读到时才算的，
+# 所以这里安全。这一份就是把这个"读到"钉住的用例。
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
+import Y
+import steps.gcd as step
+
+__ret__ = Y[step] << args.env << $a 7 << $b 0

@@ -1,0 +1,27 @@
+# steps/factorial_acc.viba —— 一步 factorial_acc，n! 用累加器攒：n 小于 1 答累加器，否则往下走一层、累加器乘上 n
+#
+# `$factorial_acc` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
+# 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
+import branch
+import primitives as primitives
+
+__def__ =
+    int
+  <- $env Env
+  <- $factorial_acc (int <- int <- int)
+  <- $n int
+  <- $acc int
+
+args = __get_args__ << __def__
+
+small = primitives.lt << $env args.env << $x args.n << $y 1
+below = primitives.sub << $env args.env << $x args.n << $y 1
+product = primitives.mul << $env args.env << $x args.n << $y args.acc
+deeper = args.factorial_acc << ($sub_env << args.env << "deeper") << $n below << $acc product
+
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x args.acc))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (builtin.echo << $x deeper))

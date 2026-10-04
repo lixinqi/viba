@@ -1,0 +1,13 @@
+# main/bin_digits.viba —— 用内建目录里的 Y 跑 steps/bin_digits：答 10
+#
+# Y 是内建的泛型（`viba/Y/`）：`Y[step]` 就是那一步的不动点，再给环境与这次要跑的实参。
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
+import Y
+import steps.bin_digits as step
+
+__ret__ = Y[step] << args.env << $n 1000
