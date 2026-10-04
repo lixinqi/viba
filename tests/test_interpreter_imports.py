@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import CASES, Checks, Host, value_of
 
-from viba.interpret import interpret, sub_env, tmp_env
+from viba.interpret import BUILTIN_DIR, interpret, sub_env, tmp_env
 from viba.type import VibaProgramErr, Ok
 
 checks = Checks("interpreter_imports")
@@ -205,8 +205,11 @@ def _virtual_files(tmp: Path):
     files[missing] = _text_of(VFS / "wants_nope.viba")
     labelled(interpret(missing, environ, get_file=get_file), "not found",
              "a name the hook does not serve -> not found")
+    # 最后一站是内建目录（`viba/`）：`nope` 那里也没有
     check(asked == ["/vfs/wants_nope.viba", "/vfs/nope.viba",
-                    "/vfs/nope/__generic__.viba"],
+                    "/vfs/nope/__generic__.viba",
+                    str(BUILTIN_DIR / "nope.viba"),
+                    str(BUILTIN_DIR / "nope" / "__generic__.viba")],
           f"the main file, then every place the name could be: {asked}")
 
     # 模块已经加载过就不再问

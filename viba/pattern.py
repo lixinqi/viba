@@ -22,11 +22,15 @@ patterns fit the written arguments:
     is_bool = is_base_type[bool]        # true, from 100.viba
 
 Nothing fits: that is a program error, not a `never` answer. What the chosen
-file answers is its `__def__`, which is a type and nothing else — a generic is
-decided where a design is read, not where a program runs
-(viba-pattern.md). The parameter names are bound to the written argument
-parts, so `__def__ = A` answers the extracted type and
-`__def__ = (int <- $env Env <- int)` is a function type like any other.
+file answers is its `__def__` — a type where a design is read, and, when that
+type is a function chain and the file writes `__ret__`, the call the file runs
+itself where a program runs: a decision is static either way, and a chosen file
+that carries its own `__ret__` answers in its own sub-environment, named by its
+decision order (viba-pattern.md). The parameter names are bound to the written
+argument parts — each in the module it was written in, so a name an enclosing
+decision bound still stands for what stood at the call site. `__def__ = A`
+answers the extracted type and `__def__ = (int <- $env Env <- int)` is a
+function type like any other.
 
 A tag may also be written as a symbol string, and that is where a name that only
 exists as a string comes from: `__tagged__["a", T]` is `$a T`, a `pattern` line
@@ -382,7 +386,7 @@ def _named_symbol(name: str, module: ModuleType):
     return None
 
 
-def reduce_application(node, module: ModuleType) -> Result:
+def reduce_application(node, module: ModuleType, argument_modules=None) -> Result:
     """The chosen body for a generic application, or Ok(None) when it is none.
 
     `node` is the written `G[A, B]` and `module` the module that wrote it, so
@@ -391,6 +395,12 @@ def reduce_application(node, module: ModuleType) -> Result:
     builtin container among them), which the caller reads the way it always
     did; a VibaProgramErr is a decision that failed, or a binding that cannot
     be loaded, and says so.
+
+    `argument_modules` names, for each written argument, the module it was
+    written in. A name a decision bound stands for the argument part that stood
+    at the call site, and that part was written there, so an argument that is
+    such a name is read in its own module (`decide`). Without it every argument
+    is read in `module`.
     """
     if not isinstance(node, viba_ast.TypeApp):
         return Ok(None)
@@ -399,11 +409,12 @@ def reduce_application(node, module: ModuleType) -> Result:
         return generic
     if generic.ok_value is None:
         return Ok(None)
-    return decide(generic.ok_value, node.args, module)
+    return decide(generic.ok_value, node.args, module,
+                  argument_modules=argument_modules)
 
 
 def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
-           argument_module: ModuleType) -> Result:
+           argument_module: ModuleType, argument_modules=None) -> Result:
     """The first file whose patterns fit, or why none does.
 
     The files are read in decision order — the numbers, smallest first. A file
@@ -411,16 +422,23 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
     it is passed over; the first file every pattern fits is the answer. Nothing
     fitting is a program error: the decision failed, and a generic with no
     answer is no design.
+
+    Each argument is read in the module it was written in (`argument_modules`;
+    `argument_module` where that is not said), because an argument written as a
+    name a decision bound stands for the part that stood at the call site, and
+    that part's own names resolve there.
     """
+    where = (list(argument_modules) if argument_modules
+             else [argument_module] * len(arguments))
     arities = sorted({len(entry.patterns) for entry in generic.entries})
     for entry in generic.entries:
         if len(entry.patterns) != len(arguments):
             continue
         bindings: Dict[str, AstNodeType] = {}
         fits = True
-        for pattern, argument in zip(entry.patterns, arguments):
+        for pattern, argument, written_in in zip(entry.patterns, arguments, where):
             got = structural_pattern_match(pattern, entry.module, argument,
-                                           argument_module, bindings)
+                                           written_in, bindings)
             if isinstance(got, VibaProgramErr):
                 return got
             if got.ok_value is None:
@@ -752,7 +770,14 @@ def _unfold(node, module: ModuleType):
         seen.add(node.name)
         resolved = module_get_type(module, node.name)
         if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
-            return node, module
+            # A module name: what it is as a type is the `__def__` it wrote, read as
+            # that chain (the environment position included — this reads the type as
+            # **written**, not the "module as a function" one with the environment
+            # dropped).
+            from_module = _module_def_body(module, node.name)
+            if from_module is None:
+                return node, module
+            return from_module
         target = resolved.ok_value
         body = target.ast_node
         if isinstance(body, viba_ast.GenericDefinition):
@@ -761,6 +786,29 @@ def _unfold(node, module: ModuleType):
             body = body.body
         node, module = body, target.container_module
     return node, module
+
+
+def _module_def_body(module: ModuleType, name: str):
+    """(the `__def__` chain of the module this name binds, that module) or None.
+
+    A written name may be a module — `import fib_module as F` then `F` — and what
+    that module *is* as a type is the function it wrote in `__def__`, the
+    environment position included. None when the name is no import here, or when
+    what it binds is not a module (a generic has no `__def__` of its own).
+    """
+    imports = getattr(module, "imports", None) or {}
+    if name not in imports:
+        return None
+    handed = module.module_environment(imports[name])
+    if not isinstance(handed, Ok) or isinstance(handed.ok_value, GenericModuleType):
+        return None
+    body = getattr(getattr(handed.ok_value, "module", None), "body", None)
+    if body is None:
+        return None
+    definition = _definition(body, DEF_NAME)
+    if definition is None:
+        return None
+    return definition.body, handed.ok_value
 
 
 def _constructor_key(constructor: str, module: ModuleType) -> str:

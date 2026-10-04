@@ -1,0 +1,30 @@
+# add3_module.viba —— 一步：`f(n, m, k)` 用 `f(n - 1, m, k)` 把 n 加到 m 与 k 上，三个参数。
+#
+# 与 fib_module.viba、add2_module.viba 同一种写法，区别只在参数列表有几个参数：`f(n, m, k)`
+# 落到写了三个参数的那一份（300.viba）上 —— y_helper 一个长度一个文件。
+__def__ =
+    Any
+  <- $env Env
+  <- $add3 (int <- int <- int <- int)
+  <- $n int
+  <- $m int
+  <- $k int
+
+args = __get_args__ << __def__
+
+import branch
+import parts as parts
+
+small = parts.lt << $env args.env << $x args.n << $y 1
+below = parts.sub << $env args.env << $x args.n << $y 1
+# base case 要的是其余两位的和，也是这一步给出去的那个值
+base = parts.add << $env args.env << $x args.m << $y args.k
+
+# 每一层给一条自己的子环境，名字写在这个文件里 —— 这次调用的地址因此是可复现的
+low = args.add3 << ($sub_env << args.env << "low") << $n below << $m args.m << $k args.k
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x base))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (parts.add << $env args.env << $x low << $y 1))

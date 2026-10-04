@@ -69,6 +69,19 @@ def main():
     check("ellipsis, no terminators", is_complete(ellipsis, [], [], set()), False)
     check("ellipsis + \"...\"", is_complete(ellipsis, [], [], {"..."}), True)
 
+    # A written call is a chain too: the head has to be something to call
+    add = "add = int <- $env Env <- $a int <- $b int\n"
+    check("a written call, finished", is_complete(add + "X = add << $env Env << $a 1 << $b 2\n",
+                                                 [], [], set()), True)
+    check("a written call, still owing an argument",
+          is_complete(add + "X = add << $env Env << $a 1\n", [], [], set()), True)
+    check("a call whose head is a name that does not resolve",
+          is_complete("X = missing << $a 1\n", [], [], set()), False)
+    check("a call whose head is a number",
+          is_complete("X = 1 << $a 1\n", [], [], set()), False)
+    check("a call whose argument is not complete",
+          is_complete(add + "X = add << $env Env << $a missing\n", [], [], set()), False)
+
     # A name that does not resolve: no terminator can rescue it
     broken = "X = $a Missing\n"
     check("unresolved reference", is_complete(broken, [], [], set()), False)

@@ -6,8 +6,8 @@ __def__ =
 args = __get_args__ << __def__
 
 import fib_module as F
-import int_to_int_y
+import Y
 
-# fib 就是 F 的不动点。只给 $f、不给环境，它是一个半成品（部分计算）。
-fib = int_to_int_y << $f F
-__ret__ = fib << ($sub_env << args.env << "y") << $n 10
+# `Y[F]` 就是那个半成品（还欠环境与 `$n`），后面的实参接着给：不动点起来了。
+# 递归靠"一次调用的身份是它的 storage 路径"，而选中的 pattern 文件跑在自己的子环境里。
+__ret__ = Y[F] << args.env << $n 10

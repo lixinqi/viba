@@ -1,0 +1,14 @@
+# main_three_args.viba —— 要跑的是 Y Three 3 4 5，该答 12
+#
+# 别名同样不叫 `F`：三个参数的 `F` 要落到 y_helper/300.viba 那一份上。
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
+import add3_module as Three
+import Y
+
+# 落到哪一份 y_helper 上是按 `Three` 的参数列表有几个参数定的：这里三个，所以是 300.viba 那一份。
+__ret__ = Y[Three] << args.env << $n 3 << $m 4 << $k 5

@@ -540,10 +540,15 @@ def _partial_target(pool, name, module):
 
     A function written in a module never answers the environment itself: only a
     builtin function does, and the builtin library is the one module the check
-    steps aside for.
+    steps aside for. A dotted name may also be a member of the product a name
+    stands for — `args.fib` — which is what a chain gives its arguments to
+    (`_product_member`).
     """
     resolved = module_get_type(module, name)
     if not isinstance(resolved, Ok) or not isinstance(resolved.ok_value, AstNodeType):
+        member = _product_member(pool, name, module)
+        if member is not None:
+            return member
         return module_as_function(module, name)
     node = resolved.ok_value.ast_node
     if isinstance(node, ast_nodes.GenericDefinition):
@@ -556,6 +561,36 @@ def _partial_target(pool, name, module):
         if problem is not None:
             raise PartialError(problem)
     return node, resolved.ok_value.container_module
+
+
+def _product_member(pool, name, module):
+    """(body, written_in) for `args.a`: the member of the product a name stands for.
+
+    `args = __get_args__ << __def__` is the product of the call's parameters
+    (`_get_args_call`), so `args.a` is the `$a` member's declared type: what a
+    chain gives its arguments to (`args.fib << …`) and what the judgment layer
+    reads through the same dotted name (`is_sub_type._product_member_type`). None
+    when the head is no such product, or that member is not there — the name is
+    then read the way it always was.
+    """
+    head, dot, tag = name.rpartition(".")
+    if not dot or not head:
+        return None
+    resolved = module_get_type(module, head)
+    if not (isinstance(resolved, Ok) and isinstance(resolved.ok_value, AstNodeType)):
+        return None
+    body, written_in = resolved.ok_value.ast_node, resolved.ok_value.container_module
+    if isinstance(body, ast_nodes.TypeDefinition):
+        body = body.body
+    if isinstance(body, ast_nodes.Partial):
+        product = _get_args_call(pool, body, written_in)
+        if product is None:
+            return None
+        body, written_in = product
+    for factor in _left_elements(body, ast_nodes.Product, ast_nodes.ProductChain):
+        if isinstance(factor, ast_nodes.Tagged) and factor.tag == "$" + tag:
+            return factor.type, written_in
+    return None
 
 
 def _partial_parts(node):

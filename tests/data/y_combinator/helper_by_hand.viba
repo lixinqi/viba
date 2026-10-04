@@ -1,0 +1,20 @@
+# helper_by_hand.viba —— 不经过 Y，直接把自应用那一步用起来，该答 55
+#
+# `y_helper[fib_module]` 就是 helper 本身：它的 `__def__` 由 `fib_module` 的 `__def__`
+# 读出来 —— 结果、环境那一位、下一层那一位、参数那一位各是什么。要它跑起来，还欠
+# `$f`（下一层怎么算）与 `$y_helper`（它自己），再给环境与 `$n`；Y 的文件写的就是这三下。
+__def__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __def__
+
+import fib_module
+import y_helper
+
+__ret__ =
+    y_helper[fib_module]
+  << $f fib_module
+  << $y_helper y_helper[fib_module]
+  << args.env
+  << $n 10

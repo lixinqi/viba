@@ -109,7 +109,10 @@ that argument (the argument must fit it); a name the file never defines is a par
 and what stands in the argument there is extracted — `pattern list[A]` with
 `__def__ = A` answers the element type. The chosen file's `__def__` is the answer, read
 in that file. When that answer is a function chain, the application **is** the call the
-chain writes — `wrapper[inc] << args.env << inc << $x 1` runs the function it was handed.
+chain writes — `wrapper[inc] << args.env << inc << $x 1` runs the function it was handed;
+when that file also writes `__ret__`, the call is the file's own run, in a sub-environment
+named by its decision order, and a name the enclosing decision bound still stands for the
+argument written at the call site.
 An argument may write a call of its own (`g[add << $a 2]`): it is read as the type that
 call stands for, the chain left once the argument is given. A decision that finds no
 file is a program error, not `never`. A tag may be written as a symbol string:
@@ -300,7 +303,9 @@ for, so calling one module twice means choosing two names; `args.env.tmp_env
 << args.env` (also written `$tmp_env << args.env`) is for the calls that need
 no name, and hands out a fresh child every time. Where an `import` is looked for is the environment's business: next to the
 file that wrote it, then along `Environment`'s `viba_path` (directories, like
-`PYTHONPATH`).
+`PYTHONPATH`), and last in the builtin directory (`viba/`, where `builtin.viba`
+and the package's own generics live) — so `import Y` reaches the builtin `Y`
+from anywhere.
 
 ### Idempotence: answers have to replay
 

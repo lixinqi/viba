@@ -1,0 +1,27 @@
+# add2_module.viba —— 一步：`f(n, m)` 用 `f(n - 1, m)` 把 n 加到 m 上，两个参数。
+#
+# 与 fib_module.viba 同一种写法，区别只在参数列表多一个参数：y_helper 的模式文件按参数列表
+# 有几个参数分，`f(n, m)` 落到写了两个参数的那一份（200.viba）上。
+__def__ =
+    Any
+  <- $env Env
+  <- $add2 (int <- int <- int)
+  <- $n int
+  <- $m int
+
+args = __get_args__ << __def__
+
+import branch
+import parts as parts
+
+small = parts.lt << $env args.env << $x args.n << $y 1
+below = parts.sub << $env args.env << $x args.n << $y 1
+
+# 每一层给一条自己的子环境，名字写在这个文件里 —— 这次调用的地址因此是可复现的
+low = args.add2 << ($sub_env << args.env << "low") << $n below << $m args.m
+__ret__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x args.m))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (parts.add << $env args.env << $x low << $y 1))

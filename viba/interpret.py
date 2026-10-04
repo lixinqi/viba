@@ -79,11 +79,12 @@ from viba.partial import (file_environment_result_problem, parameters_of,
 from viba.reflect import VibaNode, access as reflect_access
 from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
-                          reduce_application)
+                          reduce_application, tagged_reading)
 from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
                        InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
-                       BUILTIN_MODULE, NilType, NeverType, custom_module)
+                       BUILTIN_DIR, BUILTIN_MODULE, NilType, NeverType,
+                       custom_module)
 from viba.viba_ast.tagged import (GETATTR_TAG, TAGGED_NAME, symbol_of,
                                   symbol_problem, tag_of, tagged_node)
 from viba.viba_type_descriptor import (descriptor_of, descriptor_of_tagged,
@@ -99,6 +100,7 @@ DEF_NAME = "__def__"
 GET_ARGS_NAME = "__get_args__"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
+
 ENV_TYPE = "Env"
 
 # Where a snapshot goes when the storage did not name a store root, and what
@@ -432,19 +434,23 @@ def _written_in_of(node):
 class _VibaData:
     """A piece of viba data with its design: a `VibaNode`.
 
-    It also carries **the module that wrote it** and, for a call stored
-    as a value, **the values that call was given**. Both are what lets a piece
-    travel: a name resolves in the module it was written in, and a call's
+    It also carries **the module that wrote it**, **the names a decision bound**
+    for the file it was written in (`bindings`), and, for a call stored as a
+    value, **the values that call was given**. All three are what lets a piece
+    travel: a name resolves in the module it was written in, a name a decision
+    bound still stands for the argument part it was bound to, and a call's
     arguments are the values it received rather than their text re-read
     somewhere else.
     """
 
-    __slots__ = ("node", "written_in", "given")
+    __slots__ = ("node", "written_in", "given", "bindings")
 
-    def __init__(self, node: VibaNode, written_in=None, given=None):
+    def __init__(self, node: VibaNode, written_in=None, given=None,
+                 bindings=None):
         self.node = node
         self.written_in = written_in if written_in is not None else _written_in_of(node)
         self.given = given                 # [(tag, _VibaData | None)], a kept call's arguments
+        self.bindings = bindings           # {name: _VibaData}: the decision that owns this text
 
 
 class _Host:
@@ -697,8 +703,11 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
     Where modules are looked up is the environment's business
     (`Environment.viba_path`): the directories are searched in order for
     `<name>.viba` (a dotted name as a path), and the directory of the file that
-    wrote the import is searched first. A child environment keeps the parent's
-    search path, so a module's own imports are looked up where the run says.
+    wrote the import is searched first. The builtin directory — `viba/`, where
+    `builtin.viba`, `Y/` and `y_helper/` live — is the last stop, so a module
+    reaches the package's own vocabulary without naming it. A child environment
+    keeps the parent's search path, so a module's own imports are looked up
+    where the run says.
 
     `get_file` is where the source of a file comes from:
     `Optional[str <- $file_path str]`, the file's text for a path, `None` (or
@@ -891,18 +900,18 @@ class _Runner:
 
     def _places(self, name: str, near: Optional[str]) -> list:
         """Where `name` may be, in the order it is looked for: next to the
-        file that wrote the import first, then VIBA_PATH in order. A dotted
-        name is a path, and also one file named with the dots (`pkg.inner.viba`).
-        A generic is the directory of that path (`pkg/inner/__generic__.viba`),
-        looked for after the file of the same name. The same place twice is
-        asked once."""
+        file that wrote the import first, then VIBA_PATH in order, then the
+        builtin directory (`BUILTIN_DIR`). A dotted name is a path, and also one
+        file named with the dots (`pkg.inner.viba`). A generic is the directory
+        of that path (`pkg/inner/__generic__.viba`), looked for after the file
+        of the same name. The same place twice is asked once."""
         rel = Path(*name.split(".")).with_suffix(".viba")
         generic = Path(*name.split(".")) / GENERIC_FILE
         places = []
         if near:
             places += [Path(near).parent / rel, Path(near).parent / generic,
                        Path(near).parent / f"{name}.viba"]
-        for base in self.paths:
+        for base in [*self.paths, BUILTIN_DIR]:
             places += [base / rel, base / generic, base / f"{name}.viba"]
         out = []
         for place in places:
@@ -912,7 +921,8 @@ class _Runner:
 
 
 def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
-               name: str, file: Optional[str], args=None, members=None) -> InterpretResult:
+               name: str, file: Optional[str], args=None, members=None,
+               bindings=()) -> InterpretResult:
     """The module as a function: the environment in, `__ret__` out.
 
     A module that declares `__def__` is called with its parameters as well; `args`
@@ -962,7 +972,7 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     runner.running.append((path, name, signature))
     try:
         value = _Activation(runner, module, environ, name, file, args,
-                            members=members).evaluate(ret.body)
+                            members=members, bindings=bindings).evaluate(ret.body)
     finally:
         runner.running.pop()
     if _stopped(value):
@@ -1257,11 +1267,9 @@ class _Activation:
             return None
         wanted = "$" + tag
         if value.ok_value is self.args:
-            # 这次调用的实参积：成员就是当初给进来的那份值，原样交回去 —— 它自己
-            # 记得名字写在哪个模块，重新包一遍会把那个记住丢掉。
-            for member_tag, member in self.members:
-                if member_tag == wanted:
-                    return Ok(member)
+            given = self._as_given(wanted)
+            if given is not None:
+                return Ok(given)
         for factor in _viba_data_factors(value.ok_value.node):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == wanted:
                 inner = factor.type          # the member's value, not its address
@@ -1359,6 +1367,18 @@ class _Activation:
                 reflect_access, descriptor_of(AstNodeType(node, written_in)), node)))
         return self._defined(name, definition)
 
+    def _as_given(self, tag):
+        """This call's member with that tag, exactly as it was given — or None.
+
+        The arguments this call received are kept as they came in, each
+        remembering the module its name was written in; the member is that very
+        value, handed back as it is, and wrapping it again would lose that.
+        """
+        for member_tag, member in self.members:
+            if member_tag == tag:
+                return member
+        return None
+
     def _take_member(self, member, value):
         """The member `$tag` of the value the chain gave first.
 
@@ -1381,6 +1401,10 @@ class _Activation:
                                     given=[value.obj],
                                     module_path=_storage_path(value.obj)))
         if isinstance(value, _VibaData):
+            if value is self.args:
+                given = self._as_given(tag)
+                if given is not None:
+                    return Ok(given)
             for factor in _viba_data_factors(value.node):
                 if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
                     inner = factor.type       # the member's value, not its address
@@ -1428,6 +1452,56 @@ class _Activation:
                 bound.ast_node), written_in=bound.container_module)
             for name, bound in chosen.bindings.items()}
 
+    def _argument_readings(self, node, scope):
+        """(nodes, modules): how a decision reads this application's arguments.
+
+        A name this call bound stands for the argument part that stood at the
+        call site (`_generic_bindings`): the part is read as *that* node, in the
+        module it was written in — a name is only a name, and the file that
+        names it need not be the file that wrote what it stands for
+        (viba-pattern.md). Every other argument is read here, where it is
+        written, as it is written.
+
+        Returns (None, None) when no argument is such a name: the application is
+        then read exactly as it stands.
+        """
+        nodes, modules = [], []
+        bound = False
+        for argument in node.args:
+            value = self._bound_value(argument, scope)
+            if value is None:
+                nodes.append(argument)
+                modules.append(self.module)
+                continue
+            bound = True
+            nodes.append(value.node.data)
+            modules.append(_writing_module(value) or self.module)
+        return (nodes, modules) if bound else (None, None)
+
+    def _bound_value(self, argument, scope):
+        """The value this call bound the written argument to, or None.
+
+        The decision that owns this activation's text is asked last, so a name it
+        bound wins over a frame the caller carried in.
+        """
+        if not isinstance(argument, viba_ast.TypeRef):
+            return None
+        frames = (tuple(scope) + (self.bindings,)
+                  if self.bindings else tuple(scope))
+        found = _in_scope(frames, argument.name)
+        return found if isinstance(found, _VibaData) else None
+
+    def _application_reading(self, node, scope):
+        """(the node the decision is made over, the module of each argument).
+
+        `node` is the written application; a bound argument is written in as the
+        part it stands for, so the decision sees what the call site wrote.
+        """
+        nodes, modules = self._argument_readings(node, scope)
+        if nodes is None:
+            return node, None
+        return viba_ast.TypeApp(node.constructor, nodes), modules
+
     def _generic_application(self, node, scope=()):
         """`gen[A, B]`: the chosen file's `__def__`, read where it is.
 
@@ -1451,17 +1525,21 @@ class _Activation:
         """
         if node.constructor == TAGGED_NAME:
             return self._tagged_data(node, scope)
-        decision = reduce_application(node, self.module)
+        written, modules = self._application_reading(node, scope)
+        decision = reduce_application(written, self.module, modules)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
         if chosen is None:
             return VibaProgramErr(f"cannot compute {type(node).__name__}")
         if isinstance(chosen.body, (viba_ast.Exponent, viba_ast.ExponentChain)):
+            # The application written down is the call it stands for: the names
+            # in it are the ones this file wrote, so the decision that owns them
+            # travels with it (`_VibaData.bindings`).
             return Ok(_VibaData(VibaNode(
                 reflect_access,
                 descriptor_of(AstNodeType(node, self.module)), node),
-                written_in=self.module))
+                written_in=self.module, bindings=self.bindings or None))
         other = _Activation(self.runner, chosen.module, self.environ,
                             chosen.entry.name, chosen.entry.path,
                             bindings=self._generic_bindings(chosen))
@@ -1550,7 +1628,8 @@ class _Activation:
                 for later in written[index:]:
                     node = viba_ast.Partial(node, later)
                 written_in = _writing_module(current)
-                other = self._in_module(written_in) if written_in is not None else None
+                other = (self._in_module(written_in, _writing_bindings(current))
+                         if written_in is not None else None)
                 if other is None or written_in is self.module:
                     return self._apply_chain(node, scope)
                 # 存下来的那一段写在 writing_module 那个模块里：只把**它**读成一次调用，
@@ -1580,13 +1659,25 @@ class _Activation:
                 named = _member_tag_of(value.ok_value.value)
                 if _stopped(named):
                     return named
+                # The take is the one `$name << X` does, and the chain goes on
+                # from there: `X` comes first, the way a member written as a tag
+                # is given the value it was taken from (`$f << box << …`).
+                rest = [current.argument] + list(written[index + 1:])
                 taken = self._take_member(_Member(named.ok_value), current.owner)
                 if _stopped(taken):
                     return taken
-                # The take is the one `$name << X` does, and the rest of the
-                # chain goes on from there — X given first, as a member is.
-                rest = [current.argument] + list(written[index + 1:])
-                return self._give_all(taken.ok_value, rest, scope, finish=finish)
+                current = taken.ok_value
+                if _is_a_written_call(current):
+                    node = current.node.data
+                    for later in rest:
+                        node = viba_ast.Partial(node, later)
+                    return self._apply_chain(node, scope)
+                if isinstance(current, _HostFunction) and current.filled():
+                    run = current.run()
+                    if _stopped(run):
+                        return run
+                    current = run.ok_value
+                continue
             if isinstance(current, _Member):
                 taken = self._take_member(current, value.ok_value.value)
                 if _stopped(taken):
@@ -1625,13 +1716,14 @@ class _Activation:
                 f"{GET_ARGS_NAME} asks for the module's {DEF_NAME}, and none was given")
         return Ok(current)
 
-    def _in_module(self, module):
+    def _in_module(self, module, bindings=None):
         """An activation for another module — the one a piece's text was written
-        in. None when this run never bound that module to a name."""
+        in, with the names the decision bound for it (`_writing_bindings`). None
+        when this run never bound that module to a name."""
         for name, known in self.runner.by_name.items():
             if known is module:
                 return _Activation(self.runner, module, self.environ, name,
-                                   self.runner.path_of.get(name))
+                                   self.runner.path_of.get(name), bindings=bindings)
         return None
 
     def _read_stored_call(self, value, scope, whole=False, finish=True):
@@ -1648,7 +1740,8 @@ class _Activation:
         head, passed = _stored_arguments(value)
         written_in = _writing_module(value)
         if whole or (written_in is not None and written_in is not self.module):
-            other = self._in_module(written_in) if written_in is not None else None
+            other = (self._in_module(written_in, _writing_bindings(value))
+                     if written_in is not None else None)
             if other is not None and isinstance(
                     head, (viba_ast.TypeRef, viba_ast.TypeApp)):
                 target = other._call_target(head, scope)
@@ -1778,10 +1871,12 @@ class _Activation:
                 written_in = _writing_module(got)
                 stored_head, passed = _stored_arguments(got)
                 if written_in is not None and written_in is not self.module:
-                    other = self._in_module(written_in)
+                    other = self._in_module(written_in, _writing_bindings(got))
                     target = (other._call_target(stored_head, scope)
                               if other is not None
-                              and isinstance(stored_head, viba_ast.TypeRef) else None)
+                              and isinstance(stored_head,
+                                              (viba_ast.TypeRef, viba_ast.TypeApp))
+                              else None)
                     if target is not None:
                         if _stopped(target):
                             return target, None
@@ -1801,7 +1896,7 @@ class _Activation:
                     got.node.data, (viba_ast.TypeRef, viba_ast.TypeApp)):
                 written_in = _writing_module(got)
                 if written_in is not None and written_in is not self.module:
-                    other = self._in_module(written_in)
+                    other = self._in_module(written_in, _writing_bindings(got))
                     target = (other._call_target(got.node.data, scope)
                               if other is not None else None)
                     if target is not None:
@@ -1822,7 +1917,7 @@ class _Activation:
         reads the name as a value instead.
         """
         if isinstance(name_node, viba_ast.TypeApp):
-            return self._generic_target(name_node)
+            return self._generic_target(name_node, scope)
         name = name_node.name
         definition = _definition(self.module, name)
         if definition is not None:
@@ -1846,9 +1941,10 @@ class _Activation:
                 f"{name!r} is a generic: it answers an application ({name}[T, ...]), "
                 f"not a call")
         return Ok(_Pending.module(self.runner, imported.ok_value, module_name,
-                                  name_node, written_in=self.module))
+                                  name_node, written_in=self.module,
+                                  written_bindings=self.bindings or None))
 
-    def _generic_target(self, node):
+    def _generic_target(self, node, scope=()):
         """The call a generic application stands for, or None when it is none.
 
         The decision is made over the written arguments, in the module that
@@ -1862,7 +1958,8 @@ class _Activation:
         None when the decision picks no function chain: the application is then
         a type, not a call.
         """
-        decision = reduce_application(node, self.module)
+        written, modules = self._application_reading(node, scope)
+        decision = reduce_application(written, self.module, modules)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
@@ -1870,6 +1967,23 @@ class _Activation:
                                             (viba_ast.Exponent, viba_ast.ExponentChain)):
             return None
         chain = _substituted(chosen.body, (self._generic_bindings(chosen),))
+        # The symbol the decision bound is written into the chain, but
+        # `__tagged__["n", T]` is still an application: the parameter table reads
+        # tags, so that application is folded into the tag it spells.
+        chain = _WrittenTags(chosen.module).visit(chain)
+        if _definition(chosen.module, RET_NAME) is not None:
+            # The chosen pattern file is a module that can run (it writes `__ret__`):
+            # this call is that module call — the environment and the arguments come
+            # from its `__def__`, and its own body does the work, so the host is not
+            # asked. A file with no `__ret__` is still the host's implementation,
+            # found under the generic's name.
+            return Ok(_Pending.module(
+                self.runner, chosen.module, chosen.entry.name, node,
+                written_in=self.module,
+                bindings=self._generic_bindings(chosen),
+                pattern_env=str(chosen.entry.order),
+                slots=parameters_of(chain),
+                written_bindings=self.bindings or None))
         return self._func_pending(node, _one_line(node), chosen.module, chain,
                                   node.constructor, written_in=self.module)
 
@@ -1938,7 +2052,8 @@ class _Activation:
                 f"{written}: the {ENVIRON_TAG} parameter must be {ENV_TYPE}, "
                 f"not {viba_ast.unparse_type(envs[0].type)}")
         return Ok(_Pending.func(self, name_node, written, owner_module, slots,
-                                name=name, written_in=written_in))
+                                name=name, written_in=written_in,
+                                written_bindings=self.bindings or None))
 
     def _member_target(self, module, module_name, rest, name_node, written,
                        written_in=None):
@@ -2176,6 +2291,20 @@ def _closure_module(value):
     return _writing_module(value)
 
 
+def _writing_bindings(value):
+    """The names a decision bound for the file this piece was written in, or None.
+
+    A closure a chosen file built is read again on its own — as an argument, or
+    through `_in_module` — and the names that file only *names* still have to
+    stand for the argument parts the decision bound them to. The activation that
+    reads it carries them (`_VibaData.bindings`), the same way it carries the
+    module the text was written in.
+    """
+    if not isinstance(value, _VibaData):
+        return None
+    return value.bindings
+
+
 def _is_a_written_call(value) -> bool:
     """Whether this value is a call written down rather than an answer.
 
@@ -2263,7 +2392,8 @@ class _Pending:
 
     def __init__(self, kind, activation=None, head=None, written="", name="",
                  module=None, written_in=None, elements=(), runner=None,
-                 module_name=None):
+                 module_name=None, bindings=(), pattern_env=None, slots=None,
+                 written_bindings=None):
         self.kind = kind                     # "func" | "module"
         self.activation = activation         # 函数：定义在哪个模块里
         self.head = head                     # 闭包写成什么：函数名或模块名那个节点
@@ -2276,17 +2406,50 @@ class _Pending:
         self.module_name = module_name
         self.environ = None                  # 环境；给了就是执行
         self.given = {}                      # 参数序号 -> 值
+        self.bindings = bindings             # parameter names the decision bound: the file's own body reads them
+        self.pattern_env = pattern_env       # the chosen pattern file: this call runs in its own sub-environment
+        self.params_override = slots         # the parameter table with the bindings written in
+        self.written_bindings = written_bindings   # the decision that owns the module this call was written in
 
     @classmethod
     def func(cls, activation, head, written, owner_module, elements, name="",
-             written_in=None):
+             written_in=None, written_bindings=None):
         return cls("func", activation=activation, head=head, written=written,
-                   name=name, module=owner_module, written_in=written_in, elements=elements)
+                   name=name, module=owner_module, written_in=written_in,
+                   elements=elements, written_bindings=written_bindings)
 
     @classmethod
-    def module(cls, runner, module, module_name, head, written_in=None):
+    def module(cls, runner, module, module_name, head, written_in=None,
+               bindings=(), pattern_env=None, slots=None, written_bindings=None):
         return cls("module", runner=runner, head=head, written=module_name,
-                   module=module, written_in=written_in, module_name=module_name)
+                   module=module, written_in=written_in, module_name=module_name,
+                   bindings=bindings, pattern_env=pattern_env, slots=slots,
+                   written_bindings=written_bindings)
+
+    def params(self):
+        """(params, problem): this call's parameters, environment among them.
+
+        A call of a chosen pattern file takes them from that file's `__def__`
+        with the decision's bindings already written in (`params_override`), so a
+        parameter the file only names (`Arg0`) carries the tag the argument was
+        written with — both for routing an argument and for the product `args`
+        the file reads it back from. A plain module call reads its own `__def__`.
+        """
+        if self.params_override is not None:
+            return self.params_override, None
+        return _module_params(self.module)
+
+    def arg_slots(self):
+        """(slots, problem): the same, less the environment (the call's rule).
+
+        A plain module call asks `_module_arg_slots`, which also says when a
+        module that runs declares no `__def__` at all.
+        """
+        if self.params_override is None:
+            return _module_arg_slots(self.module)
+        return ([(tag, written)
+                 for tag, written, is_env, _slot in self.params_override
+                 if not is_env], None)
 
     # ---- what this call is ----
 
@@ -2300,7 +2463,7 @@ class _Pending:
         """The tags of the slots this pending call fills, in order — a module's
         slots come from its `__def__`, a function's from its chain."""
         if self.kind == "module":
-            return [tag for tag, _written in (_module_arg_slots(self.module)[0] or [])]
+            return [tag for tag, _written in (self.arg_slots()[0] or [])]
         return self.slots
 
     def environ_slot(self):
@@ -2340,7 +2503,7 @@ class _Pending:
         if self.environ is None:
             return False
         if self.kind == "module":
-            slots, _problem = _module_arg_slots(self.module)
+            slots, _problem = self.arg_slots()
             return len(self.given) == len(slots or [])
         return len(self.given) == len(self.elements)
 
@@ -2356,7 +2519,7 @@ class _Pending:
                 f"{len(self.elements)} arguments: {', '.join(left)} missing")
 
     def _module_missing(self):
-        slots, problem = _module_arg_slots(self.module)
+        slots, problem = self.arg_slots()
         if problem is not None:
             return f"module {self.module_name!r}: {problem}"
         if not slots:
@@ -2403,7 +2566,7 @@ class _Pending:
         return Ok(self)
 
     def _give_module(self, tag, value):
-        slots, problem = _module_arg_slots(self.module)
+        slots, problem = self.arg_slots()
         if problem is not None:
             return VibaProgramErr(f"module {self.module_name!r}: {problem}")
         # 环境不是实参：它就是执行这一步，按值认，或者按 $env 这个 tag 认。
@@ -2412,7 +2575,11 @@ class _Pending:
                 return VibaProgramErr(
                     f"module {self.module_name!r} was not given an {ENVIRON_TYPE}: "
                     f"its {ENVIRON_TAG} parameter asks for {ENV_TYPE}")
-            self.environ = value.obj
+            # A chosen pattern file runs in its own sub-environment: its name is the
+            # file's own decision order, so the address is still written down and can
+            # be replayed — the caller need not give a sub-environment of its own.
+            self.environ = (sub_env(value.obj, self.pattern_env)
+                            if self.pattern_env else value.obj)
             return Ok(self)
         if not slots:
             # 这个模块只收环境：环境之外的实参一个都没有，所以给什么都不对。
@@ -2486,7 +2653,8 @@ class _Pending:
             kept.append((tag, value if isinstance(value, _VibaData) else None))
             node = viba_ast.Partial(node, viba_ast.Tagged(tag, piece) if tag else piece)
         return Ok(_VibaData(VibaNode(reflect_access, self.descriptor(node), node),
-                            written_in=self.written_in, given=kept))
+                            written_in=self.written_in, given=kept,
+                            bindings=self.written_bindings))
 
     def descriptor(self, node):
         """What the design calls this piece.
@@ -2558,7 +2726,7 @@ class _Pending:
     def _run_module_call(self):
         """Every parameter of `__def__` is in: hand them to the module, as one
         product, the environment among its members (`args.env`)."""
-        params, problem = _module_params(self.module)
+        params, problem = self.params()
         if problem is not None:
             return VibaProgramErr(f"module {self.module_name!r}: {problem}")
         nodes = []
@@ -2595,7 +2763,7 @@ class _Pending:
                 reflect_access,
                 descriptor_of_values(chain, self.written_in, kept), chain))
         answer = _run_module(self.runner, self.module, self.environ, self.module_name,
-                             None, args, members=members)
+                             None, args, members=members, bindings=self.bindings)
         if _stopped(answer):
             return answer
         # `interpret` hands the node out; inside a run a module's answer is a
@@ -2713,6 +2881,26 @@ def _answer(name, answer, step: Step = None):
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
     return Ok(_VibaData(VibaNode(reflect_access,
                                  descriptor_of(AstNodeType(node, _NO_MODULE)), node)))
+
+
+class _WrittenTags(viba_ast.NodeTransformer):
+    """`__tagged__[<symbol>, T]` written in by a decision → the tag it spells.
+
+    A decision hands a symbol over as the string a `pattern` line extracted, so
+    after the substitution a parameter the chosen file only *names* is that
+    string; the parameter table reads tags, so the application is folded here
+    (`viba/pattern.py` reads the same application wherever a design is read).
+    """
+
+    def __init__(self, module):
+        self.module = module
+
+    def visit_TypeApp(self, node):
+        node = self.generic_visit(node)
+        got = tagged_reading(node, self.module)
+        if isinstance(got, Ok) and got.ok_value is not None:
+            return got.ok_value
+        return node
 
 
 def _symbol_text(value):

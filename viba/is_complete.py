@@ -50,7 +50,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from viba import viba_ast
 from viba.pattern import reduce_application, tagged_reading
-from viba.type import BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
+from viba.type import BUILTIN_DIR, BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
 from viba.viba_type_descriptor import (
     empty_pool,
     file_find_import_by_local_name,
@@ -110,7 +110,9 @@ def _dependencies(library, viba_paths) -> List[Tuple[str, str, str]]:
         module_name = _module_name(file_path)
         if module_name and module_name not in found:
             found[module_name] = (str(file_path), file_content)
-    for directory in viba_paths or ():
+    # The builtin directory is the last stop here too (viba-interpreter.md), so a
+    # design that writes `import Y` reaches the package's own generics.
+    for directory in [*(viba_paths or ()), str(BUILTIN_DIR)]:
         root = Path(directory)
         if not root.is_dir():
             continue
@@ -227,12 +229,34 @@ class _Checker:
             return self._walk(node.type, module_name, bindings)
         if isinstance(node, viba_ast.Tuple):
             return all(self._walk(e, module_name, bindings) for e in node.elements)
+        if isinstance(node, viba_ast.Partial):
+            return self._call(node, module_name, bindings)
         elements = _chain_elements(node)
         if elements is None:
             return False
         if elements and _is_unit_head(elements[0]):
             elements = elements[1:]  # a unit chain head is not a member
         return all(self._walk(e, module_name, bindings) for e in elements)
+
+    def _call(self, node, module_name: str, bindings: dict) -> bool:
+        """A written call: the head has to be something to call, its arguments complete.
+
+        A call is a chain like any other (`f << a << b`), read the way the layers
+        that read a design read it: the head is what is called — a name, an
+        application, a member — and every written argument is a piece of its own.
+        Documentation is no argument. A head that is a leaf (a number, a unit)
+        is nothing to call, so the design is not complete.
+        """
+        head, arguments = _call_parts(node)
+        if isinstance(head, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never)):
+            return False
+        if not self._walk(head, module_name, bindings):
+            return False
+        return all(self._walk(argument.type if isinstance(argument, viba_ast.Tagged)
+                              else argument,
+                              module_name, bindings)
+                   for argument in arguments
+                   if not isinstance(argument, viba_ast.CodeBlock))
 
     def _tagged(self, node, module_name: str, bindings: dict):
         """Walk the tag a written `__tagged__[...]` spells; None when it is no tag.
@@ -324,11 +348,16 @@ class _Checker:
         with this file's parameter names standing for the argument parts the
         patterns extracted (viba-pattern.md). A decision that fails is an
         application with nothing to walk, so the design is incomplete.
+
+        An argument written as a name this walk bound is an argument part that
+        stood at the call site, so it is read in the module it was written in
+        (`_argument_modules`).
         """
         module = self._module(module_name)
         if module is None:
             return None
-        decision = reduce_application(node, module)
+        decision = reduce_application(
+            node, module, self._argument_modules(node, module_name, bindings))
         if isinstance(decision, VibaProgramErr):
             return False
         if not (isinstance(decision, Ok) and decision.ok_value is not None):
@@ -340,6 +369,24 @@ class _Checker:
             # names resolve in this module.
             inner[name] = (bound.ast_node, module_name, bindings)
         return self._walk(chosen.body, chosen.entry.name, inner)
+
+    def _argument_modules(self, node, module_name: str, bindings: dict):
+        """The module each written argument of an application was written in.
+
+        A name a decision bound (`bindings`) stands for the argument part that
+        stood at the call site, so that part is read where it was written, not
+        where the application that names it was written. None when no argument
+        is such a name, so every argument is read here.
+        """
+        kept = []
+        for argument in node.args:
+            where = None
+            bound = (bindings.get(argument.name)
+                     if isinstance(argument, viba_ast.TypeRef) else None)
+            if bound:
+                where = self._module(bound[1])
+            kept.append(where)
+        return kept if any(where is not None for where in kept) else None
 
     def _module(self, module_name: str):
         """The module a name stands for in the pool, or None."""
@@ -379,6 +426,20 @@ def _bindings_key(bindings: dict) -> tuple:
     return tuple(sorted(
         (name, "placeholder" if bound is None else (bound[1], viba_ast.dump(bound[0])))
         for name, bound in bindings.items()))
+
+
+def _call_parts(node):
+    """A written call read apart: (the head, the arguments in written order).
+
+    `f << a << b` nests to the left, so the spine is walked and reversed — the
+    same reading the interpreter gives a chain (`viba.partial` does it for the
+    layers that reduce a call).
+    """
+    written = []
+    while isinstance(node, viba_ast.Partial):
+        written.append(node.argument)
+        node = node.function
+    return node, list(reversed(written))
 
 
 def _chain_elements(node) -> Optional[List]:
