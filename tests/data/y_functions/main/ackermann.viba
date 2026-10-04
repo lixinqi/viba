@@ -10,4 +10,4 @@ args = __get_args__ << __decl__
 import Y
 import steps.ackermann as step
 
-__impl__ = Y << step << args.env << ($m 2 * $n 3)
+__impl__ = Y << step << args.env << $m 2 << $n 3

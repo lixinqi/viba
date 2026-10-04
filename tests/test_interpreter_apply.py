@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from interpreter_support import Checks, Host, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Ok
+from viba.type import Ok, VibaProgramErr
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES = ROOT / "tests" / "data" / "apply"
@@ -28,6 +28,9 @@ check = checks.check
 ANSWERS = [("run", 3), ("run_first", 3), ("run_three", 6),
            ("direct", 3), ("apply_once", 3), ("apply_twice", 3), ("apply_thrice", 3),
            ("by_tag", 12), ("capture", 3)]
+
+# (用例文件, 话里的片段)：`apply` 的 `$args Any` 要一份写好的积，接着写两条 `<<` 是"多给"。
+RECORDED = [("links_not_a_product", "takes no $b argument")]
 
 
 def environ_for(store):
@@ -49,6 +52,10 @@ def run(tmp: Path):
         result = interpret(str(CASES / f"{name}.viba"), environ_for(tmp))
         check(isinstance(result, Ok) and value_of(result) == want,
               f"{name} 答 {want}：{result!r}")
+    for name, want in RECORDED:
+        result = interpret(str(CASES / f"{name}.viba"), environ_for(tmp))
+        check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+              f"{name}: recorded stop {want!r}，{result!r}")
     impl_files()
 
 

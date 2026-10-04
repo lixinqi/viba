@@ -3,8 +3,9 @@
 # `<<` of its own, and this call runs there.
 #
 # `$f` is the step as a value, whatever its parameter list looks like, so this one module
-# answers every length; the arguments travel as one product and `apply` spreads it, so
-# nothing here counts them either.
+# answers every length; this layer's arguments reach it as the links the step writes when
+# it calls the next layer (`args.fib << (sub_env …) << $n below << $m other`), collected
+# into one product by `$args ...` and spread by `apply`, so nothing here counts them.
 import apply
 
 __decl__ =

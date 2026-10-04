@@ -1,0 +1,16 @@
+# 接着写两条 `<<` 不是 `apply` 要的：它的 `$args Any` 要的是一份写好的积，
+# 写成两条，多出来的那条就是"多给"。
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two }
+
+import apply
+
+__impl__ = apply << add << $a 1 << $b 2 << args.env

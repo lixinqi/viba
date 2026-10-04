@@ -71,6 +71,7 @@ CASES_TO_RUN = [
     ("members_by_tag_and_directly", "value", 7, None),
     ("member_missing", "error", "no member tagged", None),
     ("nested_product_argument", "value", 2, None),
+    ("links_to_the_rest", "value", 3, None),
     ("no_args_called", "value", 7, None),
     ("empty_args_called", "error", "has no __decl__", None),
     ("module_calls_module_with_args", "value", 14, None),
@@ -85,7 +86,7 @@ CASES_TO_RUN = [
 
 
 def run(tmp: Path):
-    check(len(CASES_TO_RUN) == 25, f"twenty-five cases: {len(CASES_TO_RUN)}")
+    check(len(CASES_TO_RUN) == 26, f"twenty-six cases: {len(CASES_TO_RUN)}")
     for index, (name, kind, want, calls_wanted) in enumerate(CASES_TO_RUN):
         program = CASES / f"{name}.viba"
         check(program.is_file(), f"the case is a file: {program.name}")

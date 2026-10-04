@@ -10,4 +10,4 @@ args = __get_args__ << __decl__
 import Y
 import steps.binomial as step
 
-__impl__ = Y << step << args.env << ($n 10 * $k 5)
+__impl__ = Y << step << args.env << $n 10 << $k 5

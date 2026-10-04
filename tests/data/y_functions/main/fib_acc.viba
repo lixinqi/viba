@@ -10,4 +10,4 @@ args = __get_args__ << __decl__
 import Y
 import steps.fib_acc as step
 
-__impl__ = Y << step << args.env << ($n 10 * $a 0 * $b 1)
+__impl__ = Y << step << args.env << $n 10 << $a 0 << $b 1

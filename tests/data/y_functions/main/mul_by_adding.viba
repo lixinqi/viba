@@ -10,4 +10,4 @@ args = __get_args__ << __decl__
 import Y
 import steps.mul_by_adding as step
 
-__impl__ = Y << step << args.env << ($a 7 * $b 6)
+__impl__ = Y << step << args.env << $a 7 << $b 6

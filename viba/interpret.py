@@ -612,6 +612,67 @@ def _kept_as_its_own_tag(tag, value):
                      bindings=value.bindings)
 
 
+def _takes_the_rest(written) -> bool:
+    """Whether a parameter written like this takes the rest of the arguments: `...`.
+
+    Such a parameter holds one product: `__decl__ = Any <- $f Any <- $args ...` is
+    called `Y << f << $a 1 << $b 2`, and `args.args` reads back as `$a 1 * $b 2`.
+    """
+    return isinstance(written, viba_ast.Ellipsis)
+
+
+def _the_members(value):
+    """Every member of a piece as (the tag it was written under, the member itself).
+
+    A product's members are the factors it was written as; a piece that is no product
+    is its own one member, and a member of a one-member product (`$a 1`) keeps the tag
+    that writes it.
+    """
+    data = value.node.data
+    if isinstance(data, (viba_ast.Product, viba_ast.ProductChain)):
+        factors = product_elements(data)
+        elements = getattr(value.node.descriptor, "elements", ())
+    else:
+        factors, elements = [data], [value.node.descriptor]
+    members = []
+    for index, factor in enumerate(factors):
+        descriptor = elements[index] if index < len(elements) else value.node.descriptor
+        tag = None
+        if isinstance(factor, viba_ast.Tagged):
+            tag, inner = factor.tag, factor.type
+            under_the_tag = getattr(descriptor, "tagged_type", None)
+            descriptor = (under_the_tag if under_the_tag is not None
+                          else descriptor_of(AstNodeType(inner, value.written_in)))
+        else:
+            inner = factor
+        members.append((tag, _VibaData(VibaNode(reflect_access, descriptor, inner),
+                                       written_in=value.written_in,
+                                       bindings=value.bindings)))
+    return members
+
+
+def _one_more_member(product, tag, value, written_in):
+    """(the product with one more member, None), or (None, a stop).
+
+    A parameter written `...` holds one product, so an argument that joins it after
+    the first has to become a member of that product — which is the same product the
+    same arguments make when they are written as one (`<< ($a 1 * $b 2)`). Its members
+    are viba data, so an argument that is none cannot join it.
+    """
+    if not isinstance(product, _VibaData) or not isinstance(value, _VibaData):
+        return None, VibaProgramErr(
+            "a parameter written '...' holds one product, so what joins it has to be "
+            "viba data: this argument is not")
+    members = [*_the_members(product), (tag, value)]
+    kept = [member for _tag, member in members]
+    nodes = [viba_ast.Tagged(one, member.node.data) if one else member.node.data
+             for one, member in members]
+    chain = viba_ast.ProductChain(nodes)
+    return _VibaData(VibaNode(reflect_access,
+                              descriptor_of_values(chain, written_in, kept), chain),
+                     written_in=written_in, bindings=product.bindings), None
+
+
 def _is_get_args_call(node) -> bool:
     """Whether this definition body is the call that reads a call's arguments:
     `__get_args__ << __decl__`."""
@@ -2899,6 +2960,26 @@ class _Pending:
             return self._give_module(tag, value)
         return self._give_func(tag, value)
 
+    def _the_parameter_taking_the_rest(self, slots):
+        """The index of the `...` parameter this call has already given, or None.
+
+        An argument whose tag names no parameter joins that parameter's product
+        (`_one_more_member`); a call with no `...` parameter, or one whose `...`
+        parameter is not given yet, has none — there the argument is a mistake.
+        """
+        for one in range(len(slots)):
+            if _takes_the_rest(slots[one][1]) and one in self.given:
+                return one
+        return None
+
+    def _give_to_the_rest(self, index, tag, value):
+        """Give one argument to the `...` parameter, as one more member of its product."""
+        product, problem = _one_more_member(self.given[index], tag, value, self.written_in)
+        if problem is not None:
+            return problem
+        self.given[index] = product
+        return Ok(self)
+
     def _give_func(self, tag, value):
         index, problem = self.slot_for(tag)
         if problem is not None:
@@ -2970,6 +3051,11 @@ class _Pending:
                 free = [one for one in range(len(slots))
                         if one not in self.given and _takes_a_product(slots[one][1])]
                 if not free:
+                    # A parameter written `...` takes the rest of the arguments: the
+                    # product it already holds gets this one as another member.
+                    rest = self._the_parameter_taking_the_rest(slots)
+                    if rest is not None:
+                        return self._give_to_the_rest(rest, tag, value)
                     return VibaProgramErr(
                         f"module {self.module_name!r} takes no {tag} argument: its "
                         f"{DEF_NAME} parameters are {_written_slots(slots)}")
@@ -2983,6 +3069,9 @@ class _Pending:
         else:
             free = [one for one in range(len(slots)) if one not in self.given]
             if not free:
+                rest = self._the_parameter_taking_the_rest(slots)
+                if rest is not None:
+                    return self._give_to_the_rest(rest, None, value)
                 return VibaProgramErr(
                     f"module {self.module_name!r} takes no more arguments: its "
                     f"{DEF_NAME} parameters are all given")

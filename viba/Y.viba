@@ -1,5 +1,6 @@
-# Y: the fixed point of a step. `Y << f << <this layer's arguments> << args.env` is the
-# step given the next layer, and this layer's arguments with it.
+# Y: the fixed point of a step. `Y << f << args.env << $a 7 << $b 0` is the step
+# given the next layer, with this layer's arguments: `$args ...` takes the rest of
+# the chain, so those links are one product there (`$a 7 * $b 0`).
 #
 # The next layer the step is handed is `y_helper << $f f << $y_helper y_helper` — the same
 # call as this one, so the entry and the recursion are the same thing.

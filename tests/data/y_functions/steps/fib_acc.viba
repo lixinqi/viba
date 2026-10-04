@@ -8,7 +8,7 @@ import primitives as primitives
 __decl__ =
     int
   <- $env Env
-  <- $fib_acc ...
+  <- $fib_acc Any
   <- $n int
   <- $a int
   <- $b int
@@ -18,7 +18,7 @@ args = __get_args__ << __decl__
 small = primitives.lt << $env args.env << $x args.n << $y 1
 below = primitives.sub << $env args.env << $x args.n << $y 1
 next = primitives.add << $env args.env << $x args.a << $y args.b
-deeper = args.fib_acc << ($sub_env << args.env << "deeper") << ($n below * $a args.b * $b next)
+deeper = args.fib_acc << ($sub_env << args.env << "deeper") << $n below << $a args.b << $b next
 __impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond small

@@ -3,12 +3,16 @@
 # captures the two; the environment comes last and is not a parameter of this
 # module, so the call this module answers is left wanting it, and the environment
 # is appended there — `apply << f << args << env` is `f << 1 << 2 << env`.
+#
+# The product of arguments comes as one piece — `apply << f << ($a 1 * $b 2)`, not
+# `apply << f << $a 1 << $b 2` — which is what `$args Any` says: whoever calls this
+# module already holds that product.
 import apply_impl
 
 __decl__ =
     Any
   <- $f Any
-  <- $args ...
+  <- $args Any
 
 args = __get_args__ << __decl__
 

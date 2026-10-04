@@ -10,4 +10,4 @@ args = __get_args__ << __decl__
 import Y
 import steps.is_even as step
 
-__impl__ = Y << step << args.env << ($n 10 * $acc 0)
+__impl__ = Y << step << args.env << $n 10 << $acc 0

@@ -10,4 +10,4 @@ args = __get_args__ << __decl__
 import Y
 import steps.power as step
 
-__impl__ = Y << step << args.env << ($x 2 * $n 10)
+__impl__ = Y << step << args.env << $x 2 << $n 10

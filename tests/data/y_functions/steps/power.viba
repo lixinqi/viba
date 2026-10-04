@@ -8,7 +8,7 @@ import primitives as primitives
 __decl__ =
     int
   <- $env Env
-  <- $power ...
+  <- $power Any
   <- $x int
   <- $n int
 
@@ -16,7 +16,7 @@ args = __get_args__ << __decl__
 
 small = primitives.lt << $env args.env << $x args.n << $y 1
 below = primitives.sub << $env args.env << $x args.n << $y 1
-deeper = args.power << ($sub_env << args.env << "deeper") << ($x args.x * $n below)
+deeper = args.power << ($sub_env << args.env << "deeper") << $x args.x << $n below
 __impl__ =
   Oneof
   | (branch.echo_or_never << $env args.env << $cond small

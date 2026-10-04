@@ -1,0 +1,16 @@
+# sums_the_rest.viba —— `$args ...` 收的是"剩下的实参"：`args.args` 是它们打包成的那份积。
+__decl__ =
+    int
+  <- $env Env
+  <- $args ...
+
+args = __get_args__ << __decl__
+
+sum_of =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add up the two }
+
+__impl__ = sum_of << args.env << $a args.args.a << $b args.args.b
