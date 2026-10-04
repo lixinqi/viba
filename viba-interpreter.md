@@ -464,7 +464,7 @@ def echo_or_never(env, cond, get_v):
 ```
 
 - `echo_or_never`：condition 为真时按单位元 `nil * v = v` 返回 `get_v`，否则按 `never * v = never`
-  返回 never——**`get_v` 不会被叫**，那一支写下来的实参根本不求值（非严格求值）；
+  返回 never——**`get_v` 不会被叫**，那一支写下来的实参根本不求值（惰性求值）；
 - `never_or_echo`：condition 为真时按 `never * v = never` 返回 never，否则按单位元 `nil * v = v`
   返回 `get_v`。
 
@@ -493,7 +493,7 @@ __ret__ =
 那个实参**最多求值一次**（memoization，也叫 sharing）：第一次问出结果（值或停下），之后每一次问都拿
 同一个。所以宿主问两遍不会让副作用发生两遍。
 
-只有函数类型的那个参数是非严格的（non-strict）；别的实参按值求值（call-by-value），函数的 `$env`
+只有函数类型的那个参数是惰性的（lazy，non-strict）；别的实参按值求值（call-by-value），函数的 `$env`
 也照旧按值给。想给一个求好的值，用 `builtin.echo` 把它包成"给它一个环境就答 V"的那个函数。
 
 这跟一份定义什么时候求值是同一条策略，见下面「求值策略：按需求值（call-by-need）」一节。
@@ -617,7 +617,7 @@ viba 是**声明式**（declarative）的，不是命令式执行的：一份文
 - **绑定可以前向引用**（forward reference）：`__ret__ = x` 与 `x = 7` 换个次序还是 7
   （[`defined_after.viba`](tests/data/values/defined_after.viba)）。写下来的次序不是求值的次序。
 - **一个绑定只求值一次**：两处用同一个名字，宿主只被叫一次
-  （[`memo.viba`](tests/data/values/memo.viba)）；同名写两份时，后写的**遮蔽**（shadow）前一份
+  （[`memo.viba`](tests/data/values/memo.viba)）；同名写两份时，后写的那一份说了算（shadow）
   （[`twice_defined.viba`](tests/data/values/twice_defined.viba)）。
 
 这条策略不是省一次求值：递归要"再一次进到同一个定义"，而一份文件里的绑定不许成环（下一节），所以
@@ -627,7 +627,7 @@ viba 是**声明式**（declarative）的，不是命令式执行的：一份文
 （从基例那一侧进来的那一份是
 [`main/gcd_zero.viba`](tests/data/y_functions/main/gcd_zero.viba)）。
 
-一个调用的实参默认**按值求值**（call-by-value）；只有函数类型的那个参数**非严格**（non-strict）——
+一个调用的实参默认**按值求值**（call-by-value）；只有函数类型的那个参数**惰性**（lazy，non-strict）——
 写在那个参数上的调用连同环境交给宿主，宿主用到它时才算，见上面「分支：用积选择，用和汇合」那一节。
 求值到一半的绑定被自己用到（`A = B` 与 `B = A`，或者 `A = use << $env args.env << $x A`）是循环定义，
 当场报 `one file's definitions may not go round`，而不是等栈崩（下一节）。
