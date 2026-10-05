@@ -1,8 +1,0 @@
-# 连着要两个：第二个是第一个的 next_sibling（c0 给 c1）
-__decl__ =
-    Any
-  <- $env Env
-
-args = __get_args__ << __decl__
-
-__impl__ = $next_sibling << ($next_sibling << args.env)

@@ -304,8 +304,8 @@ child = $sub_env << args.env << "add_demo"           # 同一个调用，短一�
 Environment =
     Object
   * $viba_path str
-  * $sub_env (Environment <- $env Env <- $sub_env_name str)
-  * $tmp_env (Environment <- $env Env)
+  * $sub_env (Env <- $env Env <- $sub_env_name str)
+  * $tmp_env (Env <- $env Env)
 ```
 
 tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头、后面跟着第一个参数时才成立。第一个参数

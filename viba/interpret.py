@@ -66,6 +66,7 @@ they are serialized viba data, so what was stored can be read and checked.
 """
 
 import copy
+import hashlib
 import inspect
 import os
 import tempfile
@@ -181,21 +182,26 @@ class Environment:
 
     __slots__ = ("storage", "compute", "viba_path", "sub_env", "tmp_env",
                  "get_root", "get_relative_path", "find_by_relative_path",
-                 "next_sibling", "parent")
+                 "convert_sub_to_sibling", "uncompress_relative_path", "parent")
 
     def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute,
-                 viba_path=None, parent: Optional["Environment"] = None):
+                 viba_path=None, parent: Optional["Environment"] = None,
+                 uncompress_relative_path: Optional[str] = None):
         self.storage = storage
         self.compute = compute
         # The environment this one was made from, when it was made by `sub_env`
         # or `tmp_env`: the chain it belongs to, which is what `get_root`,
-        # `get_relative_path` and `next_sibling` walk (`viba-interpreter.md`).
+        # `get_relative_path` and `find_by_relative_path` walk (viba-interpreter.md).
         self.parent = parent
         # Where modules are looked up, like PYTHONPATH: a string of directories,
         # or one path. A module runs under the environment it was handed, so its
         # own imports are looked up where that environment says — which is how a
         # sub-environment keeps the parent's search path along with its compute.
         self.viba_path = viba_path
+        # The address a compressed one stands for: `convert_sub_to_sibling` writes
+        # the path it compressed here, and every other environment answers `nil`
+        # (the member is a value, not a function: `args.env.uncompress_relative_path`).
+        self.uncompress_relative_path = uncompress_relative_path
         # The members a design hangs off the environment are plain functions of
         # the environment itself: nothing is bound to the one they were read
         # from, so `args.env.sub_env << args.env << "child"` and
@@ -211,7 +217,7 @@ class Environment:
             find_by_relative_path(
                 _the_relative_path(relative_path),
                 _an_environment_or_nil(root, "find_by_relative_path") or self))
-        self.next_sibling = next_sibling
+        self.convert_sub_to_sibling = convert_sub_to_sibling
 
 
 def sub_env(environ: "Environment", name) -> "Environment":
@@ -322,39 +328,36 @@ def find_by_relative_path(relative_path, root) -> "Environment":
     return found
 
 
-def _the_next_name(name: str) -> str:
-    """The name after this one: `c` gives `c0`, `c0` gives `c1`, `c1` gives `c2`."""
-    digits = ""
-    while name and name[-1].isdigit():
-        digits = name[-1] + digits
-        name = name[:-1]
-    return f"{name}{int(digits) + 1 if digits else 0}"
+def convert_sub_to_sibling(sup, sub) -> "Environment":
+    """The address `sub` stands for, compressed into a sibling of `sup`.
 
+    `sup`'s address has to be a prefix of `sub`'s, at a name boundary: `sub` is
+    under `sup` (`<sup>/…`) or it is an address already pressed from `sup`
+    (`<sup>_…`, which is what this function makes). `sub`'s own address — the
+    storage path it runs at — is hashed with SHA-1 and appended to `sup`'s own
+    path as one name, `<sup's path>_<40 hex digits>`, so a recursion built this
+    way keeps the same address length however deep it goes. The address that was
+    compressed is written into the answer's `uncompress_relative_path`, which is
+    how a tool reads the original back.
 
-def next_sibling(current) -> "Environment":
-    """A new directory beside this one: `a/b/c` answers `a/b/c0`, then `c1` …
-
-    The name is the last one with its number grown by one (`_the_next_name`), and
-    it has to be free: an address already handed out under the parent, or a
-    directory already under the store root, is a program error — this makes a new
-    address, it never reuses one. The root has no sibling: there is no parent
-    directory to put one in.
+    The same `sup` and `sub` answer the same address and the same environment; a
+    `sup` that is the chain's root has nowhere to put a sibling, which is a stop.
     """
-    current = _an_environment(current, "next_sibling")
-    parent = current.parent
+    sup = _an_environment(sup, "convert_sub_to_sibling")
+    sub = _an_environment(sub, "convert_sub_to_sibling")
+    above, under = _storage_path(sup), _storage_path(sub)
+    if not under.startswith(f"{above}_") and not under.startswith(f"{above}/"):
+        raise RuntimeError(f"{under or '<no path>'} does not begin with "
+                           f"{above or '<no path>'}: convert_sub_to_sibling "
+                           f"compresses an address of the sup it is read from")
+    parent = sup.parent
     if parent is None:
-        raise RuntimeError(f"{_storage_path(current) or '<no path>'} is the root: "
-                           f"it has no sibling to make")
-    storage = getattr(parent, "storage", None)
-    if storage is None:
-        raise RuntimeError("next_sibling needs the parent's storage to make one")
-    name = _the_next_name(_storage_path(current).rsplit("/", 1)[-1])
-    taken = f"{_storage_path(parent)}/{name}" if _storage_path(parent) else name
-    if name in storage.sub_storage:
-        raise RuntimeError(f"{taken} is already taken: a sibling is a new address")
-    if storage._store_path(taken).is_dir():
-        raise RuntimeError(f"{taken} is already a directory under the store root")
-    return sub_env(parent, name)
+        raise RuntimeError(f"{above or '<no path>'} is the root: there is no "
+                           f"directory beside it to put the address in")
+    digest = hashlib.sha1(under.encode()).hexdigest()
+    made = sub_env(parent, f"{above.rsplit('/', 1)[-1]}_{digest}")
+    made.uncompress_relative_path = under
+    return made
 
 
 
@@ -1747,9 +1750,14 @@ class _Activation:
         tag = member.tag
         name = tag[1:]
         if _is_environ_value(value):
-            attributed = getattr(value.obj, name, None)
-            if not callable(attributed):
+            try:
+                attributed = getattr(value.obj, name)
+            except AttributeError:
                 return VibaProgramErr(f"the environment has no {name!r}")
+            if not callable(attributed):
+                # A member that is a value, not a function: `uncompress_relative_path`
+                # is a string or `nil`, and reading it hands that value over.
+                return _answer(f"environ.{name}", attributed)
             # The value the member is taken from is also what the member is
             # given first: `$sub_env << args.env << "child"` is
             # `args.env.sub_env << args.env << "child"`.
@@ -1792,9 +1800,14 @@ class _Activation:
         if _stopped(value) or not _is_environ_value(value.ok_value):
             return None
         environ = value.ok_value.obj
-        member = getattr(environ, rest, None)
-        if not callable(member):
+        try:
+            member = getattr(environ, rest)
+        except AttributeError:
             return VibaProgramErr(f"the environment has no {rest!r}")
+        if not callable(member):
+            # A member that is a value, not a function: `args.env.uncompress_relative_path`
+            # is a string or `nil`, and reading it hands that value over.
+            return _answer(f"environ.{rest}", member)
         return Ok(_HostFunction(rest, member, slots=_required_arguments(member),
                                 module_path=_storage_path(environ)))
 

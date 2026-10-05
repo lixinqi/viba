@@ -17,7 +17,9 @@ Y 与 y_helper 住在包的内建目录里（`viba/Y.viba` 与 `viba/y_helper.vi
 搜索路径的最后一站就是那个目录，所以写 `import Y` 就能拿到它，任何 `viba_path` 都不用再写上包
 的位置。**两个都写 `$env Env`**：给环境就是执行，所以谁调用它们，谁就写下这一层的地址 ——
 `main/<名字>.viba` 写 `args.env.sub_env << args.env << "Y"`，`steps/<名字>.viba` 往下调时写
-`$sub_env << args.env << "low"` 那样的名字。这一步写成什么样都不影响：`Y << step` 把 step 本身
+`$sub_env << args.env << "low"` 那样的名字 —— 这一层只是名字的出处，`y_helper` 用
+`convert_sub_to_sibling` 把它的地址压成 workspace 旁边的一个名字（`{workspace 的路径}_{sha1(...)}`），
+所以往下多少层，地址都只有一个哈希那么长（`viba-interpreter.md` 的「链上的成员」）。这一步写成什么样都不影响：`Y << step` 把 step 本身
 当一个值收下 —— 不是泛型，也不按参数个数分文件；这一层的实参接着 `<<` 写在后面
 （`Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0`），`Y` 那个写 `$args ...` 的参数
 把它们收成一份积，`apply` 按积里有几个成员选 `apply_impl` 那一支。

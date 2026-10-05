@@ -1,0 +1,8 @@
+# sup 写成链根：它旁边没有目录可放，当场报错
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $convert_sub_to_sibling << ($get_root << args.env) << args.env

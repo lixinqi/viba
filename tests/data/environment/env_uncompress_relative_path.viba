@@ -1,0 +1,8 @@
+# `args.env.uncompress_relative_path`：普通环境上是 nil（没压过东西）
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = args.env.uncompress_relative_path

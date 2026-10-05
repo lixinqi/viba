@@ -306,12 +306,14 @@ $sub_env << $env args.env << $sub_env_name "add_demo"  # 都按 tag 给，也对
 `viba/builtin.viba` 里 `Environment` 的成员就是这样声明的——环境是它的第一个参数：
 
 ```viba
-  * $sub_env (Environment <- $env Env <- $sub_env_name str)
-  * $tmp_env (Environment <- $env Env)
-  * $get_root ((Environment | nil) <- $current (Environment | nil))
-  * $get_relative_path (str <- $current Environment <- $root (Environment | nil))
-  * $find_by_relative_path (Environment <- $relative_path str <- $root (Environment | nil))
-  * $next_sibling (Environment <- $current Environment)
+  * $viba_path str
+  * $sub_env (Env <- $env Env <- $sub_env_name str)
+  * $tmp_env (Env <- $env Env)
+  * $get_root ((Env | nil) <- $current (Env | nil))
+  * $get_relative_path (str <- $current Env <- $root (Env | nil))
+  * $find_by_relative_path (Env <- $relative_path str <- $root (Env | nil))
+  * $convert_sub_to_sibling (Env <- $sup Env <- $sub Env)
+  * $uncompress_relative_path (str | nil)
 ```
 
 成员也可以写在数据里：一个积的 `$f` 里放一个函数名时，`$f << box << args.env << 1` 就是
@@ -321,10 +323,10 @@ tag 本身**不是值**：`method = $sub_env` 编不过，标签只有写在链�
 第一个参数必须写出来——它是取成员的那一个，省略了就成了一次没有成员的调用。第一个参数是别的值
 也一样：`$tag` 命中的是它的成员，不在就报错。
 
-### 链上的四个成员：根、相对路径、找回来、旁边的目录
+### 链上的成员：根、相对路径、找回来、压地址
 
 子环境是由 `sub_env`/`tmp_env` 从父级造出来的，它记着那个父级，所以一条链能从任意一层往上走。
-四个成员把这条链读出来（地址就是 storage 路径，见「调用别的模块」）：
+这些成员把这条链读出来（地址就是 storage 路径，见「调用别的模块」）：
 
 - **`$get_root << args.env`**：这一层那条链的根（没有父级的那个环境）。`nil` 进 `nil` 出。
 - **`$get_relative_path << args.env << <root>`**：这一层的地址从那个根往下写出来的那一段 ——
@@ -341,14 +343,18 @@ tag 本身**不是值**：`method = $sub_env` 编不过，标签只有写在链�
 
   写成 `$find_by_relative_path << args.env << "a/b"` 会把那个环境放到相对路径的位置上：报错，
   话里给出正确写法。
-- **`$next_sibling << args.env`**：在这个目录**旁边**再弄一个新的 —— `a/b/c` 给 `a/b/c0`，
-  `a/b/c0` 给 `a/b/c1`（名字里最后那串数字加一，没有就从 0 开始）。它不是 `sub_env`：不往下一层
-  走，而是在同一个父级里换一个名字。算出来的那个名字不能已经被占：父级那里给过这个名字
-  （`sub_env` 给过就算），或者 store root 底下已经有这个目录，都当场报错 —— 它造新地址，不复用
-  旧的。根没有父级，要不到兄弟。
+- **`$convert_sub_to_sibling << <sup> << <sub>`**：把 `sub` 的地址压成 `sup` 旁边的一个名字，
+  写成 `{sup 的路径}_{sha1(sub 的路径)}`（后面那 40 位是十六进制）。`sup` 的路径必须是 `sub`
+  的路径的前缀，而且落在名字边界上（`<sup>/…` 或者已经压过的 `<sup>_…`）；压出来的地址长度只跟
+  `sup` 的名字有关，跟 `sub` 有多深无关 —— 递归里每层的地址因此不
+  会越接越长。它不是 `sub_env`：不往下一层走，而是在 `sup` 所在的那个目录里放一个扁平的名字。
+  压掉的那个原地址记在返回值的 `uncompress_relative_path` 上；同一个 `sup` 与 `sub` 给同一个
+  地址。`sup` 是链根时旁边没有目录可放，当场报错。
+- **`$uncompress_relative_path << args.env`**（也写成 `args.env.uncompress_relative_path`）：
+  压过地址的那一层记着它压掉的原地址；别的环境上是 `nil`。它是一个**值成员**，不带参数。
 
-`tests/test_interpreter_env_paths.py` 把四个成员自己的规矩、写错的几种，以及它们合起来的往返
-（根 → 相对路径 → 按那条路径找回来、编号一直长下去）都钉住了。
+`tests/test_interpreter_env_paths.py` 把每个成员自己的规矩、写错的几种，以及它们合起来的往返
+（根 → 相对路径 → 按那条路径找回来、压出来的地址还能按路径走）都钉住了。
 
 不想起名字就用 `tmp_env`：
 
@@ -358,7 +364,7 @@ lib << (args.env.tmp_env << args.env)
 
 它像临时文件一样，**每次调用都给一个新的子环境**（路径是 `父路径/tmp_<随机>`），所以两次调用
 天然各占一条路径。`viba/builtin.viba` 里 `Environment` 的成员因此写的是
-`$tmp_env (Environment <- $env Env)`：它只收那个环境，名字不用给。
+`$tmp_env (Env <- $env Env)`：它只收那个环境，名字不用给。
 
 路径每次都不同，这是 `tmp_env` 的语义：它给**纯函数调用**、或者**结果不留的调用**用。一个
 需要快照、要靠回放才幂等的函数如果挂在它底下，回放自然命中不了——每次的路径都是新的，快照会
@@ -377,8 +383,8 @@ lib << (args.env.tmp_env << args.env)
 Environment =
     Object
   * $viba_path str
-  * $sub_env (Environment <- $env Env <- $sub_env_name str)
-  * $tmp_env (Environment <- $env Env)
+  * $sub_env (Env <- $env Env <- $sub_env_name str)
+  * $tmp_env (Env <- $env Env)
 ```
 
 storage 与 compute 是**宿主的词汇**，viba 里没有一个名字指得到它们（它们不是类型，是宿主
@@ -387,19 +393,23 @@ storage 与 compute 是**宿主的词汇**，viba 里没有一个名字指得到
 ```python
 EnvironmentStorage(cur_storage_path, sub_storage=None, store_root_dir=None)
 EnvironmentCompute(get_func)                             # get_func(module_path, func_name)
-Environment(storage, compute, viba_path=None, parent=None)   # sub_env / tmp_env 给子环境
+Environment(storage, compute, viba_path=None, parent=None,
+            uncompress_relative_path=None)                  # sub_env / tmp_env 给子环境
 ```
 
 `parent` 是造它出来的那个环境：`sub_env`/`tmp_env` 会写上，宿主自己 `Environment(...)` 造出来的
-就是 `None`（那它自己就是一条链的根）。链上那四个成员读的就是它 —— 宿主侧是 `viba.interpret` 里
-四个普通函数：
+就是 `None`（那它自己就是一条链的根）。链上那些成员读的就是它 —— 宿主侧是 `viba.interpret` 里
+几个普通函数：
 
 ```python
 get_root(current)                           # 链顶那个环境；None（`nil`）进 None 出
 get_relative_path(current, root)            # 从 root 往下的那一段地址
 find_by_relative_path(relative_path, root)  # 从 root 按那一段地址走下来
-next_sibling(current)                       # 同一个父级里的下一个名字
+convert_sub_to_sibling(sup, sub)            # 把 sub 的地址压成 sup 旁边 名字_sha1
 ```
+
+`uncompress_relative_path` 不是函数，是环境上的一个值：`convert_sub_to_sibling` 把压掉的原地址
+写进去，别的环境上是 `None`（viba 那边读出来就是 `nil`）。
 
 它们同时也是 `Environment` 的成员，所以 viba 那边两种写法都行（见「如何调用方法：链头写 tag」）。
 `find_by_relative_path` 挂在环境上时多一件事：`root` 写 `nil` 就用读到它的那个环境，所以每个环境

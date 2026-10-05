@@ -8,7 +8,9 @@
 # (`args.env.sub_env << args.env << "Y"`).
 #
 # The next layer the step is handed is this same call one layer down, so the entry and the
-# recursion are the same thing.
+# recursion are the same thing. The layer this call runs in is the one the caller wrote
+# (`…/Y`), and the fixed point works beside it, so that layer's relative path is what this
+# call hands the helper.
 import y_helper
 
 __decl__ =
@@ -24,4 +26,5 @@ __impl__ =
   << $env (args.env.sub_env << args.env << "y_helper")
   << $f args.f
   << $y_helper y_helper
+  << $caller_workspace_relative_path ($get_relative_path << args.env << ($get_root << args.env))
   << $args args.args

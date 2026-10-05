@@ -699,10 +699,14 @@ def run_module_as_function_cases():
                  "find_by_relative_path takes the path and a root, and answers an environment")
     check_result(judge("args.env.find_by_relative_path << 7 << nil", "Env"), "error",
                  "the relative path has to be a string")
-    check_result(judge("args.env.next_sibling << args.env", "Env"), True,
-                 "next_sibling takes the environment and answers another one")
-    check_result(judge("args.env.next_sibling << 7", "Env"), "error",
-                 "next_sibling takes an environment, not a number")
+    check_result(judge("args.env.convert_sub_to_sibling << args.env << args.env", "Env"), True,
+                 "convert_sub_to_sibling takes the sup and the sub, and answers an environment")
+    check_result(judge("args.env.convert_sub_to_sibling << args.env << 7", "Env"), "error",
+                 "the sub has to be an environment")
+    check_result(judge("args.env.uncompress_relative_path", "(str | nil)"), True,
+                 "uncompress_relative_path is read as the string or nil it is declared to be")
+    check_result(judge("args.env.uncompress_relative_path", "str"), False,
+                 "and it is no plain string: it may be nil")
 
     # 记录，不是目标：`Environment` 的成员里，形参写成 `(A | nil)` 的那个和给不进一个环境
     # （普通函数链上的同一个和给得进；值层那一侧正常，见 tests/test_interpreter_env_paths.py）

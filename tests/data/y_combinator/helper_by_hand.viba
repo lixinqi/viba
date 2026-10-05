@@ -1,8 +1,10 @@
 # helper_by_hand.viba —— 不经过 Y，直接把自应用那一步用起来，该答 55
 #
 # `y_helper` 就是那个 helper：它的 `__decl__` 要 `$f`（这一层的步）、`$y_helper`（它自己）、
-# 环境，以及这一层的实参。要跑起来还差 `$f` 与 `$y_helper` 这两件，Y 替调用方写的就是这两件；
-# 环境要自己给一层（`y_helper` 跑在这条地址上）。
+# 环境、`$caller_workspace_relative_path`（workspace 的地址），以及这一层的实参。要跑起来还差
+# `$f` 与 `$y_helper` 这两件，Y 替调用方写的就是这两件。剩下两件这里自己写：一层 workspace
+# （`args.env` 的下一层 `y`），`y_helper` 自己跑在它底下一层（`y/helper`）—— 于是它压出来的地址
+# 是 `root/y_<sha1(root/y/helper)>`，workspace 的路径是它的前缀。
 __decl__ =
     int
   <- $env Env
@@ -12,9 +14,13 @@ args = __get_args__ << __decl__
 import fib_module
 import y_helper
 
+workspace = args.env.sub_env << args.env << "y"
+helper_env = workspace.sub_env << workspace << "helper"
+
 __impl__ =
     y_helper
   << $f fib_module
   << $y_helper y_helper
-  << ($sub_env << args.env << "y_helper")
+  << $env helper_env
+  << $caller_workspace_relative_path "y"
   << $n 10

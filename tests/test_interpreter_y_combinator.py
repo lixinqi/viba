@@ -22,7 +22,8 @@ Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在�
 `y_helper` 是自应用那一步 —— 上一步拿到的自己，就是下一次 `y_helper` 调用。Y 与 y_helper 都写
 `$env Env`：给环境就是执行，所以每一层的地址由调用方写下来 —— `main_*.viba` 写
 `args.env.sub_env << args.env << "Y"`（`main_in_a_sub_env.viba` 故意换个名字），`Y.viba` 往下写
-`"y_helper"`，步文件往下调时写 `"low"` 那样的名字。这一层的实参接着 `<<` 写在后面
+`"y_helper"`，步文件往下调时写 `"low"` 那样的名字；步自己那一层只是名字的出处，`y_helper` 用
+`convert_sub_to_sibling` 把它压成 workspace 旁边一个定长的名字（`viba-interpreter.md`）。这一层的实参接着 `<<` 写在后面
 （`Y << F << ($sub_env << args.env << "Y") << $n 3 << $m 4`），`Y` 那个写 `$args ...` 的参数把
 它们收成一份积；**这两个都不是泛型**：不用按参数个数分文件，`apply` 按那份积里有几个成员选
 `apply_impl` 哪一支，`F` 的参数列表有多长，由积里有几个成员说了算。
@@ -100,7 +101,8 @@ ANSWERS = [
 # (文件, 停在哪种结果, 话里的片段)：记录，不是目标 —— 见上面那段说明
 RECORDED = [
     (BUILTIN_DIR / "Y.viba", "error", "has no member tagged '$f'"),
-    (BUILTIN_DIR / "y_helper.viba", "error", "has no member tagged '$f'"),
+    (BUILTIN_DIR / "y_helper.viba", "error",
+     "has no member tagged '$caller_workspace_relative_path'"),
     (CASES / "fib_module.viba", "error", "has no member tagged '$n'"),
     (CASES / "add2_module.viba", "error", "has no member tagged '$n'"),
     (CASES / "add3_module.viba", "error", "has no member tagged '$n'"),

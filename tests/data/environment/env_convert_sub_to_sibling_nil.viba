@@ -1,0 +1,8 @@
+# sub 写成 nil：这一项要一个环境
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $convert_sub_to_sibling << args.env << nil

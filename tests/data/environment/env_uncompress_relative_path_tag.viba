@@ -1,0 +1,8 @@
+# `$uncompress_relative_path << args.env`：tag 写在链头也一样，普通环境下是 nil
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $uncompress_relative_path << args.env

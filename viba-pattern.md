@@ -230,7 +230,11 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 目录写进 `viba_path`（`viba-interpreter.md`）。Y 与 y_helper 都是**普通模块**，都不写 `pattern`，
 都写 `$env Env`：给环境就是执行，所以每一层的地址由调用方写下来 —— 主文件写
 `args.env.sub_env << args.env << "Y"`，`Y.viba` 给 helper 写 `"y_helper"`，步文件往下调时写
-`"low"` 那样的名字。`Y << f` 就是那一步的不动点（`y_helper << $f f << $y_helper y_helper`），
+`"low"` 那样的名字。步自己那一层只是名字的出处：`y_helper` 用 `convert_sub_to_sibling` 把它的
+地址压成 workspace 旁边的一个名字（`{workspace 的路径}_{sha1(那一层地址)}`），于是往下多少层，
+地址都只有一个哈希那么长；`caller_workspace_relative_path` 每层原样往下传，压掉的原地址记在
+压出来那一层的 `uncompress_relative_path` 上（`viba-interpreter.md`）。
+`Y << f` 就是那一步的不动点（`y_helper << $f f << $y_helper y_helper`），
 `y_helper` 是自应用那一步 —— 它给这一步的是"上一步拿到的自己"，也就是下一次 `y_helper` 调用。
 这一层的实参接着 `<<` 写在后面（`Y << F << ($sub_env << args.env << "Y") << $n 3 << $m 4`），
 `Y` 那个写 `$args ...` 的参数把它们收成一份积；`apply` 与 `apply_impl` 的 `$args` 写的是 `Any`，

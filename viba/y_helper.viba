@@ -4,6 +4,13 @@
 # (`args.fib << (sub_env << args.env << "low") << $n below << $m other`), and that layer's
 # arguments arrive as the links after it, collected into one product by `$args ...`.
 #
+# The layer the step runs in is no child of the caller's layer: it is the address that layer
+# stands for, compressed (`convert_sub_to_sibling`) into one name beside the workspace, so a
+# recursion of any depth keeps the same address length. The workspace is the same every layer
+# — `$caller_workspace_relative_path` names it from the root of the chain and is handed on
+# unchanged — while `$sub` is this call's own layer, which is what tells one layer from the
+# next. Y computes the path once (`get_relative_path`).
+#
 # `$f` is the step as a value, whatever its parameter list looks like, so this one module
 # answers every length; `apply` spreads the product, so nothing here counts the members.
 import apply
@@ -13,18 +20,37 @@ __decl__ =
   <- $env Env
   <- $f Any
   <- $y_helper Any
+  <- $caller_workspace_relative_path str
   <- $args ...
 
 args = __get_args__ << __decl__
 
-# y(f, y): with only those two it stops partially applied — the eta step. Its head is the
-# helper the caller handed over, which is this call itself; the environment and this layer's
-# arguments are still to come, and the step writes both.
+# The workspace: the same layer for every call, read back from its relative path. The root is
+# this chain's own root, so the path stays an address from the top even though this call sits
+# deeper.
+caller_workspace_env =
+    args.env.find_by_relative_path
+  << args.caller_workspace_relative_path
+  << ($get_root << args.env)
+
+# The layer the step runs in: the address of this call's own layer, compressed into a sibling
+# of the workspace. The step's own name for it (`"low"`, `"high"`) is part of that address,
+# so two branches of one step answer two different layers.
+workspace =
+    $convert_sub_to_sibling
+  << caller_workspace_env
+  << args.env
+
+# y(f, y): with only the step and the helper it stops partially applied — the eta step. Its
+# head is the helper the caller handed over, which is this call itself; the layer the next
+# call runs in and this layer's arguments are still to come, and the step writes both. The
+# workspace is the same one every layer, so the path goes on as it came.
 recursive =
     args.y_helper
   << $f args.f
   << $y_helper args.y_helper
+  << $caller_workspace_relative_path args.caller_workspace_relative_path
 
 # The step is given the next layer; `apply` goes on giving this layer's arguments, and the
 # environment reaches the step through the calls `apply` answers.
-__impl__ = apply << $env args.env << (args.f << recursive) << args.args
+__impl__ = apply << $env workspace << (args.f << recursive) << args.args

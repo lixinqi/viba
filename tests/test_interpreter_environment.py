@@ -185,9 +185,11 @@ def _host_members(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == "hi!",
           f"a method the host hung on its environment: {result!r}")
 
+    # 成员是一个值时，读出来就是那个值；值本身不是标量（这里是一个 storage 对象）才报错
     labelled(interpret(str(CASES / "env_member.viba"), environ),
-             "environment has no 'storage'",
-             "an environment member that is not callable -> VibaProgramErr")
+             "which is no leaf",
+             "an environment member that is a value is handed over, "
+             "and a host object that is no leaf is refused")
 
     # 名字就是名字：import 绑到 env 上，`args.env` 仍是这次调用收到的那份环境
     result = interpret(str(CASES / "env_alias.viba"), environ)
