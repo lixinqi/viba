@@ -1,0 +1,26 @@
+# typed_slots —— 变量引用落在 `$a int` 这样的槽位上：设计时读不出它的值，当场拒
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+mul =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个数相乘 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    sequential
+  << $x (add << $a 1 << $b 2)
+  << (mul << $a ($var "x") << $b ($var "x"))
+  << args.env

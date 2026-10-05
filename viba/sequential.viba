@@ -1,0 +1,27 @@
+# sequential — run a chain of steps strictly in the order they are written, and
+# answer what the last one answers.
+#
+# `sequential << $x (add << $a 1 << $b 2) << (echo << $x ($var "x"))`
+# is a closure: the environment comes last, and giving it is what runs the steps.
+# Every step is a call, given after a `<<`. Every step but the last carries a tag
+# (`$x (…)`): the call runs, and its answer is remembered under that tag. The last
+# argument carries no tag — its answer is the answer of the whole chain — so to
+# return a name that an earlier step remembered, hand it out with `echo`
+# (`echo << $x V` answers V): `<< (echo << $x ($var "x"))`. A call's arguments may
+# be variable references (`$a ($var "x")`), and those are answered from what the
+# earlier steps remembered before the call runs.
+#
+# This module declares no `$env Env` parameter: the environment a caller gives it
+# runs this call — the interpreter gives it a sub-environment of its own, so
+# `proc << args.env` does not collide with the address the caller is running at —
+# and it rides on the call this body answers, the way `apply` hands its
+# environment on (viba-interpreter.md).
+import sequential_impl
+
+__decl__ =
+    Any
+  <- $steps ...
+
+args = __get_args__ << __decl__
+
+__impl__ = sequential_impl[args.steps] << $steps args.steps

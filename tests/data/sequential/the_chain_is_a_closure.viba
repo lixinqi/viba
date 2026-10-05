@@ -1,0 +1,21 @@
+# the_chain_is_a_closure —— 链自己不给环境就是一个闭包：先记在 `proc` 名下，到要用的时候
+# `proc << args.env` 才是执行（`sequential` 不把环境当参数，环境是最后缀上去的那一次调用）
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+proc =
+    sequential
+  << $x (add << $a 1 << $b 2)
+  << (echo << $x ($var "x"))
+
+__impl__ = proc << args.env

@@ -1,0 +1,19 @@
+# a_missing_variable —— 读一个没人写过的名字：变量积里没有这一条
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    sequential
+  << $x (add << $a 1 << $b 2)
+  << (echo << $x ($var "nope"))
+  << args.env

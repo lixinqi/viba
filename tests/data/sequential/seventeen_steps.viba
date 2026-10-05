@@ -1,0 +1,34 @@
+# seventeen_steps —— 十七步一条链：每一步把前一步的答案加一，最后一步不写 tag，它的答案就是结果
+add =
+    int
+  <- $env Env
+  <- $x Any
+  <- $y Any
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    sequential
+  << $s0 (add << $x 0 << $y 1)
+  << $s1 (add << $x ($var "s0") << $y 1)
+  << $s2 (add << $x ($var "s1") << $y 1)
+  << $s3 (add << $x ($var "s2") << $y 1)
+  << $s4 (add << $x ($var "s3") << $y 1)
+  << $s5 (add << $x ($var "s4") << $y 1)
+  << $s6 (add << $x ($var "s5") << $y 1)
+  << $s7 (add << $x ($var "s6") << $y 1)
+  << $s8 (add << $x ($var "s7") << $y 1)
+  << $s9 (add << $x ($var "s8") << $y 1)
+  << $s10 (add << $x ($var "s9") << $y 1)
+  << $s11 (add << $x ($var "s10") << $y 1)
+  << $s12 (add << $x ($var "s11") << $y 1)
+  << $s13 (add << $x ($var "s12") << $y 1)
+  << $s14 (add << $x ($var "s13") << $y 1)
+  << $s15 (add << $x ($var "s14") << $y 1)
+  << (add << $x ($var "s15") << $y 1)
+  << args.env

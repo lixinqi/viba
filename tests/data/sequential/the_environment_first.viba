@@ -1,0 +1,15 @@
+# the_environment_first —— 环境给在哪一位都一样：`sequential` 不把环境当参数，按值认它
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = sequential << args.env << (add << $a 1 << $b 2)

@@ -121,7 +121,13 @@ type = A
 （[`viba/builtin/is_closure/`](viba/builtin/is_closure/100.viba)、
 [`viba/builtin/unclosure/`](viba/builtin/unclosure/100.viba)）：各写 1..16 段的 16 个文件，
 前者答 `value`（`true` / `false`，16 段以上落到最后那份兜底），后者答 `f`（链头那条 api）与
-`captured`（收下的那些实参合成的一份积）。
+`captured`（收下的那些实参合成的一份积）。内建的 `sequential` 也是这么分的：它的
+[`sequential_step/`](viba/builtin/sequential_step/200.viba) 认一步那次调用（带 1..16 个 tag 实参
+各一份），[`sequential_arg/`](viba/builtin/sequential_arg/100.viba)
+认一个实参（一次变量引用，或者照写的任何一份），
+[`viba/sequential_impl/`](viba/sequential_impl/200.viba) 按步骤数各一份（2..64；一步没有 tag 钉住
+个数，按写下来的调用实参个数各一份，编号 101..116）
+（[`viba-interpreter.md`](viba-interpreter.md)）。
 
 形参拿的是那一位**写下来的整块** —— tag 也是那一块的一部分。`pattern A <- $env Env <- B <- C`
 对着 `int <- $env Env <- $a int <- $b int` 时，`B` 是 `$a int`、`C` 是 `$b int`；这个成员

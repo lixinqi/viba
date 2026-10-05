@@ -1,0 +1,27 @@
+# three_steps —— 三步一条链：x 给 y 用，y 与 x 给最后一步用（最后一步不写 tag）
+add =
+    int
+  <- $env Env
+  <- $a Any
+  <- $b Any
+  <- { 两个整数相加 }
+
+mul =
+    int
+  <- $env Env
+  <- $a Any
+  <- $b Any
+  <- { 两个数相乘 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    sequential
+  << $x (add << $a 1 << $b 1)
+  << $y (mul << $a ($var "x") << $b 3)
+  << (add << $a ($var "y") << $b ($var "x"))
+  << args.env

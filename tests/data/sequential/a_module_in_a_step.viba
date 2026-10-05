@@ -1,0 +1,15 @@
+# a_module_in_a_step —— 步骤可以是一次模块调用：helper 跑在这个步骤自己的那层环境上，
+# 它的答案就是这一步的值；最后一步把这个名字读出来交给 `echo` 当结果
+import helper
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    sequential
+  << $x (helper << $a 3 << $b 4)
+  << (echo << $x ($var "x"))
+  << args.env

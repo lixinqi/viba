@@ -1,0 +1,25 @@
+# sequential_step: a step written as a call with 3 tagged
+# arguments. Every argument is answered first — a `$var "x"` written inside
+# one becomes the value that name holds — and the call then runs at a child of
+# this environment (`run` beside it), so the step and the call it makes never
+# share one storage path. Each argument is answered at a child named by its own
+# number, since two answers are two calls. `identity` is a call, so those
+# environments are computed here rather than left as writings.
+pattern F << tagged[arg0_name, Arg0] << tagged[arg1_name, Arg1] << tagged[arg2_name, Arg2]
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $vars Any
+
+args = __get_args__ << __decl__
+
+answered0 = sequential_arg[Arg0] << $env ($identity << ($sub_env << args.env << "arg0")) << $vars args.vars
+answered1 = sequential_arg[Arg1] << $env ($identity << ($sub_env << args.env << "arg1")) << $vars args.vars
+answered2 = sequential_arg[Arg2] << $env ($identity << ($sub_env << args.env << "arg2")) << $vars args.vars
+
+__impl__ =
+    apply
+  << $f F
+  << $args (tagged[arg0_name, answered0] * tagged[arg1_name, answered1] * tagged[arg2_name, answered2])
+  << $env ($identity << ($sub_env << args.env << "run"))

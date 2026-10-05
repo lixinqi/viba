@@ -312,9 +312,16 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
   definition of that name wins.
 - The modules and generics of the builtin library are read by name too, after a
   module's own definitions and its imports: `Y << step`, `apply << f << args`,
-  `sub_env_run << $sub_env_name "low" << env << f << $a 1` and
-  `is_closure[add << $a 1].value` need no import, and `builtin.<name>` names the
-  same one. `sub_env_run` runs a call at a named child of an environment: the
+  `sub_env_run << $sub_env_name "low" << env << f << $a 1`,
+  `is_closure[add << $a 1].value` and `sequential << $x (…) << $y (…)` need no
+  import, and `builtin.<name>` names the same one. `sequential` runs a chain of
+  steps strictly in the order they are written and answers what the last one
+  answers: every step is a call given after a `<<`, every step but the last
+  carries a tag (the call runs, and its answer is remembered under that tag), and
+  the last argument carries no tag — its answer is the chain's answer. To return
+  a name an earlier step remembered, hand it out with `echo` (`echo << $x V`
+  answers V): `<< (echo << $x ($var "x"))`. A call's arguments may be variable
+  references too (`$a ($var "x")`). `sub_env_run` runs a call at a named child of an environment: the
   call above is `f << ($sub_env << env << "low") << $a 1`. `is_closure` answers
   whether a written piece is a closure — a call with arguments given and no
   environment — and `unclosure` reads one apart into `f` (the api the call is of)
@@ -473,7 +480,9 @@ tools built on those.
 | `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …) |
 | `sub_env_run.viba` | The builtin that runs a call at a named child of an environment — `Y.viba` and `apply.viba` sit beside it |
+| `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), and the last step's answer is the answer |
 | `builtin/is_closure/`, `builtin/unclosure/` | The builtin generics over closures, one file per argument count (1..16) — whether a written call is one, and reading it apart |
+| `builtin/sequential_step/`, `builtin/sequential_arg/` | How `sequential` runs one step (a call with 1..16 tagged arguments) and one argument (a variable reference, or whatever was written) |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY

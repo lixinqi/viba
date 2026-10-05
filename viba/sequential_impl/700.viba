@@ -1,0 +1,62 @@
+# sequential_impl, 7 steps: the steps product has 7 members — the first 6
+# carries a tag, and the last one is written without a tag: its answer is the
+# answer of the whole chain. One file per count, the way `apply_impl` writes one
+# file per product size (viba-pattern.md): the tagged prefix is what pins the
+# count, since a single bare name would answer any product at all.
+pattern tagged[step0_name, Step0] * tagged[step1_name, Step1] * tagged[step2_name, Step2] * tagged[step3_name, Step3] * tagged[step4_name, Step4] * tagged[step5_name, Step5] * Last
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $steps Any
+
+args = __get_args__ << __decl__
+
+# What the steps remember: the answer of every tagged step, written under its own
+# tag, newest first — a product that carries one name twice answers with the member
+# it carries first, so the newest one wins. The last argument carries no tag: its
+# answer is what the chain answers, so it is remembered nowhere. The members are
+# written out one by one instead of piled on the earlier product: a name standing
+# for a product is no member of the product it is written into.
+
+# Each step runs at an address of its own (`step0`, `step1`, ... and the last one
+# at `last` beside them): a storage path answers one call, and two steps of one
+# sequential would otherwise share it. `identity` is a call, so that environment
+# is computed here rather than left as a writing.
+
+value0 = sequential_step[Step0]
+  << $env ($identity << ($sub_env << args.env << "step0"))
+  << $vars nil
+vars1 = tagged[step0_name, value0]
+
+value1 = sequential_step[Step1]
+  << $env ($identity << ($sub_env << args.env << "step1"))
+  << $vars vars1
+vars2 = tagged[step1_name, value1] * tagged[step0_name, value0]
+
+value2 = sequential_step[Step2]
+  << $env ($identity << ($sub_env << args.env << "step2"))
+  << $vars vars2
+vars3 = tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+
+value3 = sequential_step[Step3]
+  << $env ($identity << ($sub_env << args.env << "step3"))
+  << $vars vars3
+vars4 = tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+
+value4 = sequential_step[Step4]
+  << $env ($identity << ($sub_env << args.env << "step4"))
+  << $vars vars4
+vars5 = tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+
+value5 = sequential_step[Step5]
+  << $env ($identity << ($sub_env << args.env << "step5"))
+  << $vars vars5
+vars6 = tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+
+# The last argument carries no tag: its answer is this chain's answer.
+last = sequential_step[Last]
+  << $env ($identity << ($sub_env << args.env << "last"))
+  << $vars vars6
+
+__impl__ = last

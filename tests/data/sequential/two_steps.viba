@@ -1,0 +1,29 @@
+# two_steps —— 第一步的答案记在 `x` 名下，第二步读它两次；第二步写在最后、不写 tag，
+# 所以它的答案就是这条链的答案
+#
+# 变量引用落在 `$a Any` 那样的槽位上：变量的值设计时不知道，要一个收得下任何值的参数。
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+mul =
+    int
+  <- $env Env
+  <- $a Any
+  <- $b Any
+  <- { 两个数相乘 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    sequential
+  << $x (add << $a 1 << $b 2)
+  << (mul << $a ($var "x") << $b ($var "x"))
+  << args.env

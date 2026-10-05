@@ -1,0 +1,20 @@
+# order —— 严格按书写次序：三步之间没有依赖，宿主仍然先被问第一次再被问第二次；
+# 最后那一步不写 tag，它的答案就是结果
+note =
+    int
+  <- $env Env
+  <- $v str
+  <- { 记下这个字符串，答 0 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    sequential
+  << $x (note << $v "first")
+  << $y (note << $v "second")
+  << (note << $v "third")
+  << args.env

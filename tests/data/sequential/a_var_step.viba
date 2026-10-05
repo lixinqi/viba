@@ -1,0 +1,20 @@
+# a_var_step —— 想返回前面某一步的值，就把它读出来交给内建的 `echo`（原样答回它的实参），
+# 这一步写在最后、不带 tag：它的答案就是整条链的答案
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    sequential
+  << $x (add << $a 1 << $b 2)
+  << (echo << $x ($var "x"))
+  << args.env

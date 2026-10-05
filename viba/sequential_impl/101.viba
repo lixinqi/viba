@@ -1,0 +1,23 @@
+# sequential_impl, 1 step: the steps product is that step alone, written without a
+# tag — its answer is the answer of the whole chain. One step is one member, and a
+# bare pattern would take any product at all, so the count is pinned by what the
+# step itself writes: one file per argument count of that call, the way
+# `sequential_step` is one file per argument count (viba-pattern.md). A chain of
+# two or more steps is another file's business.
+pattern F << tagged[arg0_name, Arg0]
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $steps Any
+
+args = __get_args__ << __decl__
+
+# One step, nothing remembered before it: it runs at `last`, and its answer is the
+# answer. What the step itself is — a call, and how many arguments that call has —
+# is what the `pattern` line pins.
+last = sequential_step[args.steps]
+  << $env ($identity << ($sub_env << args.env << "last"))
+  << $vars nil
+
+__impl__ = last

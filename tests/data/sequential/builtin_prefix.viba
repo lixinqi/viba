@@ -1,0 +1,15 @@
+# builtin_prefix —— 带前缀的写法叫的是同一个模块
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = builtin.sequential << (add << $a 1 << $b 2) << args.env

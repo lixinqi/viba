@@ -1,0 +1,10 @@
+# helper —— 一个模块：收两个整数，答它们的和，跑在给它的那层环境上
+__decl__ =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+
+args = __get_args__ << __decl__
+
+__impl__ = add << $env args.env << $x args.a << $y args.b

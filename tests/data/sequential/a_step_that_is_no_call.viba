@@ -1,0 +1,15 @@
+# a_step_that_is_no_call —— 每一步一步都是一次调用：最后那个参数写成别的（这里是个数字）不行
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = sequential << $x (add << $a 1 << $b 2) << 3 << args.env

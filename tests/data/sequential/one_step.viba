@@ -1,0 +1,15 @@
+# one_step —— 一步的 sequential：最后那个参数不写 tag，它的答案就是整条链的答案
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = sequential << (add << $a 1 << $b 2) << args.env

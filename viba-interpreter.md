@@ -45,8 +45,9 @@ interpret("main.viba", environ, get_file=files.get)   # 一次运行全在内存
 - **"这个路径上没有文件"：这两种都算**——返回 `None`、或者抛 `FileNotFoundError`，于是查找继续
   去下一个地方（先 import 旁边，再 `viba_path` 按顺序，最后是**内建目录** `viba/` 与
   **`builtin.` 那些名字的目录** `viba/builtin/` —— `builtin.viba` 与包自己的词汇
-  （`apply.viba`、`apply_impl/`、`Y.viba`、`y_helper.viba`、`sub_env_run.viba`）就在前者那里，
-  两个闭包泛型（`is_closure/`、`unclosure/`）在后者那里），全都说没有就是
+  （`apply.viba`、`apply_impl/`、`Y.viba`、`y_helper.viba`、`sub_env_run.viba`、`sequential.viba`、
+  `sequential_impl/`）就在前者那里，闭包与 `sequential` 的那几个泛型（`is_closure/`、`unclosure/`、
+  `sequential_step/`、`sequential_arg/`）在后者那里），全都说没有就是
   `module 'x' not found (...)`。主文件说没有就是 `no such file: ...`。
 - **返回非字符串、或者抛别的异常，是 `VibaProgramErr`**（`get_file(...) raised ...` / `... not the file's text`），
   不是把异常扔给调用方；源编不过照旧是 `cannot parse ...`。
@@ -114,13 +115,29 @@ __impl__ =
   宿主拿到的名字都是 `builtin.add`；自己模块里同名定义优先，所以它排在任何别的名字之后
   （[`viba-style.md`](viba-style.md) 第 11 节）。
 - **内建库里的模块与泛型，名字也一样读**：`viba/` 里 `builtin.viba` 旁边那几个模块（`Y.viba`、
-  `apply.viba`、`sub_env_run.viba`），以及 `viba/builtin/` 下那两个泛型（`is_closure/`、
-  `unclosure/`）都不需要 import，带的那个前缀（`builtin.sub_env_run`、`builtin.is_closure`）
+  `apply.viba`、`sub_env_run.viba`、`sequential.viba`），以及 `viba/builtin/` 下的那几个泛型
+  （`is_closure/`、`unclosure/`、`sequential_impl` 用的 `sequential_step/`、`sequential_arg/`）
+  都不需要 import，带的那个前缀（`builtin.sub_env_run`、`builtin.is_closure`）
   叫的是同一个。`sub_env_run` 是其中的一个：给它的环境取那个名字的
   孩子，链上剩下的实参交给那次调用（[`viba/sub_env_run.viba`](viba/sub_env_run.viba)）。
   `is_closure` 与 `unclosure` 是那两个泛型：前者问一份写下来的东西是不是闭包（有实参、没给环境
   的调用），后者把闭包拆成 `f`（那条 api）与 `captured`（收下的那份积）。调用模式一个 `<<` 对一个
   实参，所以两份各写了 1..16 段的 16 个文件（[`viba-pattern.md`](viba-pattern.md) 第 2 节）。
+- **`sequential` 把一串步骤按书写次序跑完**，最后那一步的答案就是结果
+  （[`viba/sequential.viba`](viba/sequential.viba)）：`sequential << $x (…) << $y (…) << (…)` 是一个
+  闭包，环境最后给。每一步都是一次调用；除最后那一步之外，每一步前面写一个 tag（`$x (…)`）—— 跑那次
+  调用，答案记在那个名字下；**最后那个参数不写 tag**，它没有名字，它的答案就是整条链的答案。想返回
+  前面某一步的值，就把那个名字读出来交给内建的 `echo`（`echo << $x V` 原样答 V）：
+  `<< (echo << $x ($var "x"))`。步骤的实参里也可以写变量引用（`$a ($var "x")`），它们在调用跑起来
+  之前换成值。步骤数决定 `sequential_impl` 选哪一份文件（2..64 步各一份；一步没有 tag 钉住个数，
+  按调用的实参个数 101..116 各一份），一次调用的实参个数决定 `sequential_step` 选哪一份，
+  一个实参的写法决定 `sequential_arg` 选哪一份。每一步、每个实参的调用都跑在自己的地址上
+  （`step0`、`arg0` 那样）：一条 storage 路径只答一次调用。
+  变量引用写下来的样子像一个 tag（`$var "x"`），设计时读不出它将来是什么值，所以它落在的槽位
+  要收得下这个写法（`$a Any` 那样）；写成 `$a int` 是程序错。一步的闭包写成这个文件里的定义、
+  import 进来的模块，或者内建算子都可以；链头写成内建**模块**（`sub_env_run`、`apply`、`Y`）时，
+  类型侧还读不出这个片段（判定与实参核对那一层报 PartialError），要它现在就能用，就把它包进一个
+  本文件里的模块再当步骤。
 - **要执行的函数都得拿到环境**：`__decl__` 里可以写 `$env Env` 这个参数，也可以不写。调用时给环境的写法
   一样：一个 `<<` 给一个环境值（`square_sum << (args.env.tmp_env << args.env) << 3 << 4`）。写了，环境
   就给这个参数，模块体用 `args = __get_args__ << __decl__` 和 `args.env` 取到它。不写，**环境不进门**：
@@ -323,6 +340,7 @@ $sub_env << $env args.env << $sub_env_name "add_demo"  # 都按 tag 给，也对
   * $viba_path str
   * $sub_env (Env <- $env Env <- $sub_env_name str)
   * $tmp_env (Env <- $env Env)
+  * $identity (Env <- $env Env)
   * $get_root ((Env | nil) <- $current (Env | nil))
   * $get_relative_path (str <- $current Env <- $root (Env | nil))
   * $find_by_relative_path (Env <- $relative_path str <- $root (Env | nil))
@@ -379,6 +397,11 @@ lib << (args.env.tmp_env << args.env)
 它像临时文件一样，**每次调用都给一个新的子环境**（路径是 `父路径/tmp_<随机>`），所以两次调用
 天然各占一条路径。`viba/builtin.viba` 里 `Environment` 的成员因此写的是
 `$tmp_env (Env <- $env Env)`：它只收那个环境，名字不用给。
+
+`identity` 是同一个家族里的另一个：`$identity << args.env` 原样答给它的那个环境。它之所以是一个
+成员而不是一个空写法，就因为**它是一次调用**：给它的环境在这一步被算成一个值。需要"先把上一步
+交代的东西算出来，再往下走"的地方用它（[`viba/sequential.viba`](viba/sequential.viba) 每一步的
+环境就是这么来的）。
 
 路径每次都不同，这是 `tmp_env` 的语义：它给**纯函数调用**、或者**结果不留的调用**用。一个
 需要快照、要靠回放才幂等的函数如果挂在它底下，回放自然命中不了——每次的路径都是新的，快照会

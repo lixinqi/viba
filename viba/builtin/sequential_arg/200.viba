@@ -1,0 +1,12 @@
+# sequential_arg: anything else goes to the closure as it was written — a
+# literal, a written call, whatever stands there.
+pattern A
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $vars Any
+
+args = __get_args__ << __decl__
+
+__impl__ = A

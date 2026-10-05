@@ -1,0 +1,81 @@
+# sixty_four_steps —— 六十四步（计数文件的上界）：每一步把前一步的答案加一，最后一步不写 tag
+add =
+    int
+  <- $env Env
+  <- $x Any
+  <- $y Any
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    sequential
+  << $s0 (add << $x 0 << $y 1)
+  << $s1 (add << $x ($var "s0") << $y 1)
+  << $s2 (add << $x ($var "s1") << $y 1)
+  << $s3 (add << $x ($var "s2") << $y 1)
+  << $s4 (add << $x ($var "s3") << $y 1)
+  << $s5 (add << $x ($var "s4") << $y 1)
+  << $s6 (add << $x ($var "s5") << $y 1)
+  << $s7 (add << $x ($var "s6") << $y 1)
+  << $s8 (add << $x ($var "s7") << $y 1)
+  << $s9 (add << $x ($var "s8") << $y 1)
+  << $s10 (add << $x ($var "s9") << $y 1)
+  << $s11 (add << $x ($var "s10") << $y 1)
+  << $s12 (add << $x ($var "s11") << $y 1)
+  << $s13 (add << $x ($var "s12") << $y 1)
+  << $s14 (add << $x ($var "s13") << $y 1)
+  << $s15 (add << $x ($var "s14") << $y 1)
+  << $s16 (add << $x ($var "s15") << $y 1)
+  << $s17 (add << $x ($var "s16") << $y 1)
+  << $s18 (add << $x ($var "s17") << $y 1)
+  << $s19 (add << $x ($var "s18") << $y 1)
+  << $s20 (add << $x ($var "s19") << $y 1)
+  << $s21 (add << $x ($var "s20") << $y 1)
+  << $s22 (add << $x ($var "s21") << $y 1)
+  << $s23 (add << $x ($var "s22") << $y 1)
+  << $s24 (add << $x ($var "s23") << $y 1)
+  << $s25 (add << $x ($var "s24") << $y 1)
+  << $s26 (add << $x ($var "s25") << $y 1)
+  << $s27 (add << $x ($var "s26") << $y 1)
+  << $s28 (add << $x ($var "s27") << $y 1)
+  << $s29 (add << $x ($var "s28") << $y 1)
+  << $s30 (add << $x ($var "s29") << $y 1)
+  << $s31 (add << $x ($var "s30") << $y 1)
+  << $s32 (add << $x ($var "s31") << $y 1)
+  << $s33 (add << $x ($var "s32") << $y 1)
+  << $s34 (add << $x ($var "s33") << $y 1)
+  << $s35 (add << $x ($var "s34") << $y 1)
+  << $s36 (add << $x ($var "s35") << $y 1)
+  << $s37 (add << $x ($var "s36") << $y 1)
+  << $s38 (add << $x ($var "s37") << $y 1)
+  << $s39 (add << $x ($var "s38") << $y 1)
+  << $s40 (add << $x ($var "s39") << $y 1)
+  << $s41 (add << $x ($var "s40") << $y 1)
+  << $s42 (add << $x ($var "s41") << $y 1)
+  << $s43 (add << $x ($var "s42") << $y 1)
+  << $s44 (add << $x ($var "s43") << $y 1)
+  << $s45 (add << $x ($var "s44") << $y 1)
+  << $s46 (add << $x ($var "s45") << $y 1)
+  << $s47 (add << $x ($var "s46") << $y 1)
+  << $s48 (add << $x ($var "s47") << $y 1)
+  << $s49 (add << $x ($var "s48") << $y 1)
+  << $s50 (add << $x ($var "s49") << $y 1)
+  << $s51 (add << $x ($var "s50") << $y 1)
+  << $s52 (add << $x ($var "s51") << $y 1)
+  << $s53 (add << $x ($var "s52") << $y 1)
+  << $s54 (add << $x ($var "s53") << $y 1)
+  << $s55 (add << $x ($var "s54") << $y 1)
+  << $s56 (add << $x ($var "s55") << $y 1)
+  << $s57 (add << $x ($var "s56") << $y 1)
+  << $s58 (add << $x ($var "s57") << $y 1)
+  << $s59 (add << $x ($var "s58") << $y 1)
+  << $s60 (add << $x ($var "s59") << $y 1)
+  << $s61 (add << $x ($var "s60") << $y 1)
+  << $s62 (add << $x ($var "s61") << $y 1)
+  << (add << $x ($var "s62") << $y 1)
+  << args.env
