@@ -308,6 +308,10 @@ $sub_env << $env args.env << $sub_env_name "add_demo"  # 都按 tag 给，也对
 ```viba
   * $sub_env (Environment <- $env Env <- $sub_env_name str)
   * $tmp_env (Environment <- $env Env)
+  * $get_root ((Environment | nil) <- $current (Environment | nil))
+  * $get_relative_path (str <- $current Environment <- $root (Environment | nil))
+  * $find_by_relative_path (Environment <- $relative_path str <- $root (Environment | nil))
+  * $next_sibling (Environment <- $current Environment)
 ```
 
 成员也可以写在数据里：一个积的 `$f` 里放一个函数名时，`$f << box << args.env << 1` 就是
@@ -316,6 +320,35 @@ $sub_env << $env args.env << $sub_env_name "add_demo"  # 都按 tag 给，也对
 tag 本身**不是值**：`method = $sub_env` 编不过，标签只有写在链头、后面跟着第一个参数时才成立。
 第一个参数必须写出来——它是取成员的那一个，省略了就成了一次没有成员的调用。第一个参数是别的值
 也一样：`$tag` 命中的是它的成员，不在就报错。
+
+### 链上的四个成员：根、相对路径、找回来、旁边的目录
+
+子环境是由 `sub_env`/`tmp_env` 从父级造出来的，它记着那个父级，所以一条链能从任意一层往上走。
+四个成员把这条链读出来（地址就是 storage 路径，见「调用别的模块」）：
+
+- **`$get_root << args.env`**：这一层那条链的根（没有父级的那个环境）。`nil` 进 `nil` 出。
+- **`$get_relative_path << args.env << <root>`**：这一层的地址从那个根往下写出来的那一段 ——
+  `root/a/b` 从 `root/a` 看是 `"b"`，根看自己是 `""`。`$root` 写 `nil` 就用这条链自己的根；
+  给的根不是它的祖先就当场报错。
+- **`$find_by_relative_path`**：反过来，从一份根按相对路径走下来。路径里每一段都是一个目录名
+  （`.`、`..` 不是），`""` 就是那份根本身。它写成点号那一种，`root` 写 `nil` 时从**读到这个
+  成员的那个环境**往下找：
+
+  ```viba
+  args.env.find_by_relative_path << "a/b" << nil              # 从 args.env 往下找
+  args.env.find_by_relative_path << "a/b" << ($get_root << args.env)  # 从根往下找
+  ```
+
+  写成 `$find_by_relative_path << args.env << "a/b"` 会把那个环境放到相对路径的位置上：报错，
+  话里给出正确写法。
+- **`$next_sibling << args.env`**：在这个目录**旁边**再弄一个新的 —— `a/b/c` 给 `a/b/c0`，
+  `a/b/c0` 给 `a/b/c1`（名字里最后那串数字加一，没有就从 0 开始）。它不是 `sub_env`：不往下一层
+  走，而是在同一个父级里换一个名字。算出来的那个名字不能已经被占：父级那里给过这个名字
+  （`sub_env` 给过就算），或者 store root 底下已经有这个目录，都当场报错 —— 它造新地址，不复用
+  旧的。根没有父级，要不到兄弟。
+
+`tests/test_interpreter_env_paths.py` 把四个成员自己的规矩、写错的几种，以及它们合起来的往返
+（根 → 相对路径 → 按那条路径找回来、编号一直长下去）都钉住了。
 
 不想起名字就用 `tmp_env`：
 
@@ -354,8 +387,23 @@ storage 与 compute 是**宿主的词汇**，viba 里没有一个名字指得到
 ```python
 EnvironmentStorage(cur_storage_path, sub_storage=None, store_root_dir=None)
 EnvironmentCompute(get_func)                             # get_func(module_path, func_name)
-Environment(storage, compute, viba_path=None)            # sub_env / tmp_env 给子环境
+Environment(storage, compute, viba_path=None, parent=None)   # sub_env / tmp_env 给子环境
 ```
+
+`parent` 是造它出来的那个环境：`sub_env`/`tmp_env` 会写上，宿主自己 `Environment(...)` 造出来的
+就是 `None`（那它自己就是一条链的根）。链上那四个成员读的就是它 —— 宿主侧是 `viba.interpret` 里
+四个普通函数：
+
+```python
+get_root(current)                           # 链顶那个环境；None（`nil`）进 None 出
+get_relative_path(current, root)            # 从 root 往下的那一段地址
+find_by_relative_path(relative_path, root)  # 从 root 按那一段地址走下来
+next_sibling(current)                       # 同一个父级里的下一个名字
+```
+
+它们同时也是 `Environment` 的成员，所以 viba 那边两种写法都行（见「如何调用方法：链头写 tag」）。
+`find_by_relative_path` 挂在环境上时多一件事：`root` 写 `nil` 就用读到它的那个环境，所以每个环境
+自己那一份记着它是谁。
 
 `viba_path` 是模块的搜索路径：一次运行里它跟着 environment 走，`sub_env`/`tmp_env` 把父级的
 那条原样交给孩子，于是"这个模块的 import 去哪里找"就是它被交给的那个 environment 说了算。

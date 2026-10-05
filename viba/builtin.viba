@@ -12,11 +12,24 @@
 # as their first argument, so nothing is bound to the environment they came
 # from: `args.env.sub_env << args.env << "child"` is the same call as
 # `$sub_env << args.env << "child"` (viba-interpreter.md).
+#
+# The members below walk the chain a child belongs to: `$get_root` is the
+# environment at the top of it (`nil` in, `nil` out), `$get_relative_path` is an
+# address seen from a root (`"b"` for `root/a/b` seen from `root/a`), and `$next_sibling` makes a
+# new directory beside one — `a/b/c` answers `a/b/c0`, `a/b/c0` answers
+# `a/b/c1` — refusing a name already taken. `$find_by_relative_path` is the way
+# back: a relative path and the root to read it from, and with no root it
+# searches from the environment it was read off, which is what
+# `args.env.find_by_relative_path << "a/b"` means.
 Environment =
     Object
   * $viba_path str
   * $sub_env (Environment <- $env Env <- $sub_env_name str)
   * $tmp_env (Environment <- $env Env)
+  * $get_root ((Environment | nil) <- $current (Environment | nil))
+  * $get_relative_path (str <- $current Environment <- $root (Environment | nil))
+  * $find_by_relative_path (Environment <- $relative_path str <- $root (Environment | nil))
+  * $next_sibling (Environment <- $current Environment)
 
 Env = Environment
 

@@ -690,6 +690,25 @@ def run_module_as_function_cases():
     check_result(judge("$tmp_env << args.env", "Env"), True,
                  "a builtin function answering the environment still holds")
 
+    # 链上那四个成员（值层在 tests/test_interpreter_env_paths.py）
+    check_result(judge("args.env.get_root << nil", "(Environment | nil)"), True,
+                 "get_root takes nil and answers nil")
+    check_result(judge("args.env.get_relative_path << args.env << nil", "str"), True,
+                 "get_relative_path answers the path as a string, and nil is a root")
+    check_result(judge("args.env.find_by_relative_path << \"a/b\" << nil", "Env"), True,
+                 "find_by_relative_path takes the path and a root, and answers an environment")
+    check_result(judge("args.env.find_by_relative_path << 7 << nil", "Env"), "error",
+                 "the relative path has to be a string")
+    check_result(judge("args.env.next_sibling << args.env", "Env"), True,
+                 "next_sibling takes the environment and answers another one")
+    check_result(judge("args.env.next_sibling << 7", "Env"), "error",
+                 "next_sibling takes an environment, not a number")
+
+    # 记录，不是目标：`Environment` 的成员里，形参写成 `(A | nil)` 的那个和给不进一个环境
+    # （普通函数链上的同一个和给得进；值层那一侧正常，见 tests/test_interpreter_env_paths.py）
+    check_result(judge("args.env.get_root << args.env", "Env"), False,
+                 "recorded: an environment does not fit a sum-typed member parameter yet")
+
 
 def run_module_args_cases():
     """`__decl__`（类型层）：模块的签名就是 `__decl__` 去掉环境那一格。

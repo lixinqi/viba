@@ -1,0 +1,8 @@
+# 同一个目录连着要两次：第一次拿到的那个名字已经存在，第二次当场报错
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $get_relative_path << ($next_sibling << args.env) << ($next_sibling << args.env)

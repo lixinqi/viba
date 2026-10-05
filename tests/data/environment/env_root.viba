@@ -1,0 +1,8 @@
+# `$get_root << args.env`：这一层那条链的根（顶上那一个），用 tag 写在链头
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $get_root << args.env

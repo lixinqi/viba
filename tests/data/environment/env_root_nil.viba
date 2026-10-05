@@ -1,0 +1,8 @@
+# 成员读法里可以写 nil：没有环境就没有根；tag 写在链头时第一个值就是那个环境，写不了 nil
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = args.env.get_root << nil

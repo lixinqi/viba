@@ -1,0 +1,8 @@
+# `args.env.find_by_relative_path << <路径> << <root>`：那份地址上的环境
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = args.env.find_by_relative_path << "a/b" << ($get_root << args.env)

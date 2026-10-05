@@ -1,0 +1,8 @@
+# root 写 nil：从读到这个成员的那个环境往下找 —— 这里就是 args.env 自己
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = args.env.find_by_relative_path << "x" << nil

@@ -1,0 +1,8 @@
+# `$get_relative_path << args.env << <root>`：这一层的地址从根往下写出来
+__decl__ =
+    str
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $get_relative_path << args.env << ($get_root << args.env)

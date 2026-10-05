@@ -1,0 +1,8 @@
+# root 不是这一层的祖先（这里给的是它的子环境）：报错，不是硬凑一段路径
+__decl__ =
+    str
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $get_relative_path << args.env << ($sub_env << args.env << "child")

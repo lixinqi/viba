@@ -1,0 +1,8 @@
+# root 写 nil：这一层从自己那条链的根往下写出来（根是自己时就是空串）
+__decl__ =
+    str
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = args.env.get_relative_path << args.env << nil

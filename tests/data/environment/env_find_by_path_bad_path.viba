@@ -1,0 +1,8 @@
+# 相对路径里的段都是目录名：`.`、`..` 不是，当场报错
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = args.env.find_by_relative_path << "../x" << nil

@@ -1,0 +1,8 @@
+# `$next_sibling << args.env`：在这个目录旁边再弄一个新的（c 给 c0、c0 给 c1）
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $next_sibling << args.env

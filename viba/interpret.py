@@ -179,12 +179,18 @@ class EnvironmentCompute:
 class Environment:
     """Storage, compute and the module search path, and the children under it."""
 
-    __slots__ = ("storage", "compute", "viba_path", "sub_env", "tmp_env")
+    __slots__ = ("storage", "compute", "viba_path", "sub_env", "tmp_env",
+                 "get_root", "get_relative_path", "find_by_relative_path",
+                 "next_sibling", "parent")
 
     def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute,
-                 viba_path=None):
+                 viba_path=None, parent: Optional["Environment"] = None):
         self.storage = storage
         self.compute = compute
+        # The environment this one was made from, when it was made by `sub_env`
+        # or `tmp_env`: the chain it belongs to, which is what `get_root`,
+        # `get_relative_path` and `next_sibling` walk (`viba-interpreter.md`).
+        self.parent = parent
         # Where modules are looked up, like PYTHONPATH: a string of directories,
         # or one path. A module runs under the environment it was handed, so its
         # own imports are looked up where that environment says — which is how a
@@ -194,8 +200,18 @@ class Environment:
         # the environment itself: nothing is bound to the one they were read
         # from, so `args.env.sub_env << args.env << "child"` and
         # `$sub_env << args.env << "child"` are the same call (viba-interpreter.md).
+        # `find_by_relative_path` is the exception: with `nil` for its root it
+        # searches from the environment it was read off, so each holds its own.
         self.sub_env = sub_env
         self.tmp_env = tmp_env
+        self.get_root = get_root
+        self.get_relative_path = get_relative_path
+        self.find_by_relative_path = (
+            lambda relative_path, root:
+            find_by_relative_path(
+                _the_relative_path(relative_path),
+                _an_environment_or_nil(root, "find_by_relative_path") or self))
+        self.next_sibling = next_sibling
 
 
 def sub_env(environ: "Environment", name) -> "Environment":
@@ -207,13 +223,139 @@ def sub_env(environ: "Environment", name) -> "Environment":
     """
     if isinstance(name, VibaNode):
         name = name.value
-    return Environment(environ.storage.sub(str(name)), environ.compute, environ.viba_path)
+    return Environment(environ.storage.sub(str(name)), environ.compute,
+                       environ.viba_path, parent=environ)
 
 
 def tmp_env(environ: "Environment") -> "Environment":
     """A child environment under a name of its own, fresh every time: no name to
     pick, and no two calls share a storage path."""
-    return Environment(environ.storage.tmp(), environ.compute, environ.viba_path)
+    return Environment(environ.storage.tmp(), environ.compute, environ.viba_path,
+                       parent=environ)
+
+
+def _an_environment(value, name: str) -> "Environment":
+    """The value as the environment it has to be, or a stop naming the member."""
+    if not isinstance(value, Environment):
+        raise RuntimeError(f"{name} takes an Environment, not {type(value).__name__}")
+    return value
+
+
+def _an_environment_or_nil(value, name: str) -> Optional["Environment"]:
+    """The value as the environment it is, or None where the design wrote `nil`.
+
+    A written `nil` reaches a host member as the viba data it is, so it is the
+    node that says so; anything else has to be an environment.
+    """
+    if isinstance(value, VibaNode):
+        if isinstance(value.data, viba_ast.Nil):
+            return None
+        raise RuntimeError(f"{name} takes an Environment or nil, not a written value")
+    if value is None:
+        return None
+    return _an_environment(value, name)
+
+
+def get_root(current) -> Optional["Environment"]:
+    """The root of the chain this environment belongs to: its last ancestor.
+
+    Every child knows the parent it was made from (`sub_env`, `tmp_env`), so the
+    root is the ancestor that has none. An environment the host made by hand is
+    its own root. `nil` in, `nil` out: no environment, no root to find.
+    """
+    current = _an_environment_or_nil(current, "get_root")
+    while current is not None and current.parent is not None:
+        current = current.parent
+    return current
+
+
+def get_relative_path(current, root) -> str:
+    """The address of `current` seen from `root` down: `""` for the root itself.
+
+    An address is the storage path, so this is that path with the root's prefix
+    taken off: `root/a/b` seen from `root/a` is `"b"`. A written `nil` for the
+    root means the chain's own root, and a root that is no ancestor of `current`
+    — the prefix is not there — is a program error.
+    """
+    current = _an_environment(current, "get_relative_path")
+    root = _an_environment_or_nil(root, "get_relative_path") or get_root(current)
+    here, base = _storage_path(current), _storage_path(root)
+    if here == base:
+        return ""
+    prefix = f"{base}/" if base else ""
+    if not here.startswith(prefix):
+        raise RuntimeError(f"{here or '<no path>'} is no child of {base or '<no path>'}")
+    return here[len(prefix):]
+
+
+def _the_relative_path(relative_path) -> str:
+    """The relative path as the string it is, or a stop saying how to write it.
+
+    It is read first, before the root: `$find_by_relative_path << args.env << "a/b"`
+    puts the environment where the path goes, and saying so is more use than
+    reporting the string as a bad root.
+    """
+    text = relative_path.value if isinstance(relative_path, VibaNode) else relative_path
+    if not isinstance(text, str):
+        raise RuntimeError(
+            f"find_by_relative_path takes a relative path, not {type(text).__name__}: "
+            f"write it as args.env.find_by_relative_path << \"a/b\"")
+    return text
+
+
+def find_by_relative_path(relative_path, root) -> "Environment":
+    """The environment `root` reaches by that relative path.
+
+    The path is what `get_relative_path` answers: `""` is the root itself, `a/b`
+    is `b` under `a`, and every segment names one child (`.`, `..` name none).
+    A root is required here: a relative path has to be read from somewhere, and
+    the member hung on an environment passes itself in where the design wrote
+    `nil` for it.
+    """
+    text = _the_relative_path(relative_path)
+    base = _an_environment(root, "find_by_relative_path")
+    found = base
+    for part in [one for one in text.split("/") if one]:
+        if part in (".", ".."):
+            raise RuntimeError(f"{text!r} is no relative path: it has a {part!r} segment")
+        found = sub_env(found, part)
+    return found
+
+
+def _the_next_name(name: str) -> str:
+    """The name after this one: `c` gives `c0`, `c0` gives `c1`, `c1` gives `c2`."""
+    digits = ""
+    while name and name[-1].isdigit():
+        digits = name[-1] + digits
+        name = name[:-1]
+    return f"{name}{int(digits) + 1 if digits else 0}"
+
+
+def next_sibling(current) -> "Environment":
+    """A new directory beside this one: `a/b/c` answers `a/b/c0`, then `c1` …
+
+    The name is the last one with its number grown by one (`_the_next_name`), and
+    it has to be free: an address already handed out under the parent, or a
+    directory already under the store root, is a program error — this makes a new
+    address, it never reuses one. The root has no sibling: there is no parent
+    directory to put one in.
+    """
+    current = _an_environment(current, "next_sibling")
+    parent = current.parent
+    if parent is None:
+        raise RuntimeError(f"{_storage_path(current) or '<no path>'} is the root: "
+                           f"it has no sibling to make")
+    storage = getattr(parent, "storage", None)
+    if storage is None:
+        raise RuntimeError("next_sibling needs the parent's storage to make one")
+    name = _the_next_name(_storage_path(current).rsplit("/", 1)[-1])
+    taken = f"{_storage_path(parent)}/{name}" if _storage_path(parent) else name
+    if name in storage.sub_storage:
+        raise RuntimeError(f"{taken} is already taken: a sibling is a new address")
+    if storage._store_path(taken).is_dir():
+        raise RuntimeError(f"{taken} is already a directory under the store root")
+    return sub_env(parent, name)
+
 
 
 # ----------------------------------------------------------------------
