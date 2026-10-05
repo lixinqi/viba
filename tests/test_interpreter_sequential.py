@@ -23,6 +23,7 @@
     two_steps.viba                两步：x 给最后一步读两次，答 9
     three_steps.viba              三步一条链，答 8
     a_var_step.viba               最后一步用 `echo` 把 `x` 交出去，答 3
+    a_far_variable.viba           四步：最后一步读第一步的变量，答 6（隔层的成员也取得出来）
     the_chain_is_a_closure.viba   链先不给环境（是个闭包），`proc << args.env` 才跑，答 3
     order.viba                    三步之间没有依赖，宿主被问的次序仍是书写次序
     builtin_prefix.viba           `builtin.sequential` 叫的是同一个模块，答 3
@@ -62,10 +63,10 @@ CASES = Path(__file__).resolve().parent / "data" / "sequential"
 
 # (用例文件, 该答多少)
 ANSWERS = [("one_step", 3), ("two_steps", 9), ("three_steps", 8),
-           ("a_var_step", 3), ("order", 0), ("seventeen_steps", 17),
-           ("sixty_four_steps", 64), ("the_chain_is_a_closure", 3),
-           ("builtin_prefix", 3), ("the_environment_first", 3),
-           ("a_module_in_a_step", 7)]
+           ("a_var_step", 3), ("a_far_variable", 6), ("order", 0),
+           ("seventeen_steps", 17), ("sixty_four_steps", 64),
+           ("the_chain_is_a_closure", 3), ("builtin_prefix", 3),
+           ("the_environment_first", 3), ("a_module_in_a_step", 7)]
 
 # 严格次序的证据：`order.viba` 的三步互不依赖，宿主被问的次序仍是书写次序。
 ORDER = ["first", "second", "third"]

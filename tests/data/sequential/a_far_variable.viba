@@ -1,0 +1,24 @@
+# a_far_variable —— 四步一条链，最后一步读**第一步**的变量：那一步的 tag 隔着好几层累积的积
+# （`sequential_impl/4_400.viba` 的 `vars3` 是 `tagged[step2_name, value2] * vars2`，`vars2` 又是
+# `tagged[step1_name, value1] * vars1`），所以要按 tag 取成员时，取的是一份积的成员里的成员。
+add =
+    int
+  <- $env Env
+  <- $a Any
+  <- $b Any
+  <- { 两个整数相加 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+# s0 = 1+1 = 2，s1 = s0+1 = 3，s2 = s1+1 = 4，最后一步 = s0+s2 = 6。
+__impl__ =
+    sequential
+  << $s0 (add << $a 1 << $b 1)
+  << $s1 (add << $a ($var "s0") << $b 1)
+  << $s2 (add << $a ($var "s1") << $b 1)
+  << (add << $a ($var "s0") << $b ($var "s2"))
+  << args.env

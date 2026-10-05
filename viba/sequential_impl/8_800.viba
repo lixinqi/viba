@@ -15,9 +15,10 @@ args = __get_args__ << __decl__
 # What the steps remember: the answer of every tagged step, written under its own
 # tag, newest first — a product that carries one name twice answers with the member
 # it carries first, so the newest one wins. The last argument carries no tag: its
-# answer is what the chain answers, so it is remembered nowhere. The members are
-# written out one by one instead of piled on the earlier product: a name standing
-# for a product is no member of the product it is written into.
+# answer is what the chain answers, so it is remembered nowhere. Each step's member
+# is piled on the product the step before kept (`vars2` is `tagged[step1_name,
+# value1] * vars1`): a member that is a product contributes its own members, so what
+# a step is handed is the flat product, newest first.
 
 # Each step runs at an address of its own (`step0`, `step1`, ... and the last one
 # at `last` beside them): a storage path answers one call, and two steps of one
@@ -32,32 +33,32 @@ vars1 = tagged[step0_name, value0]
 value1 = sequential_step[Step1]
   << $env ($identity << ($sub_env << args.env << "step1"))
   << $vars vars1
-vars2 = tagged[step1_name, value1] * tagged[step0_name, value0]
+vars2 = tagged[step1_name, value1] * vars1
 
 value2 = sequential_step[Step2]
   << $env ($identity << ($sub_env << args.env << "step2"))
   << $vars vars2
-vars3 = tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars3 = tagged[step2_name, value2] * vars2
 
 value3 = sequential_step[Step3]
   << $env ($identity << ($sub_env << args.env << "step3"))
   << $vars vars3
-vars4 = tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars4 = tagged[step3_name, value3] * vars3
 
 value4 = sequential_step[Step4]
   << $env ($identity << ($sub_env << args.env << "step4"))
   << $vars vars4
-vars5 = tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars5 = tagged[step4_name, value4] * vars4
 
 value5 = sequential_step[Step5]
   << $env ($identity << ($sub_env << args.env << "step5"))
   << $vars vars5
-vars6 = tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars6 = tagged[step5_name, value5] * vars5
 
 value6 = sequential_step[Step6]
   << $env ($identity << ($sub_env << args.env << "step6"))
   << $vars vars6
-vars7 = tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars7 = tagged[step6_name, value6] * vars6
 
 # The last argument carries no tag: its answer is this chain's answer.
 last = sequential_step[Last]

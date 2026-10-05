@@ -1522,7 +1522,15 @@ class _Activation:
         return descriptor_of(AstNodeType(node, self.module))
 
     def _product(self, node, scope=()):
-        """Evaluate a product: never absorbs, while nil disappears."""
+        """Evaluate a product: a member that is a product contributes its members,
+        while nil disappears.
+
+        The judgment reads a product this way (`is_sub_type`): an untagged member that
+        stands for a product is that product's own members, and the product unit is no
+        member. So `tagged[step3_name, value3] * vars3` is the flat product of four
+        members, and every one of them is read by its tag the same way — the value is
+        what its type says it is.
+        """
         kept = []
         for factor in product_elements(node):
             if _builtin_unit(factor) is NilType:
@@ -1535,13 +1543,32 @@ class _Activation:
                 return Ok(_never_viba_data())
             if _is_nil(answered):
                 continue
-            kept.append(answered)
+            kept.extend(self._inlined_members(answered))
         if not kept:
             return Ok(_VibaData(viba_data(None)))
         if len(kept) == 1:
             return Ok(kept[0])
         chain = viba_ast.ProductChain([factor.node.data for factor in kept])
         return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(chain), chain)))
+
+    def _inlined_members(self, piece):
+        """The members this piece contributes to the product it is a factor of.
+
+        A piece that is a product contributes its own members — the reading the
+        judgment gives a product (`is_sub_type`): a written `A * B` is two members,
+        and `A * X` where X stands for a product is that product's members after A.
+        A tagged member stays one member however its value is written: `$x (A * B)`
+        is read out by its tag, and its value is that product.
+        """
+        data = piece.node.data
+        if not isinstance(data, (viba_ast.Product, viba_ast.ProductChain)):
+            return [piece]
+        written_in = piece.written_in or self.module
+        return [_VibaData(VibaNode(reflect_access,
+                                   descriptor_of(AstNodeType(member, written_in)),
+                                   member),
+                          written_in=piece.written_in, bindings=piece.bindings)
+                for member in product_elements(data)]
 
     def _sum(self, node, scope=()):
         """Evaluate a written sum, dropping the branches that answered never.

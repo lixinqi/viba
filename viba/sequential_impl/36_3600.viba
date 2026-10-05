@@ -15,9 +15,10 @@ args = __get_args__ << __decl__
 # What the steps remember: the answer of every tagged step, written under its own
 # tag, newest first — a product that carries one name twice answers with the member
 # it carries first, so the newest one wins. The last argument carries no tag: its
-# answer is what the chain answers, so it is remembered nowhere. The members are
-# written out one by one instead of piled on the earlier product: a name standing
-# for a product is no member of the product it is written into.
+# answer is what the chain answers, so it is remembered nowhere. Each step's member
+# is piled on the product the step before kept (`vars2` is `tagged[step1_name,
+# value1] * vars1`): a member that is a product contributes its own members, so what
+# a step is handed is the flat product, newest first.
 
 # Each step runs at an address of its own (`step0`, `step1`, ... and the last one
 # at `last` beside them): a storage path answers one call, and two steps of one
@@ -32,172 +33,172 @@ vars1 = tagged[step0_name, value0]
 value1 = sequential_step[Step1]
   << $env ($identity << ($sub_env << args.env << "step1"))
   << $vars vars1
-vars2 = tagged[step1_name, value1] * tagged[step0_name, value0]
+vars2 = tagged[step1_name, value1] * vars1
 
 value2 = sequential_step[Step2]
   << $env ($identity << ($sub_env << args.env << "step2"))
   << $vars vars2
-vars3 = tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars3 = tagged[step2_name, value2] * vars2
 
 value3 = sequential_step[Step3]
   << $env ($identity << ($sub_env << args.env << "step3"))
   << $vars vars3
-vars4 = tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars4 = tagged[step3_name, value3] * vars3
 
 value4 = sequential_step[Step4]
   << $env ($identity << ($sub_env << args.env << "step4"))
   << $vars vars4
-vars5 = tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars5 = tagged[step4_name, value4] * vars4
 
 value5 = sequential_step[Step5]
   << $env ($identity << ($sub_env << args.env << "step5"))
   << $vars vars5
-vars6 = tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars6 = tagged[step5_name, value5] * vars5
 
 value6 = sequential_step[Step6]
   << $env ($identity << ($sub_env << args.env << "step6"))
   << $vars vars6
-vars7 = tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars7 = tagged[step6_name, value6] * vars6
 
 value7 = sequential_step[Step7]
   << $env ($identity << ($sub_env << args.env << "step7"))
   << $vars vars7
-vars8 = tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars8 = tagged[step7_name, value7] * vars7
 
 value8 = sequential_step[Step8]
   << $env ($identity << ($sub_env << args.env << "step8"))
   << $vars vars8
-vars9 = tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars9 = tagged[step8_name, value8] * vars8
 
 value9 = sequential_step[Step9]
   << $env ($identity << ($sub_env << args.env << "step9"))
   << $vars vars9
-vars10 = tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars10 = tagged[step9_name, value9] * vars9
 
 value10 = sequential_step[Step10]
   << $env ($identity << ($sub_env << args.env << "step10"))
   << $vars vars10
-vars11 = tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars11 = tagged[step10_name, value10] * vars10
 
 value11 = sequential_step[Step11]
   << $env ($identity << ($sub_env << args.env << "step11"))
   << $vars vars11
-vars12 = tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars12 = tagged[step11_name, value11] * vars11
 
 value12 = sequential_step[Step12]
   << $env ($identity << ($sub_env << args.env << "step12"))
   << $vars vars12
-vars13 = tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars13 = tagged[step12_name, value12] * vars12
 
 value13 = sequential_step[Step13]
   << $env ($identity << ($sub_env << args.env << "step13"))
   << $vars vars13
-vars14 = tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars14 = tagged[step13_name, value13] * vars13
 
 value14 = sequential_step[Step14]
   << $env ($identity << ($sub_env << args.env << "step14"))
   << $vars vars14
-vars15 = tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars15 = tagged[step14_name, value14] * vars14
 
 value15 = sequential_step[Step15]
   << $env ($identity << ($sub_env << args.env << "step15"))
   << $vars vars15
-vars16 = tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars16 = tagged[step15_name, value15] * vars15
 
 value16 = sequential_step[Step16]
   << $env ($identity << ($sub_env << args.env << "step16"))
   << $vars vars16
-vars17 = tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars17 = tagged[step16_name, value16] * vars16
 
 value17 = sequential_step[Step17]
   << $env ($identity << ($sub_env << args.env << "step17"))
   << $vars vars17
-vars18 = tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars18 = tagged[step17_name, value17] * vars17
 
 value18 = sequential_step[Step18]
   << $env ($identity << ($sub_env << args.env << "step18"))
   << $vars vars18
-vars19 = tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars19 = tagged[step18_name, value18] * vars18
 
 value19 = sequential_step[Step19]
   << $env ($identity << ($sub_env << args.env << "step19"))
   << $vars vars19
-vars20 = tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars20 = tagged[step19_name, value19] * vars19
 
 value20 = sequential_step[Step20]
   << $env ($identity << ($sub_env << args.env << "step20"))
   << $vars vars20
-vars21 = tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars21 = tagged[step20_name, value20] * vars20
 
 value21 = sequential_step[Step21]
   << $env ($identity << ($sub_env << args.env << "step21"))
   << $vars vars21
-vars22 = tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars22 = tagged[step21_name, value21] * vars21
 
 value22 = sequential_step[Step22]
   << $env ($identity << ($sub_env << args.env << "step22"))
   << $vars vars22
-vars23 = tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars23 = tagged[step22_name, value22] * vars22
 
 value23 = sequential_step[Step23]
   << $env ($identity << ($sub_env << args.env << "step23"))
   << $vars vars23
-vars24 = tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars24 = tagged[step23_name, value23] * vars23
 
 value24 = sequential_step[Step24]
   << $env ($identity << ($sub_env << args.env << "step24"))
   << $vars vars24
-vars25 = tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars25 = tagged[step24_name, value24] * vars24
 
 value25 = sequential_step[Step25]
   << $env ($identity << ($sub_env << args.env << "step25"))
   << $vars vars25
-vars26 = tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars26 = tagged[step25_name, value25] * vars25
 
 value26 = sequential_step[Step26]
   << $env ($identity << ($sub_env << args.env << "step26"))
   << $vars vars26
-vars27 = tagged[step26_name, value26] * tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars27 = tagged[step26_name, value26] * vars26
 
 value27 = sequential_step[Step27]
   << $env ($identity << ($sub_env << args.env << "step27"))
   << $vars vars27
-vars28 = tagged[step27_name, value27] * tagged[step26_name, value26] * tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars28 = tagged[step27_name, value27] * vars27
 
 value28 = sequential_step[Step28]
   << $env ($identity << ($sub_env << args.env << "step28"))
   << $vars vars28
-vars29 = tagged[step28_name, value28] * tagged[step27_name, value27] * tagged[step26_name, value26] * tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars29 = tagged[step28_name, value28] * vars28
 
 value29 = sequential_step[Step29]
   << $env ($identity << ($sub_env << args.env << "step29"))
   << $vars vars29
-vars30 = tagged[step29_name, value29] * tagged[step28_name, value28] * tagged[step27_name, value27] * tagged[step26_name, value26] * tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars30 = tagged[step29_name, value29] * vars29
 
 value30 = sequential_step[Step30]
   << $env ($identity << ($sub_env << args.env << "step30"))
   << $vars vars30
-vars31 = tagged[step30_name, value30] * tagged[step29_name, value29] * tagged[step28_name, value28] * tagged[step27_name, value27] * tagged[step26_name, value26] * tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars31 = tagged[step30_name, value30] * vars30
 
 value31 = sequential_step[Step31]
   << $env ($identity << ($sub_env << args.env << "step31"))
   << $vars vars31
-vars32 = tagged[step31_name, value31] * tagged[step30_name, value30] * tagged[step29_name, value29] * tagged[step28_name, value28] * tagged[step27_name, value27] * tagged[step26_name, value26] * tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars32 = tagged[step31_name, value31] * vars31
 
 value32 = sequential_step[Step32]
   << $env ($identity << ($sub_env << args.env << "step32"))
   << $vars vars32
-vars33 = tagged[step32_name, value32] * tagged[step31_name, value31] * tagged[step30_name, value30] * tagged[step29_name, value29] * tagged[step28_name, value28] * tagged[step27_name, value27] * tagged[step26_name, value26] * tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars33 = tagged[step32_name, value32] * vars32
 
 value33 = sequential_step[Step33]
   << $env ($identity << ($sub_env << args.env << "step33"))
   << $vars vars33
-vars34 = tagged[step33_name, value33] * tagged[step32_name, value32] * tagged[step31_name, value31] * tagged[step30_name, value30] * tagged[step29_name, value29] * tagged[step28_name, value28] * tagged[step27_name, value27] * tagged[step26_name, value26] * tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars34 = tagged[step33_name, value33] * vars33
 
 value34 = sequential_step[Step34]
   << $env ($identity << ($sub_env << args.env << "step34"))
   << $vars vars34
-vars35 = tagged[step34_name, value34] * tagged[step33_name, value33] * tagged[step32_name, value32] * tagged[step31_name, value31] * tagged[step30_name, value30] * tagged[step29_name, value29] * tagged[step28_name, value28] * tagged[step27_name, value27] * tagged[step26_name, value26] * tagged[step25_name, value25] * tagged[step24_name, value24] * tagged[step23_name, value23] * tagged[step22_name, value22] * tagged[step21_name, value21] * tagged[step20_name, value20] * tagged[step19_name, value19] * tagged[step18_name, value18] * tagged[step17_name, value17] * tagged[step16_name, value16] * tagged[step15_name, value15] * tagged[step14_name, value14] * tagged[step13_name, value13] * tagged[step12_name, value12] * tagged[step11_name, value11] * tagged[step10_name, value10] * tagged[step9_name, value9] * tagged[step8_name, value8] * tagged[step7_name, value7] * tagged[step6_name, value6] * tagged[step5_name, value5] * tagged[step4_name, value4] * tagged[step3_name, value3] * tagged[step2_name, value2] * tagged[step1_name, value1] * tagged[step0_name, value0]
+vars35 = tagged[step34_name, value34] * vars34
 
 # The last argument carries no tag: its answer is this chain's answer.
 last = sequential_step[Last]
