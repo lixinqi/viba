@@ -563,6 +563,9 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
     bucket the decision jumps to, and the files of one generic are then read only
     where they can matter. A file the count cannot rule out is read, and its
     patterns are what decides — the count in the name only spares the reading.
+    A sum among the arguments offers no count at all — its parts are the branches
+    it wrote, and a sum pattern reads exactly those — so the application reads
+    every file, and no file of a sum may write a count in its name either.
 
     Each argument is read in the module it was written in (`argument_modules`;
     `argument_module` where that is not said), because an argument written as a
@@ -634,8 +637,10 @@ def _offered_parts(arguments: List[viba_ast.AST], where) -> Optional[set]:
     its positions, a tuple its elements, an application its arguments, a tag one
     part; an argument that unfolds to a structure offers that structure's count as
     well. Totals are summed, since a file reads its patterns one per written
-    argument. Anything that offers no count — a leaf, a name, a sum — leaves the
-    whole application uncounted, and then no file is passed over.
+    argument. Anything that offers no count — a leaf, a name, and above all a sum,
+    whose parts are the branches the argument itself wrote — leaves the whole
+    application uncounted, and then no file is passed over: counting a sum would
+    skip a file that answers sums of other branch counts.
     """
     totals = {0}
     for argument, written_in in zip(arguments, where):
@@ -670,7 +675,15 @@ def _parts_of_argument(argument, module: ModuleType) -> set:
 
 
 def _parts_of_node(node) -> Optional[int]:
-    """How many parts this type is read apart into, or None when it is not."""
+    """How many parts this type is read apart into, or None when it is not.
+
+    A sum is None on purpose: only a sum `pattern` reads a sum apart, and it
+    reads one part per branch the *argument* wrote, so the number is the
+    argument's, not the type's (`_parts_of_pattern`). Counting a sum would put a
+    number in the name that the same file contradicts on the next application.
+    """
+    if isinstance(node, _SUM_NODES):
+        return None
     if isinstance(node, _PROD_NODES):
         return len(product_elements(node))
     if isinstance(node, _EXP_NODES):
@@ -692,6 +705,12 @@ def _parts_of_pattern(pattern, module: ModuleType) -> Optional[int]:
     application its arguments, a tag one part. A pattern that reads no fixed count —
     a bare name, a written type with no parameter, a sum — reads whatever it is
     given, and a file that writes one may not declare a count.
+
+    A sum is the one that is not merely unfixed but *harmful* to write down: the
+    matching reads a sum argument apart into its branches, so the count belongs to
+    the argument, and one file answers sums of different branch counts —
+    `pattern A | B | C` fits both `int | str` and `int | str | bool`. Any single
+    number in the name would then be wrong for one of them.
     """
     if isinstance(pattern, viba_ast.Ellipsis):
         return None
@@ -704,7 +723,7 @@ def _parts_of_pattern(pattern, module: ModuleType) -> Optional[int]:
     if not _has_parameter(pattern, module):
         return None
     if isinstance(pattern, _SUM_NODES):
-        return None
+        return None                 # one part per branch the argument wrote
     if isinstance(pattern, _PROD_NODES):
         return len(product_elements(pattern))
     if isinstance(pattern, _EXP_NODES):

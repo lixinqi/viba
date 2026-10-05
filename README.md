@@ -123,7 +123,9 @@ The count in front of the order (`2_200.viba` reads two parts, order 200) is the
 decision jumps to: it counts the parts the written arguments offer and reads only the files
 whose count they can match, so a generic of many files costs one file per application
 (`viba-pattern.md` §4.1). A file that writes no count is read every time, the way every
-file was before.
+file was before, and a sum argument — whose parts are the branches it wrote, so the same
+file answers sums of different branch counts — offers no count either: an application that
+writes a sum reads every file, and no file whose `pattern` line is a sum may write a count.
 
 ```viba
 import demo.is_base_type as is_base_type

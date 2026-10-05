@@ -126,6 +126,7 @@ def run(scratch: Path):
     _the_pattern_matcher()
     _the_arity_is_the_file()
     _a_count_is_a_bucket(scratch)
+    _a_sum_is_no_bucket(scratch)
     _every_name_says_what_it_reads()
     _the_decision_fails_loudly()
     _a_generic_is_no_module()
@@ -469,6 +470,54 @@ def _a_count_is_a_bucket(scratch: Path):
     check(isinstance(got, VibaProgramErr)
           and "and a `pattern` line in it reads no count" in got.err_msg,
           f"名字写了份数、pattern 读不出份数：{got!r}")
+
+
+def _a_sum_is_no_bucket(scratch: Path):
+    """和类型不参与分桶：实参里有和就一份文件都不跳，和模式的名字上写不出份数。
+
+    用例写进 `scratch`（临时目录）。一份编不过的 `3_300.viba` 正好试出「跳没跳」：积实参摆出
+    两份，它被跳过；和实参摆不出份数，它当场被读出来并报错。`pattern A | B | C` 那份则试出
+    和为什么不能有份数 —— 同一份文件命中两个分支个数的和。
+    """
+    root = scratch / "a-sum-is-no-bucket"
+    generic = root / "summed"
+    generic.mkdir(parents=True)
+    (generic / GENERIC_FILE).write_text("# __generic__.viba\n")
+    (generic / "2_200.viba").write_text("pattern A * B\n\nvalue = 2\n")
+    (generic / "3_300.viba").write_text("pattern A * B * C\n\nvalue = ((\n")
+
+    def asked(name: str, generic_name: str, argument: str, where: Path = root):
+        case = where / f"{name}.viba"
+        case.write_text(f"import {generic_name} as {generic_name}\n\n"
+                        f"__impl__ = {generic_name}[{argument}].value\n")
+        return interpret(str(case), Host().environ(viba_path=str(root)))
+
+    got = asked("a_product", "summed", "int * str")
+    check(isinstance(got, Ok) and value_of(got) == 2,
+          f"积实参摆出两份，3_300 被跳过，2_200 答 2：{got!r}")
+
+    got = asked("a_sum", "summed", "int | str")
+    check(isinstance(got, VibaProgramErr) and "cannot parse" in got.err_msg,
+          f"和实参摆不出份数，3_300 也被读出来并报它编不过：{got!r}")
+
+    either = root / "either"
+    either.mkdir()
+    (either / GENERIC_FILE).write_text("# __generic__.viba\n")
+    (either / "100.viba").write_text("pattern A | B | C\n\nvalue = 1\n")
+    for name, argument in (("two_branches", "int | str"),
+                           ("three_branches", "int | str | bool")):
+        got = asked(name, "either", argument)
+        check(isinstance(got, Ok) and value_of(got) == 1,
+              f"同一份 pattern A | B | C 命中 {argument}：{got!r}")
+
+    named = root / "named"
+    named.mkdir()
+    (named / GENERIC_FILE).write_text("# __generic__.viba\n")
+    (named / "2_100.viba").write_text("pattern A | B | C\n\nvalue = 1\n")
+    got = asked("named_case", "named", "int | str")
+    check(isinstance(got, VibaProgramErr)
+          and "and a `pattern` line in it reads no count" in got.err_msg,
+          f"和模式的份数写不出来：{got!r}")
 
 
 def _every_name_says_what_it_reads():
