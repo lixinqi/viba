@@ -13,11 +13,6 @@
 # from: `args.env.sub_env << args.env << "child"` is the same call as
 # `$sub_env << args.env << "child"` (viba-interpreter.md).
 #
-# `$identity` answers the environment it is given, unchanged. It is a call, so
-# what it names is computed before the answer comes back — a chain of steps uses
-# it to make one step's environment a value the next step reads
-# (viba/sequential.viba).
-#
 # The members below walk the chain a child belongs to: `$get_root` is the
 # environment at the top of it (`nil` in, `nil` out), and `$get_relative_path` is
 # an address seen from a root (`"b"` for `root/a/b` seen from `root/a`).
@@ -35,7 +30,6 @@ Environment =
   * $viba_path str
   * $sub_env (Env <- $env Env <- $sub_env_name str)
   * $tmp_env (Env <- $env Env)
-  * $identity (Env <- $env Env)
   * $get_root ((Env | nil) <- $current (Env | nil))
   * $get_relative_path (str <- $current Env <- $root (Env | nil))
   * $find_by_relative_path (Env <- $relative_path str <- $root (Env | nil))

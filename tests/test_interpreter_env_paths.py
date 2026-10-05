@@ -21,7 +21,7 @@ from interpreter_support import Checks, Host, value_of
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             convert_sub_to_sibling, find_by_relative_path,
-                            get_relative_path, get_root, identity, interpret,
+                            get_relative_path, get_root, interpret,
                             sub_env, tmp_env)
 from viba.interpret import BUILTIN_DIR
 from viba.type import Ok
@@ -34,7 +34,7 @@ CASES = Path(__file__).resolve().parent / "data" / "environment"
 
 # builtin.viba 里 Environment 的成员：设计层与运行层要同一份
 MEMBERS = ("get_root", "get_relative_path", "find_by_relative_path",
-           "convert_sub_to_sibling", "identity", "uncompress_relative_path")
+           "convert_sub_to_sibling", "uncompress_relative_path")
 
 
 def raised(call, want: str, label: str):
@@ -67,7 +67,6 @@ def run(tmp: Path):
     _get_relative_path(tmp)
     _find_by_relative_path(tmp)
     _convert_sub_to_sibling(tmp)
-    _identity(tmp)
     _uncompress_relative_path(tmp)
     _combinations(tmp)
     _the_declaration(tmp)
@@ -275,20 +274,6 @@ def _combinations(tmp: Path):
           "compressing again under the same sup keeps the same address length")
     check(deeper.uncompress_relative_path == f"{pressed.storage.cur_storage_path}/low",
           "and records the address it stands for")
-
-
-def _identity(tmp: Path):
-    """`identity`：原样答给它的那个环境；`$identity << args.env` 是同一个对象。"""
-    host = Host()
-    environ = host.environ(store_root_dir=str(tmp / "identity"))
-    check(identity(environ) is environ and environ.identity(environ) is environ,
-          "identity answers the very environment it is given")
-    raised(lambda: identity("root"), "takes an Environment",
-           "identity refuses what is no environment")
-
-    result = interpret(str(CASES / "identity.viba"), environ)
-    check(isinstance(result, Ok) and result.ok_value is environ,
-          f"a run answers that same environment: {result!r}")
 
 
 def _the_declaration(tmp: Path):

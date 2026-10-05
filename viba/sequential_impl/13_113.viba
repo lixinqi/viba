@@ -17,7 +17,7 @@ args = __get_args__ << __decl__
 # answer. What the step itself is — a call, and how many arguments that call has —
 # is what the `pattern` line pins.
 last = sequential_step[args.steps]
-  << $env ($identity << ($sub_env << args.env << "last"))
+  << $env ($sub_env << args.env << "last")
   << $vars nil
 
 __impl__ = last

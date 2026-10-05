@@ -343,7 +343,6 @@ $sub_env << $env args.env << $sub_env_name "add_demo"  # 都按 tag 给，也对
   * $viba_path str
   * $sub_env (Env <- $env Env <- $sub_env_name str)
   * $tmp_env (Env <- $env Env)
-  * $identity (Env <- $env Env)
   * $get_root ((Env | nil) <- $current (Env | nil))
   * $get_relative_path (str <- $current Env <- $root (Env | nil))
   * $find_by_relative_path (Env <- $relative_path str <- $root (Env | nil))
@@ -400,11 +399,6 @@ lib << (args.env.tmp_env << args.env)
 它像临时文件一样，**每次调用都给一个新的子环境**（路径是 `父路径/tmp_<随机>`），所以两次调用
 天然各占一条路径。`viba/builtin.viba` 里 `Environment` 的成员因此写的是
 `$tmp_env (Env <- $env Env)`：它只收那个环境，名字不用给。
-
-`identity` 是同一个家族里的另一个：`$identity << args.env` 原样答给它的那个环境。它之所以是一个
-成员而不是一个空写法，就因为**它是一次调用**：给它的环境在这一步被算成一个值。需要"先把上一步
-交代的东西算出来，再往下走"的地方用它（[`viba/sequential.viba`](viba/sequential.viba) 每一步的
-环境就是这么来的）。
 
 路径每次都不同，这是 `tmp_env` 的语义：它给**纯函数调用**、或者**结果不留的调用**用。一个
 需要快照、要靠回放才幂等的函数如果挂在它底下，回放自然命中不了——每次的路径都是新的，快照会

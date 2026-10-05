@@ -183,7 +183,7 @@ class Environment:
     """Storage, compute and the module search path, and the children under it."""
 
     __slots__ = ("storage", "compute", "viba_path", "sub_env", "tmp_env",
-                 "identity", "get_root", "get_relative_path", "find_by_relative_path",
+                 "get_root", "get_relative_path", "find_by_relative_path",
                  "convert_sub_to_sibling", "uncompress_relative_path", "parent")
 
     def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute,
@@ -212,10 +212,6 @@ class Environment:
         # searches from the environment it was read off, so each holds its own.
         self.sub_env = sub_env
         self.tmp_env = tmp_env
-        # The environment itself, handed back: a call, so what it names is computed
-        # before it answers. A chain of steps uses it to make one step's environment
-        # a value the next step reads (viba/sequential.viba).
-        self.identity = identity
         self.get_root = get_root
         self.get_relative_path = get_relative_path
         self.find_by_relative_path = (
@@ -244,18 +240,6 @@ def tmp_env(environ: "Environment") -> "Environment":
     pick, and no two calls share a storage path."""
     return Environment(environ.storage.tmp(), environ.compute, environ.viba_path,
                        parent=environ)
-
-
-def identity(environ) -> "Environment":
-    """The environment itself, answered as it stands.
-
-    It is a call, so what it names is computed before the answer is handed back:
-    `$identity << args.env` is `args.env.identity << args.env`, and reading it is
-    what turns that environment into a value. A chain of steps runs each step at
-    a sub-environment of its own, and this is what makes that environment a
-    computed value rather than a writing (viba/sequential.viba).
-    """
-    return _an_environment(environ, "identity")
 
 
 def _an_environment(value, name: str) -> "Environment":

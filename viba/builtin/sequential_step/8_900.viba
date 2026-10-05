@@ -3,8 +3,7 @@
 # one becomes the value that name holds — and the call then runs at a child of
 # this environment (`run` beside it), so the step and the call it makes never
 # share one storage path. Each argument is answered at a child named by its own
-# number, since two answers are two calls. `identity` is a call, so those
-# environments are computed here rather than left as writings.
+# number, since two answers are two calls.
 pattern F << tagged[arg0_name, Arg0] << tagged[arg1_name, Arg1] << tagged[arg2_name, Arg2] << tagged[arg3_name, Arg3] << tagged[arg4_name, Arg4] << tagged[arg5_name, Arg5] << tagged[arg6_name, Arg6] << tagged[arg7_name, Arg7]
 
 __decl__ =
@@ -14,17 +13,17 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-answered0 = sequential_arg[Arg0] << $env ($identity << ($sub_env << args.env << "arg0")) << $vars args.vars
-answered1 = sequential_arg[Arg1] << $env ($identity << ($sub_env << args.env << "arg1")) << $vars args.vars
-answered2 = sequential_arg[Arg2] << $env ($identity << ($sub_env << args.env << "arg2")) << $vars args.vars
-answered3 = sequential_arg[Arg3] << $env ($identity << ($sub_env << args.env << "arg3")) << $vars args.vars
-answered4 = sequential_arg[Arg4] << $env ($identity << ($sub_env << args.env << "arg4")) << $vars args.vars
-answered5 = sequential_arg[Arg5] << $env ($identity << ($sub_env << args.env << "arg5")) << $vars args.vars
-answered6 = sequential_arg[Arg6] << $env ($identity << ($sub_env << args.env << "arg6")) << $vars args.vars
-answered7 = sequential_arg[Arg7] << $env ($identity << ($sub_env << args.env << "arg7")) << $vars args.vars
+answered0 = sequential_arg[Arg0] << $env ($sub_env << args.env << "arg0") << $vars args.vars
+answered1 = sequential_arg[Arg1] << $env ($sub_env << args.env << "arg1") << $vars args.vars
+answered2 = sequential_arg[Arg2] << $env ($sub_env << args.env << "arg2") << $vars args.vars
+answered3 = sequential_arg[Arg3] << $env ($sub_env << args.env << "arg3") << $vars args.vars
+answered4 = sequential_arg[Arg4] << $env ($sub_env << args.env << "arg4") << $vars args.vars
+answered5 = sequential_arg[Arg5] << $env ($sub_env << args.env << "arg5") << $vars args.vars
+answered6 = sequential_arg[Arg6] << $env ($sub_env << args.env << "arg6") << $vars args.vars
+answered7 = sequential_arg[Arg7] << $env ($sub_env << args.env << "arg7") << $vars args.vars
 
 __impl__ =
     apply
   << $f F
   << $args (tagged[arg0_name, answered0] * tagged[arg1_name, answered1] * tagged[arg2_name, answered2] * tagged[arg3_name, answered3] * tagged[arg4_name, answered4] * tagged[arg5_name, answered5] * tagged[arg6_name, answered6] * tagged[arg7_name, answered7])
-  << $env ($identity << ($sub_env << args.env << "run"))
+  << $env ($sub_env << args.env << "run")

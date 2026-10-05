@@ -1,9 +1,0 @@
-# `$identity << args.env` 答的就是给它的那个环境本身 —— 它是一个调用，所以要先把给它的
-# 环境算出来（`$identity << X` 是 `X.identity << X`）。
-__decl__ =
-    Any
-  <- $env Env
-
-args = __get_args__ << __decl__
-
-__impl__ = $identity << args.env
