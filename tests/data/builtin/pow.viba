@@ -1,0 +1,6 @@
+# pow —— 2 的 10 次方答 1024
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = pow << $env args.env << $x 2 << $y 10

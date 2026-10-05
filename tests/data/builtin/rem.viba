@@ -1,0 +1,6 @@
+# rem —— 17 除以 5 的余数答 2
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = rem << $env args.env << $x 17 << $y 5

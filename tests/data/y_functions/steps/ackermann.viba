@@ -5,7 +5,6 @@
 # `builtin.echo` 包起来），因为那一份要等到环境来了才算。往下那一层要一次自己的子环境，
 # 名字写在这个文件里。
 import branch
-import primitives as primitives
 
 __decl__ =
     int
@@ -16,11 +15,11 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-zero_m = primitives.eq << $env args.env << $x args.m << $y 0
-zero_n = primitives.eq << $env args.env << $x args.n << $y 0
-m_below = primitives.sub << $env args.env << $x args.m << $y 1
-n_below = primitives.sub << $env args.env << $x args.n << $y 1
-n_above = primitives.add << $env args.env << $x args.n << $y 1
+zero_m = eq << $env args.env << $x args.m << $y 0
+zero_n = eq << $env args.env << $x args.n << $y 0
+m_below = sub << $env args.env << $x args.m << $y 1
+n_below = sub << $env args.env << $x args.n << $y 1
+n_above = add << $env args.env << $x args.n << $y 1
 inner = args.ackermann << ($sub_env << args.env << "inner") << $m args.m << $n n_below
 at_zero_n = args.ackermann << ($sub_env << args.env << "at_zero_n") << $m m_below << $n 1
 outer = args.ackermann << ($sub_env << args.env << "outer") << $m m_below << $n inner

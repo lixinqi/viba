@@ -1,0 +1,6 @@
+# max —— 3 与 4 里大的是 4
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = max << $env args.env << $x 3 << $y 4

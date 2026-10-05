@@ -1,0 +1,6 @@
+# min —— 3 与 4 里小的是 3
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = min << $env args.env << $x 3 << $y 4

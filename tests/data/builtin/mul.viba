@@ -1,0 +1,6 @@
+# mul —— 6 乘 7 答 42
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = mul << $env args.env << $x 6 << $y 7

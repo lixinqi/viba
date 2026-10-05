@@ -1,0 +1,6 @@
+# pow_f —— 2.0 的 3.0 次方答 8.0
+__decl__ = float <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = pow_f << $env args.env << $x 2.0 << $y 3.0

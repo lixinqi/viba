@@ -1,0 +1,6 @@
+# abs —— -4 的绝对值答 4
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = abs << $env args.env << $x (neg << $env args.env << $x 4)

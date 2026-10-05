@@ -1,0 +1,6 @@
+# add_f —— 1.5 加 2.5 答 4.0
+__decl__ = float <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = add_f << $env args.env << $x 1.5 << $y 2.5

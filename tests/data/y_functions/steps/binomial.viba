@@ -5,7 +5,6 @@
 # `builtin.echo` 包起来），因为那一份要等到环境来了才算。往下那一层要一次自己的子环境，
 # 名字写在这个文件里。
 import branch
-import primitives as primitives
 
 __decl__ =
     int
@@ -16,10 +15,10 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-zero_k = primitives.eq << $env args.env << $x args.k << $y 0
-same = primitives.eq << $env args.env << $x args.n << $y args.k
-n_below = primitives.sub << $env args.env << $x args.n << $y 1
-k_below = primitives.sub << $env args.env << $x args.k << $y 1
+zero_k = eq << $env args.env << $x args.k << $y 0
+same = eq << $env args.env << $x args.n << $y args.k
+n_below = sub << $env args.env << $x args.n << $y 1
+k_below = sub << $env args.env << $x args.k << $y 1
 left = args.binomial << ($sub_env << args.env << "left") << $n n_below << $k k_below
 right = args.binomial << ($sub_env << args.env << "right") << $n n_below << $k args.k
 __impl__ =
@@ -32,5 +31,5 @@ __impl__ =
         | (branch.echo_or_never << $env args.env << $cond same
             << $get_v (builtin.echo << $x 1))
         | (branch.never_or_echo << $env args.env << $cond same
-            << $get_v (primitives.add << $env args.env << $x left << $y right))
+            << $get_v (add << $env args.env << $x left << $y right))
       )))

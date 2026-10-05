@@ -1,0 +1,6 @@
+# abs_f —— -1.5 的绝对值答 1.5
+__decl__ = float <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = abs_f << $env args.env << $x (neg_f << $env args.env << $x 1.5)

@@ -1,0 +1,6 @@
+# sub —— 10 减 3 答 7
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = sub << $env args.env << $x 10 << $y 3

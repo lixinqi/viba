@@ -1,0 +1,9 @@
+# ge —— 2 大于等于 2 答 true，1 大于等于 2 答 false
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+forward = bool_to_str << $env args.env << $x (ge << $env args.env << $x 2 << $y 2)
+backward = bool_to_str << $env args.env << $x (ge << $env args.env << $x 1 << $y 2)
+
+__impl__ = concat << $env args.env << $x forward << $y backward

@@ -84,7 +84,7 @@ from viba.pattern import (GENERIC_FILE, GenericModuleType,
 from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
                        InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
-                       BUILTIN_DIR, BUILTIN_MODULE, NilType, NeverType,
+                       BUILTIN_CONCEPT, BUILTIN_DIR, BUILTIN_MODULE, NilType, NeverType,
                        custom_module, module_get_type)
 from viba.viba_ast.tagged import (GETATTR_TAG, TAGGED_NAME, symbol_of,
                                   symbol_problem, tag_of, tagged_node)
@@ -538,6 +538,31 @@ def _builtin_unit(node):
     if isinstance(builtin, Ok) and isinstance(builtin.ok_value, (NilType, NeverType)):
         return type(builtin.ok_value)
     return None
+
+
+def _tagged_piece(body, tag):
+    """The written piece of the `$tag` member of a product, or None.
+
+    `body` is a definition node or the product written in it (the builtin
+    library's `builtin` concept among them). None when the product has no such
+    member.
+    """
+    product = body.body if isinstance(body, viba_ast.TypeDefinition) else body
+    for factor in product_elements(product):
+        if isinstance(factor, viba_ast.Tagged) and factor.tag == "$" + tag:
+            return factor.type
+    return None
+
+
+def _builtin_member_data(inner):
+    """A builtin member's written piece as viba data: the call it stands for.
+
+    It belongs to no file of its own, so its names resolve in the builtin
+    library (`int`, `Env` and the rest of `viba/builtin.viba`).
+    """
+    return Ok(_VibaData(VibaNode(
+        reflect_access,
+        descriptor_of(AstNodeType(inner, BUILTIN_MODULE)), inner)))
 
 
 def _never_viba_data():
@@ -1536,6 +1561,9 @@ class _Activation:
         builtin = self._builtin_member(name)
         if builtin is not None:
             return builtin
+        builtin = self._builtin_bare_member(name)
+        if builtin is not None:
+            return builtin
         member = self._environment_member(name, scope)
         if member is not None:
             return member
@@ -2434,7 +2462,10 @@ class _Activation:
             return self._func_pending(name_node, name, self.module, chain, name)
         bound = self._imported_name(name)
         if bound is None:
-            return None
+            # A bare name that is a member of the builtin concept is that
+            # member's call (`add << …` is `builtin.add << …`): the library is
+            # visible from every module, and read last.
+            return self._builtin_bare_call(name_node, name)
         module_name, rest = bound
         imported = self.runner.imported(module_name, self.file)
         if _stopped(imported):
@@ -2503,15 +2534,38 @@ class _Activation:
         found = BUILTIN_MODULE.lookup(head)
         if not isinstance(found, Ok) or not isinstance(found.ok_value, AstNodeType):
             return None
-        body = found.ok_value.ast_node
-        body = body.body if isinstance(body, viba_ast.TypeDefinition) else body
-        for factor in product_elements(body):
-            if isinstance(factor, viba_ast.Tagged) and factor.tag == "$" + tag:
-                inner = factor.type
-                return Ok(_VibaData(VibaNode(
-                    reflect_access,
-                    descriptor_of(AstNodeType(inner, BUILTIN_MODULE)), inner)))
-        return VibaProgramErr(f"{head!r} has no member tagged {'$' + tag!r}")
+        inner = _tagged_piece(found.ok_value.ast_node, tag)
+        if inner is None:
+            return VibaProgramErr(f"{head!r} has no member tagged {'$' + tag!r}")
+        return _builtin_member_data(inner)
+
+    def _builtin_bare_member(self, name):
+        """`add` written on its own: the `$add` member of the builtin concept.
+
+        The builtin library is visible from every module at the lowest
+        precedence, so this name and `builtin.add` are the same member, and the
+        same call. None when the concept has no such member, so the caller
+        reports the name the way it always did.
+        """
+        piece = BUILTIN_MODULE.operator(name)
+        if piece is None:
+            return None
+        return _builtin_member_data(piece)
+
+    def _builtin_bare_call(self, name_node, name):
+        """The call a bare builtin member's name stands for, or None.
+
+        The name the host is asked for is the member's own (`builtin.add`), so
+        one implementation answers both spellings of the member.
+        """
+        member = self._builtin_bare_member(name)
+        if not isinstance(member, Ok) or not isinstance(member.ok_value, _VibaData):
+            return None
+        chain = member.ok_value.node.data
+        if not isinstance(chain, (viba_ast.Exponent, viba_ast.ExponentChain)):
+            return None
+        return self._func_pending(name_node, name, self.module, chain,
+                                  f"{BUILTIN_CONCEPT}.{name}")
 
     def _member_function(self, name):
         """`a.b` written at a chain head, with `b` a function member of `a`: this step's

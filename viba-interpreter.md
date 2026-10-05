@@ -107,6 +107,10 @@ __impl__ =
   `(B <- $a A) << $a A` 就是 `B`。
 - **`{...}` 只给提示，不给实现**：提示只说这一步要实现什么，主要逻辑得有人照着它写出来，再交到
   `get_func` 上。写这些函数的是 agent（见「宿主侧：Environment」），viba 一个都不带。
+- **内建算子就是这样的几个成员**：`viba/builtin.viba` 里 `builtin` 的成员（`$add`、`$lt`、
+  `$concat`……），每个一张签名，实现在宿主手里。`builtin.add << …` 与 `add << …` 是同一次调用，
+  宿主拿到的名字都是 `builtin.add`；自己模块里同名定义优先，所以它排在任何别的名字之后
+  （[`viba-style.md`](viba-style.md) 第 11 节）。
 - **要执行的函数都得拿到环境**：`__decl__` 里可以写 `$env Env` 这个参数，也可以不写。调用时给环境的写法
   一样：一个 `<<` 给一个环境值（`square_sum << (args.env.tmp_env << args.env) << 3 << 4`）。写了，环境
   就给这个参数，模块体用 `args = __get_args__ << __decl__` 和 `args.env` 取到它。不写，**环境不进门**：

@@ -1,0 +1,6 @@
+# the_wrong_type —— 参数类型不对：add 要 int，给一个字符串拒绝
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = add << $env args.env << $x 1 << $y "two"

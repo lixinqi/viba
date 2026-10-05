@@ -1,0 +1,6 @@
+# int_to_float —— 7 写成 float 答 7.0
+__decl__ = float <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = int_to_float << $env args.env << $x 7

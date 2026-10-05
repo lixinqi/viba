@@ -1,0 +1,6 @@
+# len_str —— "viba" 有 4 个字符
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = len_str << $env args.env << $x "viba"

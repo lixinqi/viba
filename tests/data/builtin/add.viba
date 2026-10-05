@@ -1,0 +1,6 @@
+# add —— 3 加 4 答 7
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = add << $env args.env << $x 3 << $y 4

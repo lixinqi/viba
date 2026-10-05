@@ -1,0 +1,12 @@
+# bool_to_str —— true 答 "true"，false 答 "false"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+first = bool_to_str << $env args.env << $x true
+second = bool_to_str << $env args.env << $x false
+
+__impl__ =
+    concat << $env args.env
+  << $x first
+  << $y (concat << $env args.env << $x "|" << $y second)

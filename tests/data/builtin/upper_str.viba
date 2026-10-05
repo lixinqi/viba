@@ -1,0 +1,6 @@
+# upper_str —— "viba" 的大写答 "VIBA"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = upper_str << $env args.env << $x "viba"

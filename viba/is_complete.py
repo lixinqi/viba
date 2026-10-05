@@ -49,6 +49,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from viba import viba_ast
+from viba.partial import product_elements
 from viba.pattern import reduce_application, tagged_reading
 from viba.type import BUILTIN_DIR, BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
 from viba.viba_type_descriptor import (
@@ -207,6 +208,9 @@ class _Checker:
         builtin = BUILTIN_MODULE.lookup(name)
         if isinstance(builtin, Ok) and isinstance(builtin.ok_value, AstNodeType):
             return builtin.ok_value.ast_node, BUILTIN_MODULE_NAME
+        piece = _builtin_member_piece(name)
+        if piece is not None:
+            return piece, BUILTIN_MODULE_NAME
         return None  # not a definition (a builtin scalar and the like)
 
     # ---- the walk itself ----
@@ -437,7 +441,9 @@ class _Checker:
             return True  # coinduction: the same walk in progress counts as fine
         self.visiting.add(key)
         try:
-            return self._walk(node.body, module_name, bindings)
+            # A builtin member resolves to its written chain, which has no body
+            # of its own: the chain is what there is to walk.
+            return self._walk(getattr(node, "body", node), module_name, bindings)
         finally:
             self.visiting.discard(key)
 
@@ -449,6 +455,28 @@ class _Checker:
 
 def _is_definition(node) -> bool:
     return isinstance(node, (viba_ast.TypeDefinition, viba_ast.GenericDefinition))
+
+
+def _builtin_member_piece(name: str):
+    """The written piece a dotted builtin member's name (`builtin.add`) stands
+    for, or None.
+
+    The bare spelling (`add`) is a builtin library name of its own, so
+    `BUILTIN_MODULE.lookup` answers it already; this is the member read that the
+    qualified spelling writes.
+    """
+    head, dot, tag = name.rpartition(".")
+    if not dot:
+        return None
+    found = BUILTIN_MODULE.lookup(head)
+    if not isinstance(found, Ok) or not isinstance(found.ok_value, AstNodeType):
+        return None
+    body = found.ok_value.ast_node
+    body = body.body if isinstance(body, viba_ast.TypeDefinition) else body
+    for factor in product_elements(body):
+        if isinstance(factor, viba_ast.Tagged) and factor.tag == "$" + tag:
+            return factor.type
+    return None
 
 
 def _is_unit_head(node) -> bool:

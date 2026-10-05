@@ -1,0 +1,9 @@
+# both_spellings —— `add` 与 `builtin.add` 是同一次调用：两个写法答一样的值
+__decl__ = bool <- $env Env
+
+args = __get_args__ << __decl__
+
+bare = add << $env args.env << $x 2 << $y 3
+qualified = builtin.add << $env args.env << $x 2 << $y 3
+
+__impl__ = eq << $env args.env << $x bare << $y qualified

@@ -303,6 +303,13 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
   asked for twice is computed once. `builtin.echo << $x v` is the builtin that
   turns a value already worked out into that form: it answers `v` for any
   environment.
+- `builtin` ([`viba/builtin.viba`](viba/builtin.viba)) is the one vocabulary every module
+  can reach without an import: `Environment` / `Env`, `builtin.echo`, and the builtin
+  operators — arithmetic, comparison and logic over `int`, `float`, `str` and `bool`,
+  plus the conversions between those types. The host is asked for an operator under its
+  qualified name (`builtin.add`, `builtin.lt_f`, `builtin.int_to_str`); the member's own
+  name is the same call (`add << $env args.env << $x 3 << $y 4`), and a module's own
+  definition of that name wins.
 - `interpret` ships no library of its own: every implementation a run can reach
   comes from a single `get_func` answer, written from the hints the file carries.
 - What comes back is `Ok(node)`, `VibaProgramErr(message)`, `UnderlyingVibaOpFailed`
@@ -451,7 +458,7 @@ tools built on those.
 | `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
 | `is_complete.py` | Whether a type can be reflected through |
 | `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
-| `builtin.viba` | Builtin vocabulary visible from every module — `Environment` and `Env` among them |
+| `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …) |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY

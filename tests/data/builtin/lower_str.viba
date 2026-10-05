@@ -1,0 +1,6 @@
+# lower_str —— "VIBA" 的小写答 "viba"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = lower_str << $env args.env << $x "VIBA"

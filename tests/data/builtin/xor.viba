@@ -1,0 +1,13 @@
+# xor —— true 与 true 答 false，true 与 false 答 true，false 与 false 答 false
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+first = bool_to_str << $env args.env << $x (xor << $env args.env << $x true << $y true)
+second = bool_to_str << $env args.env << $x (xor << $env args.env << $x true << $y false)
+third = bool_to_str << $env args.env << $x (xor << $env args.env << $x false << $y false)
+
+__impl__ =
+    concat << $env args.env
+  << $x first
+  << $y (concat << $env args.env << $x second << $y third)

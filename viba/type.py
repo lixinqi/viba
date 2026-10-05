@@ -234,11 +234,18 @@ class ModuleType(Type):
     """Base class of module descriptors."""
 
 
+# The concept in the builtin library that holds the builtin operators: its
+# members are written `builtin.add`, and read on their own as `add`.
+BUILTIN_CONCEPT = "builtin"
+
+
 class BuiltinModuleType(ModuleType):
     """The module that holds built-in types.
 
     Every lookup is answered by the registry or the builtin
-    library (viba/builtin.viba); anything else is an error.
+    library (viba/builtin.viba): the definitions it writes, and the builtin
+    operators the concept `builtin` holds — read on their own, `add` is
+    `builtin.add`. Anything else is an error.
     """
 
     _BASIC_NAMES = {
@@ -261,6 +268,7 @@ class BuiltinModuleType(ModuleType):
 
     def __init__(self):
         self._library = _load_builtin_library()
+        self._operators = _load_builtin_operators(self._library)
 
     def lookup(self, type_name: str) -> Result:
         if type_name in self._BASIC_NAMES:
@@ -270,7 +278,19 @@ class BuiltinModuleType(ModuleType):
         if type_name in self._library:
             node = self._library[type_name]
             return Ok(AstNodeType(node, BUILTIN_MODULE))
+        piece = self.operator(type_name)
+        if piece is not None:
+            return Ok(AstNodeType(piece, BUILTIN_MODULE))
         return VibaProgramErr(f"no built-in type named {type_name!r}")
+
+    def operator(self, name: str):
+        """The written piece of the builtin operator `name`, or None.
+
+        `builtin.add` and `add` are the same member of the concept `builtin`
+        (viba/builtin.viba), and this is that member's signature: the chain a
+        written call unfolds to, whichever spelling it uses.
+        """
+        return self._operators.get(name)
 
 
 def _load_builtin_library() -> dict:
@@ -279,6 +299,32 @@ def _load_builtin_library() -> dict:
     tree = viba_ast.parse(path.read_text())
     kinds = (viba_ast.TypeDefinition, viba_ast.GenericDefinition)
     return {n.name: n for n in tree.body if isinstance(n, kinds)}
+
+
+def _load_builtin_operators(library: dict) -> dict:
+    """{name: written piece} for the tagged members of the builtin concept.
+
+    The members are the builtin operators (`builtin.add`, read on its own as
+    `add`), and the concept is one definition in the library: this reads its
+    product apart once, so every lookup of an operator is a dictionary read.
+    """
+    definition = library.get(BUILTIN_CONCEPT)
+    if definition is None:
+        return {}
+    operators = {}
+    for factor in _product_factors(definition.body):
+        if isinstance(factor, viba_ast.Tagged):
+            operators[factor.tag[1:]] = factor.type
+    return operators
+
+
+def _product_factors(node) -> list:
+    """The factors of a written product, flattened in written order."""
+    if isinstance(node, viba_ast.Product):
+        return _product_factors(node.left) + _product_factors(node.right)
+    if isinstance(node, viba_ast.ProductChain):
+        return list(node.elements)
+    return [node]
 
 
 # The single shared built-in module instance.

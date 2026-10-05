@@ -1,0 +1,6 @@
+# div —— 17 整除 5 答 3
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = div << $env args.env << $x 17 << $y 5

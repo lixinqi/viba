@@ -3,7 +3,6 @@
 # `$fib` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
 # 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
 import branch
-import primitives as primitives
 
 __decl__ =
     int
@@ -13,9 +12,9 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-small = primitives.lt << $env args.env << $x args.n << $y 2
-below_one = primitives.sub << $env args.env << $x args.n << $y 1
-below_two = primitives.sub << $env args.env << $x args.n << $y 2
+small = lt << $env args.env << $x args.n << $y 2
+below_one = sub << $env args.env << $x args.n << $y 1
+below_two = sub << $env args.env << $x args.n << $y 2
 low = args.fib << ($sub_env << args.env << "low") << $n below_one
 high = args.fib << ($sub_env << args.env << "high") << $n below_two
 
@@ -24,4 +23,4 @@ __impl__ =
   | (branch.echo_or_never << $env args.env << $cond small
       << $get_v (builtin.echo << $x args.n))
   | (branch.never_or_echo << $env args.env << $cond small
-      << $get_v (primitives.add << $env args.env << $x low << $y high))
+      << $get_v (add << $env args.env << $x low << $y high))

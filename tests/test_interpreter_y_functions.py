@@ -2,10 +2,14 @@
 
 用例在 `tests/data/y_functions/`：
 
-    primitives.viba        宿主那几步：lt / eq / add / sub / mul / div / rem / add_f
     steps/<名字>.viba      一步 f：头一个参数（按这份文件的名字叫它，比如 gcd.viba 里是 `$gcd`）
                           是 Y 交回来的"下一层怎么算"，剩下的就是这一层的实参
     main/<名字>.viba       用 Y 跑那一步：`Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0`
+
+每一步那几件小事（比较、加减乘除、取余、浮点加）是内建算子：`lt` / `eq` / `add` / `sub` /
+`mul` / `div` / `rem` / `add_f`，写在内建目录的 `viba/builtin.viba` 里，任何模块都看得到，
+所以这些 step 一个 import 都不用写（`tests/test_interpreter_builtin.py` 是这些算子自己的
+那份用例）。宿主拿到的名字是 `builtin.lt` 这样带前缀的那个。
 
 每个 `main/<名字>.viba` 就是一份可以打开、可以直接跑的程序（文件就是函数）：`__impl__` 里那一次
 调用就是"Y 跑这一步"。`steps/<名字>.viba` 是那一步本身 —— 它只管自己这一层，往下几层交给
@@ -85,25 +89,25 @@ BASE_ENTRY = [
 
 
 def host_for():
-    """每一步的实现：比较、四则、取余、浮点加，以及 `builtin.echo`。"""
+    """每一步的实现：内建的那几个算子（`builtin.lt` 这样），以及 `builtin.echo`。"""
     def get_func(module_path, func_name):
         if func_name == "builtin.echo":
             return lambda env, x: x
-        if func_name == "lt":
+        if func_name == "builtin.lt":
             return lambda env, x, y: x.value < y.value
-        if func_name == "eq":
+        if func_name == "builtin.eq":
             return lambda env, x, y: x.value == y.value
-        if func_name == "add":
+        if func_name == "builtin.add":
             return lambda env, x, y: x.value + y.value
-        if func_name == "sub":
+        if func_name == "builtin.sub":
             return lambda env, x, y: x.value - y.value
-        if func_name == "mul":
+        if func_name == "builtin.mul":
             return lambda env, x, y: x.value * y.value
-        if func_name == "div":
+        if func_name == "builtin.div":
             return lambda env, x, y: x.value // y.value
-        if func_name == "rem":
+        if func_name == "builtin.rem":
             return lambda env, x, y: x.value % y.value
-        if func_name == "add_f":
+        if func_name == "builtin.add_f":
             return lambda env, x, y: x.value + y.value
         return branch.get_func(module_path, func_name)
     return get_func

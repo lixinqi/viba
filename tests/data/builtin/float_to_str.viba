@@ -1,0 +1,12 @@
+# float_to_str —— 1.5 答 "1.5"，2.0 答 "2.0"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+first = float_to_str << $env args.env << $x 1.5
+second = float_to_str << $env args.env << $x 2.0
+
+__impl__ =
+    concat << $env args.env
+  << $x first
+  << $y (concat << $env args.env << $x "|" << $y second)

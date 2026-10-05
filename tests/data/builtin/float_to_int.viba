@@ -1,0 +1,12 @@
+# float_to_int —— 2.9 丢小数答 2，-2.9 丢小数答 -2（朝零丢，不是向下取整）
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+positive = float_to_int << $env args.env << $x 2.9
+negative = float_to_int << $env args.env << $x (sub_f << $env args.env << $x 0.0 << $y 2.9)
+
+__impl__ =
+    concat << $env args.env
+  << $x (int_to_str << $env args.env << $x positive)
+  << $y (concat << $env args.env << $x "|" << $y (int_to_str << $env args.env << $x negative))

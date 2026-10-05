@@ -8,7 +8,6 @@
 # b 是 0 时 `rest` 是 a 除以 0 的余数、`deeper` 是再往下的一层，两者都不会被求值。
 # `main/gcd_zero.viba` 就是从基例那一侧进来钉这一点的。
 import branch
-import primitives as primitives
 
 __decl__ =
     int
@@ -19,8 +18,8 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-zero = primitives.eq << $env args.env << $x args.b << $y 0
-rest = primitives.rem << $env args.env << $x args.a << $y args.b
+zero = eq << $env args.env << $x args.b << $y 0
+rest = rem << $env args.env << $x args.a << $y args.b
 deeper = args.gcd << ($sub_env << args.env << "deeper") << $a args.b << $b rest
 __impl__ =
   Oneof

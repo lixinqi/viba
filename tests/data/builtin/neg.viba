@@ -1,0 +1,6 @@
+# neg —— 4 取负答 -4
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = neg << $env args.env << $x 4

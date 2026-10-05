@@ -1,0 +1,6 @@
+# mul_f —— 2.5 乘 4.0 答 10.0
+__decl__ = float <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = mul_f << $env args.env << $x 2.5 << $y 4.0

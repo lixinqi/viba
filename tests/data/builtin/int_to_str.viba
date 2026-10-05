@@ -1,0 +1,6 @@
+# int_to_str —— 123 写下来答 "123"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = int_to_str << $env args.env << $x 123

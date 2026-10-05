@@ -38,10 +38,27 @@ Environment =
 
 Env = Environment
 
-# Hands back what it receives unchanged: `echo << $x V` answers V given an environment. The
-# work handed out is computed in the environment and at the time its receiver decides
-# (branch.py); one name on the left, so this writes `builtin` and its member `$echo`.
+# The builtin module: the operators every module can reach without writing an
+# import. Each operator is one member of `builtin`, written as a function of the
+# environment and its arguments, and the host implements it under the member's
+# name — `builtin.add` is what `get_func` is asked for.
+#
+# A module may also write that member's own name on its own (`add << $env …`,
+# `concat << $env …`): it is the same member, and the same call. The library is
+# the lowest-precedence stop of every name, so a module's own `add` wins over
+# the builtin one, and so does an import.
+#
+# One name on the left: the operators below are members of it, not definitions of
+# their own.
+#
+# The naming says which type an operator is about: nothing for `int`, `_f` for
+# `float`, `_str` for `str`, `_bool` for `bool`; `x_to_y` converts from the type
+# `x` to the type `y`. The block after a signature is what the operator means —
+# the meaning itself is the host's (`viba-interpreter.md`).
 builtin =
+    # Hand back what it receives unchanged: `echo << $x V` answers V given an
+    # environment. The work handed out is computed in the environment and at the
+    # time its receiver decides (branch.py).
     $echo
     (
         $x Any
@@ -49,3 +66,72 @@ builtin =
       <- $x Any
       <- { hand the argument back }
     )
+
+    # Arithmetic on int.
+  * $add (int <- $env Env <- $x int <- $y int <- { the sum of x and y })
+  * $sub (int <- $env Env <- $x int <- $y int <- { x minus y })
+  * $mul (int <- $env Env <- $x int <- $y int <- { the product of x and y })
+  * $div (int <- $env Env <- $x int <- $y int <- { x divided by y, rounded down })
+  * $rem (int <- $env Env <- $x int <- $y int <- { the remainder of x divided by y })
+  * $neg (int <- $env Env <- $x int <- { x with the other sign })
+  * $abs (int <- $env Env <- $x int <- { x without its sign })
+  * $min (int <- $env Env <- $x int <- $y int <- { the lesser of x and y })
+  * $max (int <- $env Env <- $x int <- $y int <- { the greater of x and y })
+  * $pow (int <- $env Env <- $x int <- $y int <- { x raised to the power y })
+
+    # Arithmetic on float.
+  * $add_f (float <- $env Env <- $x float <- $y float <- { the sum of x and y })
+  * $sub_f (float <- $env Env <- $x float <- $y float <- { x minus y })
+  * $mul_f (float <- $env Env <- $x float <- $y float <- { the product of x and y })
+  * $div_f (float <- $env Env <- $x float <- $y float <- { x divided by y })
+  * $rem_f (float <- $env Env <- $x float <- $y float <- { the remainder of x divided by y })
+  * $neg_f (float <- $env Env <- $x float <- { x with the other sign })
+  * $abs_f (float <- $env Env <- $x float <- { x without its sign })
+  * $min_f (float <- $env Env <- $x float <- $y float <- { the lesser of x and y })
+  * $max_f (float <- $env Env <- $x float <- $y float <- { the greater of x and y })
+  * $pow_f (float <- $env Env <- $x float <- $y float <- { x raised to the power y })
+
+    # Comparing int.
+  * $lt (bool <- $env Env <- $x int <- $y int <- { x is less than y })
+  * $le (bool <- $env Env <- $x int <- $y int <- { x is less than or equal to y })
+  * $gt (bool <- $env Env <- $x int <- $y int <- { x is greater than y })
+  * $ge (bool <- $env Env <- $x int <- $y int <- { x is greater than or equal to y })
+  * $eq (bool <- $env Env <- $x int <- $y int <- { x equals y })
+  * $ne (bool <- $env Env <- $x int <- $y int <- { x does not equal y })
+
+    # Comparing float.
+  * $lt_f (bool <- $env Env <- $x float <- $y float <- { x is less than y })
+  * $le_f (bool <- $env Env <- $x float <- $y float <- { x is less than or equal to y })
+  * $gt_f (bool <- $env Env <- $x float <- $y float <- { x is greater than y })
+  * $ge_f (bool <- $env Env <- $x float <- $y float <- { x is greater than or equal to y })
+  * $eq_f (bool <- $env Env <- $x float <- $y float <- { x equals y })
+  * $ne_f (bool <- $env Env <- $x float <- $y float <- { x does not equal y })
+
+    # Working on str.
+  * $concat (str <- $env Env <- $x str <- $y str <- { the two strings joined end to end })
+  * $len_str (int <- $env Env <- $x str <- { how many characters the string has })
+  * $upper_str (str <- $env Env <- $x str <- { the string in upper case })
+  * $lower_str (str <- $env Env <- $x str <- { the string in lower case })
+  * $eq_str (bool <- $env Env <- $x str <- $y str <- { the two strings are the same })
+  * $ne_str (bool <- $env Env <- $x str <- $y str <- { the two strings are not the same })
+  * $lt_str (bool <- $env Env <- $x str <- $y str <- { the first string sorts before the second })
+  * $le_str (bool <- $env Env <- $x str <- $y str <- { the first string is not after the second })
+  * $gt_str (bool <- $env Env <- $x str <- $y str <- { the first string sorts after the second })
+  * $ge_str (bool <- $env Env <- $x str <- $y str <- { the first string is not before the second })
+
+    # Logic on bool.
+  * $and (bool <- $env Env <- $x bool <- $y bool <- { true when both are true })
+  * $or (bool <- $env Env <- $x bool <- $y bool <- { true when either is true })
+  * $not (bool <- $env Env <- $x bool <- { the other truth value })
+  * $xor (bool <- $env Env <- $x bool <- $y bool <- { true when exactly one is true })
+  * $eq_bool (bool <- $env Env <- $x bool <- $y bool <- { the two truth values are the same })
+  * $ne_bool (bool <- $env Env <- $x bool <- $y bool <- { the two truth values are not the same })
+
+    # From one type to another.
+  * $int_to_float (float <- $env Env <- $x int <- { x as a float })
+  * $float_to_int (int <- $env Env <- $x float <- { x with its fraction dropped })
+  * $int_to_str (str <- $env Env <- $x int <- { x written in decimal })
+  * $float_to_str (str <- $env Env <- $x float <- { x written as a number })
+  * $bool_to_str (str <- $env Env <- $x bool <- { x written as "true" or "false" })
+  * $str_to_int (int <- $env Env <- $x str <- { the whole number the string writes })
+  * $str_to_float (float <- $env Env <- $x str <- { the number the string writes })

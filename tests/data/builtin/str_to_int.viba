@@ -1,0 +1,6 @@
+# str_to_int —— "42" 里那个整数答 42
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = str_to_int << $env args.env << $x "42"

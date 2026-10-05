@@ -1,0 +1,9 @@
+# le_f —— 2.0 小于等于 2.0 答 true，3.0 小于等于 2.0 答 false
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+forward = bool_to_str << $env args.env << $x (le_f << $env args.env << $x 2.0 << $y 2.0)
+backward = bool_to_str << $env args.env << $x (le_f << $env args.env << $x 3.0 << $y 2.0)
+
+__impl__ = concat << $env args.env << $x forward << $y backward

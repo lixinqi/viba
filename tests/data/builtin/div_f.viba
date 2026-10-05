@@ -1,0 +1,6 @@
+# div_f —— 5.0 除以 4.0 答 1.25
+__decl__ = float <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = div_f << $env args.env << $x 5.0 << $y 4.0

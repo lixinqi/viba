@@ -1,0 +1,12 @@
+# shadowed_by_the_module —— 模块自己的 `add` 赢过内建那个；`builtin.add` 仍然拿到内建的
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+add =
+    int <- $env Env <- $x int <- $y int <- { 本模块自己的 add：x 乘 y }
+
+mine = add << $env args.env << $x 3 << $y 4
+from_the_library = builtin.add << $env args.env << $x mine << $y 1
+
+__impl__ = from_the_library

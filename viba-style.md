@@ -215,8 +215,13 @@ Distance =
 
 - **内建名字不用 import。** [`viba/builtin.viba`](viba/builtin.viba) 对每个模块可见（最低优先级，自己
   模块的同名定义优先）：`Environment` / `Env`、`Object` / `Oneof` / `nil` / `never` / `Any`、
-  标量 `bool` / `int` / `float` / `str`、容器名 `list` / `set` / `dict`，以及 `builtin.echo`。
+  标量 `bool` / `int` / `float` / `str`、容器名 `list` / `set` / `dict`，以及 `builtin` 的成员。
   所以 `Environment` / `Env` 和 `builtin.echo` 都不需要写任何 import。
+- **`builtin` 的成员是内建算子，两种写法是同一次调用。** `builtin.add << $env args.env << $x 3 << $y 4`
+  和 `add << $env args.env << $x 3 << $y 4` 叫的是同一个成员：带前缀的是它的全名，不带前缀的那个
+  是它对每个模块可见的短名字。每个成员一张签名，实现跟别的函数一样在宿主手里 —— `get_func` 收到的
+  名字是带前缀的那个（`builtin.add`）。名字说它管哪个类型：`int` 不带后缀，`float` 是 `_f`，
+  `str` 是 `_str`，`bool` 是 `_bool`；`x_to_y` 是从 `x` 换算到 `y`。
 - **内建标量是 `bool` / `int` / `float` / `str`。** `string` 不是内建名：它什么都解析不到，而且
   语法层不会报——类型层会（`module_get_type`、`is_sub_type`）。
 - **一份定义一个表达式**，各自一行：没有逗号，也没有语句分隔符。
