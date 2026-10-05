@@ -1,0 +1,11 @@
+# 环境给了就跑了，不再是闭包。
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__decl__ = Any <- $env Env
+
+__impl__ = is_closure[add << $env Env << $a 1].value

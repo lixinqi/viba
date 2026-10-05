@@ -265,7 +265,7 @@ def reduce_partial(node, module, resolve: Callable, judge: Callable,
     unfolded; an alias is followed to the end of the chain.
     `judge(sub, sub_module, sup, sup_module) -> bool` says whether a given
     argument fits the slot it is written to. It is also what tells the environment
-    apart from an argument (`_is_the_environment`), since the environment's own
+    apart from an argument (`is_the_environment`), since the environment's own
     type is what says so.
     """
     while isinstance(node, viba_ast.Partial):
@@ -290,7 +290,7 @@ def _nothing_left_to_give(node, module, judge=None):
     elements = _elements(node)
     if len(elements) > 1 and all(_is_documentation(element)
                                  or _is_the_empty_product(element)
-                                 or _is_the_environment(element, module, judge)
+                                 or is_the_environment(element, module, judge)
                                  for element in elements[1:]):
         # The environment slot is no argument (`_give` does not fill it), so leaving only it on the
         # chain is like leaving nothing: this call lands on the result.
@@ -310,7 +310,7 @@ def _give(base, module, argument, argument_module, resolve, judge):
         # The member for `$tag` is taken from the **first argument**, so the environment here is a
         # value, not "execute".
         return _member_of(base.tag, argument, argument_module, resolve, judge)
-    if _is_the_environment(argument, argument_module, judge):
+    if is_the_environment(argument, argument_module, judge):
         # Giving the environment = executing this step: it stops taking a place on the chain. The
         # environment is no parameter of the design, so once it is given, the slots left are
         # everything there is to give (when it is not given, the environment slot is still the
@@ -318,7 +318,7 @@ def _give(base, module, argument, argument_module, resolve, judge):
         base, module = _unfold(base, module, resolve)
         elements = _elements(base) if isinstance(base, _EXP_NODES) else [base]
         rest = [elements[0]] + [one for one in elements[1:]
-                                if not _is_the_environment(one, module, judge)]
+                                if not is_the_environment(one, module, judge)]
         if len(rest) == 1:
             return rest[0], module
         return viba_ast.ExponentChain(rest), module
@@ -445,7 +445,7 @@ def _symbol_text_of(node, module, resolve):
     return None
 
 
-def _is_the_environment(node, module=None, judge=None) -> bool:
+def is_the_environment(node, module=None, judge=None) -> bool:
     """Whether this written piece is the environment itself.
 
     The environment is the call's rule rather than an argument — giving it is what

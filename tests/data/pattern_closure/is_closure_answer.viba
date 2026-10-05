@@ -1,0 +1,6 @@
+# 模块应用 `is_closure`：选中的那一支（`true`）就是它的答案。
+import square_sum
+
+__decl__ = Any <- $env Env
+
+__impl__ = is_closure[square_sum << 3].value

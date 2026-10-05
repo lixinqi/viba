@@ -1,0 +1,11 @@
+# 两个实参：认它的是写了两段 `<<` 的那一份（`200.viba`）。
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__decl__ = Any <- $env Env
+
+__impl__ = is_closure[add << $a 1 << $b 2].value

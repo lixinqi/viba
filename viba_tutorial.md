@@ -165,9 +165,9 @@ ret = demo << (args.env.sub_env << args.env << "add_demo")
 __impl__ = demo.print << args.env << ret
 ```
 
-`import` 到哪儿找是环境的事（先 import 旁边、再 `viba_path` 按顺序、最后内建目录 `viba/`）；
-内建目录里的模块不用写 import —— `Y`、`apply`、`sub_env_run` 直接写名字就是它（写了 import 也
-一样），它们就在搜索路径的最后一站。
+`import` 到哪儿找是环境的事（先 import 旁边、再 `viba_path` 按顺序、最后内建目录 `viba/` 与
+`viba/builtin/`）；内建库里的模块与泛型不用写 import —— `Y`、`apply`、`sub_env_run`、
+`is_closure`、`unclosure` 直接写名字就是它（写了 import 也一样），它们就在搜索路径的最后一站。
 
 `args.env.sub_env << args.env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
 `root/add_demo`。它也可以写成 `$sub_env << args.env << "add_demo"`——tag 写在链头时命中的是第一个参数

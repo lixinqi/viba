@@ -50,14 +50,14 @@ import os
 from typing import Callable, Dict, List, Optional
 
 from viba import viba_ast
-from viba.partial import (DEF_NAME, module_as_function, product_elements,
-                          reduce_partial)
+from viba.partial import (DEF_NAME, is_the_environment, module_as_function,
+                          product_elements, reduce_partial)
 from viba.viba_ast.tagged import (TAGGED_NAME, literal_symbol, symbol_of,
                                   symbol_problem, tag_of, tagged_node,
                                   tagged_problem)
-from viba.type import (AstNodeType, BuiltinGenericType, CustomModuleType,
-                       ModuleType, Ok, PartialError, Result, VibaProgramErr,
-                       module_get_type)
+from viba.type import (AstNodeType, BUILTIN_CONCEPT_DIR, BuiltinGenericType,
+                       CustomModuleType, ModuleType, Ok, PartialError, Result,
+                       VibaProgramErr, builtin_directory_name, module_get_type)
 
 GENERIC_FILE = "__generic__.viba"
 
@@ -294,13 +294,16 @@ def _definition(body, name: str):
 
 
 def generic_named(module: ModuleType, name: str) -> Result:
-    """The generic the written name `name` names through this module's imports.
+    """The generic the written name `name` names: an import, or the builtin library.
 
     Ok(the generic) when it is one, Ok(None) when the name is no import of this
-    module or names something that is no generic, and VibaProgramErr when the
-    binding is there and the module behind it cannot be loaded — the caller
-    reports that where it happened rather than reading the name as something
-    else.
+    module, is a definition of its own, or names something that is no generic,
+    and VibaProgramErr when the binding is there and the module behind it cannot
+    be loaded — the caller reports that where it happened rather than reading the
+    name as something else. The generics under the builtin library's `builtin/`
+    directory (`is_closure`, `unclosure`) are read from every module, the way the
+    modules beside them are: no import is needed, and `builtin.<name>` names the
+    same one.
 
     A generic is reached the way any module is: by what an import binds, the
     longest binding first. `import demo.is_base_type as is_base_type` answers
@@ -322,7 +325,39 @@ def generic_named(module: ModuleType, name: str) -> Result:
             if isinstance(handed.ok_value, GenericModuleType):
                 return Ok(None)                 # a member of a generic is not one
             return generic_named(handed.ok_value, rest)
+    if isinstance(module.lookup_local(name), Ok):
+        return Ok(None)                 # this module's own definition of that name
+    # The generics under the builtin library's `builtin/` directory
+    # (`is_closure`, `unclosure`) are read from every module, the way the modules
+    # beside them are: no import is needed, and `builtin.is_closure` names the
+    # same one.
+    builtin_name = _builtin_generic_name(name)
+    if builtin_name is not None:
+        return _generic_of(module, builtin_name)
     return Ok(None)
+
+
+_BUILTIN_GENERIC_NAMES = None
+
+
+def _builtin_generic_name(name: str):
+    """The builtin generic a written name stands for, or None.
+
+    Both writings name it: the bare `is_closure` and `builtin.is_closure`, the
+    way `sub_env_run` and `builtin.sub_env_run` name one module. The directory
+    `builtin/` is read once and remembered; a name it does not hold is no builtin
+    name, and the caller reads that name the way it always did (`builtin.add` is
+    a member of the concept rather than a generic of the directory).
+    """
+    rest = builtin_directory_name(name)
+    if rest is None:
+        return None
+    global _BUILTIN_GENERIC_NAMES
+    if _BUILTIN_GENERIC_NAMES is None:
+        _BUILTIN_GENERIC_NAMES = {
+            one.parent.name
+            for one in BUILTIN_CONCEPT_DIR.glob(f"*/{GENERIC_FILE}")}
+    return rest if rest in _BUILTIN_GENERIC_NAMES else None
 
 
 def _generic_of(module: ModuleType, module_name: str) -> Result:
@@ -529,6 +564,9 @@ def _match(pattern, pattern_module: ModuleType, argument,
     if isinstance(pattern, viba_ast.TypeApp) and pattern.constructor == TAGGED_NAME:
         return _match_tagged(pattern, pattern_module, argument, argument_module,
                              bindings)
+    if isinstance(pattern, viba_ast.Partial):
+        return _match_call(pattern, pattern_module, argument, argument_module,
+                           bindings)
     if _is_parameter(pattern, pattern_module):
         name = pattern.name
         if name in bindings:
@@ -572,6 +610,48 @@ def _match(pattern, pattern_module: ModuleType, argument,
             return None
         return _match_parts(pattern.args, pattern_module, node.args, module, bindings)
     return None
+
+
+def _match_call(pattern, pattern_module: ModuleType, argument,
+                argument_module: ModuleType, bindings: Dict[str, AstNodeType]):
+    """`F << A`: the closure a written call is.
+
+    A pattern written as an application matches an argument written as a call
+    that has not been given its environment — a closure. `F` takes the head (the
+    api the call is of), and the pattern's remaining links take the arguments the
+    caller gave, one for one, in written order: a pattern writes exactly as many
+    links as the call has arguments, so `F << A` reads a one-argument call and
+    `F << A << B` a two-argument one — one file per length, the way `apply_impl`
+    reads a product of a given size. A call that was given an environment is no
+    closure (giving it is what runs it), and a bare name or a leaf is no call at
+    all.
+    """
+    if not isinstance(argument, viba_ast.Partial):
+        return None
+    head, given = _application_parts(argument)
+    if any(is_the_environment(one, argument_module, _partial_judge)
+           for one in given):
+        return None
+    wanted_head, wanted = _application_parts(pattern)
+    if len(given) != len(wanted):
+        return None                     # the pattern writes exactly this many
+    matched = _match(wanted_head, pattern_module, head, argument_module, bindings)
+    if matched is None:
+        return None
+    for link, one in zip(wanted, given):
+        matched = _match(link, pattern_module, one, argument_module, matched)
+        if matched is None:
+            return None
+    return matched
+
+
+def _application_parts(node):
+    """A written call read apart: (the head, the arguments in written order)."""
+    given = []
+    while isinstance(node, viba_ast.Partial):
+        given.append(node.argument)
+        node = node.function
+    return node, list(reversed(given))
 
 
 def _match_tagged(pattern, pattern_module: ModuleType, argument, argument_module,

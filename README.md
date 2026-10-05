@@ -310,12 +310,18 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
   qualified name (`builtin.add`, `builtin.lt_f`, `builtin.int_to_str`); the member's own
   name is the same call (`add << $env args.env << $x 3 << $y 4`), and a module's own
   definition of that name wins.
-- The modules of the builtin directory are read by name too, after a module's own
-  definitions and its imports: `Y << step`, `apply << f << args` and
-  `sub_env_run << $sub_env_name "low" << env << f << $a 1` need no import, and
-  `builtin.<name>` names the same module. `sub_env_run` is the one that runs a
-  call at a named child of an environment: the call above is
-  `f << ($sub_env << env << "low") << $a 1`.
+- The modules and generics of the builtin library are read by name too, after a
+  module's own definitions and its imports: `Y << step`, `apply << f << args`,
+  `sub_env_run << $sub_env_name "low" << env << f << $a 1` and
+  `is_closure[add << $a 1].value` need no import, and `builtin.<name>` names the
+  same one. `sub_env_run` runs a call at a named child of an environment: the
+  call above is `f << ($sub_env << env << "low") << $a 1`. `is_closure` answers
+  whether a written piece is a closure — a call with arguments given and no
+  environment — and `unclosure` reads one apart into `f` (the api the call is of)
+  and `captured` (the product it holds). A pattern written as a call (`pattern
+  F << A`) matches one, one `<<` per given argument — which is why each of those
+  two generics is a directory of 16 files, one per argument count
+  (`viba-pattern.md`).
 - `interpret` ships no library of its own: every implementation a run can reach
   comes from a single `get_func` answer, written from the hints the file carries.
 - What comes back is `Ok(node)`, `VibaProgramErr(message)`, `UnderlyingVibaOpFailed`
@@ -362,8 +368,9 @@ for, so calling one module twice means choosing two names; `args.env.tmp_env
 << args.env` (also written `$tmp_env << args.env`) is for the calls that need
 no name, and hands out a fresh child every time. Where an `import` is looked for is the environment's business: next to the
 file that wrote it, then along `Environment`'s `viba_path` (directories, like
-`PYTHONPATH`), and last in the builtin directory (`viba/`, where `builtin.viba`
-and the package's own vocabulary lives) — so `Y` reaches the builtin `Y.viba`
+`PYTHONPATH`), and last in the builtin library (`viba/`, where `builtin.viba`
+and the package's own vocabulary lives, and `viba/builtin/`, where the
+`builtin.`-prefixed generics live) — so `Y` reaches the builtin `Y.viba`
 (the fixed point of a step, with `y_helper.viba` beside it) from anywhere, with
 or without an `import`.
 
@@ -466,6 +473,7 @@ tools built on those.
 | `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …) |
 | `sub_env_run.viba` | The builtin that runs a call at a named child of an environment — `Y.viba` and `apply.viba` sit beside it |
+| `builtin/is_closure/`, `builtin/unclosure/` | The builtin generics over closures, one file per argument count (1..16) — whether a written call is one, and reading it apart |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY

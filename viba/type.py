@@ -10,7 +10,7 @@ viba.viba_ast nodes, but nothing about rules, results or compliance.
 """
 
 from pathlib import Path
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 
 from viba import viba_ast
 
@@ -239,6 +239,24 @@ class ModuleType(Type):
 BUILTIN_CONCEPT = "builtin"
 
 
+def builtin_directory_name(name: str) -> Optional[str]:
+    """The bare name a written name stands for in the builtin directory, or None.
+
+    The built-in vocabulary is the package's own: beside `builtin.viba` sit the
+    modules (`Y.viba`, `apply.viba`, `sub_env_run.viba`), and under `builtin/`
+    the generics (`builtin/is_closure/`, `builtin/unclosure/`). Those names are
+    read from every module, after its own definitions and its imports.
+    `sub_env_run` and `builtin.sub_env_run` are the same one, and so are
+    `is_closure` and `builtin.is_closure`; a dotted name that carries no
+    `builtin.` prefix (`demo.print`) is no builtin name, and neither is `builtin`
+    itself. Whether the directory really holds that file is the loader's to say.
+    """
+    rest = name[len(BUILTIN_CONCEPT) + 1:] if name.startswith(BUILTIN_CONCEPT + ".") else name
+    if not rest or "." in rest or rest == BUILTIN_CONCEPT:
+        return None
+    return rest
+
+
 class BuiltinModuleType(ModuleType):
     """The module that holds built-in types.
 
@@ -335,6 +353,12 @@ BUILTIN_MODULE = BuiltinModuleType()
 # path, so a module that writes `import Y` finds it without naming this
 # directory anywhere — the package's own vocabulary is part of the language.
 BUILTIN_DIR = Path(__file__).resolve().parent
+
+# The directory the `builtin.` names live in on disk: `builtin/is_closure/` is
+# the generic `builtin.is_closure`, whose bare name `is_closure` is read from
+# every module too. It is a stop of the search path like `BUILTIN_DIR`, so the
+# bare name finds it.
+BUILTIN_CONCEPT_DIR = BUILTIN_DIR / BUILTIN_CONCEPT
 
 
 class CustomModuleType(ModuleType):

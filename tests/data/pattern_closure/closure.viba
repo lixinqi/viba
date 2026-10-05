@@ -1,0 +1,87 @@
+# closure.viba —— 判定用的那一份：`add` 是那条 api，下面每一条都是被问到的或被拆出来的
+__decl__ =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+
+args = __get_args__ << __decl__
+
+import square_sum
+import take_apart
+import rest_apart
+import under_tag
+import same_two
+import by_the_symbol
+import take_three
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+mul =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { multiply the two }
+
+# 一个名字，指的就是环境本身：给出去也算给了环境
+the_env = args.env
+
+# ---- 是闭包：给了实参，没给环境 ----
+is_a_closure = is_closure[add << $a 1].value
+is_a_full_closure = is_closure[add << $a 1 << $b 2].value
+is_a_long_closure = is_closure[add << $a 1 << $b 2 << $c 3].value
+is_a_wrapped_closure = is_closure[(add << $a 1)].value
+is_a_nested_closure = is_closure[add << $a (mul << $b 2)].value
+a_module_closure = is_closure[square_sum << 3].value
+a_qualified_question = builtin.is_closure[add << $a 1].value
+
+# ---- 不是闭包：环境给了（跑了），或者根本不是一次调用 ----
+is_a_bare_name = is_closure[add].value
+is_an_executed_call = is_closure[add << args.env << $a 1 << $b 2].value
+is_an_executed_call_in_the_middle = is_closure[add << $a 1 << args.env << $b 2].value
+is_a_tagged_environment = is_closure[add << $env args.env << $a 1].value
+is_an_environment_by_name = is_closure[add << the_env << $a 1].value
+is_an_executed_sub_env = is_closure[add << (args.env.sub_env << args.env << "low") << $a 1].value
+is_an_executed_module_call = is_closure[square_sum << args.env << 3 << 4].value
+is_a_leaf = is_closure[0].value
+is_a_float = is_closure[1.5].value
+is_a_str = is_closure["hi"].value
+is_a_bool = is_closure[true].value
+is_an_empty_product = is_closure[()].value
+is_nil = is_closure[nil].value
+is_a_type_name = is_closure[int].value
+is_a_chain = is_closure[int <- Int].value
+is_a_tagged_leaf = is_closure[$a 1].value
+is_a_tagged_call = is_closure[$x (add << $a 1)].value
+
+# ---- 拆开：`f` 是链头那条 api，`captured` 是收下的那份积 ----
+the_api = unclosure[add << $a 1].f
+two_api = unclosure[add << $a 1 << $b 2].f
+the_captured = unclosure[add << $a 1].captured
+two_captured = unclosure[add << $a 1 << $b 2].captured
+three_captured = unclosure[add << $a 1 << $b 2 << $c 3].captured
+a_nested_capture = unclosure[add << $a (mul << $b 2)].captured
+a_module_capture = unclosure[square_sum << 3].captured
+a_qualified_capture = builtin.unclosure[add << $a 1].captured
+
+# ---- 闭包模式在别的泛型里的读法：模式写几个 `<<`，就认几个实参 ----
+first_of_two = take_apart[add << $a 1 << $b 2].first
+second_of_two = take_apart[add << $a 1 << $b 2].second
+take_apart_api = take_apart[add << $a 1 << $b 2].f
+third_of_three = take_three[add << $a 1 << $b 2 << $c 3].third
+take_three_api = take_three[add << $a 1 << $b 2 << $c 3].f
+the_second = rest_apart[add << $a 1 << ($b 2 * $c 3)].second
+the_third = rest_apart[add << $a 1 << ($b 2 * $c 3)].third
+rest_apart_api = rest_apart[add << $a 1 << ($b 2 * $c 3)].f
+the_tagged_call = under_tag[$x (add << $a 1)].captured
+the_tagged_api = under_tag[$x (add << $a 1)].f
+the_same = same_two[add << $a 1 << $a 1].same
+the_symbol_capture = by_the_symbol[$y (add << $a 1)].captured
+the_symbol_head = by_the_symbol[$y (add << $a 1)].head
+the_symbol = by_the_symbol[$y (add << $a 1)].name

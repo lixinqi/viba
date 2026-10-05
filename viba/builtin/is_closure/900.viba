@@ -1,0 +1,7 @@
+# is_closure: the written call gave 9 arguments and no environment — a closure.
+# One file per length, the way `apply_impl` writes one file per product
+# size: the pattern writes one link per argument, so a call of another
+# length is another file's business.
+pattern F << A0 << A1 << A2 << A3 << A4 << A5 << A6 << A7 << A8
+
+value = true

@@ -1,0 +1,8 @@
+# unclosure: the closure a written call with exactly 9 given
+# arguments and no environment is. `f` is the api it is
+# of, and `captured` is those arguments as one product — one file per
+# length, the way `apply_impl` writes one file per product size.
+pattern F << A0 << A1 << A2 << A3 << A4 << A5 << A6 << A7 << A8
+
+f = F
+captured = (A0 * A1 * A2 * A3 * A4 * A5 * A6 * A7 * A8)

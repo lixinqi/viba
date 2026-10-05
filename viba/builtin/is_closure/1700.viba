@@ -1,0 +1,5 @@
+# Anything that is no such call: a bare name, a leaf, a call that was given
+# its environment, or a call longer than the 16 links the files above write.
+pattern A
+
+value = false

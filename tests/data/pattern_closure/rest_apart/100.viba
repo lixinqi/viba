@@ -1,0 +1,8 @@
+# `(B * C)` is a product pattern in the last link's place, so the argument written
+# there has to be one product of two: `add << $a 1 << ($b 2 * $c 3)`.
+pattern F << A << (B * C)
+
+f = F
+first = A
+second = B
+third = C

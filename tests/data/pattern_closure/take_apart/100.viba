@@ -1,0 +1,8 @@
+# `F << A << B` writes exactly two links, so this file reads a call that gave
+# exactly two arguments — one file per length, the way `apply_impl` reads a
+# product of a given size.
+pattern F << A << B
+
+f = F
+first = A
+second = B

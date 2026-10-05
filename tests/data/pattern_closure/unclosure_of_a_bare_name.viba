@@ -1,0 +1,6 @@
+# 光一个名字没有模式接它：决断当场说没有。
+import square_sum
+
+__decl__ = Any <- $env Env
+
+__impl__ = unclosure[square_sum].captured

@@ -84,7 +84,9 @@ from viba.pattern import (GENERIC_FILE, GenericModuleType,
 from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
                        InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
-                       BUILTIN_CONCEPT, BUILTIN_DIR, BUILTIN_MODULE, NilType, NeverType,
+                       BUILTIN_CONCEPT, BUILTIN_CONCEPT_DIR, BUILTIN_DIR,
+                       BUILTIN_MODULE, NilType, NeverType,
+                       builtin_directory_name,
                        custom_module, module_get_type)
 from viba.viba_ast.tagged import (GETATTR_TAG, TAGGED_NAME, symbol_of,
                                   symbol_problem, tag_of, tagged_node)
@@ -563,21 +565,6 @@ def _builtin_member_data(inner):
     return Ok(_VibaData(VibaNode(
         reflect_access,
         descriptor_of(AstNodeType(inner, BUILTIN_MODULE)), inner)))
-
-
-def _builtin_module_name(name: str):
-    """The builtin directory module a written name stands for, or None.
-
-    The modules beside `builtin.viba` are part of the library, so a name that is
-    one of them (`Y`, `apply`, `sub_env_run`) reads as that module, and the
-    qualified spelling (`builtin.sub_env_run`) names the same one. Only a plain
-    name is a module: a dotted name is a member (`builtin.add`). Whether the
-    directory really holds that file is the loader's to say.
-    """
-    rest = name[len(BUILTIN_CONCEPT) + 1:] if name.startswith(BUILTIN_CONCEPT + ".") else name
-    if not rest or "." in rest or rest == BUILTIN_CONCEPT:
-        return None
-    return rest
 
 
 def _never_viba_data():
@@ -1223,7 +1210,8 @@ class _Runner:
     def _places(self, name: str, near: Optional[str]) -> list:
         """Where `name` may be, in the order it is looked for: next to the
         file that wrote the import first, then VIBA_PATH in order, then the
-        builtin directory (`BUILTIN_DIR`). A dotted name is a path, and also one
+        builtin directory (`BUILTIN_DIR`) and the directory of the `builtin.`
+        names (`BUILTIN_CONCEPT_DIR`). A dotted name is a path, and also one
         file named with the dots (`pkg.inner.viba`). A generic is the directory
         of that path (`pkg/inner/__generic__.viba`), looked for after the file
         of the same name. The same place twice is asked once."""
@@ -1233,7 +1221,7 @@ class _Runner:
         if near:
             places += [Path(near).parent / rel, Path(near).parent / generic,
                        Path(near).parent / f"{name}.viba"]
-        for base in [*self.paths, BUILTIN_DIR]:
+        for base in [*self.paths, BUILTIN_DIR, BUILTIN_CONCEPT_DIR]:
             places += [base / rel, base / generic, base / f"{name}.viba"]
         out = []
         for place in places:
@@ -1605,7 +1593,7 @@ class _Activation:
             node = viba_ast.TypeRef(name)
             return Ok(_VibaData(VibaNode(
                 reflect_access, descriptor_of(AstNodeType(node, self.module)), node)))
-        module_name = _builtin_module_name(name)
+        module_name = builtin_directory_name(name)
         if module_name is not None:
             # A module of the builtin directory read as a value: the name it is,
             # resolved where it was written (`sub_env_run` among them).
@@ -2641,7 +2629,7 @@ class _Activation:
         import, and `builtin.sub_env_run << …` names the same module. Read last,
         so a module's own definition of the name, and its imports, win.
         """
-        module_name = _builtin_module_name(name)
+        module_name = builtin_directory_name(name)
         if module_name is None:
             return None
         module = self.runner.builtin_module(module_name)

@@ -1,0 +1,11 @@
+# `f` 就是写下来的那个链头：本地定义的 `add`。
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__decl__ = Any <- $env Env
+
+__impl__ = unclosure[add << $a 1].f

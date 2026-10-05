@@ -1,0 +1,14 @@
+# square_sum —— 一个模块：模块调用没给环境的时候也是一个闭包
+__decl__ =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    add
+  << $env args.env
+  << $x (mul << $env args.env << $x args.a << $y args.a)
+  << $y (mul << $env args.env << $x args.b << $y args.b)

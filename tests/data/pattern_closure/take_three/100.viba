@@ -1,0 +1,6 @@
+pattern F << A << B << C
+
+f = F
+first = A
+second = B
+third = C

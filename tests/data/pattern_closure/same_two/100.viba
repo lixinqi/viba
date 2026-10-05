@@ -1,0 +1,3 @@
+pattern F << A << A
+
+same = A

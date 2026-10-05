@@ -1,0 +1,11 @@
+# 收下的那份积写着 tag，就带着 tag 交回来。
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__decl__ = Any <- $env Env
+
+__impl__ = unclosure[add << $a 1].captured

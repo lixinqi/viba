@@ -1,0 +1,11 @@
+# 本地定义做链头：给了实参、没给环境，所以是闭包。
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add the two }
+
+__decl__ = Any <- $env Env
+
+__impl__ = is_closure[add << $a 1].value

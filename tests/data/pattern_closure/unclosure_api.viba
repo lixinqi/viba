@@ -1,0 +1,6 @@
+# `f` 是写下来的那个链头：这一份是模块 `square_sum` 本身。
+import square_sum
+
+__decl__ = Any <- $env Env
+
+__impl__ = unclosure[square_sum << 3].f

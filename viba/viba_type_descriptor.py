@@ -38,6 +38,7 @@ from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
     PartialError,
     AstNodeType,
+    BUILTIN_CONCEPT,
     BUILTIN_MODULE,
     CustomModuleType,
     VibaProgramErr,
@@ -319,7 +320,9 @@ def _environment(pool: VibaPool) -> Callable[[str], Result]:
     """A module name for a module: looked up in the pool by $module_name, else a VibaProgramErr.
 
     A generic is not a file but a directory: the `name.number` files in the pool plus its
-    `__generic__.viba` marker make one GenericModuleType (viba-pattern.md).
+    `__generic__.viba` marker make one GenericModuleType (viba-pattern.md). The
+    bare name of a `builtin.` generic names the same one (`is_closure` is
+    `builtin.is_closure`), the way it does wherever else a name is read.
     """
     def environment(module_name: str) -> Result:
         matches = [f for f in pool.files if f.module_name == module_name]
@@ -327,6 +330,10 @@ def _environment(pool: VibaPool) -> Callable[[str], Result]:
             generic = _generic_in_pool(pool, module_name)
             if generic is not None:
                 return generic
+            if "." not in module_name:
+                generic = _generic_in_pool(pool, f"{BUILTIN_CONCEPT}.{module_name}")
+                if generic is not None:
+                    return generic
             return VibaProgramErr(f"no module named {module_name!r} in pool")
         if len(matches) > 1:
             return VibaProgramErr(f"module {module_name!r} is served by {len(matches)} files")

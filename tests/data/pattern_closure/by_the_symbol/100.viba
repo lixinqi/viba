@@ -1,0 +1,6 @@
+# `arg` takes the tag's symbol as a string, so the tag name comes back too.
+pattern tagged[arg, F << A]
+
+head = F
+captured = A
+name = arg
