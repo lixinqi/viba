@@ -21,14 +21,14 @@
 
   * 环境（`$env` 那个 tag、或者这一段的类型就是 `Env`）不算实参：它给了就是跑了，不是闭包；
   * 外面的 tag 是这一份的一部分，`pattern F << A` 认不出 `$x (add << $a 1)`，要写 `pattern $x (F << A)`；
-  * 16 段以上的调用没有文件接：`is_closure` 落到最后那份兜底答 false，`unclosure` 当场说没有模式。
+  * 16 段以上的调用没有文件接：`is_closure` 落到最后那份兜底给出 false，`unclosure` 当场说没有模式。
 
 用例在 `tests/data/pattern_closure/`：`closure.viba` 是判定用的那份模块（里面写着 `add`），
 `square_sum.viba` 是一个模块（模块调用没给环境时也是一个闭包），另外六个目录是小的泛型，
 各自钉住上面的一条：`take_apart/`（`F << A << B`）、`take_three/`（`F << A << B << C`）、
 `rest_apart/`（`F << A << (B * C)`）、`under_tag/`（`$x (F << A)`）、`by_the_symbol/`
 （`tagged[arg, F << A]`）、`same_two/`（写两次的 `A`）。`*.viba` 那几份是跑到程序这一层的用例：
-泛型选中那一支答出来的类型，就是程序答出来的值。
+泛型选中那一支给出的类型，就是程序给出的值。
 
     python3 tests/test_pattern_closure.py
 """
@@ -178,7 +178,7 @@ RUNTIME_CASES = [
     ("is_closure_of_an_executed_call", False, "is_closure[add << $env Env << $a 1].value"),
 ]
 
-# (用例文件, 答出来的类型写成什么, 这是哪一条)
+# (用例文件, 给出的类型写成什么, 这是哪一条)
 RUNTIME_EXTRACTED_CASES = [
     ("unclosure_answer", "3", "unclosure[square_sum << 3].captured"),
     ("unclosure_api", "square_sum", "unclosure[square_sum << 3].f names the module it was"),
@@ -274,7 +274,7 @@ def _judgments():
 
 
 def _failed_decisions():
-    """没有模式接得住的那几条：决断当场说没有，而不是答一声「不是闭包」。"""
+    """没有模式接得住的那几条：决断当场说没有，而不是讲一声「不是闭包」。"""
     module = _module()
     for text, want, label in ERROR_CASES:
         got = _judge(module, text, "Any")
@@ -368,7 +368,7 @@ def _the_pool_reads_the_names():
 
 
 def _a_local_definition_wins():
-    """模块自己写了 `is_closure` 这个名字，答的就是它，内建目录里的泛型不插嘴。"""
+    """模块自己写了 `is_closure` 这个名字，给出的就是它，内建目录里的泛型不插嘴。"""
     shadowed = _module_of("is_closure = true\nunclosure = false\n" + ADD)
     plain = _module_of(ADD)
     asked = "is_closure[add << $a 1].value"
@@ -390,7 +390,7 @@ def _a_written_call(count: int) -> str:
 
 
 def _the_length_bound():
-    """内建那两份各写到 16 段为止：再长 `is_closure` 落到兜底那份答 false，`unclosure` 没有文件接。"""
+    """内建那两份各写到 16 段为止：再长 `is_closure` 落到兜底那份给出 false，`unclosure` 没有文件接。"""
     for count in (1, 2, 16):
         module = _module_of(ADD + f"\n__x__ = is_closure[{_a_written_call(count)}].value\n")
         got = _judge(module, "__x__", "true")
@@ -419,7 +419,7 @@ def _is_the_same_type(left: AstNodeType, right: AstNodeType) -> bool:
 
 
 def _the_runtime_answers():
-    """一份模块应用一个泛型：选中的那一支就是它答出来的值。"""
+    """一份模块应用一个泛型：选中的那一支就是它给出的值。"""
     environ = Host().environ(viba_path=str(CASES))
     for name, want, label in RUNTIME_CASES:
         result = interpret(str(CASES / f"{name}.viba"), environ)
@@ -428,7 +428,7 @@ def _the_runtime_answers():
 
 
 def _what_was_extracted():
-    """萃取到的类型，就是答案里写下来的那份。"""
+    """萃取到的类型，就是结果里写下来的那份。"""
     environ = Host().environ(viba_path=str(CASES))
     for name, want, label in RUNTIME_EXTRACTED_CASES:
         result = interpret(str(CASES / f"{name}.viba"), environ)

@@ -1,4 +1,4 @@
-# `$get_relative_path << args.env << <root>`：这一层的地址从根往下写出来
+# `$get_relative_path << args.env << <root>`：这一层的数据路径从根往下写出来
 __decl__ =
     str
   <- $env Env

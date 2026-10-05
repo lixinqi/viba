@@ -52,7 +52,7 @@ def labelled(result, want, label: str):
 
 
 def case_environ(env, name="case_at_1230"):
-    """The environment a case's evidence lives under: its own address."""
+    """The environment a case's evidence lives under: its own storage path."""
     return Environment(env.storage.sub(name), env.compute)
 
 
@@ -118,7 +118,7 @@ def _a_deferral_carries_the_work(tmp: Path):
     check(recorded is not None, f"and records its Prepare: {recorded!r}")
     wanted = _written(call_of(recorded))
 
-    # 少掉量距离那一手：答案里带着同一份 $call
+    # 少掉量距离那一手：结果里带着同一份 $call
     class NoMeasure(DistanceHost):
         def get_func(self, module_path, func_name):
             if func_name == "measure_distance":
@@ -182,7 +182,7 @@ def _prepare_and_record(tmp: Path):
     check(isinstance(is_compliant(str(RULE), env), Ok), "the run judges")
     check(host.measured == [((0, 0), (3, 4))], "and measures")
 
-    # 本轮 store 里那份：调用的参数定了、结果也写上了；它落在案子自己的地址下面
+    # 本轮 store 里那份：调用的参数定了、结果也写上了；它落在案子自己的数据路径下面
     prepare = read_prepare(case_environ(env), "measure_distance")
     value, recorded = measured_of(prepare)
     check(recorded and value == 5, f"the run's own Prepare carries the value: {prepare!r}")

@@ -1,4 +1,4 @@
-# main_at_5.viba —— 要跑的是 Y F 5，该答 5
+# main_at_5.viba —— 要跑的是 Y F 5，该得 5
 __decl__ =
     int
   <- $env Env

@@ -10,7 +10,7 @@ import branch
 leaf =
     int
   <- $env Env
-  <- { 答一个数 }
+  <- { 给出一个数 }
 
 __impl__ =
     Oneof

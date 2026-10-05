@@ -27,7 +27,7 @@ CASES = Path(__file__).resolve().parent / "data" / "module_args"
 
 
 def host_for(calls):
-    """宿主：四则、读积的成员、答 7。"""
+    """宿主：四则、读积的成员、给出 7。"""
     def get_func(module_path, func_name):
         if func_name == "add":
             return lambda env, a, b: a.value + b.value
@@ -53,7 +53,7 @@ def environ_for(calls, store):
 
 # (文件, 该跑出什么)：
 #   ("value", 叶子)   Ok，且叶子是这个值
-#   ("ok", None)      Ok，叶子是什么不管（答的是一个闭包时用它）
+#   ("ok", None)      Ok，叶子是什么不管（给出的是一个闭包时用它）
 #   ("error", 片段)   VibaProgramErr，话里含这个片段
 CASES_TO_RUN = [
     ("calls_positionally", "value", 25, None),

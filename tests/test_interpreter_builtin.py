@@ -2,15 +2,15 @@
 
 用例在 `tests/data/builtin/`：
 
-    <算子>.viba                 一个算子一份：`add.viba` 跑 `add`，该答什么写在下面这张表里
+    <算子>.viba                 一个算子一份：`add.viba` 跑 `add`，该给出什么写在下面这张表里
     both_spellings.viba         `add` 与 `builtin.add` 是同一次调用
     shadowed_by_the_module.viba 模块自己写一个 `add`，它赢过内建那个
     runs_where_it_is_given.viba 内建算子跑在给它的那个环境里
     the_wrong_type.viba         参数类型不对，拒绝
 
-`OPERATORS` 就是这张表：每个算子在宿主那一步怎么算，以及它的用例该答什么。实参写死在用例
-文件里，答案写在这里 —— 一个算子一份，所以每个算子的结果都单独被钉住。一个算子的两个方向都
-要钉住时（`lt` 那样），用例答的是一个串：`"truefalse"`。
+`OPERATORS` 就是这张表：每个算子在宿主那一步怎么算，以及它的用例该给出什么。实参写死在用例
+文件里，结果写在这里 —— 一个算子一份，所以每个算子的结果都单独被钉住。一个算子的两个方向都
+要钉住时（`lt` 那样），用例给出的是一个串：`"truefalse"`。
 
 宿主只实现内建算子：`get_func` 拿到的名字是 `builtin.<算子>`，别的名字一律不认（那份自己写了
 `add` 的用例除外，那里多一个本模块的 `add`）。
@@ -41,7 +41,7 @@ labelled = checks.labelled
 CASES = Path(__file__).resolve().parent / "data" / "builtin"
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
-# 每个算子：怎么算它，用例该答什么。次序与 `viba/builtin.viba` 里写的次序一致。
+# 每个算子：怎么算它，用例该给出什么。次序与 `viba/builtin.viba` 里写的次序一致。
 OPERATORS = {
     "add": (lambda x, y: x + y, 7),
     "sub": (lambda x, y: x - y, 7),
@@ -65,7 +65,7 @@ OPERATORS = {
     "max_f": (lambda x, y: max(x, y), 2.5),
     "pow_f": (lambda x, y: x ** y, 8.0),
 
-    # 比较：两个方向都写在一个用例里，答的是 "truefalse"
+    # 比较：两个方向都写在一个用例里，给出的是 "truefalse"
     "lt": (lambda x, y: x < y, "truefalse"),
     "le": (lambda x, y: x <= y, "truefalse"),
     "gt": (lambda x, y: x > y, "truefalse"),
@@ -145,7 +145,7 @@ def run(tmp: Path):
 
 
 def _every_operator(tmp: Path):
-    """每个算子一份用例：它那一步跑到了，答的是该答的那个值。"""
+    """每个算子一份用例：它那一步跑到了，结果就该是那个值。"""
     for index, (name, (_step, want)) in enumerate(OPERATORS.items()):
         seen = []
         result = interpret(str(CASES / f"{name}.viba"),

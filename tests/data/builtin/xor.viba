@@ -1,4 +1,4 @@
-# xor —— true 与 true 答 false，true 与 false 答 true，false 与 false 答 false
+# xor —— true 与 true 得 false，true 与 false 得 true，false 与 false 得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

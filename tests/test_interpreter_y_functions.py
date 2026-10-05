@@ -1,4 +1,4 @@
-"""内建目录里的 Y（`viba/Y.viba`）：20 个递归函数各自跑出该答的值。
+"""内建目录里的 Y（`viba/Y.viba`）：20 个递归函数各自跑出该给出的值。
 
 用例在 `tests/data/y_functions/`：
 
@@ -19,11 +19,11 @@
 
 Y 与 y_helper 住在包的内建目录里（`viba/Y.viba` 与 `viba/y_helper.viba`，各自是一个模块），
 搜索路径的最后一站就是那个目录，所以写 `import Y` 就能拿到它，任何 `viba_path` 都不用再写上包
-的位置。**两个都写 `$env Env`**：给环境就是执行，所以谁调用它们，谁就写下这一层的地址 ——
+的位置。**两个都写 `$env Env`**：给环境就是执行，所以谁调用它们，谁就写下这一层的数据路径 ——
 `main/<名字>.viba` 写 `args.env.sub_env << args.env << "Y"`，`steps/<名字>.viba` 往下调时写
 `$sub_env << args.env << "low"` 那样的名字 —— 这一层只是名字的出处，`y_helper` 用
-`convert_sub_to_sibling` 把它的地址压成 workspace 旁边的一个名字（`{workspace 的路径}_{sha1(...)}`），
-所以往下多少层，地址都只有一个哈希那么长（`viba-interpreter.md` 的「链上的成员」）。这一步写成什么样都不影响：`Y << step` 把 step 本身
+`convert_sub_to_sibling` 把它的数据路径压成 workspace 旁边的一个名字（`{workspace 的路径}_{sha1(...)}`），
+所以往下多少层，数据路径都只有一个哈希那么长（`viba-interpreter.md` 的「链上的成员」）。这一步写成什么样都不影响：`Y << step` 把 step 本身
 当一个值收下 —— 不是泛型，也不按参数个数分文件；这一层的实参接着 `<<` 写在后面
 （`Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0`），`Y` 那个写 `$args ...` 的参数
 把它们收成一份积，`apply` 按积里有几个成员选 `apply_impl` 那一支。
@@ -56,7 +56,7 @@ check = checks.check
 CASES = Path(__file__).resolve().parent / "data" / "y_functions"
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
-# (名字, Y 跑这一步该答什么)：实参写在 `main/<名字>.viba` 里，答案和它成对
+# (名字, Y 跑这一步该给出什么)：实参写在 `main/<名字>.viba` 里，结果和它成对
 ANSWERS = [
     ("factorial", 120),          # 5!
     ("fib", 55),                 # 斐波那契第 10 个
@@ -68,10 +68,10 @@ ANSWERS = [
     ("catalan", 42),             # 第 5 个卡特兰数
     ("digit_sum", 35),           # 98765 各位相加
     ("mul_by_adding", 42),       # 7 乘 6，用加法做
-    ("is_even", True),           # 10 是偶数（答的是 bool）
+    ("is_even", True),           # 10 是偶数（给出的是 bool）
     ("factorial_acc", 120),      # 5! 用累加器攒
     ("fib_acc", 55),             # 斐波那契用两个累加器往前推
-    ("float_sum", 4.0),          # 4 个 1.0 的和（答的是 float）
+    ("float_sum", 4.0),          # 4 个 1.0 的和（给出的是 float）
     ("reverse_number", 54321),   # 12345 各位倒过来
     ("bin_digits", 10),          # 1000 写成二进制要 10 位
     ("lucas", 123),              # 卢卡斯数第 10 个（一层里套一层开关）
@@ -80,7 +80,7 @@ ANSWERS = [
     ("ackermann", 9),            # 阿克曼 (2, 3)
 ]
 
-# (名字, 该答什么)：从基例那一侧进来。`steps/gcd.viba` 把 `rest`（a 除以 b 的余数）和
+# (名字, 该给出什么)：从基例那一侧进来。`steps/gcd.viba` 把 `rest`（a 除以 b 的余数）和
 # `deeper`（再往下的一层）写在分支外面 —— 定义按需求值（call-by-need），b 是 0 时那一侧一个都
 # 用不到，所以这里既不该出现除以 0，也不该再往下调一层。
 BASE_ENTRY = [

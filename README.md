@@ -362,17 +362,17 @@ arguments. A parameter written `...` takes the rest of the call's arguments as o
 product: `Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0` gives `Y`'s
 `$args ...` the product `$a 7 * $b 0`. `Any` does not pack — `apply`'s `$args Any`
 takes that product as one written argument (`apply << f << ($a 1 * $b 2)`). Giving an
-environment is what runs a call, and it is the address the call runs at, so a caller
-that is already running in that environment writes a layer of its own. `Y.viba` and
-`y_helper.viba` both write `$env Env`: the caller writes Y's layer, Y writes
+environment is what runs a call, and it is the storage path the call runs at, so a
+caller that is already running in that environment writes a layer of its own. `Y.viba`
+and `y_helper.viba` both write `$env Env`: the caller writes Y's layer, Y writes
 `y_helper`'s, and a step writes the layer of each layer it starts. The name given to
-`args.env.sub_env` is what `get_func` sees as
-`module_path`, and the storage path is the call's identity — its address. Three things
-can happen at one address: a call already running there is a cycle (`the storage path '...' is
-already running a call`, with the fix spelled out); a call that already answered there **by the
-same module** is that same sub-computation asked twice, and its answer is handed back; a call that
-already answered there **by another module** is two calls squeezed into one address, and the host
-could not tell them apart:
+`args.env.sub_env` is what `get_func` sees as `module_path`, and that storage path is
+where the call's result is recorded. Three things can happen at one storage path: a
+call already running there is a cycle (`the storage path '...' is already running a
+call`, with the fix spelled out); a call that already answered there **by the same
+module** is that same sub-computation asked twice, and its answer is handed back; a
+call that already answered there **by another module** is two calls squeezed into one
+storage path, and the host could not tell them apart:
 
 ```
 VibaProgramErr("module 'add_demo' was handed the storage path 'root', which another module call
@@ -414,6 +414,48 @@ child is new on every call, so what hangs under it never replays.
 The whole chapter — `get_file`, the typed reading of a module, the error list —
 is [`viba-interpreter.md`](viba-interpreter.md).
 
+### Distributed: several services, one store
+
+A run that reaches a step its host does not implement answers the deferral
+(`NotMyDutyException`) instead of failing, and the deferral names the storage path it
+stopped at and the viba data the step was given. That is enough to hand the step to
+another process: write the deferral at that storage path as the **viba work order** —
+viba code (a file whose `$call`, the arguments it was given, is fixed and whose
+`$measured`, the result, is still nil) plus the storage path it is written under — let the
+service that owns the step answer it there, and run again; the next run replays it and
+goes on. Re-running is continuing.
+
+[`distributed/`](distributed/) is the two modules that run such a program:
+`service.py` (one service process: its api, the store, the calls it answers) and
+`scheduler.py` (the rounds over the services). Neither holds a program or an api of its
+own — the caller brings both:
+
+```bash
+python3 -m distributed.scheduler --store <directory> --program <file> \
+    --service <name>=<module> --service <name>=<module>
+```
+
+One `--service` per service, as many as the program has; the scheduler knows nothing about
+a service beyond the module that serves it. `demo/distributed/` is then the worked
+examples, three of them: [`naive/`](demo/distributed/naive/) — two Python processes, each
+with its own api (`service_a.py`, `service_b.py`), a program that imports the two api files
+and writes five calls alternating them (`interleaved.viba`, `service_a.viba`,
+`service_b.viba`), and its own test — [`delivery/`](demo/distributed/delivery/) — three
+services under other names, api of other types, and a test of its own — and
+[`reading/`](demo/distributed/reading/) — five services, one operation each, a chain that
+changes type five times (int, float, str, int, bool), and again its own test. The command
+that fills those placeholders in for a set of services is in that demo's README.
+
+Every round starts every service twice — first to fill in what the round before left
+(`<storage path>/prepare/<api>.viba`), then to run the program — and saves this round's
+failure state into the store they share: the file where a run stopped, and
+`failure/round-<k>.viba`. The last round reports `ok` on one of the services, no storage
+path ever stops a round twice, and both a stuck state and the round cap are reported as
+failures rather than looped on. The chapter is
+[`viba-distributed.md`](viba-distributed.md); the package's own README is
+[`distributed/README.md`](distributed/README.md), and the demos' is
+[`demo/distributed/README.md`](demo/distributed/README.md).
+
 ## Installation
 
 ```bash
@@ -421,6 +463,14 @@ pip install ply
 python -m viba.parser                    # parser test suite
 python -m viba.viba_ast                  # ast round-trip checks
 python tests/corpus/generate_corpus.py --check   # 130-file corpus round-trip
+python tests/test_distributed_service.py         # one service's side: its api, the work
+                                                 # orders it answers, one schedule
+python demo/distributed/naive/test_distributed.py    # the naive distributed demo: two
+                                                     # services, one store, one scheduler
+python demo/distributed/delivery/test_delivery.py    # the delivery demo: three services,
+                                                     # other names, other types
+python demo/distributed/reading/test_reading.py      # the reading demo: five services, one
+                                                     # operation each, five types in a chain
 ```
 
 ## Demo
@@ -465,6 +515,12 @@ Color = $red int | $green int | $blue int
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__decl__` in, `__impl__` out — the executable reading, and the call-by-need evaluation strategy |
 | [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer reads |
 | [`viba-compliance.md`](viba-compliance.md) | Rules and witnesses as programs: judging, Prepare, replay |
+| [`viba-distributed.md`](viba-distributed.md) | Distributed runs: several services, one store, and the failure state a stopped run leaves |
+| [`distributed/README.md`](distributed/README.md) | Running a distributed program: the scheduler, the service process, and what the store holds |
+| [`demo/distributed/README.md`](demo/distributed/README.md) | The distributed demos: three programs to run on one scheduler |
+| [`demo/distributed/naive/README.md`](demo/distributed/naive/README.md) | The naive distributed demo: one program, two services, and their test |
+| [`demo/distributed/delivery/README.md`](demo/distributed/delivery/README.md) | The delivery demo: three services under names of their own, and their test |
+| [`demo/distributed/reading/README.md`](demo/distributed/reading/README.md) | The reading demo: five services, one operation each, and their test |
 | [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
 | [`viba-style.md`](viba-style.md) | Writing a definition: tags, heads, containers, and how to check what you wrote |
 | [`roadmap.md`](roadmap.md) | The direction: one ontology, and execution handed across languages, nodes and agents |
@@ -494,8 +550,16 @@ tools built on those.
 | `builtin/sequential_step/`, `builtin/sequential_arg/` | How `sequential` runs one step (a call with 1..16 tagged arguments) and one argument (a variable reference, or whatever was written) |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 
+Two top-level packages sit beside `viba/`. [`distributed/`](distributed/) runs one
+program on several services and one store — `service.py` (one service process) and
+`scheduler.py` (the rounds); it holds no program of its own. `demo/` is not part of the
+package: it holds worked examples with their own tests, and `demo/distributed/` holds three
+of them — `naive/` (two services), `delivery/` (three) and `reading/` (five, one operation
+each), all on the same scheduler; see `viba-distributed.md` and
+`demo/distributed/README.md`.
+
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY
 grammar behind `viba_ast.parse`, with a self-test at the bottom that also checks this file
-spells that grammar out, and that every `.viba` sample here, in `viba-style.md` and in
-`viba_tutorial.md` compiles) and `partial.py` (the reduction `<<` goes through, used by the judgment).
+spells that grammar out, and that every `.viba` sample in this file, in the chapters, and
+in the demos' READMEs compiles) and `partial.py` (the reduction `<<` goes through, used by the judgment).
 

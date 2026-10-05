@@ -1,4 +1,4 @@
-# not —— true 取反答 false，false 取反答 true
+# not —— true 取反得 false，false 取反得 true
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

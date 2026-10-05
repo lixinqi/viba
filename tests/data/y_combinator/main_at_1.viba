@@ -1,4 +1,4 @@
-# main_at_1.viba —— 要跑的是 Y F 1，该答 1（base case 在顶层就走通）
+# main_at_1.viba —— 要跑的是 Y F 1，该得 1（base case 在顶层就走通）
 __decl__ =
     int
   <- $env Env

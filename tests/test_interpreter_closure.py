@@ -33,7 +33,7 @@ CASES = Path(__file__).resolve().parent / "data" / "closure"
 
 
 def host_for(calls):
-    """宿主：四则、读积的那个成员、答 7、把拿到的闭包原样交回来。"""
+    """宿主：四则、读积的那个成员、给出 7、把拿到的闭包原样交回来。"""
     def get_func(module_path, func_name):
         if func_name == "add":
             return lambda env, a, b: a.value + b.value
@@ -66,7 +66,7 @@ def environ_for(store, calls=()):
 
 # (文件, 该跑出什么)：
 #   ("value", 叶子)     Ok，且叶子是这个值
-#   ("closure", 写法)   Ok，答的是一个闭包，写出来是这个样子
+#   ("closure", 写法)   Ok，给出的是一个闭包，写出来是这个样子
 #   ("error", 片段)     VibaProgramErr，话里含这个片段
 #   ("viba_data", None)  Ok，是一个闭包装在可序列化数据里的值（后面单独看）
 # 最后一列是要看住的副作用调用；None 表示不看。

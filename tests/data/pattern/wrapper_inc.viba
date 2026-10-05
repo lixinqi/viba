@@ -12,5 +12,5 @@ inc =
   <- $x int
   <- { add one }
 
-# 环境最后给：wrapper 答出来的那次调用还欠着它，环境就缀在那里。
+# 环境最后给：wrapper 返回的那次调用还欠着它，环境就缀在那里。
 __impl__ = wrapper << inc << $x 1 << args.env

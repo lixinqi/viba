@@ -1,4 +1,4 @@
-# rem —— 17 除以 5 的余数答 2
+# rem —— 17 除以 5 的余数得 2
 __decl__ = int <- $env Env
 
 args = __get_args__ << __decl__

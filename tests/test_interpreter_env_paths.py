@@ -1,10 +1,10 @@
-"""Environment 上那几个走地址的成员：`$get_root`、`$get_relative_path`、
+"""Environment 上那几个走数据路径的成员：`$get_root`、`$get_relative_path`、
 `$find_by_relative_path`、`$convert_sub_to_sibling`、`$uncompress_relative_path`。
 
 两边的规矩都测：宿主那一侧（`viba/interpret.py` 里那几个函数，以及子环境记着的父级），
 和 viba 那一侧（`tests/data/environment/env_*.viba`）。每个成员自己有哪几条规矩、写错时
-报什么，以及它们合起来的用法 —— 根 → 相对路径 → 按那条路径找回来，以及把一个很深的地址
-压成 sup 旁边的 `名字_sha1`、原地址记在返回值上。
+报什么，以及它们合起来的用法 —— 根 → 相对路径 → 按那条路径找回来，以及把一个很深的数据路径
+压成 sup 旁边的 `名字_sha1`、原数据路径记在返回值上。
 
     python3 tests/test_interpreter_env_paths.py
 """
@@ -108,14 +108,14 @@ def _get_root(tmp: Path):
 
 
 def _get_relative_path(tmp: Path):
-    """`get_relative_path`：地址去掉 root 那段前缀；不给 root 就用链顶；不是祖先就报错。"""
+    """`get_relative_path`：数据路径去掉 root 那段前缀；不给 root 就用链顶；不是祖先就报错。"""
     host = Host()
     environ = host.environ(store_root_dir=str(tmp / "relative"))
     _, a, b, c = walk(environ, "a", "b", "c")
 
     check(get_relative_path(c, environ) == "a/b/c", "the whole path from the root")
     check(get_relative_path(c, a) == "b/c", "from a middling ancestor")
-    check(get_relative_path(c, c) == "", "an address seen from itself is empty")
+    check(get_relative_path(c, c) == "", "a storage path seen from itself is empty")
     check(get_relative_path(environ, environ) == "", "and so is the root's")
     check(get_relative_path(c, None) == "a/b/c", "with nil for the root the chain's own is used")
     check(get_relative_path(environ, None) == "", "the root seen from a nil root is empty")
@@ -125,7 +125,7 @@ def _get_relative_path(tmp: Path):
 
     raised(lambda: get_relative_path(c, chain(a, "x")), "is no child of",
            "a root in another branch")
-    raised(lambda: get_relative_path(a, c), "is no child of", "a root below the address")
+    raised(lambda: get_relative_path(a, c), "is no child of", "a root below the storage path")
     raised(lambda: get_relative_path(None, None), "takes an Environment",
            "no environment at all")
     raised(lambda: get_relative_path(c, 7), "takes an Environment", "a root that is no environment")
@@ -176,7 +176,7 @@ def _find_by_relative_path(tmp: Path):
 
 
 def _convert_sub_to_sibling(tmp: Path):
-    """`convert_sub_to_sibling`：把 sub 的地址压成 sup 旁边一个名字，原地址记在返回值上。"""
+    """`convert_sub_to_sibling`：把 sub 的数据路径压成 sup 旁边一个名字，原数据路径记在返回值上。"""
     host = Host()
     environ = host.environ(store_root_dir=str(tmp / "convert"))
     _, a, b, c = walk(environ, "a", "b", "c")
@@ -185,31 +185,31 @@ def _convert_sub_to_sibling(tmp: Path):
     made = convert_sub_to_sibling(a, child)
     digest = hashlib.sha1(b"root/a/b/c/child").hexdigest()
     check(made.storage.cur_storage_path == f"root/a_{digest}",
-          "the address is the sup's path, an underscore, and the sha1 of the sub's path")
+          "the storage path is the sup's path, an underscore, and the sha1 of the sub's path")
     check(made.parent is environ, "it is made beside the sup: the same parent")
     check(made.uncompress_relative_path == "root/a/b/c/child",
-          "the address that was compressed is recorded on the answer")
+          "the path that was compressed is recorded on the answer")
     check(a.uncompress_relative_path is None,
           "and a plain environment records nothing")
 
     again = convert_sub_to_sibling(a, child)
     check(again.storage is made.storage,
-          "the same sup and sub answer the same address")
+          "the same sup and sub answer the same path")
 
     other = convert_sub_to_sibling(a, sub_env(c, "other"))
     check(other.storage.cur_storage_path != made.storage.cur_storage_path,
-          "a different sub answers a different address")
+          "a different sub answers a different path")
     check(other.uncompress_relative_path == "root/a/b/c/other",
-          "and records its own address")
+          "and records its own path")
 
-    # 深地址压成一个名字：长度不再跟着层数长
+    # 深数据路径压成一个名字：长度不再跟着层数长
     deep = chain(a, "x", "y", "z", "w")
     pressed = convert_sub_to_sibling(a, deep)
     check(pressed.storage.cur_storage_path ==
           f"root/a_{hashlib.sha1(b'root/a/x/y/z/w').hexdigest()}",
-          "however deep the sub is, the compressed address is one hash long")
+          "however deep the sub is, the compressed path is one hash long")
     check(pressed.uncompress_relative_path == "root/a/x/y/z/w",
-          "and the deep address is the one recorded")
+          "and the deep path is the one recorded")
 
     # sup 的路径必须是 sub 的路径的前缀，而且要落在名字边界上
     other_root = Host().environ(store_root_dir=str(tmp / "elsewhere"))
@@ -221,7 +221,7 @@ def _convert_sub_to_sibling(tmp: Path):
            "the sup itself")
     pressed_again = convert_sub_to_sibling(a, made)
     check(pressed_again.uncompress_relative_path == made.storage.cur_storage_path,
-          "an address already pressed from the sup is a sub like any other")
+          "a path already pressed from the sup is a sub like any other")
     check(pressed_again.storage.cur_storage_path.startswith("root/a_"),
           "and the sup's path is the prefix of what comes out")
     raised(lambda: convert_sub_to_sibling(environ, b), "is the root",
@@ -231,7 +231,7 @@ def _convert_sub_to_sibling(tmp: Path):
 
 
 def _uncompress_relative_path(tmp: Path):
-    """`uncompress_relative_path`：压出来的那一层记着原地址，别的层是 nil。"""
+    """`uncompress_relative_path`：压出来的那一层记着原数据路径，别的层是 nil。"""
     host = Host()
     environ = host.environ(store_root_dir=str(tmp / "uncompress"))
     _, a, b, c = walk(environ, "a", "b", "c")
@@ -241,13 +241,13 @@ def _uncompress_relative_path(tmp: Path):
 
     pressed = convert_sub_to_sibling(a, c)
     check(pressed.uncompress_relative_path == "root/a/b/c",
-          "the compressed layer records the address it stands for")
+          "the compressed layer records the path it stands for")
     check(sub_env(pressed, "again").uncompress_relative_path is None,
           "a child of it records nothing of its own")
 
 
 def _combinations(tmp: Path):
-    """合起来用：根 → 相对路径 → 找回来，以及压过的地址还能按路径走。"""
+    """合起来用：根 → 相对路径 → 找回来，以及压过的数据路径还能按路径走。"""
     host = Host()
     environ = host.environ(store_root_dir=str(tmp / "combination"))
     _, a, b, c = walk(environ, "a", "b", "c")
@@ -256,7 +256,7 @@ def _combinations(tmp: Path):
     for target in (environ, a, b, c, pressed):
         relative = get_relative_path(target, environ)
         check(find_by_relative_path(relative, environ).storage is target.storage,
-              f"{relative!r} found again is the same address")
+              f"{relative!r} found again is the same path")
         check(get_relative_path(find_by_relative_path(relative, environ), environ) == relative,
               f"{relative!r} written out again is the same path")
 
@@ -266,14 +266,14 @@ def _combinations(tmp: Path):
            "a sibling is no child of the one beside it")
     check(find_by_relative_path(get_relative_path(pressed, environ), environ).storage
           is pressed.storage,
-          "a compressed layer is addressable like any other directory")
+          "a compressed layer is reachable like any other directory")
 
-    # 一层压一层：同一个 sup 下压多少次，地址都只有它自己的名字加一个哈希那么长
+    # 一层压一层：同一个 sup 下压多少次，数据路径都只有它自己的名字加一个哈希那么长
     deeper = convert_sub_to_sibling(a, sub_env(pressed, "low"))
     check(len(deeper.storage.cur_storage_path) == len(pressed.storage.cur_storage_path),
-          "compressing again under the same sup keeps the same address length")
+          "compressing again under the same sup keeps the same path length")
     check(deeper.uncompress_relative_path == f"{pressed.storage.cur_storage_path}/low",
-          "and records the address it stands for")
+          "and records the path it stands for")
 
 
 def _the_declaration(tmp: Path):
@@ -352,7 +352,7 @@ def _written_in_viba(tmp: Path):
 
     result = interpret(str(CASES / "env_convert_sub_to_sibling.viba"), here)
     check(isinstance(result, Ok) and value_of(result) == "root/a/b/c/child",
-          f"the pressed layer records the address it stands for: {result!r}")
+          f"the pressed layer records the path it stands for: {result!r}")
 
     failed(interpret(str(CASES / "env_convert_sub_to_sibling_root.viba"), here), "is the root",
            "a sup that is the chain's own root")

@@ -1,6 +1,6 @@
-"""模块当函数：__impl__ 进出的那一层，以及模块调用的 storage 路径。
+"""模块当函数：__impl__ 进出的那一层，以及模块调用的数据路径。
 
-模块就是函数，它的 storage 路径是它的身份——所以两次模块调用不许用同一条路径。
+模块就是函数，一条数据路径上只该有一次调用——所以两次模块调用不许用同一条路径。
 
     python3 tests/test_interpreter_modules.py
 """
@@ -40,8 +40,8 @@ def run(tmp: Path):
 def _deferral(tmp: Path):
     """没实现的那一步不是失败：整条程序停在递延上，等别人来补。
 
-    递延要能穿过模块调用（被调的模块里那一步没实现，整个 run 的答案就是递延），
-    也要能穿过宿主的拒绝（`get_func` 抛递延，等于回答递延），而且穿过去之后**不被改写**：
+    递延要能穿过模块调用（被调的模块里那一步没实现，整个 run 的结果就是递延），
+    也要能穿过宿主的拒绝（`get_func` 抛递延，等于给出递延），而且穿过去之后**不被改写**：
     带回来的那一步是里面那一次调用，不是外面那一层。同一份 store 上补上那一步，同一个 run
     就跑完了——递延什么都没落下。
     """
@@ -152,10 +152,10 @@ def _cycles(tmp: Path):
 
 
 def _storage_paths(tmp: Path):
-    """模块调用的 storage 路径是它的身份。
+    """一条数据路径上只该有一次调用。
 
-    同一条地址上：正在跑的调用不能再进去（环）；已经答过的**同一个**模块就是同一个
-    子计算，把它答过的那份交回去；换个模块挤同一条地址才是错的。
+    同一条数据路径上：正在跑的调用不能再进去（环）；已经处理过的**同一个**模块就是同一个
+    子计算，把它给出的那份交回去；换个模块挤同一条数据路径才是错的。
     """
     host = Host()
     environ = host.environ()
@@ -165,7 +165,7 @@ def _storage_paths(tmp: Path):
              "a module handed the caller's own environment -> VibaProgramErr")
 
     # 两次调用给同一个子环境（同名子环境就是同一个 storage）：同一个模块、同一条
-    # 地址 = 同一个子计算，第二次拿的是第一次答过的那份
+    # 数据路径 = 同一个子计算，第二次拿的是第一次给出的那份
     result = interpret(_case("repeated_path"), environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"the same call at one storage path is answered once: {result!r}")

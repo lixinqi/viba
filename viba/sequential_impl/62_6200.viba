@@ -20,7 +20,7 @@ args = __get_args__ << __decl__
 # value1] * vars1`): a member that is a product contributes its own members, so what
 # a step is handed is the flat product, newest first.
 
-# Each step runs at an address of its own (`step0`, `step1`, ... and the last one
+# Each step runs at a storage path of its own (`step0`, `step1`, ... and the last one
 # at `last` beside them): a storage path answers one call, and two steps of one
 # sequential would otherwise share it.
 

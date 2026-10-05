@@ -1,4 +1,4 @@
-# ge_f —— 2.0 大于等于 2.0 答 true，1.0 大于等于 2.0 答 false
+# ge_f —— 2.0 大于等于 2.0 得 true，1.0 大于等于 2.0 得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

@@ -1,4 +1,4 @@
-# eq_str —— "a" 与 "a" 相同答 true，"a" 与 "b" 相同答 false
+# eq_str —— "a" 与 "a" 相同得 true，"a" 与 "b" 相同得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

@@ -1,4 +1,4 @@
-# str_to_float —— "2.5" 里那个数答 2.5
+# str_to_float —— "2.5" 里那个数得 2.5
 __decl__ = float <- $env Env
 
 args = __get_args__ << __decl__

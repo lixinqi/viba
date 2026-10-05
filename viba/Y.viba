@@ -2,8 +2,8 @@
 # is the step given the next layer, with this layer's arguments: `$args ...` takes the
 # rest of the chain, so those links are one product there (`$a 7 * $b 0`).
 #
-# The environment is a parameter. Giving it is what runs this call, and it is the address
-# this call runs at, so whoever writes `Y << …` writes the layer too — a module that is
+# The environment is a parameter. Giving it is what runs this call, and it is the storage
+# path this call runs at, so whoever writes `Y << …` writes the layer too — a module that is
 # already running in that environment writes a sub-environment of its own
 # (`args.env.sub_env << args.env << "Y"`).
 #

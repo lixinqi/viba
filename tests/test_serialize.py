@@ -1,6 +1,6 @@
 """viba.serialize 的验收：写出来、读得回来、是居民。
 
-每个用例都做三件事：把可序列化数据写成源码；用同一个设计把源码当可序列化数据读回来，逐地址比
+每个用例都做三件事：把可序列化数据写成源码；用同一个设计把源码当可序列化数据读回来，逐数据路径比
 叶子；把写出来的体判成那个定义体的子类型。
 
     python3 tests/test_serialize.py
@@ -67,7 +67,7 @@ def _round_trip(label, definition, access, node, design_source, design_name,
                    if after.get(address, "<missing>") != value}
         check(not missing, f"{label}: every address reads the same leaf ({missing})")
     else:
-        # 可序列化数据把和式那一支写全了，写出来只剩值：地址少一跳，叶子还是那些。
+        # 可序列化数据把和式那一支写全了，写出来只剩值：数据路径少一跳，叶子还是那些。
         check(sorted(map(repr, before.values())) == sorted(map(repr, after.values())),
               f"{label}: the same leaves under either spelling ({before} vs {after})")
 
@@ -518,7 +518,7 @@ def run_gap_cases():
     check(isinstance(written, VibaProgramErr) and "no value here" in written.err_msg,
           f"gap: a tagged slot with no value and no nil is a VibaProgramErr ({written})")
 
-    # 可序列化数据本身是空的：设计里的那个地址上什么都没有，就写成 gap，不硬编
+    # 可序列化数据本身是空的：设计里的那个数据路径上什么都没有，就写成 gap，不硬编
     pool2, definition2 = _design("not[A] = never <- $not_operand A\n", "not")
     node2 = access.root(definition2, VibaData(viba_ast.Never())).ok_value
     written2 = serialize.serialize("entry", node2)

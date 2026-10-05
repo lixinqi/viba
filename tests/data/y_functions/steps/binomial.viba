@@ -1,4 +1,4 @@
-# steps/binomial.viba —— 一步 binomial，从 n 个里取 k 个：k 是 0 或 n 等于 k 都答 1，否则两边相加
+# steps/binomial.viba —— 一步 binomial，从 n 个里取 k 个：k 是 0 或 n 等于 k 都得 1，否则两边相加
 #
 # 条件分三个岔：外面先按 `zero_k` 分一次，剩下的那一侧里再按 `same` 分一次。
 # 两个开关都是 `branch` 的那一对；交给 `$get_v` 的得是**一次调用**（内层那个和整份和都用

@@ -1,4 +1,4 @@
-# main.viba —— 要跑的是 Y F 10，该答 55
+# main.viba —— 要跑的是 Y F 10，该得 55
 __decl__ =
     int
   <- $env Env
@@ -10,5 +10,5 @@ import Y
 
 # `Y << F` 就是那个半成品（还欠环境与 `$n`）：环境给一层子环境（`args.env.sub_env << args.env
 # << "Y"`），这一次的实参接着给，不动点就起来了。
-# 递归靠"一次调用的身份是它的 storage 路径"，而选中的 pattern 文件跑在自己的子环境里。
+# 递归靠"一条数据路径上只该有一次调用"，而选中的 pattern 文件跑在自己的子环境里。
 __impl__ = Y << F << ($sub_env << args.env << "Y") << $n 10

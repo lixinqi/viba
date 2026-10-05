@@ -1,4 +1,4 @@
-# sub_f —— 5.5 减 0.5 答 5.0
+# sub_f —— 5.5 减 0.5 得 5.0
 __decl__ = float <- $env Env
 
 args = __get_args__ << __decl__

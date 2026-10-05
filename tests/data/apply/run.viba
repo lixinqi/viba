@@ -1,4 +1,4 @@
-# `apply` 的入口用例：把 add 与 ($a 1 * $b 2) 交给 main，答 3。
+# `apply` 的入口用例：把 add 与 ($a 1 * $b 2) 交给 main，得 3。
 __decl__ = int <- $env Env
 
 import main

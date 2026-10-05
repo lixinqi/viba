@@ -1,4 +1,4 @@
-# 三个实参走同一套：add3(1, 2, 3) 答 6。
+# 三个实参走同一套：add3(1, 2, 3) 得 6。
 __decl__ = int <- $env Env
 
 import main_three

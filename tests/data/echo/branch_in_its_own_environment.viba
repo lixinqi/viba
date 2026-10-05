@@ -11,6 +11,6 @@ import branch
 leaf =
     int
   <- $env Env
-  <- { 答一个数 }
+  <- { 给出一个数 }
 
 __impl__ = branch.echo_or_never << $env args.env << $cond true << $get_v leaf

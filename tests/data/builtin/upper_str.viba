@@ -1,4 +1,4 @@
-# upper_str —— "viba" 的大写答 "VIBA"
+# upper_str —— "viba" 的大写得 "VIBA"
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

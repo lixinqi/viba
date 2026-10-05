@@ -9,7 +9,7 @@
 输出是 `__impl__`。
 
 规则、呈证与度量也是这么写的：一次度量就是一次调用，证据是那次运行留下的实例，判定是程序
-答出来的 `bool`——见 `viba-compliance.md`。
+给出的 `bool`——见 `viba-compliance.md`。
 
 ```python
 from viba.interpret import interpret
@@ -55,7 +55,7 @@ interpret("main.viba", environ, get_file=files.get)   # 一次运行全在内存
 
 ## 目录里有什么：list_files
 
-`list_files` 是 `Optional[list[str] <- $dir_path str]`，答的是这个目录**直接**装着的名字：
+`list_files` 是 `Optional[list[str] <- $dir_path str]`，给出的是这个目录**直接**装着的名字：
 
 ```python
 interpret("main.viba", environ, get_file=files.get, list_files=names_of)
@@ -124,18 +124,18 @@ __impl__ =
   的调用），后者把闭包拆成 `f`（那条 api）与 `captured`（收下的那份积）。调用模式一个 `<<` 对一个
   实参，所以两份各写了 1..16 段的 16 个文件（[`viba-pattern.md`](viba-pattern.md) 第 2 节）；
   文件名前面写着份数，决断因此只读份数对得上的那一份（同第 4.1 节）。
-- **`sequential` 把一串步骤按书写次序跑完**，最后那一步的答案就是结果
+- **`sequential` 把一串步骤按书写次序跑完**，整个链的结果就是最后那一步的结果
   （[`viba/sequential.viba`](viba/sequential.viba)）：`sequential << $x (…) << $y (…) << (…)` 是一个
   闭包，环境最后给。每一步都是一次调用；除最后那一步之外，每一步前面写一个 tag（`$x (…)`）—— 跑那次
-  调用，答案记在那个名字下；**最后那个参数不写 tag**，它没有名字，它的答案就是整条链的答案。想返回
-  前面某一步的值，就把那个名字读出来交给内建的 `echo`（`echo << $x V` 原样答 V）：
+  调用，结果记在那个名字下；**最后那个参数不写 tag**，它没有名字，它的结果就是整条链的结果。想返回
+  前面某一步的值，就把那个名字读出来交给内建的 `echo`（`echo << $x V` 原样给出 V）：
   `<< (echo << $x ($var "x"))`。步骤的实参里也可以写变量引用（`$a ($var "x")`），它们在调用跑起来
   之前换成值。步骤数决定 `sequential_impl` 选哪一份文件（2..64 步各一份；一步没有 tag 钉住个数，
   按那次调用的实参个数各一份），一次调用的实参个数决定 `sequential_step` 选哪一份，
   一个实参的写法决定 `sequential_arg` 选哪一份。这几份目录里的文件名前面写着份数（`2_200.viba`、
   `1_101.viba`），所以一条链只读它自己那几份，79 份模式文件不必翻一遍
-  （[`viba-pattern.md`](viba-pattern.md) 第 4.1 节）。每一步、每个实参的调用都跑在自己的地址上
-  （`step0`、`arg0` 那样）：一条 storage 路径只答一次调用。
+  （[`viba-pattern.md`](viba-pattern.md) 第 4.1 节）。每一步、每个实参的调用都跑在自己的数据路径上
+  （`step0`、`arg0` 那样）：一条数据路径只处理一次调用。
   变量引用写下来的样子像一个 tag（`$var "x"`），设计时读不出它将来是什么值，所以它落在的槽位
   要收得下这个写法（`$a Any` 那样）；写成 `$a int` 是程序错。一步的闭包写成这个文件里的定义、
   import 进来的模块，或者内建算子都可以；链头写成内建**模块**（`sub_env_run`、`apply`、`Y`）时，
@@ -145,9 +145,9 @@ __impl__ =
   一样：一个 `<<` 给一个环境值（`square_sum << (args.env.tmp_env << args.env) << 3 << 4`）。写了，环境
   就给这个参数，模块体用 `args = __get_args__ << __decl__` 和 `args.env` 取到它。不写，**环境不进门**：
   它不是这次调用收到的一员，`args.env` 取不到（写它是程序错），它只用来跑这次调用 —— 这次调用跑在
-  自己的子环境里，名字就是模块写下来时的那个名字 —— 再缀在这次调用答出来的那次调用末尾（见「环境就是
+  自己的子环境里，名字就是模块写下来时的那个名字 —— 再缀在这次调用返回的那次调用末尾（见「环境就是
   执行」）。环境没给，这次调用就还是个闭包，不会拿一个默认环境顶上。
-- **环境不是答案**：只有内建函数（[`viba/builtin.viba`](viba/builtin.viba) 里 `Environment` 的成员）
+- **环境不能当结果**：只有内建函数（[`viba/builtin.viba`](viba/builtin.viba) 里 `Environment` 的成员）
   能把 `Env` 声明成返回值。模块自己的 `__decl__`、模块里写的函数、积成员里的链，结果那个位置写
   `Env` 或 `Environment` 都当场报错——环境是调用的规矩，不是能交出去的值。解释器读文件时拦，
   判定层与描述符层在把一个函数当函数读时拦。
@@ -169,7 +169,7 @@ lib : int <- $env Env <- $a int <- $b int     # 一个模块：`__decl__` 就是
 ```
 
 **给环境就是执行**，也只有这一个动作是执行：给它的那一刻，`interpret` 去问宿主哪一步来实现
-（`get_func(module_path, func_name)`），并按这次调用的 storage 路径把它认下来（调用的身份）。
+（`get_func(module_path, func_name)`），并按这次调用的数据路径把它认下来。
 
 **不给环境，链就是一个闭包**——一个值：
 
@@ -177,7 +177,7 @@ lib : int <- $env Env <- $a int <- $b int     # 一个模块：`__decl__` 就是
 half = add << $a 40            # 类型 int <- $env Env <- $b int：还欠 $b 和环境
 g    = add << $a 1 << $b 2     # 类型 int <- $env Env：实参给齐了，只欠环境
 sg   = lib << $a 3 << $b 4     # 类型 int <- $env Env：模块也一样，实参给齐了，只欠环境
-__impl__ = g                    # 一次运行可以答一个闭包：给出去的是"还没执行的活"
+__impl__ = g                    # 一次运行可以给出一个闭包：给出去的是"还没执行的活"
 ```
 
 - 闭包是**可序列化数据**：写下来的函数名加上已经算好的实参，所以它能存、能传、能当 `__impl__`、能序列化。
@@ -194,8 +194,8 @@ __impl__ = g                    # 一次运行可以答一个闭包：给出去�
 
 一份文件就是**一个模块**，它只有两种意思。**模块语义**是"一份定义的映射"：顶层每份定义都是它的一个
 成员，按名字取 —— `foo_module.Bar`，泛型应用选中那份文件时同样按名字取（`g[T].value`、`g[T].type`）。
-**函数语义**要一份签名加一份答案：`__decl__` 是签名（当函数读时的整条链，结果在前、参数在后），
-`__impl__` 是答案。**不写 `__decl__` 就没有函数语义** —— 它只是模块，调它是程序错误；不写 `__impl__`
+**函数语义**要一份签名加一份结果：`__decl__` 是签名（当函数读时的整条链，结果在前、参数在后），
+`__impl__` 是结果。**不写 `__decl__` 就没有函数语义** —— 它只是模块，调它是程序错误；不写 `__impl__`
 是设计、不是程序。同一个模块不许把同一个名字定义两次。
 
 ## 模块的参数：`__decl__`
@@ -203,7 +203,7 @@ __impl__ = g                    # 一次运行可以答一个闭包：给出去�
 一个模块要收参数，就把它们写进 `__decl__`——模块当函数读时的整条链：结果在前，参数在后。
 `$env Env` 至多写一个。写不写它，调用时给环境的写法一样：一个 `<<` 给一个环境值；写了，环境就给这个
 参数，模块体用 `args.env` 取；没写，环境不进门，模块体取不到它，它只用来跑这次调用，再缀在这次调用
-答出来的那次调用末尾：
+返回的那次调用末尾：
 
 ```viba
 # file square_sum.viba
@@ -234,12 +234,12 @@ import square_sum
 __impl__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
 ```
 
-- **`__get_args__` 把这次调用的输入读回成一份积**：推导时它答的是 `__decl__` 那些参数写成的积类型
-  （`args.a` 是 `int`，`args.env` 是 `Env`），计算时它答的是上游真实传过来的数据（`args.a` 是
+- **`__get_args__` 把这次调用的输入读回成一份积**：推导时它给出的是 `__decl__` 那些参数写成的积类型
+  （`args.a` 是 `int`，`args.env` 是 `Env`），计算时它给出的是上游真实传过来的数据（`args.a` 是
   当初给进来的那份值，`args.env` 是真实的环境）。一个模块要读自己的参数，就写
   `args = __get_args__ << __decl__`，再按 tag 取。
 - **结果不能是环境**：`__decl__` 的第一个元素写 `Env` 或 `Environment` 当场报错，模块里别的函数
-  也一样（只有内建函数答得了一个环境，见上面「环境不是答案」）。运行时的答案不受影响：
+  也一样（只有内建函数给得了一个环境，见上面「环境不能当结果」）。运行时的结果不受影响：
   `__impl__ = args.env` 交回去的仍然是那个环境，只是没人声明它的类型
   （[`tests/data/environment/the_env.viba`](tests/data/environment/the_env.viba)）。
 - **给环境就是执行**：每个参数一个 `<<`，按位置给（`<< 3 << 4`）或按 tag 给（`<< $b 4 << $a 3`）
@@ -253,11 +253,11 @@ __impl__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
   `$a 7 * $b 0`（`args.args` 读回它）。写 `Any` 的参数不打包：它要的是一份已经写好的积，`apply
   << f << ($a 1 * $b 2)` 就是；写成两条 `<<`（`apply << f << $a 1 << $b 2`）是"多给"，当场报错。
   `...` 那个参数按惯例写在最后，它前面的那些参数照旧按位置或按 tag 给。
-- **环境不进门时它随结果往后走**：没写 `$env Env` 的模块，环境只用来跑这次调用；这次调用答出来的那次
+- **环境不进门时它随结果往后走**：没写 `$env Env` 的模块，环境只用来跑这次调用；这次调用返回的那次
   调用还欠着环境，它就被缀在那里。`apply << f << args << env` 是现成的例子：`apply` 收下函数与积、跑出
   `apply_impl[...] << args.f << args.args`，环境缀上去；`apply_impl` 那一支再跑出 `f << $a 1 << $b 2`，
   环境又缀上去，凑成 `f << $a 1 << $b 2 << env`，那次调用才跑。链条多长都这样一层层往后递。
-  这次调用答出来的那次调用**自己写了 `$env Env`** 时，它拿到的就是它跑起来的那一份地址：解释器按它
+  这次调用返回的那次调用**自己写了 `$env Env`** 时，它拿到的就是它跑起来的那一份数据路径：解释器按它
   写下来时的名字（模式文件按它的文件号）给它造一份子环境，免得两个模块挤同一条路径。
 - **不给环境，它就是闭包**：`sg = square_sum << $a 3 << $b 4` 是一个值——写下来的模块名加上已经
   算好的实参，可以存、可以传、可以当 `__impl__`、可以序列化，也可以**换个环境再执行一次**
@@ -274,9 +274,9 @@ __impl__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
   交出去、存下来、再读的时候还是回那儿解——`F` 在一份文件里是 import，在另一份里什么都不是。
   所以 `args.f` 交回去的是**当初给进来的那份值**，不是照着收它的那一方重新读一遍。
 - **模块体里 `args` 就是那份实参积**：`args.a` 是 `$a` 那个成员的值，按 tag 寻址——这里说的
-  **地址**是数据存下来的那条路径，由一串步子接成（按 tag、按位置、按下标、按键），一段一段走下去
-  就是寻址；`$a` 是它的一步，模块路径和 `cur_storage_path/<name>.viba` 也是地址。「幂等与快照」里的
-  "快照地址"、「一次执行会得到什么」里的"这次调用的地址"都是这个意思，步子分哪几种见
+  **数据路径**由一串步子接成（按 tag、按位置、按下标、按键），一段一段走下去就是寻址；`$a` 是它
+  的一步，模块路径和 `cur_storage_path/<name>.viba` 也是数据路径。「幂等与快照」里的"快照数据
+  路径"、「一次执行会得到什么」里的"这次调用的数据路径"都是这个意思，步子分哪几种见
   [`viba-reflect.md`](viba-reflect.md) 第 4 节；判定层读同一个名字读到的是成员**声明的类型**
   （`args.a` 就是 `int`）。一个名字，两层各读各的。
 - 实参必须是可序列化数据：它是积的一部分，交出去的东西得是能写下来的值。**环境不是它的数据成员**
@@ -298,15 +298,14 @@ __impl__ = demo.print << args.env << ret
 
 - `demo` 是模块，当函数用：给它一个环境（它只收这一个参数），它跑完给出它的 `__impl__`。
 - `demo.print` 是这个模块里的函数。
-- `args.env.sub_env << args.env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，storage 路径是
+- `args.env.sub_env << args.env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，数据路径是
   `父路径/add_demo`（见「幂等与快照：结果要能回放」）。同一个调用还可以写成
   `$sub_env << args.env << "add_demo"`（见「如何调用方法：链头写 tag」）。
 
-**一次模块调用的身份就是它的 storage 路径**：那条路径就是这次调用的地址——宿主拿到的
-`get_func(module_path, func_name)` 里的 `module_path` 就是它。一条路径上只该有一次调用，三种
-情形分得很清楚：
+**一条数据路径上只该有一次调用**：宿主拿到的 `get_func(module_path, func_name)` 里的
+`module_path` 就是这次调用的数据路径。三种情形分得很清楚：
 
-- **这条路径正在跑**（同一个地址上还没答完，又要进去一次）：真是环，`VibaProgramErr`，话里给出
+- **这条路径正在跑**（同一个数据路径上还没处理完，又要进去一次）：真是环，`VibaProgramErr`，话里给出
   写法：
 
   ```
@@ -315,15 +314,15 @@ __impl__ = demo.print << args.env << ret
   ```
 
   主文件自己也算一次激活，占着它那条路径——直接 `lib << args.env` 就是这一种。没写 `$env Env` 的模块
-  由解释器给它造这一份子环境；一次调用答出来的那次调用自己写了 `$env Env` 时也一样造一份（否则它拿到的
-  就是跑着那次调用的地址），名字都是模块写下来时的那个名字（选中的模式文件用它的文件号）。所以同一个
-  模块在同一个父环境下被写两次，是同一个地址、一次计算；要把两次分开，调用方自己给一份子环境
+  由解释器给它造这一份子环境；一次调用返回的那次调用自己写了 `$env Env` 时也一样造一份（否则它拿到的
+  就是跑着那次调用的数据路径），名字都是模块写下来时的那个名字（选中的模式文件用它的文件号）。所以同一个
+  模块在同一个父环境下被写两次，是同一个数据路径、一次计算；要把两次分开，调用方自己给一份子环境
   （`$sub_env << args.env << "one"` / `"two"`）。
-- **这条路径答过了，而且是同一个模块**：同一个子计算被问了第二次，把它答过的那份**回放**回去
+- **这条路径处理过了，而且是同一个模块**：同一个子计算被问了第二次，把它处理过的那份**回放**回去
   （见「幂等与快照：结果要能回放」）。`args.env.sub_env << args.env << "x"` 对同一个父环境是
   **同一个** storage（同名子环境要到才造、造一次、之后复用），所以同一个模块两次用同一个名字，
   是**一次计算、两次取用**。
-- **这条路径答过了，但换了一个模块**：两条不同的调用挤一个地址，宿主分不出谁是谁 → `VibaProgramErr`，
+- **这条路径处理过了，但换了一个模块**：两条不同的调用挤一个数据路径，宿主分不出谁是谁 → `VibaProgramErr`，
   话里给出正确写法（`... which another module call already used`）。
 
 ### 如何调用方法：链头写 tag
@@ -357,13 +356,13 @@ tag 本身**不是值**：`method = $sub_env` 编不过，标签只有写在链�
 第一个参数必须写出来——它是取成员的那一个，省略了就成了一次没有成员的调用。第一个参数是别的值
 也一样：`$tag` 命中的是它的成员，不在就报错。
 
-### 链上的成员：根、相对路径、找回来、压地址
+### 链上的成员：根、相对路径、找回来、压数据路径
 
 子环境是由 `sub_env`/`tmp_env` 从父级造出来的，它记着那个父级，所以一条链能从任意一层往上走。
-这些成员把这条链读出来（地址就是 storage 路径，见「调用别的模块」）：
+这些成员把这条链读出来（见「调用别的模块」）：
 
 - **`$get_root << args.env`**：这一层那条链的根（没有父级的那个环境）。`nil` 进 `nil` 出。
-- **`$get_relative_path << args.env << <root>`**：这一层的地址从那个根往下写出来的那一段 ——
+- **`$get_relative_path << args.env << <root>`**：这一层的数据路径从那个根往下写出来的那一段 ——
   `root/a/b` 从 `root/a` 看是 `"b"`，根看自己是 `""`。`$root` 写 `nil` 就用这条链自己的根；
   给的根不是它的祖先就当场报错。
 - **`$find_by_relative_path`**：反过来，从一份根按相对路径走下来。路径里每一段都是一个目录名
@@ -377,18 +376,18 @@ tag 本身**不是值**：`method = $sub_env` 编不过，标签只有写在链�
 
   写成 `$find_by_relative_path << args.env << "a/b"` 会把那个环境放到相对路径的位置上：报错，
   话里给出正确写法。
-- **`$convert_sub_to_sibling << <sup> << <sub>`**：把 `sub` 的地址压成 `sup` 旁边的一个名字，
+- **`$convert_sub_to_sibling << <sup> << <sub>`**：把 `sub` 的数据路径压成 `sup` 旁边的一个名字，
   写成 `{sup 的路径}_{sha1(sub 的路径)}`（后面那 40 位是十六进制）。`sup` 的路径必须是 `sub`
-  的路径的前缀，而且落在名字边界上（`<sup>/…` 或者已经压过的 `<sup>_…`）；压出来的地址长度只跟
-  `sup` 的名字有关，跟 `sub` 有多深无关 —— 递归里每层的地址因此不
+  的路径的前缀，而且落在名字边界上（`<sup>/…` 或者已经压过的 `<sup>_…`）；压出来的数据路径长度只跟
+  `sup` 的名字有关，跟 `sub` 有多深无关 —— 递归里每层的数据路径因此不
   会越接越长。它不是 `sub_env`：不往下一层走，而是在 `sup` 所在的那个目录里放一个扁平的名字。
-  压掉的那个原地址记在返回值的 `uncompress_relative_path` 上；同一个 `sup` 与 `sub` 给同一个
-  地址。`sup` 是链根时旁边没有目录可放，当场报错。
+  压掉的那个原数据路径记在返回值的 `uncompress_relative_path` 上；同一个 `sup` 与 `sub` 给同一个
+  数据路径。`sup` 是链根时旁边没有目录可放，当场报错。
 - **`$uncompress_relative_path << args.env`**（也写成 `args.env.uncompress_relative_path`）：
-  压过地址的那一层记着它压掉的原地址；别的环境上是 `nil`。它是一个**值成员**，不带参数。
+  压过数据路径的那一层记着它压掉的原数据路径；别的环境上是 `nil`。它是一个**值成员**，不带参数。
 
 `tests/test_interpreter_env_paths.py` 把每个成员自己的规矩、写错的几种，以及它们合起来的往返
-（根 → 相对路径 → 按那条路径找回来、压出来的地址还能按路径走）都钉住了。
+（根 → 相对路径 → 按那条路径找回来、压出来的数据路径还能按路径走）都钉住了。
 
 不想起名字就用 `tmp_env`：
 
@@ -437,12 +436,12 @@ Environment(storage, compute, viba_path=None, parent=None,
 
 ```python
 get_root(current)                           # 链顶那个环境；None（`nil`）进 None 出
-get_relative_path(current, root)            # 从 root 往下的那一段地址
-find_by_relative_path(relative_path, root)  # 从 root 按那一段地址走下来
-convert_sub_to_sibling(sup, sub)            # 把 sub 的地址压成 sup 旁边 名字_sha1
+get_relative_path(current, root)            # 从 root 往下的那一段数据路径
+find_by_relative_path(relative_path, root)  # 从 root 按那一段数据路径走下来
+convert_sub_to_sibling(sup, sub)            # 把 sub 的数据路径压成 sup 旁边 名字_sha1
 ```
 
-`uncompress_relative_path` 不是函数，是环境上的一个值：`convert_sub_to_sibling` 把压掉的原地址
+`uncompress_relative_path` 不是函数，是环境上的一个值：`convert_sub_to_sibling` 把压掉的原数据路径
 写进去，别的环境上是 `None`（viba 那边读出来就是 `nil`）。
 
 它们同时也是 `Environment` 的成员，所以 viba 那边两种写法都行（见「如何调用方法：链头写 tag」）。
@@ -452,8 +451,7 @@ convert_sub_to_sibling(sup, sub)            # 把 sub 的地址压成 sup 旁边
 `viba_path` 是模块的搜索路径：一次运行里它跟着 environment 走，`sub_env`/`tmp_env` 把父级的
 那条原样交给孩子，于是"这个模块的 import 去哪里找"就是它被交给的那个 environment 说了算。
 
-`EnvironmentStorage` 面向 viba 一侧暴露的概念：`cur_storage_path`（这条路径就是这次调用的
-身份）、`sub(name)`（子 storage，`sub_env` 用它）、`store_root_dir`（快照放在哪个目录下，
+`EnvironmentStorage` 面向 viba 一侧暴露的概念：`cur_storage_path`（就是这次调用的数据路径）、`sub(name)`（子 storage，`sub_env` 用它）、`store_root_dir`（快照放在哪个目录下，
 不给就是默认的临时目录 `…/viba-store`）、`read_text(file_path)` / `write_text(file_path,
 content)`（在 store root 底下的纯文本读写，读不到返回 `None`）。子 storage 带着父级的
 `store_root_dir`。
@@ -461,9 +459,9 @@ content)`（在 store root 底下的纯文本读写，读不到返回 `None`）�
 `get_func(module_path, func_name)` 返回一个可调用对象；没有就返回 `None`，于是这次调用是递延
 （`$not_my_duty_exception Duty`，见最后一节）——它也可以直接抛 `NotMyDutyException`，那是一个
 路由在说"这条差事不归我"；它自己抛别的异常，则是这一步的 `$underlying_viba_op_failed`。
-`module_path` 是**调用时那个 environment 的 storage 路径**——所以同一个 `add`，从
+`module_path` 是**调用时那个 environment 的数据路径**——所以同一个 `add`，从
 `root/add_demo` 进来和从 `root` 进来，宿主看到的是不同的路径，可以路由到不同的实现；也正是
-这个路径，加上 `func_name`，构成了答案里那个 `$step`。
+这个路径，加上 `func_name`，构成了结果里那个 `$step`。
 
 `HostLanguageFunc` 与 interpreter 匹配：Python interpreter 里就是一个 Python 函数，收到的参数是
 **已经算好的实参**，按书写顺序给——实例是 `viba.reflect.VibaNode`，别的（环境在内）是它本身。
@@ -474,8 +472,8 @@ content)`（在 store root 底下的纯文本读写，读不到返回 `None`）�
 viba 函数不是宿主侧的 Python 可调用对象，执行它们只有一条路，就是给环境（`<< args.env`），那是 viba 那一侧
 的事。所以宿主得到的是数据：可以拿着、存着、原样递回来，不能 `f(env, x)`。
 
-宿主自己造一个 `VibaNode` 当答案也可以；但**列表、字典、可调用对象这类答不了**——它们没有对应的叶子，
-只能答 `VibaNode`、标量或 `None`（`None` 就是 `nil`）。
+宿主自己造一个 `VibaNode` 当结果也可以；但**列表、字典、可调用对象这类给不了**——它们没有对应的叶子，
+只能给出 `VibaNode`、标量或 `None`（`None` 就是 `nil`）。
 
 **interpret 不认识任何具体函数**：viba 默认不带任何库函数，实现全部来自 `get_func`，
 谁写、怎么生成，interpret 不感知——用法上这个"谁"就是 agent：它读的正是文件里 `{...}` 那句提示，
@@ -485,10 +483,10 @@ viba 函数不是宿主侧的 Python 可调用对象，执行它们只有一条�
 
 一个 viba 程序的结果要可回放：同一份输入、同一批路径，跑多少次都该是同一个结果。可执行函数
 里唯一不保证这一点的东西是**宿主函数**——它可能读时钟、掷骰子、调服务。所以不纯的那些由它
-自己负责：**把答案快照到 `EnvironmentStorage` 里，下一次跑同一次调用就直接回放**。
+自己负责：**把结果快照到 `EnvironmentStorage` 里，下一次跑同一次调用就直接回放**。
 
-**模块调用按同一条规矩办**：一次调用的身份就是它的 storage 路径，所以那条路径答过之后，同一个
-模块再来问同一个地址，拿到的就是答过的那份（见「调用别的模块」里的三种情形）——一次运行里
+**模块调用按同一条规矩办**：一条数据路径上只该有一次调用，所以那条路径处理过之后，同一个
+模块再来问同一条路径，拿到的就是处理过的那份（见「调用别的模块」里的三种情形）——一次运行里
 省掉的是重复计算，跨运行回放靠的是上面那把快照。
 
 ```python
@@ -502,7 +500,7 @@ def roll(env, n):
 
 - `replayed(env, compute, name)`：**有快照就回放，没有就算出来、存下来**。这是最常用的写法。
   想分开写就是 `read_snapshot(env, name)`（没有返回 `None`）与 `write_snapshot(env, value, name)`。
-- 快照地址由**这次调用的 storage 路径**决定：`snapshot_path(env, name)` 是
+- 快照数据路径由**这次调用的数据路径**决定：`snapshot_path(env, name)` 是
   `cur_storage_path/<name>.viba`，读写在 `store_root_dir` 底下。所以同一次调用（同一条路径）才
   会命中同一条快照；换了路径（另一个名字的子环境）就是另一次调用。
 - **要回放就要一条稳定的路径**：跨两次运行能命中，靠的是两次运行里那条路径一样。用
@@ -510,6 +508,9 @@ def roll(env, n):
   保存要回放的东西（上一节：这正是它给出的"该显名保存了"的信号）。
 - **快照是序列化的 viba 数据**（`viba.serialize` 写出来的 `value = …`），不是 pickle：存下来
   的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回实例，叶子和存进去的时候一样。
+- **一次写完整**：`write_text` 把内容写在目标旁边再改名过去，所以读的那一方读到的要么是还没有，
+  要么是完整的一份。一份 store 可以被几个进程同时读写（分布式那几条链就是这么跑的，
+  [`viba-distributed.md`](viba-distributed.md)），谁也不想读到半份快照。
 - **存不了、回放不出来就是错**：`VibaProgramErr`（宿主抛出来，interpret 转成 `VibaProgramErr`），不会静默给个默认值。
 
 于是"随机"也能回放：
@@ -626,7 +627,7 @@ __impl__ =
 同一个。所以宿主问两遍不会让副作用发生两遍。
 
 只有函数类型的那个参数是惰性的（lazy，non-strict）；别的实参按值求值（call-by-value），函数的 `$env`
-也照旧按值给。想给一个求好的值，用 `builtin.echo` 把它包成"给它一个环境就答 V"的那个函数。
+也照旧按值给。想给一个求好的值，用 `builtin.echo` 把它包成"给它一个环境就给出 V"的那个函数。
 
 这跟一份定义什么时候求值是同一条策略，见下面「求值策略：按需求值（call-by-need）」一节。
 
@@ -669,7 +670,7 @@ square_sum << args.env << 3 <: int <- $b int   # 给了一半：剩下的是函�
   或按 `$env` 这个 tag 给都认。
 - 实参按 tag 给（`<< $a 3`）或按位置给（`<< 3`）都认；位置那一支要求给的实参装得下那个参数
   （`3 <: int`）。**给一半在类型上是一种类型**——剩下的那个函数；在值层给一半是程序错。
-- **`__get_args__ << __decl__` 在类型层答的是积类型**：成员就是 `__decl__` 的那些参数——`args.env`
+- **`__get_args__ << __decl__` 在类型层给出的是积类型**：成员就是 `__decl__` 的那些参数——`args.env`
   是 `Env`、`args.a` 是 `int`。`__decl__` 不是函数链的话，两层都当场报错。
 
 ## 模式：一个泛型是一个目录
@@ -687,17 +688,17 @@ Flag = is_base_type[bool]              # 决断选中 100.viba；它的 __decl__
 **那个文件**里读：形参名（文件里没定义的那个名字，比如 `A`）绑定到实参里对应的那一部分，
 这个绑定在那个文件的每一次求值里都算数，包括它自己定义里的那一层。
 
-- 写下来是字面量，答的就是那个值（`__decl__ = true` 答 `true`）；
-- 写下来是萃取到的形参，答的就是那份类型（`__decl__ = A`，答 `int`）；
-- 写下来是数据，答的就是数据，形参名已经换成实参里写的那份（`__decl__ = (A, B)` 答 `(int, str)`）；
+- 写下来是字面量，给出的就是那个值（`__decl__ = true` 给出 `true`）；
+- 写下来是萃取到的形参，给出的就是那份类型（`__decl__ = A`，给出 `int`）；
+- 写下来是数据，给出的就是数据，形参名已经换成实参里写的那份（`__decl__ = (A, B)` 给出 `(int, str)`）；
 - 写下来是**函数链**，这个应用代表的就是那次**调用**，跟"定义体是函数链"一样：可以接着给实参
   （`call_it[list[int]].type << args.env << 1`），也可以当闭包递出去。宿主按**泛型的名字**找实现
   （写下来是 `call_it[...]`，它拿到的是 `"call_it"`），跟按定义名找实现同一种做法；
 - 那个函数链所在的文件自己写了 `__impl__` 时，这个应用就是**它那一次模块调用**：环境与实参按它
   的 `__decl__` 给（调用方给环境，欠着的实参接着给），活由它的 `__impl__` 自己算，宿主不必按泛型
   的名字另找一份实现。它跑在自己的**子环境**里，那一层的名字是这份文件的**决断顺序**（`2_200.viba`
-  跑在 `…/200` 下），所以一次调用的地址仍然写得下来、复现得了 —— 调用方不必自己再包一层。
-  文件没写 `__impl__` 时是上一条：`__decl__` 就是它答的类型，宿主按泛型的名字实现；
+  跑在 `…/200` 下），所以一次调用的数据路径仍然写得下来、复现得了 —— 调用方不必自己再包一层。
+  文件没写 `__impl__` 时是上一条：`__decl__` 就是它给出的类型，宿主按泛型的名字实现；
 - 其余照平时的规矩：`int` 这个名字在值的位置上不是值。
 
 `(A <- $env Env <- B)` 这种写着函数类型的参数，交给宿主的是它代表的那次调用：宿主带着环境叫它，
@@ -748,7 +749,7 @@ viba 是**声明式**（declarative）的，不是命令式执行的：一份文
   里那份 `unused` 没人用，宿主一次都没被叫。
 - **绑定可以前向引用**（forward reference）：`__impl__ = x` 与 `x = 7` 换个次序还是 7
   （[`defined_after.viba`](tests/data/values/defined_after.viba)）。写下来的次序不是求值的次序。
-- **`__impl__` 倒着写也行**：它写在所有定义之前，用到的每一步都写在后面，读出来还是同一个答案
+- **`__impl__` 倒着写也行**：它写在所有定义之前，用到的每一步都写在后面，读出来还是同一个结果
   （[`impl_written_first.viba`](tests/data/values/impl_written_first.viba)）。
 - **一个绑定只求值一次**：两处用同一个名字，宿主只被叫一次
   （[`memo.viba`](tests/data/values/memo.viba)）；同一个名字在一个模块里写两份是程序错误
@@ -780,7 +781,7 @@ B = A
 
 - **绕回自己当场报错**，不是等栈崩：一份文件里 `A = A`、`A = B` 与 `B = A`、以及"求 A 的时候
   又要 A"（`A = use << $env args.env << $x A`）都是 `VibaProgramErr`，话里给出绕的路径。
-- **没被求值的不算**：函数类型的实参没人叫就不算递归（`A = ignore << $env args.env << $x A` 答 7，
+- **没被求值的不算**：函数类型的实参没人叫就不算递归（`A = ignore << $env args.env << $x A` 得 7，
   因为 `ignore` 不叫那个实参）；`List[T] = Object * $tail List[T] | nil` 这种**类型**自引用也
   不算——类型不求值。
 - **跨文件不设这条限制**：两份文件可以互相 import、互相调用，设计层不拦。真的绕回去（`a.x` 要
@@ -791,7 +792,7 @@ B = A
   它停不下来。这些都是"这次跑不完"，不是设计不合规。
 - **同名、不同实参、各自一条新路径的调用是两次调用**，不是环：函数递归执行要"再一次进到同一个
   定义"，而固定的实参换一次就是另一层。不动点正是这样展开的：
-  [`tests/data/y_combinator/`](tests/data/y_combinator/) 里的 `Y F 10` 答 55
+  [`tests/data/y_combinator/`](tests/data/y_combinator/) 里的 `Y F 10` 得 55
   （Z 组合子的 viba 版：欠着实参的调用就是值，把自应用停在半成品上）。
 - **两份文件互调的边角**：这条路子本身有一份用例集，
   [`tests/test_interpreter_mutual_recursion.py`](tests/test_interpreter_mutual_recursion.py)：100 条，
@@ -835,24 +836,24 @@ Duty =
 - `$viba_program_err str`（Python 侧是 `VibaProgramErr`）说的是这一份**程序或环境**不行：编不过、
   文件不在、没有 `__impl__`、`$env` 没给……它不说"哪一步的实现坏了"，所以不带步名；
 - `$underlying_viba_op_failed Failure`（`UnderlyingVibaOpFailed`）：**某一步的实现坏了**，或者它
-  答了没有叶子的东西。`$msg` 给人读，`$step` 与 `$reason` 给程序读——"哪一步"是个字段，不是嵌在
+  给出了没有叶子的东西。`$msg` 给人读，`$step` 与 `$reason` 给程序读——"哪一步"是个字段，不是嵌在
   句子里的；
-- `$not_my_duty_exception Duty`（`NotMyDutyException`）：**这一步不在这台机器上作答**。这不是失败，是递延——程序停在
+- `$not_my_duty_exception Duty`（`NotMyDutyException`）：**这一步不在这台机器上处理**。这不是失败，是递延——程序停在
   那儿，等有实现的一方接着做（[`roadmap.md`](roadmap.md)）。`interpret` 不带库函数，所以"没有
   实现"很正常，不是错误。
 
-`$step` 的两个字段就是 `get_func(module_path, func_name)` 收到的那两个：路径是这次调用的**地址**，
+`$step` 的两个字段就是 `get_func(module_path, func_name)` 收到的那两个：路径是这次调用的**数据路径**，
 所以同一个定义、另一个案子，是另一步。`$call` 是这一步拿到的**实例**，按它写下来的样子——一份
 Prepare 要固定的正是这份实例，所以拿着递延就能把工单写出来，不必再跑一次。宿主值（首先是
 environment）不是实例，不随 `$call` 走：接手的那一侧自己造环境。`$reason` 只有这几种：
 
 | `$reason` | 意思 |
 |---|---|
-| `no implementation` | `get_func` 答了 `None` |
+| `no implementation` | `get_func` 给了 `None` |
 | `refused` | `get_func` 抛了递延（一个路由说"这条差事不归我"） |
 | `get_func raised` | `get_func` 自己坏了 |
 | `raised` | 实现抛了 |
-| `no leaf` | 实现答了没有叶子的东西 |
+| `no leaf` | 实现给出了没有叶子的东西 |
 
 递延与失败都会一路穿回调用方，而且**原样上传、不被改写**：被调用的模块里那一步没实现，带回来的
 那一步是**里面那一次调用**（`root/模块名` 下的那个定义），不是外面那一层；穿过运行、再交给宿主的可
@@ -868,14 +869,14 @@ module 'x' not found (...)            import 找不到文件
 module 'm' has no __impl__: ...        类型，不是程序
 ... needs an Environment ...          一次模块调用没给环境（它只收环境）
 ... was not given an Environment      给了，但不是 Environment
-... storage path ... already running  同一条 storage 路径上已经有一次调用在跑
+... storage path ... already running  同一条数据路径上已经有一次调用在跑
 module 'x' ... same arguments         同一个模块带着同一份实参又在跑（没有进展）
-... storage path ... already used     两个模块挤同一条 storage 路径
+... storage path ... already used     两个模块挤同一条数据路径
 ... is a function still waiting ...   __impl__ 不是值
 cannot read ...                       文件读不了
 cannot parse ...                      编译不过（语法错误）
 get_file(...) raised ...              get_file 自己抛了
-get_file(...) answered bytes, ...     get_file 答的不是文件的文本
+get_file(...) answered bytes, ...     get_file 给的不是文件的文本
 viba_path is a string ...             viba_path 给错了类型
 get_file is a function ...            get_file 给错了类型
 ```
@@ -885,6 +886,6 @@ get_file is a function ...            get_file 给错了类型
 ```
 get_func('root', 'add') raised ...    get_func 自己坏了
 add raised ZeroDivisionError(...)     实现抛了
-add answered list, which is no leaf   实现答了没有叶子的东西
+add answered list, which is no leaf   实现给出了没有叶子的东西
 the environment's sub_env raised ... 环境上挂的宿主函数坏了
 ```

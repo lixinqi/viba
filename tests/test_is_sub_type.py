@@ -679,7 +679,7 @@ def run_module_as_function_cases():
     check_result(judge("design_only.Only", "$x int"), True,
                  "and its own definitions still resolve")
 
-    # 环境不是答案：模块当函数读时、模块里的函数当函数读时，都当场拒绝
+    # 环境不是结果：模块当函数读时、模块里的函数当函数读时，都当场拒绝
     check_result(judge("env_answer << $env args.env", "int"), "error",
                  "a module answering the environment is refused as a function")
     check_result(judge("EnvAnswer", "Env"), "error",

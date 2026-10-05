@@ -1,4 +1,4 @@
-# add —— 3 加 4 答 7
+# add —— 3 加 4 得 7
 __decl__ = int <- $env Env
 
 args = __get_args__ << __decl__

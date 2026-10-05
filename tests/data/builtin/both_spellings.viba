@@ -1,4 +1,4 @@
-# both_spellings —— `add` 与 `builtin.add` 是同一次调用：两个写法答一样的值
+# both_spellings —— `add` 与 `builtin.add` 是同一次调用：两个写法给出一样的值
 __decl__ = bool <- $env Env
 
 args = __get_args__ << __decl__

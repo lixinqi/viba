@@ -1,7 +1,8 @@
-"""Environment：$env 那个参数、子环境、以及宿主给自己加的东西。
+"""Environment：$env 那个参数、子环境、宿主给自己加的东西，以及 store 里的一次写。
 
 每个可执行函数都要 $env Environment，而且那个参数必须写成 $env；sub_env 按名字给子环境，
-tmp_env 每次给一个新的；子环境带着父级的 compute。
+tmp_env 每次给一个新的；子环境带着父级的 compute。store 的写入一次落完整（几个进程可能同时在
+读写同一份 store，见 `viba-distributed.md`）。
 
     python3 tests/test_interpreter_environment.py
 """
@@ -32,10 +33,11 @@ def run(tmp: Path):
     _children(tmp)
     _written_in_viba(tmp)
     _host_members(tmp)
+    _a_write_lands_whole(tmp)
 
 
 def _the_env_is_no_answer(tmp: Path):
-    """环境不是答案：只有内建函数能把 Env 声明成返回值，别的函数一律当场报错。"""
+    """环境不是结果：只有内建函数能把 Env 声明成返回值，别的函数一律当场报错。"""
     host = Host()
     environ = host.environ()
 
@@ -49,7 +51,7 @@ def _the_env_is_no_answer(tmp: Path):
     labelled(interpret(str(CASES / "env_as_a_result_in_a_product.viba"), environ),
              "answers the environment", "a member chain answering Env -> VibaProgramErr")
 
-    # 收一个 Environment 当参数不在此列：那不是答案
+    # 收一个 Environment 当参数不在此列：那不是结果
     result = interpret(str(CASES / "the_env.viba"), environ)
     check(isinstance(result, Ok) and result.ok_value is environ,
           f"a module that declares Any and answers the environment: {result!r}")
@@ -164,7 +166,7 @@ def _written_in_viba(tmp: Path):
     check(isinstance(result, Ok) and result.ok_value is environ,
           f"a module whose __impl__ is the environment: {result!r}")
 
-    # 已经答完的 sub_env 再给参数：那不是函数
+    # 已经处理完的 sub_env 再给参数：那不是函数
     labelled(interpret(str(CASES / "env_answered.viba"), environ), "is not a function",
              "another argument given to an answered sub_env -> VibaProgramErr")
 
@@ -202,6 +204,31 @@ def _host_members(tmp: Path):
                   "an environment with no storage, and a step that needs one")
     checks.failed(interpret(str(CASES / "headless_tmp.viba"), headless), "raised",
                   "tmp_env on an environment with no storage")
+
+
+def _a_write_lands_whole(tmp: Path):
+    """store 里的写是一次写完整的：写在旁边再改名过去，不留半份、不留下临时文件。
+
+    一份 store 可以被几个进程同时读写（分布式那几条链就是这样的，viba-distributed.md），
+    所以读的那一方只该看到「还没有」或者「完整的一份」。
+    """
+    storage = EnvironmentStorage("root", None, str(tmp / "store"))
+    at = "root/case/value.viba"
+
+    storage.write_text(at, "value =\n  1\n")
+    written = sorted(str(one.relative_to(tmp / "store"))
+                     for one in (tmp / "store").rglob("*") if one.is_file())
+    check(written == [at], f"one write leaves the one file it wrote: {written!r}")
+    check(storage.read_text(at) == "value =\n  1\n",
+          f"and the text reads back whole: {storage.read_text(at)!r}")
+
+    storage.write_text(at, "value =\n  2\n")
+    check(storage.read_text(at) == "value =\n  2\n",
+          f"writing over it replaces the whole text: {storage.read_text(at)!r}")
+    check(sorted(one.name for one in (tmp / "store" / "root" / "case").iterdir()) ==
+          ["value.viba"],
+          f"and leaves no half-written file behind: "
+          f"{sorted(one.name for one in (tmp / 'store' / 'root' / 'case').iterdir())!r}")
 
 
 if __name__ == "__main__":

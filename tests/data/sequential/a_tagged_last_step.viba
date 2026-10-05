@@ -1,4 +1,4 @@
-# a_tagged_last_step —— 最后一个参数不许写 tag：它的答案就是结果，写成带 tag 的一步没人接
+# a_tagged_last_step —— 最后一个参数不许写 tag：它给出的就是结果，写成带 tag 的一步没人接
 add =
     int
   <- $env Env

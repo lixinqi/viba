@@ -1,4 +1,4 @@
-# main_two_args.viba —— 要跑的是 Y Two 3 4，该答 7
+# main_two_args.viba —— 要跑的是 Y Two 3 4，该得 7
 #
 # 别名不叫 `F`，也不影响什么：`Y << Two` 收下的是那个模块本身。
 __decl__ =

@@ -1,4 +1,4 @@
-# mul —— 6 乘 7 答 42
+# mul —— 6 乘 7 得 42
 __decl__ = int <- $env Env
 
 args = __get_args__ << __decl__

@@ -1,4 +1,4 @@
-# concat —— "vi" 接 "ba" 答 "viba"
+# concat —— "vi" 接 "ba" 得 "viba"
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

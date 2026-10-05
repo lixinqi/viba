@@ -158,10 +158,24 @@ class EnvironmentStorage:
             return None
 
     def write_text(self, file_path: str, content: str) -> None:
-        """Store `content` at `file_path`, making the directories on the way."""
+        """Store `content` at `file_path`, making the directories on the way.
+
+        The text lands whole or not at all: it is written beside the path and then
+        renamed onto it. Another process may be reading the same path at that
+        moment — two rounds of a distributed program share one store — and half a
+        snapshot is no snapshot.
+        """
         path = self._store_path(file_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
+        handle, writing = tempfile.mkstemp(dir=str(path.parent),
+                                           prefix=path.name + ".", suffix=".writing")
+        try:
+            with os.fdopen(handle, "w") as stream:
+                stream.write(content)
+            os.replace(writing, path)
+        except BaseException:
+            os.unlink(writing)
+            raise
 
     def _store_path(self, file_path: str, root_dir: Optional[str] = None) -> Path:
         """`file_path` read under the store root (or another root of the same
@@ -200,7 +214,7 @@ class Environment:
         # own imports are looked up where that environment says — which is how a
         # sub-environment keeps the parent's search path along with its compute.
         self.viba_path = viba_path
-        # The address a compressed one stands for: `convert_sub_to_sibling` writes
+        # The path a compressed one stands for: `convert_sub_to_sibling` writes
         # the path it compressed here, and every other environment answers `nil`
         # (the member is a value, not a function: `args.env.uncompress_relative_path`).
         self.uncompress_relative_path = uncompress_relative_path
@@ -278,12 +292,12 @@ def get_root(current) -> Optional["Environment"]:
 
 
 def get_relative_path(current, root) -> str:
-    """The address of `current` seen from `root` down: `""` for the root itself.
+    """`current`'s storage path seen from `root` down: `""` for the root itself.
 
-    An address is the storage path, so this is that path with the root's prefix
-    taken off: `root/a/b` seen from `root/a` is `"b"`. A written `nil` for the
-    root means the chain's own root, and a root that is no ancestor of `current`
-    — the prefix is not there — is a program error.
+    This is that path with the root's prefix taken off: `root/a/b` seen from
+    `root/a` is `"b"`. A written `nil` for the root means the chain's own root,
+    and a root that is no ancestor of `current` — the prefix is not there — is a
+    program error.
     """
     current = _an_environment(current, "get_relative_path")
     root = _an_environment_or_nil(root, "get_relative_path") or get_root(current)
@@ -331,18 +345,18 @@ def find_by_relative_path(relative_path, root) -> "Environment":
 
 
 def convert_sub_to_sibling(sup, sub) -> "Environment":
-    """The address `sub` stands for, compressed into a sibling of `sup`.
+    """The storage path `sub` stands for, compressed into a sibling of `sup`.
 
-    `sup`'s address has to be a prefix of `sub`'s, at a name boundary: `sub` is
-    under `sup` (`<sup>/…`) or it is an address already pressed from `sup`
-    (`<sup>_…`, which is what this function makes). `sub`'s own address — the
-    storage path it runs at — is hashed with SHA-1 and appended to `sup`'s own
-    path as one name, `<sup's path>_<40 hex digits>`, so a recursion built this
-    way keeps the same address length however deep it goes. The address that was
-    compressed is written into the answer's `uncompress_relative_path`, which is
-    how a tool reads the original back.
+    `sup`'s storage path has to be a prefix of `sub`'s, at a name boundary: `sub`
+    is under `sup` (`<sup>/…`) or it is a path already pressed from `sup`
+    (`<sup>_…`, which is what this function makes). `sub`'s own storage path is
+    hashed with SHA-1 and appended to `sup`'s own path as one name,
+    `<sup's path>_<40 hex digits>`, so a recursion built this way keeps the same
+    path length however deep it goes. The path that was compressed is written
+    into the answer's `uncompress_relative_path`, which is how a tool reads the
+    original back.
 
-    The same `sup` and `sub` answer the same address and the same environment; a
+    The same `sup` and `sub` answer the same path and the same environment; a
     `sup` that is the chain's root has nowhere to put a sibling, which is a stop.
     """
     sup = _an_environment(sup, "convert_sub_to_sibling")
@@ -351,11 +365,11 @@ def convert_sub_to_sibling(sup, sub) -> "Environment":
     if not under.startswith(f"{above}_") and not under.startswith(f"{above}/"):
         raise RuntimeError(f"{under or '<no path>'} does not begin with "
                            f"{above or '<no path>'}: convert_sub_to_sibling "
-                           f"compresses an address of the sup it is read from")
+                           f"compresses a path under the sup it is read from")
     parent = sup.parent
     if parent is None:
         raise RuntimeError(f"{above or '<no path>'} is the root: there is no "
-                           f"directory beside it to put the address in")
+                           f"directory beside it to put the path in")
     digest = hashlib.sha1(under.encode()).hexdigest()
     made = sub_env(parent, f"{above.rsplit('/', 1)[-1]}_{digest}")
     made.uncompress_relative_path = under
@@ -667,7 +681,7 @@ class _GetattrMember:
 
 
 class _Given:
-    """An argument on its way to a call: its address and its value."""
+    """An argument on its way to a call: its tag and its value."""
 
     __slots__ = ("tag", "value")
 
@@ -1020,7 +1034,7 @@ class _Runner:
         self.by_path: dict = {}        # normalized path -> module
         self.by_name: dict = {}        # module name -> module
         self.path_of: dict = {}        # module name -> file it was loaded from
-        # A call's identity is its storage path: a running path is a cycle; an answered path
+        # One storage path is one call: a running path is a cycle; an answered path
         # repeats its answer. The other one: the same module with the same arguments still running
         # is "no progress", also a cycle: the same input is computed inside it and cannot stop.
         self.running: list = []        # (path, module name, arguments) calls that are running
@@ -1249,9 +1263,8 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     The module the host runs has no caller to write its arguments, so the
     environment it is handed is the only member of that product.
 
-    The storage path a module runs under is its identity: it is what the host
-    is handed as `module_path`, so two activations under one path cannot be
-    told apart. No two module calls may share one — the caller gives each call
+    The storage path a module runs under is what the host is handed as
+    `module_path`, so two activations under one path cannot be told apart. No two module calls may share one — the caller gives each call
     a sub-environment of its own.
     """
     if file is None:
@@ -1327,12 +1340,12 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
 def _call_signature(members) -> tuple:
     """What a call's arguments are, as one comparable thing.
 
-    The path is a call's identity, so the same path twice is the same call; this
-    is what tells a call that made no progress from one that did — a module
-    running with the same arguments again has the same inputs it already has.
-    The environment is not one of those inputs: it is the address the call runs
-    at, which the path guard already answers, so two calls that differ only in
-    the environment they were handed are the same call with the same arguments.
+    The same path twice is the same call; this is what tells a call that made
+    no progress from one that did — a module running with the same arguments
+    again has the same inputs it already has. The environment is not one of
+    those inputs: it is the path the call runs at, which the path guard already
+    answers, so two calls that differ only in the environment they were handed
+    are the same call with the same arguments.
     """
     if not members:
         return ()
@@ -1348,7 +1361,7 @@ def _signature_of(value) -> str:
 
 
 def _storage_path(environ: Environment) -> str:
-    """The path the host is handed for this environment: a module's identity."""
+    """The path the host is handed for this environment."""
     storage = getattr(environ, "storage", None)
     return getattr(storage, "cur_storage_path", "") if storage else ""
 
@@ -1674,7 +1687,7 @@ class _Activation:
                     f"parameter: its body cannot use args.env")
         for factor in _viba_data_factors(value.ok_value.node):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == wanted:
-                inner = factor.type          # the member's value, not its address
+                inner = factor.type          # the member's value, not its tag
                 return Ok(_VibaData(VibaNode(
                     reflect_access, descriptor_of(AstNodeType(inner, self.module)), inner)))
         return VibaProgramErr(f"{head!r} has no member tagged {wanted!r}")
@@ -1849,7 +1862,7 @@ class _Activation:
 
         An environment hands over the function it hangs off itself — the same
         thing `args.env.sub_env` reads, only reached from the value the chain was
-        given. A product hands over the piece its tag addresses. Anything else
+        given. A product hands over the piece its tag names. Anything else
         keeps no members here.
         """
         tag = member.tag
@@ -1877,7 +1890,7 @@ class _Activation:
                     return Ok(given)
             for factor in _viba_data_factors(value.node):
                 if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
-                    inner = factor.type       # the member's value, not its address
+                    inner = factor.type       # the member's value, not its tag
                     # The member stays a piece of the product it was read out of: the
                     # module the product was written in still says what that member's
                     # names mean (`_getting`), so a name read out of a product travels.
@@ -2281,8 +2294,8 @@ class _Activation:
         What a module receives are values, and not calls it works out later
         (viba-interpreter.md): a member written as a name (`$n below`) is that
         name's value, worked out here — in the call the product was written in,
-        so the names in it mean what they meant there. The tag is the member's
-        address and stays where it was written. Anything else is handed on as it
+        so the names in it mean what they meant there. The tag names the member
+        and stays where it was written. Anything else is handed on as it
         came: a member that is already a value is one, and a product another
         module wrote is that module's to read.
         """
@@ -2829,7 +2842,7 @@ class _HostArgument:
         self.file = file                # the module the argument was written in
         self.written_in = written_in                # where the written names resolve
         self.origin = origin            # the activation that wrote it, if it is known
-        self.name = name                # the module's identity, for messages
+        self.name = name                # the module's name, for messages
         self.answer = None              # the Result, once it is worked out
         self.environ = None             # the environment it was called with
         self.closure = False            # the value a name stands for, once asked for
@@ -3014,7 +3027,7 @@ def _host_give(function, item):
     A member of the environment counts its own slots and takes the values in
     written order. Anything else that was handed an argument is named by its
     kind, and the message stays the same between runs — an object's repr would
-    carry an address that changes every time.
+    differ from run to run.
     """
     if isinstance(function, _HostFunction):
         return function.give(item)
@@ -3331,7 +3344,7 @@ class _Pending:
             if self.declares_environ():
                 # The module declares `$env Env`: that parameter is where the environment
                 # goes. A chosen pattern file runs in its own sub-environment: its name is
-                # the file's own decision order, so the address is still written down and
+                # the file's own decision order, so the path is still written down and
                 # can be replayed — the caller need not give a sub-environment of its own.
                 self.environ = (sub_env(value.obj, self.pattern_env)
                                 if self.pattern_env else value.obj)

@@ -27,7 +27,7 @@ WITNESS = Path(__file__).resolve().parent / "case_at_1230.viba"
 # Where they actually were, and when: what the implementation reads. Here a
 # table so the demo is short; a case reads a log, a database or a service — and
 # then that reading is not pure, so it is snapshotted under the case's own
-# address (`replayed`), the way the measurement is prepared.
+# storage path (`replayed`), the way the measurement is prepared.
 FACTS = {"victim": (0, 0), "suspect": (3, 4)}
 MOMENT = "12:30"
 
@@ -68,7 +68,7 @@ class DistanceHost:
         """How far apart the two were: the impure step, through `measure`.
 
         `env` is the environment the call runs under — the rule hands a
-        temporary one, since a call has no address of its own. `evidence` is the
+        temporary one, since a call has no storage path of its own. `evidence` is the
         case's environment, and that is where the Prepare is kept, so the
         evidence says which case it belongs to: `root/case_at_1230/prepare/
         measure_distance.viba`.

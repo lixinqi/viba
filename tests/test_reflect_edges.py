@@ -1,7 +1,7 @@
 """viba.reflect 的边角：Config 与 VibaAccess 的 repr、访问单元的错误、动态取值。
 
 核心反射协议（viba-reflect.md）平时由规则层与序列化那两套语料跑着，这里补的是
-它们碰不到的边角：报错里的名字、repr、以及"设计里没有这个地址"和"可序列化数据里没有这
+它们碰不到的边角：报错里的名字、repr、以及"设计里没有这个数据路径"和"可序列化数据里没有这
 一块"这一对的区别。
 
 语料现搓：一个小池子加一份可序列化数据。
@@ -104,7 +104,7 @@ def run_name_helpers():
 
 
 def run_access_edges():
-    """设计里没有这个地址是 VibaProgramErr；可序列化数据里没有那一块是 Ok(nil)/False。"""
+    """设计里没有这个数据路径是 VibaProgramErr；可序列化数据里没有那一块是 Ok(nil)/False。"""
     definition = _definition(BOX, "Box")
     full = _product([
         viba_ast.Tagged("$a", viba_ast.Constant(1)),

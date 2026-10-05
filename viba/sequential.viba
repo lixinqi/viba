@@ -13,7 +13,7 @@
 #
 # This module declares no `$env Env` parameter: the environment a caller gives it
 # runs this call — the interpreter gives it a sub-environment of its own, so
-# `proc << args.env` does not collide with the address the caller is running at —
+# `proc << args.env` does not collide with the storage path the caller is running at —
 # and it rides on the call this body answers, the way `apply` hands its
 # environment on (viba-interpreter.md).
 import sequential_impl

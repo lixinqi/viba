@@ -1,4 +1,4 @@
-# 模块应用 `is_closure`：选中的那一支（`true`）就是它的答案。
+# 模块应用 `is_closure`：选中的那一支（`true`）就是它的结果。
 import square_sum
 
 __decl__ = Any <- $env Env

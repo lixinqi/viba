@@ -1,4 +1,4 @@
-# ge —— 2 大于等于 2 答 true，1 大于等于 2 答 false
+# ge —— 2 大于等于 2 得 true，1 大于等于 2 得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

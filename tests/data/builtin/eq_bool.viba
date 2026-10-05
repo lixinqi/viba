@@ -1,4 +1,4 @@
-# eq_bool —— true 与 true 相同答 true，true 与 false 相同答 false
+# eq_bool —— true 与 true 相同得 true，true 与 false 相同得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

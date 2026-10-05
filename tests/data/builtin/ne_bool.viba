@@ -1,4 +1,4 @@
-# ne_bool —— true 与 false 不同答 true，true 与 true 不同答 false
+# ne_bool —— true 与 false 不同得 true，true 与 true 不同得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

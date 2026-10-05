@@ -1,4 +1,4 @@
-# le_str —— "a" 排在 "a" 前或相同答 true，"b" 排在 "a" 前或相同答 false
+# le_str —— "a" 排在 "a" 前或相同得 true，"b" 排在 "a" 前或相同得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

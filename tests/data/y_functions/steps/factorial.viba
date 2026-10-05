@@ -1,7 +1,7 @@
-# steps/factorial.viba —— 一步 factorial，n!：n 小于 2 答 1，否则 n 乘下一层
+# steps/factorial.viba —— 一步 factorial，n!：n 小于 2 得 1，否则 n 乘下一层
 #
 # `$factorial` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
-# 子环境，名字写在这个文件里，这次调用的地址因此是可复现的。
+# 子环境，名字写在这个文件里，这次调用的数据路径因此是可复现的。
 import branch
 
 __decl__ =

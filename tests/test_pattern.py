@@ -99,7 +99,7 @@ RUNTIME_CASES = [
     ("num_variadic_args_three", 3, "num_variadic_args[int, str, list[int]]"),
 ]
 
-# (文件, 答出来的类型写成什么, 这是哪一条)
+# (文件, 给出的类型写成什么, 这是哪一条)
 EXTRACTED_CASES = [
     ("element_of_a_list", "int", "element_type_of[list[int]]"),
     ("element_of_a_set", "float", "element_type_of[set[float]]"),
@@ -143,7 +143,7 @@ def _environ():
 
 
 class _WrapperHost(Host):
-    """`demo/wrapper.viba` 转手给谁：这里它包的是 `inc`（`add` 是共用宿主答的）。"""
+    """`demo/wrapper.viba` 转手给谁：这里它包的是 `inc`（`add` 是共用宿主处理的）。"""
 
     def get_func(self, module_path, func_name):
         if func_name == "inc":
@@ -156,7 +156,7 @@ def _wrapper_environ():
 
 
 def _the_runtime_answers():
-    """一份模块应用一个泛型：选中的那一支就是它的答案。"""
+    """一份模块应用一个泛型：选中的那一支就是它的结果。"""
     environ = _environ()
     for name, want, label in RUNTIME_CASES:
         result = interpret(_case(name), environ)
@@ -165,7 +165,7 @@ def _the_runtime_answers():
 
 
 def _what_was_extracted():
-    """萃取到的类型，就是答案里写下来的那份。"""
+    """萃取到的类型，就是结果里写下来的那份。"""
     environ = _environ()
     for name, want, label in EXTRACTED_CASES:
         result = interpret(_case(name), environ)
@@ -327,7 +327,7 @@ def _match(pattern, module, argument: str):
 
 
 def _the_pattern_matcher():
-    """structural_pattern_match: 萃取到的类型就在这次答的绑定里。"""
+    """structural_pattern_match: 萃取到的类型就在这次给出的绑定里。"""
     module, patterns = _pattern_case("pattern A\n")
     got = _match(patterns[0], module, "int")
     check(isinstance(got, Ok) and isinstance(got.ok_value, dict)
@@ -441,7 +441,7 @@ def _a_count_is_a_bucket(scratch: Path):
 
     got = answered("two", "int * str")
     check(isinstance(got, Ok) and value_of(got) == 2,
-          f"摆出两份的应用读 2_200，答 2：{got!r}")
+          f"摆出两份的应用读 2_200，给出 2：{got!r}")
     got = answered("three", "int * str * bool")
     check(isinstance(got, VibaProgramErr) and "cannot parse" in got.err_msg,
           f"摆出三份的应用读到 3_300，当场说它编不过：{got!r}")
@@ -494,7 +494,7 @@ def _a_sum_is_no_bucket(scratch: Path):
 
     got = asked("a_product", "summed", "int * str")
     check(isinstance(got, Ok) and value_of(got) == 2,
-          f"积实参摆出两份，3_300 被跳过，2_200 答 2：{got!r}")
+          f"积实参摆出两份，3_300 被跳过，2_200 给出 2：{got!r}")
 
     got = asked("a_sum", "summed", "int | str")
     check(isinstance(got, VibaProgramErr) and "cannot parse" in got.err_msg,
@@ -582,7 +582,7 @@ def _a_function_type_is_a_call():
 
 
 def _the_wrapper_forwards():
-    """拿一个函数换一个调用：函数与实参积先给，环境最后给，缀在答出来的那次调用末尾。"""
+    """拿一个函数换一个调用：函数与实参积先给，环境最后给，缀在返回的那次调用末尾。"""
     check(value_of(interpret(_case("wrapper_inc"), _wrapper_environ())) == 2,
           "wrapper << inc << $x 1 << args.env answers inc(1)")
     check(value_of(interpret(_case("wrapper_add"), _wrapper_environ())) == 3,

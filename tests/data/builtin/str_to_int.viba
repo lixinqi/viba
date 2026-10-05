@@ -1,4 +1,4 @@
-# str_to_int —— "42" 里那个整数答 42
+# str_to_int —— "42" 里那个整数得 42
 __decl__ = int <- $env Env
 
 args = __get_args__ << __decl__

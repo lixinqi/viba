@@ -1,4 +1,4 @@
-# float_to_str —— 1.5 答 "1.5"，2.0 答 "2.0"
+# float_to_str —— 1.5 得 "1.5"，2.0 得 "2.0"
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

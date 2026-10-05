@@ -1,4 +1,4 @@
-# one_step —— 一步的 sequential：最后那个参数不写 tag，它的答案就是整条链的答案
+# one_step —— 一步的 sequential：最后那个参数不写 tag，它的结果就是整条链的结果
 add =
     int
   <- $env Env

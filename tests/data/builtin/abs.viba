@@ -1,4 +1,4 @@
-# abs —— -4 的绝对值答 4
+# abs —— -4 的绝对值得 4
 __decl__ = int <- $env Env
 
 args = __get_args__ << __decl__

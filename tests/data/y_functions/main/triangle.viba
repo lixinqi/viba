@@ -1,4 +1,4 @@
-# main/triangle.viba —— 用内建目录里的 Y 跑 steps/triangle：答 55
+# main/triangle.viba —— 用内建目录里的 Y 跑 steps/triangle：得 55
 #
 # Y 住在包的内建目录里（`viba/Y.viba`）：`Y << step` 就是那一步的不动点。它要环境，调用方
 # 给一层子环境（`args.env.sub_env << args.env << "Y"`），再给这次要跑的实参。

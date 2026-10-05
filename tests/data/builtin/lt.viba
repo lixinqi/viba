@@ -1,4 +1,4 @@
-# lt —— 1 小于 2 答 true，2 小于 1 答 false
+# lt —— 1 小于 2 得 true，2 小于 1 得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

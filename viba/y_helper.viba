@@ -1,12 +1,12 @@
 # The step's helper: the step itself, this helper (the next layer), and the product of
-# this layer's arguments. The environment is a parameter, so this call runs at the address
+# this layer's arguments. The environment is a parameter, so this call runs at the storage path
 # its caller wrote: a step writes one name per layer it starts
 # (`args.fib << (sub_env << args.env << "low") << $n below << $m other`), and that layer's
 # arguments arrive as the links after it, collected into one product by `$args ...`.
 #
-# The layer the step runs in is no child of the caller's layer: it is the address that layer
+# The layer the step runs in is no child of the caller's layer: it is the storage path that layer
 # stands for, compressed (`convert_sub_to_sibling`) into one name beside the workspace, so a
-# recursion of any depth keeps the same address length. The workspace is the same every layer
+# recursion of any depth keeps the same path length. The workspace is the same every layer
 # — `$caller_workspace_relative_path` names it from the root of the chain and is handed on
 # unchanged — while `$sub` is this call's own layer, which is what tells one layer from the
 # next. Y computes the path once (`get_relative_path`).
@@ -26,15 +26,15 @@ __decl__ =
 args = __get_args__ << __decl__
 
 # The workspace: the same layer for every call, read back from its relative path. The root is
-# this chain's own root, so the path stays an address from the top even though this call sits
-# deeper.
+# this chain's own root, so the path is still measured from the top even though this call
+# sits deeper.
 caller_workspace_env =
     args.env.find_by_relative_path
   << args.caller_workspace_relative_path
   << ($get_root << args.env)
 
-# The layer the step runs in: the address of this call's own layer, compressed into a sibling
-# of the workspace. The step's own name for it (`"low"`, `"high"`) is part of that address,
+# The layer the step runs in: the storage path of this call's own layer, compressed into a
+# sibling of the workspace. The step's own name for it (`"low"`, `"high"`) is part of that path,
 # so two branches of one step answer two different layers.
 workspace =
     $convert_sub_to_sibling

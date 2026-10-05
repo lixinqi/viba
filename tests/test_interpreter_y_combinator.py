@@ -8,19 +8,19 @@ Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在�
     fib_module.viba        F：一步 fib，`$fib` 是"下一层怎么算"（一个参数）
     add2_module.viba       另一份 F：`f(n, m)`（两个参数）
     add3_module.viba       再一份 F：`f(n, m, k)`（三个参数）
-    main.viba              Y F 10，答 55
-    main_at_1.viba         Y F 1，答 1（base case 在顶层就走通）
-    main_at_5.viba         Y F 5，答 5
-    main_in_a_sub_env.viba Y F 10，调用方自己写一层子环境，答 55
-    main_two_args.viba     Y F 3 4，答 7
-    main_three_args.viba   Y F 3 4 5，答 12
-    helper_by_hand.viba    不用 Y，直接把 helper 用起来，答 55
+    main.viba              Y F 10，给出 55
+    main_at_1.viba         Y F 1，给出 1（base case 在顶层就走通）
+    main_at_5.viba         Y F 5，给出 5
+    main_in_a_sub_env.viba Y F 10，调用方自己写一层子环境，给出 55
+    main_two_args.viba     Y F 3 4，给出 7
+    main_three_args.viba   Y F 3 4 5，给出 12
+    helper_by_hand.viba    不用 Y，直接把 helper 用起来，给出 55
 
 `main_*` 与 `helper_by_hand` 是**真正要跑通的**：文件就是函数（`__decl__` 进、`__impl__` 出），
-递归靠"欠着实参的调用就是值"（Y 的 eta 展开）和"一次调用的身份是它的 storage 路径"。
+递归靠"欠着实参的调用就是值"（Y 的 eta 展开）和"一条数据路径上只该有一次调用"。
 `Y << F` 给的是那一步的不动点：`Y` 是入口（`y_helper << $f f << $y_helper y_helper` 这一件），
 `y_helper` 是自应用那一步 —— 上一步拿到的自己，就是下一次 `y_helper` 调用。Y 与 y_helper 都写
-`$env Env`：给环境就是执行，所以每一层的地址由调用方写下来 —— `main_*.viba` 写
+`$env Env`：给环境就是执行，所以每一层的数据路径由调用方写下来 —— `main_*.viba` 写
 `args.env.sub_env << args.env << "Y"`（`main_in_a_sub_env.viba` 故意换个名字），`Y.viba` 往下写
 `"y_helper"`，步文件往下调时写 `"low"` 那样的名字；步自己那一层只是名字的出处，`y_helper` 用
 `convert_sub_to_sibling` 把它压成 workspace 旁边一个定长的名字（`viba-interpreter.md`）。这一层的实参接着 `<<` 写在后面
@@ -29,7 +29,7 @@ Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在�
 `apply_impl` 哪一支，`F` 的参数列表有多长，由积里有几个成员说了算。
 
 参数个数不同仍然**各跑一次**：最后那一遍为 1 到 16 每个长度当场写一份 step 模块（那里只有参数
-个数要紧），跑出来的答案就是那个长度 —— 每个长度都走到 `apply_impl` 对应的一支上。
+个数要紧），跑出来的结果就是那个长度 —— 每个长度都走到 `apply_impl` 对应的一支上。
 
 另外几条是记录，不是目标：一份**要别的文件把实参给它的模块不能当主文件跑**（宿主只给环境，
 没人写下 `$f`、`$n`），所以 `Y.viba`、`y_helper.viba`、`fib_module.viba`、`add2_module.viba`、
@@ -87,7 +87,7 @@ def environ_for(store, also=()):
                                            str(CASES), str(REPOSITORY_ROOT)]))
 
 
-# (文件, 该答什么)
+# (文件, 该给出什么)
 ANSWERS = [
     ("main", 55),
     ("main_at_1", 1),
@@ -163,7 +163,7 @@ def _every_length_runs(tmp: Path):
     """1 到 16 每个长度都跑一次：`apply_impl` 的 16 支没有一支是没人走过的。
 
     这一层的实参接着 `<<` 写，`Y` 把它们收成一份积，`apply` 按积里有几个成员选文件；这一遍为
-    每个长度当场写一份 step 模块（只有参数个数要紧），跑出来的答案就是那个长度。
+    每个长度当场写一份 step 模块（只有参数个数要紧），跑出来的结果就是那个长度。
     """
     check((BUILTIN_DIR / "Y.viba").is_file()
           and (BUILTIN_DIR / "y_helper.viba").is_file(),

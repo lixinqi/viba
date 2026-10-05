@@ -952,6 +952,12 @@ if __name__ == "__main__":
     style = os.path.join(root, "viba-style.md")
     tutorial = os.path.join(root, "viba_tutorial.md")
     pattern = os.path.join(root, "viba-pattern.md")
+    distributed = os.path.join(root, "viba-distributed.md")
+    distributed_package = os.path.join(root, "distributed", "README.md")
+    distributed_demo = os.path.join(root, "demo", "distributed", "README.md")
+    distributed_naive = os.path.join(root, "demo", "distributed", "naive", "README.md")
+    distributed_delivery = os.path.join(root, "demo", "distributed", "delivery", "README.md")
+    distributed_reading = os.path.join(root, "demo", "distributed", "reading", "README.md")
     try:
         with open(readme, encoding="utf-8") as handle:
             manual = handle.read()
@@ -976,11 +982,20 @@ if __name__ == "__main__":
         except Exception as e:                      # a stale GRAMMAR_ORDER, no block
             print(f"{'the README spells this grammar':<50} | {type(e).__name__}: {e}")
 
-    # The manual, the style guide and the tutorial are read as sources too: a
-    # sample that does not compile is teaching a mistake.
+    # The manual, the style guide, the tutorial, the pattern chapter, the
+    # distributed chapter and the READMEs of the demos beside it are read as
+    # sources too: a sample that does not compile is teaching a mistake.
     try:
         blocks = 0
-        for path in (readme, style, tutorial, pattern):
+        chapters = ((readme, "README.md"), (style, "viba-style.md"),
+                    (tutorial, "viba_tutorial.md"), (pattern, "viba-pattern.md"),
+                    (distributed, "viba-distributed.md"),
+                    (distributed_package, "distributed/README.md"),
+                    (distributed_demo, "demo/distributed/README.md"),
+                    (distributed_naive, "demo/distributed/naive/README.md"),
+                    (distributed_delivery, "demo/distributed/delivery/README.md"),
+                    (distributed_reading, "demo/distributed/reading/README.md"))
+        for path, _name in chapters:
             with open(path, encoding="utf-8") as handle:
                 text = handle.read()
             samples = _readme_blocks(text, "viba")
@@ -989,8 +1004,7 @@ if __name__ == "__main__":
             blocks += len(samples)
         doc_count += 1
         print(f"{'every .viba sample in the docs compiles':<50} | OK "
-              f"({blocks} blocks: README.md, viba-style.md, viba_tutorial.md, "
-              f"viba-pattern.md)")
+              f"({blocks} blocks: {', '.join(name for _path, name in chapters)})")
     except Exception as e:
         print(f"{'every .viba sample in the docs compiles':<50} | "
               f"{type(e).__name__}: {e}")

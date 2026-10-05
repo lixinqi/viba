@@ -7,7 +7,7 @@ args = __get_args__ << __decl__
 import branch
 import pick as pick
 
-# 两个半成品各自补完，再把两个答案加在一起。
+# 两个半成品各自补完，再把两个结果加在一起。
 left = pick.add << $a 1
 right = pick.add << $a 2
 __impl__ =

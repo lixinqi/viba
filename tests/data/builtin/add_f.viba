@@ -1,4 +1,4 @@
-# add_f —— 1.5 加 2.5 答 4.0
+# add_f —— 1.5 加 2.5 得 4.0
 __decl__ = float <- $env Env
 
 args = __get_args__ << __decl__

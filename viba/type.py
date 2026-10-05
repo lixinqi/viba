@@ -55,8 +55,8 @@ class Step:
           * $module_path str
           * $func_name str
 
-    `module_path` is the storage path the call ran under, so a step is an
-    address and not just a name: the same definition in another case is another
+    `module_path` is the storage path the call ran under, so a step is a path
+    and a name, not just a name: the same definition in another case is another
     step.
     """
 

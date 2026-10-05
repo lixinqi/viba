@@ -1,4 +1,4 @@
-# int_to_str —— 123 写下来答 "123"
+# int_to_str —— 123 写下来得 "123"
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

@@ -57,7 +57,7 @@ def _the_branch_runs_in_its_own_environment():
     """条件成立：那一支跑了，而且跑在宿主给它造的子环境里。"""
     calls = []
     result = interpret(str(CASES / "branch_in_its_own_environment.viba"), host_for(calls))
-    check(isinstance(result, Ok) and value_of(result) == 42, f"答案来自那一支：{result!r}")
+    check(isinstance(result, Ok) and value_of(result) == 42, f"结果来自那一支：{result!r}")
     check([where for where, _ in calls] == ["root/echo_or_never"],
           f"它在自己的子环境里跑：{calls}")
 
@@ -75,16 +75,16 @@ def _never_or_echo_takes_the_other_side():
     calls = []
     result = interpret(str(CASES / "never_or_echo_takes_it.viba"), host_for(calls))
     check(isinstance(result, Ok), f"那一支跑起来了：{result!r}")
-    check(isinstance(result, Ok) and value_of(result) == 42, f"答案来自那一支：{result!r}")
+    check(isinstance(result, Ok) and value_of(result) == 42, f"结果来自那一支：{result!r}")
     check([where for where, _ in calls] == ["root/never_or_echo"],
           f"它也在自己的子环境里跑：{calls}")
 
 
 def _echo_hands_back_a_written_piece():
-    """`builtin.echo` 交回写下来的那份东西：宿主跑它，答的就是它。"""
+    """`builtin.echo` 交回写下来的那份东西：宿主跑它，交回来的就是它。"""
     calls = []
     result = interpret(str(CASES / "echo_hands_back_a_written_piece.viba"), host_for(calls))
-    check(isinstance(result, Ok) and value_of(result) == 7, f"答的是那份写下来的东西：{result!r}")
+    check(isinstance(result, Ok) and value_of(result) == 7, f"给出的是那份写下来的东西：{result!r}")
     check([name for _, name in calls] == ["echo"], f"跑的是 echo 那一步：{calls}")
 
 

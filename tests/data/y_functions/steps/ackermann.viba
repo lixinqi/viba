@@ -1,4 +1,4 @@
-# steps/ackermann.viba —— 一步 ackermann，阿克曼函数：m 是 0 答 n 加 1；n 是 0 答 (m-1, 1)；否则答 (m-1, (m, n-1))
+# steps/ackermann.viba —— 一步 ackermann，阿克曼函数：m 是 0 得 n 加 1；n 是 0 得 (m-1, 1)；否则得 (m-1, (m, n-1))
 #
 # 条件分三个岔：外面先按 `zero_m` 分一次，剩下的那一侧里再按 `zero_n` 分一次。
 # 两个开关都是 `branch` 的那一对；交给 `$get_v` 的得是**一次调用**（内层那个和整份和都用

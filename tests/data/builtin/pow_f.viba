@@ -1,4 +1,4 @@
-# pow_f —— 2.0 的 3.0 次方答 8.0
+# pow_f —— 2.0 的 3.0 次方得 8.0
 __decl__ = float <- $env Env
 
 args = __get_args__ << __decl__

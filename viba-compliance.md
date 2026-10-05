@@ -1,7 +1,7 @@
 # 合规：规则与呈证
 
 一份规则（rule）说"什么算合规"，一份呈证（witness）说"这一次是什么情况"，两者合起来给一个
-判定。这一章讲这套东西怎么用**可执行模块**来写：规则是程序，呈证也是程序（它答出那份实例，
+判定。这一章讲这套东西怎么用**可执行模块**来写：规则是程序，呈证也是程序（它给出那份实例，
 而实例里的事实是问来的），判定就是跑规则那个程序。
 
 ## 1. 一个规则是一个程序
@@ -11,7 +11,7 @@
 的是一件事——**那一刻两人是不是至少隔了 5**。
 
 这条规则读的就是呈证（第 2 节）里的三个事实：`$victim`、`$suspect`、`$at`，然后把它问的那
-件事答成 `bool`。规则就是一个 viba 程序：`__decl__` 是 `bool <- $env Env`，判定不是另一套推理，
+件事判成 `bool`。规则就是一个 viba 程序：`__decl__` 是 `bool <- $env Env`，判定不是另一套推理，
 就是把文件跑起来。
 
 ```viba
@@ -44,7 +44,7 @@ distance_ge =
 		is that distance at least the threshold?
 	}
 
-# the address of this case: the witness is read under it, and this is where the
+# this case's storage path: the witness is read under it, and this is where the
 # case's evidence — its Prepare — is kept
 case_env = args.env.sub_env << args.env << "case_at_1230"
 
@@ -52,8 +52,8 @@ case_env = args.env.sub_env << args.env << "case_at_1230"
 the_case = case_at_1230 << case_env
 
 # the measurement of those facts. The call itself runs under a temporary
-# environment (a call has no address of its own), and is told where the evidence
-# goes: this case's address. Not pure, so what it answers becomes the Prepare.
+# environment (a call has no storage path of its own), and is told where the evidence
+# goes: this case's storage path. Not pure, so what it answers becomes the Prepare.
 distance =
     measure_distance
     << $env (args.env.tmp_env << args.env)
@@ -72,17 +72,17 @@ __impl__ =
 
 读法：
 
-- **一步一个定义**：案子的地址、呈证、测量、判定各是一行，没有把调用套在调用里面。定义是按需求值的
+- **一步一个定义**：案子的数据路径、呈证、测量、判定各是一行，没有把调用套在调用里面。定义是按需求值的
   绑定，一次运行里只求值一次（[`viba-interpreter.md`](viba-interpreter.md) 的「求值策略：按需求值
   （call-by-need）」一节），所以 `the_case` 就是那份实例本身。
-- **`case_env` 是这个案子的地址**：`case_at_1230` 这个名字同时是模块名、子环境名，也落在
-  storage 路径上（`root/case_at_1230`）。读呈证用它，这个案子的证据也存在它下面。
-- **调用用临时环境，证据才要地址**。函数调用给 `(args.env.tmp_env << args.env)`：一次调用没有
-  自己的地址，也不该占一个（`tmp_env` 每次都是新的，见
+- **`case_env` 是这个案子的数据路径**：`case_at_1230` 这个名字同时是模块名、子环境名，也落在
+  数据路径上（`root/case_at_1230`）。读呈证用它，这个案子的证据也存在它下面。
+- **调用用临时环境，证据才要数据路径**。函数调用给 `(args.env.tmp_env << args.env)`：一次调用没有
+  自己的数据路径，也不该占一个（`tmp_env` 每次都是新的，见
   [`viba-interpreter.md`](viba-interpreter.md)）。要给
-  证据落地址的是**测量**：它多收一个槽位 `$evidence Environment`，明说"这次测量属于哪个案子"。
-  两者分开，规则里才没有人把任意一次调用钉到案子的地址上。
-- **`__impl__` 是判定**。它是 `bool`，跑完就是答案：真合规、假不合规。这条规则跑出来是
+  证据落数据路径的是**测量**：它多收一个槽位 `$evidence Environment`，明说"这次测量属于哪个案子"。
+  两者分开，规则里才没有人把任意一次调用钉到案子的数据路径上。
+- **`__impl__` 是判定**。它是 `bool`，跑完就是结果：真合规、假不合规。这条规则跑出来是
   `Ok(true)`——量出来恰好 5，够门槛。
 - **条件是它自己的函数，判据是它的参数**。`distance_ge` 问的是"距离至少到没到门槛"，门槛由
   `$threshold` 给——`threshold = 5` 是这条规则自己的选择，换个案子换个门槛，写的还是同一个
@@ -91,11 +91,11 @@ __impl__ =
   [`viba-interpreter.md`](viba-interpreter.md)），interpret 不带任何库函数——提示写给的正是要
   照着它把实现补出来的 agent。
 - **每个要执行的函数都得拿到环境**：`__decl__` 里可以写 `$env Env` 这个参数，也可以不写 —— 写了就给
-  这个参数，不写就随这次调用的答案往后走，直到落进某一个函数的 `$env Env` 那一处。规则也不例外。
-- **环境不是答案**：只有内建函数能把它声明成返回值，规则文件也一样写不了——要读环境就写
+  这个参数，不写就随这次调用的结果往后走，直到落进某一个函数的 `$env Env` 那一处。规则也不例外。
+- **环境不能当结果**：只有内建函数能把它声明成返回值，规则文件也一样写不了——要读环境就写
   `args.env`，别把环境当结果交出去（见 [`viba-interpreter.md`](viba-interpreter.md)）。
 
-## 2. 呈证答出实例
+## 2. 呈证给出实例
 
 呈证是规则要判的那份实例，它自己也是一个程序：环境进、实例出。
 
@@ -119,7 +119,7 @@ at_1230 =
 __impl__ = at_1230 << $env args.env
 ```
 
-它答出来的就是那份实例——受害人 (0,0)，嫌疑人 (3,4)，时刻 12:30，横竖各差 3 与 4 于是相距 5，
+它给出的就是那份实例——受害人 (0,0)，嫌疑人 (3,4)，时刻 12:30，横竖各差 3 与 4 于是相距 5，
 正好压在规则的门槛上。这条呈证给的是**事实**（谁在哪、什么时候），不是结论。
 
 > 案子的值当然也可以直接写在文件里（`$victim ($x 0 * $y 0) * …`），那是同一个程序的最短写法，
@@ -132,13 +132,13 @@ __impl__ = at_1230 << $env args.env
 the_case = case_at_1230 << case_env
 ```
 
-呈证答出来的是实例，规则要按地址读它：`$victim`、`$suspect`、`$at` 是地址，`$x`/`$y` 再往下一层。
+呈证给出的是实例，规则要按数据路径读它：`$victim`、`$suspect`、`$at` 是数据路径，`$x`/`$y` 再往下一层。
 读的工具在宿主侧，是 [`viba/reflect.py`](viba/reflect.py)（[`viba-reflect.md`](viba-reflect.md)）：
-上面那段 [`host.py`](viba/compliance/demo/host.py) 里的 `_point` 就是按地址读的
+上面那段 [`host.py`](viba/compliance/demo/host.py) 里的 `_point` 就是按数据路径读的
 （`prepared.by_tag("victim").by_tag("x").leaf`）。呈证不必长得像规则：它就是事实。
 
 [`host.py`](viba/compliance/demo/host.py) 里 `at_1230` 的实现读的是一张表——演示里为了短；一个
-真案子读的是记录或服务，那就是不纯的，得像测量一样把它记下来（`replayed` 写到案子自己的地址
+真案子读的是记录或服务，那就是不纯的，得像测量一样把它记下来（`replayed` 写到案子自己的数据路径
 下），否则一年后再判同一个案子，读到的事实可能已经变了。
 
 ## 3. 判定
@@ -149,8 +149,8 @@ from viba.compliance import is_compliant
 verdict = is_compliant("rule_distance.viba", environ)   # -> Result[bool]
 ```
 
-- 规则答 `bool`，判定就是它：`Ok(True)` / `Ok(False)`。
-- 答的不是 `bool`，是 `VibaProgramErr`（"a verdict is a bool"）。
+- 规则给出 `bool`，判定就是它：`Ok(True)` / `Ok(False)`。
+- 给出的不是 `bool`，是 `VibaProgramErr`（"a verdict is a bool"）。
 - 规则里某一步没人实现，则是**递延**（`$not_my_duty_exception Duty`）：判定还没发生，这次规则
   不归这台机器跑完。递延带着 `$step`（哪条模块路径上的哪个定义）与 `$call`——`$call` 就是一份
   Prepare 要固定的那份实例，所以工单可以照它直接写出来，不必再跑一次。`prepare_run` 在这种情形
@@ -163,7 +163,7 @@ verdict = is_compliant("rule_distance.viba", environ)   # -> Result[bool]
 ## 4. 不纯的那一步：Prepare
 
 程序里唯一不能保证"跑多少次都一样"的东西是宿主函数：它可能读时钟、掷骰子、调服务。
-`measure_distance` 就是这样一个函数。它不能自己答一个数就算了——那样结果不可回放。它走
+`measure_distance` 就是这样一个函数。它不能自己给出一个数就算了——那样结果不可回放。它走
 `measure`：
 
 ```python
@@ -182,7 +182,7 @@ def measure_distance(self, env, evidence, case):
 `measure(environ, name, call, compute)` 做的事：
 
 1. 读这次调用的 **Prepare**。里面已经有量出来的值 → **直接回放，`compute` 一次不调**；
-2. 没有 → 调 `compute(call)`（不纯的那一步），把值写进本轮 store 的 Prepare 里，再答它。
+2. 没有 → 调 `compute(call)`（不纯的那一步），把值写进本轮 store 的 Prepare 里，再给出它。
 
 **Prepare 是"这一次测量"的存档**：调用（参数定了、结果声明了）与量出来的值，一个文件：
 
@@ -201,6 +201,9 @@ value =
 - 路径是 `<案子路径>/prepare/<name>.viba`；`name` 由调用方取（同一个调用用同一个名字），
   所以上面这份证据的整个路径就在说：哪个案子、量的是什么。
 - Prepare 里的 `$call` 压过现场写的 `call`：**被固定的那次调用才算数**——这正是"准备"的含义。
+- 分布式那一层把同一份 Prepare 当工单用：一次运行停在自己实现不了的一步上，就把它交出来，
+  调度写在它停下的数据路径上（`<数据路径>/prepare/<api>.viba`），另一边处理完再把 `$measured` 填上
+  （[`viba-distributed.md`](viba-distributed.md)）。
 
 ## 5. 备份与回放
 
@@ -266,20 +269,20 @@ record_text(file_path, content)          # 写进备份本身（prepare_run 用�
 
 ## 7. 自己写一份
 
-1. **给案子起个名字**：这个名字会同时是呈证的模块名、规则的子环境名与 storage 路径
+1. **给案子起个名字**：这个名字会同时是呈证的模块名、规则的子环境名与数据路径
    （`case_at_1230`）。案子多起来之后，这条路径就是证据的归属。
 2. **写呈证**：一个模块（`<案子>.viba`），`__impl__` 是实例。事实从函数问来——定义一个
    函数，它的类型就是那份实例的写法，实现交给宿主（第 2 节）；只有真的是常量的东西才写进文件。
-3. **写规则**：一个模块，`__impl__` 是 `bool`；一步一个定义（案子的地址、呈证、测量、判定），
+3. **写规则**：一个模块，`__impl__` 是 `bool`；一步一个定义（案子的数据路径、呈证、测量、判定），
    别把调用套进调用里；条件写成它自己的函数，每个函数带 `$env Environment`。
 4. **实现宿主那侧**：这一步是交给 agent 的——照着文件里 `{...}` 的提示，把每个函数写出来。
    `get_func(module_path, func_name)` 给出这些函数的实现；纯的照常写，
    不纯的用 `measure` 包住，名字取"量的是什么"（它也是 Prepare 的文件名），并收一个槽位
-   `$evidence Environment`——它是案子的地址，证据记在那里。
+   `$evidence Environment`——它是案子的数据路径，证据记在那里。
 5. **跑判定**：给一个 `Environment`（storage + compute）。要留证据就 `prepare_run` 一次，
    之后每次 `is_compliant` 都读备份。规则里的函数调用给临时环境，只有读呈证与记证据才用
-   案子的地址。
-6. **要检查实例**：用 [`viba/reflect.py`](viba/reflect.py) 的地址与叶子读
+   案子的数据路径。
+6. **要检查实例**：用 [`viba/reflect.py`](viba/reflect.py) 的数据路径与叶子读
    （[`viba-reflect.md`](viba-reflect.md)），或 `read_prepare` 直接读存档。
 
 [`tests/test_compliance.py`](tests/test_compliance.py) 是一份可以照抄的完整例子；

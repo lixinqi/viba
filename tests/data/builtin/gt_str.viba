@@ -1,4 +1,4 @@
-# gt_str —— "b" 排在 "a" 后答 true，"a" 排在 "b" 后答 false
+# gt_str —— "b" 排在 "a" 后得 true，"a" 排在 "b" 后得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

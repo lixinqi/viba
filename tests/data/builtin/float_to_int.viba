@@ -1,4 +1,4 @@
-# float_to_int —— 2.9 丢小数答 2，-2.9 丢小数答 -2（朝零丢，不是向下取整）
+# float_to_int —— 2.9 丢小数得 2，-2.9 丢小数得 -2（朝零丢，不是向下取整）
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

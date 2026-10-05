@@ -1,4 +1,4 @@
-"""值：宿主答什么、__impl__ 能写成什么、一个名字算几次。
+"""值：宿主给出什么、__impl__ 能写成什么、一个名字算几次。
 
 不纯的东西从这里出去（宿主函数），回来的必须是叶子或可序列化数据；函数、模块、泛型应用都不是值。
 每条用例是一份可以打开的文件（`tests/data/values/*.viba`），这里只列它该跑出什么。
@@ -40,7 +40,7 @@ def run(tmp: Path):
     _crossing_the_host_boundary(tmp)
 
 
-# (文件, 宿主答什么, 说明)
+# (文件, 宿主给出什么, 说明)
 HOST_ANSWER_CASES = [
     ("leaf", 7, "an int"),
     ("text", "hi", "a str"),
@@ -56,7 +56,7 @@ FALSY_CASES = [
     ("falsy_falsey", False, "false"),
 ]
 
-# 答不出叶子的容器
+# 给不了叶子的容器
 NO_LEAF_CASES = [
     ("answer_a_list", "a list"),
     ("answer_a_tuple", "a tuple"),
@@ -139,7 +139,7 @@ def _written_as_ret(tmp: Path):
         labelled(interpret(_case(name), environ), "cannot compute",
                  f"__impl__ written as {label} -> VibaProgramErr")
 
-    # 写下来的和值是 viba 数据：没答的那几支留下的都是 never
+    # 写下来的和值是 viba 数据：没给出的那几支留下的都是 never
     result = interpret(_case("written_sum"), environ)
     check(isinstance(result, Ok),
           f"__impl__ written as a sum is viba data, not an error: {result!r}")
@@ -228,7 +228,7 @@ def _crossing_the_host_boundary(tmp: Path):
           f"and what it holds is that name: {result.ok_value.data!r}")
     host.get_func = original
 
-    # 宿主自己说"不是我的事"：get_func 抛递延，等于回答递延
+    # 宿主自己说"不是我的事"：get_func 抛递延，等于给出递延
     host.knobs["refuse"] = ("twice",)
     checks.deferred(interpret(higher, environ),
                     "a get_func that refuses the call")

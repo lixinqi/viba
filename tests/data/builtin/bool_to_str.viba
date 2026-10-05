@@ -1,4 +1,4 @@
-# bool_to_str —— true 答 "true"，false 答 "false"
+# bool_to_str —— true 得 "true"，false 得 "false"
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

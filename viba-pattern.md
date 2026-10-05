@@ -1,6 +1,6 @@
-# 模式：一个泛型是一个目录，某个文件给出答案
+# 模式：一个泛型是一个目录，某个文件给出结果
 
-泛型不是一份带形参的定义，而是一组**文件**：每一个文件说"实参长这样的时候，答案是这个"。
+泛型不是一份带形参的定义，而是一组**文件**：每一个文件说"实参长这样的时候，结果是这个"。
 调用方把实参写在方括号里（`is_base_type[bool]`），**决断**是一个静态动作 ——
 它只看写下来的那几个实参，不看程序跑到哪儿了。
 
@@ -43,7 +43,7 @@ demo/is_base_type/2_250.viba            同一份东西的另一种写法：读�
 它不能写 `pattern`：`pattern` 只写在模式文件里，而模式文件的名字是一个数字
 （第 2 节）。它不是模块，也不是模式文件 —— 它是一个目录的标记。
 
-## 2. 一个模式文件：`pattern` 与它答的那个成员
+## 2. 一个模式文件：`pattern` 与它给出的那个成员
 
 一个模式文件按顺序写若干行 `pattern`，**每个形参一行**：
 
@@ -122,7 +122,7 @@ type = A
 `is_closure` 与 `unclosure` 就是两个这样的泛型
 （[`viba/builtin/is_closure/`](viba/builtin/is_closure/1_100.viba)、
 [`viba/builtin/unclosure/`](viba/builtin/unclosure/1_100.viba)）：各写 1..16 段的 16 个文件，
-前者答 `value`（`true` / `false`，16 段以上落到最后那份兜底），后者答 `f`（链头那条 api）与
+前者给出 `value`（`true` / `false`，16 段以上落到最后那份兜底），后者给出 `f`（链头那条 api）与
 `captured`（收下的那些实参合成的一份积）。内建的 `sequential` 也是这么分的：它的
 [`sequential_step/`](viba/builtin/sequential_step/1_200.viba) 认一步那次调用（带 1..16 个 tag 实参
 各一份），[`sequential_arg/`](viba/builtin/sequential_arg/100.viba)
@@ -147,7 +147,7 @@ type = A
 写明。也正因为裸名字带着 tag，拿两个形参去拼同一个积时同一个 tag 撞上第二次会当场报错
 （`the tag $a is written twice in one product`）：那本来就是写错的设计，要改名就用第三行那种写法。
 
-成员的名字由这份文件自己起：**答的是一份类型就叫 `type`，是一份值就叫 `value`**（跟 C++ 模板的
+成员的名字由这份文件自己起：**给出的是一份类型就叫 `type`，是一份值就叫 `value`**（跟 C++ 模板的
 `::type` / `::value` 一回事），调用方照名字取 —— `ret_type_of[int <- int].type` 是 `int`，
 `is_base_type[bool].value` 是 `true`。泛型特化文件**不是函数**，所以它们不写 `__decl__`：
 `__decl__` 只属于"这个模块要当函数"的那种文件。
@@ -162,22 +162,22 @@ type = A
 [`decl_pair_of_a_module.viba`](tests/data/pattern/decl_pair_of_a_module.viba)）。模块没有 `__decl__`
 就是没有函数签名，这种模式没有东西可拆。
 
-这个文件答的是**它自己那个模块**（模块语义）：决断选中谁，调用方就在谁身上按名字取一个成员，形参名换成实参里对应的
+这个文件给出的是**它自己那个模块**（模块语义）：决断选中谁，调用方就在谁身上按名字取一个成员，形参名换成实参里对应的
 那一部分。它可以是任何类型：
 
 ```viba
 pattern list[A]
-type = A                        # 答萃取到的那一个类型
+type = A                        # 给出萃取到的那一个类型
 ```
 
 ```viba
 pattern A <- B <- C
-type = (A, B)                   # 答一个元组类型
+type = (A, B)                   # 给出一个元组类型
 ```
 
 ```viba
 pattern A
-type = (int <- $env Env <- int)   # 答一个函数类型（带环境的那个写法也照写）
+type = (int <- $env Env <- int)   # 给出一个函数类型（带环境的那个写法也照写）
 ```
 
 函数类型照平时的两种读法：
@@ -215,7 +215,7 @@ __impl__ =
 （[`viba/apply_impl/`](viba/apply_impl)），所以调用方不用写实参个数。
 
 **环境不必是一个参数**：`$env Env` 可以不写，环境由调用方单独给一个 `<<`。这时环境不进门：模块体
-取不到 `args.env`（写它是程序错），环境只用来跑这次调用，再缀在这次调用答出来的那次调用末尾。
+取不到 `args.env`（写它是程序错），环境只用来跑这次调用，再缀在这次调用返回的那次调用末尾。
 `apply << f << args` 只是把这两件收下（这时它还是个闭包），给了环境才跑：
 
 ```viba
@@ -230,8 +230,8 @@ __impl__ = wrapper << add2 << $b 1 << args.env     # 3
 它们的。
 
 `add2` 是给过 `$a 2` 的那次调用，还欠 `$b` 和环境；`wrapper` 把函数与积交给 `apply`，`apply` 跑出
-`add2 << $b 1`，环境再缀到这次调用的末尾，于是它凑齐了。答出一层缀一次：`wrapper` 答出来的那次调用、
-`apply` 答出来的那次调用、`apply_impl` 答出来的那次调用，一层层往后递，直到落进函数自己的 `$env Env`
+`add2 << $b 1`，环境再缀到这次调用的末尾，于是它凑齐了。每返回一层就缀一次：`wrapper` 返回的那次调用、
+`apply` 返回的那次调用、`apply_impl` 返回的那次调用，一层层往后递，直到落进函数自己的 `$env Env`
 那一位。
 
 给实参要写出它落在哪个 tag 上（`$a 2`）：不写 tag 的实参按位置落到函数自己的参数上，环境不占位置
@@ -254,7 +254,7 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 `__decl__` 里带 `$env Env`、文件里写了 `__impl__`（有签名才算函数），那么这次应用**就是它这一次模块调用** —— 环境与
 实参按它的 `__decl__` 给（调用方给环境，欠着的实参接着给），活由它自己的 `__impl__` 算，宿主不必
 按泛型的名字另找一份实现。它跑在自己的**子环境**里，那一层的名字就是这份文件的**数字**
-（`100.viba` 跑在 `…/100` 下），所以一次调用的地址仍然写得下来、复现得了，调用方不必自己再包
+（`100.viba` 跑在 `…/100` 下），所以一次调用的数据路径仍然写得下来、复现得了，调用方不必自己再包
 一层。成员是个函数链、又写在链头时，它就是那一次调用，跑起来由宿主按**泛型自己的名字**实现。
 
 模式文件里的其它定义跟别的文件一样，是按需求值的**绑定**（binding）：被用到的时候才求值，求一次
@@ -269,11 +269,11 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 `Y.viba`、`y_helper.viba` 与 `apply.viba`、`apply_impl/` 就住在包的内建目录里（`viba/`，
 `builtin.viba` 旁边），那里是搜索路径的最后一站，所以写 `Y << …` 就拿到 `Y`（`import Y` 也行），谁也不必把包的
 目录写进 `viba_path`（`viba-interpreter.md`）。Y 与 y_helper 都是**普通模块**，都不写 `pattern`，
-都写 `$env Env`：给环境就是执行，所以每一层的地址由调用方写下来 —— 主文件写
+都写 `$env Env`：给环境就是执行，所以每一层的数据路径由调用方写下来 —— 主文件写
 `args.env.sub_env << args.env << "Y"`，`Y.viba` 给 helper 写 `"y_helper"`，步文件往下调时写
 `"low"` 那样的名字。步自己那一层只是名字的出处：`y_helper` 用 `convert_sub_to_sibling` 把它的
-地址压成 workspace 旁边的一个名字（`{workspace 的路径}_{sha1(那一层地址)}`），于是往下多少层，
-地址都只有一个哈希那么长；`caller_workspace_relative_path` 每层原样往下传，压掉的原地址记在
+数据路径压成 workspace 旁边的一个名字（`{workspace 的路径}_{sha1(那一层数据路径)}`），于是往下多少层，
+数据路径都只有一个哈希那么长；`caller_workspace_relative_path` 每层原样往下传，压掉的原数据路径记在
 压出来那一层的 `uncompress_relative_path` 上（`viba-interpreter.md`）。
 `Y << f` 就是那一步的不动点（`y_helper << $f f << $y_helper y_helper`），
 `y_helper` 是自应用那一步 —— 它给这一步的是"上一步拿到的自己"，也就是下一次 `y_helper` 调用。
@@ -284,7 +284,7 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 
 ## 3. 符号写在字符串里：`tagged`
 
-tag 是地址（`$a`），设计里写的就是它，所以一个只作为**字符串**存在的名字没有地方放。`tagged`
+tag 是数据路径（`$a`），设计里写的就是它，所以一个只作为**字符串**存在的名字没有地方放。`tagged`
 就是那个地方 —— 它是内建的，收一个符号，或者一个符号加一个类型：
 
 ```viba
@@ -312,10 +312,10 @@ __impl__ = tagged["hello"] << persion        # 就是 $hello << persion
 # demo/arg_name_of/100.viba
 pattern tagged[arg_name, T]
 
-value = arg_name                # 答 "a"
+value = arg_name                # 给出 "a"
 ```
 
-于是 `arg_name_of[$a int]` 答字符串 `"a"`：**一个 tag 的名字可以当值用**。反过来，决断把这个字符串
+于是 `arg_name_of[$a int]` 给出字符串 `"a"`：**一个 tag 的名字可以当值用**。反过来，决断把这个字符串
 交给这个成员，它就用同一个 tag 建回来：
 
 ```viba
@@ -340,7 +340,7 @@ type = tagged[arg_name, T]           # 又建回 `$a int`
 - 所有文件的行数都与实参个数不同，直接报错（`generic 'x' takes 2 parameters, not 1`）；
 - 没有任何文件命中，直接报错（`no pattern of 'x' matches [bool]: the decision failed`）。
 
-**决断失败是程序错误**，不是 `never`，也不是 `false`：一个没有答案的泛型应用是写错的设计。
+**决断失败是程序错误**，不是 `never`，也不是 `false`：一个决断没有结果的泛型应用是写错的设计。
 
 ### 4.1 名字上写的份数：事先分好的桶
 
@@ -416,7 +416,7 @@ A | B | C` 在 `int | str` 上读两份，在 `int | str | bool` 上读三份，
   绑定到实参里的对应部分。所以 `element_type_of[dict[int, str]]` 是 `(int, str)`，
   `ret_type_of[int <- int]` 是 `int`。
 - **计算层**（`viba.interpret`）：选中文件的这一次激活带着这些绑定，那个成员就在那个激活里
-  求值 —— 写下来是 `true` 就答 `true`，写下来是 `A` 就把萃取到的那份交回去。求值按平时
+  求值 —— 写下来是 `true` 就给出 `true`，写下来是 `A` 就把萃取到的那份交回去。求值按平时
   的规矩走：`int` 这个名字在值的位置上仍然不是值，`(int, str)` 是元组数据。选中的文件写了
   `__impl__` 时，这一层读的就是**它那一次模块调用**（见第 2 节末）。
 - **完整性**（`viba.is_complete`）：看完整性的那一遍按同样一次决断往下走；决断失败就是
@@ -469,7 +469,7 @@ A | B | C` 在 `int | str` 上读两份，在 `int | str | bool` 上读三份，
    __impl__ = $a is_positive[int] * $b is_positive[str]
    ```
 
-`is_positive[int]` 命中 `100.viba`，答 `true`；`is_positive[str]` 落到 `200.viba`，答 `false`。
+`is_positive[int]` 命中 `100.viba`，给出 `true`；`is_positive[str]` 落到 `200.viba`，给出 `false`。
 
 再看一份：数写下来的那个应用带几个实参。结构写在模式里，顺序从具体到宽松，数字也不要求连续：
 
@@ -534,7 +534,7 @@ Two = num_variadic_args[bool, str]           # 2
 | `viba/is_sub_type.py` | 应用在判定里展开（`env_get` 绑定形参） |
 | `viba/viba_type_descriptor.py` | 描述符池把 `名字.数字` 那几个文件合成一个泛型 |
 | `viba/reflect.py` | 按类型读实例时，泛型应用先决断再展开 |
-| `viba/interpret.py` | 目录当模块导入、应用求值（函数链的答案就是那次调用）、`list_files` 这个取目录内容的钩子 |
+| `viba/interpret.py` | 目录当模块导入、应用求值（函数链的结果就是那次调用）、`list_files` 这个取目录内容的钩子 |
 | `viba/is_complete.py` | 完整性按决断往下走 |
 | `viba/viba_ast/tagged.py` | `tagged`：符号写在字符串里的读法，写下来的字符串在这里折成 tag |
 | `tests/test_pattern.py` + `tests/data/pattern/` | 本文的例子与全部报错 |

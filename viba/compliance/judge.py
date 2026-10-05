@@ -113,7 +113,7 @@ def measure(environ: Environment, name: str, call, compute, evidence: Environmen
     """The measured value of the prepared call `name`.
 
     `environ` is the environment the call runs under: any environment does, a
-    temporary one included, because a call has no address of its own. `evidence`
+    temporary one included, because a call has no storage path of its own. `evidence`
     is the environment the Prepare belongs to — the case's, whose path is stable
     — and without it the Prepare goes under the call's path, where a temporary
     one can never be found again.

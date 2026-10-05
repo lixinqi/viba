@@ -1,4 +1,4 @@
-# ne —— 3 不等于 4 答 true，3 不等于 3 答 false
+# ne —— 3 不等于 4 得 true，3 不等于 3 得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

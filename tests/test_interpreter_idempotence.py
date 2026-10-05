@@ -1,6 +1,6 @@
 """幂等：结果要能回放，不纯的宿主函数靠 EnvironmentStorage 的快照做到这一点。
 
-一次运行的结果可回放，靠的是同一条 storage 路径上留着上一次的值。快照是序列化的 viba 数据，
+一次运行的结果可回放，靠的是同一条数据路径上留着上一次的值。快照是序列化的 viba 数据，
 放在 `store_root_dir` 底下；`tmp_env` 的路径每次都不同，所以挂在它底下的调用回放不到——
 这不是缺陷，而是"这个函数需要显名保存"的信号。
 
@@ -119,7 +119,7 @@ def _store_text(tmp: Path):
           reflect_access.leaf(again.by_tag("b")).ok_value == "x",
           f"a viba data goes out and comes back: {again!r}")
 
-    # 快照坏了：宿主抛，interpret 答 VibaProgramErr，不是崩
+    # 快照坏了：宿主抛，interpret 给出 VibaProgramErr，不是崩
     broken = fresh_environ()
     broken.storage.write_text(snapshot_path(broken, "roll-1"), "value = (")
     checks.failed(interpret(source, broken), "raised", "a snapshot that does not parse")

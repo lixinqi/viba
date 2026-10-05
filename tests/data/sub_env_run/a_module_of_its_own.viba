@@ -6,6 +6,6 @@ __decl__ =
 args = __get_args__ << __decl__
 
 sub_env_run =
-    int <- $env Env <- { 本模块自己的 sub_env_run：答 1 }
+    int <- $env Env <- { 本模块自己的 sub_env_run：给出 1 }
 
 __impl__ = sub_env_run << $env args.env

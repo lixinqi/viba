@@ -1,4 +1,4 @@
-# rem_f —— 5.5 除以 2.0 的余数答 1.5
+# rem_f —— 5.5 除以 2.0 的余数得 1.5
 __decl__ = float <- $env Env
 
 args = __get_args__ << __decl__

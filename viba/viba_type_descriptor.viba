@@ -26,7 +26,7 @@ import viba.type as type
 VibaFileDescriptor =
     Object
   * $pool VibaPool                              # the descriptor pool this one belongs to
-  * $file_name str                              # the file's identity (its path)
+  * $file_name str                              # the path the file was read from
   * $file_hash str                              # hash of the source text: which version of the design this is
   * $module_name str                            # given by the caller: a .viba file declares no package
   * $imports list[VibaImportDescriptor]

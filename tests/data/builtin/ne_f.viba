@@ -1,4 +1,4 @@
-# ne_f —— 1.0 不等于 2.0 答 true，1.0 不等于 1.0 答 false
+# ne_f —— 1.0 不等于 2.0 得 true，1.0 不等于 1.0 得 false
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

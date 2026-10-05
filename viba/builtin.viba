@@ -15,15 +15,15 @@
 #
 # The members below walk the chain a child belongs to: `$get_root` is the
 # environment at the top of it (`nil` in, `nil` out), and `$get_relative_path` is
-# an address seen from a root (`"b"` for `root/a/b` seen from `root/a`).
+# a storage path seen from a root (`"b"` for `root/a/b` seen from `root/a`).
 # `$find_by_relative_path` is the way back: a relative path and the root to read
 # it from, and with no root it searches from the environment it was read off,
 # which is what `args.env.find_by_relative_path << "a/b"` means.
-# `$convert_sub_to_sibling` is what keeps a recursion's addresses short: given a
-# directory and an address that begins with its path at a name boundary (a
-# directory below it, or one already pressed from it), it answers the address that
-# one stands for, compressed into a single name beside the given directory —
-# `<that path>_<40 hex digits>` — and writes the address it compressed into the
+# `$convert_sub_to_sibling` is what keeps a recursion's paths short: given a
+# directory and a path that begins with its own at a name boundary (a directory
+# below it, or one already pressed from it), it answers the path that one stands
+# for, compressed into a single name beside the given directory —
+# `<that path>_<40 hex digits>` — and writes the path it compressed into the
 # answer's `uncompress_relative_path` (`nil` for every other environment).
 Environment =
     Object

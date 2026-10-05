@@ -1,4 +1,4 @@
-# main_three_args.viba —— 要跑的是 Y Three 3 4 5，该答 12
+# main_three_args.viba —— 要跑的是 Y Three 3 4 5，该得 12
 #
 # 别名同样不叫 `F`：`Y << Three` 收下的是那个模块本身，与它叫什么名字无关。
 __decl__ =

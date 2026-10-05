@@ -19,11 +19,11 @@
     cycle     跨文件绕回去：`left.x -> right.y -> left.x: the run came back to where it started`
     in-file   一份文件里的定义绕回自己
     running   模块调用成环：`module 'left_x' is already running: a module call cycle`
-    closure   Ok，答的是一个还没给环境的调用
-    never     Ok，答案是 never
-    sum       Ok，答案是几支并起来的和
-    product   Ok，答案是积
-    name      Ok，答案是写下来的那个名字
+    closure   Ok，给出的是一个还没给环境的调用
+    never     Ok，结果是 never
+    sum       Ok，结果是几支并起来的和
+    product   Ok，结果是积
+    name      Ok，结果是写下来的那个名字
     error     VibaProgramErr，话里含这个片段
 """
 

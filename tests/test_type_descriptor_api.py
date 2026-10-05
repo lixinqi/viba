@@ -158,7 +158,7 @@ def _check_unit_heads():
 def _check_errors():
     """反例：重名文件、重名全名、模块名撞车、import 指向的模块不在池子里。"""
     pool = load("errors", [("amb_a.viba", "err.amb"), ("amb_b.viba", "err.amb")])
-    # 同一个模块名由两份文件供着：环境答不了
+    # 同一个模块名由两份文件供着：环境给不了
     assert isinstance(pool.module_environment("err.amb"), VibaProgramErr)
     assert isinstance(pool.module_environment("err.missing"), VibaProgramErr)
 
@@ -192,7 +192,7 @@ def _check_errors():
                 "X[K, set] = K\n",
                 "X[dict, K] = K\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "literal.viba", "literal"), VibaProgramErr), bad
-    # 环境不是答案：只有内建函数能把它声明成返回值，模块里写的函数一概不行
+    # 环境不是结果：只有内建函数能把它声明成返回值，模块里写的函数一概不行
     for bad in ("f =\n    Env\n  <- $env Env\nX = f << $env Env\n",
                 "env_of =\n    Environment\n  <- $env Env\nX = env_of << $env Environment\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "env.viba", "env"),
@@ -260,7 +260,7 @@ def _check_errors():
 
 
 def _check_reprs():
-    """描述符的 repr：调试和 diff 都要用，所以既说得出是什么，也不能带地址。"""
+    """描述符的 repr：调试和 diff 都要用，所以既说得出是什么，也不能带数据路径。"""
     pool = load("members", [("members.viba", "members")])
     assert repr(pool) == "VibaPool(1 files)"
     definition = pool_find_definition(pool, "members.Members").ok_value
