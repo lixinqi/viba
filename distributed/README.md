@@ -57,22 +57,26 @@ python3 -m some.package.service_a --store /tmp/store --phase answer|run \
 Either way the process prints one JSON line, which is its report:
 
 ```json
-{"service": "a", "phase": "run", "result": "not_my_duty", "path": "root/c1",
- "func_name": "b_step", "reason": "no implementation", "api": [],
- "prepare": "value =\n  $call 9\n  * $measured nil\n"}
+{"service": "a", "phase": "run", "api": [{"path": "root/c0", "computed": true, "value": 9}],
+ "result": "not_my_duty", "reason": "no implementation", "path": "root/c1",
+ "func_name": "b_step", "prepare": "value =\n  $call 9\n  * $measured nil\n"}
 ```
 
 A module serves a service by naming its api — a function from a `Service` to
 `{func_name: implementation}`, where an implementation takes the environment and one value
 per argument of the call (`(environ, x)`, `(environ, x, y)`, …) and answers one result.
-`demo/distributed/naive/service_a.py` is one, in full:
+`demo/distributed/naive/service_a.py` is one; everything in it but the imports and the
+docstring:
 
 ```python
 def the_api(service):
     def a_step(environ, x):
         return service.recorded(environ, lambda: int(x.value) + random.randrange(1, 10))
 
-    return {"a_step": a_step}
+    def a_scale(environ, x):
+        return service.recorded(environ, lambda: int(x.value) * random.randrange(2, 5))
+
+    return {"a_step": a_step, "a_scale": a_scale}
 
 
 def main(argv=None) -> int:
@@ -148,27 +152,36 @@ value =
   * $measured nil  # the result, not computed yet
 ```
 
-Each part carries half, so four things have their place:
+Each part carries half, so five things have their place:
 
 | What you want to know | Where it is |
 |---|---|
 | which step | the storage path: the `<storage path>` piece (the `$step.module_path`) |
 | which api | the storage path: the file name `<api>` (the `$step.func_name`) |
 | what it was given | the viba code: `$call` (already a value) |
-| what is still missing | the viba code: the nil `$measured` |
+| what is still missing | the viba code: the nil `$measured`; and the result file under that storage path, `<storage path>/value.viba` |
+| where the result goes | `<storage path>/value.viba` under the same storage path — the file `replayed` reads and writes |
 
-Those two parts together are the **viba work order**, and what makes it one rather than a
-note that something failed is that it is self-contained and written under its own path: so
-whoever has `<api>` in its capability table can take it, compute the result from `$call`,
-and write it back — without knowing anything else about the run. No execution state
-travels; the file in the store is the whole of it. A service fills it in through
-`measure`, which records the result in `$measured` (and `replayed` records it at
-`<storage path>/value.viba`).
+Those two parts together are the **viba work order**: whoever has `<api>` in its capability
+table can take it, compute the result from `$call`, and write it back without knowing
+anything else about the run — the argument comes from the work order, and where the result
+goes is the work order's own storage path. What a run reads is the result file there,
+`<storage path>/value.viba` (`replayed`'s file; the name is viba's own snapshot convention,
+see [`viba-interpreter.md`](../viba-interpreter.md)). The answer phase writes the same
+result into the work order's `$measured` as well (`measure` does) — that is its own record:
+the next answer phase replays it instead of computing the step again. No execution state
+travels; the files in the store are the whole of it.
 
 Both services read and write one store at the same time, so a snapshot is written whole
 or not at all (it is written beside the path and renamed onto it — see
 [`viba-interpreter.md`](../viba-interpreter.md), the chapter on snapshots and replay).
 What a reader gets is either nothing yet or one complete file, never half of one.
+
+Replay has no source but the store: one step's result lands in two places
+(`<storage path>/value.viba` and the work order's `$measured`), and a run does not report
+it when they disagree — delete `value.viba` and keep a filled `$measured` and the step is
+computed again while the steps after it still replay the earlier run, so one chain mixes
+the results of two runs and the schedule still says `ok`.
 
 ## The handles
 

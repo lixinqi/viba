@@ -18,8 +18,8 @@ service processes can only take turns, and neither can finish the program alone.
 Each api file is that service's side of the design: four leaves in all, an int in and an
 int out each. `a_step` and `b_step` add an amount, `a_scale` and `b_scale` multiply by
 one, and the amount is drawn in the service that owns it. `Service.recorded` is what keeps
-the program reproducible: the drawn amount is written into the store with the result, so
-every later run replays that result.
+the program reproducible: the result is written into the store, so every later run replays
+it instead of drawing again.
 
 ## Run it
 
@@ -57,8 +57,8 @@ python3 demo/distributed/naive/test_distributed.py
 - no storage path is stopped at twice, and each api call of the chain is computed exactly
   once (the records in the store are the evidence);
 - a second schedule on the same store finishes in one round and computes nothing;
-- a call nobody implements is reported as `stuck` instead of looping, and the round cap as
-  `unfinished`.
+- a call nobody implements is reported as `stuck` instead of looping, the round cap as
+  `unfinished`, and a service that cannot start as `broken`.
 
 The store layout, the reports, and the handles are in
 [`distributed/README.md`](../../../distributed/README.md).

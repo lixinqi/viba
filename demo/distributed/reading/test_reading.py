@@ -11,7 +11,8 @@ str（`label.write`，写成文本）→ int（`length.count`，数文本多少�
 `checked`），所以五套服务里没有任何一套会走到它，store 里也不会出现 `root/spare` —— viba 只在
 有人要的时候才算一个定义。
 
-跑它的还是 `distributed` 这个包，命令只差 `--service` 的条数：
+跑它的还是 `distributed` 这个包，命令的写法与前两份一样，`--service` 的条数和
+`--store`、`--program` 的值各按这一份填：
 
     python3 -m distributed.scheduler --store <目录> --program <程序> \
         --service gauge=demo.distributed.reading.gauge \

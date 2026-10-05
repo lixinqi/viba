@@ -9,8 +9,10 @@ store the services share as viba code: a file with one definition, `value`, hold
 is filled in), written under the storage path the run stopped at
 (`<storage path>/prepare/<api>.viba`, the api it asks for being the file name).
 Anyone whose capability table has `<api>` can take the step from there and fill the
-result in; the next round a run that stopped at that storage path finds it in the
-store and goes on. Re-running is continuing.
+result in: `measure` writes it into `$measured`, and the implementation's `recorded`
+writes it under that storage path as the snapshot `replayed` reads
+(`<storage path>/value.viba`) — which is what the next round's run goes on from.
+Re-running is continuing.
 
 `Service` is one process's side of that:
 

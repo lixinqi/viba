@@ -3,8 +3,8 @@
 一份 viba 定义不写谁来实现、在哪台机器上跑（[`roadmap.md`](roadmap.md)）。同一份程序的各部分因此
 可以分在不同的进程里，各是一套服务 —— 一套服务就是一组 **api**：它实现得了的那些名字。哪一步要
 的算子只有哪一套会，这一步就在哪一套那里算。几套都行 —— 这一章的例子是两套（A 和 B，各是一个
-Python 进程）。这类程序也叫 **viba 工单** —— 它在一个进程里跑不完，而 viba 工单只有两部分：
-**viba 代码**和**数据路径**（第 3 节）。
+Python 进程）。这样的程序一个进程跑不完：它停下来欠着的每一步，都以一份 **viba 工单** 留在几套
+服务共用的 store 里，而一份工单只有两部分：**viba 代码**和**数据路径**（第 3 节）。
 
 跑这样一份程序的是 [`distributed/`](distributed/) 这个包：[`distributed/service.py`](distributed/service.py)
 是一个服务进程那一侧，[`distributed/scheduler.py`](distributed/scheduler.py) 是每一轮的调度，
@@ -12,13 +12,14 @@ Python 进程）。这类程序也叫 **viba 工单** —— 它在一个进程�
 [`demo/distributed/naive/`](demo/distributed/naive/) 里那份跑得通的程序过一遍：它是两套服务（A 和
 B，各是一个 Python 进程）共用一份 environment storage（下文只说 store）。同一个包也跑得动别的
 程序：[`demo/distributed/delivery/`](demo/distributed/delivery/) 是三套服务，
-[`demo/distributed/reading/`](demo/distributed/reading/) 是五套服务、一套一个 api，名字、类型和
-轮数都不一样，调度那条命令照旧。
+[`demo/distributed/reading/`](demo/distributed/reading/) 是五套服务、一套一个 api，名字和类型都不
+一样，调度那条命令照旧。
 
 跑它的还是 `interpret`（[`viba-interpreter.md`](viba-interpreter.md)）：类型、`__decl__`、
 `__impl__` 都没有第二套。多出来的只有一条：**谁的能力表里有这一步要的那个名字，这一步就在谁那里
 算** —— 能力表就是 `get_func` 报给解释器的那张表：这个进程实现得了哪些名字。走到哪一套服务都没
-有那个名字的一步，运行不会失败，而是停下，结果是一支**递延**（第 2 节）。
+有那个名字的一步，而 store 里也还没有这条数据路径上的结果（`<数据路径>/value.viba`，第 4 节），
+运行不会失败，而是停下，结果是一支**递延**（第 2 节）。
 
 ## 1. 同一份 viba 代码，两组 api 交替
 
@@ -87,8 +88,9 @@ def the_api(service):
 ```
 
 `recorded` 就是 `replayed`（[`viba-interpreter.md`](viba-interpreter.md)「幂等与快照：结果要能
-回放」）：第一次执行时算出结果、写进 store，之后每一次都直接回放同一份。随机抽出来的数只出现
-一次，并且写到盘上 —— 这是整份程序可复现的全部依据。
+回放」）：第一次执行时算出结果、写进 store，之后每一次都直接回放同一份。随机抽出来的那个数只用
+一次，落到盘上的是算出来的结果 —— 后面每一次运行都回放这份结果，不再抽第二次。这是整份程序可复现
+的全部依据。
 
 ## 2. 递延：停下的那一步带回来什么
 
@@ -131,12 +133,13 @@ Step =
 服务进程把这三个字段写成一行 JSON 报给调度：`service` 是哪一个服务进程报的，`phase` 是它在做工单
 还是在跑程序（第 4 节），`result` 是这一行的种类（这里是 `not_my_duty`，就是第 2 节那支递延），
 `path` 就是 `$step.module_path`，`func_name` 就是 `$step.func_name`，`reason` 就是 `$reason`，
-`prepare` 是这份递延写成文件的样子（第 3 节）：
+`prepare` 是这份递延写成文件的样子（第 3 节），`api` 是这个进程这一回经手的每一次调用
+（`recorded` 留下的记录：哪条数据路径、是算的还是回放的、结果是什么）：
 
 ```json
-{"service": "a", "phase": "run", "result": "not_my_duty", "path": "root/c1",
- "func_name": "b_step", "reason": "no implementation",
- "prepare": "value =\n  $call 9\n  * $measured nil\n"}
+{"service": "a", "phase": "run", "api": [{"path": "root/c0", "computed": true, "value": 9}],
+ "result": "not_my_duty", "reason": "no implementation", "path": "root/c1",
+ "func_name": "b_step", "prepare": "value =\n  $call 9\n  * $measured nil\n"}
 ```
 
 ## 3. viba 代码加数据路径
@@ -155,26 +158,33 @@ value =
   * $measured nil  # 结果还没算出来
 ```
 
-两部分各管一半，四件事因此各归各位：
+两部分各管一半，五件事因此各归各位：
 
 | 想知道什么 | 在哪 |
 |---|---|
 | 哪一步 | 数据路径：那一段 `<数据路径>`（就是 `$step.module_path`） |
 | 要哪个名字 | 数据路径：文件名 `<api>`（就是 `$step.func_name`） |
 | 它收到了什么 | viba 代码里的 `$call`（已经是算好的值） |
-| 还缺什么 | viba 代码里那个还是 `nil` 的 `$measured` |
+| 还缺什么 | viba 代码里那个还是 `nil` 的 `$measured`，以及这条数据路径上还没有的结果文件 `<数据路径>/value.viba` |
+| 结果落在哪 | 同一条数据路径下的 `<数据路径>/value.viba`，`replayed` 读写的文件（第 4 节） |
 
 这两部分合起来，就是 **viba 工单**（work order），它是自足的：人、另一个进程、另一门语言，谁都
-只靠这两部分就能接手 —— 能力表里有 `<api>` 的那个服务进程按 `$call` 算出结果、填回 `$measured`
-就完事，不必知道这次运行的其他任何情况。执行状态也没有跟着搬过来：continuation 没有被捕获，它就
-在盘上（[`roadmap.md`](roadmap.md) 第 3 节）。谁的能力表里有 `<api>`，谁就接下这一步，把它完成。
+只靠这两部分就能把这一步算完 —— 数据路径说有哪一步、要哪个名字，`$call` 说这一步拿到了什么，
+能力表里有 `<api>` 的那个服务进程据此算出结果，把结果落到同一条数据路径下 `replayed` 读的那份
+文件上（`<数据路径>/value.viba`，文件名是 viba 自己的约定，见
+[`viba-interpreter.md`](viba-interpreter.md)「幂等与快照：结果要能回放」），不必知道这次运行的
+其他任何情况。补账那一侧算完还会把同一份结果填回工单的 `$measured`（`measure` 干的）：那是它
+自己的记录，下一轮凭它知道这份工单已经补过，不会再算一遍（第 4 节）。执行状态也没有跟着搬过来：
+continuation 没有被捕获，它就在盘上（[`roadmap.md`](roadmap.md) 第 3 节）。谁的能力表里有
+`<api>`，谁就接下这一步，把它完成。
 
 环境不随 `$call` 走这一点，正是"每门语言各有自己的 `interpret`"的意思（[`roadmap.md`](roadmap.md)
 第 4 节）：环境是局部的，写进 store 的只有实例。
 
-这份程序在一轮里跑不完：它欠着的那几步就在 store 里的 `<数据路径>/prepare/<api>.viba`，缺的正是
-`$measured`。谁补上自己名下的那几份，整份程序就往前走一步；全补上，整份程序就有了结果。它因此也
-叫 **viba 工单** —— 它此刻的状态，就是那几份 viba 代码加它们各自的数据路径，不是一次失败的记录。
+这份程序在一轮里跑不完：它欠着的那几步就在 store 里的 `<数据路径>/prepare/<api>.viba`，`$measured`
+还是 `nil`，那条数据路径下也还没有 `value.viba`。谁补上自己名下的那几份 —— 按 `$call` 算出结果、
+落到那条数据路径下 —— 整份程序就往前走一步；全补上，整份程序就有了结果。整份程序此刻的状态，
+就是那几份 viba 代码加它们各自的数据路径，不是一次失败的记录。
 
 ## 4. 一轮：欠着的先补上，再跑
 
@@ -193,9 +203,10 @@ value =
 - **这一轮的记录**：`failure/round-<k>.viba`，写着这一轮 A 和 B 各停在哪一步（`$module_path`、
   `$func_name`、`$reason`），以及上面那份文件在哪。
 
-下一轮读这些 `prepare/` 就是在补上一轮欠的：已经填好 `$measured` 的直接回放，还没算的现在算，结果填
-回 `$measured`。结果本身写在这次调用自己的数据路径下（`<数据路径>/value.viba`），那正是 `replayed`
-读写的文件 —— 于是**停下过的运行再跑一遍时直接回放，接着跑下去**。
+下一轮读这些 `prepare/` 就是在补上一轮欠的：工单里已经填好 `$measured` 的照它回放，还没填的现在
+按 `$call` 算。算出的结果落在这次调用自己的数据路径下（`<数据路径>/value.viba`），那正是
+`replayed` 读写的文件；同一份结果也填进工单的 `$measured`（`measure` 干的），那是补账这一侧的
+记录，下一轮凭它知道这份工单已经补过 —— 于是**停下过的运行再跑一遍时直接回放，接着跑下去**。
 
 store 里因此留着一次运行已经算过的每一步：`root/c0/value.viba` 里有结果，这一步就既不用再问 A，
 也不用再问 B。
@@ -203,6 +214,10 @@ store 里因此留着一次运行已经算过的每一步：`root/c0/value.viba`
 一份 store 同时被各套服务的进程读写，所以写出的文件是一次写完整的（先写在旁边，再改名：
 [`viba-interpreter.md`](viba-interpreter.md)「幂等与快照：结果要能回放」）。读到的那一份要么还
 没有，要么是完整的一份，不会是半份。
+
+回放的依据只有 store：同一步的结果落在两处（`<数据路径>/value.viba` 与工单里的 `$measured`），
+两处不一致时运行不会报错 —— 例如删掉 `value.viba` 却留着已经填好的 `$measured`，下一轮会重算这
+一步，而后面几步仍回放着上一次的结果，同一条链上因此混着两次执行的结果，调度照报 `ok`。
 
 ## 5. 预期的三件事
 
@@ -221,13 +236,16 @@ store 里因此留着一次运行已经算过的每一步：`root/c0/value.viba`
    一轮停下的数据路径，在下一轮跑之前一定已经补上，所以再跑到那里就直接回放，不会再停。停下的
    数据路径因此一次比一次靠后，只增不减。两套服务的进程是同时跑的，一轮能往前走多远看它们怎么错开
    —— 它有时一轮就走完，有时要三轮 —— 但不会退回去。
-3. **不会死循环**。轮数有上限（`--rounds`，默认 1024），跑满就报
+3. **不会死循环，坏了就报坏**。轮数有上限（`--rounds`，默认 1024），跑满就报
    `{"outcome": "unfinished", ...}`；同一个数据路径上停第二次（说明那一份没人补）当场报
-   `{"outcome": "stuck", ...}`；一个服务进程超过 60 秒没有动静也报
-   `{"outcome": "broken", ...}`。三种都退出码 1，而不是一轮一轮等下去。
+   `{"outcome": "stuck", ...}`；一个服务进程 60 秒没退出，或者它报回来的 `result` 是 `crashed`、
+   `failed`、`program_err`（进程起不来、这一步的实现抛了异常、程序本身跑不起来），整次调度报
+   `{"outcome": "broken", ...}`。四种结局里只有 `ok` 的退出码是 0，其余三种都是 1，而不是一轮
+   一轮等下去。
 
-`demo/distributed/naive/test_distributed.py` 逐条验证这三条，另外还验证两件事：每一个不纯的步子只算
-一次（`recorded` 留下的记录就是证据），以及同一份 store 上再调度一次一轮就 OK、一步都不算。
+`demo/distributed/naive/test_distributed.py` 验证的就是这几条（`broken` 那一支用的是起不来的服务
+进程），另外还验证两件事：每一个不纯的步子只算一次（`recorded` 留下的记录就是证据），以及同一份
+store 上再调度一次一轮就 OK、一步都不算。
 
 ## 6. 自己写一份
 
@@ -247,12 +265,15 @@ store 里因此留着一次运行已经算过的每一步：`root/c0/value.viba`
    一条能跑的命令要自己写；照抄一份见 [`demo/distributed/naive/README.md`](demo/distributed/naive/README.md)
    （那里是两套服务，A 和 B）。三套服务的例子是
    [`demo/distributed/delivery/`](demo/distributed/delivery/)，五套服务、一套一个 api 的例子是
-   [`demo/distributed/reading/`](demo/distributed/reading/)；它们 README 里的命令与这一份只差
-   `--service` 的条数。
+   [`demo/distributed/reading/`](demo/distributed/reading/)；三份 README 里的命令是同一个写法，
+   只有 `--service`、`--store`、`--program` 三项各按各自的程序和服务填。
 
 实现拿到的是这次调用的一个个实参，环境排在第一位：写 `(environ, x)` 就收一个实参，写
-`(environ, x, y)` 就收两个，与运行那一侧一个实参一份的写法一致。工单里留得下的只有可序列化数据，
-所以一个实参的调用把那个值本身写成 `$call 9`，几个实参的调用把它们写成一个带 tag 的积 ——
-`$call($x 9 * $y 4)`，tag 只说这份实参去了哪个位置（见 [`viba-pattern.md`](viba-pattern.md)）。
-补上一轮欠账时按实现自己的参数个数交：一个参数就交整份 `$call`（它本身是个积也一样），几个参数就把
-积按书写次序拆开交。实参里除了环境还有别的宿主值的调用，留不了工单，补账时当场报错而不是少交一份。
+`(environ, x, y)` 就收两个。这是程序那一侧要守的写法：运行那一侧按参数写下来的次序一个一个交，
+环境交在 `$env (...)` 写的位置（[`viba-interpreter.md`](viba-interpreter.md)），补账那一侧则固定
+把环境放在第一个（[`distributed/service.py`](distributed/service.py)）—— `$env (...)` 因此要写在
+一条链的最前面。工单里留得下的只有可序列化数据，所以一个实参的调用把那个值本身写成 `$call 9`，
+几个实参的调用把它们写成一个带 tag 的积 —— `$call($x 9 * $y 4)`，tag 只说这份实参去了哪个位置
+（见 [`viba-pattern.md`](viba-pattern.md)）。补上一轮欠账时按实现自己的参数个数交：一个参数就交
+整份 `$call`（它本身是个积也一样），几个参数就把积按书写次序拆开交。实参里除了环境还有别的宿主
+值的调用，留不了工单，补账时当场报错而不是少交一份。

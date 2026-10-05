@@ -20,8 +20,8 @@
     1) 最后一轮某个进程上最终得到 OK（`{"outcome": "ok", ...}`，退出码 0）；
     2) 最后一轮之前的每一轮，两个进程都是 NotMyDuty，而且停下的数据路径从不重复 —— 前面停过的
        数据路径在下一轮开始前一定已经处理掉，所以再跑到那里只会回放，不会停第二次；
-    3) 轮数有上限（`--rounds`，默认 1024），而且「已经停过的数据路径上又停一次」当场报成失败 ——
-       不会死循环。
+    3) 轮数有上限（`--rounds`，默认 1024），「已经停过的数据路径上又停一次」当场报成失败，服务进程
+       起不来就报成 `broken` —— 不会死循环。
 
 store 由这个套件造在临时目录里；计数的 `Checks` 还是用 `tests/interpreter_support.py`
 那一套 —— 仓库里的套件都这么报数。
@@ -73,10 +73,11 @@ def run(tmp: Path):
     _the_failure_state_is_in_the_store(store, first)
     _the_store_is_the_memory(store)
     _a_schedule_that_cannot_move(tmp)
+    _a_schedule_that_breaks(tmp)
 
 
-def schedule(store: Path, *extra: str, want_ok=True):
-    """跑一次调度：它每轮各一行 JSON，最后一行是整次的结局。"""
+def run_scheduler(store: Path, *extra: str):
+    """跑一次调度：退出码、它每轮各那一行 JSON、最后那行结局。"""
     command = SCHEDULER + ["--store", str(store), "--program", PROGRAM]
     for one in SERVICES:
         command += ["--service", one]
@@ -84,17 +85,24 @@ def schedule(store: Path, *extra: str, want_ok=True):
                           capture_output=True, text=True, timeout=300)
     lines = [json.loads(line) for line in done.stdout.splitlines()
              if line.strip().startswith("{")]
-    rounds = [line for line in lines if isinstance(line, dict) and "runs" in line]
+    return {"exit": done.returncode, "stderr": done.stderr, "lines": lines,
+            "outcome": lines[-1] if lines else {},
+            "rounds": [line for line in lines
+                       if isinstance(line, dict) and "runs" in line]}
+
+
+def schedule(store: Path, *extra: str, want_ok=True):
+    """跑一次调度，并且要求它把自己报全：每轮一行，最后一行是整次的结局。"""
+    done = run_scheduler(store, *extra)
     if want_ok:
-        check(done.returncode == 0 and bool(rounds) and bool(lines),
-              f"the scheduler finishes within its rounds: exit {done.returncode}, "
-              f"{done.stderr.strip()[-400:]!r}")
+        check(done["exit"] == 0 and bool(done["rounds"]) and bool(done["lines"]),
+              f"the scheduler finishes within its rounds: exit {done['exit']}, "
+              f"{done['stderr'].strip()[-400:]!r}")
     else:
-        check(bool(rounds) and bool(lines),
-              f"the scheduler reports every round it ran: exit {done.returncode}, "
-              f"{done.stderr.strip()[-400:]!r}")
-    return {"outcome": lines[-1] if lines else {}, "rounds": rounds,
-            "exit": done.returncode}
+        check(bool(done["rounds"]) and bool(done["lines"]),
+              f"the scheduler reports every round it ran: exit {done['exit']}, "
+              f"{done['stderr'].strip()[-400:]!r}")
+    return done
 
 
 def _the_last_round_answers(scheduled):
@@ -231,6 +239,24 @@ def _a_schedule_that_cannot_move(tmp: Path):
     check(capped["outcome"].get("outcome") == "unfinished" and capped["exit"] == 1,
           f"the round cap reports a schedule that did not finish: {capped['outcome']!r}")
     check(len(capped["rounds"]) == 1, f"the cap is the rounds it ran: {capped['rounds']!r}")
+
+
+def _a_schedule_that_breaks(tmp: Path):
+    """3) 服务进程起不来就报成 `broken`，而不是一轮一轮等下去。
+
+    起不来也是一种坏：模块名给错、进程自己崩了，调度拿到的是没有那一行 JSON 的报告。这一支在打印
+    任何一轮之前就结束这次调度，所以它只留下那行结局。
+    """
+    broken = run_scheduler(tmp / "broken-store",
+                           "--service", "broken=no.such.service.module")
+    check(broken["outcome"].get("outcome") == "broken"
+          and broken["outcome"].get("round") == 1 and broken["exit"] == 1,
+          f"a service that cannot start ends the schedule: {broken['outcome']!r}")
+    check(not broken["rounds"], f"and no round is reported for it: {broken['rounds']!r}")
+    reports = broken["outcome"].get("reports") or []
+    check(bool(reports) and all(one["service"] == "broken"
+                                and one["result"] == "crashed" for one in reports),
+          f"the outcome names the service that could not start: {reports!r}")
 
 
 if __name__ == "__main__":

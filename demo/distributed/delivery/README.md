@@ -67,5 +67,5 @@ python3 demo/distributed/delivery/test_delivery.py
 - a second schedule on the same store finishes in one round and computes nothing.
 
 The store layout, the reports, the two phases of a round, and the outcome kinds are in
-[`distributed/README.md`](../../../distributed/README.md); `stuck` and `unfinished` are
-covered by the naive demo's test.
+[`distributed/README.md`](../../../distributed/README.md); `stuck`, `unfinished` and
+`broken` are covered by the naive demo's test.

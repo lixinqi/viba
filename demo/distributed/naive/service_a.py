@@ -2,9 +2,9 @@
 
 Both api are leaves with one int in and one int out, and both are impure: the
 amount they add (or multiply by) is drawn in this process, at this moment. What
-makes the program reproducible is `Service.recorded` — the drawn amount is written
-into the store with the result, so every later run, in this process or in the
-other, replays that result instead of drawing again.
+makes the program reproducible is `Service.recorded` — the result is written into
+the store, so every later run, in this process or in the other, replays it instead
+of drawing again.
 
 The scheduler starts this process; by hand it is:
 
