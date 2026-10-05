@@ -108,7 +108,8 @@ writing such a parameter belongs.
 
 A generic is a directory, and one of its files answers. The directory's basename is
 the generic's name, `__generic__.viba` marks it, and every other `.viba` file in it is
-named by its decision order — a number, read smallest first:
+named by its decision order — a number, read smallest first — with the number of parts
+that file reads written in front of it where the file pins one:
 
 ```
 demo/is_base_type/__generic__.viba      # __generic__.viba
@@ -117,6 +118,12 @@ demo/is_base_type/100.viba              pattern bool | int | float | str
 demo/is_base_type/200.viba              pattern A
                                         value = false
 ```
+
+The count in front of the order (`2_200.viba` reads two parts, order 200) is the bucket the
+decision jumps to: it counts the parts the written arguments offer and reads only the files
+whose count they can match, so a generic of many files costs one file per application
+(`viba-pattern.md` §4.1). A file that writes no count is read every time, the way every
+file was before.
 
 ```viba
 import demo.is_base_type as is_base_type
@@ -480,8 +487,8 @@ tools built on those.
 | `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …) |
 | `sub_env_run.viba` | The builtin that runs a call at a named child of an environment — `Y.viba` and `apply.viba` sit beside it |
-| `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), and the last step's answer is the answer |
-| `builtin/is_closure/`, `builtin/unclosure/` | The builtin generics over closures, one file per argument count (1..16) — whether a written call is one, and reading it apart |
+| `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), each named by the count it reads, and the last step's answer is the answer |
+| `builtin/is_closure/`, `builtin/unclosure/` | The builtin generics over closures, one file per argument count (1..16), each named by the count it reads — whether a written call is one, and reading it apart |
 | `builtin/sequential_step/`, `builtin/sequential_arg/` | How `sequential` runs one step (a call with 1..16 tagged arguments) and one argument (a variable reference, or whatever was written) |
 | `compliance/` | Rules and witnesses as programs — see `viba-compliance.md` |
 

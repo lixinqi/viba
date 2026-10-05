@@ -294,6 +294,10 @@ def _the_matcher_reads_a_call():
     if not isinstance(handed, Ok):
         return
     entry = handed.ok_value.entries[0]
+    read_once = entry.read()
+    check(isinstance(read_once, Ok), f"the pattern file is read: {read_once!r}")
+    if not isinstance(read_once, Ok):
+        return
 
     def read(text: str):
         return structural_pattern_match(entry.patterns[0], entry.module,

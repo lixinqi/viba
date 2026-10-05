@@ -49,6 +49,7 @@ chain, it is the call that chain stands for.
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -124,6 +125,8 @@ def run(scratch: Path):
     _the_judgment_reads_it()
     _the_pattern_matcher()
     _the_arity_is_the_file()
+    _a_count_is_a_bucket(scratch)
+    _every_name_says_what_it_reads()
     _the_decision_fails_loudly()
     _a_generic_is_no_module()
     _a_function_type_is_a_call()
@@ -176,12 +179,13 @@ def _what_was_extracted():
 # ----------------------------------------------------------------------
 
 
-def _environment():
-    """Module name -> module, over `tests/data/pattern/`.
+def _environment(roots=None):
+    """Module name -> module, under `roots` (the case directory by default).
 
     A name is a generic when its directory has the marker, a file otherwise:
     what `_Runner` does for a run, done here without a run.
     """
+    roots = (CASES,) if roots is None else tuple(roots)
     cache = {}
 
     def read(path):
@@ -205,16 +209,17 @@ def _environment():
     def environment(name):
         if name in cache:
             return Ok(cache[name])
-        directory = CASES.joinpath(*name.split("."))
-        if (directory / GENERIC_FILE).is_file():
-            got = load_generic(str(directory), name, read, listing, module_of)
-            if isinstance(got, VibaProgramErr):
-                return got
-            cache[name] = got.ok_value
-            return Ok(got.ok_value)
-        path = directory.with_suffix(".viba")
-        if path.is_file():
-            return module_of(str(path), name, path.read_text())
+        for root in roots:
+            directory = root.joinpath(*name.split("."))
+            if (directory / GENERIC_FILE).is_file():
+                got = load_generic(str(directory), name, read, listing, module_of)
+                if isinstance(got, VibaProgramErr):
+                    return got
+                cache[name] = got.ok_value
+                return Ok(got.ok_value)
+            path = directory.with_suffix(".viba")
+            if path.is_file():
+                return module_of(str(path), name, path.read_text())
         return VibaProgramErr(f"no module {name!r}")
 
     return environment
@@ -407,6 +412,82 @@ def _the_arity_is_the_file():
     check(isinstance(got, VibaProgramErr)
           and "takes 0, 1, 2 or 3 parameters, not 4" in got.err_msg,
           f"an arity no file declares names the counts: {got!r}")
+
+
+# ----------------------------------------------------------------------
+# The count a file name writes: the bucket the decision jumps to
+# ----------------------------------------------------------------------
+
+
+def _a_count_is_a_bucket(scratch: Path):
+    """名字上写着份数的文件：份数对不上就不读，对上了才读，读到的与名字不符当场说。
+
+    用例写进 `scratch`（临时目录）：一份编不过的文件正好试出「没读」，另一份名字与
+    `pattern` 行对不上的试出「读了就查」。
+    """
+    root = scratch / "a-count-is-a-bucket"
+    generic = root / "counted"
+    generic.mkdir(parents=True)
+    (generic / GENERIC_FILE).write_text("# __generic__.viba\n")
+    (generic / "2_200.viba").write_text("pattern A * B\n\nvalue = 2\n")
+    # 这一份编不过，而且只有摆出三份的应用才轮得到它：读到了就该报编不过
+    (generic / "3_300.viba").write_text("pattern A * B * C\n\nvalue = ((\n")
+
+    def answered(name: str, argument: str, where: Path = root):
+        case = where / f"{name}.viba"
+        case.write_text(f"import counted as counted\n\n__impl__ = counted[{argument}].value\n")
+        return interpret(str(case), Host().environ(viba_path=str(where)))
+
+    got = answered("two", "int * str")
+    check(isinstance(got, Ok) and value_of(got) == 2,
+          f"摆出两份的应用读 2_200，答 2：{got!r}")
+    got = answered("three", "int * str * bool")
+    check(isinstance(got, VibaProgramErr) and "cannot parse" in got.err_msg,
+          f"摆出三份的应用读到 3_300，当场说它编不过：{got!r}")
+
+    # 名字上写的份数与 `pattern` 行读的份数不符：读到那一份就说
+    wrong = root / "wrong"
+    wrong.mkdir()
+    (wrong / GENERIC_FILE).write_text("# __generic__.viba\n")
+    (wrong / "3_100.viba").write_text("pattern A * B\n\nvalue = 3\n")
+    (root / "wrong_case.viba").write_text(
+        "import wrong as wrong\n\n__impl__ = wrong[int * str].value\n")
+    got = interpret(str(root / "wrong_case.viba"), Host().environ(viba_path=str(root)))
+    check(isinstance(got, VibaProgramErr)
+          and "the name says the file reads 3 parts, and its `pattern` lines read 2"
+          in got.err_msg,
+          f"名字说三份、pattern 读两份：{got!r}")
+
+    # `pattern A` 那样的行读不出固定份数，名字上就不许写
+    loose = root / "loose"
+    loose.mkdir()
+    (loose / GENERIC_FILE).write_text("# __generic__.viba\n")
+    (loose / "2_100.viba").write_text("pattern A\n\nvalue = 2\n")
+    (root / "loose_case.viba").write_text(
+        "import loose as loose\n\n__impl__ = loose[int * str].value\n")
+    got = interpret(str(root / "loose_case.viba"), Host().environ(viba_path=str(root)))
+    check(isinstance(got, VibaProgramErr)
+          and "and a `pattern` line in it reads no count" in got.err_msg,
+          f"名字写了份数、pattern 读不出份数：{got!r}")
+
+
+def _every_name_says_what_it_reads():
+    """仓库里每一份模式文件：名字上写的份数与它 `pattern` 行读的份数一致。
+
+    决断读到那一份时才查这件事，所以这里自己把 `viba/` 下的泛型读一遍：哪一份的名字
+    写错了，不必等某次应用碰巧读到它。
+    """
+    root = Path(__file__).resolve().parent.parent / "viba"
+    environment = _environment((root, root / "builtin"))
+    for marker in sorted(root.rglob(GENERIC_FILE)):
+        name = ".".join(marker.parent.relative_to(root).parts)
+        handed = environment(name)
+        check(isinstance(handed, Ok), f"{name} 读得动：{handed!r}")
+        if not isinstance(handed, Ok):
+            continue
+        for entry in handed.ok_value.entries:
+            got = entry.read()
+            check(isinstance(got, Ok), f"{entry.path}：名字上写的份数对得上：{got!r}")
 
 
 # ----------------------------------------------------------------------
@@ -638,5 +719,10 @@ def _the_reflection_reads_it():
 
 
 if __name__ == "__main__":
-    run(CASES)
+    scratch = Path(tempfile.mkdtemp(prefix="viba-pattern-"))
+    try:
+        run(scratch)
+    finally:
+        for leftover in sorted(scratch.rglob("*"), reverse=True):
+            leftover.unlink() if leftover.is_file() else leftover.rmdir()
     sys.exit(checks.report())

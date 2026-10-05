@@ -304,17 +304,17 @@ def _compiled_once(tmp: Path):
 
     top = _case("top")
     parsed = []
-    original = interpreter_module.custom_module
+    original = interpreter_module.viba_ast.parse
 
     def counting(source):
         parsed.append(1)
         return original(source)
 
-    interpreter_module.custom_module = counting
+    interpreter_module.viba_ast.parse = counting
     try:
         result = interpret(top, environ)
     finally:
-        interpreter_module.custom_module = original
+        interpreter_module.viba_ast.parse = original
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"one module reached by two importers runs for both: {result!r}")
     check(len(parsed) == 4,

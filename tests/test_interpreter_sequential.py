@@ -9,9 +9,13 @@
 （`$a ($var "x")`），它们在调用跑起来之前先换成值。
 
 `sequential_impl` 按步骤数分文件（2..64 步各一份；一步没有 tag 钉住个数，按写下来的调用实参个数
-101..116 各一份），`sequential_step` 按一步那次调用的实参个数分文件（1..16），`sequential_arg`
+各一份），`sequential_step` 按一步那次调用的实参个数分文件（1..16），`sequential_arg`
 按实参的写法分文件。每一个调用都跑在自己的地址上（`step0`、`step1`、…，最后一步是 `last`，
 实参是 `arg0`、`arg1`、…）：一条 storage 路径只答一次调用。
+
+文件名前面写着这个文件读几份（`sequential_impl/2_200.viba`、`sequential_step/2_300.viba`）：
+决断先数一遍这次应用摆出来几份，只读那个份数对得上的文件，所以一条链只读它自己的那几份，
+79 份模式文件不必翻一遍（`viba-pattern.md` 第 4 节）。
 
 用例在 `tests/data/sequential/`：
 
@@ -32,9 +36,8 @@
     typed_slots.viba              变量引用落在 `$a int` 上：设计时读不出它的值，当场拒
     sixty_five_steps.viba         65 步：2..64 各一份计数文件，没有文件接
 
-除这些用例之外，`sequential_impl` 的 **1..16 步槽位**各跑一遍：各造一条链（每一步把前一步的
-答案加一，最后一步不写 tag），答步数本身。这 16 条在跑的时候写进临时目录，不在 `tests/data/`
-里；17..64 步的槽位由上面那两条用例压住（每条都要读一遍那 79 份模式文件，一代价约两秒）。
+除这些用例之外，`sequential_impl` 的 **1..64 步槽位**各跑一遍：各造一条链（每一步把前一步的
+答案加一，最后一步不写 tag），答步数本身。这些链在跑的时候写进临时目录，不在 `tests/data/` 里。
 
     python3 tests/test_interpreter_sequential.py
 """
@@ -67,10 +70,9 @@ ANSWERS = [("one_step", 3), ("two_steps", 9), ("three_steps", 8),
 # 严格次序的证据：`order.viba` 的三步互不依赖，宿主被问的次序仍是书写次序。
 ORDER = ["first", "second", "third"]
 
-# `sequential_impl` 的步数槽位：1..16 各跑一条，链长就是槽位。往上的槽位（17..64）只由
-# `seventeen_steps.viba`、`sixty_four_steps.viba` 两条用例压住 —— 每条都要读一遍那 79 份
-# 模式文件，一代价约两秒，64 条就是三分钟。
-SLOTS = 16
+# `sequential_impl` 的步数槽位：1..64 各跑一条，链长就是槽位。每一步都要读一遍自己那份模式文件，
+# 一份一代价不到一毫秒（文件名上写着份数，决断不必翻别的文件）。
+SLOTS = 64
 
 # (用例文件, 话里的片段)：设计层与决定层的拒绝
 RECORDED = [("a_missing_variable", "no member tagged '$nope'"),
@@ -153,12 +155,10 @@ def _a_chain_of(n: int) -> str:
 
 
 def _every_slot(tmp: Path):
-    """`sequential_impl` 的 1..16 步槽位各跑一遍：各造一条链，答步数本身。
+    """`sequential_impl` 的 1..64 步槽位各跑一遍：各造一条链，答步数本身。
 
     造出来的链写进临时目录，不进 `tests/data/`。每一步都是一次调用（除最后一步外都带 tag），
-    所以这一轮同时压到 101..116（一步的各种调用实参个数）与 200..1600（2..16 步）两份特化。
-    17..64 步的槽位由 `seventeen_steps.viba`、`sixty_four_steps.viba` 压住：每跑一条都要读
-    一遍那 79 份模式文件，一代价约两秒。
+    所以这一轮同时压到一步那些文件（一步的调用有几个实参就读几份的那几份）与 2..64 步各一份。
     """
     cases = tmp / "slots"
     cases.mkdir(parents=True, exist_ok=True)

@@ -18,12 +18,14 @@ Flag = is_base_type[bool]          # true
 
 - 它放在一个目录里，**目录名就是泛型名**；
 - 目录下必须有标记文件 `__generic__.viba`；
-- 其余 `.viba` 文件每一个都是一个模式，**文件名是数字**，那个数字就是它的决断顺序。
+- 其余 `.viba` 文件每一个都是一个模式，**文件名是它的决断顺序**（一个数字），数字前面还可以写上
+  这一份**读几份**（第 4.1 节）。
 
 ```
 demo/is_base_type/__generic__.viba      标记：这个目录是一个泛型
 demo/is_base_type/100.viba              pattern bool | int | float | str
 demo/is_base_type/200.viba              pattern A
+demo/is_base_type/2_250.viba            同一份东西的另一种写法：读两份，决断顺序 250
 ```
 
 `import demo.is_base_type as is_base_type` 找到的是那个**目录**：找模块的地方按顺序试
@@ -38,7 +40,7 @@ demo/is_base_type/200.viba              pattern A
 # __generic__.viba
 ```
 
-它不能写 `pattern`：`pattern` 只写在模式文件里，而模式文件的名字是数字
+它不能写 `pattern`：`pattern` 只写在模式文件里，而模式文件的名字是一个数字
 （第 2 节）。它不是模块，也不是模式文件 —— 它是一个目录的标记。
 
 ## 2. 一个模式文件：`pattern` 与它答的那个成员
@@ -118,16 +120,17 @@ type = A
   同一个意思也可以写 `tagged[x, F << A]`。
 
 `is_closure` 与 `unclosure` 就是两个这样的泛型
-（[`viba/builtin/is_closure/`](viba/builtin/is_closure/100.viba)、
-[`viba/builtin/unclosure/`](viba/builtin/unclosure/100.viba)）：各写 1..16 段的 16 个文件，
+（[`viba/builtin/is_closure/`](viba/builtin/is_closure/1_100.viba)、
+[`viba/builtin/unclosure/`](viba/builtin/unclosure/1_100.viba)）：各写 1..16 段的 16 个文件，
 前者答 `value`（`true` / `false`，16 段以上落到最后那份兜底），后者答 `f`（链头那条 api）与
 `captured`（收下的那些实参合成的一份积）。内建的 `sequential` 也是这么分的：它的
-[`sequential_step/`](viba/builtin/sequential_step/200.viba) 认一步那次调用（带 1..16 个 tag 实参
+[`sequential_step/`](viba/builtin/sequential_step/1_200.viba) 认一步那次调用（带 1..16 个 tag 实参
 各一份），[`sequential_arg/`](viba/builtin/sequential_arg/100.viba)
 认一个实参（一次变量引用，或者照写的任何一份），
-[`viba/sequential_impl/`](viba/sequential_impl/200.viba) 按步骤数各一份（2..64；一步没有 tag 钉住
-个数，按写下来的调用实参个数各一份，编号 101..116）
-（[`viba-interpreter.md`](viba-interpreter.md)）。
+[`viba/sequential_impl/`](viba/sequential_impl/2_200.viba) 按步骤数各一份（2..64；一步没有 tag 钉住
+个数，按写下来的调用实参个数各一份）
+（[`viba-interpreter.md`](viba-interpreter.md)）。这几份目录里的文件名前面都写着份数
+（第 4 节），所以决断不必翻完整个目录。
 
 形参拿的是那一位**写下来的整块** —— tag 也是那一块的一部分。`pattern A <- $env Env <- B <- C`
 对着 `int <- $env Env <- $a int <- $b int` 时，`B` 是 `$a int`、`C` 是 `$b int`；这个成员
@@ -192,7 +195,7 @@ type = (int <- $env Env <- int)   # 答一个函数类型（带环境的那个�
 自己也不知道实参有几个 —— 它把那份积交给泛型 `apply_impl[args.args]`，由那份决定数出来：
 
 ```viba
-# viba/apply_impl/100.viba：积里一个成员就选这一份
+# viba/apply_impl/1_100.viba：名字上写着读一份，积里一个成员就选这一份
 pattern tagged[arg0_name, Arg0]
 
 __decl__ =
@@ -339,6 +342,53 @@ type = tagged[arg_name, T]           # 又建回 `$a int`
 
 **决断失败是程序错误**，不是 `never`，也不是 `false`：一个没有答案的泛型应用是写错的设计。
 
+### 4.1 名字上写的份数：事先分好的桶
+
+一个泛型的文件多了（`sequential_impl` 有 79 份，`apply_impl`、`is_closure`、`unclosure`、
+`sequential_step` 各 16 份），逐个编过来才认出哪一份接得住，代价就落在每次应用上。所以**文件名
+在决断顺序前面可以再写一个数：这一份读几份**（`2_200.viba` 读两份，决断顺序是 200）。决断先数
+一遍这次应用摆出来几份，只读那个份数的文件 —— 份数是事先分好的**桶**，跳到桶里就不必翻整份目录。
+
+数的是每个实参摆出来几份，再相加（一个文件几行 `pattern` 就读几个实参，所以按实参分别数）：
+
+| 实参写成 | 摆出几份 |
+|----------|----------|
+| 一次调用（`f << a << b`） | 它给的那几个实参；另外，它照 `<<` 化开之后剩下的那条链摆几份，也算 |
+| 一个积 | 成员个数 |
+| 一条链 | 位置个数 |
+| 一个元组 | 元素个数 |
+| 一个应用（`list[int]`） | 实参个数 |
+| 一个 tag（`$a int`） | 一份 |
+| 别的（一个叶子、一个和、一个名字） | 数不出来 |
+
+**数不出来就什么都不跳**：这次应用把目录里的文件都读一遍，跟没有写份数时一样。所以份数只是
+省下不必读的文件，不是必要条件 —— 名字上写了份数的文件，命中与否仍然由 `pattern` 行说了算。
+
+名字上写的份数**必须与这个文件的 `pattern` 行读的份数一致**：一个文件几行 `pattern`，各读几份
+就加几份（`pattern A * B` 读两份，`pattern F << A << B` 也读两份，`pattern A` 读不出固定份数）。
+不一致时，决断读到那一份就报错：
+
+- `…/3_100.viba: the name says the file reads 3 parts, and its `pattern` lines read 2`
+- `…/2_100.viba: the name says the file reads 2 parts, and a `pattern` line in it reads no count`
+
+份数对不上的文件这一轮不编：那一份里写错了什么（连编不过）都留着下次再说。份数对得上、或者根本
+没写份数的文件照样编，编不过当场报。目录里一份都没命中时，整个目录都会被读一遍 —— 那时份数不再
+跳过任何文件 —— 好把话说完：实参个数没有文件接就报 `takes N parameters, not M`，有文件接但都
+不命中就报 `no pattern of … matches`。
+
+```viba
+# viba/apply_impl/，名字上的份数是积的成员个数
+# 1_100.viba    pattern tagged[arg0_name, Arg0]
+# 2_200.viba    pattern tagged[arg0_name, Arg0] * tagged[arg1_name, Arg1]
+
+# viba/sequential_impl/，名字上的份数是步骤数（一步没有 tag 钉住个数，按那次调用的实参个数）
+# 2_200.viba    两步：pattern tagged[step0_name, Step0] * Last
+# 1_101.viba    一步，这次调用给了一个实参：pattern F << tagged[arg0_name, Arg0]
+```
+
+一个泛型里可以两种文件都有：写了份数的照份数跳，没写份数的每次都读（`is_closure/1700.viba`
+就是那份兜底：`pattern A` 接任何实参，所以它读不出份数，也就不写）。
+
 形参换成实参之后，实参里的名字按**调用方那份文件**算：`element_type_of[list[Local]]` 里
 `A` 换成 `Local`，`Local` 是调用方文件里的名字（那份文件里 `Local = int` 的话，`A` 就是 `int`）。
 
@@ -369,7 +419,9 @@ type = tagged[arg_name, T]           # 又建回 `$a int`
 | 写错的地方 | 报的错 |
 |------------|--------|
 | 目录里没有 `__generic__.viba` | 找不到模块（它就不是泛型） |
-| 模式文件的文件名不是数字 | `is named by its order, a number` |
+| 模式文件的文件名不是数字（也不是「份数_数字」） | `is named by its order, a number` |
+| 名字上写的份数与 `pattern` 行读的份数不符 | `the name says the file reads N parts, and its \`pattern\` lines read M` |
+| 名字上写了份数，`pattern` 行却读不出固定份数 | `the name says the file reads N parts, and a \`pattern\` line in it reads no count` |
 | 模式文件写了 `__decl__` 却不是函数链 | `__decl__ is not a function type: …` |
 | `__generic__.viba` 里写了 `pattern` | `one of the numbered files of its generic's directory` |
 | 别处的文件写了 `pattern` | 同上 |

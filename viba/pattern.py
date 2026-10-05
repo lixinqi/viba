@@ -7,13 +7,15 @@ argument, and the answer that argument asks for. Each answer is one file:
     demo/is_base_type/100.viba           pattern bool | int | float | str
     demo/is_base_type/200.viba           pattern A
 
-The file's name is a number and nothing else — its *decision order*, read
-smallest first, and it need not be contiguous. Inside, one `pattern` line
-per parameter, in written order. A name the file never defines is a parameter:
-what stands in the argument there is extracted. A known type restricts that
-argument: the argument must fit it (the judgment layer says whether it does).
-Everything else about the file is ordinary — its own definitions resolve in it,
-its imports are its own.
+The file's name is a number — its *decision order*, read smallest first, and it
+need not be contiguous. In front of that number a file may write how many parts
+it reads (`2_200.viba` reads two): the decision counts the parts the written
+arguments offer and leaves a file its count rules out unread. Inside, one
+`pattern` line per parameter, in written order. A name the file never defines is
+a parameter: what stands in the argument there is extracted. A known type
+restricts that argument: the argument must fit it (the judgment layer says
+whether it does). Everything else about the file is ordinary — its own
+definitions resolve in it, its imports are its own.
 
 Applying the generic reads the files in order and takes the first whose
 patterns fit the written arguments:
@@ -70,6 +72,7 @@ __all__ = [
     "Choice",
     "GenericModuleType",
     "PatternFile",
+    "declared_of",
     "decide",
     "exponent_elements",
     "file_pattern_problem",
@@ -90,26 +93,72 @@ __all__ = [
 
 
 class PatternFile:
-    """One file of a generic: where it is, and the patterns it writes.
+    """One file of a generic: the count its name writes, its order, and its text.
 
-    `order` is the number its file name spells; `name` is the module name the
-    file is read under; `module` is that file as a module, so its own names
+    `order` is the number its file name spells; `declared` is the count written in
+    front of that number (`2_200.viba` declares 2), or None when the name writes
+    none; `name` is the module name the file is read under, so its own names
     resolve in it; `patterns` are the patterns its `pattern` lines write, in
-    written order.
+    written order, and `module` is that file as a module.
+
+    The file is read when the decision reaches it (`read`): a file whose declared
+    count the written arguments cannot offer is never parsed (viba-pattern.md).
     """
 
-    __slots__ = ("order", "path", "name", "module", "patterns")
+    __slots__ = ("order", "path", "name", "declared", "module", "patterns",
+                 "_load", "_problem", "_read", "_checked")
 
-    def __init__(self, order: int, path: str, name: str, module: ModuleType,
-                 patterns: List[viba_ast.AST]):
+    def __init__(self, order: int, path: str, name: str,
+                 declared: Optional[int], load: Optional[Callable[[], Result]]):
         self.order = order
         self.path = path
         self.name = name
-        self.module = module
-        self.patterns = list(patterns)
+        self.declared = declared
+        self.module = None                 # until `read`
+        self.patterns = None               # until `read`
+        self._load = load
+        self._problem = None
+        self._read = False
+        self._checked = False
+
+    @classmethod
+    def ready(cls, order: int, path: str, name: str, declared: Optional[int],
+              module: ModuleType, patterns: List[viba_ast.AST]) -> "PatternFile":
+        """A file the layer already compiled: the descriptor pool parses its files itself."""
+        entry = cls(order, path, name, declared, None)
+        entry.module = module
+        entry.patterns = list(patterns)
+        entry._read = True
+        return entry
+
+    def read(self) -> Result:
+        """Ok((module, patterns)) — the file read once, or why it cannot be read.
+
+        What the name declares is checked here, where the patterns are at hand: a
+        count that its `pattern` lines do not read is a mistake in the name.
+        """
+        if self._problem is not None:
+            return self._problem
+        if not self._read:
+            got = self._load()
+            if isinstance(got, VibaProgramErr):
+                self._problem = got
+                return got
+            self.module, patterns = got.ok_value
+            self.patterns = list(patterns)
+            self._read = True
+        if not self._checked:
+            self._checked = True
+            problem = _declared_problem(self)
+            if problem is not None:
+                self._problem = VibaProgramErr(problem)
+        if self._problem is not None:
+            return self._problem
+        return Ok((self.module, self.patterns))
 
     def __repr__(self):
-        return f"PatternFile({self.order}, {self.path!r}, {len(self.patterns)} params)"
+        read = "unread" if self.patterns is None else f"{len(self.patterns)} params"
+        return f"PatternFile({self.order}, {self.path!r}, {read})"
 
 
 class GenericModuleType(ModuleType):
@@ -180,10 +229,11 @@ def file_pattern_problem(tree, file_name: str) -> Optional[str]:
     """Why this file may not write `pattern`, or None when it may.
 
     A pattern is one file of a generic, and its name is its decision order —
-    a number (viba-pattern.md). So the name is what tells a pattern file
-    from a module, and a file that writes `pattern` under any other name is
-    refused where it is compiled: the marker `__generic__.viba` among them,
-    which is no pattern file either.
+    a number, which may have the count it reads written in front of it
+    (viba-pattern.md). So the name is what tells a pattern file from a module,
+    and a file that writes `pattern` under any other name is refused where it is
+    compiled: the marker `__generic__.viba` among them, which is no pattern file
+    either.
     """
     if not any(isinstance(stmt, viba_ast.Pattern)
                for stmt in getattr(tree, "body", ())):
@@ -208,9 +258,13 @@ def load_generic(directory: str, name: str,
 
     The marker `__generic__.viba` must be there and must compile; its content is
     otherwise nobody's business. Every other `.viba` file directly inside is a
-    pattern: its name is its order, and it writes `__decl__`, the type it
-    answers. A `.viba` file named anything else is refused — the order is how
-    the decision reads the directory.
+    pattern: its name is its order and, in front of it, the count it reads, and
+    it writes `__decl__`, the type it answers. A `.viba` file named anything else
+    is refused — the order is how the decision reads the directory.
+
+    Everything the decision needs to leave a file alone is in its name, so a
+    file's text is read, and parsed, when the decision reaches that file: the
+    listing is read here, the files are not.
     """
     marker = os.path.join(directory, GENERIC_FILE)
     marker_source = read(marker)
@@ -239,15 +293,40 @@ def load_generic(directory: str, name: str,
             return VibaProgramErr(
                 f"{path}: a file of the generic {name!r} is named by its order, "
                 f"a number — {file_name!r} is none")
+        parts.append((order, path, f"{name}.{order}", declared_of(file_name)))
+
+    return generic_of_files(name, directory, marker_tree, parts, read, module_of)
+
+
+def generic_of_files(name: str, directory: str, marker: Optional[viba_ast.Module],
+                     parts, read, module_of) -> Result:
+    """A generic built from names alone: one `(order, path, module name, declared)`
+    per pattern file, each read and parsed by `read` and `module_of` when the
+    decision reaches it."""
+    entries: List[PatternFile] = []
+    for order, path, module_name, declared in parts:
+        entries.append(PatternFile(order, path, module_name, declared,
+                                   _file_reader(path, module_name, read, module_of)))
+    entries.sort(key=lambda entry: entry.order)
+    return Ok(GenericModuleType(name, directory, entries, marker))
+
+
+def _file_reader(path: str, module_name: str, read,
+                 module_of) -> Callable[[], Result]:
+    """How one pattern file is read, for the file the decision reaches."""
+    def load() -> Result:
         source = read(path)
         if source is None:
             return VibaProgramErr(f"cannot read {path}")
-        module = module_of(path, f"{name}.{order}", source)
-        if isinstance(module, VibaProgramErr):
-            return module
-        parts.append((order, path, f"{name}.{order}", module.ok_value))
-
-    return generic_of_entries(name, directory, marker_tree, parts)
+        got = module_of(path, module_name, source)
+        if isinstance(got, VibaProgramErr):
+            return got
+        module = got.ok_value
+        body = getattr(getattr(module, "module", None), "body", None)
+        if body is None:
+            return VibaProgramErr(f"{path} is not a module of definitions")
+        return Ok((module, patterns_of(body)))
+    return load
 
 
 def generic_of_entries(name: str, directory: str,
@@ -255,7 +334,7 @@ def generic_of_entries(name: str, directory: str,
                        parts) -> Result:
     """A generic built from parts the caller already has.
 
-    `parts` is one `(order, path, module name, module)` per pattern
+    `parts` is one `(order, path, module name, declared, module)` per pattern
     file, each already compiled by the layer that owns its files. What the file
     declares is read here — its `pattern` lines in written order, and the
     `__decl__` it answers — so a file means the same thing wherever it was
@@ -263,20 +342,41 @@ def generic_of_entries(name: str, directory: str,
     of a filesystem goes through here (the descriptor pool does).
     """
     entries: List[PatternFile] = []
-    for order, path, module_name, module in parts:
+    for order, path, module_name, declared, module in parts:
         body = getattr(getattr(module, "module", None), "body", None)
         if body is None:
             return VibaProgramErr(f"{path} is not a module of definitions")
-        entries.append(PatternFile(order, path, module_name, module,
-                                   patterns_of(body)))
+        entries.append(PatternFile.ready(order, path, module_name, declared,
+                                         module, patterns_of(body)))
     entries.sort(key=lambda entry: entry.order)
     return Ok(GenericModuleType(name, directory, entries, marker))
 
 
+def _name_parts(file_name: str):
+    """(the count a file name declares, the order it gives), or None when it gives none.
+
+    A pattern file is named by its order, a number, and may write the count it
+    reads in front of it: `2_200.viba` reads two parts and is order 200.
+    """
+    stem = file_name[: -len(".viba")] if file_name.endswith(".viba") else file_name
+    if stem.isdigit():
+        return None, int(stem)
+    count, underscore, order = stem.partition("_")
+    if underscore and count.isdigit() and order.isdigit():
+        return int(count), int(order)
+    return None
+
+
 def order_of(file_name: str) -> Optional[int]:
     """The decision order a file name spells, or None when it spells none."""
-    stem = file_name[: -len(".viba")] if file_name.endswith(".viba") else file_name
-    return int(stem) if stem.isdigit() else None
+    parts = _name_parts(file_name)
+    return None if parts is None else parts[1]
+
+
+def declared_of(file_name: str) -> Optional[int]:
+    """The count a file name declares, or None when it declares none."""
+    parts = _name_parts(file_name)
+    return None if parts is None else parts[0]
 
 
 def _definition(body, name: str):
@@ -458,6 +558,12 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
     pattern fits is the answer. Nothing fitting is a program error: the decision
     failed, and a generic with no answer is no design.
 
+    A file whose name writes how many parts it reads is passed over unread when
+    the arguments cannot offer that many (`_offered_parts`): the count is the
+    bucket the decision jumps to, and the files of one generic are then read only
+    where they can matter. A file the count cannot rule out is read, and its
+    patterns are what decides — the count in the name only spares the reading.
+
     Each argument is read in the module it was written in (`argument_modules`;
     `argument_module` where that is not said), because an argument written as a
     name a decision bound stands for the part that stood at the call site, and
@@ -465,14 +571,22 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
     """
     where = (list(argument_modules) if argument_modules
              else [argument_module] * len(arguments))
-    arities = sorted({len(entry.patterns) for entry in generic.entries})
+    counted = any(entry.declared is not None for entry in generic.entries)
+    offered = _offered_parts(arguments, where) if counted else None
     for entry in generic.entries:
-        if len(entry.patterns) != len(arguments):
+        if (offered is not None and entry.declared is not None
+                and entry.declared not in offered):
+            continue
+        got = entry.read()
+        if isinstance(got, VibaProgramErr):
+            return got
+        module, patterns = got.ok_value
+        if len(patterns) != len(arguments):
             continue
         bindings: Dict[str, AstNodeType] = {}
         fits = True
-        for pattern, argument, written_in in zip(entry.patterns, arguments, where):
-            got = structural_pattern_match(pattern, entry.module, argument,
+        for pattern, argument, written_in in zip(patterns, arguments, where):
+            got = structural_pattern_match(pattern, module, argument,
                                            written_in, bindings)
             if isinstance(got, VibaProgramErr):
                 return got
@@ -484,9 +598,19 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
             continue
         # A file with no `__decl__` puts its "answer" in a named definition (`value`, `impl`): it is
         # its own module, and the caller writes which definition it takes (module semantics).
-        declared = _definition(entry.module.module.body, DEF_NAME)
+        declared = _definition(module.module.body, DEF_NAME)
         body = declared.body if declared is not None else None
-        return Ok(Choice(entry, body, entry.module, bindings))
+        return Ok(Choice(entry, body, module, bindings))
+
+    # Nothing fit: every file is read, whatever its count said, so the answer names what
+    # the directory holds and a file that cannot be read is reported here.
+    arities = set()
+    for entry in generic.entries:
+        got = entry.read()
+        if isinstance(got, VibaProgramErr):
+            return got
+        arities.add(len(entry.patterns))
+    arities = sorted(arities)
 
     written = ", ".join(viba_ast.unparse_type(argument) for argument in arguments)
     if arities and len(arguments) not in arities:
@@ -496,6 +620,120 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
     return VibaProgramErr(
         f"no pattern of {generic.name!r} matches [{written}]: "
         f"the decision failed")
+
+
+# The most totals an application's parts are counted in; past that the walk is not worth
+# it, and no file is passed over (viba-pattern.md).
+_MOST_TOTALS = 8
+
+
+def _offered_parts(arguments: List[viba_ast.AST], where) -> Optional[set]:
+    """Every number of parts these arguments offer, or None when they offer no count.
+
+    A written call offers the arguments it was given, a product its members, a chain
+    its positions, a tuple its elements, an application its arguments, a tag one
+    part; an argument that unfolds to a structure offers that structure's count as
+    well. Totals are summed, since a file reads its patterns one per written
+    argument. Anything that offers no count — a leaf, a name, a sum — leaves the
+    whole application uncounted, and then no file is passed over.
+    """
+    totals = {0}
+    for argument, written_in in zip(arguments, where):
+        counts = _parts_of_argument(argument, written_in)
+        if not counts:
+            return None
+        totals = {total + count for total in totals for count in counts}
+        if len(totals) > _MOST_TOTALS:
+            return None
+    return totals
+
+
+def _parts_of_argument(argument, module: ModuleType) -> set:
+    """The numbers of parts this argument offers, in every way it may be read.
+
+    A call is read as the call (`F << A` counts the links it was given) and, where
+    it can be given at all, as the chain it stands for; every other argument is read
+    as the structure it unfolds to.
+    """
+    counts = set()
+    if isinstance(argument, viba_ast.Partial):
+        counts.add(len(_application_parts(argument)[1]))
+    try:
+        node, _where = _read_argument(argument, module)
+    except (_BadPattern, PartialError):
+        node = None                 # the matching reports it where it lands, if it does
+    if node is not None:
+        count = _parts_of_node(node)
+        if count is not None:
+            counts.add(count)
+    return counts
+
+
+def _parts_of_node(node) -> Optional[int]:
+    """How many parts this type is read apart into, or None when it is not."""
+    if isinstance(node, _PROD_NODES):
+        return len(product_elements(node))
+    if isinstance(node, _EXP_NODES):
+        return len(exponent_elements(node))
+    if isinstance(node, viba_ast.Tuple):
+        return len(node.elements)
+    if isinstance(node, viba_ast.Tagged):
+        return 1
+    if isinstance(node, viba_ast.TypeApp):
+        return len(node.args)
+    return None
+
+
+def _parts_of_pattern(pattern, module: ModuleType) -> Optional[int]:
+    """How many parts this `pattern` line reads, or None when it reads no count.
+
+    The number is what the matching below reads apart: a written call reads its
+    links, a product its members, a chain its positions, a tuple its elements, an
+    application its arguments, a tag one part. A pattern that reads no fixed count —
+    a bare name, a written type with no parameter, a sum — reads whatever it is
+    given, and a file that writes one may not declare a count.
+    """
+    if isinstance(pattern, viba_ast.Ellipsis):
+        return None
+    if isinstance(pattern, viba_ast.TypeApp) and pattern.constructor == TAGGED_NAME:
+        return 1
+    if isinstance(pattern, viba_ast.Partial):
+        return len(_application_parts(pattern)[1])
+    if _is_parameter(pattern, module):
+        return None
+    if not _has_parameter(pattern, module):
+        return None
+    if isinstance(pattern, _SUM_NODES):
+        return None
+    if isinstance(pattern, _PROD_NODES):
+        return len(product_elements(pattern))
+    if isinstance(pattern, _EXP_NODES):
+        return len(exponent_elements(pattern))
+    if isinstance(pattern, viba_ast.Tuple):
+        return len(pattern.elements)
+    if isinstance(pattern, viba_ast.Tagged):
+        return 1
+    if isinstance(pattern, viba_ast.TypeApp):
+        return len(pattern.args)
+    return None
+
+
+def _declared_problem(entry: PatternFile) -> Optional[str]:
+    """Why the count in this file's name disagrees with its patterns, or None."""
+    if entry.declared is None:
+        return None
+    read = 0
+    for pattern in entry.patterns:
+        count = _parts_of_pattern(pattern, entry.module)
+        if count is None:
+            return (f"{entry.path}: the name says the file reads "
+                    f"{entry.declared} parts, and a `pattern` line in it reads "
+                    f"no count")
+        read += count
+    if read != entry.declared:
+        return (f"{entry.path}: the name says the file reads {entry.declared} "
+                f"parts, and its `pattern` lines read {read}")
+    return None
 
 
 def _counted(arities: List[int]) -> str:

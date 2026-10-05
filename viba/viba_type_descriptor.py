@@ -28,7 +28,7 @@ from typing import Callable, Dict, List, Optional
 from viba import viba_ast
 from viba.partial import (environment_result_problem, get_args_product,
                           module_as_function, reduce_partial)
-from viba.pattern import (GENERIC_FILE, file_pattern_problem,
+from viba.pattern import (GENERIC_FILE, declared_of, file_pattern_problem,
                           generic_of_entries, order_of)
 from viba.viba_ast.tagged import TAGGED_NAME, symbol_of, tag_of
 
@@ -346,8 +346,10 @@ def _generic_in_pool(pool: VibaPool, module_name: str):
     """The generic the pool holds under this module name, or None.
 
     Its files are the ones named under it: the marker `name.__generic__`, and
-    one `name.number` per pattern. `name` itself is no file of the pool —
-    that is what makes it a generic rather than a module of definitions.
+    one `name.number` per pattern — the number, in front of it the count the file
+    reads, the way a file in a directory is named (viba-pattern.md). `name` itself
+    is no file of the pool — that is what makes it a generic rather than a module
+    of definitions.
     """
     prefix = module_name + "."
     under = [f for f in pool.files if f.module_name.startswith(prefix)]
@@ -359,12 +361,14 @@ def _generic_in_pool(pool: VibaPool, module_name: str):
     for file in under:
         if file is marker:
             continue
-        order = order_of(file.module_name[len(prefix):])
+        given = file.module_name[len(prefix):]
+        order = order_of(given)
         if order is None:
             return VibaProgramErr(
                 f"{file.file_name}: a file of the generic {module_name!r} is "
                 f"named by its order, a number")
         parts.append((order, file.file_name, file.module_name,
+                      declared_of(given),
                       CustomModuleType(file._tree, pool.module_environment,
                                        _import_locals(file))))
     return generic_of_entries(module_name, marker.file_name, marker._tree, parts)

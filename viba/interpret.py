@@ -1127,7 +1127,8 @@ class _Runner:
                    for stmt in tree.body if isinstance(stmt, viba_ast.Import)}
         # The module knows how to find its own imports: the descriptor/judgment layers need that
         # (they do not go through `_Runner.imported`); finding modules by file is run's call.
-        module = custom_module(source)
+        # The tree parsed above is the module: one file is parsed once.
+        module = CustomModuleType(tree)
         module.module_environment = lambda asked, near=str(path): self.imported(asked, near)
         module.imports = imports
         return Ok(module)
