@@ -1,0 +1,16 @@
+# the_qualified_name —— 带前缀的那个名字叫的是同一个模块
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import helper
+
+__impl__ =
+    builtin.sub_env_run
+  << $sub_env_name "low"
+  << (args.env.sub_env << args.env << "run")
+  << helper
+  << $x 4
+  << $y 5

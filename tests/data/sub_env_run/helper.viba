@@ -1,0 +1,10 @@
+# helper —— sub_env_run 要跑的那个调用：两个整数相加
+__decl__ =
+    int
+  <- $env Env
+  <- $x int
+  <- $y int
+
+args = __get_args__ << __decl__
+
+__impl__ = add << $env args.env << $x args.x << $y args.y

@@ -1,0 +1,19 @@
+# the_arguments_are_computed_here —— 实参写在调用方，算在调用方那一层；跑起来是 f 的事
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import helper
+
+here =
+    int <- $env Env <- { 调用方自己那一层 }
+
+__impl__ =
+    sub_env_run
+  << $sub_env_name "low"
+  << (args.env.sub_env << args.env << "run")
+  << helper
+  << $x (here << $env args.env)
+  << $y 5

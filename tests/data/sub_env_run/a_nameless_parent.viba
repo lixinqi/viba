@@ -1,0 +1,16 @@
+# a_nameless_parent —— 给它的环境叫什么无所谓：名字只是那个环境的孩子
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import helper
+
+__impl__ =
+    sub_env_run
+  << $sub_env_name "low"
+  << (args.env.tmp_env << args.env)
+  << helper
+  << $x 4
+  << $y 5

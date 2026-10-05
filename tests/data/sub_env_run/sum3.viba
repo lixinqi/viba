@@ -1,0 +1,15 @@
+# sum3 —— 三个整数相加：`...` 收下的那份实参要摊开成三次 `<<`
+__decl__ =
+    int
+  <- $env Env
+  <- $x int
+  <- $y int
+  <- $z int
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    add
+  << $env args.env
+  << $x (add << $env args.env << $x args.x << $y args.y)
+  << $y args.z

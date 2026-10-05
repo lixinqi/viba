@@ -1,0 +1,35 @@
+# sub_env_run — run a call at a sub-environment of its own.
+#
+# `sub_env_run << $sub_env_name "low" << env << f << $a 1 << $b 2` is
+# `f << ($sub_env << env << "low") << $a 1 << $b 2`: the environment that call
+# runs at is a child of the environment given, under the name given, and the rest
+# of the chain is that call's arguments — `$args ...` takes them as one product.
+#
+# `env` is this call's own environment, which is what `$env Env` asks for, so the
+# caller makes one for this call the way every module call does:
+# `args.env.sub_env << args.env << "run"`, or `args.env.tmp_env << args.env` for a
+# layer that needs no name. The child is then a child of that layer
+# (`<that layer>/low`).
+#
+# `apply` is given that child, so it runs there and appends it to the call it
+# answers: `apply << $env run << f << args` is `f << 1 << 2 << run` (apply.viba).
+#
+# The rest of the chain is one product (`$args ...`), and `apply` is what spreads
+# it back into `<<` links: a call that takes no argument is not this one — give
+# such a call the environment itself (`f << (args.env.sub_env << args.env << "low")`).
+import apply
+
+__decl__ =
+    Any
+  <- $sub_env_name str
+  <- $env Env
+  <- $f Any
+  <- $args ...
+
+args = __get_args__ << __decl__
+
+# The environment the call runs at: this call's own environment's child, under
+# the name the caller wrote.
+run_env = $sub_env << args.env << args.sub_env_name
+
+__impl__ = apply << $env run_env << args.f << args.args

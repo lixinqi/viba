@@ -44,7 +44,8 @@ interpret("main.viba", environ, get_file=files.get)   # 一次运行全在内存
   取决于 `viba_path`/主文件是怎么写的）。
 - **"这个路径上没有文件"：这两种都算**——返回 `None`、或者抛 `FileNotFoundError`，于是查找继续
   去下一个地方（先 import 旁边，再 `viba_path` 按顺序，最后是**内建目录** `viba/` ——
-  `builtin.viba` 与包自己的词汇（`apply.viba`、`apply_impl/`、`Y.viba`、`y_helper.viba`）就在那里），全都说没有就是
+  `builtin.viba` 与包自己的词汇（`apply.viba`、`apply_impl/`、`Y.viba`、`y_helper.viba`、
+  `sub_env_run.viba`）就在那里），全都说没有就是
   `module 'x' not found (...)`。主文件说没有就是 `no such file: ...`。
 - **返回非字符串、或者抛别的异常，是 `VibaProgramErr`**（`get_file(...) raised ...` / `... not the file's text`），
   不是把异常扔给调用方；源编不过照旧是 `cannot parse ...`。
@@ -111,6 +112,10 @@ __impl__ =
   `$concat`……），每个一张签名，实现在宿主手里。`builtin.add << …` 与 `add << …` 是同一次调用，
   宿主拿到的名字都是 `builtin.add`；自己模块里同名定义优先，所以它排在任何别的名字之后
   （[`viba-style.md`](viba-style.md) 第 11 节）。
+- **内建目录里的模块，名字也一样读**：`viba/` 里 `builtin.viba` 旁边那几个模块（`Y.viba`、
+  `apply.viba`、`sub_env_run.viba`）不需要 import，带的那个前缀（`builtin.sub_env_run`）叫的
+  是同一个模块。`sub_env_run` 是其中的一个：给它的环境取那个名字的孩子，链上剩下的实参交给
+  那次调用（[`viba/sub_env_run.viba`](viba/sub_env_run.viba)）。
 - **要执行的函数都得拿到环境**：`__decl__` 里可以写 `$env Env` 这个参数，也可以不写。调用时给环境的写法
   一样：一个 `<<` 给一个环境值（`square_sum << (args.env.tmp_env << args.env) << 3 << 4`）。写了，环境
   就给这个参数，模块体用 `args = __get_args__ << __decl__` 和 `args.env` 取到它。不写，**环境不进门**：

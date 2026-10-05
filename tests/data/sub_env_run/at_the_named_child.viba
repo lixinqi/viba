@@ -1,0 +1,16 @@
+# at_the_named_child —— 内建目录里的模块不用 import：f 跑在给它的环境的那名字底下
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import helper
+
+__impl__ =
+    sub_env_run
+  << $sub_env_name "low"
+  << (args.env.sub_env << args.env << "run")
+  << helper
+  << $x 4
+  << $y 5

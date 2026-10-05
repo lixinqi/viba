@@ -1,0 +1,11 @@
+# a_module_of_its_own —— 自己模块里写了这个名字，内建目录里那个就被压住了
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+sub_env_run =
+    int <- $env Env <- { 本模块自己的 sub_env_run：答 1 }
+
+__impl__ = sub_env_run << $env args.env

@@ -226,7 +226,7 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 实参、或者存成闭包之后再给实参时，仍然是那次替换。
 
 `Y.viba`、`y_helper.viba` 与 `apply.viba`、`apply_impl/` 就住在包的内建目录里（`viba/`，
-`builtin.viba` 旁边），那里是搜索路径的最后一站，所以写 `import Y` 就拿到 `Y`，谁也不必把包的
+`builtin.viba` 旁边），那里是搜索路径的最后一站，所以写 `Y << …` 就拿到 `Y`（`import Y` 也行），谁也不必把包的
 目录写进 `viba_path`（`viba-interpreter.md`）。Y 与 y_helper 都是**普通模块**，都不写 `pattern`，
 都写 `$env Env`：给环境就是执行，所以每一层的地址由调用方写下来 —— 主文件写
 `args.env.sub_env << args.env << "Y"`，`Y.viba` 给 helper 写 `"y_helper"`，步文件往下调时写

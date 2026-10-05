@@ -565,6 +565,21 @@ def _builtin_member_data(inner):
         descriptor_of(AstNodeType(inner, BUILTIN_MODULE)), inner)))
 
 
+def _builtin_module_name(name: str):
+    """The builtin directory module a written name stands for, or None.
+
+    The modules beside `builtin.viba` are part of the library, so a name that is
+    one of them (`Y`, `apply`, `sub_env_run`) reads as that module, and the
+    qualified spelling (`builtin.sub_env_run`) names the same one. Only a plain
+    name is a module: a dotted name is a member (`builtin.add`). Whether the
+    directory really holds that file is the loader's to say.
+    """
+    rest = name[len(BUILTIN_CONCEPT) + 1:] if name.startswith(BUILTIN_CONCEPT + ".") else name
+    if not rest or "." in rest or rest == BUILTIN_CONCEPT:
+        return None
+    return rest
+
+
 def _never_viba_data():
     """The `never` value as viba data."""
     node = viba_ast.Never()
@@ -1080,27 +1095,62 @@ class _Runner:
         """
         key = self._key(path)
         if key not in self.by_path:
-            if path.name == GENERIC_FILE:
-                return self._generic_of(path, name)
-            try:
-                tree = viba_ast.parse(source)
-            except SyntaxError as exc:
-                return VibaProgramErr(f"cannot parse {path}: {exc}")
-            problem = file_environment_result_problem(tree)
-            if problem is not None:
-                return VibaProgramErr(f"{path}: {problem}")
-            problem = file_pattern_problem(tree, path.name)
-            if problem is not None:
-                return VibaProgramErr(f"{path}: {problem}")
-            imports = {stmt.alias or stmt.module: stmt.module
-                       for stmt in tree.body if isinstance(stmt, viba_ast.Import)}
-            # The module knows how to find its own imports: the descriptor/judgment layers need that
-            # (they do not go through `_Runner.imported`); finding modules by file is run's call.
-            module = custom_module(source)
-            module.module_environment = lambda asked, near=str(path): self.imported(asked, near)
-            module.imports = imports
-            self.by_path[key] = module
+            built = self._module_of(path, name, source)
+            if _stopped(built):
+                return built
+            self.by_path[key] = built.ok_value
         return self._bind(self.by_path[key], path, name)
+
+    def _module_of(self, path: Path, name: str, source: str):
+        """The module one file writes: parsed, and remembered under its path only.
+
+        No name is bound to it here: a module of the builtin directory is loaded
+        without being imported, and binding its name would make a later `import`
+        of that name answer this file wherever it was written.
+        """
+        if path.name == GENERIC_FILE:
+            return self._generic_of(path, name)
+        try:
+            tree = viba_ast.parse(source)
+        except SyntaxError as exc:
+            return VibaProgramErr(f"cannot parse {path}: {exc}")
+        problem = file_environment_result_problem(tree)
+        if problem is not None:
+            return VibaProgramErr(f"{path}: {problem}")
+        problem = file_pattern_problem(tree, path.name)
+        if problem is not None:
+            return VibaProgramErr(f"{path}: {problem}")
+        imports = {stmt.alias or stmt.module: stmt.module
+                   for stmt in tree.body if isinstance(stmt, viba_ast.Import)}
+        # The module knows how to find its own imports: the descriptor/judgment layers need that
+        # (they do not go through `_Runner.imported`); finding modules by file is run's call.
+        module = custom_module(source)
+        module.module_environment = lambda asked, near=str(path): self.imported(asked, near)
+        module.imports = imports
+        return Ok(module)
+
+    def builtin_module(self, name: str):
+        """The module of the builtin directory named `name`, or None when there is none.
+
+        What sits beside `builtin.viba` (`Y.viba`, `apply.viba`,
+        `sub_env_run.viba`) is part of the builtin library, so these names are
+        read from every module without an import. Its error, or None when the
+        directory has no such file. Nothing is bound to the name: an `import` of
+        it still finds whatever it always found.
+        """
+        place = BUILTIN_DIR / f"{name}.viba"
+        key = self._key(place)
+        if key not in self.by_path:
+            source, problem = self._source(place)
+            if problem is not None:
+                return VibaProgramErr(problem)
+            if source is None:
+                return None
+            built = self._module_of(place, name, source)
+            if _stopped(built):
+                return built
+            self.by_path[key] = built.ok_value
+        return Ok(self.by_path[key])
 
     def _generic_of(self, path: Path, name: str):
         """The generic a `__generic__.viba` marker stands for: its directory.
@@ -1555,6 +1605,17 @@ class _Activation:
             node = viba_ast.TypeRef(name)
             return Ok(_VibaData(VibaNode(
                 reflect_access, descriptor_of(AstNodeType(node, self.module)), node)))
+        module_name = _builtin_module_name(name)
+        if module_name is not None:
+            # A module of the builtin directory read as a value: the name it is,
+            # resolved where it was written (`sub_env_run` among them).
+            found = self.runner.builtin_module(module_name)
+            if found is not None:
+                if _stopped(found):
+                    return found
+                node = viba_ast.TypeRef(name)
+                return Ok(_VibaData(VibaNode(
+                    reflect_access, descriptor_of(AstNodeType(node, self.module)), node)))
         member = self._tagged_member(name, scope)
         if member is not None:
             return member
@@ -2463,9 +2524,14 @@ class _Activation:
         bound = self._imported_name(name)
         if bound is None:
             # A bare name that is a member of the builtin concept is that
-            # member's call (`add << …` is `builtin.add << …`): the library is
-            # visible from every module, and read last.
-            return self._builtin_bare_call(name_node, name)
+            # member's call (`add << …` is `builtin.add << …`), and a name that is
+            # a module in the builtin directory is that module call
+            # (`sub_env_run << …`): the library is visible from every module, and
+            # read last.
+            member = self._builtin_bare_call(name_node, name)
+            if member is not None:
+                return member
+            return self._builtin_module_call(name_node, name)
         module_name, rest = bound
         imported = self.runner.imported(module_name, self.file)
         if _stopped(imported):
@@ -2566,6 +2632,26 @@ class _Activation:
             return None
         return self._func_pending(name_node, name, self.module, chain,
                                   f"{BUILTIN_CONCEPT}.{name}")
+
+    def _builtin_module_call(self, name_node, name):
+        """The call a builtin directory module's name stands for, or None.
+
+        `Y`, `apply` and `sub_env_run` are modules of the builtin directory, and
+        their names are read from every module — `sub_env_run << …` needs no
+        import, and `builtin.sub_env_run << …` names the same module. Read last,
+        so a module's own definition of the name, and its imports, win.
+        """
+        module_name = _builtin_module_name(name)
+        if module_name is None:
+            return None
+        module = self.runner.builtin_module(module_name)
+        if module is None:
+            return None
+        if _stopped(module):
+            return module
+        return Ok(_Pending.module(self.runner, module.ok_value, module_name,
+                                  name_node, written_in=self.module,
+                                  written_bindings=self.bindings or None))
 
     def _member_function(self, name):
         """`a.b` written at a chain head, with `b` a function member of `a`: this step's
