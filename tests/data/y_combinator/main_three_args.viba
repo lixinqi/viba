@@ -11,4 +11,4 @@ import add3_module as Three
 import Y
 
 # 这一层的实参接着 `<<` 写（三个），`Y` 把它们收成一份积，`apply` 按成员个数选 apply_impl 那一支。
-__impl__ = Y << Three << args.env << $n 3 << $m 4 << $k 5
+__impl__ = Y << Three << ($sub_env << args.env << "Y") << $n 3 << $m 4 << $k 5

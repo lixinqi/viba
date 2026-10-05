@@ -285,7 +285,7 @@ def _load_builtin_library() -> dict:
 BUILTIN_MODULE = BuiltinModuleType()
 
 # The directory the built-in vocabulary lives in: `builtin.viba` and what sits
-# next to it (`Y/`, `y_helper/`, `type.viba`). It is the last stop of the search
+# next to it (`Y.viba`, `y_helper.viba`, `type.viba`). It is the last stop of the search
 # path, so a module that writes `import Y` finds it without naming this
 # directory anywhere — the package's own vocabulary is part of the language.
 BUILTIN_DIR = Path(__file__).resolve().parent

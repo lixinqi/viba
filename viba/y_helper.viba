@@ -1,23 +1,25 @@
 # The step's helper: the step itself, this helper (the next layer), and the product of
-# this layer's arguments. The environment is no parameter: the caller gives it with a
-# `<<` of its own, and this call runs there.
+# this layer's arguments. The environment is a parameter, so this call runs at the address
+# its caller wrote: a step writes one name per layer it starts
+# (`args.fib << (sub_env << args.env << "low") << $n below << $m other`), and that layer's
+# arguments arrive as the links after it, collected into one product by `$args ...`.
 #
 # `$f` is the step as a value, whatever its parameter list looks like, so this one module
-# answers every length; this layer's arguments reach it as the links the step writes when
-# it calls the next layer (`args.fib << (sub_env …) << $n below << $m other`), collected
-# into one product by `$args ...` and spread by `apply`, so nothing here counts them.
+# answers every length; `apply` spreads the product, so nothing here counts the members.
 import apply
 
 __decl__ =
     Any
+  <- $env Env
   <- $f Any
   <- $y_helper Any
   <- $args ...
 
 args = __get_args__ << __decl__
 
-# y(f, y): with only those two and no environment, it stops partially applied — the eta
-# step. Its head is the helper the caller handed over, which is this call itself.
+# y(f, y): with only those two it stops partially applied — the eta step. Its head is the
+# helper the caller handed over, which is this call itself; the environment and this layer's
+# arguments are still to come, and the step writes both.
 recursive =
     args.y_helper
   << $f args.f
@@ -25,4 +27,4 @@ recursive =
 
 # The step is given the next layer; `apply` goes on giving this layer's arguments, and the
 # environment reaches the step through the calls `apply` answers.
-__impl__ = apply << (args.f << recursive) << args.args
+__impl__ = apply << $env args.env << (args.f << recursive) << args.args

@@ -5,7 +5,7 @@
     primitives.viba        宿主那几步：lt / eq / add / sub / mul / div / rem / add_f
     steps/<名字>.viba      一步 f：头一个参数（按这份文件的名字叫它，比如 gcd.viba 里是 `$gcd`）
                           是 Y 交回来的"下一层怎么算"，剩下的就是这一层的实参
-    main/<名字>.viba       用 Y 跑那一步：`Y << step << args.env << $a 7 << $b 0`
+    main/<名字>.viba       用 Y 跑那一步：`Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0`
 
 每个 `main/<名字>.viba` 就是一份可以打开、可以直接跑的程序（文件就是函数）：`__impl__` 里那一次
 调用就是"Y 跑这一步"。`steps/<名字>.viba` 是那一步本身 —— 它只管自己这一层，往下几层交给
@@ -15,9 +15,12 @@
 
 Y 与 y_helper 住在包的内建目录里（`viba/Y.viba` 与 `viba/y_helper.viba`，各自是一个模块），
 搜索路径的最后一站就是那个目录，所以写 `import Y` 就能拿到它，任何 `viba_path` 都不用再写上包
-的位置。这一步写成什么样都不影响：`Y << step` 把 step 本身当一个值收下 —— 不是泛型，也不按
-参数个数分文件；这一层的实参接着 `<<` 写在后面（`Y << step << args.env << $a 7 << $b 0`），
-`Y` 那个写 `$args ...` 的参数把它们收成一份积，`apply` 按积里有几个成员选 `apply_impl` 那一支。
+的位置。**两个都写 `$env Env`**：给环境就是执行，所以谁调用它们，谁就写下这一层的地址 ——
+`main/<名字>.viba` 写 `args.env.sub_env << args.env << "Y"`，`steps/<名字>.viba` 往下调时写
+`$sub_env << args.env << "low"` 那样的名字。这一步写成什么样都不影响：`Y << step` 把 step 本身
+当一个值收下 —— 不是泛型，也不按参数个数分文件；这一层的实参接着 `<<` 写在后面
+（`Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0`），`Y` 那个写 `$args ...` 的参数
+把它们收成一份积，`apply` 按积里有几个成员选 `apply_impl` 那一支。
 
 `main/gcd_zero.viba` 是从基例那一侧进来的那一份（b 是 0）：`steps/gcd.viba` 把
 `rest`、`deeper` 写在分支外面，靠的是定义按需求值（call-by-need，用到才算、只算一次），这一份

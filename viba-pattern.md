@@ -227,13 +227,15 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 
 `Y.viba`、`y_helper.viba` 与 `apply.viba`、`apply_impl/` 就住在包的内建目录里（`viba/`，
 `builtin.viba` 旁边），那里是搜索路径的最后一站，所以写 `import Y` 就拿到 `Y`，谁也不必把包的
-目录写进 `viba_path`（`viba-interpreter.md`）。Y 与 helper 都是**普通模块**，都不写 `pattern`：
-`Y << f` 就是那一步的不动点（`y_helper << $f f << $y_helper y_helper`），`y_helper` 是自应用
-那一步 —— 它给这一步的是"上一步拿到的自己"，也就是下一次 `y_helper` 调用。这一层的实参接着
-`<<` 写在后面（`Y << F << args.env << $n 3 << $m 4`），`Y` 那个写 `$args ...` 的参数把它们收成
-一份积；`apply` 与 `apply_impl` 的 `$args` 写的是 `Any`，要的是一份写好的积，`apply` 按积里有
-几个成员选 `apply_impl` 那一支，所以这几个模块都不必按参数个数分文件。`tests/data/y_functions/`
-拿它跑 20 个递归函数（阶乘、斐波那契、阿克曼……）。
+目录写进 `viba_path`（`viba-interpreter.md`）。Y 与 y_helper 都是**普通模块**，都不写 `pattern`，
+都写 `$env Env`：给环境就是执行，所以每一层的地址由调用方写下来 —— 主文件写
+`args.env.sub_env << args.env << "Y"`，`Y.viba` 给 helper 写 `"y_helper"`，步文件往下调时写
+`"low"` 那样的名字。`Y << f` 就是那一步的不动点（`y_helper << $f f << $y_helper y_helper`），
+`y_helper` 是自应用那一步 —— 它给这一步的是"上一步拿到的自己"，也就是下一次 `y_helper` 调用。
+这一层的实参接着 `<<` 写在后面（`Y << F << ($sub_env << args.env << "Y") << $n 3 << $m 4`），
+`Y` 那个写 `$args ...` 的参数把它们收成一份积；`apply` 与 `apply_impl` 的 `$args` 写的是 `Any`，
+要的是一份写好的积，`apply` 按积里有几个成员选 `apply_impl` 那一支，所以这几个模块都不必按参数
+个数分文件。`tests/data/y_functions/` 拿它跑 20 个递归函数（阶乘、斐波那契、阿克曼……）。
 
 ## 3. 符号写在字符串里：`tagged`
 

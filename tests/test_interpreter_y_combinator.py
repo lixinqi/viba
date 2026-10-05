@@ -19,10 +19,13 @@ Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在�
 `main_*` 与 `helper_by_hand` 是**真正要跑通的**：文件就是函数（`__decl__` 进、`__impl__` 出），
 递归靠"欠着实参的调用就是值"（Y 的 eta 展开）和"一次调用的身份是它的 storage 路径"。
 `Y << F` 给的是那一步的不动点：`Y` 是入口（`y_helper << $f f << $y_helper y_helper` 这一件），
-`y_helper` 是自应用那一步 —— 上一步拿到的自己，就是下一次 `y_helper` 调用。这一层的实参接着
-`<<` 写在后面（`Y << F << args.env << $n 3 << $m 4`），`Y` 那个写 `$args ...` 的参数把它们收成
-一份积；**这两个都不是泛型**：不用按参数个数分文件，`apply` 按那份积里有几个成员选 `apply_impl`
-哪一支，`F` 的参数列表有多长，由积里有几个成员说了算。
+`y_helper` 是自应用那一步 —— 上一步拿到的自己，就是下一次 `y_helper` 调用。Y 与 y_helper 都写
+`$env Env`：给环境就是执行，所以每一层的地址由调用方写下来 —— `main_*.viba` 写
+`args.env.sub_env << args.env << "Y"`（`main_in_a_sub_env.viba` 故意换个名字），`Y.viba` 往下写
+`"y_helper"`，步文件往下调时写 `"low"` 那样的名字。这一层的实参接着 `<<` 写在后面
+（`Y << F << ($sub_env << args.env << "Y") << $n 3 << $m 4`），`Y` 那个写 `$args ...` 的参数把
+它们收成一份积；**这两个都不是泛型**：不用按参数个数分文件，`apply` 按那份积里有几个成员选
+`apply_impl` 哪一支，`F` 的参数列表有多长，由积里有几个成员说了算。
 
 参数个数不同仍然**各跑一次**：最后那一遍为 1 到 16 每个长度当场写一份 step 模块（那里只有参数
 个数要紧），跑出来的答案就是那个长度 —— 每个长度都走到 `apply_impl` 对应的一支上。
@@ -150,7 +153,7 @@ def _a_main_of(length: int) -> str:
         "args = __get_args__ << __decl__",
         "import step as F",
         "import Y",
-        "__impl__ = " + " << ".join(["Y", "F", "args.env"] + written),
+        "__impl__ = " + " << ".join(["Y", "F", '($sub_env << args.env << "Y")'] + written),
     ]) + "\n"
 
 

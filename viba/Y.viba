@@ -1,16 +1,27 @@
-# Y: the fixed point of a step. `Y << f << args.env << $a 7 << $b 0` is the step
-# given the next layer, with this layer's arguments: `$args ...` takes the rest of
-# the chain, so those links are one product there (`$a 7 * $b 0`).
+# Y: the fixed point of a step. `Y << ($sub_env << args.env << "Y") << f << $a 7 << $b 0`
+# is the step given the next layer, with this layer's arguments: `$args ...` takes the
+# rest of the chain, so those links are one product there (`$a 7 * $b 0`).
 #
-# The next layer the step is handed is `y_helper << $f f << $y_helper y_helper` — the same
-# call as this one, so the entry and the recursion are the same thing.
+# The environment is a parameter. Giving it is what runs this call, and it is the address
+# this call runs at, so whoever writes `Y << …` writes the layer too — a module that is
+# already running in that environment writes a sub-environment of its own
+# (`args.env.sub_env << args.env << "Y"`).
+#
+# The next layer the step is handed is this same call one layer down, so the entry and the
+# recursion are the same thing.
 import y_helper
 
 __decl__ =
     Any
+  <- $env Env
   <- $f Any
   <- $args ...
 
 args = __get_args__ << __decl__
 
-__impl__ = y_helper << $f args.f << $y_helper y_helper << $args args.args
+__impl__ =
+    y_helper
+  << $env (args.env.sub_env << args.env << "y_helper")
+  << $f args.f
+  << $y_helper y_helper
+  << $args args.args

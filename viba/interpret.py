@@ -806,7 +806,7 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
     (`Environment.viba_path`): the directories are searched in order for
     `<name>.viba` (a dotted name as a path), and the directory of the file that
     wrote the import is searched first. The builtin directory — `viba/`, where
-    `builtin.viba`, `Y/` and `y_helper/` live — is the last stop, so a module
+    `builtin.viba`, `Y.viba` and `y_helper.viba` live — is the last stop, so a module
     reaches the package's own vocabulary without naming it. A child environment
     keeps the parent's search path, so a module's own imports are looked up
     where the run says.

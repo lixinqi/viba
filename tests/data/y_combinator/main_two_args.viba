@@ -11,4 +11,4 @@ import add2_module as Two
 import Y
 
 # 这一层的实参接着 `<<` 写（两个），`Y` 把它们收成一份积，`apply` 按成员个数选 apply_impl 那一支。
-__impl__ = Y << Two << args.env << $n 3 << $m 4
+__impl__ = Y << Two << ($sub_env << args.env << "Y") << $n 3 << $m 4

@@ -215,9 +215,9 @@ __impl__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
   `VibaProgramErr`，话里点名少了谁（`module 'square_sum' was given 1 of its 2 parameters: $b missing`）。
   多给、给重、给了没有的 tag，同样当场报错。
 - **写 `...` 的那个参数收"剩下的实参"**：链条上接着写的那些都归它，在那里打包成一份积 ——
-  `Y << step << args.env << $a 7 << $b 0` 里 `Y` 的 `$args ...` 收到的是 `$a 7 * $b 0`
-  （`args.args` 读回它）。写 `Any` 的参数不打包：它要的是一份已经写好的积，`apply << f <<
-  ($a 1 * $b 2)` 就是；写成两条 `<<`（`apply << f << $a 1 << $b 2`）是"多给"，当场报错。
+  `Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0` 里 `Y` 的 `$args ...` 收到的是
+  `$a 7 * $b 0`（`args.args` 读回它）。写 `Any` 的参数不打包：它要的是一份已经写好的积，`apply
+  << f << ($a 1 * $b 2)` 就是；写成两条 `<<`（`apply << f << $a 1 << $b 2`）是"多给"，当场报错。
   `...` 那个参数按惯例写在最后，它前面的那些参数照旧按位置或按 tag 给。
 - **环境不进门时它随结果往后走**：没写 `$env Env` 的模块，环境只用来跑这次调用；这次调用答出来的那次
   调用还欠着环境，它就被缀在那里。`apply << f << args << env` 是现成的例子：`apply` 收下函数与积、跑出

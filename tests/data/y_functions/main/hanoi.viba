@@ -1,6 +1,7 @@
 # main/hanoi.viba —— 用内建目录里的 Y 跑 steps/hanoi：答 1023
 #
-# Y 住在包的内建目录里（`viba/Y.viba`）：`Y << step` 就是那一步的不动点，再给环境与这次要跑的实参。
+# Y 住在包的内建目录里（`viba/Y.viba`）：`Y << step` 就是那一步的不动点。它要环境，调用方
+# 给一层子环境（`args.env.sub_env << args.env << "Y"`），再给这次要跑的实参。
 __decl__ =
     int
   <- $env Env
@@ -10,4 +11,4 @@ args = __get_args__ << __decl__
 import Y
 import steps.hanoi as step
 
-__impl__ = Y << step << args.env << $n 10
+__impl__ = Y << step << ($sub_env << args.env << "Y") << $n 10

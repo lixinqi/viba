@@ -8,6 +8,7 @@ args = __get_args__ << __decl__
 import fib_module as F
 import Y
 
-# `Y << F` 就是那个半成品（还欠环境与 `$n`），后面的实参接着给：不动点起来了。
+# `Y << F` 就是那个半成品（还欠环境与 `$n`）：环境给一层子环境（`args.env.sub_env << args.env
+# << "Y"`），这一次的实参接着给，不动点就起来了。
 # 递归靠"一次调用的身份是它的 storage 路径"，而选中的 pattern 文件跑在自己的子环境里。
-__impl__ = Y << F << args.env << $n 10
+__impl__ = Y << F << ($sub_env << args.env << "Y") << $n 10

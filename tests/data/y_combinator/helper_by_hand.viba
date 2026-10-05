@@ -1,7 +1,8 @@
 # helper_by_hand.viba —— 不经过 Y，直接把自应用那一步用起来，该答 55
 #
-# `y_helper` 就是那个 helper：它的 `__decl__` 要 `$f`（这一层的步）、`$y_helper`（它自己），
-# 再要环境与这一层的实参积。要跑起来还差 `$f` 与 `$y_helper` 这两件，Y 替调用方写的就是这两件。
+# `y_helper` 就是那个 helper：它的 `__decl__` 要 `$f`（这一层的步）、`$y_helper`（它自己）、
+# 环境，以及这一层的实参。要跑起来还差 `$f` 与 `$y_helper` 这两件，Y 替调用方写的就是这两件；
+# 环境要自己给一层（`y_helper` 跑在这条地址上）。
 __decl__ =
     int
   <- $env Env
@@ -15,5 +16,5 @@ __impl__ =
     y_helper
   << $f fib_module
   << $y_helper y_helper
-  << args.env
+  << ($sub_env << args.env << "y_helper")
   << $n 10

@@ -324,9 +324,13 @@ __impl__ = demo << (args.env.sub_env << args.env << "add_demo")
 
 A module is called with the environment it should run under, and then with its
 arguments. A parameter written `...` takes the rest of the call's arguments as one
-product: `Y << step << args.env << $a 7 << $b 0` gives `Y`'s `$args ...` the product
-`$a 7 * $b 0`. `Any` does not pack — `apply`'s `$args Any` takes that product as one
-written argument (`apply << f << ($a 1 * $b 2)`). The name given to
+product: `Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0` gives `Y`'s
+`$args ...` the product `$a 7 * $b 0`. `Any` does not pack — `apply`'s `$args Any`
+takes that product as one written argument (`apply << f << ($a 1 * $b 2)`). Giving an
+environment is what runs a call, and it is the address the call runs at, so a caller
+that is already running in that environment writes a layer of its own. `Y.viba` and
+`y_helper.viba` both write `$env Env`: the caller writes Y's layer, Y writes
+`y_helper`'s, and a step writes the layer of each layer it starts. The name given to
 `args.env.sub_env` is what `get_func` sees as
 `module_path`, and the storage path is the call's identity — its address. Three things
 can happen at one address: a call already running there is a cycle (`the storage path '...' is
