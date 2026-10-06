@@ -1,0 +1,14 @@
+__decl__ =
+    int
+  <- $env Env
+  <- $n int
+
+args = __get_args__ << __decl__
+
+total =
+    int
+  <- $env Env
+  <- $x int
+  <- { add one to the number this module was given }
+
+__impl__ = total << $env args.env << $x args.n

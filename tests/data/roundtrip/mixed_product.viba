@@ -1,0 +1,13 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+pack =
+    str
+  <- $env Env
+  <- $both (Object * $a int * $b str)
+  <- { write the two members together }
+
+__impl__ = pack << $env args.env << ($a 1 * $b "x")

@@ -1,0 +1,20 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+lt =
+    bool
+  <- $env Env
+  <- $x int
+  <- $y int
+  <- { is x less than y }
+
+not_of =
+    bool
+  <- $env Env
+  <- $x bool
+  <- { the other one }
+
+__impl__ = not_of << $env args.env << $x (lt << $env args.env << $x 1 << $y 2)

@@ -1,0 +1,8 @@
+# That closure, given an environment, runs.
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = (__dyn_call__ << "add" << $a 1 << $b 2) << (args.env.tmp_env << args.env)

@@ -1,0 +1,14 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two integers }
+
+__impl__ = add << $env args.env << $b 2 << $a 1

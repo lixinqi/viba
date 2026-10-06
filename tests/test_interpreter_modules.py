@@ -59,8 +59,9 @@ def _not_implemented(tmp: Path):
           f"the step is the call that stopped, not the module that called it: {stopped!r}")
     check(error_of(stopped).msg == "no implementation",
           f"and why: {error_of(stopped).msg!r}")
-    check(_text_of(error_of(stopped).call) == "add << $a 1 << $b 2",
-          f"the call as it was written, the environment left out: {_text_of(error_of(stopped).call)!r}")
+    check(_text_of(error_of(stopped).call) == '__dyn_call__ << "add" << $a 1 << $b 2',
+          f"the call as it was written, a name that travels: "
+          f"{_text_of(error_of(stopped).call)!r}")
     host.knobs.pop("missing")
 
     result = interpret(outer, environ)

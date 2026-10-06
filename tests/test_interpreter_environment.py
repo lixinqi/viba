@@ -23,6 +23,7 @@ from viba.type import VibaProgramErr, Ok
 checks = Checks("interpreter_environment")
 check = checks.check
 labelled = checks.labelled
+environment_api = checks.environment_api
 
 CASES = Path(__file__).resolve().parent / "data" / "environment"
 
@@ -188,6 +189,7 @@ def _host_members(tmp: Path):
           f"a method the host hung on its environment: {result!r}")
 
     # 成员是一个值时，读出来就是那个值；值本身不是标量（这里是一个 storage 对象）才报错
+    # （那是这份程序问错了，不是环境上的 api 拒绝了什么）。
     labelled(interpret(str(CASES / "env_member.viba"), environ),
              "which is no leaf",
              "an environment member that is a value is handed over, "
@@ -198,12 +200,15 @@ def _host_members(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"a name bound as an import is a name, not the environment: {result!r}")
 
-    # 没有 storage 的环境：宿主那边崩了也是 VibaProgramErr，不是把异常扔出来
+    # 没有 storage 的环境：那个 api 拿到的环境它收不下，报的是
+    # EnvironmentApiInvalidArgumentErr，带上 api 的名字和它拿到的实参（环境不在里面）
     headless = Environment(None, EnvironmentCompute(host.get_func))
-    checks.failed(interpret(str(CASES / "headless.viba"), headless), "raised",
-                  "an environment with no storage, and a step that needs one")
-    checks.failed(interpret(str(CASES / "headless_tmp.viba"), headless), "raised",
-                  "tmp_env on an environment with no storage")
+    environment_api(interpret(str(CASES / "headless.viba"), headless), "raised",
+                    "Environment.sub_env",
+                    "an environment with no storage, and a step that needs one")
+    environment_api(interpret(str(CASES / "headless_tmp.viba"), headless),
+                    "raised", "Environment.tmp_env",
+                    "tmp_env on an environment with no storage")
 
 
 def _a_write_lands_whole(tmp: Path):

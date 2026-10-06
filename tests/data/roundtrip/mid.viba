@@ -1,0 +1,9 @@
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import leaf
+
+__impl__ = leaf << (args.env.sub_env << args.env << "leaf")

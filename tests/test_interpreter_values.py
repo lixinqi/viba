@@ -116,9 +116,14 @@ def _host_answers(tmp: Path):
           and error_of(stopped).func_name == "ghost"
           and error_of(stopped).msg == "no implementation",
           f"the stop names the step and why: {stopped!r}")
-    check(isinstance(error_of(stopped).call.data, viba_ast.TypeRef)
-          and error_of(stopped).call.data.name == "ghost",
-          f"a call written with no argument of its own is the name alone: {error_of(stopped).call!r}")
+    call = error_of(stopped).call.data
+    check(isinstance(call, viba_ast.Partial)
+          and isinstance(call.function, viba_ast.TypeRef)
+          and call.function.name == "__dyn_call__"
+          and isinstance(call.argument, viba_ast.Constant)
+          and call.argument.value == "ghost",
+          f"a call with no argument of its own is the name and then nothing: "
+          f"{error_of(stopped).call!r}")
 
     result = interpret(_case("echo"), environ)
     check(isinstance(result, Ok) and value_of(result) == 42,

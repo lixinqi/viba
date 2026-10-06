@@ -1,0 +1,13 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+half =
+    float
+  <- $env Env
+  <- $x float
+  <- { answer half of it }
+
+__impl__ = half << $env args.env << $x 3.5

@@ -1,0 +1,13 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+flip =
+    bool
+  <- $env Env
+  <- $x bool
+  <- { answer the other one }
+
+__impl__ = flip << $env args.env << $x true

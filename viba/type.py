@@ -68,9 +68,13 @@ class InterpretError:
           | $viba_program_err ProgramErr           # the program or environment
           | $underlying_viba_op_err UnderlyingOpErr     # a step broke
           | $not_implemented_err UnderlyingOpErr               # nothing implements it
+          | $environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr
 
     A `Failure` is one payload under two tags: `tag` says which. A `ProgramErr`
-    is about the program or the environment itself, so it names no step.
+    is about the program or the environment itself, so it names no step. An
+    `EnvironmentApiInvalidArgumentErr` is about one of the environment's own
+    members — the apis viba runs itself, which no `get_func` implements — being
+    given something it cannot take.
     """
 
 
@@ -96,6 +100,43 @@ class VibaProgramErr(InterpretError):
         return f"VibaProgramErr({self.msg!r})"
 
 
+class EnvironmentApiInvalidArgumentErr(InterpretError, Exception):
+    """`EnvironmentApiInvalidArgumentErr`: an environment api was given what it cannot take.
+
+        EnvironmentApiInvalidArgumentErr =
+            Object
+          * $msg str                               # one sentence, the reason first
+          * $api_name str                          # which api: `Environment.sub_env`
+          * $args Any                              # what it was given, environment left out
+
+    The environment's members are viba's own side of a run: `get_func` is never
+    asked for them, the environment carries them (`args.env.sub_env`,
+    `args.env.tmp_env`, the members a host hangs on an environment of its own).
+    So one of them refusing what a program handed it — a root that is no ancestor,
+    a path with a `.` or `..` segment, an environment with no storage under it —
+    is neither a step that failed nor a module that cannot run; it is this: an
+    api of the environment, and the arguments it could not take. `api_name` says
+    which api, written `Environment.<member>`; `args` says what it was given, as
+    viba data — the environment itself is the api's own value, so it is not among
+    them. `msg` is one sentence that says what happened and why; it opens with
+    the reason (`raised`).
+
+    It is an exception as well, the way every error of this layer is: the same
+    news has to cross a callable the run handed to a host.
+    """
+
+    def __init__(self, msg: str = "", api_name: str = "", arguments=None):
+        super().__init__(msg)
+        self.msg = msg
+        self.api_name = api_name
+        # `$args` — what the api was given. Not `args`: an exception's own `args`
+        # is the one `BaseException` keeps, and this is no tuple.
+        self.arguments = arguments
+
+    def __repr__(self):
+        return f"EnvironmentApiInvalidArgumentErr({self.msg!r}, {self.api_name!r})"
+
+
 class Err:
     """`$err InterpretError`: the run stopped; `error` says why."""
 
@@ -118,6 +159,7 @@ class UnderlyingOpErr(InterpretError, Exception):
           | $viba_program_err str
           | $underlying_viba_op_err UnderlyingOpErr     # it broke
           | $not_implemented_err UnderlyingOpErr               # nothing implements it
+          | $environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr
 
         UnderlyingOpErr =
             Object
@@ -138,14 +180,16 @@ class UnderlyingOpErr(InterpretError, Exception):
 
     `module_path` and `func_name` are the two `get_func(module_path, func_name)`
     was handed: which definition, at which data path — the same definition at
-    another data path is another step. `call` is the call itself, as it was
-    written, with the environment left out: its name and the arguments written on
-    it, each with the tag it was written with (`add << $a 1 << $b 2`), and a call
-    with no argument of its own written as the name alone. So its type is
-    `Any <- $env Env` — a call that still wants its environment, and giving it one
-    runs it. It is viba data, functions and closures among the arguments included,
-    so the same call can be made again from this result alone, without running
-    anything over; the environment is not part of it, another run makes its own.
+    another data path is another step. `call` is the call itself in the form that
+    can be run again, with the environment left out: `__dyn_call__` and the name
+    the host was asked for, or `__dyn_method__` and the member a value carries,
+    then the arguments written on it, each with the tag it was written with
+    (`__dyn_call__ << "add" << $a 1 << $b 2`). So its type is `Any <- $env Env` —
+    a call that still wants its environment, and giving it one runs it, from any
+    module, because the name is data. It is viba data, functions and closures
+    among the arguments included, so the same call can be made again from this
+    result alone, without running anything over; the environment is not part of
+    it, another run makes its own (`viba-interpreter.md`).
 
     It is an exception as well, because that is how the same news crosses a
     callable the run handed to a host; a `get_func` may raise it too, to say it
@@ -189,9 +233,10 @@ REASON_NO_LEAF = "no leaf"                       # it answered something with no
 #       | $ok VibaNode
 #       | $err InterpretError
 #
-# The error side is `InterpretError` (`$viba_program_err`, or a `Failure` under
-# one of its two tags). The other APIs keep the two-branch `Result`: their work
-# is all here.
+# The error side is `InterpretError` (`$viba_program_err`, an
+# `EnvironmentApiInvalidArgumentErr` under `$environment_api_invalid_argument_err`,
+# or a `Failure` under one of its two tags). The other APIs keep the two-branch
+# `Result`: their work is all here.
 InterpretResult = Union[Ok, Err]
 
 

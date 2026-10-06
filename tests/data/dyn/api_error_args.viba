@@ -1,0 +1,8 @@
+# An environment api that is given something that travels: the error records it.
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = args.env.sub_env << args.env << "kid"

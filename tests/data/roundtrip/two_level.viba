@@ -1,0 +1,9 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import mid
+
+__impl__ = mid << (args.env.sub_env << args.env << "mid")

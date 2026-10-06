@@ -1,0 +1,13 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+count_nothing =
+    int
+  <- $env Env
+  <- $x nil
+  <- { answer nothing counted }
+
+__impl__ = count_nothing << $env args.env << $x nil

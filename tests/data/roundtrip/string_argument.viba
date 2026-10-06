@@ -1,0 +1,13 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+shout =
+    str
+  <- $env Env
+  <- $x str
+  <- { answer it in capitals }
+
+__impl__ = shout << $env args.env << $x "hi"

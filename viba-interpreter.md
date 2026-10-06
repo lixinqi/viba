@@ -27,6 +27,7 @@ InterpretError =
   | $viba_program_err ProgramErr           # 关于程序或环境，不指某一步
   | $underlying_viba_op_err UnderlyingOpErr   # 某一步坏了
   | $not_implemented_err UnderlyingOpErr             # 某一步没有实现
+  | $environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr   # 环境上的 api 收不下给它的东西
 
 ProgramErr =
     Object
@@ -46,11 +47,35 @@ UnderlyingOpErr =
   * $msg str                               # 一句话，开头就是原因
   * $module_path str                       # `get_func` 收到的那条数据路径
   * $func_name str                         # `get_func` 收到的那个名字
-  * $call (Any <- $env Env)                # 这次调用本身，环境不在里面
+  * $call (Any <- $env Env)                # 这次调用本身，可执行的写法，环境不在里面
+
+EnvironmentApiInvalidArgumentErr =
+    Object
+  * $msg str                               # 一句话，开头就是原因
+  * $api_name str                          # 哪一个 api：`Environment.sub_env`
+  * $args Any                              # 给它的实参，环境不在里面
 ```
 
 Python 侧写 `interpret(viba_main_file, environ)`；`InterpretResult`（Python 侧 `viba.type.InterpretResult`）
-`$err` 那一支是 `InterpretError`：这次执行是怎么停下的，三种停法都在里面，改一个种类，调用方按种类分的支就变了。
+`$err` 那一支是 `InterpretError`：这次执行是怎么停下的，四种停法都在里面，改一个种类，调用方按种类分的支就变了。
+
+要跑的模块**写在手里**、不从文件读时，用 `exec`：参数形式和 `interpret` 一样（环境、`get_file`、`list_files`），
+只是第一份不是文件路径，而是那份代码本身。
+
+```viba
+exec =
+    InterpretResult
+  <- $viba_code str
+  <- $environ Environment
+```
+
+- `viba_code` 就是一份完整的 `.viba` 文本，它写出来的模块就是这次的主模块：`__decl__` 是它的签名、
+  `__impl__` 是它的结果，和 `interpret` 同一套规矩。
+- **主模块没有文件、也没有名字**：`import` 只按环境的搜索路径找（它旁边没有目录可以找），`$stack` 最外那一帧
+  的 `$file_path` 是空串，解析不了的名字报的是 `in module ''`，编译不过时说 `<viba_code>`（那份代码编译时用的
+  就是这个名字）。它也不绑名字：写出来的模块不是谁 import 得到的文件。
+- 别的都一样：环境不是 `Environment`、`viba_path` 给了别的类型、`get_file` / `list_files` 不是函数、代码不是
+  `str`，都是 `VibaProgramErr`，话里点名是哪个入口。
 
 模块在哪找是**环境**的事：`Environment.viba_path` 相当于 PYTHONPATH，冒号分隔，按顺序找 `<name>.viba`
 （dotted 名当路径走；空条目和不存在的目录跳过）。import 的那个文件所在的目录总是
@@ -794,10 +819,51 @@ B = A
   先算，所以写在条件里的递归调用一定发作。每条用例跑出值、跨文件绕回去、模块调用成环、闭包、
   `never`、和值、积或写下来的名字之一。
 
+## 把一次调用写成可执行的：`__dyn_call__` 与 `__dyn_method__`
+
+一步是按**名字**实现的：`get_func(module_path, func_name)` 收到的那一个。名字写在链头时只在写它的那个模块里成立
+——`a.b.c` 在那里指得着，交出去、存下来、换个模块读就指不着了，因为它是一条名字路径，不是一个自己站得住的调用。
+所以把一次调用写成**可执行的数据**时，名字跟着数据走。下面这两个名字由 `interpret` 自己回答：它们不向 `get_func`
+要实现，一个模块自己的定义也盖不住它们。
+
+```viba
+__dyn_call__ =
+    Any
+  <- $env Env
+  <- $name str
+  <- $args ...
+
+__dyn_method__ =
+    Any
+  <- $env Env
+  <- $name str
+  <- $value Any
+  <- $args ...
+```
+
+- **`__dyn_call__ << env << "a.b.c" << 实参…` 就是 `a.b.c << env << 实参…`**：名字当数据交给宿主
+  （`get_func(<给的那个环境的数据路径>, "a.b.c")`），后面写的实参按写的次序接着交给它。它问的是**宿主**，
+  不是照这个名字去找一份 `.viba` 文件：要跑一个模块，写的是它的名字（`demo << env`），不是这里。
+  名字不是字符串、这次调用没拿到环境，都是**程序错**。
+- **成员是某份值的成员时走 `__dyn_method__`**：`$foo << bar << 实参…` 取的是 `bar` 的成员 `foo`，而 `bar`
+  是一份值、不是名字路径，所以这里的名字只能是数据：`__dyn_method__ << env << "foo" << bar << 实参…`
+  就是 `$foo << bar << 实参…` —— 那份值当成员的第一个实参，环境是这次调用的规矩。成员自己是一份值时
+  （`uncompress_relative_path` 那种）取出来就是这个值；值就是环境时（`args.env.tmp_env` 那种），
+  取的是那个环境自己的那一个。
+- **不带环境就是闭包**：`__dyn_call__ << "add" << $a 1` 是一个值，类型 `Any <- $env Env`；给它一个环境就执行，
+  和别的没给环境的调用一样。
+- **`$call` 用的就是这两种写法**（见「一次执行会得到什么」）：名字是字符串数据，环境剔掉 —— 链上写了环境的那一处也剔掉
+  （`$f << box << args.env << …` 写成 `__dyn_method__ << "f" << box << …`），剩下的就是那个闭包。
+- **设计层读同一段写法，说的是 `Any`**：名字是数据，设计说不出这次调用答什么，所以它既不核后面那几个实参，
+  也不多说。
+
+环境上的成员收不下给它的东西时，报的是第四种停法（`$environment_api_invalid_argument_err`），
+不是「某一步失败了」——见下一节。
+
 ## 一次执行会得到什么
 
 `interpret` 返回的 `InterpretResult` 只有两支：`$ok VibaNode` 是值，`$err InterpretError` 是这次执行
-停下的方式。停下的方式有三种：
+停下的方式。停下的方式有四种：
 
 - `$viba_program_err ProgramErr`（Python 侧 `VibaProgramErr`）：**这一份程序或环境不行** —— 编不过、
   文件不在、没有 `__impl__`、`$env` 没给……它不说"哪一步"，所以不带步名；`$msg` 一句话说是什么事，
@@ -806,26 +872,47 @@ B = A
   给出了没有叶子的东西，或者 `get_func` 自己坏了；
 - `$not_implemented_err UnderlyingOpErr`：**这一步没有实现** —— `get_func` 那里没有它（`get_func` 返回 `None`，
   或者自己抛出这一支说自己没有实现）。这不是失败：`interpret` 不带库函数，所以"没有实现"很正常。
+- `$environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr`（Python 侧
+  `EnvironmentApiInvalidArgumentErr`）：**环境上的一个 api 收不下给它的东西** —— `Environment` 的成员
+  （`sub_env`、`tmp_env`、`get_relative_path`……），或者宿主挂在环境上的那些，把这次调用退回来了：
+  给的根不是它的祖先、路径里带 `.` 或 `..`、那个环境底下没有 storage……它是 viba 自己这一侧的活：
+  `get_func` 从来没有被问过它们，所以这不是"某一步失败了"，也不带步名。
 
 后两支的载荷是**同一个 `UnderlyingOpErr`**，靠 tag 分开 —— 调用方按 tag 分，不必读那句话。`$msg` 一句话说清是
 什么事，**开头就是原因**：`no implementation`（`get_func` 给了 `None`）、`refused`（`get_func` 自己抛出了
 它，后面跟着它自己的说法）、`get_func raised`（`get_func` 自己坏了）、`raised`（实现抛了）、`no leaf`
 （实现给出了没有叶子的东西）。
 
+`EnvironmentApiInvalidArgumentErr` 的 `$api_name` 是**哪一个 api**，写成它定义里那个名字：
+`Environment.sub_env`（[`viba/builtin.viba`](viba/builtin.viba) 里 `Environment` 的成员就是这几个）；
+`$args` 是**给它的实参**，能写成数据的那几份，按写的次序，环境不在里面（它是那个 api 自己的值）——
+所以 `sub_env << "kid"` 记的就是 `"kid"`，只收环境的 `tmp_env` 记的是 `nil`。它的 `$msg` 也开头就是原因：
+`raised`（那个 api 收不下，抛了）。
+
 `$stack` 是这次执行停下的**调用链**，最外一帧在前：一帧就是一次调用点 —— 调用写在哪个 `.viba` 文件里
 （`$file_path`）、写在哪一行（`$lineno`）。最外那一帧是主文件本身，它不是被谁调用的，行号写 0。
 
 `$module_path` 与 `$func_name` 就是 `get_func(module_path, func_name)` 收到的那两个：路径是这次调用的
-**数据路径**，所以同一个定义、另一条数据路径，是另一步。`$call` 是**这次调用本身**，按它写下来的样子，
-类型是 `Any <- $env Env`——环境还没给的调用，给它一个环境就是执行它：名字加上写在链上的实参，各自带着
-写下来的 tag（`add << $a 1 << $b 2`）；只带环境的调用就写成名字本身。它是可序列化数据——实参里是函数、
-是闭包也一样，函数和闭包本来就是可序列化的——照着它就能把这次调用重新做一遍，不必重跑一次运行。环境
-不在里面：给出环境就是执行这次调用，它不是这次调用的数据，另一次运行自己造。
+**数据路径**，所以同一个定义、另一条数据路径，是另一步 —— 拿 `$call` 再跑一遍时，给它的环境要落在
+`$module_path` 那条路径上，那次调用是在那儿发生的。
 
-两支都会一路穿回调用方，而且**原样上传、不被改写**：被调用的模块里那一步没实现，带回来的
+`$call` 是**这次调用本身，写成能再跑一遍的样子**：一步坏了的时候，名字只有写它的那个模块认得，所以
+名在这里当数据走 —— `__dyn_call__ << "add" << $a 1 << $b 2`（就是 `add << $a 1 << $b 2`），成员是某份
+值的成员时是 `__dyn_method__ << "f" << box << 1`（就是 `$f << box << args.env << 1`，环境那一处剔掉了）。
+环境不在里面：给出环境就是执行这次调用，它不是这次调用的数据，另一次运行自己造。所以写出来它是一份
+**闭包**（类型 `Any <- $env Env`）：把它当数据交给一次运行、让那次运行给它一个环境
+（`held = hold << $env args.env`，再 `held << args.env`），这次调用就跑起来了；也可以把它用
+`serialize` 写成 viba 源代码（`call = __dyn_call__ << "add" << $a 1`）再跑。实参里是函数、是闭包也一样，
+它们本来就是可序列化的 —— 照着它就能把这次调用重新做一遍，不必重跑一次运行，也不必让写它的那个模块
+在场（上一节）。这两条路都钉在用例里
+（[`tests/test_interpreter_roundtrip.py`](tests/test_interpreter_roundtrip.py)：二十六份，先缺一步、
+补上、把 `$call` 跑一遍，含同一个名字在两条数据路径上、以及一轮一轮补下去的那种）。
+
+这四种停法都会一路穿回调用方，而且**原样上传、不被改写**：被调用的模块里那一步没实现，带回来的
 那一步是**里面那一次调用**（`root/模块名` 下的那个定义），不是外面那一层；穿过运行、再交给宿主的可
 调用对象时也一样。`get_func` 自己抛出它时，run 会把缺的补上：步名与 `$call` 用它知道的这次调用，
-`$msg` 留着宿主自己说的（没说就是 `refused`）。
+`$msg` 留着宿主自己说的（没说就是 `refused`）。环境上的 api 那次也一样：坏的是里面那一个 api，
+带回来的就是它，不是外面那一层。
 
 `$viba_program_err` 的 `$msg` 长这样：
 
@@ -840,6 +927,9 @@ module 'm' has no __impl__: ...        类型，不是程序
 module 'x' ... same arguments         同一个模块带着同一份实参又在跑（没有进展）
 ... storage path ... already used     两个模块挤同一条数据路径
 ... is a function still waiting ...   __impl__ 不是值
+... was given no Environment to run in  __dyn_call__ 拿到环境才能跑
+... was given no name to call         __dyn_call__ 没拿到名字
+... was given no value ...            __dyn_method__ 没拿到取值的那份值
 cannot read ...                       文件读不了
 cannot parse ...                      编译不过（语法错误）
 viba_path is a string ...             viba_path 给错了类型
@@ -854,5 +944,10 @@ refused ...                            `get_func` 自己抛出了它，后面是
 get_func raised: get_func('root', 'add') raised ...    `get_func` 自己坏了
 raised: add raised ZeroDivisionError(...)   实现抛了
 no leaf: add answered list, ...        实现给出了没有叶子的东西
-raised: the environment's sub_env raised ...   环境上挂的宿主函数坏了
+```
+
+`$environment_api_invalid_argument_err` 的 `$msg` 一种，`$api_name` 与 `$args` 是另外两个字段：
+
+```
+raised: Environment.sub_env raised AttributeError(...)   那个 api 收不下给它的东西
 ```

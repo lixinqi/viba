@@ -16,7 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import (FAILURE_TAG, NOT_IMPLEMENTED_TAG, Err, InterpretError,
+from viba.type import (FAILURE_TAG, NOT_IMPLEMENTED_TAG,
+                       EnvironmentApiInvalidArgumentErr, Err, InterpretError,
                        VibaProgramErr, UnderlyingOpErr, Ok)
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
@@ -75,6 +76,14 @@ class Checks:
         self.check(isinstance(error, UnderlyingOpErr)
                    and error.tag == FAILURE_TAG and want in error.msg,
                    f"{label}: expected UnderlyingOpErr({want!r}), got {result!r}")
+
+    def environment_api(self, result, want: str, api_name: str, label: str):
+        """An environment api refused what it was given: that error, that api, that message."""
+        error = error_of(result)
+        self.check(isinstance(error, EnvironmentApiInvalidArgumentErr)
+                   and api_name == error.api_name and want in error.msg,
+                   f"{label}: expected EnvironmentApiInvalidArgumentErr("
+                   f"{api_name!r}, {want!r}), got {result!r}")
 
     def report(self) -> int:
         print(f"{self.name}: {self.passed} passed, {self.failures} failed")

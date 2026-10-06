@@ -1,0 +1,13 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+sum_of =
+    int
+  <- $env Env
+  <- $both (Object * $a int * $b int)
+  <- { add the two members }
+
+__impl__ = sum_of << $env args.env << ($a 1 * $b 2)

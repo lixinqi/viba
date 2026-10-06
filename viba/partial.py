@@ -61,6 +61,12 @@ ENVIRON_TAG = "$env"
 ENV_TYPE = "Env"
 ENVIRONMENT_TYPE = "Environment"
 
+# The two names whose call has its name as *data*: the interpreter answers them
+# itself, and what such a call answers is `Any` — the design has no name to look
+# up, so it cannot say more (viba-interpreter.md, "把一次调用写成可执行的").
+DYN_CALL_NAME = "__dyn_call__"
+DYN_METHOD_NAME = "__dyn_method__"
+
 def module_as_function(module, name):
     """(body, written_in) for a bare import name read as a function, or None.
 
@@ -257,6 +263,14 @@ def _definition(module, name):
     return found
 
 
+def _dynamic_call(node) -> bool:
+    """Whether this chain is a call whose name is data (`__dyn_call__`, `__dyn_method__`)."""
+    while isinstance(node, viba_ast.Partial):
+        node = node.function
+    return (isinstance(node, viba_ast.TypeRef)
+            and node.name in (DYN_CALL_NAME, DYN_METHOD_NAME))
+
+
 def reduce_partial(node, module, resolve: Callable, judge: Callable,
                    outermost: bool = True) -> Tuple[object, object]:
     """(node, module) with every `<<` given.
@@ -268,6 +282,10 @@ def reduce_partial(node, module, resolve: Callable, judge: Callable,
     apart from an argument (`is_the_environment`), since the environment's own
     type is what says so.
     """
+    if _dynamic_call(node):
+        # The name travels as data, so the design has nothing to unfold: what this
+        # call answers is `Any`, and its arguments are taken as they come.
+        return viba_ast.Any(), module
     while isinstance(node, viba_ast.Partial):
         base, base_module = reduce_partial(node.function, module, resolve, judge,
                                            outermost=False)

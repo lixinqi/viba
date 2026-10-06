@@ -1,0 +1,13 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+pair =
+    Any
+  <- $env Env
+  <- $x int
+  <- { answer two members }
+
+__impl__ = pair << $env args.env << $x 1

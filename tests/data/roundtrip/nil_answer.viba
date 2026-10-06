@@ -1,0 +1,12 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+noop =
+    void
+  <- $env Env
+  <- { answer nothing }
+
+__impl__ = noop << $env args.env

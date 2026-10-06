@@ -1,0 +1,18 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+Box = Object * $g (int <- $box Box <- $env Env <- $x int) * $y int
+
+bump =
+    int
+  <- $box Box
+  <- $env Env
+  <- $x int
+  <- { add one }
+
+box = Object * $g bump * $y 2
+name = "g"
+__impl__ = $__getattr__ << box << name << args.env << $x 1

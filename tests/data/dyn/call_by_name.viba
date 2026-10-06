@@ -1,0 +1,16 @@
+# The step's name travels as data: `__dyn_call__ << env << "add" << …` is the
+# call `add << env << …`, read from any module.
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two integer }
+
+__impl__ = __dyn_call__ << $env args.env << "add" << $a 1 << $b 2

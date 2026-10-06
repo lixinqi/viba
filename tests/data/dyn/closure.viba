@@ -1,0 +1,8 @@
+# No environment: the call is a value — a closure, written as the same call.
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = __dyn_call__ << "add" << $a 1

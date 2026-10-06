@@ -1,0 +1,9 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import inner
+
+__impl__ = inner << (args.env.tmp_env << args.env)

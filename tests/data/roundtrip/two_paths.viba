@@ -1,0 +1,10 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import inner
+
+__impl__ = (inner.inc << (args.env.sub_env << args.env << "a") << $x 1)
+  * (inner.inc << (args.env.sub_env << args.env << "b") << $x 2)

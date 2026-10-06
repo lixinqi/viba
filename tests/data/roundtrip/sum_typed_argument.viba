@@ -1,0 +1,13 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+widen =
+    int
+  <- $env Env
+  <- $x (int | str)
+  <- { answer one more than an int }
+
+__impl__ = widen << $env args.env << $x 1

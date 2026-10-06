@@ -91,7 +91,7 @@ from typing import List, Optional, Union
 from viba import viba_ast
 
 __all__ = ["Builder", "tag", "literal", "code", "add_import", "comment",
-           "check"]
+           "check", "name"]
 
 
 class _Expr:
@@ -362,6 +362,18 @@ def literal(value) -> _Expr:
     left end is spelled `literal("a") | 1`.
     """
     return _wrap(value)
+
+
+def name(path: str) -> _Name:
+    """The written name `path`: what `vb.<name>` gives.
+
+    A builder spells names as its own attributes, so a name it cannot reach that
+    way — one beginning with an underscore, the two `__dyn_*` names among them —
+    is written here instead.
+    """
+    if not isinstance(path, str) or not path:
+        raise TypeError(f"a written name is a non-empty str, not {path!r}")
+    return _Name(path)
 
 
 def code(text: str) -> _Code:

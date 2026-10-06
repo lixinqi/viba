@@ -105,7 +105,7 @@ def _emit_closure(access: VibaAccess, node: VibaNode):
         # write back through a builder; the value layer keeps such a chain as a
         # call in progress, not as viba data.
         raise SerializeGap("a chain headed by a member has no written form here")
-    expression = getattr(_NAMES, head.name)
+    expression = builder.name(head.name)
     written_in = _written_in(node)
     for argument in arguments:
         piece = _emit(access, _bare(argument, access, written_in))

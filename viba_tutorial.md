@@ -147,6 +147,9 @@ print(answer)                  # Ok(VibaNode(root))
 print(answer.ok_value.value)   # 1000000
 ```
 
+模块写在手里、不从文件读时用 `exec`：参数形式和 `interpret` 一样，只是第一份不是路径而是代码本身
+（`exec(那份文本, environ)`）。写出来的主模块没有文件、也没有名字：`import` 只按环境的搜索路径找。
+
 宿主收到的东西分两种：**可序列化数据**到手上是实例（`a` 是节点，`a.value` 是那个数），**环境**到手就是
 环境自己。写下来的名字、字面量、调用，宿主看到的都是实例，按 [`viba-reflect.md`](viba-reflect.md) 一步步读。
 
@@ -320,7 +323,7 @@ tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头�
 ## 9. 一次执行给出什么
 
 `interpret` 的结果只有两支：`Ok(VibaNode)` 是 `__impl__` 的值，`Err(InterpretError)` 是这次执行停下的
-方式。停下的方式有三种：
+方式。停下的方式有四种：
 
 - `$viba_program_err ProgramErr`（Python 侧 `VibaProgramErr`）：**这份程序或环境不行**——编不过、
   文件不在、没有 `__impl__`、`$env` 没给。它不说"哪一步"，所以不带步名；`$stack` 是这次执行走过的
@@ -329,11 +332,18 @@ tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头�
   没有叶子的东西，或者 `get_func` 自己坏了。
 - `$not_implemented_err UnderlyingOpErr`：**这一步没有实现**——`get_func` 那里没有它。`interpret` 不带库函数，
   所以"没有实现"很正常，不是错误。
+- `$environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr`（Python 侧
+  `EnvironmentApiInvalidArgumentErr`）：**环境上的一个 api 收不下给它的东西**——`Environment` 的成员
+  （`sub_env`、`tmp_env`、`get_relative_path`……），或者宿主挂在环境上的那些，把这次调用退回来了。
+  它是 viba 自己这一侧的活，`get_func` 从来没有被问过它们；`$api_name` 是哪一个 api（`Environment.sub_env`），
+  `$args` 是给它的实参（环境不在里面）。
 
 后两支的载荷是同一个 `UnderlyingOpErr`，靠 tag 分开；`$msg` 一句话说清是什么事，开头就是原因（`no implementation`、
 `refused`、`get_func raised`、`raised`、`no leaf`）。这一支里还带着是哪一步（`$module_path` 与 `$func_name`）
-和这次调用本身（`$call`：名字加写下来的实参，环境不在里面），照着它就能把这次调用重新做一遍，不必重跑
-一次运行。
+和这次调用本身（`$call`：`__dyn_call__` 加上名字和写下来的实参，名字是数据，环境不在里面 ——
+`__dyn_call__ << "add" << $a 1 << $b 2` 就是 `add << $a 1 << $b 2`；成员是某份值的成员时写成
+`__dyn_method__ << "f" << box << 1`），照着它就能把这次调用重新做一遍，不必重跑一次运行，也不必让写它的
+那个模块在场（`viba-interpreter.md`「把一次调用写成可执行的」）。
 
 ## 10. 要回放，就要有稳定的路径
 

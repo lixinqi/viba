@@ -1,0 +1,13 @@
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+deep =
+    int
+  <- $env Env
+  <- $x int
+  <- { add five }
+
+__impl__ = deep << $env args.env << $x 5

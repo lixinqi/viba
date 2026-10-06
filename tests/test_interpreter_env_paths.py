@@ -29,6 +29,7 @@ from viba.type import Ok
 checks = Checks("interpreter_env_paths")
 check = checks.check
 failed = checks.failed
+environment_api = checks.environment_api
 
 CASES = Path(__file__).resolve().parent / "data" / "environment"
 
@@ -325,8 +326,9 @@ def _written_in_viba(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == "a/b/c",
           f"with nil written for the root, the chain's own root is used: {result!r}")
 
-    failed(interpret(str(CASES / "env_relative_path_wrong_root.viba"), here), "is no child of",
-           "a root written as this layer's child")
+    environment_api(interpret(str(CASES / "env_relative_path_wrong_root.viba"), here),
+                    "is no child of", "Environment.get_relative_path",
+                    "a root written as this layer's child")
 
     # 按相对路径找回来
     result = interpret(str(CASES / "env_find_by_path.viba"), here)
@@ -336,11 +338,12 @@ def _written_in_viba(tmp: Path):
     check(isinstance(result, Ok) and
           result.ok_value.storage.cur_storage_path == "root/a/b/c/x",
           f"with no root it searches from the environment it was read off: {result!r}")
-    failed(interpret(str(CASES / "env_find_by_path_bad_path.viba"), here), "is no relative path",
-           "a path with a .. segment")
-    failed(interpret(str(CASES / "env_find_by_path_wrong_tag.viba"), here),
-           "takes a relative path",
-           "a tag at the chain head: the environment lands where the path goes")
+    environment_api(interpret(str(CASES / "env_find_by_path_bad_path.viba"), here),
+                    "is no relative path", "Environment.find_by_relative_path",
+                    "a path with a .. segment")
+    environment_api(interpret(str(CASES / "env_find_by_path_wrong_tag.viba"), here),
+                    "takes a relative path", "Environment.find_by_relative_path",
+                    "a tag at the chain head: the environment lands where the path goes")
 
     # convert_sub_to_sibling 与 uncompress_relative_path
     result = interpret(str(CASES / "env_uncompress_relative_path.viba"), here)
@@ -354,10 +357,12 @@ def _written_in_viba(tmp: Path):
     check(isinstance(result, Ok) and value_of(result) == "root/a/b/c/child",
           f"the pressed layer records the path it stands for: {result!r}")
 
-    failed(interpret(str(CASES / "env_convert_sub_to_sibling_root.viba"), here), "is the root",
-           "a sup that is the chain's own root")
-    failed(interpret(str(CASES / "env_convert_sub_to_sibling_nil.viba"), here),
-           "takes an Environment", "nil written for the sub")
+    environment_api(interpret(str(CASES / "env_convert_sub_to_sibling_root.viba"), here),
+                    "is the root", "Environment.convert_sub_to_sibling",
+                    "a sup that is the chain's own root")
+    environment_api(interpret(str(CASES / "env_convert_sub_to_sibling_nil.viba"), here),
+                    "takes an Environment", "Environment.convert_sub_to_sibling",
+                    "nil written for the sub")
 
 
 if __name__ == "__main__":

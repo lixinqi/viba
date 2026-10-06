@@ -1,0 +1,18 @@
+# A member of a value: the name is data, so it goes through `__dyn_method__`.
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+Box = Object * $f (int <- $box Box <- $env Env <- $x int) * $y int
+
+inc =
+    int
+  <- $box Box
+  <- $env Env
+  <- $x int
+  <- { add one }
+
+box = Object * $f inc * $y 2
+__impl__ = __dyn_method__ << args.env << "f" << box << 1

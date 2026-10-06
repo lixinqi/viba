@@ -1,0 +1,7 @@
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = concat << $env args.env << $x "a" << $y "b"
