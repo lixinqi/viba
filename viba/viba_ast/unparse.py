@@ -263,8 +263,9 @@ def _unparse_sumchain(chain: SumChain, indent: int, depth: int) -> str:
     for i, elem in enumerate(chain.elements):
         elem_str = _dedent(_unparse_type(elem, indent, depth + 1), inner_indent)
         # A same-kind branch keeps its parentheses: written flat it would be
-        # read back as part of the main chain.
-        if isinstance(elem, SumChain):
+        # read back as part of the main chain. A branch that is a call needs
+        # them for the same reason — `| f << 1` runs on into the chain.
+        if isinstance(elem, (SumChain, Partial)):
             elem_str = f"({elem_str})"
         if i == 0:
             lines.append(f"{line_indent}{elem_str}")
@@ -289,8 +290,8 @@ def _unparse_productchain(chain: ProductChain, indent: int, depth: int) -> str:
         # product on reparse: `(A | B) * C` must keep its parentheses.
         # A same-kind branch chain (`A * (B * C)`) needs them for the same
         # reason: without them the branch would reparse as part of the main
-        # chain.
-        if isinstance(elem, (SumChain, ProductChain)):
+        # chain. So does an element that is a call: `* f << 1` runs on too.
+        if isinstance(elem, (SumChain, ProductChain, Partial)):
             elem_str = f"({elem_str})"
         if i == 0:
             lines.append(f"{line_indent}{elem_str}")
@@ -309,9 +310,10 @@ def _unparse_exponentchain(chain: ExponentChain, indent: int, depth: int) -> str
     inner_indent = " " * (indent * (depth + 1))
 
     # `<-` binds tighter than `|` and `*`, so any composite result or
-    # argument must be parenthesized to preserve the grouping.
+    # argument must be parenthesized to preserve the grouping — a call too:
+    # `<- f << 1` would run on into the chain.
     def _parenthesize(node: AST, unparsed: str) -> str:
-        if node.__class__.__name__ in _BINARY_NAMES:
+        if node.__class__.__name__ in _BINARY_NAMES or isinstance(node, Partial):
             return f"({unparsed})"
         return unparsed
 
@@ -369,8 +371,14 @@ def _is_binary(node: AST) -> bool:
 
 
 def _tagged_body_parens(node: AST, unparsed: str, prefix: str = "") -> str:
-    """Parenthesize a tagged body if it is a binary type or another tag."""
+    """Parenthesize a tagged body if it is a binary type, a call, or another tag.
+
+    A call's `<<` runs on to the left, so a tag whose body is a call needs the
+    group back: `$x (f << 1)` is one argument, `$x f << 1` is two. A product laid
+    out as a block keeps the `Object` it is led by inside the group, and the
+    group stands off the tag: `$x (Object * $a 1)`.
+    """
     unparsed = _dedent(unparsed, prefix)
-    if _is_binary(node) or isinstance(node, Tagged):
-        return f"({unparsed})"
+    if _is_binary(node) or isinstance(node, (Tagged, Partial)):
+        return f" ({unparsed})"
     return f" {unparsed}"

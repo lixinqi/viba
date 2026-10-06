@@ -16,10 +16,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import Checks, value_of
+from interpreter_support import error_of, message_of, Checks, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import NoImplementationException, Ok, UnderlyingVibaOpFailed, VibaProgramErr
+from viba.type import Ok, UnderlyingOpErr, VibaProgramErr
 
 checks = Checks("interpreter_lazy")
 check = checks.check
@@ -95,8 +95,8 @@ def environ_for(store, calls, knobs=None):
 # (文件, 该跑出什么, 要看住的副作用, 门槛)：
 #   value   Ok，叶子是这个值
 #   error   VibaProgramErr，话里含这个片段
-#   no_implementation   没有实现：宿主没实现那一步
-#   fail    UnderlyingVibaOpFailed，话里含这个片段
+#   not_implemented   没有实现：宿主没实现那一步
+#   fail    UnderlyingOpErr，话里含这个片段
 CASES_TO_RUN = [
     # 只有选中那一支的实参被算：门槛由宿主给，同一个文件跑两个方向
     ("branches", "value", 1, ["tick"], 0),
@@ -105,7 +105,7 @@ CASES_TO_RUN = [
     ("recorded_branches", "value", 0, ["true_branch"], 0),
     ("recorded_branches", "value", 0, ["false_branch"], 5),
     # 分支背后那一步没有实现：报的就是那一步，而且它没被算过
-    ("recorded_missing", "no_implementation", None, [], 0),
+    ("recorded_missing", "not_implemented", None, [], 0),
     # 宿主不叫那个实参：它一次都不算，没有实现也不挡路
     ("ignored_argument", "value", 7, [], 0),
     # 那一格还没给、别的先给了：这个调用存不下来
@@ -120,7 +120,7 @@ CASES_TO_RUN = [
     # 没有函数类型的槽：一切照旧，实参先算
     ("eager_pair", "value", 1, ["tick"], 0),
     # 叫了那个实参，算它时出的事照常报出来
-    ("called_missing", "no_implementation", None, [], 0),
+    ("called_missing", "not_implemented", None, [], 0),
     ("called_boom", "error", "is not a function", [], 0),
     ("no_environment", "error", "was not given an Environment", [], 0),
 ]
@@ -139,13 +139,12 @@ def run(tmp: Path):
             check(isinstance(result, Ok) and value_of(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
         elif kind == "error":
-            check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
-        elif kind == "no_implementation":
-            check(isinstance(result, NoImplementationException),
-                  f"{name}: expected a step with no implementation, got {result!r}")
+        elif kind == "not_implemented":
+            checks.not_implemented(result, name)
         elif kind == "fail":
-            check(isinstance(result, UnderlyingVibaOpFailed) and want in result.msg,
+            check(isinstance(error_of(result), UnderlyingOpErr) and want in message_of(result),
                   f"{name}: expected a failure saying {want!r}, got {result!r}")
         if calls_wanted is not None:
             check(calls == calls_wanted,

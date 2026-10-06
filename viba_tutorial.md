@@ -129,7 +129,8 @@ viba 是**声明式**的，不是命令式执行的：一份文件里的定义�
 `__impl__ = args.env` 交回去的还是那个环境，只是声明成 `Any`。
 
 宿主给两样东西：结果存在哪（`EnvironmentStorage`，默认一个临时目录）和每一步的实现
-（`EnvironmentCompute`，里面一个 `get_func(module_path, func_name)`）。`interpret` 读文件、跑起来。
+（`EnvironmentCompute`，里面一个 `get_func(module_path, func_name)`）。`interpret` 读文件、跑起来
+（它的 viba 签名在 [`viba-interpreter.md`](viba-interpreter.md) 开头）。
 
 ```python
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
@@ -182,7 +183,7 @@ __impl__ = demo.print << args.env << ret
 `$tmp_env << args.env`。
 
 ```viba
-lib_call = lib << (args.env.tmp_env << args.env)
+add_demo_call = add_demo << (args.env.tmp_env << args.env)
 ```
 
 模块要收实参，就把它们写进 `__decl__`（结果在前，参数在后），再写 `args = __get_args__ << __decl__`：
@@ -318,18 +319,21 @@ tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头�
 
 ## 9. 一次执行给出什么
 
-`interpret` 的结果有四支：
+`interpret` 的结果只有两支：`Ok(VibaNode)` 是 `__impl__` 的值，`Err(InterpretError)` 是这次执行停下的
+方式。停下的方式有三种：
 
-- `Ok(VibaNode)`：`__impl__` 的值。
-- `$viba_program_err str`（Python 侧 `VibaProgramErr`）：**这份程序或环境不行**——编不过、文件不在、
-  没有 `__impl__`、`$env` 没给。它不说"哪一步的实现坏了"，所以不带步名。
-- `$underlying_viba_op_failed Failure`（`UnderlyingVibaOpFailed`）：**某一步的实现坏了**，或者它给出了
-  没有叶子的东西。`$msg` 给人读，`$step`、`$reason` 给程序读。
-- `$no_implementation NoImplementation`（`NoImplementationException`）：**这一步没有实现**——`get_func`
-  那里没有它。这不是失败，运行停在那一步。`interpret` 不带库函数，所以"没有实现"很正常。
+- `$viba_program_err ProgramErr`（Python 侧 `VibaProgramErr`）：**这份程序或环境不行**——编不过、
+  文件不在、没有 `__impl__`、`$env` 没给。它不说"哪一步"，所以不带步名；`$stack` 是这次执行走过的
+  调用链，一帧是一次调用点（`$file_path` 是哪个文件、`$lineno` 是第几行）。
+- `$underlying_viba_op_err UnderlyingOpErr`（Python 侧 `UnderlyingOpErr`）：**这一步坏了**——实现抛了、给出了
+  没有叶子的东西，或者 `get_func` 自己坏了。
+- `$not_implemented_err UnderlyingOpErr`：**这一步没有实现**——`get_func` 那里没有它。`interpret` 不带库函数，
+  所以"没有实现"很正常，不是错误。
 
-这个结果里带着是哪一步（`$step` 的 `module_path` 与 `func_name`）和这一步拿到的实例（`$call`），照着它
-就能把那一步重新问一遍，不必重跑一次运行。
+后两支的载荷是同一个 `UnderlyingOpErr`，靠 tag 分开；`$msg` 一句话说清是什么事，开头就是原因（`no implementation`、
+`refused`、`get_func raised`、`raised`、`no leaf`）。这一支里还带着是哪一步（`$module_path` 与 `$func_name`）
+和这次调用本身（`$call`：名字加写下来的实参，环境不在里面），照着它就能把这次调用重新做一遍，不必重跑
+一次运行。
 
 ## 10. 要回放，就要有稳定的路径
 

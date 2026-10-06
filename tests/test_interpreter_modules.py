@@ -12,11 +12,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import CASES, Checks, Host, value_of
+from interpreter_support import error_of, message_of, CASES, Checks, Host, value_of
 
 from viba import serialize
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import VibaProgramErr, NoImplementationException, Ok, Step
+from viba.type import (NOT_IMPLEMENTED_TAG, VibaProgramErr, UnderlyingOpErr,
+                       Ok)
 
 checks = Checks("interpreter_modules")
 check = checks.check
@@ -34,10 +35,10 @@ def run(tmp: Path):
     _nested_modules(tmp)
     _cycles(tmp)
     _storage_paths(tmp)
-    _no_implementation(tmp)
+    _not_implemented(tmp)
 
 
-def _no_implementation(tmp: Path):
+def _not_implemented(tmp: Path):
     """没实现的那一步不是失败：整条程序停在那一步上，把这一步带回来。
 
     这一步要能穿过模块调用（被调的模块里那一步没实现，整个 run 的结果就是「没有实现」），
@@ -48,16 +49,18 @@ def _no_implementation(tmp: Path):
     host = Host()
     environ = host.environ()
 
-    outer = _case("no_implementation_outer")
+    outer = _case("not_implemented_outer")
 
     host.knobs["missing"] = ("add",)
     stopped = interpret(outer, environ)
-    checks.no_implementation(stopped, "a step with no implementation inside a called module")
-    check(stopped.step == Step("root/no_implementation_module", "add"),
-          f"the step is the call that stopped, not the module that called it: {stopped.step!r}")
-    check(stopped.reason == "no implementation", f"and why: {stopped.reason!r}")
-    check(_text_of(stopped.call) == "$a 1 * $b 2",
-          f"with the viba data it was given, as it was written: {_text_of(stopped.call)!r}")
+    checks.not_implemented(stopped, "a step with no implementation inside a called module")
+    check(error_of(stopped).module_path == "root/not_implemented_module"
+          and error_of(stopped).func_name == "add",
+          f"the step is the call that stopped, not the module that called it: {stopped!r}")
+    check(error_of(stopped).msg == "no implementation",
+          f"and why: {error_of(stopped).msg!r}")
+    check(_text_of(error_of(stopped).call) == "add << $a 1 << $b 2",
+          f"the call as it was written, the environment left out: {_text_of(error_of(stopped).call)!r}")
     host.knobs.pop("missing")
 
     result = interpret(outer, environ)
@@ -66,19 +69,21 @@ def _no_implementation(tmp: Path):
 
     host.knobs["refuse"] = ("add",)
     stopped = interpret(outer, environ)
-    checks.no_implementation(stopped, "a get_func that refuses the call it cannot serve")
-    check(stopped.step == Step("root/no_implementation_module", "add") and
-          stopped.reason == "refused",
+    checks.not_implemented(stopped, "a get_func that refuses the call it cannot serve")
+    check(error_of(stopped).module_path == "root/not_implemented_module"
+          and error_of(stopped).func_name == "add"
+          and error_of(stopped).msg == "refused",
           f"a bare refusal is completed with the step the run knows: {stopped!r}")
     host.knobs.pop("refuse")
 
     # 宿主自己带了话：run 不覆盖它说了什么
-    host.knobs["refuse_with"] = NoImplementationException(
-        Step("root/elsewhere", "add"), None, "no add here")
+    host.knobs["refuse_with"] = UnderlyingOpErr(
+        "no add here", "root/elsewhere", "add", tag=NOT_IMPLEMENTED_TAG)
     stopped = interpret(outer, environ)
-    checks.no_implementation(stopped, "a get_func that refuses in its own words")
-    check(stopped.step == Step("root/elsewhere", "add") and
-          stopped.reason == "no add here",
+    checks.not_implemented(stopped, "a get_func that refuses in its own words")
+    check(error_of(stopped).module_path == "root/elsewhere"
+          and error_of(stopped).func_name == "add"
+          and error_of(stopped).msg == "no add here",
           f"and what it said is kept: {stopped!r}")
     host.knobs.pop("refuse_with")
 
@@ -190,7 +195,7 @@ def _storage_paths(tmp: Path):
 
     # 撞车的错误说得清楚：给每次调用一个自己的子环境
     result = interpret(same_env, environ)
-    check(isinstance(result, VibaProgramErr) and "sub_env" in result.err_msg,
+    check(isinstance(error_of(result), VibaProgramErr) and "sub_env" in message_of(result),
           f"and the message says what to do: {result!r}")
 
 

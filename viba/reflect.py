@@ -471,7 +471,7 @@ class VibaAccess:
 
     def _unwrap(self, given: Result):
         if isinstance(given, VibaProgramErr):
-            raise VibaReflectError(given.err_msg)
+            raise VibaReflectError(given.msg)
         if given.ok_value is None:
             raise VibaReflectError("this piece has no value")
         return given.ok_value

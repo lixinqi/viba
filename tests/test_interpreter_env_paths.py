@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, Host, value_of
+from interpreter_support import error_of, message_of, Checks, Host, value_of
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             convert_sub_to_sibling, find_by_relative_path,

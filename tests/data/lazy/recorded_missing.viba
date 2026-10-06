@@ -12,11 +12,11 @@ threshold_of =
     int <- $env Env <- { the threshold the host hands over }
 inner_lambda_record =
     int <- $env Env <- $label str <- { record which branch was taken }
-poison_no_implementation =
+poison_not_implemented =
     int <- $env Env <- { nothing implements this }
 
 condition = ge << $env args.env << $x 1 << $y (threshold_of << $env args.env)
 __impl__ =
     Oneof
-  | (branch.echo_or_never << args.env << condition << (poison_no_implementation << args.env))
+  | (branch.echo_or_never << args.env << condition << (poison_not_implemented << args.env))
   | (branch.never_or_echo << args.env << condition << (inner_lambda_record << args.env << "false_branch"))

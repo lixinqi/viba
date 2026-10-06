@@ -10,7 +10,7 @@ take_x =
   <- $get_x (int <- $env Env)
   <- { answer whatever x is }
 
-poison_no_implementation =
+poison_not_implemented =
     int <- $env Env <- { nothing implements this }
 
-__impl__ = take_x << $env args.env << $get_x (poison_no_implementation << $env args.env)
+__impl__ = take_x << $env args.env << $get_x (poison_not_implemented << $env args.env)

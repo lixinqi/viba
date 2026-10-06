@@ -9,17 +9,19 @@
 import sys
 import tempfile
 from pathlib import Path
+from typing import get_args
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, Host, value_of
+from interpreter_support import error_of, message_of, Checks, Host, value_of
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             interpret)
 from viba.reflect import access as reflect_access
-from viba.type import VibaProgramErr, NoImplementationException, Ok, Step
+from viba.type import (FAILURE_TAG, NOT_IMPLEMENTED_TAG, Err, InterpretResult, VibaProgramErr,
+                       Ok, UnderlyingOpErr)
 
 checks = Checks("interpreter_values")
 check = checks.check
@@ -33,6 +35,7 @@ def _case(name: str) -> str:
 
 
 def run(tmp: Path):
+    _the_branches(tmp)
     _host_answers(tmp)
     _written_as_ret(tmp)
     _written(tmp)
@@ -64,6 +67,16 @@ NO_LEAF_CASES = [
 ]
 
 
+def _the_branches(tmp: Path):
+    """`interpret` 的答案就是那几支：类型少一个、tag 改一个，按类型分的支就变了。"""
+    branches = get_args(InterpretResult)
+    check(set(branches) == {Ok, Err},
+          f"the two branches interpret answers with: {branches!r}")
+    check(FAILURE_TAG == "$underlying_viba_op_err"
+          and NOT_IMPLEMENTED_TAG == "$not_implemented_err",
+          f"the two tags a UnderlyingOpErr answers under: {FAILURE_TAG!r}, {NOT_IMPLEMENTED_TAG!r}")
+
+
 def _host_answers(tmp: Path):
     """宿主返回什么，__impl__ 就是什么；宿主出错就是 VibaProgramErr，不是崩。"""
     host = Host()
@@ -85,20 +98,27 @@ def _host_answers(tmp: Path):
     boom = _case("boom")
     exploded = interpret(boom, environ)
     checks.failed(exploded, "ZeroDivision", "a host function that raises")
-    check(exploded.step == Step("root", "explode") and exploded.reason == "raised",
+    check(error_of(exploded).module_path == "root"
+          and error_of(exploded).func_name == "explode"
+          and error_of(exploded).msg.startswith("raised"),
           f"and the failure names the step and why: {exploded!r}")
     checks.failed(interpret(boom, Host(get_func_raises=True).environ()), "raised",
                   "a get_func that raises")
 
     stopped = interpret(_case("no_impl"), environ)
-    check(isinstance(stopped, NoImplementationException),
+    check(isinstance(error_of(stopped), UnderlyingOpErr)
+          and error_of(stopped).tag == NOT_IMPLEMENTED_TAG
+          and error_of(stopped).msg == "no implementation",
           "get_func says None: the run stops with no implementation, not a VibaProgramErr")
-    check(not isinstance(stopped, VibaProgramErr),
+    check(not isinstance(error_of(stopped), VibaProgramErr),
           "and that stop is not a VibaProgramErr: nothing broke, one step has no implementation")
-    check(stopped.step == Step("root", "ghost") and stopped.reason == "no implementation",
+    check(error_of(stopped).module_path == "root"
+          and error_of(stopped).func_name == "ghost"
+          and error_of(stopped).msg == "no implementation",
           f"the stop names the step and why: {stopped!r}")
-    check(stopped.call is None,
-          f"a step given no viba_data carries none: {stopped.call!r}")
+    check(isinstance(error_of(stopped).call.data, viba_ast.TypeRef)
+          and error_of(stopped).call.data.name == "ghost",
+          f"a call written with no argument of its own is the name alone: {error_of(stopped).call!r}")
 
     result = interpret(_case("echo"), environ)
     check(isinstance(result, Ok) and value_of(result) == 42,
@@ -230,7 +250,7 @@ def _crossing_the_host_boundary(tmp: Path):
 
     # 宿主自己说：get_func 抛出它，等于这次调用没有实现
     host.knobs["refuse"] = ("twice",)
-    checks.no_implementation(interpret(higher, environ),
+    checks.not_implemented(interpret(higher, environ),
                              "a get_func that refuses the call")
     host.knobs.pop("refuse")
 

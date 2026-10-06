@@ -10,7 +10,7 @@ viba.viba_ast nodes, and nothing about how a module runs.
 """
 
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Union
 
 from viba import viba_ast
 
@@ -29,113 +29,151 @@ class Ok:
         return f"Ok({self.ok_value!r})"
 
 
-class VibaProgramErr:
-    """`$viba_program_err str`: the program or the environment is at fault.
+class Frame:
+    """`Frame`: one call site of the chain an error happened in.
 
-    The source does not compile, a name resolves to nothing, a module has no
-    `__impl__`, the environment cannot run the file: `err_msg` says which. It
-    names no step — that is what `UnderlyingVibaOpFailed` is for.
+        Frame =
+            Object
+          * $file_path str
+          * $lineno int
+
+    `file_path` is the `.viba` file the call is written in, `lineno` the line
+    the call is on. The main file is the outermost frame of every chain, and it
+    is no call site: its `lineno` is 0.
     """
 
-    def __init__(self, err_msg: str):
-        self.err_msg = err_msg
+    def __init__(self, file_path: str, lineno: int):
+        self.file_path = file_path
+        self.lineno = lineno
+
+    def __eq__(self, other):
+        return (isinstance(other, Frame) and self.file_path == other.file_path
+                and self.lineno == other.lineno)
+
+    def __hash__(self):
+        return hash((self.file_path, self.lineno))
 
     def __repr__(self):
-        return f"VibaProgramErr({self.err_msg!r})"
+        return f"Frame({self.file_path!r}, {self.lineno!r})"
+
+
+Stack = List[Frame]
+
+
+class InterpretError:
+    """`$err InterpretError`: the run stopped, and this says why.
+
+        InterpretError =
+            Oneof
+          | $viba_program_err ProgramErr           # the program or environment
+          | $underlying_viba_op_err UnderlyingOpErr     # a step broke
+          | $not_implemented_err UnderlyingOpErr               # nothing implements it
+
+    A `Failure` is one payload under two tags: `tag` says which. A `ProgramErr`
+    is about the program or the environment itself, so it names no step.
+    """
+
+
+class VibaProgramErr(InterpretError):
+    """`$viba_program_err ProgramErr`: the program or the environment is at fault.
+
+        ProgramErr =
+            Object
+          * $msg str
+          * $stack Stack
+
+    The source does not compile, a name resolves to nothing, a module has no
+    `__impl__`, the environment cannot run the file: `msg` says which. `stack` is
+    the chain of calls it happened in, outermost first, each frame a call site
+    (`Frame`); it names no step — that is what a `Failure` is for.
+    """
+
+    def __init__(self, msg: str, stack: Optional[Stack] = None):
+        self.msg = msg
+        self.stack: Stack = list(stack or [])
+
+    def __repr__(self):
+        return f"VibaProgramErr({self.msg!r})"
+
+
+class Err:
+    """`$err InterpretError`: the run stopped; `error` says why."""
+
+    def __init__(self, error: InterpretError):
+        self.error = error
+
+    def __repr__(self):
+        return f"Err({self.error!r})"
 
 
 Result = Union[Ok, VibaProgramErr]
 
 
-class Step:
-    """`Step`: which call stopped — what `get_func` was handed.
+class UnderlyingOpErr(InterpretError, Exception):
+    """`Failure`: this step did not answer. Its two tags are below.
 
-        Step =
-            Object
-          * $module_path str
-          * $func_name str
+        InterpretResult =
+            Oneof
+          | $ok VibaNode
+          | $viba_program_err str
+          | $underlying_viba_op_err UnderlyingOpErr     # it broke
+          | $not_implemented_err UnderlyingOpErr               # nothing implements it
 
-    `module_path` is the storage path the call ran under, so a step is a path
-    and a name, not just a name: the same definition in another case is another
-    step.
-    """
-
-    def __init__(self, module_path: str, func_name: str):
-        self.module_path = module_path
-        self.func_name = func_name
-
-    def __eq__(self, other):
-        return (isinstance(other, Step) and self.module_path == other.module_path
-                and self.func_name == other.func_name)
-
-    def __hash__(self):
-        return hash((self.module_path, self.func_name))
-
-    def __repr__(self):
-        return f"Step({self.module_path!r}, {self.func_name!r})"
-
-
-class UnderlyingVibaOpFailed(Exception):
-    """`$underlying_viba_op_failed Failure`: this step's implementation broke.
-
-        Failure =
+        UnderlyingOpErr =
             Object
           * $msg str
-          * $step Step
-          * $reason str
+          * $module_path str
+          * $func_name str
+          * $call (Any <- $env Env)
 
-    The message is for a person; `step` and `reason` are for a program — which
-    step it was is a field, not a sentence embedded in one, so a caller can act
-    on it without reading the run again.
-    """
+    One payload, two tags: a step stopped without answering, and the tag says
+    which way — `$not_implemented_err` when `get_func` had nothing for it (the
+    ordinary case: this layer ships no library), `$underlying_viba_op_err`
+    when it broke. `tag` carries that tag, so the two are told apart without
+    reading a message.
 
-    def __init__(self, msg: str, step: Step = None, reason: str = ""):
-        super().__init__(msg)
-        self.msg = msg
-        self.step = step
-        self.reason = reason
+    `msg` is one sentence that says what happened and why — it opens with the
+    reason (`no implementation`, `refused`, `get_func raised`, `raised`,
+    `no leaf`) and goes on with the detail.
 
-    def __repr__(self):
-        return f"UnderlyingVibaOpFailed({self.msg!r}, {self.step!r}, {self.reason!r})"
-
-
-class NoImplementationException(Exception):
-    """`$no_implementation NoImplementation`: a step in this run has no implementation.
-
-        NoImplementation =
-            Object
-          * $step Step
-          * $call ...
-          * $reason str
-
-    `interpret` answers with it when `get_func` has no implementation for a step
-    the run reached. The run stops at that step and carries back which step it
-    was, the viba data that step was given, and why nothing implemented it. What
-    the caller does about that is the caller's own business.
-
-    `call` is the viba data the step was given, as it was written, so that call
-    can be reconstructed from this result alone — nothing has to be run over for
-    it. Host values, the environment above all, are no viba_data and do not
-    travel: another run makes its own. `reason` is one of the `REASON_*` strings
-    below.
+    `module_path` and `func_name` are the two `get_func(module_path, func_name)`
+    was handed: which definition, at which data path — the same definition at
+    another data path is another step. `call` is the call itself, as it was
+    written, with the environment left out: its name and the arguments written on
+    it, each with the tag it was written with (`add << $a 1 << $b 2`), and a call
+    with no argument of its own written as the name alone. So its type is
+    `Any <- $env Env` — a call that still wants its environment, and giving it one
+    runs it. It is viba data, functions and closures among the arguments included,
+    so the same call can be made again from this result alone, without running
+    anything over; the environment is not part of it, another run makes its own.
 
     It is an exception as well, because that is how the same news crosses a
     callable the run handed to a host; a `get_func` may raise it too, to say it
-    has no implementation for a call — the run fills in the step and the call it
-    knows, and keeps whatever the host said.
+    has no implementation for a call — raising it with `NOT_IMPLEMENTED_TAG` says
+    that, and the run fills in the step and the call it knows, keeping whatever
+    the host said.
     """
 
-    def __init__(self, step: Step = None, call=None, reason: str = ""):
-        super().__init__(reason)
-        self.step = step
+    def __init__(self, msg: str = "", module_path: str = "", func_name: str = "",
+                 call=None, tag: str = None):
+        super().__init__(msg)
+        self.msg = msg
+        self.module_path = module_path
+        self.func_name = func_name
         self.call = call
-        self.reason = reason
+        self.tag = tag or FAILURE_TAG
 
     def __repr__(self):
-        return f"NoImplementationException({self.step!r}, {self.reason!r})"
+        return (f"UnderlyingOpErr({self.msg!r}, {self.module_path!r}, "
+                f"{self.func_name!r}, tag={self.tag!r})")
 
 
-# The `$reason` vocabulary: short, stable strings, the same ones a reader
+# The two tags a `Failure` answers under: one payload, told apart by the tag.
+FAILURE_TAG = "$underlying_viba_op_err"   # the implementation, or `get_func`, broke
+NOT_IMPLEMENTED_TAG = "$not_implemented_err"     # nothing implements that step
+
+
+# The words a failure's `msg` opens with: short, stable, the same ones a reader
 # switches on.
 REASON_NO_IMPLEMENTATION = "no implementation"   # get_func answered None
 REASON_REFUSED = "refused"                       # get_func said so itself
@@ -146,15 +184,15 @@ REASON_NO_LEAF = "no leaf"                       # it answered something with no
 
 # What `interpret` answers, its branches written out:
 #
-#     Result[T] =
+#     InterpretResult =
 #         Oneof
-#       | $ok T
-#       | $viba_program_err str                    # the program or environment
-#       | $underlying_viba_op_failed Failure       # a host implementation broke
-#       | $no_implementation NoImplementation      # a step with no implementation
+#       | $ok VibaNode
+#       | $err InterpretError
 #
-# The other APIs keep the two-branch `Result`: their work is all here.
-InterpretResult = Union[Ok, VibaProgramErr, UnderlyingVibaOpFailed, NoImplementationException]
+# The error side is `InterpretError` (`$viba_program_err`, or a `Failure` under
+# one of its two tags). The other APIs keep the two-branch `Result`: their work
+# is all here.
+InterpretResult = Union[Ok, Err]
 
 
 # ----------------------------------------------------------------------
@@ -412,7 +450,7 @@ class CustomModuleType(ModuleType):
                 continue
             imported = self.module_environment(self.imports[prefix])
             if isinstance(imported, VibaProgramErr):
-                return VibaProgramErr(f"{prefix!r} names {self.imports[prefix]!r}: {imported.err_msg}")
+                return VibaProgramErr(f"{prefix!r} names {self.imports[prefix]!r}: {imported.msg}")
             rest = ".".join(parts[cut:])
             if not isinstance(imported.ok_value, CustomModuleType):
                 return VibaProgramErr(
@@ -425,7 +463,7 @@ class CustomModuleType(ModuleType):
             module_name = self.imports[parts[0]]
             imported = self.module_environment(module_name)
             if isinstance(imported, VibaProgramErr):
-                return VibaProgramErr(f"{parts[0]!r} names {module_name!r}: {imported.err_msg}")
+                return VibaProgramErr(f"{parts[0]!r} names {module_name!r}: {imported.msg}")
             if not isinstance(imported.ok_value, CustomModuleType):
                 return VibaProgramErr(
                     f"{module_name!r} is a generic: it answers an application "
@@ -528,8 +566,8 @@ def _lookup_custom(module: CustomModuleType, type_name: str, seen) -> Result:
     builtin = BUILTIN_MODULE.lookup(type_name)
     if isinstance(builtin, Ok):
         return builtin
-    note = via_env.err_msg if isinstance(via_env, VibaProgramErr) else "it names a module already met"
-    return VibaProgramErr(f"type {type_name!r} unresolved: {local.err_msg}; {note}")
+    note = via_env.msg if isinstance(via_env, VibaProgramErr) else "it names a module already met"
+    return VibaProgramErr(f"type {type_name!r} unresolved: {local.msg}; {note}")
 
 
 # ----------------------------------------------------------------------

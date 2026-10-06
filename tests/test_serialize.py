@@ -308,7 +308,7 @@ def _gap(label, source, name, body, needle):
     if not isinstance(rooted, Ok):
         return
     written = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(written, VibaProgramErr) and needle in written.err_msg,
+    check(isinstance(written, VibaProgramErr) and needle in written.msg,
           f"{label}: a VibaProgramErr saying {needle!r} ({written})")
 
 
@@ -336,7 +336,7 @@ def run_member_corner_cases():
     _corner("nested product",
             "Outer = Object * $inner Inner\nInner = Object * $a int\n", "Outer",
             _product(_tagged("$inner", _product(_tagged("$a", viba_ast.Constant(1))))),
-            expect="* $inner(Object")
+            expect="* $inner (Object")
     _corner("product member beside a unit",
             "Box = Object * $u Object * $a int\n", "Box",
             _product(_tagged("$u", viba_ast.Nil()), _tagged("$a", viba_ast.Constant(1))),
@@ -380,7 +380,7 @@ def run_member_corner_cases():
     _corner("recursive product", "Loop = Object * $next (Loop | nil)\n", "Loop",
             _product(_tagged("$next", viba_ast.SumChain([
                 _product(_tagged("$next", viba_ast.Nil()))]))),
-            expect="* $next(Object")
+            expect="* $next (Object")
 
 
 def run_sum_corner_cases():
@@ -391,7 +391,7 @@ def run_sum_corner_cases():
     _corner("sum: the tagged branch", "S = int | $a str\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.SumChain([
                 _tagged("$a", viba_ast.Constant("x"))]))),
-            expect='* $s($a "x")')
+            expect='* $s ($a "x")')
     _corner("sum: reached through a name",
             "X = int | str\nS = X | $a bool\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.Constant("deep"))),
@@ -451,15 +451,15 @@ def run_exponent_corner_cases():
             _product(_tagged("$g", viba_ast.ExponentChain([
                 viba_ast.Never(), _tagged("$a", viba_ast.Constant(1)),
                 _tagged("$b", viba_ast.SumChain([_tagged("$k", viba_ast.Constant(2))]))]))),
-            expect="<- $a 1\n    <- $b($k 2)", resident=False)
+            expect="<- $a 1\n    <- $b ($k 2)", resident=False)
     _corner("exponent: nil head", "G = Object * $g (nil <- $a int)\n", "G",
             _product(_tagged("$g", viba_ast.ExponentChain([
                 viba_ast.Nil(), _tagged("$a", viba_ast.Constant(1))]))),
-            expect="* $g(nil", resident=False)
+            expect="* $g (nil", resident=False)
     _corner("exponent: a value in the result", "G = Object * $g (int <- $a int)\n", "G",
             _product(_tagged("$g", viba_ast.ExponentChain([
                 viba_ast.Constant(5), _tagged("$a", viba_ast.Constant(1))]))),
-            expect="* $g(5", resident=False)
+            expect="* $g (5", resident=False)
     _corner("exponent: inside a container",
             "G = Object * $g list[never <- $a int]\n", "G",
             _product(_tagged("$g", viba_ast.TypeApp("ListLiteral", [
@@ -515,7 +515,7 @@ def run_gap_cases():
                                     viba_ast.Tagged("$a", viba_ast.Constant(1))])
     node = access.root(definition, VibaData(sparse)).ok_value
     written = serialize.serialize("entry", node)
-    check(isinstance(written, VibaProgramErr) and "no value here" in written.err_msg,
+    check(isinstance(written, VibaProgramErr) and "no value here" in written.msg,
           f"gap: a tagged slot with no value and no nil is a VibaProgramErr ({written})")
 
     # 可序列化数据本身是空的：设计里的那个数据路径上什么都没有，就写成 gap，不硬编
@@ -869,7 +869,7 @@ def run_exponent_batteries():
             "G = Object * $g (never <- $b (never <- $a int))\n", "G",
             _product(_tagged("$g", chain(viba_ast.Never(), _tagged("$b", chain(
                 viba_ast.Never(), _tagged("$a", viba_ast.Constant(5))))))),
-            expect="<- $b(never", resident=False)
+            expect="<- $b (never", resident=False)
     _corner("exponent: inside a tuple",
             "G = Object * $g ((never <- $a int), int)\n", "G",
             _product(_tagged("$g", viba_ast.Tuple([
@@ -887,7 +887,7 @@ def run_exponent_batteries():
             "X = never <- $a int\nG = Object * $g X\n", "G",
             _product(_tagged("$g", chain(viba_ast.Never(),
                                          _tagged("$a", viba_ast.Constant(9))))),
-            expect="* $g(never", resident=False)
+            expect="* $g (never", resident=False)
 
 
 def run_name_alias_members():
@@ -912,11 +912,11 @@ def run_name_alias_members():
             "N = never\nG = Object * $g (N <- $a int)\n", "G",
             _product(_tagged("$g", viba_ast.ExponentChain([
                 viba_ast.Never(), _tagged("$a", viba_ast.Constant(1))]))),
-            expect="* $g(never", resident=False)
+            expect="* $g (never", resident=False)
 
     _corner("an alias to a product", "P = Object * $x int\nBox = Object * $p P\n", "Box",
             _product(_tagged("$p", _product(_tagged("$x", viba_ast.Constant(1))))),
-            expect="* $p(Object")
+            expect="* $p (Object")
     _corner("an alias to a tuple", "T = (int, str)\nBox = Object * $t T\n", "Box",
             _product(_tagged("$t", viba_ast.Tuple([viba_ast.Constant(1),
                                                    viba_ast.Constant("s")]))),
@@ -924,7 +924,7 @@ def run_name_alias_members():
     _corner("an alias to a sum", "S = $k int | $j str\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.SumChain([
                 _tagged("$k", viba_ast.Constant(1))]))),
-            expect="* $s($k 1)")
+            expect="* $s ($k 1)")
     _corner("an alias to a list", "L = list[int]\nBox = Object * $l L\n", "Box",
             _product(_tagged("$l", viba_ast.TypeApp("ListLiteral",
                                                      [viba_ast.Constant(1)]))),
@@ -1043,7 +1043,7 @@ def _gap_in(label, pool, full_name, body, needle):
     if not isinstance(rooted, Ok):
         return
     written = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(written, VibaProgramErr) and needle in written.err_msg,
+    check(isinstance(written, VibaProgramErr) and needle in written.msg,
           f"{label}: a VibaProgramErr saying {needle!r} ({written})")
 
 
@@ -1072,12 +1072,12 @@ def run_cross_module_cases():
     _corner_in("a product from another module",
                pool_of("Box = Object * $p d.P\n"), "main.Box",
                _product(_tagged("$p", _product(_tagged("$x", viba_ast.Constant(1))))),
-               expect="* $p(Object",
+               expect="* $p (Object",
                resident_source="P = Object * $x int\nBox = Object * $p P\n")
     _corner_in("a generic from another module",
                pool_of("Box = Object * $w d.W[int]\n"), "main.Box",
                _product(_tagged("$w", _product(_tagged("$v", viba_ast.Constant(1))))),
-               expect="* $w(Object",
+               expect="* $w (Object",
                resident_source="W[V] = Object * $v V\nBox = Object * $w W[int]\n")
     _corner_in("a never from another module",
                pool_of("Box = Object * $n (d.N | int)\n"), "main.Box",

@@ -38,7 +38,7 @@ def same(label: str, got, want):
 
 
 def is_err(label: str, result, needle: str):
-    check(isinstance(result, VibaProgramErr) and needle in result.err_msg,
+    check(isinstance(result, VibaProgramErr) and needle in result.msg,
           f"{label}: wanted VibaProgramErr({needle!r}), got {result!r}")
 
 

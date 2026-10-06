@@ -1056,7 +1056,7 @@ def _read_argument(node, module: ModuleType):
     node, module = _unfold(node, module)
     tagged = tagged_reading(node, module)
     if isinstance(tagged, VibaProgramErr):
-        raise _BadPattern(tagged.err_msg)
+        raise _BadPattern(tagged.msg)
     if tagged.ok_value is not None:
         node = tagged.ok_value
     if not isinstance(node, viba_ast.Partial):

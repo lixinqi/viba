@@ -274,6 +274,47 @@ half — the logic — is what the caller hands in through `get_func`.
 The host provides the environment — where snapshots go (`EnvironmentStorage`,
 by default a temporary directory) and the implementations (`EnvironmentCompute`,
 a `get_func(module_path, func_name)`) — and `interpret` reads a file and runs it.
+Its signature, as a viba type; every name it uses is defined here except
+`Environment` (the host's) and `VibaNode` (the node accessors) — both in
+[`viba-interpreter.md`](viba-interpreter.md):
+
+```viba
+interpret =
+    InterpretResult
+  <- $viba_main_file str
+  <- $environ Environment
+
+InterpretResult =
+    Oneof
+  | $ok VibaNode
+  | $err InterpretError
+
+InterpretError =
+    Oneof
+  | $viba_program_err ProgramErr           # the program or the environment
+  | $underlying_viba_op_err UnderlyingOpErr   # the step broke
+  | $not_implemented_err UnderlyingOpErr             # nothing implements it
+
+ProgramErr =
+    Object
+  * $msg str                               # one sentence
+  * $stack Stack                           # the calls this run was in
+
+Stack =
+    list[Frame]
+
+Frame =
+    Object
+  * $file_path str                         # the .viba file the call is written in
+  * $lineno int                            # the line it is on
+
+UnderlyingOpErr =
+    Object
+  * $msg str                               # one sentence, the reason first
+  * $module_path str                       # the data path `get_func` was given
+  * $func_name str                         # the name `get_func` was given
+  * $call (Any <- $env Env)                # the call itself, environment left out
+```
 
 ```python
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
@@ -340,13 +381,16 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
   (`viba-pattern.md`).
 - `interpret` ships no library of its own: every implementation a run can reach
   comes from a single `get_func` answer, written from the hints the file carries.
-- What comes back is `Ok(node)`, `VibaProgramErr(message)`, `UnderlyingVibaOpFailed`
-  (`$underlying_viba_op_failed Failure`, when a step's implementation broke) or
-  `NoImplementationException` (`$no_implementation NoImplementation`, when the run
-  reached a step `get_func` has no implementation for). Both of the last two name
-  the `step`; the result with no implementation also carries the `call` instance —
-  the viba data that step was handed — so that call can be reconstructed from it
-  alone.
+- What comes back is `Ok(node)` or `Err(error)`, the error an `InterpretError`:
+  a `ProgramErr` (`msg`, and `stack` — the calls this run was in, each frame the
+  `.viba` file a call is written in and the line it is on) when the program or the
+  environment cannot run at all, or a `UnderlyingOpErr` when a step did not answer. A
+  `UnderlyingOpErr` names the step (`module_path`, `func_name`), the call as it was
+  written with the environment left out (`call`, e.g. `add << $a 1 << $b 2`) and
+  one message (`msg`) that opens with the reason (`no implementation`, `refused`,
+  `get_func raised`, `raised`, `no leaf`); its `tag` says which of its two it is
+  (`$underlying_viba_op_err` when that step broke, `$not_implemented_err` when
+  `get_func` has no implementation for it).
   `node.value` is the answer when it landed on a literal; a product or a sum is walked
   with the node accessors of [`viba-reflect.md`](viba-reflect.md).
 
@@ -412,7 +456,7 @@ reads them as instances. Two runs against one store therefore give one value and
 walk the impure step once. It is the path that has to be stable: a `tmp_env`
 child is new on every call, so what hangs under it never replays.
 
-The whole chapter — `get_file`, the typed reading of a module, the error list —
+The whole chapter — the typed reading of a module, the error list —
 is [`viba-interpreter.md`](viba-interpreter.md).
 
 ## Installation

@@ -6,7 +6,7 @@
 
     python3 tests/test_interpreter_branch_switch.py
 
-`CASES` 每条说：文件、该跑出什么（value / error / no_implementation / fail）、要看住的副作用调用。
+`CASES` 每条说：文件、该跑出什么（value / error / not_implemented / fail）、要看住的副作用调用。
 """
 
 import sys
@@ -18,13 +18,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import Checks, value_of
+from interpreter_support import error_of, message_of, Checks, value_of
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, viba_data)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import NoImplementationException, Ok, UnderlyingVibaOpFailed, VibaProgramErr
+from viba.type import Ok, UnderlyingOpErr, VibaProgramErr
 
 checks = Checks("interpreter_branch_switch")
 check = checks.check
@@ -138,15 +138,15 @@ def environ_for(store, calls):
 # (文件, 该跑出什么)：
 #   ("value", 叶子)     Ok，且叶子是这个值
 #   ("error", 片段)     VibaProgramErr，话里含这个片段
-#   ("no_implementation", None)  没有实现：宿主没实现那一步
-#   ("fail", 片段)      UnderlyingVibaOpFailed，话里含这个片段
+#   ("not_implemented", None)  没有实现：宿主没实现那一步
+#   ("fail", 片段)      UnderlyingOpErr，话里含这个片段
 # 最后一列是要看住的副作用调用；None 表示不看。
 CASES_TO_RUN = [
     ("a_half_given_switch_completed_here", "value", 7, []),
     ("a_slot_that_does_not_fit", "error", 'does not fit', []),
     ("a_switch_file_called_for_its_answer", "value", 9, []),
-    ("a_value_with_no_implementation_beside_a_live_condition", "no_implementation", None, []),
-    ("an_untaken_side_with_no_implementation_and_counts", "value", 1, ['tick']),
+    ("a_value_not_implemented_beside_a_live_condition", "not_implemented", None, []),
+    ("an_untaken_side_not_implemented_and_counts", "value", 1, ['tick']),
     ("asked_twice_counts_once", "value", 2, ['tick']),
     ("both_counters_only_one_runs", "value", 1, ['tick']),
     ("both_sides_are_poison_and_untaken", "value", 42, []),
@@ -168,9 +168,9 @@ CASES_TO_RUN = [
     ("condition_mode_by_name", "value", 7, []),
     ("condition_order_does_not_matter", "value", 7, []),
     ("condition_two_switches_agree", "value", 7, []),
-    ("no_implementation_condition", "no_implementation", None, []),
-    ("no_implementation_taken", "no_implementation", None, []),
-    ("no_implementation_untaken", "value", 42, []),
+    ("not_implemented_condition", "not_implemented", None, []),
+    ("not_implemented_taken", "not_implemented", None, []),
+    ("not_implemented_untaken", "value", 42, []),
     ("drops_never", "value", 0, []),
     ("drops_text", "value", 0, []),
     ("drops_true", "value", 0, []),
@@ -257,13 +257,12 @@ def run(tmp: Path):
             check(isinstance(result, Ok) and value_of(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
         elif kind == "error":
-            check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
-        elif kind == "no_implementation":
-            check(isinstance(result, NoImplementationException),
-                  f"{name}: expected a step with no implementation, got {result!r}")
+        elif kind == "not_implemented":
+            checks.not_implemented(result, name)
         elif kind == "fail":
-            check(isinstance(result, UnderlyingVibaOpFailed) and want in result.msg,
+            check(isinstance(error_of(result), UnderlyingOpErr) and want in message_of(result),
                   f"{name}: expected a failure saying {want!r}, got {result!r}")
         elif kind == "sum":
             # 多个非 never 的分支同时活着：结果保留为和值，不擅自选一支。

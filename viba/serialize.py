@@ -75,12 +75,20 @@ def _call_parts(node):
     return node, list(reversed(written))
 
 
-def _bare(piece, access: VibaAccess) -> VibaNode:
+def _bare(piece, access: VibaAccess, written_in=None) -> VibaNode:
     """One written piece as a node of its own: a closure keeps its arguments as
-    the viba data they already are, with no module to read them in."""
+    the viba data they already are, read in the module the call was written in
+    (`written_in`) — a name among them is a name there, not nowhere."""
     from viba.type import AstNodeType
     from viba.viba_type_descriptor import descriptor_of
-    return VibaNode(access, descriptor_of(AstNodeType(piece, None)), piece)
+    return VibaNode(access, descriptor_of(AstNodeType(piece, written_in)), piece)
+
+
+def _written_in(node):
+    """The module the piece at this node was written in, or None when the node
+    does not say — the module its descriptor resolved its type in."""
+    written = getattr(node.descriptor, "resolvable_type", None)
+    return getattr(written, "container_module", None)
 
 
 def _emit_closure(access: VibaAccess, node: VibaNode):
@@ -98,8 +106,14 @@ def _emit_closure(access: VibaAccess, node: VibaNode):
         # call in progress, not as viba data.
         raise SerializeGap("a chain headed by a member has no written form here")
     expression = getattr(_NAMES, head.name)
+    written_in = _written_in(node)
     for argument in arguments:
-        expression = expression << _emit(access, _bare(argument, access))
+        piece = _emit(access, _bare(argument, access, written_in))
+        if not isinstance(argument, viba_ast.Tagged):
+            # An argument that names no field is written as a group, so that it
+            # stays one argument: a call inside it does not run on into the chain.
+            piece = builder.tag(piece)
+        expression = expression << piece
     return expression
 
 
@@ -120,6 +134,11 @@ def _emit(access: VibaAccess, node: VibaNode):
     this design.
     """
     unfolded = access.unfold(node.descriptor)
+    if isinstance(data, viba_ast.TypeRef) and unfolded.kind == EXPONENT:
+        # A name the design calls a function — a call that wants its arguments
+        # still. Written as the name, it reads back as that same call; written as
+        # the type it would have when executed, it would not.
+        return _emit_closure(access, node)
     if unfolded.kind == NEVER:
         raise SerializeGap("nothing resides in never")
     if unfolded.kind == PRODUCT:
@@ -179,6 +198,10 @@ def _emit_product(access: VibaAccess, node: VibaNode, unfolded):
     """Product: the leading unit (when the design wrote one), then every member
     in order.
 
+    A product the design heads with no unit is written as the design writes it;
+    when it does write one, the language's own unit leads (`Object`), so a
+    product under a block is a product a reader can read back.
+
     The members come from the map, so an untagged member that stands for a
     product has already handed its own members over and units are gone. A
     member the design writes as a unit is written as the unit — under its tag
@@ -216,9 +239,12 @@ def _emit_product(access: VibaAccess, node: VibaNode, unfolded):
         else:
             raise SerializeGap(f"no value here: {tag or step}")
         written.append(inner if tag is None else _tag(tag)(inner))
-    product = written[0]
+    # `builder.literal` leaves an expression it is given alone and wraps a bare
+    # value, so `*` here is always the builder's product: `1 * 2` is a product
+    # of two members, not Python's two.
+    product = builder.literal(written[0])
     for element in written[1:]:
-        product = product * element
+        product = product * builder.literal(element)
     return product
 
 
@@ -226,7 +252,7 @@ def _emit_tuple(access: VibaAccess, node: VibaNode):
     """Tuple: a product by position, written as the tuple it is."""
     length = access.length(node)
     if isinstance(length, VibaProgramErr):
-        raise SerializeGap(length.err_msg)
+        raise SerializeGap(length.msg)
     return tuple(_emit(access, _child(access, node, at_index(index)))
                  for index in range(length.ok_value))
 
@@ -310,13 +336,13 @@ def _emit_container(access: VibaAccess, node: VibaNode, container: str, unfolded
             raise SerializeGap("the protocol hands dict keys over as strings; "
                                "this one is written with another key type")
         if isinstance(keys, VibaProgramErr):
-            raise SerializeGap(keys.err_msg)
+            raise SerializeGap(keys.msg)
         pairs = tuple((key, _emit(access, _child(access, node, at_key(key))))
                       for key in keys.ok_value)
         return _NAMES.DictLiteral[pairs]
     length = access.length(node)
     if isinstance(length, VibaProgramErr):
-        raise SerializeGap(length.err_msg)
+        raise SerializeGap(length.msg)
     payloads = tuple(_emit(access, _child(access, node, at_index(index)))
                      for index in range(length.ok_value))
     if container == "list":

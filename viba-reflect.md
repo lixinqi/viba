@@ -147,7 +147,11 @@ VibaReflectConfig =
 Result[T] =
 		Oneof
 	| $ok ($ok_value T)
-	| $viba_program_err ($err_msg str)
+	| $viba_program_err ProgramErr
+```
+
+`ProgramErr` 两个成员与 `interpret` 的 `$viba_program_err` 同一份：定义见
+[`viba-interpreter.md`](viba-interpreter.md) 开头的签名那一块。
 
 VibaRoot[Data] =
     Result[VibaNode[Data]]

@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, value_of
+from interpreter_support import error_of, message_of, Checks, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.reflect import access as reflect_access
@@ -99,7 +99,7 @@ def run(tmp: Path):
             check(isinstance(result, Ok),
                   f"{name}: expected Ok, got {result!r}")
         elif kind == "error":
-            check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
         if calls_wanted is not None:
             check(calls == calls_wanted,

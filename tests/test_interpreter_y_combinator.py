@@ -47,11 +47,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import Checks, value_of
+from interpreter_support import error_of, message_of, Checks, value_of
 
 from viba.interpret import (BUILTIN_DIR, Environment, EnvironmentCompute,
                             EnvironmentStorage, interpret)
-from viba.type import Ok, UnderlyingVibaOpFailed, VibaProgramErr
+from viba.type import Ok, UnderlyingOpErr, VibaProgramErr
 
 checks = Checks("interpreter_y_combinator")
 check = checks.check
@@ -194,10 +194,10 @@ def run(tmp: Path):
         result = interpret(str(program), environ_for(tmp / f"record-{index}"))
         label = program.name
         if kind == "error":
-            check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
                   f"{label}: recorded stop {want!r}, got {result!r}")
         elif kind == "failed":
-            check(isinstance(result, UnderlyingVibaOpFailed) and want in result.msg,
+            check(isinstance(error_of(result), UnderlyingOpErr) and want in message_of(result),
                   f"{label}: recorded stop {want!r}, got {result!r}")
 
 

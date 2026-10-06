@@ -77,9 +77,9 @@ viba 层不预设「另一方」、不预设「一次运行分几轮」、不预
 
 | 禁用词 | 它实际指什么 | 为什么禁 | 改成什么 |
 |---|---|---|---|
-| **递延** / **deferral**、**不归我** / **not my duty**、`$not_my_duty_exception`、**`NotMyDutyException`**、**`Duty`** | `interpret` 四支结果之一：一次运行走到某一步，而 `get_func` 那里没有这一步的实现，运行就停在那一步，并把「哪一步、这一步拿到的可序列化数据、为什么没有实现」原样带回调用方 | 这一支说的是**事实**（这一步没有实现），旧名字说的是**归属**（不归我，是别人的差事）。「不归我」预设了已经有人分好工、有另一侧会来接；本层不知道有谁，也不知道谁接 | 「这一步没有实现」/ the step has no implementation。标识符照同一句话起名：语言面 `$no_implementation NoImplementation`，Python 侧 `NoImplementationException`；`$step`、`$call`、`$reason` 三个字段是本层的，不改名 |
+| **递延** / **deferral**、**不归我** / **not my duty**、`$not_my_duty_exception`、**`NotMyDutyException`**、**`Duty`** | `interpret` 的结果里三种停法之一：一次运行走到某一步，而 `get_func` 那里没有这一步的实现，运行就停在那一步，并把「哪一步、这一步拿到的可序列化数据、为什么没有实现」原样带回调用方 | 这一支说的是**事实**（这一步没有实现），旧名字说的是**归属**（不归我，是别人的差事）。「不归我」预设了已经有人分好工、有另一侧会来接；本层不知道有谁，也不知道谁接 | 「这一步没有实现」/ the step has no implementation。它在结果里是 `$err InterpretError` 的第三种（`$not_implemented_err UnderlyingOpErr`；`$msg` 开头那一个词写 `no implementation`，`$module_path`、`$func_name`、`$call` 是本层的字段）。旧名字一个都不用 |
 | **这台机器** / **这一侧** / **另一侧**、**接手的那一方**、**等别人来补** | 把 `get_func` 讲成两台机器上的两方：一边有实现，一边没有 | 这是部署事实。本层只有一次调用、一条数据路径、一个 `get_func`；换一份名字表就是另一次运行 | 说「这个 `get_func` 没有实现这个名字」；要讲多台机器，那是第 3.2 节那一层的说法 |
-| `refused` 的解释句：**路由说这条差事不归我** | `$reason` 的一个取值：`get_func` 自己把「我没有实现」说了出来（抛出来），而不是返回 `None` | `refused` 这个取值只说「这次调用被拒绝了」，不预设谁；但解释句里带进了「路由」与「差事」这两个分工词 | 「`get_func` 自己说它没有实现」/ `get_func` said it has no implementation。（`refused` 另有「写错的地方被拒绝」这个意思，那处不禁） |
+| `refused` 的解释句：**路由说这条差事不归我** | `$msg` 的一种开头：`get_func` 自己把「我没有实现」说了出来（抛出来），而不是返回 `None` | `refused` 这个取值只说「这次调用被拒绝了」，不预设谁；但解释句里带进了「路由」与「差事」这两个分工词 | 「`get_func` 自己说它没有实现」/ `get_func` said it has no implementation。（`refused` 另有「写错的地方被拒绝」这个意思，那处不禁） |
 
 **第二组假定的是「谁写实现、谁验收」。**
 
@@ -98,7 +98,7 @@ viba 层不预设「另一方」、不预设「一次运行分几轮」、不预
 | **能力表** / **capability table** | 那张「名字 → 实现」的表本身，一个进程一张 | 它把「谁会什么」当成一件要调度的事 | 某个宿主实现了哪些名字 |
 | **调度** / **scheduler** | 一个程序：反复启动那几个进程、读它们印出来的行、把上一轮欠下的补上 | 起进程、分轮；本层没有对应概念 | 不要写 |
 | **轮** / **round**（指一次批次时） | 一次「先补账、再跑一遍程序」的完整启动 | 本层的一次运行就是一个程序在一个环境里跑 | 不要写 |
-| **结局** / **outcome**，以及取值 `ok` / `stuck` / `unfinished` / `broken` / `crashed` / `failed` / `program_err` / `not_my_duty` / `answered` | 一次调度收尾时印出来的那行 JSON 的第一个字段：这一轮是跑完了、卡住了，还是坏在某个进程上 | 一次调度的结果分类 | 本层的结果只有四支：`Ok`、`VibaProgramErr`、`UnderlyingVibaOpFailed`、「这一步没有实现」（第 3.1 节） |
+| **结局** / **outcome**，以及取值 `ok` / `stuck` / `unfinished` / `broken` / `crashed` / `failed` / `program_err` / `not_my_duty` / `answered` | 一次调度收尾时印出来的那行 JSON 的第一个字段：这一轮是跑完了、卡住了，还是坏在某个进程上 | 一次调度的结果分类 | 本层的结果只有两支：`$ok VibaNode`、`$err InterpretError`；`InterpretError` 只有三种停法（见第 3.1 节） |
 | **报告** / **report**（服务进程那一行 JSON） | 一个服务进程往 stdout 印的一行 JSON：`service`、`phase`、`api`、`path`、`computed`、`value` … | 进程之间通信的格式 | 不要写 |
 | **补账** / **answer phase** / **失败状态** / `failure/round-<k>.viba` | 一轮里先起一遍进程，把它们名下「还没量过」的记录补上；失败状态是这一轮停在哪、写进了哪个文件 | 一轮里的两个阶段与落盘的失败记录 | 不要写 |
 | **路由** / **routing**、**派单** | 决定某一步该交给谁 | 谁接、按什么规则接 | 不要写；本层只有「数据路径不同 = 两次不同的调用」 |
@@ -137,7 +137,7 @@ viba 层不预设「另一方」、不预设「一次运行分几轮」、不预
 | **地址** | 「数据存下来的那条路径」，第一次出现必须这样说明 | 不解释就当作常识 |
 | **数据路径** / **storage path** | 一次调用跑在哪条路径上（环境的名字就是它） | 拿它指别处的路径 |
 | **判定** | 类型判定 / 决断：`is_sub_type`、`pattern` 的决断 | 指 compliance 的 `verdict` |
-| **`$call`** | 结果里「这一步没有实现」那一支的一个字段：这一步拿到的可序列化数据（`viba/type.py:108`） | 指 Prepare 固定的那次调用 |
+| **`$call`** | 结果里「这一步没有实现」那一支的一个字段：这次调用本身，按它写下来的样子，类型是 `Any <- $env Env`（环境还没给的调用；`viba/type.py:108`） | 指 Prepare 固定的那次调用 |
 | **`rule`**（英文） | 普通句子：「the call's rule」（一次调用的规矩） | 名词化地指「一份判合规的程序」 |
 | **`api`**（英文） | 本层的意思：一条调用属于哪个函数（`unclosure` 给出的 `f`） | 指一套服务持有的那组名字 |
 | **`store`** | `EnvironmentStorage` 的落盘根：谁要读回结果 | 指「几套服务共用的那份存储」 |

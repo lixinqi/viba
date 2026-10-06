@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, value_of
+from interpreter_support import error_of, message_of, Checks, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.type import Ok, VibaProgramErr
@@ -73,13 +73,13 @@ def run(tmp: Path):
             check(isinstance(result, Ok) and value_of(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
         else:
-            check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
 
     # 这条规矩本身也写在话里
     result = interpret(str(CASES / "self_definition.viba"), environ_for(tmp / "store-rule"))
-    check(isinstance(result, VibaProgramErr)
-          and "one file's definitions may not go round" in result.err_msg,
+    check(isinstance(error_of(result), VibaProgramErr)
+          and "one file's definitions may not go round" in message_of(result),
           f"the message states the rule: {result!r}")
 
 

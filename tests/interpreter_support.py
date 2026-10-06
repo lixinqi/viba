@@ -16,9 +16,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import VibaProgramErr, UnderlyingVibaOpFailed, NoImplementationException, Ok
+from viba.type import (FAILURE_TAG, NOT_IMPLEMENTED_TAG, Err, InterpretError,
+                       VibaProgramErr, UnderlyingOpErr, Ok)
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
+
+
+def error_of(result):
+    """The error a result carries: an `Err`'s, or the error itself.
+
+    `interpret` answers `Err(error)`; the other APIs hand the error back as it
+    is. Both go through here, so a suite can check either without knowing which.
+    """
+    if isinstance(result, Err):
+        return result.error
+    return result if isinstance(result, InterpretError) else None
+
+
+def message_of(result) -> str:
+    """What the run stopped with, as a sentence; '' when it answered a value."""
+    return getattr(error_of(result), "msg", "")
 
 
 class Checks:
@@ -38,21 +55,26 @@ class Checks:
 
     def labelled(self, result, want, label: str):
         """`want` is a substring of the VibaProgramErr, or None for Ok."""
+        error = error_of(result)
         if want is None:
             self.check(isinstance(result, Ok), f"{label}: {result!r}")
         else:
-            self.check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+            self.check(isinstance(error, VibaProgramErr) and want in error.msg,
                        f"{label}: expected VibaProgramErr({want!r}), got {result!r}")
 
-    def no_implementation(self, result, label: str):
-        """The run stopped at a step `get_func` does not implement."""
-        self.check(isinstance(result, NoImplementationException),
+    def not_implemented(self, result, label: str):
+        """The run stopped at a step `get_func` does not implement: that tag."""
+        error = error_of(result)
+        self.check(isinstance(error, UnderlyingOpErr)
+                   and error.tag == NOT_IMPLEMENTED_TAG,
                    f"{label}: expected a step with no implementation, got {result!r}")
 
     def failed(self, result, want: str, label: str):
-        """A step's implementation broke: `want` is part of its message."""
-        self.check(isinstance(result, UnderlyingVibaOpFailed) and want in result.msg,
-                   f"{label}: expected UnderlyingVibaOpFailed({want!r}), got {result!r}")
+        """A step's implementation broke: that tag, and `want` in its message."""
+        error = error_of(result)
+        self.check(isinstance(error, UnderlyingOpErr)
+                   and error.tag == FAILURE_TAG and want in error.msg,
+                   f"{label}: expected UnderlyingOpErr({want!r}), got {result!r}")
 
     def report(self) -> int:
         print(f"{self.name}: {self.passed} passed, {self.failures} failed")
@@ -70,7 +92,7 @@ def value_of(result):
         return result
     value = result.ok_value
     if isinstance(value, (Ok, VibaProgramErr)):
-        return value.err_msg if isinstance(value, VibaProgramErr) else value.ok_value
+        return value.msg if isinstance(value, VibaProgramErr) else value.ok_value
     if not isinstance(value, VibaNode):
         return value
     leaf = reflect_access.leaf(value)
@@ -95,7 +117,7 @@ class Host:
             raise self.knobs["refuse_with"]     # get_func says so itself, in its own words
         if func_name in self.knobs.get("refuse", ()):
             # a host that refuses the call without saying why
-            raise NoImplementationException()
+            raise UnderlyingOpErr(tag=NOT_IMPLEMENTED_TAG)
         if func_name in self.knobs.get("missing", ()):
             return None
         if func_name == "add":
@@ -161,7 +183,7 @@ class Host:
             def inner_value(env):
                 result = interpret(self.knobs["inner_file"], env)
                 if isinstance(result, VibaProgramErr):
-                    raise RuntimeError(result.err_msg)
+                    raise RuntimeError(result.msg)
                 return result.ok_value
             return inner_value
         if func_name == "feed_a_list":

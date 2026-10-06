@@ -55,7 +55,7 @@ def check_result(result, want, label: str):
     elif isinstance(result, Ok):
         ok, got = result.ok_value is want, repr(result.ok_value)
     else:
-        ok, got = False, f"VibaProgramErr({result.err_msg!r})"
+        ok, got = False, f"VibaProgramErr({result.msg!r})"
     if ok:
         PASS += 1
     else:
@@ -139,7 +139,7 @@ def run_design_review():
         pool = empty_pool()
         parsed = parse_viba_file(pool, path.read_text(), path.name, path.stem)
         if not isinstance(parsed, Ok):
-            reviewed = f"does not parse: {parsed.err_msg}"
+            reviewed = f"does not parse: {parsed.msg}"
         else:
             built = pool_add_file(pool, parsed.ok_value)
             # 连池子都建不起来（写在同一层的重标签）也是这一遍的事
@@ -527,7 +527,7 @@ TwoParams = First[int] * Second[str] * $z bool
     check_result(judge("Cycle", "Cycle"), "error",
                  "a member that inlines itself has no expansion: a VibaProgramErr, not a hang")
     cycle = is_sub_type(entry_type("Cycle", module), entry_type("Cycle", module))
-    check(isinstance(cycle, VibaProgramErr) and "comes back to 'Cycle'" in cycle.err_msg, True,
+    check(isinstance(cycle, VibaProgramErr) and "comes back to 'Cycle'" in cycle.msg, True,
           "and the VibaProgramErr says which chain comes back")
     check_result(judge("AliasCycle", "AliasCycle"), "error",
                  "an alias can close the same loop")
@@ -554,7 +554,7 @@ TwoParams = First[int] * Second[str] * $z bool
     check_result(judge("$a int * $a str", "$a int"), "error",
                  "written twice at one level -> VibaProgramErr")
     dup = is_sub_type(entry_type("Dup", module), entry_type("$x int", module))
-    check(isinstance(dup, VibaProgramErr) and "$x" in dup.err_msg, True,
+    check(isinstance(dup, VibaProgramErr) and "$x" in dup.msg, True,
           "the VibaProgramErr names the tag that repeats")
 
 
@@ -575,7 +575,7 @@ Loop = Loop * $c int
     judged = is_sub_type(entry_type("Sub", module), entry_type("notcrimes", module),
                          terminators=terminators)
     check_result(judged, "error", "the never-headed path says so too, instead of spinning")
-    check(isinstance(judged, VibaProgramErr) and "comes back to 'A'" in judged.err_msg, True,
+    check(isinstance(judged, VibaProgramErr) and "comes back to 'A'" in judged.msg, True,
           "and names the chain that comes back")
     sums = custom_module("""
 H = int
@@ -626,7 +626,7 @@ def run_cross_module_inline_cases():
     check_result(judge("ring.Ring", "Ring"), "error",
                  "an inline ring across two files -> VibaProgramErr")
     ringed = judge("ring.Ring", "Ring")
-    check(isinstance(ringed, VibaProgramErr) and "comes back to" in ringed.err_msg, True,
+    check(isinstance(ringed, VibaProgramErr) and "comes back to" in ringed.msg, True,
           "and it names the chain")
     check_result(judge("user.Long", "$m int * $k int"), True,
                  "import pkg.mod without as binds pkg.mod, so pkg.mod.sub.Deep resolves")

@@ -535,10 +535,9 @@ Two = num_variadic_args[bool, str]           # 2
 | `viba/is_sub_type.py` | 应用在判定里展开（`env_get` 绑定形参） |
 | `viba/viba_type_descriptor.py` | 描述符池把 `名字.数字` 那几个文件合成一个泛型 |
 | `viba/reflect.py` | 按类型读实例时，泛型应用先决断再展开 |
-| `viba/interpret.py` | 目录当模块导入、应用求值（函数链的结果就是那次调用）、`list_files` 这个取目录内容的钩子 |
+| `viba/interpret.py` | 目录当模块导入、应用求值（函数链的结果就是那次调用） |
 | `viba/is_complete.py` | 完整性按决断往下走 |
 | `viba/viba_ast/tagged.py` | `tagged`：符号写在字符串里的读法，写下来的字符串在这里折成 tag |
 | `tests/test_pattern.py` + `tests/data/pattern/` | 本文的例子与全部报错 |
 
-宿主要自己供文件时（`interpret(..., get_file=...)`），目录里有什么也要一起供
-（`list_files`）：决断的第一件事就是问这个目录里有哪些文件。
+泛型的决断第一件事就是问这个目录里有哪些文件。

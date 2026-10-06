@@ -10,14 +10,12 @@ call handed over — `args.env` above all.
     from viba.interpret import interpret
 
     interpret("add_demo.viba", environ)  # -> Ok(VibaNode) | VibaProgramErr(str) | a stop
-    interpret("main.viba", environ, get_file=files.get)   # sources from anywhere
 
-A step the compute side has no implementation for is not a failure: the run
-stops there and answers `NoImplementationException` — `$no_implementation
-NoImplementation` — carrying the step, the viba data it was given and why
-nothing implemented it. A step whose implementation broke
-answers `UnderlyingVibaOpFailed` — `$underlying_viba_op_failed Failure` — with
-the same step in it. What is left is `Ok(node)`, for the `__impl__` that came
+A step that does not answer stops the run: `UnderlyingOpErr` —
+`$underlying_viba_op_err UnderlyingOpErr` — carries the step (its module path and its
+function name), the call as it was written (the environment left out) and one
+message that opens with why: `no implementation`, `refused`, `get_func raised`,
+`raised`, or `no leaf`. What is left is `Ok(node)`, for the `__impl__` that came
 out, and `VibaProgramErr(message)` — `$viba_program_err str` — for a program or
 an environment that cannot run at all.
 
@@ -28,12 +26,6 @@ caller writes or generates. Whatever that function is, it takes the
 environment — every executable function depends on it — and a module's
 sub-environment holds the parent's compute, so a chain of modules shares one
 implementation source.
-
-Neither is it coupled to a filesystem: `get_file(file_path) -> str | None` is
-where a file's source comes from. Left out, files are read from disk; given,
-nothing else is read — the whole run can be served out of memory, and a path
-that has no file is answered `None` (or a `FileNotFoundError`), so the search
-moves on to the next place.
 
 The host side, spelled out:
 
@@ -81,9 +73,10 @@ from viba.reflect import VibaNode, access as reflect_access
 from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
                           reduce_application, tagged_reading)
-from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
-                       REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
-                       InterpretResult, ModuleType, NoImplementationException, Ok, Step,
+from viba.type import (CustomModuleType, NOT_IMPLEMENTED_TAG, REASON_GET_FUNC_RAISED,
+                       REASON_NO_IMPLEMENTATION, REASON_NO_LEAF, REASON_RAISED, REASON_REFUSED, AstNodeType,
+                       Err, Frame, InterpretError, Stack, VibaProgramErr, UnderlyingOpErr,
+                       InterpretResult, ModuleType, Ok,
                        BUILTIN_CONCEPT, BUILTIN_CONCEPT_DIR, BUILTIN_DIR,
                        BUILTIN_MODULE, NilType, NeverType,
                        builtin_directory_name,
@@ -411,7 +404,7 @@ def write_snapshot(environ: Environment, value, name: str = SNAPSHOT_NAME) -> No
     be read back and played again."""
     written = serialize.serialize(SNAPSHOT_NAME, viba_data(value))
     if isinstance(written, VibaProgramErr):
-        raise RuntimeError(f"cannot snapshot this value: {written.err_msg}")
+        raise RuntimeError(f"cannot snapshot this value: {written.msg}")
     _storage(environ).write_text(snapshot_path(environ, name), written.ok_value)
 
 
@@ -928,7 +921,7 @@ def _given_value(value):
         return value
     answer = _answer("a host argument", value)
     if isinstance(answer, VibaProgramErr):
-        raise RuntimeError(answer.err_msg)
+        raise RuntimeError(answer.msg)
     return answer.ok_value
 
 
@@ -941,35 +934,41 @@ def _as_given_value(value):
 
 
 def _stopped(result) -> bool:
-    """True when a step carried no value on: a `VibaProgramErr`, or a step with no
-    implementation.
+    """True when a step carried no value on: a `VibaProgramErr`, or a `Failure`.
 
-    `VibaProgramErr` says this run failed; `NoImplementationException` says this
-    run is asking for an implementation it does not have. Both stop the chain, and
-    both travel back to the caller as they are.
+    `VibaProgramErr` says this program or environment cannot run; a `Failure`
+    says one step did not answer — nothing implements it (`$not_implemented_err`) or
+    it broke (`$underlying_viba_op_err`). Both stop the chain, and both travel
+    back to the caller as they are.
     """
     return not isinstance(result, Ok)
 
 
-def _no_implementation(step: Step, call) -> NoImplementationException:
+def _not_implemented(module_path: str, func_name: str, call) -> UnderlyingOpErr:
     """What `get_func` answers with when it has no implementation for that call.
 
-    The step, the viba data it was given and why are all in it, so that call can
-    be taken up again from this result alone, without reading the run again.
+    The step, the call it was about and why are all in it (`msg` is the reason
+    itself here), so that call can be taken up again from this result alone,
+    without reading the run again.
     """
-    return NoImplementationException(step, call, REASON_NO_IMPLEMENTATION)
+    return UnderlyingOpErr(REASON_NO_IMPLEMENTATION, module_path, func_name,
+                                  call, tag=NOT_IMPLEMENTED_TAG)
 
 
-def _refused(answered: NoImplementationException, step: Step,
-             call) -> NoImplementationException:
+def _refused(answered: UnderlyingOpErr, module_path: str, func_name: str,
+             call) -> UnderlyingOpErr:
     """What a `get_func` that raised it itself is completed into.
 
     A host that says so need not know where it stands: the run fills in the step
-    and the call it was about, and keeps whatever the host did say.
+    and the call it was about, keeps whatever the host did say, and answers under
+    the tag the host raised it with — `NOT_IMPLEMENTED_TAG` for "I have no
+    implementation for that call".
     """
-    return NoImplementationException(answered.step or step,
-                                     answered.call if answered.call is not None else call,
-                                     answered.reason or REASON_REFUSED)
+    return UnderlyingOpErr(answered.msg or REASON_REFUSED,
+                                  answered.module_path or module_path,
+                                  answered.func_name or func_name,
+                                  answered.call if answered.call is not None else call,
+                                  tag=answered.tag)
 
 
 # ----------------------------------------------------------------------
@@ -981,13 +980,52 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
               list_files=None) -> InterpretResult:
     """Run `viba_main_file` with `environ`; its `__impl__` is the `Ok` value.
 
-    What it answers is `Result[VibaNode]` with two more branches, both naming the
-    step that stopped: `$no_implementation NoImplementation`, when `get_func` has
-    no implementation for that step (not a failure — the run stops there, and the
-    result carries the step, the viba data it was given and why), and
-    `$underlying_viba_op_failed Failure`, when that step's implementation broke.
-    `$viba_program_err str` is the rest: a program or an environment that cannot
-    run at all.
+    Its signature, as a viba type (viba-interpreter.md says what it answers;
+    `Environment` and `VibaNode` are the two names it does not define):
+
+        interpret =
+            InterpretResult
+          <- $viba_main_file str
+          <- $environ Environment
+
+        InterpretResult =
+            Oneof
+          | $ok VibaNode
+          | $err InterpretError
+
+        InterpretError =
+            Oneof
+          | $viba_program_err ProgramErr             # the program, or the environment
+          | $underlying_viba_op_err UnderlyingOpErr     # it broke
+          | $not_implemented_err UnderlyingOpErr               # nothing implements it
+
+        ProgramErr =
+            Object
+          * $msg str                                 # one sentence
+          * $stack Stack                             # the calls this run was in
+
+        Stack =
+            list[Frame]
+
+        Frame =
+            Object
+          * $file_path str                           # the .viba file the call is written in
+          * $lineno int                              # the line it is on
+
+        UnderlyingOpErr =
+            Object
+          * $msg str                                 # one sentence, the reason first
+          * $module_path str                         # the data path `get_func` was given
+          * $func_name str                           # the name `get_func` was given
+          * $call (Any <- $env Env)                  # the call itself, environment left out
+
+    Two branches: a value, or `InterpretError`. That one is a sum of three
+    kinds — `$viba_program_err` for a program or an environment that cannot run
+    at all, and the two tags a `UnderlyingOpErr` answers under (`$underlying_viba_op_err`
+    when the step broke, `$not_implemented_err` when nothing implements it). A
+    `ProgramErr` carries the chain of calls this run was in; a `UnderlyingOpErr` names
+    the step (`module_path`, `func_name`), the call as it was written (`call`, the
+    environment left out) and why (`msg`, which opens with the reason).
 
     Where modules are looked up is the environment's business
     (`Environment.viba_path`): the directories are searched in order for
@@ -997,31 +1035,28 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
     reaches the package's own vocabulary without naming it. A child environment
     keeps the parent's search path, so a module's own imports are looked up
     where the run says.
-
-    `get_file` is where the source of a file comes from:
-    `Optional[str <- $file_path str]`, the file's text for a path, `None` (or
-    a `FileNotFoundError`) when that path has no file. Left out, the
-    filesystem is read; given, nothing else is — a host can serve the whole
-    run out of memory, a database, or anything else.
-
-    `list_files` is where the names inside a directory come from:
-    `Optional[list[str] <- $dir_path str]`. A generic is a directory
-    (`demo/is_base_type/`, viba-pattern.md), so the decision has to know
-    which files are in it. Left out, the filesystem is listed; a host that
-    serves the files itself has to serve the listing too.
     """
     if not isinstance(environ, Environment):
-        return VibaProgramErr("interpret needs an Environment")
+        return Err(VibaProgramErr("interpret needs an Environment"))
     if environ.viba_path is not None and not isinstance(environ.viba_path,
                                                        (str, os.PathLike)):
-        return VibaProgramErr(f"viba_path is a string of directories (or one path), "
-                   f"not {type(environ.viba_path).__name__}")
+        return Err(VibaProgramErr(
+            f"viba_path is a string of directories (or one path), "
+            f"not {type(environ.viba_path).__name__}"))
     if get_file is not None and not callable(get_file):
-        return VibaProgramErr(f"get_file is a function (or None), not {type(get_file).__name__}")
+        return Err(VibaProgramErr(
+            f"get_file is a function (or None), not {type(get_file).__name__}"))
     if list_files is not None and not callable(list_files):
-        return VibaProgramErr(f"list_files is a function (or None), not {type(list_files).__name__}")
-    return _Runner(environ.viba_path, get_file,
-                   list_files).run_file(viba_main_file, environ)
+        return Err(VibaProgramErr(
+            f"list_files is a function (or None), not {type(list_files).__name__}"))
+    answer = _Runner(environ.viba_path, get_file,
+                     list_files).run_file(viba_main_file, environ)
+    if isinstance(answer, Ok) and callable(answer.ok_value):
+        # A Python callable is no value: a host function that is still waiting
+        # for arguments has no leaf to be, and cannot be what a run answers.
+        answer = VibaProgramErr(
+            "the run answered a function that is still waiting for arguments")
+    return answer if isinstance(answer, Ok) else Err(answer)
 
 
 class _Runner:
@@ -1246,9 +1281,28 @@ class _Runner:
         return out
 
 
+def _stack(runner: _Runner) -> Stack:
+    """The calls running now, outermost first: each frame is a call site.
+
+    A frame is the file a call is written in and the line it is on, so the
+    second frame of a chain is the call that entered the second module, written
+    in the first one's file. The outermost frame is the main file itself, which
+    no one called: its line is 0.
+    """
+    frames: Stack = []
+    for index, entry in enumerate(runner.running):
+        file, at = entry[3], entry[4]
+        if index == 0:
+            frames.append(Frame(file or "", 0))
+        else:
+            frames.append(Frame(runner.running[index - 1][3] or "", at or 0))
+    return frames
+
+
 def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                name: str, file: Optional[str], args=None, members=None,
-               bindings=(), passes_environ=False) -> InterpretResult:
+               bindings=(), passes_environ=False, at: int = 0) -> InterpretResult:
+
     """The module as a function: the environment in, `__impl__` out.
 
     A module that declares `__decl__` is called with its parameters as well; `args`
@@ -1268,46 +1322,55 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     `module_path`, so two activations under one path cannot be told apart. No two module calls may share one — the caller gives each call
     a sub-environment of its own.
     """
+
+    def stopped(result):
+        """A stopped result, carrying the chain it happened in (the first stamp
+        wins: the innermost call is the one that knows)."""
+        if isinstance(result, VibaProgramErr) and not result.stack:
+            result.stack = _stack(runner)
+        return result
     if file is None:
         file = runner.path_of.get(name)     # a module called through an import
     ret = _definition(module, RET_NAME)
     if ret is None:
-        return VibaProgramErr(f"module {name!r} has no {RET_NAME}: it is design, not a program")
+        return stopped(VibaProgramErr(
+            f"module {name!r} has no {RET_NAME}: it is design, not a program"))
     params, problem = _module_params(module)
     if problem is not None:
-        return VibaProgramErr(f"module {name!r}: {problem}")
+        return stopped(VibaProgramErr(f"module {name!r}: {problem}"))
     if members is None:
         members = [(ENVIRON_TAG, _Host(environ))]
     if args is None:
         args = _VibaData(viba_data(None))
     path = _storage_path(environ)
     signature = _call_signature(members)
-    for seen, running_name, running_signature in runner.running:
+    for seen, running_name, running_signature, _file, _at in runner.running:
         if seen == path:
-            return VibaProgramErr(
+            return stopped(VibaProgramErr(
                 f"the storage path {path!r} is already running a call, so {name!r} "
                 f"cannot run there too: give each module call a sub-environment of "
-                f"its own (args.env.sub_env << args.env << ...)")
+                f"its own (args.env.sub_env << args.env << ...)"))
         if running_name == name and running_signature == signature:
-            return VibaProgramErr(
+            return stopped(VibaProgramErr(
                 f"module {name!r} is already running with the same arguments: "
-                f"a module call cycle")
+                f"a module call cycle"))
     if path in runner.done:
         answered_as, answered = runner.done[path]
         if answered_as == name:
             # One storage path, one module: the same sub-computation asked a second time, so
             # hand back the answer it gave.
             return Ok(answered)
-        return VibaProgramErr(f"module {name!r} was handed the storage path {path!r}, which "
-                   f"another module call already used: give each module call a "
-                   f"sub-environment of its own (args.env.sub_env << args.env << ...)")
-    runner.running.append((path, name, signature))
+        return stopped(VibaProgramErr(
+            f"module {name!r} was handed the storage path {path!r}, which "
+            f"another module call already used: give each module call a "
+            f"sub-environment of its own (args.env.sub_env << args.env << ...)"))
+    runner.running.append((path, name, signature, file, at))
     activation = _Activation(runner, module, environ, name, file, args,
                              members=members, bindings=bindings)
     try:
         # The body's own chain is left unfinished: a call it answers may still be
         # waiting for the environment, which is given to it below.
-        value = activation.evaluate(ret.body, (), finish=False)
+        value = stopped(activation.evaluate(ret.body, (), finish=False))
         if not _stopped(value) and isinstance(value.ok_value, _Pending):
             pending = value.ok_value
             if passes_environ and pending.takes_environ():
@@ -1324,15 +1387,18 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                     handed = sub_env(environ, pending.written)
                 given = pending.give(ENVIRON_TAG, _Host(handed))
                 if _stopped(given):
-                    return given
+                    return stopped(given)
                 pending = given.ok_value
-            value = activation._finish(pending)
+            value = stopped(activation._finish(pending))
+            if not _stopped(value) and (isinstance(value.ok_value, _HostFunction)
+                                        or not isinstance(value.ok_value,
+                                                          (_VibaData, _Host))):
+                value = stopped(VibaProgramErr(
+                    f"{name}.{RET_NAME} is a function still waiting for arguments"))
     finally:
         runner.running.pop()
     if _stopped(value):
         return value
-    if not isinstance(value.ok_value, (_VibaData, _Host)):
-        return VibaProgramErr(f"{name}.{RET_NAME} is a function still waiting for arguments")
     answer = _argument_value(value.ok_value)
     runner.done[path] = (name, answer)
     return Ok(answer)
@@ -3109,6 +3175,7 @@ class _Pending:
         self.module_name = module_name
         self.environ = None                  # the environment; giving it means execute
         self.given = {}                      # argument index -> value
+        self.given_tags = {}                 # argument index -> the tag it was written with
         self.bindings = bindings             # parameter names the decision bound: the file's own body reads them
         self.pattern_env = pattern_env       # the chosen pattern file: this call runs in its own sub-environment
         self.params_override = slots         # the parameter table with the bindings written in
@@ -3314,6 +3381,7 @@ class _Pending:
             if not _is_environ_value(value):
                 return VibaProgramErr(f"{self.written} was not given an {ENVIRON_TYPE}")
             self.given[index] = value
+            self.given_tags[index] = tag
             self.environ = value.obj
             return Ok(self)
         wanted = _function_slot(self, index)
@@ -3324,11 +3392,13 @@ class _Pending:
                 value.node, value.scope, self, wanted, self.module, self.written,
                 value.file, written_in=value.written_in, name=value.name,
                 origin=getattr(value, "origin", None))
+            self.given_tags[index] = tag
             return Ok(self)
         problem = _fits_slot(value, element, self.module, self.written)
         if problem is not None:
             return VibaProgramErr(problem)
         self.given[index] = value
+        self.given_tags[index] = tag
         return Ok(self)
 
     def _give_module(self, tag, value):
@@ -3466,25 +3536,34 @@ class _Pending:
         return descriptor_of(AstNodeType(node, self.written_in))
 
     def call_viba_data(self):
-        """The viba_data this call was given, as it was written.
+        """The call itself, as it was written, with the environment left out.
 
-        A host value — the environment above all — is no viba_data and does not
-        travel: the side that answers makes its own. One viba_data argument is
-        that argument itself (no tag is needed to tell it from the others), so
-        the call's viba data is that argument; several make a product, keeping
-        the tags as written. None when nothing viba_data was given.
+        A call is its name together with the arguments written on it —
+        `add << $a 1 << $b 2` — so that is what this answers, with the tags the
+        call wrote (a parameter's own name is not put back: `builtin.add << 1 <<
+        2` stays as written). The environment is no argument of the call but the
+        executing of it, so it is no part of the call's data either.
+
+        Everything written travels, functions and closures included: the argument
+        of a function-typed slot is the written call itself, which is viba data,
+        so it can be written down and read back. What this answers is that call as
+        viba data, so a reader can make the same call again from this result alone.
         """
-        tags = self.slot_tags()
-        viba_data_given = [(tags[index], value.node.data)
-                          for index, value in sorted(self.given.items())
-                          if isinstance(value, _VibaData)]
-        if not viba_data_given:
-            return None
-        if len(viba_data_given) == 1:
-            return viba_data(viba_data_given[0][1])
-        written = [viba_ast.Tagged(tag, piece) if tag else piece
-                   for tag, piece in viba_data_given]
-        return viba_data(viba_ast.ProductChain(written))
+        node = self.head
+        environ_slot = self.environ_slot()
+        for index in sorted(self.given):
+            if index == environ_slot:
+                continue                    # the environment: the call's rule, not its data
+            value = self.given[index]
+            if isinstance(value, _HostArgument):
+                piece = value.node
+            elif isinstance(value, _VibaData):
+                piece = value.node.data
+            else:
+                continue                    # a host value: it does not travel
+            tag = self.given_tags.get(index)
+            node = viba_ast.Partial(node, viba_ast.Tagged(tag, piece) if tag else piece)
+        return VibaNode(reflect_access, self.descriptor(node), node)
 
     def _call_host(self):
         """Every slot is filled: the environment's compute side implements it."""
@@ -3494,31 +3573,30 @@ class _Pending:
             return VibaProgramErr(
                 f"{self.written}: the environment carries no compute side")
         module_path = _storage_path(environ)
-        step = Step(module_path, self.name)
+        call = self.call_viba_data()
         try:
             host = compute.get_func(module_path, self.name)
-        except NoImplementationException as answered:   # get_func says so itself
-            return _refused(answered, step, self.call_viba_data())
+        except UnderlyingOpErr as answered:   # get_func says so itself
+            return _refused(answered, module_path, self.name, call)
         except Exception as exc:            # the host is the host's business
-            return UnderlyingVibaOpFailed(
-                f"get_func({module_path!r}, {self.name!r}) raised {exc!r}",
-                step, REASON_GET_FUNC_RAISED)
+            return UnderlyingOpErr(
+                f"{REASON_GET_FUNC_RAISED}: get_func({module_path!r}, {self.name!r}) "
+                f"raised {exc!r}",
+                module_path, self.name, call)
         if host is None:
-            return _no_implementation(step, self.call_viba_data())
+            return _not_implemented(module_path, self.name, call)
         handed = [_handed_to_host(self, index, self.given[index])
                   for index in range(len(self.elements))]
         try:
             answer = host(*handed)
-        except NoImplementationException as answered:   # a call inside it has none
-            return answered
-        except UnderlyingVibaOpFailed as failure:                # ... or failed inside
+        except UnderlyingOpErr as failure:                # ... said so itself
             return failure
         except _Raised as raised:                # ... or stopped inside a getter
             return raised.result
         except Exception as exc:
-            return UnderlyingVibaOpFailed(f"{self.name} raised {exc!r}", step,
-                                          REASON_RAISED)
-        return _answer(self.name, answer, step)
+            return UnderlyingOpErr(f"{REASON_RAISED}: {self.name} raised {exc!r}",
+                                          module_path, self.name, call)
+        return _answer(self.name, answer, module_path, self.name, call)
 
     def _run_module_call(self):
         """Every parameter of `__decl__` is in: hand them to the module, as one product.
@@ -3566,7 +3644,8 @@ class _Pending:
                 descriptor_of_values(chain, self.written_in, kept), chain))
         answer = _run_module(self.runner, self.module, self.environ, self.module_name,
                              None, args, members=members, bindings=self.bindings,
-                             passes_environ=self.appends_environ)
+                             passes_environ=self.appends_environ,
+                             at=getattr(self.head, "lineno", 0) or 0)
         if _stopped(answer):
             return answer
         # `interpret` hands the node out; inside a run a module's answer is a
@@ -3626,20 +3705,56 @@ class _HostFunction:
                                     self.module_path))
         return self._call(values)
 
+    def as_callable(self):
+        """The host calls it like any other function: the arguments go in, the
+        answer comes out. A wrong or missing argument raises, the way a host
+        callable's own failures do."""
+        def call(*arguments):
+            values = list(self.given)
+            for argument in arguments:
+                values = values + [_argument_value(argument)]
+            if len(values) < self.slots:
+                raise VibaProgramErr(
+                    f"environ.{self.name} is still waiting for arguments")
+            answer = self._call(values)
+            if not isinstance(answer, Ok):
+                raise answer
+            return answer.ok_value
+        return call
+
+    def call_viba_data(self, values):
+        """The call as it was written: `environ.<name>`, then its arguments.
+
+        What the host handed over is already computed, so a piece of viba data is
+        its node and a written call is the call itself; a host value — the
+        environment above all — does not travel, and another run makes its own.
+        """
+        head = viba_ast.TypeRef(f"environ.{self.name}")
+        node = head
+        for value in values:
+            if isinstance(value, VibaNode):
+                piece = value.data
+            elif isinstance(value, _HostArgument):
+                piece = value.node
+            else:
+                continue
+            node = viba_ast.Partial(node, piece)
+        return VibaNode(reflect_access, descriptor_of(AstNodeType(head, _NO_MODULE)), node)
+
     def _call(self, values):
-        step = Step(self.module_path, f"environ.{self.name}")
+        module_path = self.module_path
+        func_name = f"environ.{self.name}"
+        call = self.call_viba_data(values)
         try:
             answer = self.func(*values)
-        except NoImplementationException as answered:
-            return _refused(answered, step, None)
-        except UnderlyingVibaOpFailed as failure:
-            return failure
+        except UnderlyingOpErr as answered:
+            return _refused(answered, module_path, func_name, call)
         except _Raised as raised:
             return raised.result
         except Exception as exc:
-            return UnderlyingVibaOpFailed(f"environ.{self.name} raised {exc!r}", step,
-                                          REASON_RAISED)
-        return _answer(f"environ.{self.name}", answer, step)
+            return UnderlyingOpErr(f"{REASON_RAISED}: {func_name} raised {exc!r}",
+                                          module_path, func_name, call)
+        return _answer(func_name, answer, module_path, func_name, call)
 
 
 def _slot_name(index: int, tag) -> str:
@@ -3650,7 +3765,7 @@ def _written_slots(slots) -> str:
     return ", ".join(_slot_name(index, tag) for index, (tag, _written) in enumerate(slots))
 
 
-def _answer(name, answer, step: Step = None):
+def _answer(name, answer, module_path: str = None, func_name: str = None, call=None):
     if isinstance(answer, _HostArgument):
         # The host hands that written call straight back: the value it stands for is this call.
         # The closure the name stands for is worked out by `__call__`, so ask it once here.
@@ -3667,8 +3782,8 @@ def _answer(name, answer, step: Step = None):
     `None` is `nil` the way it is in the builder. A plain Python value lands
     as a leaf — but only a scalar one: a list, a dict, a callable or any other
     object has no leaf to be, and guessing one would put a piece into the
-    viba_data that no design asked for. Given a `step`, that refusal is a
-    failure of it; without one — a value a host is handing back into a call —
+    viba_data that no design asked for. Given a step (`module_path`), that refusal
+    is a failure of it; without one — a value a host is handing back into a call —
     it is a plain `VibaProgramErr`.
     """
     if isinstance(answer, VibaNode):
@@ -3678,8 +3793,9 @@ def _answer(name, answer, step: Step = None):
     if answer is not None and not isinstance(answer, (bool, int, float, str)):
         msg = (f"{name} answered {type(answer).__name__}, "
                f"which is no leaf: answer a VibaNode, a scalar, or None")
-        if step is not None:
-            return UnderlyingVibaOpFailed(msg, step, REASON_NO_LEAF)
+        if module_path is not None:
+            return UnderlyingOpErr(f"{REASON_NO_LEAF}: {msg}", module_path,
+                                          func_name, call)
         return VibaProgramErr(msg)
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
     return Ok(_VibaData(VibaNode(reflect_access,

@@ -300,7 +300,7 @@ class _Checker:
         for node, module, side in ((sn, s_mod, "sub"), (sp, p_mod, "sup")):
             got = tagged_reading(node, module, self._symbol_resolver(side))
             if isinstance(got, VibaProgramErr):
-                raise UnresolvedTypeError(got.err_msg)
+                raise UnresolvedTypeError(got.msg)
             if got.ok_value is None:
                 continue
             if side == "sub":
@@ -342,7 +342,7 @@ class _Checker:
         if isinstance(resolved, VibaProgramErr):
             # Why it is unresolved is more useful than "unresolved": a generic name, a module
             # name — each is spelled out in its own message.
-            raise UnresolvedTypeError(resolved.err_msg)
+            raise UnresolvedTypeError(resolved.msg)
         return resolved.ok_value
 
     def _check_uncached(self, sub: Type, sup: Type) -> bool:
@@ -741,7 +741,7 @@ class _Checker:
             return None
         decision = self._decision(owner, module)
         if isinstance(decision, VibaProgramErr):
-            raise UnresolvedTypeError(decision.err_msg)
+            raise UnresolvedTypeError(decision.msg)
         if not (isinstance(decision, Ok) and decision.ok_value is not None):
             return None
         chosen = decision.ok_value
@@ -766,7 +766,7 @@ class _Checker:
         the decision was made over."""
         decision = self._decision(node, module)
         if isinstance(decision, VibaProgramErr):
-            raise UnresolvedTypeError(decision.err_msg)
+            raise UnresolvedTypeError(decision.msg)
         return isinstance(decision, Ok) and decision.ok_value is not None
 
     def _decision(self, node, module):
@@ -810,7 +810,7 @@ class _Checker:
             return self._unfolded[app_key]
         decision = self._decision(node, module)
         if isinstance(decision, VibaProgramErr):
-            raise UnresolvedTypeError(decision.err_msg)
+            raise UnresolvedTypeError(decision.msg)
         if isinstance(decision, Ok) and decision.ok_value is not None:
             chosen = decision.ok_value
             if chosen.body is None:

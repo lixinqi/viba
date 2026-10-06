@@ -14,12 +14,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, Host, value_of
+from interpreter_support import error_of, message_of, Checks, Host, value_of
 
 from viba.reflect import access as reflect_access
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import VibaProgramErr, Ok, Step
+from viba.type import VibaProgramErr, Ok
 
 checks = Checks("interpreter_application")
 check = checks.check
@@ -85,8 +85,9 @@ def _order_and_slots(tmp: Path):
     host.calls.clear()
     exploded = interpret(str(CASES / "argument_boom.viba"), environ)
     checks.failed(exploded, "raised", "an argument that blows up")
-    check(exploded.step == Step("root", "explode"),
-          f"the step that stopped is the argument's, not the call's: {exploded.step!r}")
+    check(error_of(exploded).module_path == "root"
+          and error_of(exploded).func_name == "explode",
+          f"the step that stopped is the argument's, not the call's: {exploded!r}")
     check(("root", "add") not in host.calls,
           f"the call itself never happens: {host.calls}")
 

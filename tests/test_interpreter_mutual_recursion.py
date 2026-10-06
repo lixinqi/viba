@@ -36,12 +36,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import Checks
+from interpreter_support import error_of, message_of, Checks
 
 from viba import viba_ast
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import Ok, UnderlyingVibaOpFailed, VibaProgramErr
+from viba.type import Ok, UnderlyingOpErr, VibaProgramErr
 
 checks = Checks("interpreter_mutual_recursion")
 check = checks.check
@@ -211,16 +211,16 @@ def run(tmp: Path):
             check(isinstance(result, Ok) and _leaf(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
         elif kind == "cycle":
-            check(isinstance(result, VibaProgramErr)
-                  and "came back to where it started" in result.err_msg,
+            check(isinstance(error_of(result), VibaProgramErr)
+                  and "came back to where it started" in message_of(result),
                   f"{name}: expected the cross-file cycle report, got {result!r}")
         elif kind == "in-file":
-            check(isinstance(result, VibaProgramErr)
-                  and "one file's definitions may not go round" in result.err_msg,
+            check(isinstance(error_of(result), VibaProgramErr)
+                  and "one file's definitions may not go round" in message_of(result),
                   f"{name}: expected the in-file cycle report, got {result!r}")
         elif kind == "running":
-            check(isinstance(result, VibaProgramErr)
-                  and "already running" in result.err_msg,
+            check(isinstance(error_of(result), VibaProgramErr)
+                  and "already running" in message_of(result),
                   f"{name}: expected the module-call cycle report, got {result!r}")
         elif kind == "closure":
             check(isinstance(_data(result), viba_ast.Partial),
@@ -239,15 +239,15 @@ def run(tmp: Path):
             check(isinstance(_data(result), viba_ast.TypeRef),
                   f"{name}: expected the written name, got {result!r}")
         elif kind == "error":
-            check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
 
     # 绕回去的那条路上,两个文件的名字都在话里
     result = interpret(str(CASES / "left_direct_cycle.viba"),
                        environ_for(tmp / "store-name"))
-    check(isinstance(result, VibaProgramErr)
-          and "left_direct_cycle.x" in result.err_msg
-          and "right_direct_cycle.y" in result.err_msg,
+    check(isinstance(error_of(result), VibaProgramErr)
+          and "left_direct_cycle.x" in message_of(result)
+          and "right_direct_cycle.y" in message_of(result),
           f"the cycle report names both files: {result!r}")
 
 

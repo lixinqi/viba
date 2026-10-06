@@ -55,7 +55,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, Host, value_of
+from interpreter_support import message_of, error_of, Checks, Host, value_of
 
 from viba import viba_ast
 from viba.interpret import interpret
@@ -214,7 +214,7 @@ def _environment(roots=None):
             directory = root.joinpath(*name.split("."))
             if (directory / GENERIC_FILE).is_file():
                 got = load_generic(str(directory), name, read, listing, module_of)
-                if isinstance(got, VibaProgramErr):
+                if isinstance(error_of(got), VibaProgramErr):
                     return got
                 cache[name] = got.ok_value
                 return Ok(got.ok_value)
@@ -302,7 +302,7 @@ def _the_judgment_reads_it():
     for source, sub, sup, want, label in JUDGMENT_CASES:
         got = _judge(source, sub, sup)
         if want == "error":
-            check(isinstance(got, VibaProgramErr) and "no pattern" in got.err_msg,
+            check(isinstance(error_of(got), VibaProgramErr) and "no pattern" in message_of(got),
                   f"{label}: {got!r}")
             continue
         check(got is want, f"{label}: {sub} <: {sup} -> {got!r}, wanted {want}")
@@ -373,7 +373,7 @@ def _the_pattern_matcher():
           f"an argument that writes a call is read as the type it stands "
           f"for: {got!r}")
     got = _match(patterns[0], module, "add << $b 1 << $b 2")
-    check(isinstance(got, VibaProgramErr) and "no such argument" in got.err_msg,
+    check(isinstance(error_of(got), VibaProgramErr) and "no such argument" in message_of(got),
           f"a call that cannot be given is a mistake in the argument, not a "
           f"mismatch: {got!r}")
 
@@ -393,7 +393,7 @@ def _the_pattern_matcher():
 
     module, patterns = _pattern_case("pattern ...\n")
     got = _match(patterns[0], module, "int")
-    check(isinstance(got, VibaProgramErr) and "ellipsis" in got.err_msg,
+    check(isinstance(error_of(got), VibaProgramErr) and "ellipsis" in message_of(got),
           f"ellipsis is no pattern: {got!r}")
 
 
@@ -410,8 +410,8 @@ def _the_arity_is_the_file():
           "two lines are the generic of two")
     got = _judge("import demo.num_variadic_args as g\nX = g[bool, str, int, float].value\n",
                  "X", "0")
-    check(isinstance(got, VibaProgramErr)
-          and "takes 0, 1, 2 or 3 parameters, not 4" in got.err_msg,
+    check(isinstance(error_of(got), VibaProgramErr)
+          and "takes 0, 1, 2 or 3 parameters, not 4" in message_of(got),
           f"an arity no file declares names the counts: {got!r}")
 
 
@@ -443,7 +443,7 @@ def _a_count_is_a_bucket(scratch: Path):
     check(isinstance(got, Ok) and value_of(got) == 2,
           f"摆出两份的应用读 2_200，给出 2：{got!r}")
     got = answered("three", "int * str * bool")
-    check(isinstance(got, VibaProgramErr) and "cannot parse" in got.err_msg,
+    check(isinstance(error_of(got), VibaProgramErr) and "cannot parse" in message_of(got),
           f"摆出三份的应用读到 3_300，当场说它编不过：{got!r}")
 
     # 名字上写的份数与 `pattern` 行读的份数不符：读到那一份就说
@@ -454,9 +454,9 @@ def _a_count_is_a_bucket(scratch: Path):
     (root / "wrong_case.viba").write_text(
         "import wrong as wrong\n\n__impl__ = wrong[int * str].value\n")
     got = interpret(str(root / "wrong_case.viba"), Host().environ(viba_path=str(root)))
-    check(isinstance(got, VibaProgramErr)
+    check(isinstance(error_of(got), VibaProgramErr)
           and "the name says the file reads 3 parts, and its `pattern` lines read 2"
-          in got.err_msg,
+          in message_of(got),
           f"名字说三份、pattern 读两份：{got!r}")
 
     # `pattern A` 那样的行读不出固定份数，名字上就不许写
@@ -467,8 +467,8 @@ def _a_count_is_a_bucket(scratch: Path):
     (root / "loose_case.viba").write_text(
         "import loose as loose\n\n__impl__ = loose[int * str].value\n")
     got = interpret(str(root / "loose_case.viba"), Host().environ(viba_path=str(root)))
-    check(isinstance(got, VibaProgramErr)
-          and "and a `pattern` line in it reads no count" in got.err_msg,
+    check(isinstance(error_of(got), VibaProgramErr)
+          and "and a `pattern` line in it reads no count" in message_of(got),
           f"名字写了份数、pattern 读不出份数：{got!r}")
 
 
@@ -497,7 +497,7 @@ def _a_sum_is_no_bucket(scratch: Path):
           f"积实参摆出两份，3_300 被跳过，2_200 给出 2：{got!r}")
 
     got = asked("a_sum", "summed", "int | str")
-    check(isinstance(got, VibaProgramErr) and "cannot parse" in got.err_msg,
+    check(isinstance(error_of(got), VibaProgramErr) and "cannot parse" in message_of(got),
           f"和实参摆不出份数，3_300 也被读出来并报它编不过：{got!r}")
 
     either = root / "either"
@@ -515,8 +515,8 @@ def _a_sum_is_no_bucket(scratch: Path):
     (named / GENERIC_FILE).write_text("# __generic__.viba\n")
     (named / "2_100.viba").write_text("pattern A | B | C\n\nvalue = 1\n")
     got = asked("named_case", "named", "int | str")
-    check(isinstance(got, VibaProgramErr)
-          and "and a `pattern` line in it reads no count" in got.err_msg,
+    check(isinstance(error_of(got), VibaProgramErr)
+          and "and a `pattern` line in it reads no count" in message_of(got),
           f"和模式的份数写不出来：{got!r}")
 
 
@@ -565,7 +565,7 @@ def _the_decision_fails_loudly():
 def _a_generic_is_no_module():
     """泛型不是模块：它有应用，没有定义。"""
     got = _judge("import demo.is_base_type as g\nX = g\n", "X", "int")
-    check(isinstance(got, VibaProgramErr) and "generic" in got.err_msg,
+    check(isinstance(error_of(got), VibaProgramErr) and "generic" in message_of(got),
           f"a bare generic name is not a type: {got!r}")
 
     labelled(interpret(_case("a_generic_is_no_program"), _environ()),
@@ -692,7 +692,7 @@ def _the_pool_holds_a_generic():
         parsed = parse_viba_file(pool, source, path, module)
         check(isinstance(parsed, Ok), f"the pool compiles {module}: {parsed!r}")
         added = pool_add_file(pool, parsed.ok_value)
-        if isinstance(added, VibaProgramErr):
+        if isinstance(error_of(added), VibaProgramErr):
             check(False, f"the pool takes {module}: {added!r}")
             return
         pool = added.ok_value
@@ -724,7 +724,7 @@ def _the_reflection_reads_it():
                     "Named = $value n[$a int].value\n", "design"))
     for path, source, module in sources:
         parsed = parse_viba_file(pool, source, path, module)
-        if isinstance(parsed, VibaProgramErr):
+        if isinstance(error_of(parsed), VibaProgramErr):
             check(False, f"the pool compiles {module}: {parsed!r}")
             return
         pool = pool_add_file(pool, parsed.ok_value).ok_value

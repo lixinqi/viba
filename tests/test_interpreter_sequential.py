@@ -50,7 +50,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, value_of
+from interpreter_support import error_of, message_of, Checks, value_of
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             interpret)
@@ -176,7 +176,7 @@ def _errors_are_named(tmp: Path):
     for name, want in RECORDED:
         result = interpret(str(CASES / f"{name}.viba"),
                            environ_for(tmp / f"error-{name}", []))
-        check(isinstance(result, VibaProgramErr) and want in result.err_msg,
+        check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
               f"{name}: recorded stop {want!r}，{result!r}")
 
 

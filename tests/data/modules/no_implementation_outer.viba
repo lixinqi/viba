@@ -1,9 +1,0 @@
-__decl__ =
-    int
-  <- $env Env
-
-args = __get_args__ << __decl__
-
-import no_implementation_module as inner
-
-__impl__ = inner << (args.env.sub_env << args.env << "no_implementation_module")

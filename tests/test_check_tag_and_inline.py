@@ -54,10 +54,10 @@ def design(source: str):
     pool = empty_pool()
     parsed = parse_viba_file(pool, source, "design.viba", "design")
     if not isinstance(parsed, Ok):
-        return f"does not parse: {parsed.err_msg}"
+        return f"does not parse: {parsed.msg}"
     built = pool_add_file(pool, parsed.ok_value)
     if not isinstance(built, Ok):
-        return f"does not compile: {built.err_msg}"
+        return f"does not compile: {built.msg}"
     return check_tag_and_inline(built.ok_value)
 
 
@@ -156,10 +156,10 @@ def pool_design(files):
     for file_name, module_name, source in files:
         parsed = parse_viba_file(pool, source, file_name, module_name)
         if not isinstance(parsed, Ok):
-            return f"does not parse: {parsed.err_msg}"
+            return f"does not parse: {parsed.msg}"
         built = pool_add_file(pool, parsed.ok_value)
         if not isinstance(built, Ok):
-            return f"does not compile: {built.err_msg}"
+            return f"does not compile: {built.msg}"
         pool = built.ok_value
     return check_tag_and_inline(pool)
 
@@ -220,10 +220,10 @@ def file_design(path: Path):
     pool = empty_pool()
     parsed = parse_viba_file(pool, path.read_text(), path.name, path.stem)
     if not isinstance(parsed, Ok):
-        return f"does not parse: {parsed.err_msg}"
+        return f"does not parse: {parsed.msg}"
     built = pool_add_file(pool, parsed.ok_value)
     if not isinstance(built, Ok):
-        return f"does not compile: {built.err_msg}"
+        return f"does not compile: {built.msg}"
     return check_tag_and_inline(built.ok_value)
 
 

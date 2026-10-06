@@ -301,6 +301,12 @@ def p_partial_expr(p):
     | adt_expr"""
     if len(p) == 4:
         p[0] = Partial(p[1], p[3])
+        # The line this call is written on: a stack frame is a call site. The
+        # apply operator is a token, so its line is the line; the symbols around
+        # it are nonterminals, and ply keeps no line for those. The head carries
+        # it too: a call is named by its head.
+        p[0].lineno = p.lineno(2)
+        p[1].lineno = p.lineno(2)
     else:
         p[0] = p[1]
 

@@ -15,7 +15,7 @@ import branch
 
 ge =
     bool <- $env Env <- $x int <- $y int <- { x >= y }
-poison_no_implementation =
+poison_not_implemented =
     int <- $env Env <- { nothing implements this }
 
 healthy = 42
@@ -25,4 +25,4 @@ __impl__ =
   | (branch.echo_or_never << $env args.env << $cond condition << $get_v (builtin.echo << $x healthy))
   | (branch.never_or_echo
       << $env args.env << $cond condition
-      << $get_v (builtin.echo << $x ((poison_no_implementation << $env args.env) * 1)))
+      << $get_v (builtin.echo << $x ((poison_not_implemented << $env args.env) * 1)))

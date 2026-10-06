@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import CASES, Checks, Host, value_of
+from interpreter_support import error_of, message_of, CASES, Checks, Host, value_of
 
 from viba.interpret import (BUILTIN_CONCEPT_DIR, BUILTIN_DIR, interpret, sub_env,
                             tmp_env)
@@ -50,6 +50,7 @@ def run(tmp: Path):
     _names(tmp)
     _paths(tmp)
     _virtual_files(tmp)
+    _refuses(tmp)
     _bad_sources(tmp)
     _compiled_once(tmp)
 
@@ -263,6 +264,34 @@ def _virtual_files(tmp: Path):
              "a get_file that is not callable -> VibaProgramErr")
 
 
+def _refuses(tmp: Path):
+    """`interpret` 自己拒绝时的返回值：`VibaProgramErr`，话一字不差。
+
+    它不为这些参数抛异常，答案就是这一支值。四条都在读文件之前就定下来：用的主文件根本不存在，
+    所以拿到的只要不是 `no such file`，顺序就对了（环境、viba_path、get_file、list_files）。
+    """
+    host = Host()
+    environ = host.environ()
+    absent = _case("gone")
+
+    def refuses(result, message, label):
+        check(isinstance(error_of(result), VibaProgramErr) and message_of(result) == message,
+              f"{label}: expected VibaProgramErr({message!r}), got {result!r}")
+
+    refuses(interpret(absent, "root"),
+            "interpret needs an Environment",
+            "no Environment -> VibaProgramErr")
+    refuses(interpret(absent, host.environ(viba_path=7)),
+            "viba_path is a string of directories (or one path), not int",
+            "a viba_path that is neither a path nor a string -> VibaProgramErr")
+    refuses(interpret(absent, environ, get_file=7),
+            "get_file is a function (or None), not int",
+            "a get_file that is not callable -> VibaProgramErr")
+    refuses(interpret(absent, environ, list_files=7),
+            "list_files is a function (or None), not int",
+            "a list_files that is not callable -> VibaProgramErr")
+
+
 def _bad_sources(tmp: Path):
     """编译不过的源、坏的实现、坏的主路径。"""
     host = Host()
@@ -275,8 +304,8 @@ def _bad_sources(tmp: Path):
 
     # 词法上就没有这个词：'-' 不能被悄悄跳过，否则 -5 会跑成 5
     result = interpret(_case("negative"), environ)
-    check(isinstance(result, VibaProgramErr) and "cannot parse" in result.err_msg
-          and "illegal character" in result.err_msg,
+    check(isinstance(error_of(result), VibaProgramErr) and "cannot parse" in message_of(result)
+          and "illegal character" in message_of(result),
           f"a character with no token of its own -> VibaProgramErr: {result!r}")
 
     # CRLF 只是行尾：写得跟 LF 一样读
