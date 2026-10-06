@@ -1,4 +1,4 @@
-# runs_where_it_is_given —— 内建算子跑在给它的那个环境里：宿主看到的 module_path 就是证据
+# runs_where_it_is_given —— 内建算子跑在给它的那个环境里：宿主看到的 module_path 就是它跑的那条路径
 __decl__ = int <- $env Env
 
 args = __get_args__ << __decl__

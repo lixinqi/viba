@@ -16,7 +16,7 @@ from interpreter_support import CASES, Checks, Host, value_of
 
 from viba import serialize
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import VibaProgramErr, NotMyDutyException, Ok, Step
+from viba.type import VibaProgramErr, NoImplementationException, Ok, Step
 
 checks = Checks("interpreter_modules")
 check = checks.check
@@ -34,26 +34,26 @@ def run(tmp: Path):
     _nested_modules(tmp)
     _cycles(tmp)
     _storage_paths(tmp)
-    _deferral(tmp)
+    _no_implementation(tmp)
 
 
-def _deferral(tmp: Path):
-    """没实现的那一步不是失败：整条程序停在递延上，等别人来补。
+def _no_implementation(tmp: Path):
+    """没实现的那一步不是失败：整条程序停在那一步上，把这一步带回来。
 
-    递延要能穿过模块调用（被调的模块里那一步没实现，整个 run 的结果就是递延），
-    也要能穿过宿主的拒绝（`get_func` 抛递延，等于给出递延），而且穿过去之后**不被改写**：
+    这一步要能穿过模块调用（被调的模块里那一步没实现，整个 run 的结果就是「没有实现」），
+    也要能穿过宿主自己抛出来的（`get_func` 抛它，等于这次调用没有实现），而且穿过去之后**不被改写**：
     带回来的那一步是里面那一次调用，不是外面那一层。同一份 store 上补上那一步，同一个 run
-    就跑完了——递延什么都没落下。
+    就跑完了——这个结果什么都没落下。
     """
     host = Host()
     environ = host.environ()
 
-    outer = _case("deferred_outer")
+    outer = _case("no_implementation_outer")
 
     host.knobs["missing"] = ("add",)
     stopped = interpret(outer, environ)
-    checks.deferred(stopped, "a step with no implementation inside a called module")
-    check(stopped.step == Step("root/deferred_module", "add"),
+    checks.no_implementation(stopped, "a step with no implementation inside a called module")
+    check(stopped.step == Step("root/no_implementation_module", "add"),
           f"the step is the call that stopped, not the module that called it: {stopped.step!r}")
     check(stopped.reason == "no implementation", f"and why: {stopped.reason!r}")
     check(_text_of(stopped.call) == "$a 1 * $b 2",
@@ -66,19 +66,19 @@ def _deferral(tmp: Path):
 
     host.knobs["refuse"] = ("add",)
     stopped = interpret(outer, environ)
-    checks.deferred(stopped, "a get_func that refuses the call it cannot serve")
-    check(stopped.step == Step("root/deferred_module", "add") and
+    checks.no_implementation(stopped, "a get_func that refuses the call it cannot serve")
+    check(stopped.step == Step("root/no_implementation_module", "add") and
           stopped.reason == "refused",
           f"a bare refusal is completed with the step the run knows: {stopped!r}")
     host.knobs.pop("refuse")
 
     # 宿主自己带了话：run 不覆盖它说了什么
-    host.knobs["refuse_with"] = NotMyDutyException(
-        Step("root/elsewhere", "add"), None, "not this shard")
+    host.knobs["refuse_with"] = NoImplementationException(
+        Step("root/elsewhere", "add"), None, "no add here")
     stopped = interpret(outer, environ)
-    checks.deferred(stopped, "a get_func that refuses in its own words")
+    checks.no_implementation(stopped, "a get_func that refuses in its own words")
     check(stopped.step == Step("root/elsewhere", "add") and
-          stopped.reason == "not this shard",
+          stopped.reason == "no add here",
           f"and what it said is kept: {stopped!r}")
     host.knobs.pop("refuse_with")
 

@@ -19,7 +19,7 @@ from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             interpret)
 from viba.reflect import access as reflect_access
-from viba.type import VibaProgramErr, NotMyDutyException, Ok, Step
+from viba.type import VibaProgramErr, NoImplementationException, Ok, Step
 
 checks = Checks("interpreter_values")
 check = checks.check
@@ -91,12 +91,12 @@ def _host_answers(tmp: Path):
                   "a get_func that raises")
 
     stopped = interpret(_case("no_impl"), environ)
-    check(isinstance(stopped, NotMyDutyException),
-          "get_func says None: the run stops with the deferral, not a VibaProgramErr")
+    check(isinstance(stopped, NoImplementationException),
+          "get_func says None: the run stops with no implementation, not a VibaProgramErr")
     check(not isinstance(stopped, VibaProgramErr),
-          "and that deferral is not a VibaProgramErr: it says 'not mine', not 'broke'")
+          "and that stop is not a VibaProgramErr: nothing broke, one step has no implementation")
     check(stopped.step == Step("root", "ghost") and stopped.reason == "no implementation",
-          f"the deferral names the step and why: {stopped!r}")
+          f"the stop names the step and why: {stopped!r}")
     check(stopped.call is None,
           f"a step given no viba_data carries none: {stopped.call!r}")
 
@@ -165,9 +165,9 @@ def _written(tmp: Path):
         check(isinstance(result, Ok) and len(result.ok_value) == want,
               f"__impl__ written as {label} is viba data: {result!r}")
 
-    # 一份 witness 的写法：tag 与积是可序列化数据，和它的类型写法一样
-    result = interpret(_case("witness"), environ)
-    check(isinstance(result, Ok), f"a witness written as tags and a product: {result!r}")
+    # 一份按 tag 与积写下来的可序列化数据，写法和它的类型写法一样
+    result = interpret(_case("tags_and_product"), environ)
+    check(isinstance(result, Ok), f"data written as tags and a product: {result!r}")
     if isinstance(result, Ok):
         node = result.ok_value
         check(reflect_access.leaf(node.by_tag("victim").by_tag("x")).ok_value == 0 and
@@ -228,10 +228,10 @@ def _crossing_the_host_boundary(tmp: Path):
           f"and what it holds is that name: {result.ok_value.data!r}")
     host.get_func = original
 
-    # 宿主自己说"不是我的事"：get_func 抛递延，等于给出递延
+    # 宿主自己说：get_func 抛出它，等于这次调用没有实现
     host.knobs["refuse"] = ("twice",)
-    checks.deferred(interpret(higher, environ),
-                    "a get_func that refuses the call")
+    checks.no_implementation(interpret(higher, environ),
+                             "a get_func that refuses the call")
     host.knobs.pop("refuse")
 
     # 函数类型的实参交给宿主的是"它代表的那次调用"：宿主可以带上自己的实参叫它

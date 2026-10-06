@@ -48,7 +48,7 @@ def check(got: bool, expected: bool, label: str):
 
 
 def check_result(result, want, label: str):
-    """want: True / False as Ok verdicts, or "error" for a VibaProgramErr."""
+    """want: True / False as an Ok judgment, or "error" for a VibaProgramErr."""
     global PASS, FAIL
     if want == "error":
         ok, got = isinstance(result, VibaProgramErr), type(result).__name__
@@ -154,7 +154,7 @@ def run_design_review():
 
 
 def run_py_side_cases():
-    """What data files cannot express: lint verdicts, env behavior."""
+    """What data files cannot express: judgments made in code, env behavior."""
     check_result(is_sub_type(entry_type("42"), entry_type("int")), True, "42 <: int")
     sup_ellipsis = is_sub_type(entry_type("42"), entry_type("..."))
     check_result(sup_ellipsis, "error", "ellipsis on sup side -> VibaProgramErr")
@@ -258,7 +258,7 @@ def run_applied_generic_cases():
     pair_mod = custom_module("Pair[T] = $left T * $right T")
     pair = entry_type("Pair[int]", pair_mod)
     res = is_sub_type(entry_type("$left 3 * $right 4"), pair)
-    check_result(res, True, "generic product body unfolds against a product witness")
+    check_result(res, True, "generic product body unfolds against a product instance")
     loop_mod = custom_module("Loop[T] = $l Loop[int]")
     looping = entry_type("Loop[int]", loop_mod)
     res = is_sub_type(looping, entry_type("$l 'x'"))

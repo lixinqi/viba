@@ -1181,7 +1181,7 @@ def _judge(sub: AstNodeType, sup: AstNodeType) -> bool:
     the decision that failed.
     """
     from viba.is_sub_type import is_sub_type
-    verdict = is_sub_type(sub, sup)
-    if isinstance(verdict, VibaProgramErr):
+    judged = is_sub_type(sub, sup)
+    if isinstance(judged, VibaProgramErr):
         return False
-    return verdict.ok_value is True
+    return judged.ok_value is True

@@ -12,10 +12,10 @@ call handed over — `args.env` above all.
     interpret("add_demo.viba", environ)  # -> Ok(VibaNode) | VibaProgramErr(str) | a stop
     interpret("main.viba", environ, get_file=files.get)   # sources from anywhere
 
-A function the compute side does not implement is not a failure: the run stops
-and answers `NotMyDutyException` — `$not_my_duty_exception Duty` — the deferral
-that says this host is not the one to finish it, and carries the step, the
-viba data it was given and why (`roadmap.md`). A step whose implementation broke
+A step the compute side has no implementation for is not a failure: the run
+stops there and answers `NoImplementationException` — `$no_implementation
+NoImplementation` — carrying the step, the viba data it was given and why
+nothing implemented it. A step whose implementation broke
 answers `UnderlyingVibaOpFailed` — `$underlying_viba_op_failed Failure` — with
 the same step in it. What is left is `Ok(node)`, for the `__impl__` that came
 out, and `VibaProgramErr(message)` — `$viba_program_err str` — for a program or
@@ -83,7 +83,7 @@ from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           reduce_application, tagged_reading)
 from viba.type import (CustomModuleType, REASON_GET_FUNC_RAISED, REASON_NO_IMPLEMENTATION, REASON_NO_LEAF,
                        REASON_RAISED, REASON_REFUSED, AstNodeType, VibaProgramErr, UnderlyingVibaOpFailed,
-                       InterpretResult, ModuleType, NotMyDutyException, Ok, Step,
+                       InterpretResult, ModuleType, NoImplementationException, Ok, Step,
                        BUILTIN_CONCEPT, BUILTIN_CONCEPT_DIR, BUILTIN_DIR,
                        BUILTIN_MODULE, NilType, NeverType,
                        builtin_directory_name,
@@ -162,8 +162,7 @@ class EnvironmentStorage:
 
         The text lands whole or not at all: it is written beside the path and then
         renamed onto it. Another process may be reading the same path at that
-        moment — two rounds of a distributed program share one store — and half a
-        snapshot is no snapshot.
+        moment, and half a snapshot is no snapshot.
         """
         path = self._store_path(file_path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -694,7 +693,7 @@ class _Raised(Exception):
     """A `Result` a getter has to cross a host call with.
 
     The host boundary speaks exceptions, so a getter that stops carries the
-    whole answer — the program error, the deferral, the failure — and the call
+    whole answer — the program error, the stop, the failure — and the call
     hands that answer back unchanged: what stopped is the argument that was
     asked for, not the host function that asked.
     """
@@ -705,7 +704,7 @@ class _Raised(Exception):
 
 
 class _Getter:
-    """One written argument of a deferred call, not computed where it is written.
+    """One written argument of a lazy call, not computed where it is written.
 
     A slot written as a function type — `$get_v (T <- $env Environment)` — is
     handed one of these instead of a value: the argument is written down, and the
@@ -942,33 +941,35 @@ def _as_given_value(value):
 
 
 def _stopped(result) -> bool:
-    """True when a step carried no value on: a `VibaProgramErr`, or the deferral.
+    """True when a step carried no value on: a `VibaProgramErr`, or a step with no
+    implementation.
 
-    `VibaProgramErr` says this run failed; `NotMyDutyException` says this run is asking for
-    an implementation it does not have. Both stop the chain, and both travel
-    back to the caller as they are.
+    `VibaProgramErr` says this run failed; `NoImplementationException` says this
+    run is asking for an implementation it does not have. Both stop the chain, and
+    both travel back to the caller as they are.
     """
     return not isinstance(result, Ok)
 
 
-def _no_implementation(step: Step, call) -> NotMyDutyException:
-    """The deferral a host answers with: no implementation for that call.
+def _no_implementation(step: Step, call) -> NoImplementationException:
+    """What `get_func` answers with when it has no implementation for that call.
 
-    The step, the viba data it was given and why are all in it, so the side that
-    answers next can write the work order without reading the run again.
+    The step, the viba data it was given and why are all in it, so that call can
+    be taken up again from this result alone, without reading the run again.
     """
-    return NotMyDutyException(step, call, REASON_NO_IMPLEMENTATION)
+    return NoImplementationException(step, call, REASON_NO_IMPLEMENTATION)
 
 
-def _refused(deferred: NotMyDutyException, step: Step, call) -> NotMyDutyException:
-    """What a `get_func` that raised the deferral is completed into.
+def _refused(answered: NoImplementationException, step: Step,
+             call) -> NoImplementationException:
+    """What a `get_func` that raised it itself is completed into.
 
-    A host refusing a call need not know where it stands: the run fills in the
-    step and the call it was about, and keeps whatever the host did say.
+    A host that says so need not know where it stands: the run fills in the step
+    and the call it was about, and keeps whatever the host did say.
     """
-    return NotMyDutyException(deferred.step or step,
-                              deferred.call if deferred.call is not None else call,
-                              deferred.reason or REASON_REFUSED)
+    return NoImplementationException(answered.step or step,
+                                     answered.call if answered.call is not None else call,
+                                     answered.reason or REASON_REFUSED)
 
 
 # ----------------------------------------------------------------------
@@ -981,9 +982,9 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
     """Run `viba_main_file` with `environ`; its `__impl__` is the `Ok` value.
 
     What it answers is `Result[VibaNode]` with two more branches, both naming the
-    step that stopped: `$not_my_duty_exception Duty`, when the compute side does
-    not implement that step (a deferral, not a failure — the caller hands it on,
-    and the duty carries the step, the viba data it was given and why), and
+    step that stopped: `$no_implementation NoImplementation`, when `get_func` has
+    no implementation for that step (not a failure — the run stops there, and the
+    result carries the step, the viba data it was given and why), and
     `$underlying_viba_op_failed Failure`, when that step's implementation broke.
     `$viba_program_err str` is the rest: a program or an environment that cannot
     run at all.
@@ -1474,12 +1475,12 @@ class _Activation:
 
     def evaluate(self, node, scope=(), finish=True):
         """Result: the value this piece writes — or why the chain stopped: an
-        `VibaProgramErr`, or the deferral of a step nobody here implements.
+        `VibaProgramErr`, or a step that has no implementation anywhere here.
 
         A piece of data written where a value goes is viba data as it stands:
         a literal or a unit, a tuple, and a product of tags and literals —
-        `$victim ($x 0 * $y 0) * $at "12:30"` is a witness, the same spelling
-        its type would have. Its members are data, not calls, so nothing in
+        `$x 1 * $y 2` is such a piece, the same spelling its type would have.
+        Its members are data, not calls, so nothing in
         them is evaluated. A sum is not: which branch would it be.
 
         `scope` is the frames written around this piece; nothing binds a name
@@ -2198,7 +2199,7 @@ class _Activation:
                 value = Ok(argument)
             else:
                 value = (self._lazy_argument(argument, scope)
-                         if self._argument_is_deferred(current, argument)
+                         if self._argument_is_lazy(current, argument)
                          else self._argument(argument, scope))
             if _stopped(value):
                 return value
@@ -2421,13 +2422,13 @@ class _Activation:
             return argument.tag == ENVIRON_TAG
         return False
 
-    def _argument_is_deferred(self, current, argument):
+    def _argument_is_lazy(self, current, argument):
         """Whether this written argument lands on a function-typed slot — then it
         is not computed here at all: the host runs it with an environment of its
-        own. The environment is never deferred: giving it is what runs the call.
+        own. The environment is never lazy: giving it is what runs the call.
 
         A module's arguments are values it receives as one product, so nothing is
-        deferred there: what a module's slot asks for is computed here, and a
+        lazy there: what a module's slot asks for is computed here, and a
         function-typed one is the closure it writes.
         """
         if not isinstance(current, _Pending) or current.kind != "func":
@@ -3083,7 +3084,7 @@ def _as_environ_value(value):
 
 
 class _Pending:
-    """A call being prepared: a function or a module, and what it has been given.
+    """A call not yet given an environment: a function or a module, and what it has been given.
 
     It lives inside one chain. When the chain ends it either runs (the
     environment is in, so the arguments must be complete) or becomes viba_data —
@@ -3135,7 +3136,7 @@ class _Pending:
         A call of a chosen pattern file takes them from that file's `__decl__`
         with the decision's bindings already written in (`params_override`), so a
         parameter the file only names (`Arg0`) carries the tag the argument was
-        written with — both for routing an argument and for the product `args`
+        written with — both for matching an argument to its slot and for the product `args`
         the file reads it back from. A plain module call reads its own `__decl__`.
         """
         if self.params_override is not None:
@@ -3469,10 +3470,9 @@ class _Pending:
 
         A host value — the environment above all — is no viba_data and does not
         travel: the side that answers makes its own. One viba_data argument is
-        that argument itself (no tag is needed to tell it from the others),
-        which is the `$call` a Prepare of such a call fixes; several make a
-        product, keeping the tags as written. None when nothing viba_data was
-        given.
+        that argument itself (no tag is needed to tell it from the others), so
+        the call's viba data is that argument; several make a product, keeping
+        the tags as written. None when nothing viba_data was given.
         """
         tags = self.slot_tags()
         viba_data_given = [(tags[index], value.node.data)
@@ -3497,8 +3497,8 @@ class _Pending:
         step = Step(module_path, self.name)
         try:
             host = compute.get_func(module_path, self.name)
-        except NotMyDutyException as deferred:   # the host refuses this call
-            return _refused(deferred, step, self.call_viba_data())
+        except NoImplementationException as answered:   # get_func says so itself
+            return _refused(answered, step, self.call_viba_data())
         except Exception as exc:            # the host is the host's business
             return UnderlyingVibaOpFailed(
                 f"get_func({module_path!r}, {self.name!r}) raised {exc!r}",
@@ -3509,8 +3509,8 @@ class _Pending:
                   for index in range(len(self.elements))]
         try:
             answer = host(*handed)
-        except NotMyDutyException as deferred:   # a viba call inside deferred
-            return deferred
+        except NoImplementationException as answered:   # a call inside it has none
+            return answered
         except UnderlyingVibaOpFailed as failure:                # ... or failed inside
             return failure
         except _Raised as raised:                # ... or stopped inside a getter
@@ -3630,8 +3630,8 @@ class _HostFunction:
         step = Step(self.module_path, f"environ.{self.name}")
         try:
             answer = self.func(*values)
-        except NotMyDutyException as deferred:
-            return _refused(deferred, step, None)
+        except NoImplementationException as answered:
+            return _refused(answered, step, None)
         except UnderlyingVibaOpFailed as failure:
             return failure
         except _Raised as raised:

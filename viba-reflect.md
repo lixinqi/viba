@@ -299,7 +299,7 @@ root.by_tag('counter').at_key('value').leaf()
 
 **取值失败抛 `VibaReflectError`**：上面会抛的那一类，抛出来的异常都叫 `VibaReflectError`，`VibaProgramErr` 的那句话原样在异常信息里；catch 它就能接住反射一路上所有取不出来的情况。
 
-问"有没有"的一类**永远不抛**：类型里有、数据里没有就是 `False`（这正是"实现没做到"的证据），实现自己坏了也是 `False`——对问话的人来说两者一样是"这里没有可用的东西"。要区分这两种，用 `try_get_{name}()`：它返回 `Result`，`Ok(node)` 是取到了，`Ok(nil)` 是没有，`VibaProgramErr` 才是问不出来。它对应规格里的 `Result[VibaNode[Data] | nil]`。
+问"有没有"的一类**永远不抛**：类型里有、数据里没有就是 `False`（这就是"实现没做到"），实现自己坏了也是 `False`——对问话的人来说两者一样是"这里没有可用的东西"。要区分这两种，用 `try_get_{name}()`：它返回 `Result`，`Ok(node)` 是取到了，`Ok(nil)` 是没有，`VibaProgramErr` 才是问不出来。它对应规格里的 `Result[VibaNode[Data] | nil]`。
 
 名字由 `__getattr__` 兜底合成（Python 没有 `__hasattr__` 这种协议；`hasattr(x, n)` 就是 `getattr(x, n)` 加上吃掉 `AttributeError`），`__contains__` 与 `__dir__` 是真的魔术方法。
 

@@ -1,7 +1,7 @@
 # Found only on VIBA_PATH: `pkg/inner.viba` under the directory that is
 # handed in is module `pkg.inner`, and it is a program (`__impl__`).
 #
-# Verdicts (tests/test_interpreter_imports.py):
+# Judgments (tests/test_interpreter_imports.py):
 #   the host implements `leaf`; it answers 7, so pkg.inner answers 7.
 
 __decl__ =

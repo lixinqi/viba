@@ -18,7 +18,7 @@ from interpreter_support import Checks, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.reflect import access as reflect_access
-from viba.type import NotMyDutyException, Ok, VibaProgramErr
+from viba.type import Ok, VibaProgramErr
 
 checks = Checks("interpreter_module_args")
 check = checks.check

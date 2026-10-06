@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import VibaProgramErr, UnderlyingVibaOpFailed, NotMyDutyException, Ok
+from viba.type import VibaProgramErr, UnderlyingVibaOpFailed, NoImplementationException, Ok
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
 
@@ -44,10 +44,10 @@ class Checks:
             self.check(isinstance(result, VibaProgramErr) and want in result.err_msg,
                        f"{label}: expected VibaProgramErr({want!r}), got {result!r}")
 
-    def deferred(self, result, label: str):
-        """The run stopped at a step this host does not implement."""
-        self.check(isinstance(result, NotMyDutyException),
-                   f"{label}: expected the deferral, got {result!r}")
+    def no_implementation(self, result, label: str):
+        """The run stopped at a step `get_func` does not implement."""
+        self.check(isinstance(result, NoImplementationException),
+                   f"{label}: expected a step with no implementation, got {result!r}")
 
     def failed(self, result, want: str, label: str):
         """A step's implementation broke: `want` is part of its message."""
@@ -92,10 +92,10 @@ class Host:
         if self.knobs.get("get_func_raises"):
             raise RuntimeError("host broke")
         if self.knobs.get("refuse_with") is not None:
-            raise self.knobs["refuse_with"]     # a router with something to say
+            raise self.knobs["refuse_with"]     # get_func says so itself, in its own words
         if func_name in self.knobs.get("refuse", ()):
-            # a host that refuses the call outright, the way a router would
-            raise NotMyDutyException()
+            # a host that refuses the call without saying why
+            raise NoImplementationException()
         if func_name in self.knobs.get("missing", ()):
             return None
         if func_name == "add":

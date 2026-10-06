@@ -68,7 +68,7 @@ ANSWERS = [("one_step", 3), ("two_steps", 9), ("three_steps", 8),
            ("the_chain_is_a_closure", 3), ("builtin_prefix", 3),
            ("the_environment_first", 3), ("a_module_in_a_step", 7)]
 
-# 严格次序的证据：`order.viba` 的三步互不依赖，宿主被问的次序仍是书写次序。
+# 严格次序怎么看：`order.viba` 的三步互不依赖，宿主被问的次序仍是书写次序。
 ORDER = ["first", "second", "third"]
 
 # `sequential_impl` 的步数槽位：1..64 各跑一条，链长就是槽位。每一步都要读一遍自己那份模式文件，

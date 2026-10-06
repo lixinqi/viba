@@ -41,7 +41,7 @@ from interpreter_support import Checks
 from viba import viba_ast
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import NotMyDutyException, Ok, UnderlyingVibaOpFailed, VibaProgramErr
+from viba.type import Ok, UnderlyingVibaOpFailed, VibaProgramErr
 
 checks = Checks("interpreter_mutual_recursion")
 check = checks.check

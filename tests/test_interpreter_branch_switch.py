@@ -6,7 +6,7 @@
 
     python3 tests/test_interpreter_branch_switch.py
 
-`CASES` 每条说：文件、该跑出什么（value / error / defer / fail）、要看住的副作用调用。
+`CASES` 每条说：文件、该跑出什么（value / error / no_implementation / fail）、要看住的副作用调用。
 """
 
 import sys
@@ -24,7 +24,7 @@ from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, viba_data)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import NotMyDutyException, Ok, UnderlyingVibaOpFailed, VibaProgramErr
+from viba.type import NoImplementationException, Ok, UnderlyingVibaOpFailed, VibaProgramErr
 
 checks = Checks("interpreter_branch_switch")
 check = checks.check
@@ -34,8 +34,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
 
 def host_for(calls):
-    """The host side: counters, values of every kind, one step that defers, one
-    that raises. Every name here is a step some case file reached."""
+    """The host side: counters, values of every kind, one step with no
+    implementation, one that raises. Every name here is a step some case file reached."""
     def get_func(module_path, func_name):
         if func_name in ("tick", "tock"):
             def counted(env):
@@ -138,15 +138,15 @@ def environ_for(store, calls):
 # (文件, 该跑出什么)：
 #   ("value", 叶子)     Ok，且叶子是这个值
 #   ("error", 片段)     VibaProgramErr，话里含这个片段
-#   ("defer", None)     递延：宿主没实现那一步
+#   ("no_implementation", None)  没有实现：宿主没实现那一步
 #   ("fail", 片段)      UnderlyingVibaOpFailed，话里含这个片段
 # 最后一列是要看住的副作用调用；None 表示不看。
 CASES_TO_RUN = [
     ("a_half_given_switch_completed_here", "value", 7, []),
     ("a_slot_that_does_not_fit", "error", 'does not fit', []),
     ("a_switch_file_called_for_its_answer", "value", 9, []),
-    ("a_value_that_defers_beside_a_live_condition", "defer", None, []),
-    ("an_untaken_side_that_defers_and_counts", "value", 1, ['tick']),
+    ("a_value_with_no_implementation_beside_a_live_condition", "no_implementation", None, []),
+    ("an_untaken_side_with_no_implementation_and_counts", "value", 1, ['tick']),
     ("asked_twice_counts_once", "value", 2, ['tick']),
     ("both_counters_only_one_runs", "value", 1, ['tick']),
     ("both_sides_are_poison_and_untaken", "value", 42, []),
@@ -168,9 +168,9 @@ CASES_TO_RUN = [
     ("condition_mode_by_name", "value", 7, []),
     ("condition_order_does_not_matter", "value", 7, []),
     ("condition_two_switches_agree", "value", 7, []),
-    ("defer_condition", "defer", None, []),
-    ("defer_taken", "defer", None, []),
-    ("defer_untaken", "value", 42, []),
+    ("no_implementation_condition", "no_implementation", None, []),
+    ("no_implementation_taken", "no_implementation", None, []),
+    ("no_implementation_untaken", "value", 42, []),
     ("drops_never", "value", 0, []),
     ("drops_text", "value", 0, []),
     ("drops_true", "value", 0, []),
@@ -259,9 +259,9 @@ def run(tmp: Path):
         elif kind == "error":
             check(isinstance(result, VibaProgramErr) and want in result.err_msg,
                   f"{name}: expected an error saying {want!r}, got {result!r}")
-        elif kind == "defer":
-            check(isinstance(result, NotMyDutyException),
-                  f"{name}: expected the deferral, got {result!r}")
+        elif kind == "no_implementation":
+            check(isinstance(result, NoImplementationException),
+                  f"{name}: expected a step with no implementation, got {result!r}")
         elif kind == "fail":
             check(isinstance(result, UnderlyingVibaOpFailed) and want in result.msg,
                   f"{name}: expected a failure saying {want!r}, got {result!r}")

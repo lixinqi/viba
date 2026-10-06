@@ -1,4 +1,4 @@
-"""viba.builder 的验收：上层写法 → 源码 → 解析回同一份 AST。
+"""viba.builder 的测试：上层写法 → 源码 → 解析回同一份 AST。
 
     python tests/test_builder.py
 

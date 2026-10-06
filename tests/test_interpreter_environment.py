@@ -1,8 +1,8 @@
 """Environment：$env 那个参数、子环境、宿主给自己加的东西，以及 store 里的一次写。
 
 每个可执行函数都要 $env Environment，而且那个参数必须写成 $env；sub_env 按名字给子环境，
-tmp_env 每次给一个新的；子环境带着父级的 compute。store 的写入一次落完整（几个进程可能同时在
-读写同一份 store，见 `viba-distributed.md`）。
+tmp_env 每次给一个新的；子环境带着父级的 compute。store 的写入一次落完整（另一个进程可能同时在
+读写同一份 store）。
 
     python3 tests/test_interpreter_environment.py
 """
@@ -209,8 +209,7 @@ def _host_members(tmp: Path):
 def _a_write_lands_whole(tmp: Path):
     """store 里的写是一次写完整的：写在旁边再改名过去，不留半份、不留下临时文件。
 
-    一份 store 可以被几个进程同时读写（分布式那几条链就是这样的，viba-distributed.md），
-    所以读的那一方只该看到「还没有」或者「完整的一份」。
+    一份 store 可以被几个进程同时读写，所以读的那一方只该看到「还没有」或者「完整的一份」。
     """
     storage = EnvironmentStorage("root", None, str(tmp / "store"))
     at = "root/case/value.viba"

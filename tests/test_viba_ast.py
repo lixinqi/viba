@@ -1,4 +1,4 @@
-"""viba.viba_ast 的验收：parse/unparse/dump、遍历、访问器、链式规范化。
+"""viba.viba_ast 的测试：parse/unparse/dump、遍历、访问器、链式规范化。
 
 这个包是 parser 之上的一层公共 API（cf. 标准库 ast），前面只有一份
 `python -m viba.viba_ast` 的自测在跑，没有进套件。这里把它压一遍：

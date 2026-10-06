@@ -6,7 +6,7 @@ layer (wrapped in AstNodeType); this module models leaves, references
 and the module machinery they need for lexical resolution.
 
 Decoupling contract: this layer knows how to build Type values from
-viba.viba_ast nodes, but nothing about rules, results or compliance.
+viba.viba_ast nodes, and nothing about how a module runs.
 """
 
 from pathlib import Path
@@ -99,30 +99,30 @@ class UnderlyingVibaOpFailed(Exception):
         return f"UnderlyingVibaOpFailed({self.msg!r}, {self.step!r}, {self.reason!r})"
 
 
-class NotMyDutyException(Exception):
-    """`$not_my_duty_exception Duty`: some step in this run is not this host's.
+class NoImplementationException(Exception):
+    """`$no_implementation NoImplementation`: a step in this run has no implementation.
 
-        Duty =
+        NoImplementation =
             Object
           * $step Step
           * $call ...
           * $reason str
 
-    `interpret` answers with it when the compute side has no implementation for
-    a step the run reached — not a failure, but a deferral: the run says it is
-    not this host's duty to finish, and the caller hands it on (see
-    `roadmap.md`).
+    `interpret` answers with it when `get_func` has no implementation for a step
+    the run reached. The run stops at that step and carries back which step it
+    was, the viba data that step was given, and why nothing implemented it. What
+    the caller does about that is the caller's own business.
 
-    `call` is the viba data the step was given, as it was written — the same
-    viba_data a Prepare fixes, so a work order can be written from it without
-    running anything again. Host values, the environment above all, are no
-    viba_data and do not travel: the side that answers makes its own. `reason` is
-    one of the `REASON_*` strings below.
+    `call` is the viba data the step was given, as it was written, so that call
+    can be reconstructed from this result alone — nothing has to be run over for
+    it. Host values, the environment above all, are no viba_data and do not
+    travel: another run makes its own. `reason` is one of the `REASON_*` strings
+    below.
 
     It is an exception as well, because that is how the same news crosses a
-    callable the run handed to a host; a `get_func` may raise it too, to refuse
-    a call it cannot serve — the run fills in the step and the call it knows,
-    and keeps whatever the host said.
+    callable the run handed to a host; a `get_func` may raise it too, to say it
+    has no implementation for a call — the run fills in the step and the call it
+    knows, and keeps whatever the host said.
     """
 
     def __init__(self, step: Step = None, call=None, reason: str = ""):
@@ -132,13 +132,13 @@ class NotMyDutyException(Exception):
         self.reason = reason
 
     def __repr__(self):
-        return f"NotMyDutyException({self.step!r}, {self.reason!r})"
+        return f"NoImplementationException({self.step!r}, {self.reason!r})"
 
 
 # The `$reason` vocabulary: short, stable strings, the same ones a reader
 # switches on.
 REASON_NO_IMPLEMENTATION = "no implementation"   # get_func answered None
-REASON_REFUSED = "refused"                       # get_func raised the deferral
+REASON_REFUSED = "refused"                       # get_func said so itself
 REASON_GET_FUNC_RAISED = "get_func raised"       # get_func broke
 REASON_RAISED = "raised"                         # the implementation broke
 REASON_NO_LEAF = "no leaf"                       # it answered something with no leaf
@@ -151,10 +151,10 @@ REASON_NO_LEAF = "no leaf"                       # it answered something with no
 #       | $ok T
 #       | $viba_program_err str                    # the program or environment
 #       | $underlying_viba_op_failed Failure       # a host implementation broke
-#       | $not_my_duty_exception Duty              # not this host's step
+#       | $no_implementation NoImplementation      # a step with no implementation
 #
 # The other APIs keep the two-branch `Result`: their work is all here.
-InterpretResult = Union[Ok, VibaProgramErr, UnderlyingVibaOpFailed, NotMyDutyException]
+InterpretResult = Union[Ok, VibaProgramErr, UnderlyingVibaOpFailed, NoImplementationException]
 
 
 # ----------------------------------------------------------------------
@@ -533,7 +533,7 @@ def _lookup_custom(module: CustomModuleType, type_name: str, seen) -> Result:
 
 
 # ----------------------------------------------------------------------
-# Convenience constructors (test-oriented; still compliance-agnostic)
+# Convenience constructors (test-oriented; not tied to how a module runs)
 # ----------------------------------------------------------------------
 
 

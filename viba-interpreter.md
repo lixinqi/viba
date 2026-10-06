@@ -8,9 +8,6 @@
 同一份语法，两种模式。跑的时候，模块**就是函数**：`__decl__` 是它的签名，输入是环境与实参，
 输出是 `__impl__`。
 
-规则、呈证与度量也是这么写的：一次度量就是一次调用，证据是那次运行留下的实例，判定是程序
-给出的 `bool`——见 `viba-compliance.md`。
-
 ```python
 from viba.interpret import interpret
 
@@ -108,8 +105,8 @@ __impl__ =
   里 `$env Env` 那个参数要的就是它；模块体里要用环境，写 `args.env`。
 - **函数体里的 `{...}` 是说明**：它不是参数，`<<` 给完实参之后链就落到结果上——
   `(B <- $a A) << $a A` 就是 `B`。
-- **`{...}` 只给提示，不给实现**：提示只说这一步要实现什么，主要逻辑得有人照着它写出来，再交到
-  `get_func` 上。写这些函数的是 agent（见「宿主侧：Environment」），viba 一个都不带。
+- **`{...}` 只给提示，不给实现**：提示只说这一步要实现什么，逻辑要另写，写成函数再交到
+  `get_func` 上（见「宿主侧：Environment」）。viba 一个函数都不带。
 - **内建算子就是这样的几个成员**：`viba/builtin.viba` 里 `builtin` 的成员（`$add`、`$lt`、
   `$concat`……），每个一张签名，实现在宿主手里。`builtin.add << …` 与 `add << …` 是同一次调用，
   宿主拿到的名字都是 `builtin.add`；自己模块里同名定义优先，所以它排在任何别的名字之后
@@ -456,11 +453,11 @@ convert_sub_to_sibling(sup, sub)            # 把 sub 的数据路径压成 sup 
 content)`（在 store root 底下的纯文本读写，读不到返回 `None`）。子 storage 带着父级的
 `store_root_dir`。
 
-`get_func(module_path, func_name)` 返回一个可调用对象；没有就返回 `None`，于是这次调用是递延
-（`$not_my_duty_exception Duty`，见最后一节）——它也可以直接抛 `NotMyDutyException`，那是一个
-路由在说"这条差事不归我"；它自己抛别的异常，则是这一步的 `$underlying_viba_op_failed`。
+`get_func(module_path, func_name)` 返回一个可调用对象；没有就返回 `None`，于是这一次调用没有实现
+（`$no_implementation NoImplementation`，见最后一节）——它也可以自己抛 `NoImplementationException`，
+直接说它没有实现；它抛别的异常，则是这一步的 `$underlying_viba_op_failed`。
 `module_path` 是**调用时那个 environment 的数据路径**——所以同一个 `add`，从
-`root/add_demo` 进来和从 `root` 进来，宿主看到的是不同的路径，可以路由到不同的实现；也正是
+`root/add_demo` 进来和从 `root` 进来，宿主看到的是不同的路径，可以给它们各自一个实现；也正是
 这个路径，加上 `func_name`，构成了结果里那个 `$step`。
 
 `HostLanguageFunc` 与 interpreter 匹配：Python interpreter 里就是一个 Python 函数，收到的参数是
@@ -476,13 +473,13 @@ viba 函数不是宿主侧的 Python 可调用对象，执行它们只有一条�
 只能给出 `VibaNode`、标量或 `None`（`None` 就是 `nil`）。
 
 **interpret 不认识任何具体函数**：viba 默认不带任何库函数，实现全部来自 `get_func`，
-谁写、怎么生成，interpret 不感知——用法上这个"谁"就是 agent：它读的正是文件里 `{...}` 那句提示，
-把它补成一个函数。同一份文件交给两个 agent，得到两份实现，文件本身不变。
+谁写、怎么生成，interpret 不感知——文件里 `{...}` 那句提示只说这一步要实现什么，实现从外面交进来；
+同一份文件配上两份 `get_func`，就是两份实现，文件本身不变。
 
 ## 幂等与快照：结果要能回放
 
 一个 viba 程序的结果要可回放：同一份输入、同一批路径，跑多少次都该是同一个结果。可执行函数
-里唯一不保证这一点的东西是**宿主函数**——它可能读时钟、掷骰子、调服务。所以不纯的那些由它
+里唯一不保证这一点的东西是**宿主函数**——它可能读时钟、掷骰子、调外部系统。所以不纯的那些由它
 自己负责：**把结果快照到 `EnvironmentStorage` 里，下一次跑同一次调用就直接回放**。
 
 **模块调用按同一条规矩办**：一条数据路径上只该有一次调用，所以那条路径处理过之后，同一个
@@ -509,8 +506,7 @@ def roll(env, n):
 - **快照是序列化的 viba 数据**（`viba.serialize` 写出来的 `value = …`），不是 pickle：存下来
   的东西可以被人读、被人看、被人拿去喂类型推导。回放时解析回实例，叶子和存进去的时候一样。
 - **一次写完整**：`write_text` 把内容写在目标旁边再改名过去，所以读的那一方读到的要么是还没有，
-  要么是完整的一份。一份 store 可以被几个进程同时读写（分布式那几条链就是这么跑的，
-  [`viba-distributed.md`](viba-distributed.md)），谁也不想读到半份快照。
+  要么是完整的一份 —— 另一个进程可能正在读同一条路径，谁都不想读到半份快照。
 - **存不了、回放不出来就是错**：`VibaProgramErr`（宿主抛出来，interpret 转成 `VibaProgramErr`），不会静默给个默认值。
 
 于是"随机"也能回放：
@@ -636,7 +632,7 @@ __impl__ =
 路子的边角案例在
 [`tests/test_interpreter_branch_switch.py`](tests/test_interpreter_branch_switch.py)：一份用例一个
 文件（`tests/data/branch_switch/*.viba`），覆盖开关方向、条件的各种写法、每一种值的种类、部分计算、
-别的文件里的开关、副作用次数、走不到那一支里的递延与失败，以及多个开关并起来的和。
+别的文件里的开关、副作用次数、走不到那一支里的「没有实现」与失败，以及多个开关并起来的和。
 
 ## 类型层的模块
 
@@ -789,7 +785,7 @@ B = A
   `a.x -> b.y -> a.x: the run came back to where it started`；模块调用再进同一条路径报
   `the storage path '...' is already running a call`；同一个模块带着**同一份实参**又在跑报
   `module 'a' is already running with the same arguments`——同样输入的一次计算还在里面进行，
-  它停不下来。这些都是"这次跑不完"，不是设计不合规。
+  它停不下来。这些都是"这次跑不完"，不是设计写错。
 - **同名、不同实参、各自一条新路径的调用是两次调用**，不是环：函数递归执行要"再一次进到同一个
   定义"，而固定的实参换一次就是另一层。不动点正是这样展开的：
   [`tests/data/y_combinator/`](tests/data/y_combinator/) 里的 `Y F 10` 得 55
@@ -812,7 +808,7 @@ Result[T] =
   | $ok T
   | $viba_program_err str                  # 关于程序或环境，不指某一步
   | $underlying_viba_op_failed Failure     # 某个宿主实现自己坏了
-  | $not_my_duty_exception Duty            # 这一步不归这个宿主
+  | $no_implementation NoImplementation    # `get_func` 这里没有它的实现
 
 Step =
     Object
@@ -825,7 +821,7 @@ Failure =
   * $step Step
   * $reason str
 
-Duty =
+NoImplementation =
     Object
   * $step Step
   * $call ...
@@ -838,26 +834,25 @@ Duty =
 - `$underlying_viba_op_failed Failure`（`UnderlyingVibaOpFailed`）：**某一步的实现坏了**，或者它
   给出了没有叶子的东西。`$msg` 给人读，`$step` 与 `$reason` 给程序读——"哪一步"是个字段，不是嵌在
   句子里的；
-- `$not_my_duty_exception Duty`（`NotMyDutyException`）：**这一步不在这台机器上处理**。这不是失败，是递延——程序停在
-  那儿，等有实现的一方接着做（[`roadmap.md`](roadmap.md)）。`interpret` 不带库函数，所以"没有
-  实现"很正常，不是错误。
+- `$no_implementation NoImplementation`（`NoImplementationException`）：**这一步没有实现**——`get_func`
+  那里没有它。这不是失败，运行就停在那一步。`interpret` 不带库函数，所以"没有实现"很正常，不是错误。
 
 `$step` 的两个字段就是 `get_func(module_path, func_name)` 收到的那两个：路径是这次调用的**数据路径**，
-所以同一个定义、另一个案子，是另一步。`$call` 是这一步拿到的**实例**，按它写下来的样子——一份
-Prepare 要固定的正是这份实例，所以拿着递延就能把工单写出来，不必再跑一次。宿主值（首先是
-environment）不是实例，不随 `$call` 走：接手的那一侧自己造环境。`$reason` 只有这几种：
+所以同一个定义、另一条数据路径，是另一步。`$call` 是这一步拿到的**实例**，按它写下来的样子——照着它
+就能把这一步重新问一遍，不必重跑一次运行。宿主值（首先是 environment）不是实例，不随 `$call` 走：
+另一次运行自己造环境。`$reason` 只有这几种：
 
 | `$reason` | 意思 |
 |---|---|
 | `no implementation` | `get_func` 给了 `None` |
-| `refused` | `get_func` 抛了递延（一个路由说"这条差事不归我"） |
+| `refused` | `get_func` 自己抛出了它（自己说没有实现） |
 | `get_func raised` | `get_func` 自己坏了 |
 | `raised` | 实现抛了 |
 | `no leaf` | 实现给出了没有叶子的东西 |
 
-递延与失败都会一路穿回调用方，而且**原样上传、不被改写**：被调用的模块里那一步没实现，带回来的
+"没有实现"与失败都会一路穿回调用方，而且**原样上传、不被改写**：被调用的模块里那一步没实现，带回来的
 那一步是**里面那一次调用**（`root/模块名` 下的那个定义），不是外面那一层；穿过运行、再交给宿主的可
-调用对象时也一样。`get_func` 抛递延时，run 会把缺的补上：步名与 `$call` 用它知道的这次调用，
+调用对象时也一样。`get_func` 自己抛出它时，run 会把缺的补上：步名与 `$call` 用它知道的这次调用，
 `$reason` 留着宿主自己说的（没说就是 `refused`）。
 
 `$viba_program_err` 的那句话（`err_msg` 一栏）长这样：

@@ -48,7 +48,7 @@ def never_or_echo(env, condition, get_v):
 
 
 def get_func(module_path, func_name):
-    """Route the switches; anything else defers to whoever called us."""
+    """The two selectors; `None` for every other name, which has no implementation here."""
     if func_name == "echo_or_never":
         return echo_or_never
     if func_name == "never_or_echo":

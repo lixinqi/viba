@@ -72,7 +72,7 @@ add =
   <- { 把两个整数加起来 }
 ```
 
-`{ … }` 是**提示**：写给照着它补实现的人（常常是 agent），说这一步要干什么。它不是参数，也不被执行，
+`{ … }` 是**提示**：说这一步要实现什么。它不是参数，也不被执行，
 `<<` 会跳过去。
 
 `<<` 是给实参。给函数一个实参就是**一次调用**；给全了就是结果：
@@ -325,15 +325,15 @@ tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头�
   没有 `__impl__`、`$env` 没给。它不说"哪一步的实现坏了"，所以不带步名。
 - `$underlying_viba_op_failed Failure`（`UnderlyingVibaOpFailed`）：**某一步的实现坏了**，或者它给出了
   没有叶子的东西。`$msg` 给人读，`$step`、`$reason` 给程序读。
-- `$not_my_duty_exception Duty`（`NotMyDutyException`）：**这一步不在这台机器上处理**。这不是失败，是
-  递延——程序停在那儿，等有实现的一方接着做。`interpret` 不带库函数，所以"没有实现"很正常。
+- `$no_implementation NoImplementation`（`NoImplementationException`）：**这一步没有实现**——`get_func`
+  那里没有它。这不是失败，运行停在那一步。`interpret` 不带库函数，所以"没有实现"很正常。
 
-递延里带着是哪一步（`$step` 的 `module_path` 与 `func_name`）和这一步拿到的实例（`$call`），所以拿着
-它就能把下一步该做什么写出来，不必再跑一次（[`roadmap.md`](roadmap.md)）。
+这个结果里带着是哪一步（`$step` 的 `module_path` 与 `func_name`）和这一步拿到的实例（`$call`），照着它
+就能把那一步重新问一遍，不必重跑一次运行。
 
 ## 10. 要回放，就要有稳定的路径
 
-一次执行里唯一不必重复自己的东西是宿主函数——它可能读时钟、掷骰子、调服务。所以由它自己负责让这次
+一次执行里唯一不必重复自己的东西是宿主函数——它可能读时钟、掷骰子、调外部系统。所以由它自己负责让这次
 运行可以重放：把结果快照下来，下次同一次调用直接回放。
 
 ```python
@@ -428,8 +428,6 @@ __impl__ = $flag is_base_type[bool] * $n 1
 - [`viba-pattern.md`](viba-pattern.md)：模式——泛型的目录、`pattern` 的写法、决断顺序。
 - [`viba_builder.md`](viba_builder.md)：用 Python 拼 viba 源码。
 - [`viba-reflect.md`](viba-reflect.md)：按类型读实例（数据路径、步子、访问函数）。
-- [`viba-compliance.md`](viba-compliance.md)：一次运行算不算数——规则、呈证、判定。
-- [`roadmap.md`](roadmap.md)：这套东西打算接到哪里去。
 - `README.md`：文法、运算符、怎么装、怎么跑。
 
 检查自己改的东西：

@@ -19,7 +19,7 @@ import（带前缀的 `builtin.sub_env_run` 叫的是同一个模块）。它的
     a_nameless_parent.viba       给它的环境叫什么无所谓
     a_module_of_its_own.viba     自己模块写了这个名字，内建目录里那个就被压住了
 
-宿主记下每一步的 `module_path` 与名字，套件拿数据路径当证据：`f` 的那一步跑在给它的环境的名字底下
+宿主记下每一步的 `module_path` 与名字，套件看的就是数据路径：`f` 的那一步跑在给它的环境的名字底下
 （`root/run/low/...`），而调用方写的实参算在调用方那一层（`root`）。
 
     python3 tests/test_interpreter_sub_env_run.py

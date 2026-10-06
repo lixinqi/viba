@@ -1,4 +1,4 @@
-# 条件成立：echo_or_never 把这一支交给宿主，宿主给它一个自己的子环境 —— 路径就是证据：
+# 条件成立：echo_or_never 把这一支交给宿主，宿主给它一个自己的子环境 —— 看路径就知道：
 # leaf 看到的是 root/echo_or_never，不是 root。
 __decl__ =
     Any

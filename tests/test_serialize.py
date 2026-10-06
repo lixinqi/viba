@@ -1,4 +1,4 @@
-"""viba.serialize 的验收：写出来、读得回来、是居民。
+"""viba.serialize 的测试：写出来、读得回来、是居民。
 
 每个用例都做三件事：把可序列化数据写成源码；用同一个设计把源码当可序列化数据读回来，逐数据路径比
 叶子；把写出来的体判成那个定义体的子类型。
@@ -83,10 +83,10 @@ def _round_trip(label, definition, access, node, design_source, design_name,
         return
     module = custom_module(f"{design_source}\n{source}\n")
     design = {d.name: d.body for d in viba_ast.parse(design_source).body}
-    verdict = is_sub_type(AstNodeType(body, module),
-                          AstNodeType(design[design_name], module))
-    check(isinstance(verdict, Ok) and verdict.ok_value is True,
-          f"{label}: the written body is a resident of the definition ({verdict})")
+    judged = is_sub_type(AstNodeType(body, module),
+                         AstNodeType(design[design_name], module))
+    check(isinstance(judged, Ok) and judged.ok_value is True,
+          f"{label}: the written body is a resident of the definition ({judged})")
 
 
 def _definition_of(pool, full_name: str):
@@ -103,7 +103,7 @@ def _load(path: Path, module_name: str):
 
 
 def _design(pool_source: str, name: str):
-    """A pool with this design, the definition, and its witness."""
+    """A pool with this design and the definition in it."""
     pool = empty_pool()
     parsed = parse_viba_file(pool, pool_source, "design.viba", "design")
     pool = pool_add_file(pool, parsed.ok_value).ok_value
@@ -135,7 +135,7 @@ def _node(design, body):
 
 
 def run_case_files():
-    """两份手搓的可序列化数据：一个 int/积/list 的报告，一个 list/set/dict 的节点。"""
+    """两份手搓的可序列化数据：一个 int/积/list 写出来的样子，一个 list/set/dict 的节点。"""
     from viba.reflect import access
 
     pool, definition = _design(DEMO_DESIGN, "Report")

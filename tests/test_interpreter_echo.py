@@ -2,7 +2,7 @@
 
 `branch.echo_or_never` 收 `$get_v (Any <- $env Environment)`。拿到它的一方决定算不算、在哪个
 环境下算 —— `branch.py` 给它一个子环境（`sub_env(env, "echo_or_never")`），所以那一支是在自己的
-路径下算出来的，`get_func` 看到的 `module_path` 就是证据。
+路径下算出来的，`get_func` 看到的 `module_path` 就是它跑的那条路径。
 
     python3 tests/test_interpreter_echo.py
 """

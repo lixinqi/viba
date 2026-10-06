@@ -2,7 +2,8 @@
 #
 # The condition holds, so `echo_or_never` takes the first branch and
 # `never_or_echo` takes the second — the one carrying the poison. The run must
-# answer the first branch's value (42); counting it would defer.
+# answer the first branch's value (42); counting it would stop the run at a step
+# with no implementation.
 
 __decl__ =
     Any

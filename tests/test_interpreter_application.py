@@ -32,7 +32,7 @@ def run(tmp: Path):
     _arguments(tmp)
     _order_and_slots(tmp)
     _argument_types(tmp)
-    _deferred_argument_types(tmp)
+    _lazy_argument_types(tmp)
     _long_chain(tmp)
 
 
@@ -120,7 +120,7 @@ def _argument_types(tmp: Path):
         labelled(interpret(str(CASES / f"{name}.viba"), environ), want, label)
 
 
-def _deferred_argument_types(tmp: Path):
+def _lazy_argument_types(tmp: Path):
     """函数类型的那个实参不先算：宿主叫它的时候才核，叫了才错，不叫就不错。"""
     def get_func(path, func_name):
         if func_name == "watch":
@@ -132,9 +132,9 @@ def _deferred_argument_types(tmp: Path):
         return Host().get_func(path, func_name)
 
     host = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
-    labelled(interpret(str(CASES / "deferred_asked.viba"), host), "does not fit int",
+    labelled(interpret(str(CASES / "lazy_asked.viba"), host), "does not fit int",
              "a function-typed slot is checked when the host asks")
-    result = interpret(str(CASES / "deferred_ignored.viba"), host)
+    result = interpret(str(CASES / "lazy_ignored.viba"), host)
     check(isinstance(result, Ok) and value_of(result) == 7,
           f"and an argument nobody asks for is never checked: {result!r}")
 
