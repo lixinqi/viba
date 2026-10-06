@@ -1,5 +1,6 @@
-# A member of a value that nothing implements: the call keeps the member layer
-# and drops the environment it was given.
+# A member of a value that nothing implements: the call keeps the member layer, the
+# member's value is the call it stands for written the way a call travels, and the
+# environment it was given is dropped.
 __decl__ =
     Any
   <- $env Env

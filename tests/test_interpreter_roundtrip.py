@@ -11,17 +11,14 @@
 
 第 4 步给它的环境在那条**数据路径**上：错误里的 `$module_path` 说这次调用发生在哪儿，
 同一个定义、另一条数据路径是另一步（`two_paths` 那份用例把这条钉住）。`$call` 本身不是一份模块，
-所以第 4 步不把它写成代码：它是可序列化数据。另有一条路也测：用 `serialize` 把 `$call` 写成一份
-viba 模块源代码（`call = …`）再 `exec`，答案一样。
-
-`__dyn_method__` 那两份（`member_value`、`member_by_name`）只走第三条路：那种调用的那份值里写着
-**写它的模块里的名字**，所以它拿回自己的模块里读（`test_interpreter_dyn.py` 钉住了它的写法）。
+所以第 4 步不把它写成代码：它是可序列化数据。另外两条路也测：用 `serialize` 把 `$call` 写成一份
+viba 模块源代码（`call = …`）再 `exec`；以及把那份 `$call` **直接当节点**交给 `exec`（它本来就是
+节点，`exec(viba_code, environ)` 收文本，也收节点），答案一样。
 
     python3 tests/test_interpreter_roundtrip.py
 """
 
 import sys
-import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -104,7 +101,7 @@ class Case:
 
     def __init__(self, name, missing, after, want, *, before=None, path="root",
                  whole_program=True, strict_path=False, as_source=False,
-                 as_exec=False, want_text=None, member=False):
+                 as_exec=False, want_text=None, as_node=False):
         self.name = name
         self.missing = missing
         self.after = after
@@ -116,7 +113,7 @@ class Case:
         self.as_source = as_source
         self.as_exec = as_exec
         self.want_text = want_text
-        self.member = member
+        self.as_node = as_node
 
     @property
     def file(self) -> Path:
@@ -135,9 +132,9 @@ def _a_product():
                     descriptor_of(AstNodeType(node, custom_module(""))), node)
 
 
-# 二十六份用例，每份换一个说法：参数怎么写、答案是什么类型、这一步在哪条数据路径上。
+# 二十七份用例，每份换一个说法：参数怎么写、答案是什么类型、这一步在哪条数据路径上。
 CASES_LIST = [
-    Case("tagged_two", "add", _everywhere(add=_add), 3, as_source=True),
+    Case("tagged_two", "add", _everywhere(add=_add), 3, as_source=True, as_node=True),
     Case("positional_two", "add", _everywhere(add=_add), 3, as_exec=True),
     Case("out_of_order", "add", _everywhere(add=_add), 3),
     Case("no_arguments", "tick", _everywhere(tick=lambda env: 7), 7, as_source=True),
@@ -161,7 +158,7 @@ CASES_LIST = [
     Case("dotted_builtin", "builtin.mul",
          _everywhere(**{"builtin.mul": lambda env, x, y: x.value * y.value}), 42),
     Case("imported_step", "inc", _everywhere(inc=lambda env, x: x.value + 1), 42,
-         path="root/inner", as_source=True),
+         path="root/inner", as_source=True, as_node=True),
     Case("kid_step", "inc", _everywhere(inc=lambda env, x: x.value + 1), 42,
          path="root/kid"),
     Case("two_level", "deep", _everywhere(deep=lambda env, x: x.value), 5,
@@ -172,30 +169,30 @@ CASES_LIST = [
          _everywhere(not_of=lambda env, x: not x.value), False,
          before=_everywhere(lt=lambda env, x, y: x.value < y.value)),
     Case("three_arguments", "add3",
-         _everywhere(add3=lambda env, a, b, c: a.value + b.value + c.value), 6),
+         _everywhere(add3=lambda env, a, b, c: a.value + b.value + c.value), 6,
+         as_node=True),
     Case("module_arguments", "total",
          _everywhere(total=lambda env, x: x.value + 1), 42, path="root/with_args"),
     Case("nil_answer", "noop", _everywhere(noop=lambda env: None), None),
     Case("product_answer", "pair", _everywhere(pair=lambda env, x: _a_product()),
-         None, want_text="$a 1 * $b 2"),
+         None, want_text="$a 1 * $b 2", as_node=True),
     Case("two_paths", "inc", _only_at("root/b", inc=lambda env, x: x.value + 2), 4,
          before=_only_at("root/a", inc=lambda env, x: x.value + 1),
          path="root/b", whole_program=False, strict_path=True),
+    Case("function_argument", "apply", _everywhere(apply=lambda env, f: 7), 7,
+         as_source=True, as_node=True),
     Case("member_value", "inc", _everywhere(inc=lambda box, env, x: x.value + 1), 2,
-         member=True),
+         as_source=True, as_node=True),
     Case("member_by_name", "bump",
-         _everywhere(bump=lambda box, env, x: x.value + 1), 2, member=True),
+         _everywhere(bump=lambda box, env, x: x.value + 1), 2, as_node=True),
     Case("nested_calls", "mul", _everywhere(mul=lambda env, x, y: x.value * y.value),
          6, whole_program=False),
 ]
 
 
-def run(tmp: Path):
+def run():
     for case in CASES_LIST:
-        if case.member:
-            _a_member_call(case, tmp)
-        else:
-            _one_case(case)
+        _one_case(case)
     _one_step_at_a_time()
     _both_entries_agree_on_the_call()
 
@@ -245,25 +242,12 @@ def _one_case(case: Case):
               f"{case.name}: the same call written out as source runs too: "
               f"{written_out!r}")
 
-
-def _a_member_call(case: Case, tmp: Path):
-    """`__dyn_method__` 那两份：那份值里写着它的模块里的名字，所以拿回它的模块里读。"""
-    host = Host()
-    error = _the_missing_step(case, host)
-    if error is None:
-        return
-    host.prepare(case.after)
-    call = " ".join(viba_ast.unparse_type(error.call.data).split())
-    check(call.startswith('__dyn_method__ << "'),
-          f"{case.name}: the call keeps the member layer: {call!r}")
-
-    # 把 `$call` 放进它自己的那份模块（定义都在），再跑一遍。
-    definitions = case.file.read_text().split("__impl__ =", 1)[0]
-    replay = tmp / f"{case.name}_again.viba"
-    replay.write_text(definitions + "__impl__ = " + call + " << args.env\n")
-    ran = interpret(str(replay), host.environ)
-    check(_the_wanted_answer(ran, case),
-          f"{case.name}: read in the module it was written in, it runs: {ran!r}")
+    # 第三条路：那份 `$call` 本来就是节点，直接交给 `exec` —— 不用写出来读回去。
+    if case.as_node:
+        handed_over = exec(error.call, host.at(error.module_path))
+        check(_the_wanted_answer(handed_over, case),
+              f"{case.name}: the call handed over as the node it already is runs too: "
+              f"{handed_over!r}")
 
 
 def _one_step_at_a_time():
@@ -339,10 +323,5 @@ def _the_wanted_answer(result, case: Case) -> bool:
 
 
 if __name__ == "__main__":
-    scratch = Path(tempfile.mkdtemp(prefix="viba-interpreter-roundtrip-"))
-    try:
-        run(scratch)
-    finally:
-        for leftover in sorted(scratch.rglob("*"), reverse=True):
-            leftover.unlink() if leftover.is_file() else leftover.rmdir()
+    run()
     sys.exit(checks.report())

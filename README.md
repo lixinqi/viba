@@ -340,6 +340,11 @@ print(answer.ok_value.value)     # 1000000 — the number the host answered
 
 ADD_DEMO = open("add_demo.viba").read()   # the same entry, with the module written out
 print(exec(ADD_DEMO, environ))            # Ok(VibaNode(root)) — the same run
+
+# `exec` takes the module as its text or as the viba data that already writes it:
+# data that is no module tree is the run's `__impl__`, and this run gives it the
+# environment — so the `$call` an error carries runs again, written out nowhere.
+print(exec(answer.ok_value, environ))     # Ok(VibaNode(root)) — that piece, run
 ```
 
 - An executable function may write `$env Env` as one of its parameters, or write
@@ -401,7 +406,9 @@ print(exec(ADD_DEMO, environ))            # Ok(VibaNode(root)) — the same run
   program handed it (`api_name`, e.g. `Environment.sub_env`, and `args`, what it was
   given with the environment left out). A `UnderlyingOpErr` names the step (`module_path`, `func_name`), the call in
   the form that can be run again (`call`, e.g. `__dyn_call__ << "add" << $a 1 << $b 2`
-  — the name as data, so any module can read it, the environment left out) and
+  — the name as data, so any module can read it, the environment left out; a call
+  that is a member of a value keeps that layer, and a call inside the data is
+  written the same way, e.g. `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`) and
   one message (`msg`) that opens with the reason (`no implementation`, `refused`,
   `get_func raised`, `raised`, `no leaf`); its `tag` says which of its two it is
   (`$underlying_viba_op_err` when that step broke, `$not_implemented_err` when

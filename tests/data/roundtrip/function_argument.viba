@@ -1,0 +1,21 @@
+# A step given a function: the piece is the call it is, written the way a call
+# travels, so a reader needs no module to resolve that name.
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+inc =
+    int
+  <- $env Env
+  <- $x int
+  <- { add one }
+
+apply =
+    int
+  <- $env Env
+  <- $f (int <- $env Env <- $x int)
+  <- { the host's step }
+
+__impl__ = apply << $env args.env << $f inc

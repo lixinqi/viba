@@ -184,7 +184,11 @@ class UnderlyingOpErr(InterpretError, Exception):
     can be run again, with the environment left out: `__dyn_call__` and the name
     the host was asked for, or `__dyn_method__` and the member a value carries,
     then the arguments written on it, each with the tag it was written with
-    (`__dyn_call__ << "add" << $a 1 << $b 2`). So its type is `Any <- $env Env` —
+    (`__dyn_call__ << "add" << $a 1 << $b 2`). A call written *inside* that data —
+    a member of a value that holds one, a function handed to a step — is written
+    the same way and not as the name it was written with
+    (`__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`), so
+    nothing has to be resolved to read the call. So its type is `Any <- $env Env` —
     a call that still wants its environment, and giving it one runs it, from any
     module, because the name is data. It is viba data, functions and closures
     among the arguments included, so the same call can be made again from this

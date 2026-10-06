@@ -22,7 +22,7 @@ from interpreter_support import error_of, Checks, Host, value_of
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
-                            interpret)
+                            exec, interpret)
 from viba.is_sub_type import is_sub_type
 from viba.type import (AstNodeType, EnvironmentApiInvalidArgumentErr, Ok,
                        UnderlyingOpErr, custom_module)
@@ -50,6 +50,7 @@ def run(tmp: Path):
     _a_call_without_an_environment_is_a_value()
     _the_call_the_error_carries(tmp)
     _the_member_the_error_carries()
+    _what_a_call_hands_on()
     _what_the_environment_api_error_records()
     _what_the_design_says()
 
@@ -120,15 +121,48 @@ def _the_call_the_error_carries(tmp: Path):
 
 
 def _the_member_the_error_carries():
-    """成员那一支：`$call` 保留「取这份值的成员」，环境不在里面。"""
+    """成员那一支：`$call` 保留「取这份值的成员」，那份值里的调用按能跑的形式写。
+
+    成员的值是一次调用（`box` 的 `$f` 是 `inc`）。成员那一层保留（`__dyn_method__`），而那份值里
+    写着这个调用的那个成员按**能再跑一遍的形式**写：`$f (__dyn_call__ << "inc")` —— 名字当数据走，
+    读回来时不必解析 `inc` 这个名字，也就不必让写它的那个模块在场。环境不在里面。
+    """
     stopped = interpret(str(CASES / "missing_member.viba"), _host(missing=("inc",)).environ())
     error = error_of(stopped)
     check(isinstance(error, UnderlyingOpErr) and error.func_name == "inc",
           f"the stop names the step the member's value stands for: {stopped!r}")
     call = _written(error.call.data)
-    check(call == '__dyn_method__ << "f" << ($f inc * $y 2) << 1',
-          f"the member layer is kept, the value comes first, the environment is "
-          f"dropped: {call!r}")
+    check(call == '__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1',
+          f"the member layer is kept, the value comes first, the call in it is "
+          f"written the way a call travels, the environment is dropped: {call!r}")
+
+
+def _what_a_call_hands_on():
+    """`$call` 里凡是调用都按能跑的形式写：名字当数据走，读的人不必解析它。
+
+    函数类型的参数就是这样（`$f inc`）：写下来的是那个名字，写进 `$call` 的是它的调用
+    （`$f (__dyn_call__ << "inc")`）。另起一个运行，把这一步补上，照着它就能把这次调用做一遍。
+    """
+    stopped = interpret(str(CASES / "fn_argument.viba"), _host(missing=("apply",)).environ())
+    error = error_of(stopped)
+    check(isinstance(error, UnderlyingOpErr) and error.func_name == "apply",
+          f"the stop names the step that is missing: {stopped!r}")
+    call = _written(error.call.data)
+    check(call == '__dyn_call__ << "apply" << $f (__dyn_call__ << "inc")',
+          f"the function argument is the call it stands for, written the way a call "
+          f"travels: {call!r}")
+
+    def get_func(path, func_name):
+        if func_name == "apply":
+            return lambda environ, f: 7
+        if func_name == "inc":
+            return lambda environ, x: x.value + 1
+        return None
+
+    env = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
+    again = exec(error.call, env)
+    check(isinstance(again, Ok) and value_of(again) == 7,
+          f"and that call runs again with no module to resolve the name in: {again!r}")
 
 
 def _what_the_environment_api_error_records():

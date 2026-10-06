@@ -60,22 +60,26 @@ Python 侧写 `interpret(viba_main_file, environ)`；`InterpretResult`（Python 
 `$err` 那一支是 `InterpretError`：这次执行是怎么停下的，四种停法都在里面，改一个种类，调用方按种类分的支就变了。
 
 要跑的模块**写在手里**、不从文件读时，用 `exec`：参数形式和 `interpret` 一样（环境、`get_file`、`list_files`），
-只是第一份不是文件路径，而是那份代码本身。
+只是第一份不是文件路径，而是那份模块本身 —— 它的文本，或者已经写着它的那份 viba 数据。
 
 ```viba
 exec =
     InterpretResult
-  <- $viba_code str
+  <- $viba_code (str | VibaNode)
   <- $environ Environment
 ```
 
-- `viba_code` 就是一份完整的 `.viba` 文本，它写出来的模块就是这次的主模块：`__decl__` 是它的签名、
-  `__impl__` 是它的结果，和 `interpret` 同一套规矩。
+- `viba_code` 是**模块文本**时，它写出来的模块就是这次的主模块：`__decl__` 是它的签名、`__impl__` 是它的结果，
+  和 `interpret` 同一套规矩。
+- `viba_code` 是**一个节点**时，不用写成文本再读回来：那份数据写着模块，`Module` 就是那个模块（`__decl__`、
+  `__impl__` 照旧）；不是 `Module` 的一份数据就是这次主模块的 `__impl__`，而**这次运行给它环境** ——
+  `$call` 是闭包（类型 `Any <- $env Env`），给环境就是执行它，所以 `exec(error.call, environ)` 就是
+  「把这次调用再做一遍」，中间没有文本（`tests/test_interpreter_roundtrip.py` 里那条 `as_node` 的路）。
 - **主模块没有文件、也没有名字**：`import` 只按环境的搜索路径找（它旁边没有目录可以找），`$stack` 最外那一帧
-  的 `$file_path` 是空串，解析不了的名字报的是 `in module ''`，编译不过时说 `<viba_code>`（那份代码编译时用的
-  就是这个名字）。它也不绑名字：写出来的模块不是谁 import 得到的文件。
-- 别的都一样：环境不是 `Environment`、`viba_path` 给了别的类型、`get_file` / `list_files` 不是函数、代码不是
-  `str`，都是 `VibaProgramErr`，话里点名是哪个入口。
+  的 `$file_path` 是空串，解析不了的名字报的是 `in module ''`，文本编不过时说 `<viba_code>`（那份文本编译时
+  用的就是这个名字）。它也不绑名字：写出来的模块不是谁 import 得到的文件。
+- 别的都一样：环境不是 `Environment`、`viba_path` 给了别的类型、`get_file` / `list_files` 不是函数、第一份
+  既不是文本也不是节点，都是 `VibaProgramErr`，话里点名是哪个入口。
 
 模块在哪找是**环境**的事：`Environment.viba_path` 相当于 PYTHONPATH，冒号分隔，按顺序找 `<name>.viba`
 （dotted 名当路径走；空条目和不存在的目录跳过）。import 的那个文件所在的目录总是
@@ -852,8 +856,12 @@ __dyn_method__ =
   取的是那个环境自己的那一个。
 - **不带环境就是闭包**：`__dyn_call__ << "add" << $a 1` 是一个值，类型 `Any <- $env Env`；给它一个环境就执行，
   和别的没给环境的调用一样。
-- **`$call` 用的就是这两种写法**（见「一次执行会得到什么」）：名字是字符串数据，环境剔掉 —— 链上写了环境的那一处也剔掉
-  （`$f << box << args.env << …` 写成 `__dyn_method__ << "f" << box << …`），剩下的就是那个闭包。
+- **`$call` 用的就是这两种写法**（见「一次执行会得到什么」）：名字是字符串数据，环境剔掉 —— 链上写了环境的那一处也剔掉，
+  剩下的就是那个闭包。**一份数据里凡是调用，都按这两种写法写**：给宿主的数据里写着调用的那一处不写名字，写
+  那个调用本身。成员那一支正是这样：`$f << box << args.env << 1` 写成
+  `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1` —— 成员那一层保留，而那份值里
+  `$f` 这一格是调用 `inc`，就写成 `__dyn_call__ << "inc"`。读回来时不必解析 `inc` 这个名字，也就不必让
+  写它的那个模块在场。函数类型的实参也一样：`$f inc` 写成 `$f (__dyn_call__ << "inc")`。
 - **设计层读同一段写法，说的是 `Any`**：名字是数据，设计说不出这次调用答什么，所以它既不核后面那几个实参，
   也不多说。
 
@@ -897,15 +905,19 @@ __dyn_method__ =
 `$module_path` 那条路径上，那次调用是在那儿发生的。
 
 `$call` 是**这次调用本身，写成能再跑一遍的样子**：一步坏了的时候，名字只有写它的那个模块认得，所以
-名在这里当数据走 —— `__dyn_call__ << "add" << $a 1 << $b 2`（就是 `add << $a 1 << $b 2`），成员是某份
-值的成员时是 `__dyn_method__ << "f" << box << 1`（就是 `$f << box << args.env << 1`，环境那一处剔掉了）。
+名在这里当数据走 —— `__dyn_call__ << "add" << $a 1 << $b 2`（就是 `add << $a 1 << $b 2`）。成员是某份
+值的成员时保留成员那一层：`$f << box << args.env << 1` 写成
+`__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1` —— 环境那一处剔掉了，那份值里
+`$f` 这一格是调用 `inc`，就按能跑的形式写（上一节）。同一个规矩也在函数类型的实参上：`$f inc` 写成
+`$f (__dyn_call__ << "inc")`。
 环境不在里面：给出环境就是执行这次调用，它不是这次调用的数据，另一次运行自己造。所以写出来它是一份
 **闭包**（类型 `Any <- $env Env`）：把它当数据交给一次运行、让那次运行给它一个环境
 （`held = hold << $env args.env`，再 `held << args.env`），这次调用就跑起来了；也可以把它用
-`serialize` 写成 viba 源代码（`call = __dyn_call__ << "add" << $a 1`）再跑。实参里是函数、是闭包也一样，
+`serialize` 写成 viba 源代码（`call = __dyn_call__ << "add" << $a 1`）再跑，或者把它**直接当节点**
+交给 `exec`（`exec(error.call, environ)`：它本来就是节点，不用写出来读回去）。实参里是函数、是闭包也一样，
 它们本来就是可序列化的 —— 照着它就能把这次调用重新做一遍，不必重跑一次运行，也不必让写它的那个模块
-在场（上一节）。这两条路都钉在用例里
-（[`tests/test_interpreter_roundtrip.py`](tests/test_interpreter_roundtrip.py)：二十六份，先缺一步、
+在场（上一节）。这三条路都钉在用例里
+（[`tests/test_interpreter_roundtrip.py`](tests/test_interpreter_roundtrip.py)：二十七份，先缺一步、
 补上、把 `$call` 跑一遍，含同一个名字在两条数据路径上、以及一轮一轮补下去的那种）。
 
 这四种停法都会一路穿回调用方，而且**原样上传、不被改写**：被调用的模块里那一步没实现，带回来的

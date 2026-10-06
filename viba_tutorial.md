@@ -147,8 +147,9 @@ print(answer)                  # Ok(VibaNode(root))
 print(answer.ok_value.value)   # 1000000
 ```
 
-模块写在手里、不从文件读时用 `exec`：参数形式和 `interpret` 一样，只是第一份不是路径而是代码本身
-（`exec(那份文本, environ)`）。写出来的主模块没有文件、也没有名字：`import` 只按环境的搜索路径找。
+模块写在手里、不从文件读时用 `exec`：参数形式和 `interpret` 一样，只是第一份不是路径而是那份模块本身 ——
+它的文本（`exec(那份文本, environ)`），或者已经写着它的那份 viba 数据（`exec(error.call, environ)`：
+`$call` 本来就是节点，不用写出来读回去）。写出来的主模块没有文件、也没有名字：`import` 只按环境的搜索路径找。
 
 宿主收到的东西分两种：**可序列化数据**到手上是实例（`a` 是节点，`a.value` 是那个数），**环境**到手就是
 环境自己。写下来的名字、字面量、调用，宿主看到的都是实例，按 [`viba-reflect.md`](viba-reflect.md) 一步步读。
@@ -341,9 +342,10 @@ tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头�
 后两支的载荷是同一个 `UnderlyingOpErr`，靠 tag 分开；`$msg` 一句话说清是什么事，开头就是原因（`no implementation`、
 `refused`、`get_func raised`、`raised`、`no leaf`）。这一支里还带着是哪一步（`$module_path` 与 `$func_name`）
 和这次调用本身（`$call`：`__dyn_call__` 加上名字和写下来的实参，名字是数据，环境不在里面 ——
-`__dyn_call__ << "add" << $a 1 << $b 2` 就是 `add << $a 1 << $b 2`；成员是某份值的成员时写成
-`__dyn_method__ << "f" << box << 1`），照着它就能把这次调用重新做一遍，不必重跑一次运行，也不必让写它的
-那个模块在场（`viba-interpreter.md`「把一次调用写成可执行的」）。
+`__dyn_call__ << "add" << $a 1 << $b 2` 就是 `add << $a 1 << $b 2`；成员是某份值的成员时保留成员那一层，
+那份值里写着调用的那一格按能跑的形式写，写成 `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`），
+照着它就能把这次调用重新做一遍，不必重跑一次运行，也不必让写它的那个模块在场（`viba-interpreter.md`
+「把一次调用写成可执行的」）。
 
 ## 10. 要回放，就要有稳定的路径
 
