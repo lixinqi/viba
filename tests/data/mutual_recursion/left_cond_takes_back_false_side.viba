@@ -5,7 +5,7 @@ __decl__ =
 args = __get_args__ << __decl__
 
 import branch
-import right_cond_reads_back_false_side as right
+import right_cond_takes_back_false_side as right
 
 x =
     Oneof

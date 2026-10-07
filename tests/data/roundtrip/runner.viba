@@ -2,8 +2,8 @@
 #
 # The `$call` an `UnderlyingOpErr` carries is a closure — type `Any <- $env Env`,
 # its environment not given yet — so running it is giving it an environment; no
-# module is written for it. The host implements `hold`: it hands back whatever
-# closure it is holding (viba-interpreter.md, "把一次调用写成可执行的").
+# module is given for it. The host implements `hold`: it hands back whatever
+# closure it is holding (viba-interpreter.md, the chapter that introduces `__dyn_call__`).
 __decl__ =
     Any
   <- $env Env

@@ -1,5 +1,5 @@
 # A module whose __decl__ declares the environment as its result: only a builtin
-# function may answer one, so the judgment refuses it where it is read.
+# function may answer one, so the judgment refuses it where it is taken.
 __decl__ =
     Env
   <- $env Env

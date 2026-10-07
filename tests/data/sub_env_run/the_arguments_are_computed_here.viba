@@ -1,4 +1,4 @@
-# the_arguments_are_computed_here —— 实参写在调用方，算在调用方那一层；跑起来是 f 的事
+# the_arguments_are_computed_here —— 实参给出在调用方，算在调用方那一层；跑起来是 f 的事
 __decl__ =
     int
   <- $env Env

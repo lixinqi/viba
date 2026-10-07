@@ -1,4 +1,4 @@
-# 被调的模块把 $env 那个参数写成了 int。
+# 被调的模块把 $env 那个参数落成了 int。
 __decl__ = int <- $env Env
 
 args = __get_args__ << __decl__

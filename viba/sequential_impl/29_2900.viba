@@ -1,6 +1,6 @@
 # sequential_impl, 29 steps: the steps product has 29 members — the first 28
-# carries a tag, and the last one is written without a tag: its answer is the
-# answer of the whole chain. One file per count, the way `apply_impl` writes one
+# carries a tag, and the last one is given without a tag: its answer is the
+# answer of the whole chain. One file per count, the way `apply_impl` gives one
 # file per product size (viba-pattern.md): the tagged prefix is what pins the
 # count, since a single bare name would answer any product at all.
 pattern tagged[step0_name, Step0] * tagged[step1_name, Step1] * tagged[step2_name, Step2] * tagged[step3_name, Step3] * tagged[step4_name, Step4] * tagged[step5_name, Step5] * tagged[step6_name, Step6] * tagged[step7_name, Step7] * tagged[step8_name, Step8] * tagged[step9_name, Step9] * tagged[step10_name, Step10] * tagged[step11_name, Step11] * tagged[step12_name, Step12] * tagged[step13_name, Step13] * tagged[step14_name, Step14] * tagged[step15_name, Step15] * tagged[step16_name, Step16] * tagged[step17_name, Step17] * tagged[step18_name, Step18] * tagged[step19_name, Step19] * tagged[step20_name, Step20] * tagged[step21_name, Step21] * tagged[step22_name, Step22] * tagged[step23_name, Step23] * tagged[step24_name, Step24] * tagged[step25_name, Step25] * tagged[step26_name, Step26] * tagged[step27_name, Step27] * Last
@@ -12,7 +12,7 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-# What the steps remember: the answer of every tagged step, written under its own
+# What the steps remember: the answer of every tagged step, given under its own
 # tag, newest first — a product that carries one name twice answers with the member
 # it carries first, so the newest one wins. The last argument carries no tag: its
 # answer is what the chain answers, so it is remembered nowhere. Each step's member

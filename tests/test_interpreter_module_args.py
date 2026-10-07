@@ -1,4 +1,4 @@
-"""`__decl__`：模块的实参写在它的函数链里，`args` 读回这次调用收到的那份积。
+"""`__decl__`：模块的实参在它的函数链里，`args` 取回这次调用收到的那份积。
 
     python3 tests/test_interpreter_module_args.py
 
@@ -27,7 +27,7 @@ CASES = Path(__file__).resolve().parent / "data" / "module_args"
 
 
 def host_for(calls):
-    """宿主：四则、读积的成员、给出 7。"""
+    """宿主：四则、取积的成员、给出 7。"""
     def get_func(module_path, func_name):
         if func_name == "add":
             return lambda env, a, b: a.value + b.value

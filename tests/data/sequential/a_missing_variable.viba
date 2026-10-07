@@ -1,4 +1,4 @@
-# a_missing_variable —— 读一个没人写过的名字：变量积里没有这一条
+# a_missing_variable —— 取一个没人给出过的名字：变量积里没有这一条
 add =
     int
   <- $env Env

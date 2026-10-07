@@ -14,7 +14,7 @@ Two things the spec says, and how they land here:
 
 What the spec leaves open, and how it lands here:
 
-* ``VibaPool`` has no mutable state, so adding a file rewrites every
+* ``VibaPool`` has no mutable state, so adding a file rebuilds every
   descriptor in the pool to point at the new pool.  Settled: pools are
   built offline in one go, never added to while in use, so the cost is
   accepted.
@@ -32,7 +32,7 @@ from viba.pattern import (GENERIC_FILE, declared_of, file_pattern_problem,
                           generic_of_entries, order_of)
 from viba.viba_ast.tagged import TAGGED_NAME, symbol_of, tag_of
 
-# The builtin name that reads a call's arguments back as a product.
+# The builtin name that takes a call's arguments back as a product.
 GET_ARGS_NAME = "__get_args__"
 from viba.viba_ast import nodes as ast_nodes
 from viba.type import (
@@ -50,7 +50,7 @@ from viba.type import (
 
 # Branch names of the spec's VibaTypeDescriptor sum.
 TYPE_REF = "type_ref"
-MEMBER_READ = "member_read"
+MEMBER_TAKEN = "member_taken"
 TYPE_APP = "type_app"
 TUPLE = "tuple"
 TAGGED = "tagged"
@@ -75,7 +75,7 @@ EXPONENT_UNIT = ("never",)  # the unit of an exponent chain head (the result ele
 
 
 class VibaTypeDescriptor:
-    """A written type expression: one branch of the spec's sum."""
+    """A type expression in the source: one branch of the spec's sum."""
 
     __slots__ = ("kind", "payload")
 
@@ -95,12 +95,12 @@ class VibaTypeDescriptor:
         return f"VibaTypeDescriptor({self.kind}, {self.payload!r})"
 
 
-class VibaMemberReadDescriptor:
+class VibaMemberTakenDescriptor:
     """`g[T].name` — a member of what an application answers.
 
     Which member that is a definition of is known once the application is
     decided, so the descriptor keeps the owner's own descriptor and the name;
-    the layer that reads designs decides, and reads the member there
+    the layer that takes designs apart decides, and takes the member there
     (viba-pattern.md).
     """
 
@@ -113,11 +113,11 @@ class VibaMemberReadDescriptor:
         self.name = name
 
     def __repr__(self):
-        return f"VibaMemberReadDescriptor({self.owner!r}, {self.name!r})"
+        return f"VibaMemberTakenDescriptor({self.owner!r}, {self.name!r})"
 
 
 class VibaTypeRefDescriptor:
-    """name — a reference, written as is."""
+    """name — a reference, kept as the source has it."""
 
     __slots__ = ("pool", "resolvable_type", "type_name")
 
@@ -322,7 +322,7 @@ def _environment(pool: VibaPool) -> Callable[[str], Result]:
     A generic is not a file but a directory: the `name.number` files in the pool plus its
     `__generic__.viba` marker make one GenericModuleType (viba-pattern.md). The
     bare name of a `builtin.` generic names the same one (`is_closure` is
-    `builtin.is_closure`), the way it does wherever else a name is read.
+    `builtin.is_closure`), the way it does wherever else a name is taken.
     """
     def environment(module_name: str) -> Result:
         matches = [f for f in pool.files if f.module_name == module_name]
@@ -346,10 +346,10 @@ def _generic_in_pool(pool: VibaPool, module_name: str):
     """The generic the pool holds under this module name, or None.
 
     Its files are the ones named under it: the marker `name.__generic__`, and
-    one `name.number` per pattern — the number, in front of it the count the file
-    reads, the way a file in a directory is named (viba-pattern.md). `name` itself
-    is no file of the pool — that is what makes it a generic rather than a module
-    of definitions.
+    one `name.number` per pattern — the order is that number, and in front of it
+    the count the file name carries, the way a file in a directory is named
+    (viba-pattern.md). `name` itself is no file of the pool — that is what makes
+    it a generic rather than a module of definitions.
     """
     prefix = module_name + "."
     under = [f for f in pool.files if f.module_name.startswith(prefix)]
@@ -377,7 +377,7 @@ def _generic_in_pool(pool: VibaPool, module_name: str):
 def _import_locals_for(tree) -> dict:
     """A syntax tree's import table: binding name -> module name. With `as` that is the
     alias; without `as`, the module's full name is bound (a reference to `import a.b` is
-    written a.b.Name)."""
+    spelled a.b.Name)."""
     return {stmt.alias or stmt.module: stmt.module
             for stmt in tree.body if isinstance(stmt, ast_nodes.Import)}
 
@@ -415,8 +415,8 @@ def _build_file(pool: VibaPool, tree, file_name: str, module_name: str, file_has
     module = CustomModuleType(tree, pool.module_environment,
                               _import_locals_for(tree))
     imports = []
-    written = []                    # the definitions in one file, in written order
-    where = {}                      # name -> its position in written
+    source_order = []               # the definitions in one file, in source order
+    where = {}                      # name -> its position in source_order
     for stmt in tree.body:
         if isinstance(stmt, ast_nodes.Import):
             local = stmt.alias or stmt.module
@@ -426,10 +426,10 @@ def _build_file(pool: VibaPool, tree, file_name: str, module_name: str, file_has
                 raise PartialError(
                     f"{stmt.name!r} is defined twice: a module defines each "
                     f"name once")
-            where[stmt.name] = len(written)
-            written.append(stmt)
+            where[stmt.name] = len(source_order)
+            source_order.append(stmt)
     definitions = [_build_definition(pool, module, stmt, module_name, file_name, file_hash)
-                   for stmt in written]
+                   for stmt in source_order]
     return VibaFileDescriptor(pool, file_name, file_hash, module_name, imports, definitions, tree)
 
 
@@ -450,8 +450,8 @@ def _build_definition(pool, module, stmt, module_name, file_name, file_hash) -> 
 
 
 def _left_elements(node, kind, chain_kind) -> List:
-    """A product/sum written as a chain, read as an element list (written order): collect
-    $right along the $left spine."""
+    """A product/sum the source has as a chain, taken as an element list (source order):
+    collect $right along the $left spine."""
     if isinstance(node, chain_kind):
         return list(node.elements)
     elements = []
@@ -464,8 +464,8 @@ def _left_elements(node, kind, chain_kind) -> List:
 
 
 def _exponent_elements(node) -> List:
-    """An exponent written as a chain, read as an element list (written order): collect
-    $argument along the $result spine."""
+    """An exponent the source has as a chain, taken as an element list (source order):
+    collect $argument along the $result spine."""
     if isinstance(node, ast_nodes.ExponentChain):
         return list(node.elements)
     elements = []
@@ -478,7 +478,7 @@ def _exponent_elements(node) -> List:
 
 
 def _body_elements(body):
-    """A definition body written as a product/sum/exponent chain: (elements, chain-head unit).
+    """A definition body the source has as a product/sum/exponent chain: (elements, chain-head unit).
 
     All three chains follow one rule: the members are that chain's elements, and the
     chain-head unit does not count.
@@ -493,7 +493,7 @@ def _body_elements(body):
 
 
 def _build_members(pool, module, body, full_name: str) -> List[VibaMemberDescriptor]:
-    """The elements of a written product/sum/exponent chain are its members; the chain-head
+    """The elements of a product/sum/exponent chain in the source are its members; the chain-head
     unit does not count."""
     elements, unit = _body_elements(body)
     if elements is not None:
@@ -523,33 +523,34 @@ def _is_unit(node, names) -> bool:
     return isinstance(node, ast_nodes.TypeRef) and node.name in names
 
 
-def descriptor_of_tagged(tag, inner: VibaTypeDescriptor, node, written_in) -> VibaTypeDescriptor:
-    """A tagged member's descriptor: the tag, over the member's own reading.
+def descriptor_of_tagged(tag, inner: VibaTypeDescriptor, node, source_module) -> VibaTypeDescriptor:
+    """A tagged member's descriptor: the tag, over what the member itself stands for.
 
     A product's members are addressed by their tags, so the tag has to be part of
-    the reading — and the member's own descriptor is what is underneath it.
+    what the member stands for — and the member's own descriptor is what is
+    underneath it.
     """
     return VibaTypeDescriptor(TAGGED, VibaTaggedDescriptor(
-        empty_pool(), AstNodeType(node, written_in), tag, inner))
+        empty_pool(), AstNodeType(node, source_module), tag, inner))
 
 
-def descriptor_of_values(node, written_in, members) -> VibaTypeDescriptor:
+def descriptor_of_values(node, source_module, members) -> VibaTypeDescriptor:
     """A descriptor for a piece built **from values**, not from text.
 
-    Each member already has a descriptor of its own, and with it the module it
-    was written in. Reading the whole piece again as one node in one module would
+    Each member already has a descriptor of its own, and with it the module the
+    source has it in. Taking the whole piece again as one node in one module would
     be wrong the moment a member came from somewhere else — its names would be
-    looked up in the wrong place — so the product keeps the members' own
-    readings, each under the tag that addresses it.
+    looked up in the wrong place — so the product keeps what the members
+    themselves stand for, each under the tag that addresses it.
     """
-    resolvable = AstNodeType(node, written_in)
+    resolvable = AstNodeType(node, source_module)
     pieces = _left_elements(node, ast_nodes.Product, ast_nodes.ProductChain)
     elements = []
     for index, member in enumerate(members):
         descriptor = member.node.descriptor
         piece = pieces[index] if index < len(pieces) else None
         if isinstance(piece, ast_nodes.Tagged):
-            descriptor = descriptor_of_tagged(piece.tag, descriptor, piece, written_in)
+            descriptor = descriptor_of_tagged(piece.tag, descriptor, piece, source_module)
         elements.append(descriptor)
     return VibaTypeDescriptor(PRODUCT, VibaChainDescriptor(
         empty_pool(), resolvable, elements))
@@ -558,27 +559,27 @@ def descriptor_of_values(node, written_in, members) -> VibaTypeDescriptor:
 def descriptor_of(node) -> VibaTypeDescriptor:
     """A shallow descriptor of a syntax node (AstNodeType).
 
-    Whoever has only syntax and wants to read it through reflection takes the descriptor
+    Whoever has only syntax and wants to look at it through reflection takes the descriptor
     here. The pool is empty: there is no place to look a pool up by name here, so a name is
-    resolved in the module this design was written in (the descriptor carries it along)."""
+    resolved in the module the source has this design in (the descriptor carries it along)."""
     return _build_type(empty_pool(), node.container_module, node.ast_node)
 
 
-def _fits(given, given_module, written, written_module):
-    """Does the given type fit the slot it is written to? The judgment answers,
+def _fits(given, given_module, slot, slot_module):
+    """Does the given type fit the slot the source has it in? The judgment answers,
     with the language's units, exactly as it would anywhere else."""
     from viba.is_sub_type import is_sub_type
     from viba.reflect import language_config
     judged = is_sub_type(AstNodeType(given, given_module),
-                         AstNodeType(written, written_module),
+                         AstNodeType(slot, slot_module),
                          config=language_config)
     return isinstance(judged, Ok) and judged.ok_value is True
 
 
 def _partial_target(pool, name, module):
-    """(body, written_in) for the name a `<<` gives to, or None.
+    """(body, source_module) for the name a `<<` gives to, or None.
 
-    A function written in a module never answers the environment itself: only a
+    A function the source has in a module never answers the environment itself: only a
     builtin function does, and the builtin library is the one module the check
     steps aside for. A dotted name may also be a member of the product a name
     stands for — `args.fib` — which is what a chain gives its arguments to
@@ -604,14 +605,14 @@ def _partial_target(pool, name, module):
 
 
 def _product_member(pool, name, module):
-    """(body, written_in) for `args.a`: the member of the product a name stands for.
+    """(body, source_module) for `args.a`: the member of the product a name stands for.
 
     `args = __get_args__ << __decl__` is the product of the call's parameters
     (`_get_args_call`), so `args.a` is the `$a` member's declared type: what a
     chain gives its arguments to (`args.fib << …`) and what the judgment layer
-    reads through the same dotted name (`is_sub_type._product_member_type`). None
-    when the head is no such product, or that member is not there — the name is
-    then read the way it always was.
+    takes apart through the same dotted name (`is_sub_type._product_member_type`).
+    None when the head is no such product, or that member is not there — the name
+    is then taken the way it always was.
     """
     head, dot, tag = name.rpartition(".")
     if not dot or not head:
@@ -619,22 +620,22 @@ def _product_member(pool, name, module):
     resolved = module_get_type(module, head)
     if not (isinstance(resolved, Ok) and isinstance(resolved.ok_value, AstNodeType)):
         return None
-    body, written_in = resolved.ok_value.ast_node, resolved.ok_value.container_module
+    body, source_module = resolved.ok_value.ast_node, resolved.ok_value.container_module
     if isinstance(body, ast_nodes.TypeDefinition):
         body = body.body
     if isinstance(body, ast_nodes.Partial):
-        product = _get_args_call(pool, body, written_in)
+        product = _get_args_call(pool, body, source_module)
         if product is None:
             return None
-        body, written_in = product
+        body, source_module = product
     for factor in _left_elements(body, ast_nodes.Product, ast_nodes.ProductChain):
         if isinstance(factor, ast_nodes.Tagged) and factor.tag == "$" + tag:
-            return factor.type, written_in
+            return factor.type, source_module
     return None
 
 
 def _partial_parts(node):
-    """(chain head, argument list) for a written `<<` chain, arguments in written order."""
+    """(chain head, argument list) for a `<<` chain the source has, arguments in source order."""
     arguments = []
     while isinstance(node, ast_nodes.Partial):
         arguments.append(node.argument)
@@ -643,9 +644,9 @@ def _partial_parts(node):
 
 
 def _get_args_call(pool, node, module):
-    """(product, written_in) for `__get_args__ << <chain>`, or None.
+    """(product, source_module) for `__get_args__ << <chain>`, or None.
 
-    What a call was handed, read as a type: the product of the parameters the
+    What a call was handed, taken as a type: the product of the parameters the
     chain declares, the environment among them — which is how a module names the
     environment (`args.env`) and its arguments (`args.a`), and what makes
     `args = __get_args__ << __decl__` a product here (viba-interpreter.md).
@@ -655,27 +656,27 @@ def _get_args_call(pool, node, module):
         return None
     if len(arguments) != 1:
         return None
-    argument, written_in = arguments[0], module
+    argument, source_module = arguments[0], module
     if isinstance(argument, ast_nodes.TypeRef):
         resolved = module_get_type(module, argument.name)
         if not (isinstance(resolved, Ok) and isinstance(resolved.ok_value, AstNodeType)):
             return None
         argument = resolved.ok_value.ast_node
-        written_in = resolved.ok_value.container_module
+        source_module = resolved.ok_value.container_module
     if isinstance(argument, ast_nodes.TypeDefinition):
         argument = argument.body
     if not isinstance(argument, (ast_nodes.Exponent, ast_nodes.ExponentChain)):
         return None
-    return get_args_product(argument), written_in
+    return get_args_product(argument), source_module
 
 
 def tagged_descriptor(pool, constructor_name: str, args, resolvable):
     """The tag a `tagged[...]` descriptor stands for, or None.
 
-    The symbol is known here when it is a written string — the source folded
+    The symbol is known here when it is a string in the source — the source folded
     those into the tag already — and when a decision handed it over: a `pattern`
     line extracted the symbol from a tag and `__decl__` builds the tag back with
-    it (viba-pattern.md). The answer is the tagged type `$S T`, written as that
+    it (viba-pattern.md). The answer is the tagged type `$S T`, spelled as that
     tag, so the descriptor says where the type is addressed and whose module its
     own names resolve in.
     """
@@ -688,12 +689,12 @@ def tagged_descriptor(pool, constructor_name: str, args, resolvable):
     if symbol is None:
         return None
     inner = args[1]
-    written_in = inner.resolvable_type
-    if written_in is None:
+    resolvable = inner.resolvable_type
+    if resolvable is None:
         return None
-    written = viba_ast.Tagged(tag_of(symbol), written_in.ast_node)
+    tagged_node = viba_ast.Tagged(tag_of(symbol), resolvable.ast_node)
     return VibaTypeDescriptor(TAGGED, VibaTaggedDescriptor(
-        pool, AstNodeType(written, written_in.container_module), tag_of(symbol),
+        pool, AstNodeType(tagged_node, resolvable.container_module), tag_of(symbol),
         inner))
 
 
@@ -704,12 +705,14 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
         product = _get_args_call(pool, node, module)
         if product is not None:
             return _build_type(pool, product[1], product[0])
-        reduced, written_in = reduce_partial(node, module,
-                                       lambda name, written_in: _partial_target(pool, name, written_in),
-                                       _fits)
-        # The reduction may step into another module (a module call: `__impl__` is written there):
-        # the read then continues in the module that came back, not the one it came in with.
-        return _build_type(pool, written_in, reduced)
+        reduced, source_module = reduce_partial(
+            node, module,
+            lambda name, source_module: _partial_target(pool, name, source_module),
+            _fits)
+        # The reduction may step into another module (a module call: the source has `__impl__`
+        # there): what is taken next comes from the module that came back, not the one it came
+        # in with.
+        return _build_type(pool, source_module, reduced)
     resolvable = AstNodeType(node, module)
     if isinstance(node, (ast_nodes.Product, ast_nodes.ProductChain)):
         return VibaTypeDescriptor(PRODUCT, VibaChainDescriptor(
@@ -738,16 +741,16 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
             pool, resolvable, node.tag, _build_type(pool, module, node.type)))
     if isinstance(node, ast_nodes.TypeRef):
         return VibaTypeDescriptor(TYPE_REF, VibaTypeRefDescriptor(pool, resolvable, node.name))
-    if isinstance(node, ast_nodes.MemberRead):
-        # A member read written segment by segment reads as the dotted name it was; the descriptor
-        # is built from that name. With an application on the left (`g[T].value`) the member is a
-        # definition of the file the decision chose, and is left to the decision layer.
-        path = viba_ast.written_path(node)
+    if isinstance(node, ast_nodes.MemberTaken):
+        # A member taken that the source has segment by segment counts as the dotted name it was;
+        # the descriptor is built from that name. With an application on the left (`g[T].value`) the
+        # member is a definition of the file the decision chose, and is left to the decision layer.
+        path = viba_ast.source_path(node)
         if path is None:
             # The left side is an application: which member it is comes out of the decision over
             # that application, so the descriptor keeps the left descriptor and the member name, and
-            # the layer that reads the design settles it (reflect._decided_member).
-            return VibaTypeDescriptor(MEMBER_READ, VibaMemberReadDescriptor(
+            # the layer that takes the design apart settles it (reflect._decided_member).
+            return VibaTypeDescriptor(MEMBER_TAKEN, VibaMemberTakenDescriptor(
                 pool, resolvable, _build_type(pool, module, node.owner), node.name))
         return VibaTypeDescriptor(TYPE_REF, VibaTypeRefDescriptor(pool, resolvable, path))
     if isinstance(node, ast_nodes.Constant):
@@ -868,7 +871,7 @@ def definition_file(definition: VibaDefinitionDescriptor) -> Result:
 def member_type_name(member: VibaMemberDescriptor) -> Result:
     if member.member_type.kind == TYPE_REF:
         return Ok(member.member_type.payload.type_name)
-    return VibaProgramErr(f"member {member.tag!r} is not written as a name")
+    return VibaProgramErr(f"member {member.tag!r} is not a name in the source")
 
 
 def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
@@ -885,8 +888,8 @@ def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
     file = pool_find_file(pool, containing.ok_value.file_name)
     if isinstance(file, VibaProgramErr):
         return file
-    written = name.ok_value
-    parts = written.split(".")
+    type_name = name.ok_value
+    parts = type_name.split(".")
     module_name = target_name = None
     for cut in range(len(parts) - 1, 0, -1):
         prefix = ".".join(parts[:cut])
@@ -899,7 +902,7 @@ def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
         if len(parts) > 1:
             return VibaProgramErr(f"{parts[0]!r} is neither an import nor a module of this file")
         module_name = file.ok_value.module_name
-        target_name = written
+        target_name = type_name
     module = pool.module_environment(module_name)
     if isinstance(module, VibaProgramErr):
         return module
@@ -908,9 +911,9 @@ def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
         return resolved
     node = getattr(resolved.ok_value, "ast_node", None)
     if not isinstance(node, (ast_nodes.TypeDefinition, ast_nodes.GenericDefinition)):
-        return VibaProgramErr(f"{written!r} is not a definition")
+        return VibaProgramErr(f"{type_name!r} is not a definition")
     if node.name != target_name:
-        return VibaProgramErr(f"{written!r} does not name a definition of {module_name!r}")
+        return VibaProgramErr(f"{type_name!r} does not name a definition of {module_name!r}")
     return pool_find_definition(pool, f"{module_name}.{node.name}")
 
 

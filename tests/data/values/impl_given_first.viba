@@ -1,0 +1,17 @@
+# `__impl__` 放在最前面，它用的定义全在后面：绑定是按需求值的，给出的次序不是求值的次序。
+# 倒着给出也行 —— 一串给全的链条跟"先给出每一步再给出结果"解析出来是同一个东西。
+__decl__ = int <- $env Env
+
+__impl__ = add << $env args.env << $a one << $b two
+
+args = __get_args__ << __decl__
+
+add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two }
+
+one = 1
+two = 2

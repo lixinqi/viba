@@ -1,5 +1,5 @@
-# The dotted reading the tag form stands for: the environment is written out, and
-# the child it names is handed to the same host step so its path can be read.
+# The tag form and the dotted form are the same call: the environment is given, and
+# the child it names is handed to the same host step so its path can be taken.
 __decl__ =
     Any
   <- $env Env

@@ -1,7 +1,7 @@
-# sequential_impl, 1 step: the steps product is that step alone, written without a
+# sequential_impl, 1 step: the steps product is that step alone, given without a
 # tag — its answer is the answer of the whole chain. One step is one member, and a
 # bare pattern would take any product at all, so the count is pinned by what the
-# step itself writes: one file per argument count of that call, the way
+# step itself gives: one file per argument count of that call, the way
 # `sequential_step` is one file per argument count (viba-pattern.md). A chain of
 # two or more steps is another file's business.
 pattern F << tagged[arg0_name, Arg0] << tagged[arg1_name, Arg1] << tagged[arg2_name, Arg2] << tagged[arg3_name, Arg3] << tagged[arg4_name, Arg4]

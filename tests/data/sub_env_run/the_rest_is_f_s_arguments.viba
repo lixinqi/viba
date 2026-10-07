@@ -1,4 +1,4 @@
-# the_rest_is_f_s_arguments —— `...` 收下的那几个接着 `<<` 写，摊开就是那次调用的实参
+# the_rest_is_f_s_arguments —— `...` 收下的那几个接着 `<<` 给出，摊开就是那次调用的实参
 __decl__ =
     int
   <- $env Env

@@ -1,4 +1,4 @@
-# builtin_prefix —— 带前缀的写法叫的是同一个模块
+# builtin_prefix —— 带前缀的源码形式叫的是同一个模块
 add =
     int
   <- $env Env

@@ -1,4 +1,4 @@
-# A definition written in a module, declaring the environment itself as its
+# A definition given in a module, declaring the environment itself as its
 # result: refused like a module's own __decl__ is (only a builtin function may
 # answer an environment).
 __decl__ =

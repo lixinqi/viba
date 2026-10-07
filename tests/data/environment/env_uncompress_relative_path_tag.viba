@@ -1,4 +1,4 @@
-# `$uncompress_relative_path << args.env`：tag 写在链头也一样，普通环境下是 nil
+# `$uncompress_relative_path << args.env`：tag 落在链头也一样，普通环境下是 nil
 __decl__ =
     Any
   <- $env Env

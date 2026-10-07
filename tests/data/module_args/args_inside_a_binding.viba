@@ -6,5 +6,5 @@ args = __get_args__ << __decl__
 
 import square_sum as square_sum
 
-# 模块的实参直接给：`side` 那个中间名现在没有绑定块的写法。
+# 模块的实参直接给：`side` 那个中间名现在没有绑定块的源码形式。
 __impl__ = square_sum << (args.env.tmp_env << args.env) << 1 << 4

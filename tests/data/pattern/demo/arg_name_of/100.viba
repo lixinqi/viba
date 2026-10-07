@@ -1,4 +1,4 @@
-# The tag a written argument carries, answered as the symbol it spells: a
+# The tag an argument carries, answered as the symbol it spells: a
 # `tagged` pattern names the tag it claims, so the name is a parameter.
 pattern tagged[arg_name, T]
 

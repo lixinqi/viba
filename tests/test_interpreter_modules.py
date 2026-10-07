@@ -65,7 +65,7 @@ def _not_implemented(tmp: Path):
           f"and why: {message_of(stopped)!r}")
     check(_text_of(stop_node(stopped, "$call")) ==
           '__dyn_call__ << "not_implemented_module.add" << $a 1 << $b 2',
-          f"the call as it was written, a name that travels: "
+          f"the call as it was given, a name that travels: "
           f"{_text_of(stop_node(stopped, '$call'))!r}")
     host.knobs.pop("missing")
 
@@ -123,11 +123,11 @@ def _not_implemented(tmp: Path):
 
 
 def _text_of(node):
-    """One piece of viba data as written, with the laying out flattened away."""
-    written = serialize.serialize("call", node)
-    if not isinstance(written, Ok):
+    """One piece of viba data as source, with the laying out flattened away."""
+    source = serialize.serialize("call", node)
+    if not isinstance(source, Ok):
         return repr(node)
-    return " ".join(written.ok_value.split("=", 1)[1].split())
+    return " ".join(source.ok_value.split("=", 1)[1].split())
 
 
 def _spec_modules():
@@ -214,7 +214,7 @@ def _storage_paths(tmp: Path):
     labelled(interpret(_case("two_modules"), environ), "storage path",
              "two modules under one storage path -> $viba_program_err")
 
-    # 各给各的名字：两次都跑得起来，宿主看到两个路径，按书写顺序
+    # 各给各的名字：两次都跑得起来，宿主看到两个路径，按源码里的次序
     host.calls.clear()
     host.ran_at.clear()
     result = interpret(_case("two_names"), environ)

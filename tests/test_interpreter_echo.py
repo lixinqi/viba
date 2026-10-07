@@ -53,7 +53,7 @@ def run(tmp: Path):
     _never_or_echo_takes_the_other_side()
     _the_branch_runs_in_its_own_environment()
     _the_other_branch_is_not_computed()
-    _echo_hands_back_a_written_piece()
+    _echo_hands_back_a_given_piece()
 
 
 def _the_branch_runs_in_its_own_environment():
@@ -83,11 +83,11 @@ def _never_or_echo_takes_the_other_side():
           f"它也在自己的子环境里跑：{calls}")
 
 
-def _echo_hands_back_a_written_piece():
-    """`builtin.echo` 交回写下来的那份东西：宿主跑它，交回来的就是它。"""
+def _echo_hands_back_a_given_piece():
+    """`builtin.echo` 交回源码里的那份东西：宿主跑它，交回来的就是它。"""
     calls = []
-    result = interpret(str(CASES / "echo_hands_back_a_written_piece.viba"), host_for(calls))
-    check(is_ok(result) and value_of(result) == 7, f"给出的是那份写下来的东西：{result!r}")
+    result = interpret(str(CASES / "echo_hands_back_a_given_piece.viba"), host_for(calls))
+    check(is_ok(result) and value_of(result) == 7, f"给出的是源码里的那份东西：{result!r}")
     check([name for _, name in calls] == ["echo"], f"跑的是 echo 那一步：{calls}")
 
 

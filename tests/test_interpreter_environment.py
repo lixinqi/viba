@@ -1,9 +1,9 @@
-"""Environment：$env 那个参数、子环境、宿主给自己加的东西，以及 store 里的一次写。
+"""Environment：$env 那个参数、子环境、宿主给自己加的东西，以及 store 里的一次落盘。
 
-每个可执行函数都要 $env Environment，而且那个参数必须写成 $env；sub_env 按名字给子环境，
+每个可执行函数都要 $env Environment，而且那个参数在源码里必须是 $env；sub_env 按名字给子环境，
 tmp_env 每次给一个新的；子环境带着父级的 compute。环境不是值：一次运行把环境当答案交回来，
-就以 `$viba_program_err` 停下（环境是这次调用的规则）。store 的写入一次落完整（另一个进程可能
-同时在读写同一份 store）。
+就以 `$viba_program_err` 停下（环境是这次调用的规则）。store 的一次存进整份落完整（另一个进程可能
+同时在取和存同一份 store）。
 
     python3 tests/test_interpreter_environment.py
 """
@@ -33,9 +33,9 @@ def run(tmp: Path):
     _the_env_slot(tmp)
     _the_env_is_no_answer(tmp)
     _children(tmp)
-    _written_in_viba(tmp)
+    _given_in_viba_source(tmp)
     _host_members(tmp)
-    _a_write_lands_whole(tmp)
+    _a_store_put_lands_whole(tmp)
 
 
 def _the_env_is_no_answer(tmp: Path):
@@ -46,10 +46,10 @@ def _the_env_is_no_answer(tmp: Path):
     # the module's own __decl__
     labelled(interpret(str(CASES / "env_as_a_result.viba"), environ),
              "answers the environment", "__decl__ answering Env -> VibaProgramErr")
-    # 模块里写的一个函数
+    # 模块里的一个函数定义
     labelled(interpret(str(CASES / "env_as_a_result_function.viba"), environ),
              "answers the environment", "a definition answering Env -> VibaProgramErr")
-    # 积的成员里写的一个函数
+    # 积的成员里的一个函数定义
     labelled(interpret(str(CASES / "env_as_a_result_in_a_product.viba"), environ),
              "answers the environment", "a member chain answering Env -> VibaProgramErr")
 
@@ -60,7 +60,7 @@ def _the_env_is_no_answer(tmp: Path):
 
 
 def _the_env_slot(tmp: Path):
-    """必须给、必须是 Environment、那个参数必须写成 $env。"""
+    """必须给、必须是 Environment、那个参数在源码里必须是 $env。"""
     host = Host()
     environ = host.environ()
 
@@ -77,9 +77,9 @@ def _the_env_slot(tmp: Path):
              "was not given an Environment",
              "an environment argument that is not an Environment -> VibaProgramErr")
 
-    # 环境那个参数必须写成 $env：不带 tag 的 Environment 位不算数
+    # 环境那个参数在源码里必须是 $env：不带 tag 的 Environment 位不算数
     labelled(interpret(str(CASES / "positional_env.viba"), environ), "takes no $env Env",
-             "an environment slot written without a tag -> VibaProgramErr")
+             "an environment slot in the source without a tag -> VibaProgramErr")
 
     labelled(interpret(str(CASES / "not_given.viba"), object()), "needs an Environment",
              "interpret with something that is not an Environment -> VibaProgramErr")
@@ -120,7 +120,7 @@ def _children(tmp: Path):
     check(ran_at == [("root/a", "add")],
           f"and the place it ran is what the environment carries: {ran_at}")
 
-    # 子环境的名来自 viba 那边写下的东西：可序列化数据取它的叶子，别的就 str 一下
+    # 子环境的名来自 viba 那边落盘的东西：可序列化数据取它的叶子，别的就 str 一下
     seeded = EnvironmentStorage("root", {"a": EnvironmentStorage("root/a")})
     check(sub_env(Environment(seeded, environ.compute), "a").storage is
           seeded.sub_storage["a"],
@@ -144,10 +144,10 @@ def _children(tmp: Path):
           "the child it made is remembered under its own name")
 
 
-def _written_in_viba(tmp: Path):
+def _given_in_viba_source(tmp: Path):
     """viba 那边调 environ.sub_env / tmp_env，以及 __impl__ 就是环境。
 
-    viba 写出来的 sub_env 交出的那个孩子不是值，所以让宿主实现的那一步把它拿到的环境
+    viba 源码里的 sub_env 交出的那个孩子不是值，所以让宿主实现的那一步把它拿到的环境
     报回来，看的就是它的数据路径（`PlacedHost.ran_at`）；而把环境当答案交回来的运行，
     以 `$viba_program_err` 停下。
     """
@@ -168,7 +168,7 @@ def _written_in_viba(tmp: Path):
           all(path.startswith("root/tmp_") for path in leaves),
           f"and each call runs at a temporary environment of its own: {ran_at}")
 
-    # 它收的就是那个环境：写别的值不成立（那个 api 当场拒绝）
+    # 它收的就是那个环境：给别的值不成立（那个 api 当场拒绝）
     check(not is_ok(interpret(str(CASES / "tmp_wrong.viba"), environ)),
           "a temporary child is asked for with the environment it belongs to")
 
@@ -177,13 +177,13 @@ def _written_in_viba(tmp: Path):
     ran_at.clear()
     result = interpret(str(CASES / "sub_env_child.viba"), environ)
     check(is_ok(result) and value_of(result) == 7,
-          f"a host step run under the child of a written sub_env: {result!r}")
+          f"a host step run under the child of a sub_env in the source: {result!r}")
     check(ran_at == [("root/child", "leaf")],
-          f"environ.sub_env written in viba names the child it should: {ran_at}")
+          f"environ.sub_env in viba source names the child it should: {ran_at}")
 
     # 答案就是环境：环境是这次调用的规则，不是值，运行以 $viba_program_err 停下
     labelled(interpret(str(CASES / "sub.viba"), environ), "answered the environment",
-             "environ.sub_env written in viba, answered -> VibaProgramErr")
+             "environ.sub_env in viba source, answered -> VibaProgramErr")
     labelled(interpret(str(CASES / "the_env.viba"), environ), "answered the environment",
              "a module whose __impl__ is the environment -> VibaProgramErr")
 
@@ -208,7 +208,7 @@ def _host_members(tmp: Path):
     check(is_ok(result) and value_of(result) == "hi!",
           f"a method the host hung on its environment: {result!r}")
 
-    # 成员是一个值时，读出来就是那个值；值本身不是标量（这里是一个 storage 对象）才报错
+    # 成员是一个值时，取出来就是那个值；值本身不是标量（这里是一个 storage 对象）才报错
     # （那是这份程序问错了，不是环境上的 api 拒绝了什么）。
     labelled(interpret(str(CASES / "env_member.viba"), environ),
              "which is no leaf",
@@ -231,27 +231,27 @@ def _host_members(tmp: Path):
                     "tmp_env on an environment with no storage")
 
 
-def _a_write_lands_whole(tmp: Path):
-    """store 里的写是一次写完整的：写在旁边再改名过去，不留半份、不留下临时文件。
+def _a_store_put_lands_whole(tmp: Path):
+    """store 里的一次存进是整份落完整的：先存在旁边再改名过去，不留半份、不留下临时文件。
 
-    一份 store 可以被几个进程同时读写，所以读的那一方只该看到「还没有」或者「完整的一份」。
+    一份 store 可以被几个进程同时取用和存进，所以取的那一方只该看到「还没有」或者「完整的一份」。
     """
     storage = EnvironmentStorage("root", None, str(tmp / "store"))
     at = "root/case/value.viba"
 
-    storage.write_text(at, "value =\n  1\n")
-    written = sorted(str(one.relative_to(tmp / "store"))
+    storage.put_text(at, "value =\n  1\n")
+    on_disk = sorted(str(one.relative_to(tmp / "store"))
                      for one in (tmp / "store").rglob("*") if one.is_file())
-    check(written == [at], f"one write leaves the one file it wrote: {written!r}")
-    check(storage.read_text(at) == "value =\n  1\n",
-          f"and the text reads back whole: {storage.read_text(at)!r}")
+    check(on_disk == [at], f"one store put leaves the one file behind: {on_disk!r}")
+    check(storage.get_text(at) == "value =\n  1\n",
+          f"and the text comes back whole: {storage.get_text(at)!r}")
 
-    storage.write_text(at, "value =\n  2\n")
-    check(storage.read_text(at) == "value =\n  2\n",
-          f"writing over it replaces the whole text: {storage.read_text(at)!r}")
+    storage.put_text(at, "value =\n  2\n")
+    check(storage.get_text(at) == "value =\n  2\n",
+          f"a second put replaces the whole text: {storage.get_text(at)!r}")
     check(sorted(one.name for one in (tmp / "store" / "root" / "case").iterdir()) ==
           ["value.viba"],
-          f"and leaves no half-written file behind: "
+          f"and leaves no half-saved file behind: "
           f"{sorted(one.name for one in (tmp / 'store' / 'root' / 'case').iterdir())!r}")
 
 

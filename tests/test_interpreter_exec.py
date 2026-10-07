@@ -1,8 +1,8 @@
-"""`exec`：跑写出来的一份代码（`interpret` 那个入口，第一个参数换成代码本身）。
+"""`exec`：跑给出的那份源码（`interpret` 那个入口，第一个参数换成代码本身）。
 
 参数形式和 `interpret` 一样（环境、`get_file`、`list_files`），只是第一份不是文件路径而是模块本身：
-可以是模块文本，也可以是**已经写好的那份 viba 数据**（一个 `VObject`）—— 后者不用再写出来读回去。
-主模块不从文件读，所以它**没有文件、也没有名字** —— `import` 只按环境的搜索路径找（它旁边没有目录），
+可以是模块文本，也可以是**已经是 viba 数据的那一份**（一个 `VObject`）—— 后者不用再序列化成源码、再反序列化回来。
+主模块的来源不是文件，所以它**没有文件、也没有名字** —— `import` 只按环境的搜索路径找（它旁边没有目录），
 `$stack` 最外那一帧的 `$file_path` 是空串，编译不过时那条话说的是 `<viba_code>`
 （`viba-interpreter.md`）。
 
@@ -57,28 +57,28 @@ def run(tmp: Path):
 
 
 def _the_code_runs():
-    """写出来的代码就是主模块：跑出它的 `__impl__`。"""
+    """给出的源码就是主模块：跑出它的 `__impl__`。"""
     host = Host()
     result = exec(ADD, host.environ())
     check(is_ok(result) and value_of(result) == 3,
-          f"the code written out runs: {result!r}")
+          f"the given code runs: {result!r}")
     check(("<viba_code>", "add") in host.calls,
           f"the code module is known by the label it was compiled under: {host.calls}")
 
 
 def _the_entry_points_agree(tmp: Path):
     """同一份文本，走 `exec` 和走一份同名的文件，答案一样。"""
-    written = tmp / "same.viba"
-    written.write_text(ADD)
+    on_disk = tmp / "same.viba"
+    on_disk.write_text(ADD)
     host = Host()
     by_code = exec(ADD, host.environ())
-    by_file = interpret(str(written), host.environ())
+    by_file = interpret(str(on_disk), host.environ())
     check(value_of(by_code) == value_of(by_file) == 3,
           f"the code and a file holding it answer the same: {by_code!r}, {by_file!r}")
 
 
 def _a_node_is_a_module_too():
-    """第一个参数也可以是一个节点：那份数据不用写出来、读回去。
+    """第一个参数也可以是一个节点：那份数据不用序列化成源码、再反序列化回来。
 
     一段代码跑不下去时带回来的 `$call` 就是这种节点（类型 `Any <- $env Env`）：把它交给一次运行，
     这次运行给它一个环境，它就跑了 —— 这正是「把这次调用再做一遍」，中间没有文本。
@@ -91,13 +91,13 @@ def _a_node_is_a_module_too():
     call = stop_node(stopped, "$call")
 
     # 实现还没补上：给环境就是执行它，所以这次运行照样停在同一个名字上，
-    # 而不是像一份写出来的模块那样把这个调用当值交回（那份 `closure.viba` 钉的是后者）。
+    # 而不是像一份源码形式的模块那样把这个调用当值交回（那份 `closure.viba` 钉的是后者）。
     still = exec(call, host.environ())
     check(stop_tag(still) == NOT_IMPLEMENTED_TAG
           and stop_text(still, "$full_qualified_func_name") == "<viba_code>.add",
           f"handed a node, the call is run, not answered as a value: {still!r}")
 
-    host.knobs["missing"] = ()              # 同一个宿主：实现表每次读，这次它有 add 了
+    host.knobs["missing"] = ()              # 同一个宿主：实现表每次取，这次它有 add 了
     again = exec(call, host.environ())
     check(is_ok(again) and value_of(again) == 3,
           f"with the step implemented, the call the error carried runs: {again!r}")
@@ -105,13 +105,13 @@ def _a_node_is_a_module_too():
     # 一份模块树也是如此：同一个模块，文本和节点两条路答案一样。
     tree = viba_ast.parse(ADD)
     # 模块本身在描述那一层没有描述符（`descriptor_of` 不认 `Module`），所以这里那个描述符只是个占位：
-    # `exec` 读的是数据，不是类型。
+    # `exec` 取的是数据，不是类型。
     inert = descriptor_of(AstNodeType(viba_ast.Nil(), custom_module("")))
     by_node = VObject(reflect_access, inert, tree)
     check(value_of(exec(by_node, host.environ())) == value_of(exec(ADD, host.environ())) == 3,
           f"a module tree handed as a node runs like the text it was parsed from")
 
-    # 不是模块树的一份数据就是那个模块的 `__impl__`：读名字仍在这个没有名字的模块里解析。
+    # 不是模块树的一份数据就是那个模块的 `__impl__`：名字仍在这个没有名字的模块里解析。
     check("in module ''" in message_of(
         exec(viba_data(viba_ast.TypeRef("nope")), host.environ())),
         "a node that is no module is that module's `__impl__`, with no name of its own")

@@ -46,18 +46,18 @@ literal : FLOAT | INT | STRING | SINGLE_STRING | TRIPLE_STRING | BOOLEAN
 
 The terminals it names:
 
-| Terminal | Written as |
+| Terminal | In the source |
 |----------|------------|
 | `CLASS_NAME` | `Option`, `GraphModule` — `\w+` (one segment; a `.` is its own token) |
 | `TAGGED_CLASS_NAME` | `$x`, `$meta` — a `$` before a name (one segment) |
-| `DOT` | `.` — reads a member: `a.b`, `$meta.id`, `g[T].value` |
+| `DOT` | `.` — takes a member: `a.b`, `$meta.id`, `g[T].value` |
 | `INT`, `FLOAT` | `42`, `3.14`, `.5` |
 | `STRING`, `SINGLE_STRING` | `"one line"`, `'one line'` — escapes yes, raw newline no |
 | `TRIPLE_STRING` | `'''keeps newlines, spacing and quotes'''` |
 | `BOOLEAN` | `true`, `false` |
 | `NIL` | `nil`, `void`, `None` — one unit, three spellings |
 | `NEVER`, `ANY`, `ELLIPSIS` | `never`, `Any`, `...` |
-| `CODE_BLOCK` | `{ ... }` — text for the host to read; braces nest |
+| `CODE_BLOCK` | `{ ... }` — text the host gets whole; braces nest |
 | `IMPORT`, `AS`, `PATTERN` | `import`, `as`, `pattern` |
 | `ASSIGN` | `=` — a definition |
 | `SUM_OP`, `PROD_OP`, `EXP_OP`, `APPLY_OP` | `\|`, `*`, `<-`, `<<` |
@@ -71,35 +71,35 @@ The terminals it names:
 | Sum | `A \| B` | Either A or B |
 | Product | `A * B` | Both A and B |
 | Exponent | `B <- A` | Function from A to B |
-| Partial | `T << $a A` | Function T with that written argument given: `(B <- $a A) << $a A` is `B`; what is given must fit the slot (`A' <: A`) |
+| Partial | `T << $a A` | Function T with that argument given in the source: `(B <- $a A) << $a A` is `B`; what is given must fit the slot (`A' <: A`) |
 | Generic | `Name[T]` | Parameterized type |
-| Pattern | `Name[T]` | A **generic**: `Name` is a directory of files, one `pattern` line per parameter, and the decision over the written arguments picks one — [`viba-pattern.md`](viba-pattern.md) |
+| Pattern | `Name[T]` | A **generic**: `Name` is a directory of files, one `pattern` line per parameter, and the decision over the arguments as the source has them picks one — [`viba-pattern.md`](viba-pattern.md) |
 | Tag | `$label T` | Named field / variant |
-| Nil | `nil` | Product identity (`A * nil = A`); `void`, `None` and `Object` are aliases — `Object` is the same unit, written at the head of a product laid out as a block |
-| Never | `never` | Sum identity (`A \| never = A`), the bottom: it is a subtype of everything; `Oneof` is the same unit, written at the head of a sum laid out as a block |
+| Nil | `nil` | Product identity (`A * nil = A`); `void`, `None` and `Object` are aliases — `Object` is the same unit, spelled at the head of a product laid out as a block |
+| Never | `never` | Sum identity (`A \| never = A`), the bottom: it is a subtype of everything; `Oneof` is the same unit, spelled at the head of a sum laid out as a block |
 | Any | `Any` | The top: every type is a subtype of it, and only Any (or a type equal to it, e.g. `Any \| int`) is below it |
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
-| Code block | `{ ... }` | Arbitrary text, supports nesting — a note on a type, or the hint a step's implementation is written from |
+| Code block | `{ ... }` | Arbitrary text, supports nesting — a note on a type, or the hint a step's implementation comes from |
 | Import | `import a.b [as c]` | Module reference (top level) |
 
-### Writing a definition
+### Conventions of a definition
 
-Writing one has conventions of its own — every field and argument tagged, a block's head written, a sum written with one branch is no sum, and how the builtin containers are used: [`viba-style.md`](viba-style.md), which
-also says how to check what you wrote.
+Giving one has conventions of its own — every field and argument tagged, a block's head on its first line, a sum with one branch is no sum, and how the builtin containers are used: [`viba-style.md`](viba-style.md), which
+also says how to check what you gave.
 
 ### Evaluation
 
 Viba is **declarative**, not imperative: definitions are **bindings**, not statements, and a file
 is not executed top to bottom. Evaluation is demand-driven — a binding is evaluated when it is
-used, and only once (call-by-need, with memoization) — so written order is not evaluation order, a
-definition may refer to one written after it (a forward reference), one module may not define the
+used, and only once (call-by-need, with memoization) — so the order in the source is not evaluation order, a
+definition may refer to one that stands after it (a forward reference), one module may not define the
 same name twice, and a binding nobody uses is never evaluated. A binding used
 while it is still being evaluated is a cyclic definition, reported rather than left to overflow
 the stack.
 
 That is one half of the strategy; the other half is at the call: arguments are call-by-value, and
-only a function-typed parameter is non-strict — the call written there is handed over with its
+only a function-typed parameter is non-strict — the call in the source there is handed over with its
 environment and evaluated only if the callee asks for it. [`viba-interpreter.md`](viba-interpreter.md)
 states both halves and names the cases that pin them; [`viba-style.md`](viba-style.md) §9 is where
 writing such a parameter belongs.
@@ -108,8 +108,8 @@ writing such a parameter belongs.
 
 A generic is a directory, and one of its files answers. The directory's basename is
 the generic's name, `__generic__.viba` marks it, and every other `.viba` file in it is
-named by its decision order — a number, read smallest first — with the number of parts
-that file reads written in front of it where the file pins one:
+named by its decision order — a number, smallest first — with the number of parts
+that file takes in front of it where the file pins one:
 
 ```
 demo/is_base_type/__generic__.viba      # __generic__.viba
@@ -119,13 +119,13 @@ demo/is_base_type/200.viba              pattern A
                                         value = false
 ```
 
-The count in front of the order (`2_200.viba` reads two parts, order 200) is the bucket the
-decision jumps to: it counts the parts the written arguments offer and reads only the files
+The count in front of the order (`2_200.viba` takes two parts, order 200) is the bucket the
+decision jumps to: it counts the parts the arguments as the source has them offer and takes only the files
 whose count they can match, so a generic of many files costs one file per application
-(`viba-pattern.md` §4.1). A file that writes no count is read every time, the way every
-file was before, and a sum argument — whose parts are the branches it wrote, so the same
+(`viba-pattern.md` §4.1). A file that gives no count is taken every time, the way every
+file was before, and a sum argument — whose parts are the branches it has, so the same
 file answers sums of different branch counts — offers no count either: an application that
-writes a sum reads every file, and no file whose `pattern` line is a sum may write a count.
+gives a sum is taken by every file, and no file whose `pattern` line is a sum may give a count.
 
 ```viba
 import demo.is_base_type as is_base_type
@@ -134,32 +134,32 @@ Flag = is_base_type[bool].value         # true, from 100.viba
 Other = is_base_type[list[int]].value   # false, from 200.viba
 ```
 
-What the decision picks is **that file as a module** (module semantics): the caller reads a
+What the decision picks is **that file as a module** (module semantics): the caller takes a
 member of it by name. A file that is not a function names its answer for what it is —
 `type = A` when it answers a type, `value = true` when it answers a value, the way a C++
 template says `::type` and `::value` — so `ret_type_of[int <- int].type` is `int` and
-`is_base_type[bool].value` is `true`; a generic file writes no `__decl__` unless the file
+`is_base_type[bool].value` is `true`; a generic file gives no `__decl__` unless the file
 itself is a function.
 
-`pattern` writes one line per parameter, in written order. A bare `pattern A` with no
+`pattern` gives one line per parameter, in the order they stand. A bare `pattern A` with no
 restriction takes the object itself; a known type restricts that argument (the argument must
 fit it); a name the file never defines is a parameter, and what stands in the argument there
 is extracted — `pattern list[A]` answers the element type with `type = A`. An object that is
-a module is read as its `__decl__` for a structured pattern (`pattern A <- B`). A member that
-is a function chain **is** the call the chain writes when it stands at a chain head —
+a module counts as its `__decl__` for a structured pattern (`pattern A <- B`). A member that
+is a function chain **is** the call the chain is when it stands at a chain head —
 `call_it[list[int]].type` is the one-argument function `int <- int`, and
 [`demo/wrapper.viba`](tests/data/pattern/demo/wrapper.viba) answers the call it was handed by
 handing that function and its product of arguments to `apply`; when the chosen file also
-writes `__impl__`, the call is the file's own run, in a sub-environment named by its decision
-order, and a name the enclosing decision bound still stands for the argument written at the
+gives `__impl__`, the call is the file's own run, in a sub-environment named by its decision
+order, and a name the enclosing decision bound still stands for the argument that stood at the
 call site.
-An argument may write a call of its own (`g[add << $a 2]`): it is read as the type that
+An argument may be a call of its own (`g[add << $a 2]`): it counts as the type that
 call stands for, the chain left once the argument is given. A decision that finds no
-file is a program error, not `never`. A tag may be written as a symbol string:
+file is a program error, not `never`. A tag may be given as a symbol string:
 `tagged["a", T]` is `$a T`, `tagged["hello"] << persion` is `$hello << persion`,
 and a pattern line may claim the symbol itself — `pattern tagged[name, T]` takes `"a"`
 for `$a int`, so a design builds a tag out of what another one carried. The member a name
-gives as a value is read with `$__getattr__` (`$__getattr__ << args << "name"` is
+gives as a value is taken with `$__getattr__` (`$__getattr__ << args << "name"` is
 `args.name`). The whole rule, the pattern forms and the errors:
 [`viba-pattern.md`](viba-pattern.md).
 
@@ -184,7 +184,7 @@ loosest, then sum, product, exponent — and application and tagging bind tighte
 4. `<-` (exponent) — left-associative
 
 All binary operators are left-associative. `T << X` is not a constructor: it reduces a
-written function on the spot, and giving it every argument leaves you with the result itself.
+function on the spot, and giving it every argument leaves you with the result itself.
 
 ### Examples
 
@@ -209,7 +209,7 @@ Variadic = $a A | $b B | ...
 # Literals
 Config = $mode "fast" * $threads 42 * $ratio 3.14
 
-# Containers: the literals are written on the value side, and an element is read
+# Containers: the literals stand on the value side, and an element is taken
 # by its address — an int for a position, a str for a key
 Items = $items list[int]
 first = items[0]                     # the shorthand of `$__getitem__ << items << 0`
@@ -222,7 +222,7 @@ Handler = {def forward(self, x): return x}
 
 ## Usage
 
-### Reading a type
+### Taking values out of a type
 
 ```python
 from viba import viba_ast
@@ -236,14 +236,14 @@ print(viba_ast.unparse(tree))   # canonical chain-style source
 
 The same file is a module and — when it says so — a function, and those are the only two
 things it is. As a module it is a map of definitions: every top-level definition is a member of
-it, read by name (`foo_module.Bar`, and the same way off a generic application: `g[T].value`,
+it, taken by name (`foo_module.Bar`, and the same way off a generic application: `g[T].value`,
 `g[T].type`). As a function it is a declaration and a body: `__decl__` is the chain that says
 what the module returns and which parameters it takes (the environment among them), `__impl__`
 is what it returns, and a file that declares no `__decl__` is no function at all — calling it
 is a program error. A file with no `__impl__` is a type, not a program, and running it raises
 `VibaProgramErr`. One module may not define the same name twice.
 
-A module that wants arguments declares them in `__decl__` and reads them back with
+A module that wants arguments declares them in `__decl__` and takes them back with
 `args = __get_args__ << __decl__`: as a type that chain's parameters are a product
 type, and as a computation `args` is the data the call was handed. Giving the
 environment is what runs the call, and a call without one is a closure — a value
@@ -280,10 +280,10 @@ half — the logic — is what the caller hands in through `get_func`.
 
 The host provides the environment — where snapshots go (`EnvironmentStorage`,
 by default a temporary directory) and the implementations (`EnvironmentCompute`,
-a `get_func(module_path, func_name)`) — and `interpret` reads a file and runs it.
+a `get_func(module_path, func_name)`) — and `interpret` takes a file and runs it.
 Its signature, as a viba type; the names it uses but does not define are
 `Environment` (the host's) and `VObject` (a piece of viba data, with the
-accessors that read it) — both in
+accessors that take it) — both in
 [`viba-interpreter.md`](viba-interpreter.md):
 
 ```viba
@@ -296,7 +296,7 @@ interpret =
 What it answers is the declared result, as **one node of viba data**: `$ok` carries
 the answer of `__impl__`, `$err` why the run stopped. The declaration —
 `InterpretResult`, `InterpretError` and the fields of each stop — is
-[`viba/interpret_result.viba`](viba/interpret_result.viba), and the answer is read
+[`viba/interpret_result.viba`](viba/interpret_result.viba), and the answer is taken
 and judged against it like any other viba data (`is_interpret_result`, built on
 `is_sub_type`).
 
@@ -318,16 +318,16 @@ answer = interpret("add_demo.viba", environ)
 print(answer)                                     # $ok 1000000
 print(access.leaf(answer.by_tag("$ok")).ok_value) # 1000000 — the number the host answered
 
-ADD_DEMO = open("add_demo.viba").read()   # the same entry, with the module written out
+ADD_DEMO = open("add_demo.viba").read()   # the same entry, with the module given as text
 print(exec(ADD_DEMO, environ))            # the same run, the same piece
 
-# `exec` takes the module as its text or as the viba data that already writes it:
+# `exec` takes the module as its text or as the viba data that already stands for it:
 # data that is no module tree is the run's `__impl__`, and this run gives it the
-# environment — so the `$call` a stop carries runs again, written out nowhere.
+# environment — so the `$call` a stop carries runs again, with nothing serialized out.
 print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
 ```
 
-- An executable function may write `$env Env` as one of its parameters, or write
+- An executable function may give `$env Env` as one of its parameters, or
   none. With none the environment stays out of the call — it is no member, so
   `args.env` is only there when that parameter is — and it is what runs this call
   and is then appended to the call this one answers: `apply << f << args << env`
@@ -342,11 +342,11 @@ print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
   that answers the environment (declared `Any`, answering `args.env`) is refused
   at the end of the run the same way, with the same words: the stop is a
   `$viba_program_err`, and it says `the run answered the environment`.
-- A written argument arrives at the host as an instance — the literal
+- An argument that stood in the source arrives at the host as an instance — the literal
   `999999` lands as a node, whose `.value` is the bare number — while the
   environment arrives as itself.
-- A slot written as a function type — `$get_v (T <- $env Env)` — is the
-  one exception: the host is handed the written call and runs it with an
+- A slot spelled as a function type — `$get_v (T <- $env Env)` — is the
+  one exception: the host is handed the call in the source and runs it with an
   environment it picks, so an argument nobody asks for is never computed and one
   asked for twice is computed once. `builtin.echo << $x v` is the builtin that
   turns a value already worked out into that form: it answers `v` for any
@@ -358,12 +358,12 @@ print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
   qualified name (`builtin.add`, `builtin.lt_f`, `builtin.int_to_str`); the member's own
   name is the same call (`add << $env args.env << $x 3 << $y 4`), and a module's own
   definition of that name wins.
-- The modules and generics of the builtin library are read by name too, after a
+- The modules and generics of the builtin library are taken by name too, after a
   module's own definitions and its imports: `Y << step`, `apply << f << args`,
   `sub_env_run << $sub_env_name "low" << env << f << $a 1`,
   `is_closure[add << $a 1].value` and `sequential << $x (…) << $y (…)` need no
   import, and `builtin.<name>` names the same one. `sequential` runs a chain of
-  steps strictly in the order they are written and answers what the last one
+  steps strictly in the order they stand and answers what the last one
   answers: every step is a call given after a `<<`, every step but the last
   carries a tag (the call runs, and its answer is remembered under that tag), and
   the last argument carries no tag — its answer is the chain's answer. To return
@@ -371,25 +371,25 @@ print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
   answers V): `<< (echo << $x ($var "x"))`. A call's arguments may be variable
   references too (`$a ($var "x")`). `sub_env_run` runs a call at a named child of an environment: the
   call above is `f << ($sub_env << env << "low") << $a 1`. `is_closure` answers
-  whether a written piece is a closure — a call with arguments given and no
-  environment — and `unclosure` reads one apart into `f` (the api the call is of)
-  and `captured` (the product it holds). A pattern written as a call (`pattern
+  whether a piece in the source is a closure — a call with arguments given and no
+  environment — and `unclosure` takes one apart into `f` (the api the call is of)
+  and `captured` (the product it holds). A pattern that is a call (`pattern
   F << A`) matches one, one `<<` per given argument — which is why each of those
   two generics is a directory of 16 files, one per argument count
   (`viba-pattern.md`).
 - `interpret` ships no library of its own: every implementation a run can reach
-  comes from a single `get_func` answer, written from the hints the file carries.
+  comes from a single `get_func` answer, built from the hints the file carries.
 - A host says "this step has no implementation" by answering the failure data —
   `not_implemented()` — where it would have raised it: `get_func` answers it where
   it would answer `None`, and an implementation answers it where it would answer a
-  value. Whatever it wrote is kept (the sentence, a step it knows, the call), and
+  value. Whatever it gave is kept (the sentence, a step it knows, the call), and
   the step and the call the run knows are filled in. A plain Python exception
   still means the implementation broke (`raised:` in the message).
 - What comes back is one node: `$ok (<the answer>)`, or `$err (<why it stopped>)`
   — the declaration is [`viba/interpret_result.viba`](viba/interpret_result.viba),
   and every member is addressable by its tag (`answer.by_tag("$err").by_tag("$not_implemented_err")`).
   The stop is a `$viba_program_err` (`msg`, and `stack` — the calls this run was in,
-  each frame the `.viba` file a call is written in and the line it is on) when the
+  each frame the `.viba` file a call stands in and the line it is on) when the
   program or the environment cannot run at all, one of the two `$underlying_viba_op_err`
   / `$not_implemented_err` tags when a step did not answer, or a
   `$environment_api_invalid_argument_err` when one of the environment's own members —
@@ -399,12 +399,12 @@ print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
   `full_qualified_func_name`, its whole name there — `__dyn_call__ << "demo.add" << $a 1 << $b 2`
   carries the same whole name), the call in
   the form that can be run again (`call`, e.g. `__dyn_call__ << "demo.add" << $a 1 << $b 2`
-  — the name as data, so any module can read it, the environment left out; a call
+  — the name as data, so any module can take it, the environment left out; a call
   that is a member of a value keeps that layer, and a call inside the data is
-  written the same way, e.g. `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`) and
+  spelled the same way, e.g. `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`) and
   one message (`msg`) that opens with the reason (`no implementation`,
   `get_func raised`, `raised`, `no leaf`). Two names a run answers itself,
-  `__dyn_call__` and `__dyn_method__`, are how such a call is written: the name
+  `__dyn_call__` and `__dyn_method__`, are how such a call is given: the name
   travels as data.
   A host that has no implementation for a step says so by answering that data —
   `not_implemented()` — rather than by raising: what a host answers is data, and a
@@ -420,14 +420,14 @@ __impl__ = demo << (args.env.sub_env << args.env << "add_demo")
 ```
 
 A module is called with the environment it should run under, and then with its
-arguments. A parameter written `...` takes the rest of the call's arguments as one
+arguments. A parameter that is `...` takes the rest of the call's arguments as one
 product: `Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0` gives `Y`'s
 `$args ...` the product `$a 7 * $b 0`. `Any` does not pack — `apply`'s `$args Any`
-takes that product as one written argument (`apply << f << ($a 1 * $b 2)`). Giving an
+takes that product as one argument from the source (`apply << f << ($a 1 * $b 2)`). Giving an
 environment is what runs a call, and it is the storage path the call runs at, so a
-caller that is already running in that environment writes a layer of its own. `Y.viba`
-and `y_helper.viba` both write `$env Env`: the caller writes Y's layer, Y writes
-`y_helper`'s, and a step writes the layer of each layer it starts. The name given to
+caller that is already running in that environment gives a layer of its own. `Y.viba`
+and `y_helper.viba` both give `$env Env`: the caller gives Y's layer, Y gives
+`y_helper`'s, and a step gives the layer of each layer it starts. The name given to
 `args.env.sub_env` is the storage path the step is handed as part of its environment, and that path is
 where the call's result is recorded. Three things can happen at one storage path: a
 call already running there is a cycle (`the storage path '...' is already running a
@@ -443,9 +443,9 @@ already used: give each module call a sub-environment of its own (args.env.sub_e
 
 `args.env.sub_env << args.env << "name"` hands back the same child whenever that name is asked
 for, so calling one module twice means choosing two names; `args.env.tmp_env
-<< args.env` (also written `$tmp_env << args.env`) is for the calls that need
+<< args.env` (also spelled `$tmp_env << args.env`) is for the calls that need
 no name, and hands out a fresh child every time. Where an `import` is looked for is the environment's business: next to the
-file that wrote it, then along `Environment`'s `viba_path` (directories, like
+file it came from, then along `Environment`'s `viba_path` (directories, like
 `PYTHONPATH`), and last in the builtin library (`viba/`, where `builtin.viba`
 and the package's own vocabulary lives, and `viba/builtin/`, where the
 `builtin.`-prefixed generics live) — so `Y` reaches the builtin `Y.viba`
@@ -455,7 +455,7 @@ or without an `import`.
 ### Idempotence: answers have to replay
 
 The one thing in an executable function that need not repeat itself is a host
-function — it may read a clock or roll a die. So it, and not viba, keeps the run
+function — it may look at a clock or roll a die. So it, and not viba, keeps the run
 repeatable: it snapshots its answer, and the next run of the same call replays it.
 
 ```python
@@ -466,14 +466,14 @@ def roll(env, n):
     return replayed(env, lambda: random.randint(1, 10 ** 6), f"roll-{n.value}")
 ```
 
-`replayed(env, compute, name)` reads `<cur storage path>/<name>.viba` under the
-store root; finding nothing, it runs `compute()` and writes the answer. Snapshots
-are serialized viba data, not pickle: a person can read them, and the type side
-reads them as instances. Two runs against one store therefore give one value and
+`replayed(env, compute, name)` takes `<cur storage path>/<name>.viba` under the
+store root; finding nothing, it runs `compute()` and keeps the answer. Snapshots
+are serialized viba data, not pickle: a person can look at them, and the type side
+takes them as instances. Two runs against one store therefore give one value and
 walk the impure step once. It is the path that has to be stable: a `tmp_env`
 child is new on every call, so what hangs under it never replays.
 
-The whole chapter — the typed reading of a module, the error list —
+The whole chapter — the typed view of a module, the error list —
 is [`viba-interpreter.md`](viba-interpreter.md).
 
 ## Installation
@@ -494,7 +494,7 @@ Option[T] = $some T | nil
 # Result with error
 Result[T, E] = $ok T | $err E
 
-# Linked list: a block, so the heads are written and every field is named
+# Linked list: a block, so the heads are spelled out and every field is named
 List[T] =
   Oneof
   | Object
@@ -523,11 +523,11 @@ Color = $red int | $green int | $blue int
 | Document | Subject |
 |----------|---------|
 | [`viba_tutorial.md`](viba_tutorial.md) | Learning the language: from one definition to a module that runs |
-| [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, reading an instance |
-| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__decl__` in, `__impl__` out — the executable reading, and the call-by-need evaluation strategy |
-| [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer reads |
+| [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, taking values out of an instance |
+| [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__decl__` in, `__impl__` out — the executable view, and the call-by-need evaluation strategy |
+| [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer takes |
 | [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
-| [`viba-style.md`](viba-style.md) | Writing a definition: tags, heads, containers, and how to check what you wrote |
+| [`viba-style.md`](viba-style.md) | Conventions of a definition: tags, heads, containers, and how to check a definition |
 
 ## Modules
 
@@ -541,17 +541,17 @@ tools built on those.
 | `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) |
 | `pattern.py` | A generic and its directory of patterns: pattern matching, the decision — see `viba-pattern.md` |
 | `viba_type_descriptor.py` | The descriptor side: files, definitions, members, type expressions |
-| `reflect.py` | The reflection protocol: addressing a type, reading an instance |
-| `serialize.py` | Writes an instance back out as viba source |
-| `builder.py` | Writes .viba source from Python expressions — see `viba_builder.md` |
+| `reflect.py` | The reflection protocol: addressing a type, taking values out of an instance |
+| `serialize.py` | Serializes an instance into viba source |
+| `builder.py` | Builds .viba source from Python expressions — see `viba_builder.md` |
 | `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
 | `is_complete.py` | Whether a type can be reflected through |
 | `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …) |
 | `sub_env_run.viba` | The builtin that runs a call at a named child of an environment — `Y.viba` and `apply.viba` sit beside it |
-| `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), each named by the count it reads, and the last step's answer is the answer |
-| `builtin/is_closure/`, `builtin/unclosure/` | The builtin generics over closures, one file per argument count (1..16), each named by the count it reads — whether a written call is one, and reading it apart |
-| `builtin/sequential_step/`, `builtin/sequential_arg/` | How `sequential` runs one step (a call with 1..16 tagged arguments) and one argument (a variable reference, or whatever was written) |
+| `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), each named by the count it takes, and the last step's answer is the answer |
+| `builtin/is_closure/`, `builtin/unclosure/` | The builtin generics over closures, one file per argument count (1..16), each named by the count it takes — whether a call in the source is one, and taking it apart |
+| `builtin/sequential_step/`, `builtin/sequential_arg/` | How `sequential` runs one step (a call with 1..16 tagged arguments) and one argument (a variable reference, or whatever stood there) |
 
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY
 grammar behind `viba_ast.parse`, with a self-test at the bottom that also checks this file

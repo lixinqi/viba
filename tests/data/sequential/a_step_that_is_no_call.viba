@@ -1,4 +1,4 @@
-# a_step_that_is_no_call —— 每一步一步都是一次调用：最后那个参数写成别的（这里是个数字）不行
+# a_step_that_is_no_call —— 每一步一步都是一次调用：最后那个参数落成别的（这里是个数字）不行
 add =
     int
   <- $env Env

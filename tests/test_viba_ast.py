@@ -4,7 +4,7 @@
 `python -m viba.viba_ast` 的自测在跑，没有进套件。这里把它压一遍：
 
 - 语料就是 `viba/parser.py` 里那份正例表（135 条）：每条都 parse 一遍，
-  写到不动点，链式规范化再还原回来还是同一份源码；
+  再序列化成源码直到不动点，链式规范化再还原回来还是同一份源码；
 - 遍历与访问器：BFS 次序、`visit_<Class>` 分派、替换、删除、坏返回值；
 - 链式规范化：分组不丢（`A * (B * C)` 与 `A * B * C` 不同形）、空链的
   单位元、反向重建；
@@ -122,13 +122,13 @@ def run_module_cases():
     check("canonical answers chains", isinstance(chained.body[0].body, SumChain))
     same("canonical leaves the original alone", type(plain.body[0].body).__name__, "Sum")
 
-    # unparse: 写出规范源码（不带结尾换行）；空 Module 写出空串
+    # unparse: 序列化成规范源码（不带结尾换行）；空 Module 序列化成空串
     same("unparse of an empty module", unparse(parse("")), "")
-    same("unparse writes canonical chains",
+    same("unparse gives canonical chains",
          unparse(parse("X = A | B | C")), "X =\n  A\n  | B\n  | C")
     same("unparse of an import", unparse(parse("import a.b as c")), "import a.b as c")
 
-    # pattern: 一条语句，写一个形参收什么（viba-pattern.md）
+    # pattern: 一条语句，声明一个形参收什么（viba-pattern.md）
     parsed_pattern = parse("pattern bool | int\n__decl__ = true\n")
     check("a pattern statement is its own node",
           isinstance(parsed_pattern.body[0], Pattern)
@@ -202,7 +202,7 @@ def viba_code(text: str):
 
 
 def run_corpus_cases():
-    """正例表：每条都 parse、写到不动点、链式规范化再还原。"""
+    """正例表：每条都 parse、再序列化成源码直到不动点、链式规范化再还原。"""
     cases = _parser_cases()
     check(f"the positive table has cases ({len(cases)})", len(cases) > 100)
 
@@ -214,7 +214,7 @@ def run_corpus_cases():
                 broken.append(source)
         except Exception as exc:               # noqa: BLE001 - report, do not stop
             broken.append(f"{source!r}: {type(exc).__name__}: {exc}")
-    check(f"every case writes to a fixed point ({broken[:3]})", not broken)
+    check(f"every case reaches a fixed point ({broken[:3]})", not broken)
 
     mismatched = []
     for source in cases:
@@ -222,7 +222,7 @@ def run_corpus_cases():
         back = Module([convert_from_chain_style(d) for d in chained.body])
         if unparse(back) != unparse(chained):
             mismatched.append(source)
-    check(f"chain style and back write the same source ({mismatched[:3]})", not mismatched)
+    check(f"chain style and back give the same source ({mismatched[:3]})", not mismatched)
 
 
 # ----------------------------------------------------------------------
@@ -354,7 +354,7 @@ def run_chain_cases():
         return convert_to_chain_style(body_of(source))
 
     flattened = chain("X = A * B * C")
-    check("a written run is one chain", isinstance(flattened, ProductChain))
+    check("a run in the source is one chain", isinstance(flattened, ProductChain))
     same("with its elements in order",
          [type(e).__name__ for e in flattened.elements],
          ["TypeRef", "TypeRef", "TypeRef"])
@@ -368,7 +368,7 @@ def run_chain_cases():
     check("sum runs chain too", isinstance(sums, SumChain))
 
     exponents = chain("X = A <- B <- C")
-    check("exponent runs chain in written order", isinstance(exponents, ExponentChain))
+    check("exponent runs chain in source order", isinstance(exponents, ExponentChain))
     same("result first, then the arguments",
          [type(e).__name__ for e in exponents.elements],
          ["TypeRef", "TypeRef", "TypeRef"])
@@ -414,7 +414,7 @@ def run_chain_cases():
     three = convert_from_chain_style(SumChain([TypeRef("A"), TypeRef("B"), TypeRef("C")]))
     check("three elements nest to the left",
           isinstance(three, Sum) and isinstance(three.left, Sum))
-    check("and the order is the written one",
+    check("and the order is the one in the source",
           isinstance(three.left.left, TypeRef) and three.left.left.name == "A"
           and three.right.name == "C")
     exponent = convert_from_chain_style(ExponentChain([TypeRef("A"), TypeRef("B")]))

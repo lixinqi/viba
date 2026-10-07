@@ -1,4 +1,4 @@
-# 收下的那份积写着 tag，就带着 tag 交回来。
+# 收下的那份积带着 tag，交回来时也带着 tag。
 add =
     int
   <- $env Env

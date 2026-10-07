@@ -23,12 +23,12 @@ check = checks.check
 # (用例文件, 该给出多少)
 # `run_first` 那一份把环境给在第一位：给在哪一位都一样；`direct`、`apply_once`、
 # `apply_twice`、`apply_thrice` 是一个函数被 `apply` 套 0 层到 3 层，环境一层层往后缀；
-# `by_tag` 的积故意写成 ($b 2 * $a 1)，给出 12 才说明成员是按 tag 落位的（按位置会给 21）。
+# `by_tag` 的积源码里是 ($b 2 * $a 1)，给出 12 才说明成员是按 tag 落位的（按位置会给 21）。
 ANSWERS = [("run", 3), ("run_first", 3), ("run_three", 6),
            ("direct", 3), ("apply_once", 3), ("apply_twice", 3), ("apply_thrice", 3),
            ("by_tag", 12), ("capture", 3)]
 
-# (用例文件, 话里的片段)：`apply` 的 `$args Any` 要一份写好的积，接着写两条 `<<` 是"多给"。
+# (用例文件, 话里的片段)：`apply` 的 `$args Any` 要一份已经给出的积，接着给两条 `<<` 是"多给"。
 RECORDED = [("links_not_a_product", "takes no $b argument")]
 
 
@@ -58,7 +58,7 @@ def run(tmp: Path):
 
 
 def impl_files():
-    """`apply_impl` 的每一支：名字上写着这一份读几个成员，`pattern` 就摆几个，`$__getattr__` 就给几个。
+    """`apply_impl` 的每一支：名字上给出这一份取几个成员，`pattern` 就摆几个，`$__getattr__` 就给几个。
 
     这些文件是同一份东西按个数摆开的，没有 4 个以上实参的用例会选到它们，所以这里
     直接数一遍：名字上的份数、`pattern` 的成员数、`$__getattr__` 的个数三者一致。
@@ -69,7 +69,7 @@ def impl_files():
         members = text.count("tagged[")
         given = text.count("$__getattr__")
         check(members == count and given == count,
-              f"apply_impl/{name}: 名字上写着 {count} 个实参，"
+              f"apply_impl/{name}: 名字上给出 {count} 个实参，"
               f"pattern 了 {members} 个成员，给了 {given} 个实参")
 
 

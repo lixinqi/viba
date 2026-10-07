@@ -1,7 +1,7 @@
 """branch 的开关 + 独立文件里的那些调用 + 部分计算：边角案例。
 
-每条用例是一份可以打开的文件（`tests/data/branch_switch/*.viba`）。它自己只写 `__impl__` 那一条链：
-分支值总是别的文件里写下的一次调用（`kinds.answer_text`、`pick.half`、`inner.inner_if`），条件、值、
+每条用例是一份可以打开的文件（`tests/data/branch_switch/*.viba`）。它自己只给出 `__impl__` 那一条链：
+分支值总是别的文件里给出的一次调用（`kinds.answer_text`、`pick.half`、`inner.inner_if`），条件、值、
 开关的实现分别落在各自的文件里。开关本身是 `branch.viba` 里的那一步，由 `branch.py` 实现。
 
     python3 tests/test_interpreter_branch_switch.py
@@ -60,11 +60,11 @@ def host_for(calls):
         if func_name in ("only_if_not", "inner_if_not"):
             return branch.get_func(module_path, "never_or_echo")
         if func_name in ("if_true", "if_false"):
-            # 条件写死在那份文件里：这两个只有环境和那个实参
-            written = func_name == "if_true"
+            # 条件固定在那份文件里：这两个只有环境和那个实参
+            is_true_branch = func_name == "if_true"
             switch = branch.get_func(module_path, "echo_or_never")
             return lambda env, get_v: switch(
-                env, viba_data(viba_ast.Constant(written)), get_v)
+                env, viba_data(viba_ast.Constant(is_true_branch)), get_v)
         if func_name == "boolean_switch":
             return branch.get_func(module_path, "echo_or_never")
         if func_name == "always_nine":
@@ -150,7 +150,7 @@ CASES_TO_RUN = [
     ("asked_twice_counts_once", "value", 2, ['tick']),
     ("both_counters_only_one_runs", "value", 1, ['tick']),
     ("both_sides_are_poison_and_untaken", "value", 42, []),
-    ("both_sides_read_a_file", "value", 7, []),
+    ("both_sides_take_a_file", "value", 7, []),
     ("closure_of_a_switch", "value", 6, []),
     ("closure_of_a_switch_dropped", "value", 6, []),
     ("condition_counted_once_per_branch", "value", 1, ['tick']),
@@ -242,7 +242,7 @@ CASES_TO_RUN = [
     ("value_is_a_plain_number", "value", 7, []),
     ("value_is_another_files_switch", "value", 9, []),
     ("value_is_never", "value", 0, []),
-    ("value_reads_the_condition_file", "value", True, []),
+    ("value_takes_the_condition_file", "value", True, []),
 ]
 
 

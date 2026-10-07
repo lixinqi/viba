@@ -1,4 +1,4 @@
-# three_steps —— 三步一条链：x 给 y 用，y 与 x 给最后一步用（最后一步不写 tag）
+# three_steps —— 三步一条链：x 给 y 用，y 与 x 给最后一步用（最后一步不带 tag）
 add =
     int
   <- $env Env

@@ -68,7 +68,7 @@ NAME_CASES = [
 
 
 def _names(tmp: Path):
-    """名字解析：设计模块、没写 as 的 import、本地定义压过别名、import 写在最后。"""
+    """名字解析：设计模块、没带 as 的 import、本地定义压过别名、import 放在最后。"""
     host = Host()
     environ = host.environ()
 
@@ -78,7 +78,7 @@ def _names(tmp: Path):
     labelled(interpret(_case("wrong_arg"), environ), "needs an Environment",
              "a module called without an Environment -> $viba_program_err")
 
-    # import 没写 as：绑定的就是模块全名
+    # import 没带 as：绑定的就是模块全名
     result = interpret(_case("plain_user"), environ)
     check(is_ok(result) and value_of(result) == 7,
           f"an import without as binds its whole name: {result!r}")
@@ -88,10 +88,10 @@ def _names(tmp: Path):
     check(is_ok(result) and value_of(result) == 5,
           f"a local definition shadows an import alias: {result!r}")
 
-    # import 写在定义之后也算
+    # import 放在定义之后也算
     result = interpret(_case("late_import"), environ)
     check(is_ok(result) and value_of(result) == 7,
-          f"an import written at the end of the file: {result!r}")
+          f"an import at the end of the file: {result!r}")
 
     labelled(interpret(_case("missing_import"), environ), "not found",
              "an import that names no file -> $viba_program_err")
@@ -177,7 +177,7 @@ def _virtual_files(tmp: Path):
     """get_file：源从宿主手里来，一个字节都不碰文件系统。
 
     `get_file` 交回来的那一份也是磁盘上的文件（`tests/data/imports/vfs/`），
-    只是路径换成虚拟的 `/vfs/...`，所以这里没有写在 Python 里的 viba 源。
+    只是路径换成虚拟的 `/vfs/...`，所以这里没有放在 Python 里的 viba 源。
     """
     host = Host()
     environ = host.environ()
@@ -198,7 +198,7 @@ def _virtual_files(tmp: Path):
     check("/vfs/pkg/inner.viba" in asked,
           f"the hook is asked for the module next to the importer: {asked}")
     check(all(isinstance(path, str) for path in asked),
-          f"every path the hook sees is written as a string: {asked}")
+          f"every path the hook sees comes as a string: {asked}")
     check(not Path("/vfs/main.viba").exists(),
           "the paths the hook serves are not on this filesystem")
 
@@ -253,7 +253,7 @@ def _virtual_files(tmp: Path):
     labelled(interpret("/vfs/nowhere.viba", environ, get_file=get_file), "no such file",
              "a main file the hook does not serve -> no such file")
 
-    # hook 在场时不用文件系统：磁盘上那份按虚拟路径给的内容读
+    # hook 在场时不用文件系统：取的是磁盘上那份按虚拟路径给出的内容
     real = str(MODULES / "relative_main.viba")
     served = dict(files)
     served[real] = _text_of(MODULES / "two" / "lib.viba")
@@ -268,7 +268,7 @@ def _virtual_files(tmp: Path):
 def _refuses(tmp: Path):
     """`interpret` 自己拒绝时的那一支：`$viba_program_err`，话一字不差。
 
-    它不为这些参数抛异常，答案就是这一支值。四条都在读文件之前就定下来：用的主文件根本不存在，
+    它不为这些参数抛异常，答案就是这一支值。四条都在取文件之前就定下来：用的主文件根本不存在，
     所以拿到的只要不是 `no such file`，顺序就对了（环境、viba_path、get_file、list_files）。
     """
     host = Host()
@@ -309,12 +309,12 @@ def _bad_sources(tmp: Path):
           and "illegal character" in message_of(result),
           f"a character with no token of its own -> $viba_program_err: {result!r}")
 
-    # CRLF 只是行尾：写得跟 LF 一样读
+    # CRLF 只是行尾：解析结果跟 LF 一样
     result = interpret(_case("crlf"), environ)
     check(is_ok(result) and value_of(result) == 7,
-          f"a module written with CRLF line endings: {result!r}")
+          f"a module given with CRLF line endings: {result!r}")
 
-    labelled(interpret(str(MODULES), environ), "cannot read",
+    labelled(interpret(str(MODULES), environ), "cannot take",
              "the main path is a directory -> $viba_program_err")
     labelled(interpret(_case("gone"), environ), "no such file",
              "no such file -> $viba_program_err")

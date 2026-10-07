@@ -1,35 +1,35 @@
 """viba.check_tag_and_inline — a design's tags, and the chains that spread them.
 
 check_tag_and_inline(design, config) -> Result[None]. Ok(None) when every
-product the design writes has all its tags different once the inline chains are
+product in the design has all its tags different once the inline chains are
 spread, and every inline chain ends; VibaProgramErr names the first mistake.
 
     from viba.check_tag_and_inline import check_tag_and_inline
     check_tag_and_inline(pool)       # -> Ok(None), or VibaProgramErr(the first mistake)
 
 A product's untagged members are inline slots (viba-reflect.md section 4): the
-members of the definition written there spread into the product that names it.
+members of the definition that stands there spread into the product that names it.
 Two writing mistakes only become visible after that spreading, and both are
 properties of the design alone — no viba_data is involved:
 
 - the same tag twice in one product, inlined members counted: a base's `$x`
-  next to a written `$x`, or one base inlined twice;
+  next to a `$x` in the source, or one base inlined twice;
 - an inline chain that comes back to a definition it is already spreading
-  (`A = A * $x int`), which has no expansion to read at all.
+  (`A = A * $x int`), which has no expansion to take at all.
 
 Both are VibaProgramErr here, before anything judges the design, so the answer does not
 depend on what the design is later compared with. `is_sub_type` and `serialize`
 refuse them too, but only where their walk happens to reach them: a product
-nested in a tagged body or in a container element is read only when the
+nested in a tagged body or in a container element is taken only when the
 comparison descends into it. This check walks the design once, from every
-definition, and reads every product it can reach.
+definition, and takes every product it can reach.
 
-A tag written twice at one level never gets this far: compiling the file already
+A tag that appears twice at one level never gets this far: compiling the file already
 refuses it (`PoolAddFile` answers `duplicate member`). What is left for the
-inline reading is a tag that only repeats once a base has been spread, and a
+inline taking is a tag that only repeats once a base has been spread, and a
 chain that never stops unfolding.
 
-The map does the reading (viba.reflect): a product's members come from
+The map does the taking (viba.reflect): a product's members come from
 ``VibaAccess.members_of`` and its chain from ``VibaAccess.inline_cycle``, and
 the accessor is built here from a config, so a caller never holds one. The
 default is the language's own config (``reflect.language_config``); a caller
@@ -57,13 +57,12 @@ __all__ = ["check_tag_and_inline"]
 
 def check_tag_and_inline(design: VibaPool,
                          config: Config = language_config) -> Result:
-    """Result[None]: Ok(None) when every product this design writes has all its
-    tags different once the inline chains are spread, and every inline chain
-    ends; VibaProgramErr names the first mistake, in the order the definitions are
-    written.
+    """Result[None]: Ok(None) when every product in this design has all its tags
+    different once the inline chains are spread, and every inline chain ends;
+    VibaProgramErr names the first mistake, in the order the definitions stand.
 
-    ``config`` says which written names stand for the units (VibaReflectConfig);
-    the accessor that reads the design is built from it here, so a caller never
+    ``config`` says which names in the source stand for the units (VibaReflectConfig);
+    the accessor that takes the design is built from it here, so a caller never
     holds one.
     """
     try:
@@ -86,12 +85,12 @@ class _Checker:
                 self._check(definition.body)
 
     def _check(self, descriptor, frame=None):
-        """Look at this piece, and at everything written under it.
+        """Look at this piece, and at everything under it.
 
-        ``frame`` is the application this piece is written under, if any: a
+        ``frame`` is the application this piece stands under, if any: a
         generic's body node is one node, but `Box[int]` and `Box[Pair]` ask two
-        different questions of it, so the body is read once per instantiation —
-        and once more as written, when the definition itself is walked.
+        different questions of it, so the body is taken once per instantiation —
+        and once more as it stands, when the definition itself is walked.
         """
         key = self._key(descriptor, frame)
         if key is not None:
@@ -108,8 +107,8 @@ class _Checker:
         self._dispatch(unfolded, frame)
 
     def _check_application(self, descriptor, frame):
-        """An application: its arguments as written, then the body they make,
-        read under this application — that is what tells the instantiations
+        """An application: its arguments as they stand, then the body they make,
+        taken under this application — that is what tells the instantiations
         apart."""
         for argument in descriptor.payload.args:
             self._check(argument, frame)
@@ -142,13 +141,13 @@ class _Checker:
             if tag is not None:
                 if tag in tags:
                     raise DuplicateTagError(
-                        f"the tag {tag} is written twice in one product")
+                        f"the tag {tag} appears twice in one product")
                 tags.add(tag)
             self._check(member, frame)
 
     def _key(self, descriptor, frame):
-        """What makes this piece the same question: the node it was written as,
-        the nodes its arguments were written as (for an application), and the
+        """What makes this piece the same question: the node it stands as,
+        the nodes its arguments stand as (for an application), and the
         application it sits under. `Box[int]` and `Box[Pair]` differ in the
         second; a definition's own body and an instantiation of it differ in
         the third.
@@ -157,7 +156,7 @@ class _Checker:
         $head int * $tail Chain` (recursion through a tag), `Tree[T] = $leaf T
         * $kids list[Tree[T]]` (a generic that asks for itself) and the
         divergent `W[T] = W[list[T]]` all come round to a piece already looked
-        at, and that piece has one answer. A descriptor with no written node (a
+        at, and that piece has one answer. A descriptor with no node in the source (a
         bare unit or zero) has no key and nothing under it to walk.
         """
         node = self._node_id(descriptor)

@@ -121,9 +121,9 @@ def run_data_cases():
         check_result(is_sub_type(rt_sup, sup_e), True, f"case {num} sup roundtrip")
 
 
-# 语料里本来就写错的：重标签（sub071 写在同层、sub112 摊进来、sup113 写在同层）
+# 语料里本来就错的：重标签（sub071 的标签在源码里同层、sub112 摊进来、sup113 的标签在源码里同层）
 # 与内联成环（sub117、sub120-sub123、sub125）。语料按"对/错"标的是子类型判定，
-# 不是写法；这两边恰好一致，所以能拿它当设计的审查。
+# 不是源码形式；这两边恰好一致，所以能拿它当设计的审查。
 MALFORMED_CORPUS = {"sub071", "sub112", "sup113", "sub117",
                     "sub120", "sub121", "sub122", "sub123", "sub125"}
 
@@ -142,7 +142,7 @@ def run_design_review():
             reviewed = f"does not parse: {parsed.msg}"
         else:
             built = pool_add_file(pool, parsed.ok_value)
-            # 连池子都建不起来（写在同一层的重标签）也是这一遍的事
+            # 连池子都建不起来（源码里同层的重标签）也是这一遍的事
             reviewed = built if not isinstance(built, Ok) else check_tag_and_inline(built.ok_value)
         want_clean = path.stem not in MALFORMED_CORPUS
         if isinstance(reviewed, Ok) is not want_clean:
@@ -465,7 +465,7 @@ Pair[K, V] = $key K * $value V
 def run_inline_member_cases():
     """An untagged product member is an inline slot: a product hands its own
     members over (recursively), the product unit disappears, and the same tag
-    twice — inlined or written — is malformed input."""
+    twice — inlined or in the source — is malformed input."""
     module = custom_module("""
 A = $x int * $y str
 B = A * $z bool
@@ -548,11 +548,11 @@ TwoParams = First[int] * Second[str] * $z bool
     check_result(judge("TwoParams", "$f int * $s str * $z bool"), True,
                  "two inlined generics do not share a parameter name")
     check_result(judge("TwoParams", "$f str * $s int * $z bool"), False,
-                 "each member keeps the binding it was written under")
+                 "each member keeps the binding it had in the source")
     check_result(judge("Dup", "$x int"), "error",
                  "the same tag twice through an inline -> VibaProgramErr")
     check_result(judge("$a int * $a str", "$a int"), "error",
-                 "written twice at one level -> VibaProgramErr")
+                 "a tag twice at one level -> VibaProgramErr")
     dup = is_sub_type(entry_type("Dup", module), entry_type("$x int", module))
     check(isinstance(dup, VibaProgramErr) and "$x" in dup.msg, True,
           "the VibaProgramErr names the tag that repeats")
@@ -640,7 +640,7 @@ def run_cross_module_inline_cases():
 
 
 def run_module_as_function_cases():
-    """模块当函数（类型层）：import 绑定的名字读成 `__decl__` 去掉环境那一格，
+    """模块当函数（类型层）：import 绑定的名字判成 `__decl__` 去掉环境那一格，
     `module.Name` 照旧是那个模块里的定义，没有 `__impl__` 的模块不是程序。"""
     names = ("program", "design_only", "caller", "env_answer",
              "env_answer_function")
@@ -663,11 +663,11 @@ def run_module_as_function_cases():
         return is_sub_type(entry_type(sub, caller), entry_type(sup, caller))
 
     check_result(judge("Program", "int"), True,
-                 "a bare import name reads as the module's __impl__")
+                 "a bare import name counts as the module's __impl__")
     check_result(judge("int", "Program"), True,
                  "and the two are the same type the other way round")
     check_result(judge("program << $env args.env", "int"), True,
-                 "written inline too")
+                 "given inline too")
     check_result(judge("program << $env args.env", "int"), True,
                  "a module that declares no parameter is run by its environment alone")
     check_result(judge("Half", "int <- $b int"), True,
@@ -679,7 +679,7 @@ def run_module_as_function_cases():
     check_result(judge("design_only.Only", "$x int"), True,
                  "and its own definitions still resolve")
 
-    # 环境不是结果：模块当函数读时、模块里的函数当函数读时，都当场拒绝
+    # 环境不是结果：把模块当函数判时、把模块里的函数当函数判时，都当场拒绝
     check_result(judge("env_answer << $env args.env", "int"), "error",
                  "a module answering the environment is refused as a function")
     check_result(judge("EnvAnswer", "Env"), "error",
@@ -704,11 +704,11 @@ def run_module_as_function_cases():
     check_result(judge("args.env.convert_sub_to_sibling << args.env << 7", "Env"), "error",
                  "the sub has to be an environment")
     check_result(judge("args.env.uncompress_relative_path", "(str | nil)"), True,
-                 "uncompress_relative_path is read as the string or nil it is declared to be")
+                 "uncompress_relative_path counts as the string or nil it is declared to be")
     check_result(judge("args.env.uncompress_relative_path", "str"), False,
                  "and it is no plain string: it may be nil")
 
-    # 记录，不是目标：`Environment` 的成员里，形参写成 `(A | nil)` 的那个和给不进一个环境
+    # 记录，不是目标：`Environment` 的成员里，形参在源码里是 `(A | nil)` 的那个和给不进一个环境
     # （普通函数链上的同一个和给得进；值层那一侧正常，见 tests/test_interpreter_env_paths.py）
     check_result(judge("args.env.get_root << args.env", "Env"), False,
                  "recorded: an environment does not fit a sum-typed member parameter yet")
@@ -744,7 +744,7 @@ def run_module_args_cases():
     check_result(judge("ByTag", "int"), True,
                  "given by tag, in any order")
     check_result(judge("program << $env args.env << 3 << 4", "int"), True,
-                 "given positionally, written inline")
+                 "given positionally, inline in the source")
     check_result(judge("Half", "int <- $b int"), True,
                  "given up to the last member: what is left is a function")
     check_result(judge("Half", "int"), False,
@@ -752,13 +752,13 @@ def run_module_args_cases():
     check_result(judge("NoArgs", "int"), True,
                  "a module that declares no parameter is run by its environment alone")
     check_result(judge("empty << $env args.env", "int"), True,
-                 "written inline too, and nothing else is given")
+                 "inline in the source too, and nothing else is given")
     check_result(judge("program << $env args.env << 3 << 4 << $c 5", "never"), "error",
                  "an argument the module does not have -> VibaProgramErr")
     check_result(judge("Bad", "never"), "error",
                  "a __decl__ that is no function chain -> VibaProgramErr")
 
-    # `__get_args__ << __decl__` reads as a product type: the members are `__decl__`'s parameters
+    # `__get_args__ << __decl__` counts as a product type: the members are `__decl__`'s parameters
     program = built["program"]
 
     def judge_in_program(sub, sup):
@@ -775,7 +775,7 @@ def run_module_args_cases():
 
 
 def run_function_chain_cases():
-    """函数之间比函数：结果协变、参数逆变，按书写顺序逐位比（$arg0 对 $arg0）。
+    """函数之间比函数：结果协变、参数逆变，按源码顺序逐位比（$arg0 对 $arg0）。
     先把 sub 弄到 sup 的长度（sup 不动）：sub 短了补 never，长了截掉；弄齐再逐位比。
     除 never 外，非函数一律 False。"""
     module = custom_module("")
@@ -864,8 +864,8 @@ def run_function_chain_cases():
 
 
 def run_config_cases():
-    """config：哪些写下来的名字算单位元，裸名与应用同名同权。调用方把说明块
-    `Assert[{...}]` 说成单位，判定就该当单位读，而不是去解析那个名字。"""
+    """config：源码里哪些名字算单位元，裸名与应用同名同权。调用方把说明块
+    `Assert[{...}]` 说成单位，判定就该判成单位，而不是去解析那个名字。"""
     module = custom_module("""
 Result[T] = Oneof | $ok T | $err str
 JsonLike =
@@ -880,7 +880,7 @@ JsonLike =
   | dict[str, JsonLike]
 Interface = Result[JsonLike] <- never
 Point = ($x int * $y int)
-Read = Result[int] <- Point <- Point
+Metric = Result[int] <- Point <- Point
 Anchor = Object * $__anchor_yanatuttn__ nil  # yanatuttn = you_are_not_allowed_to_use_this_tag_name
 Boxed[CoreFunc] =
     Anchor
@@ -894,14 +894,14 @@ Boxed[CoreFunc] =
     def judge(sub, sup, given=config):
         return is_sub_type(entry_type(sub, module), entry_type(sup, module), config=given)
 
-    check_result(judge("Boxed[Read]", "Boxed[Read]"), True,
+    check_result(judge("Boxed[Metric]", "Boxed[Metric]"), True,
                  "with the config the Assert block is a unit, so the metric compares")
-    check_result(judge("Boxed[Read]", "Boxed[Read]", given=None), "error",
+    check_result(judge("Boxed[Metric]", "Boxed[Metric]", given=None), "error",
                  "without it the block is a name nothing defines, and the judgment Errs")
     check_result(judge("Assert[{x}]", "nil"), True,
                  "an applied unit name is the unit")
     check_result(judge("nil", "Hint[{y}]"), True,
-                 "and the same read backwards")
+                 "and the same judgment holds backwards")
     check_result(judge("Object * Assert[{x}] * $a int", "$a int"), True,
                  "an untagged unit member is no member")
     check_result(judge("Result[int] <- Point <- m.Hint[$python_code {x}]",
@@ -909,29 +909,29 @@ Boxed[CoreFunc] =
                  "a unit named through an import counts as the unit")
     check_result(judge("Object * m.Assert[{x}] * $a int", "$a int"), True,
                  "the same for an inline member")
-    check_result(judge("Read", "Interface"), True,
+    check_result(judge("Metric", "Interface"), True,
                  "the declared interface holds")
-    check_result(judge("Read", "Interface", given=None), True,
+    check_result(judge("Metric", "Interface", given=None), True,
                  "and it needs no config to hold")
     check_result(judge("Result[int] <- Point <- Assert[{x}]", "Result[int] <- Point"), True,
                  "documentation carries no position: a block handed to a unit name drops")
     check_result(judge("Result[int] <- {说明} <- Point", "Result[int] <- Point"), True,
                  "and a bare block drops on its own")
     check_result(judge("Result[int] <- Hint <- Point", "Result[int] <- Point"), False,
-                 "a unit written as a plain name is a real argument")
+                 "a unit given as a plain name is a real argument")
     check_result(judge("Result[int] <- Point <- Hint[$python_code {def metric_func(): ...}]",
                        "Result[int] <- Point"), True,
                  "a block behind a tag is documentation too")
     check_result(judge("Result[int] <- Point",
                        "Result[int] <- Point <- Hint[$python_code {def metric_func(): ...}]"),
-                 True, "and the same read backwards")
+                 True, "and the same judgment holds backwards")
     check_result(judge("Result[int] <- Point",
                        "Result[int] <- Point <- Hint[str]"), False,
                  "but an applied unit with no block in it keeps its slot")
     check_result(judge("Result[int] <- Point", "Result[int] <- Point <- Assert[{x}]"), True,
-                 "and the same read backwards")
+                 "and the same judgment holds backwards")
     check_result(judge("Result[int] <- Assert[{x}] <- Point", "Result[int] <- Point"), True,
-                 "written in the middle: dropping it leaves the argument order alone")
+                 "given in the middle: dropping it leaves the argument order alone")
     check_result(judge("Result[int] <- $a Point <- Hint[{y}]", "Result[int] <- $a Point"), True,
                  "a tagged unit argument drops too")
     check_result(judge("Result[int] <- Hint[{y}]", "Result[int] <- Assert[{x}]"), True,
@@ -947,7 +947,7 @@ Boxed[CoreFunc] =
     check_result(judge("Result[int] <- Object <- Point", "Result[int] <- Point"), False,
                  "Object is that nil: a plain unit name is no documentation")
     check_result(judge("Result[int] <- Oneof <- Point", "Result[int] <- Point"), False,
-                 "never is not nil: it keeps the position it was written in")
+                 "never is not nil: it keeps the position it had in the source")
     check_result(judge("Result[int] <- Point", "Result[int] <- Point <- Assert[{x}]",
                        given=None), "error",
                  "without the config nothing is named, so nothing drops")
@@ -987,9 +987,9 @@ Loop = Loop
     check_result(judge("GivenAllOther", "A"), True,
                  "in any order")
     check_result(judge("Named", "A"), True,
-                 "the function may be written as a name")
+                 "the function may be given as a name")
     check_result(judge("(A <- $b B <- $c C) << $b B", "A <- $c C"), True,
-                 "written inline, no definition needed")
+                 "given inline, no definition needed")
     check_result(judge("$x ((A <- $b B) << $b B)", "$x A"), True,
                  "a member of a product is reduced too")
     check_result(judge("(A <- $b B) << $c C", "never"), "error",
@@ -1001,9 +1001,9 @@ Loop = Loop
     check_result(judge("Narrow", "A"), "error",
                  "giving Num to an Int slot is refused (Num <: Int does not hold)")
     check_result(judge("(A <- B) << B", "A"), True,
-                 "an argument written without a tag matches the slot written the same way")
+                 "an argument given without a tag matches the slot given the same way")
     check_result(judge("(A <- B) << C", "A"), "error",
-                 "and one written differently finds no slot -> VibaProgramErr")
+                 "and one given differently finds no slot -> VibaProgramErr")
     check_result(judge("Nope << $b B", "never"), "error",
                  "a function name that resolves to nothing -> VibaProgramErr")
     check_result(judge("Loop << $b B", "never"), "error",
@@ -1056,7 +1056,7 @@ P = int
     check_result(judge("$a (never <- P)", "not[$a P]"), False,
                  "a product is not that exponent")
     check_result(judge("never <- $not_operand P", "never <- $not_operand P"), True,
-                 "written as an exponent: reflexivity holds")
+                 "given as an exponent: reflexivity holds")
     check_result(judge("never <- $not_operand (P | str)", "never <- $not_operand P"), True,
                  "the argument is contravariant: a wider one is accepted")
     check_result(judge("never <- $not_operand P", "never <- $not_operand (P | str)"), False,
@@ -1203,10 +1203,10 @@ def run_member_head_cases():
                  False, "and not an int")
     check_result(is_sub_type(load_entry(env + 'X = $tmp_env << E\n'),
                              load_entry("X = Environment\n")),
-                 True, "a member that takes no argument is read as its result")
+                 True, "a member that takes no argument counts as its result")
     check_result(is_sub_type(load_entry(env + 'X = $sub_env << $env E << $sub_env_name "c"\n'),
                              load_entry("X = Environment\n")),
-                 True, "the first argument may be written by tag")
+                 True, "the first argument may be given by tag")
     check_result(is_sub_type(load_entry(env + 'X = $sub_env << E\n'),
                              load_entry("X = Environment <- $sub_env_name str\n")),
                  True, "giving no name leaves the member itself")

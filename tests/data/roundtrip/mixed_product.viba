@@ -8,6 +8,6 @@ pack =
     str
   <- $env Env
   <- $both (Object * $a int * $b str)
-  <- { write the two members together }
+  <- { give the two members together }
 
 __impl__ = pack << $env args.env << ($a 1 * $b "x")

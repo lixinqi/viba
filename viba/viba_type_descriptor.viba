@@ -5,7 +5,7 @@
 #   - each branch of a type expression also holds its resolvable Type ($resolvable_type);
 #     whatever that piece is comes from the branch itself. The $nil / $never / $ellipsis
 #     branches have no resolvable thing, so they are still the unit.
-# So given any descriptor, the details can be read in place, with no context passed in.
+# So given any descriptor, the details can be taken in place, with no context passed in.
 #
 # Product and sum rank equally: a product body makes its members fields; a sum body
 # makes its members branches. Both are "a tag plus one type", so there is only one
@@ -15,7 +15,7 @@
 # not its implementation.
 #
 # Comments: inline # takes one short sentence; a paragraph goes to Comments[{...}].
-# Product bodies write * Comments, exponent bodies <- Comments; sum bodies only inline.
+# Product bodies give * Comments, exponent bodies <- Comments; sum bodies only inline.
 
 import viba.type as type
 
@@ -26,11 +26,11 @@ import viba.type as type
 VibaFileDescriptor =
     Object
   * $pool VibaPool                              # the descriptor pool this one belongs to
-  * $file_name str                              # the path the file was read from
+  * $file_name str                              # the path the file was taken from
   * $file_hash str                              # hash of the source text: which version of the design this is
   * $module_name str                            # given by the caller: a .viba file declares no package
   * $imports list[VibaImportDescriptor]
-  * $definitions list[VibaDefinitionDescriptor]  # in written order
+  * $definitions list[VibaDefinitionDescriptor]  # in the order given
   * Comments[{
       protobuf: FileDescriptorProto
         name       -> $file_name
@@ -38,7 +38,7 @@ VibaFileDescriptor =
         dependency -> $imports
         message_type / enum_type / service -> $definitions
       $file_hash 的算法：先把换行统一为 \n，再对源码的 UTF-8 字节算 SHA-256，
-      取小写十六进制。记的是解析前的原文，所以任何一次重写都会换哈希。
+      取小写十六进制。记的是解析前的原文，所以源码一改哈希就变。
     }]
 
 VibaImportDescriptor =
@@ -47,7 +47,7 @@ VibaImportDescriptor =
   * $module_name str            # import a.b as c -> 'a.b'
   * $local_name str             # import a.b as c -> 'c'；import a.b -> 'a.b'
   * Comments[{
-      引用写成 c.Name 或 a.b.Name 时，$local_name 是前半段，取最长的那个匹配。
+      引用是 c.Name 或 a.b.Name 时，$local_name 是前半段，取最长的那个匹配。
       protobuf 没有对应物：它只用全名。
     }]
 
@@ -59,19 +59,19 @@ VibaDefinitionDescriptor =
   * $file_name str
   * $file_hash str                              # the same as the file's own $file_hash
   * $full_name str                              # $module_name + '.' + $def_name
-  * $generic_params list[str]                   # the parameter names of Name[T, U], in written order
+  * $generic_params list[str]                   # the parameter names of Name[T, U], in the order given
   * $body VibaTypeDescriptor
   * $members list[VibaMemberDescriptor]         # the elements of the definition's body, less the chain-head unit
   * Comments[{
-      定义体是写成一串的积/和/指数时，成员就是那一串的元素，链头的单位元不算；
+      定义体是一串积/和/指数时，成员就是那一串的元素，链头的单位元不算；
       三种链一个规矩，元素本身同一种东西。
       protobuf: DescriptorProto 把字段与枚举值分成两个类；这里只有一个成员类。
-      体写成一整个带标签类型时（Box[T] = $v T），它是一个元素的积；
+      体是一个带标签类型时（Box[T] = $v T），它是一个元素的积；
       体既不是积也不是和也不是指数时（A = int），$members 为空——那是别名，
       不是错误。
       $generic_params 是 Viba 多出来的：protobuf 没有参数化类型。
       list / set / dict 与其字面量构造器 ListLiteral / SetLiteral /
-      DictLiteral 不是名字而是内建写法：等号左边不许出现它们——定义名
+      DictLiteral 不是名字而是内建形式：等号左边不许出现它们——定义名
       不行，泛型形参也不行（它们只在类型表达式里出现）。
       $file_hash 是所属文件那一份的副本，好让起点不查描述符池就能核版本。
     }]
@@ -84,7 +84,7 @@ VibaMemberDescriptor =
     Object
   * $pool VibaPool
   * $member_index int           # its position in $members, from 0
-  * $tag (str | nil)            # a tagged member keeps what was written (the `$` included); a positional member is nil
+  * $tag (str | nil)            # a tagged member keeps what was given (the `$` included); a positional member is nil
   * $member_type VibaTypeDescriptor
   * $containing_full_name str
   * Comments[{
@@ -109,7 +109,7 @@ VibaTypeDescriptor =            # protobuf: the FieldDescriptorProto.type column
   | $tagged VibaTaggedDescriptor
   | $sum VibaChainDescriptor             # a sum chain, canonicalized
   | $product VibaChainDescriptor         # a product chain, canonicalized
-  | $exponent VibaChainDescriptor           # the exponent as written: result <- arg <- ...
+  | $exponent VibaChainDescriptor           # the exponent as given: result <- arg <- ...
   | $literal VibaLiteralDescriptor
   | $nil ()                              # the unit: nothing to resolve
   | $never ()                            # zero: the same
@@ -120,7 +120,7 @@ VibaTypeRefDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
-  * $type_name str               # the written name, not turned into anything else here
+  * $type_name str               # the name as given, not turned into anything else here
   * Comments[{
       可以是限定名（fx.Graph），也可以是自由名（泛型形参）。
       protobuf: FieldDescriptorProto.type_name。
@@ -163,7 +163,7 @@ VibaChainDescriptor =
   * $resolvable_type type.Type
   * $elements list[VibaTypeDescriptor]
   * Comments[{
-      和链、积链、指数链结构相同：$elements 是主链，按书写顺序。
+      和链、积链、指数链结构相同：$elements 是主链，按源码顺序。
       和/积的主链是一路 $left 嵌套下来的那一串（元素是分支 / 字段），
       指数的主链是一路 $result 嵌套下来的那一串（$elements[0] 是结果，
       其余是参数）。$right / $argument 那侧的嵌套是支链，原样算主链里的
@@ -175,7 +175,7 @@ VibaCodeBlockDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
-  * $code str                    # {...} kept as written, newlines and indentation included
+  * $code str                    # {...} kept as given, newlines and indentation included
 
 # ---------------------------------------------------------------- #
 # 4. Literals
@@ -279,7 +279,7 @@ DefinitionMembers =
     Result[list[VibaMemberDescriptor]]
   <- $definition VibaDefinitionDescriptor
   <- Comments[{
-      按 $member_index 升序，就是书写顺序；定义体既不是积也不是和时返回空表，
+      按 $member_index 升序，就是源码顺序；定义体既不是积也不是和时返回空表，
       那是别名（A = int），不是错误。
       protobuf: Descriptor::field(i) 与 enum_type() 合成一个。
     }]
@@ -311,7 +311,7 @@ MemberTypeName =
     Result[str]
   <- $member VibaMemberDescriptor
   <- Comments[{
-      只在成员类型写成一个名字时有值（int、fx.Graph、T）；
+      只在成员类型是一个名字时有值（int、fx.Graph、T）；
       类型是内联结构（(int | str)、$t int、list[int]）时 $viba_program_err。
       protobuf: FieldDescriptor::type_name()（那边 int32 这类也是空的）。
     }]

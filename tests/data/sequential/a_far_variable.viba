@@ -1,4 +1,4 @@
-# a_far_variable —— 四步一条链，最后一步读**第一步**的变量：那一步的 tag 隔着好几层累积的积
+# a_far_variable —— 四步一条链，最后一步取**第一步**的变量：那一步的 tag 隔着好几层累积的积
 # （`sequential_impl/4_400.viba` 的 `vars3` 是 `tagged[step2_name, value2] * vars2`，`vars2` 又是
 # `tagged[step1_name, value1] * vars1`），所以要按 tag 取成员时，取的是一份积的成员里的成员。
 add =

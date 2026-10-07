@@ -7,7 +7,7 @@ question as "can this design be reflected through" (see viba-reflect.md).
 Walking:
 
 - Literals, `nil`, `never`, and the builtin leaves (bool / int / float / str)
-  read out, so they end a walk.
+  count as leaves, so they end a walk.
 - Sum, product and exponent chains behave the same way: the members are the
   elements of the main chain (a unit head does not count), each element is
   walked; tuples are walked element-wise; a tagged piece walks what it tags.
@@ -17,10 +17,10 @@ Walking:
   the design incomplete. A generic parameter is walked through the actual
   argument an application binds it to; unbound, it is a placeholder and does
   not affect completeness.
-- A generic application is decided where it is written: the file whose patterns
-  fit the written arguments is the one walked, with its own parameter names
-  standing for the argument parts the patterns extracted (viba-pattern.md). A
-  decision that fails makes the design incomplete.
+- A generic application is decided where the source has it: the file whose
+  patterns fit the arguments in the source is the one walked, with its own
+  parameter names standing for the argument parts the patterns extracted
+  (viba-pattern.md). A decision that fails makes the design incomplete.
 - Code blocks, ellipsis, and anything else that has no members but is not in
   terminators make the design incomplete. To end a walk at a code block, name
   the type that wraps it in terminators: the walk then stops at that
@@ -50,7 +50,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from viba import viba_ast
 from viba.partial import product_elements
-from viba.pattern import reduce_application, tagged_reading
+from viba.pattern import reduce_application, tagged_type_of
 from viba.type import BUILTIN_DIR, BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
 from viba.viba_type_descriptor import (
     empty_pool,
@@ -63,7 +63,7 @@ ENTRY_FILE_NAME = "entry.viba"
 ENTRY_MODULE_NAME = "entry"
 BUILTIN_MODULE_NAME = "viba.builtin"
 
-LEAF_NAMES = ("bool", "int", "float", "str")  # scalars a leaf can read
+LEAF_NAMES = ("bool", "int", "float", "str")  # scalars that count as leaves
 CONTAINER_NAMES = ("list", "set", "dict")  # builtin containers: walk elements
 UNIT_NAMES = ("Object", "nil", "Oneof", "never")  # unit chain heads
 
@@ -82,8 +82,8 @@ def is_complete(
         return False  # the entry does not even compile
     for file_name, module_name, source in _dependencies(library, viba_paths):
         added = _add_file(pool, file_name, module_name, source)
-        if added is not None:  # an unreadable dependency is skipped; needing it
-            pool = added      # shows up later as a name that does not resolve
+        if added is not None:  # a dependency that cannot be added is skipped;
+            pool = added      # needing it shows up later as a name that does not resolve
     return _Checker(pool, set(terminators)).complete()
 
 
@@ -112,7 +112,7 @@ def _dependencies(library, viba_paths) -> List[Tuple[str, str, str]]:
         if module_name and module_name not in found:
             found[module_name] = (str(file_path), file_content)
     # The builtin directory is the last stop here too (viba-interpreter.md), so a
-    # design that writes `import Y` reaches the package's own generics.
+    # design that gives `import Y` reaches the package's own generics.
     for directory in [*(viba_paths or ()), str(BUILTIN_DIR)]:
         root = Path(directory)
         if not root.is_dir():
@@ -163,10 +163,10 @@ class _Checker:
 
     def _definitions_of(self, module_name: str) -> Dict[str, object]:
         if module_name not in self.definitions:
-            self.definitions[module_name] = self._read(module_name)
+            self.definitions[module_name] = self._take_definitions(module_name)
         return self.definitions[module_name]
 
-    def _read(self, module_name: str) -> Dict[str, object]:
+    def _take_definitions(self, module_name: str) -> Dict[str, object]:
         if module_name == BUILTIN_MODULE_NAME:
             return {}  # builtin definitions go through BUILTIN_MODULE.lookup
         module = self.pool.module_environment(module_name)
@@ -180,7 +180,7 @@ class _Checker:
 
         A name reached through an import goes by what the import binds: its
         alias, or its whole dotted name (`import a.b` binds `a.b`), and the
-        longest binding wins — the rule every other layer reads names by.
+        longest binding wins — the rule every other layer takes names by.
         What follows the binding names modules while more than a definition
         name is left (`import pkg` then `pkg.mod.M` is module `pkg.mod`,
         definition `M`), so a dotted import with no alias resolves too.
@@ -217,14 +217,14 @@ class _Checker:
 
     def _walk(self, node, module_name: str, bindings: dict) -> bool:
         if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never)):
-            return True  # a leaf reads these out
+            return True  # these count as a leaf
         if isinstance(node, viba_ast.Ellipsis):
             return "..." in self.stops
         if isinstance(node, viba_ast.CodeBlock):
-            return False  # no leaf to read; only the wrapping name can end here
+            return False  # no leaf here; only the wrapping name can end a walk
         if isinstance(node, viba_ast.TypeRef):
             return self._name(node.name, module_name, bindings)
-        if isinstance(node, viba_ast.MemberRead):
+        if isinstance(node, viba_ast.MemberTaken):
             return self._member(node, module_name, bindings)
         if isinstance(node, viba_ast.TypeApp):
             tagged = self._tagged(node, module_name, bindings)
@@ -245,13 +245,14 @@ class _Checker:
         return all(self._walk(e, module_name, bindings) for e in elements)
 
     def _call(self, node, module_name: str, bindings: dict) -> bool:
-        """A written call: the head has to be something to call, its arguments complete.
+        """A call in the source: the head has to be something to call, its
+        arguments complete.
 
-        A call is a chain like any other (`f << a << b`), read the way the layers
-        that read a design read it: the head is what is called — a name, an
-        application, a member — and every written argument is a piece of its own.
-        Documentation is no argument. A head that is a leaf (a number, a unit)
-        is nothing to call, so the design is not complete.
+        A call is a chain like any other (`f << a << b`), taken the way the
+        layers that take a design take it: the head is what is called — a name,
+        an application, a member — and every argument in the source is a piece of
+        its own. Documentation is no argument. A head that is a leaf (a number, a
+        unit) is nothing to call, so the design is not complete.
         """
         head, arguments = _call_parts(node)
         if isinstance(head, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never)):
@@ -268,9 +269,9 @@ class _Checker:
         """`g[T].value` / `g[T].type`: go through the definition itself in the file the
         decision chose.
 
-        A member read on a name chain (`args.env`, `demo.print`) takes the name path; this
-        one handles the kind whose left side is an application (module semantics,
-        viba-pattern.md).
+        Taking a member on a name chain (`args.env`, `demo.print`) takes the name
+        path; this one handles the kind whose left side is an application (module
+        semantics, viba-pattern.md).
         """
         owner = node.owner
         if not isinstance(owner, viba_ast.TypeApp):
@@ -298,17 +299,19 @@ class _Checker:
         return self._definition(definition, chosen.entry.name, inner)
 
     def _tagged(self, node, module_name: str, bindings: dict):
-        """Walk the tag a written `tagged[...]` spells; None when it is no tag.
+        """Walk the tag a `tagged[...]` in the source spells; None when it is no
+        tag.
 
-        The symbol is a written string, or a name this walk bound — a decision
-        hands it over as a string, which is how a `__decl__` builds a tag out of
-        what a `pattern` line extracted (viba-pattern.md). A symbol that cannot
-        be read here leaves the application to the walk it would have had.
+        The symbol is a string in the source, or a name this walk bound — a
+        decision hands it over as a string, which is how a `__decl__` builds a
+        tag out of what a `pattern` line extracted (viba-pattern.md). A symbol
+        that cannot be taken here leaves the application to the walk it would
+        have had.
         """
         module = self._module(module_name)
         if module is None:
             return None
-        got = tagged_reading(
+        got = tagged_type_of(
             node, module,
             lambda name, _module: self._symbol_text(name, module_name, bindings))
         if isinstance(got, VibaProgramErr):
@@ -318,23 +321,25 @@ class _Checker:
         return self._walk(got.ok_value, module_name, bindings)
 
     def _symbol_text(self, name: str, module_name: str, bindings: dict):
-        """The string a written name stands for in this walk, or None."""
+        """The string a name in the source stands for in this walk, or None."""
         bound = bindings.get(name)
         if isinstance(bound, tuple):
-            written = bound[0]
-            if isinstance(written, viba_ast.Constant) and isinstance(written.value, str):
-                return written.value
+            source_form = bound[0]
+            if (isinstance(source_form, viba_ast.Constant)
+                    and isinstance(source_form.value, str)):
+                return source_form.value
             return None
         if name in bindings:
             return None                     # a placeholder: the argument decides
         found = self._resolve(name, module_name)
         if found is None:
             return None
-        written = found[0]
-        if isinstance(written, viba_ast.TypeDefinition):
-            written = written.body
-        if isinstance(written, viba_ast.Constant) and isinstance(written.value, str):
-            return written.value
+        source_form = found[0]
+        if isinstance(source_form, viba_ast.TypeDefinition):
+            source_form = source_form.body
+        if (isinstance(source_form, viba_ast.Constant)
+                and isinstance(source_form.value, str)):
+            return source_form.value
         return None
 
     def _name(self, name: str, module_name: str, bindings: dict) -> bool:
@@ -364,7 +369,7 @@ class _Checker:
         decided = self._decide(node, module_name, bindings)
         if decided is not None:
             return decided
-        caller_module = module_name  # arguments are written at the call site
+        caller_module = module_name  # the arguments stand at the call site
         found = self._resolve(constructor, caller_module)
         if found is None:
             return False
@@ -380,17 +385,18 @@ class _Checker:
         return self._definition(definition, target_module, inner)
 
     def _decide(self, node, module_name: str, bindings: dict):
-        """Read a generic application: None when the constructor names none.
+        """Take a generic application: None when the constructor names none.
 
-        The decision is made where the application is written, over the written
-        arguments, and what comes back is the chosen file's `__decl__` — walked
-        with this file's parameter names standing for the argument parts the
-        patterns extracted (viba-pattern.md). A decision that fails is an
-        application with nothing to walk, so the design is incomplete.
+        The decision is made where the source has the application, over the
+        arguments in the source, and what comes back is the chosen file's
+        `__decl__` — walked with this file's parameter names standing for the
+        argument parts the patterns extracted (viba-pattern.md). A decision that
+        fails is an application with nothing to walk, so the design is
+        incomplete.
 
-        An argument written as a name this walk bound is an argument part that
-        stood at the call site, so it is read in the module it was written in
-        (`_argument_modules`).
+        An argument the source has as a name this walk bound is an argument part
+        that stood at the call site, so it is taken in the module the source has
+        it in (`_argument_modules`).
         """
         module = self._module(module_name)
         if module is None:
@@ -404,18 +410,18 @@ class _Checker:
         chosen = decision.ok_value
         inner = dict(bindings)
         for name, bound in chosen.bindings.items():
-            # The argument part was written here, at the call site, so its own
+            # The argument part stands here, at the call site, so its own
             # names resolve in this module.
             inner[name] = (bound.ast_node, module_name, bindings)
         return self._walk(chosen.body, chosen.entry.name, inner)
 
     def _argument_modules(self, node, module_name: str, bindings: dict):
-        """The module each written argument of an application was written in.
+        """The module the source has each argument of an application in.
 
         A name a decision bound (`bindings`) stands for the argument part that
-        stood at the call site, so that part is read where it was written, not
-        where the application that names it was written. None when no argument
-        is such a name, so every argument is read here.
+        stood at the call site, so that part is taken where the source has it,
+        not where the source has the application that names it. None when no
+        argument is such a name, so every argument is taken here.
         """
         kept = []
         for argument in node.args:
@@ -441,8 +447,8 @@ class _Checker:
             return True  # coinduction: the same walk in progress counts as fine
         self.visiting.add(key)
         try:
-            # A builtin member resolves to its written chain, which has no body
-            # of its own: the chain is what there is to walk.
+            # A builtin member resolves to its chain in the source, which has no
+            # body of its own: the chain is what there is to walk.
             return self._walk(getattr(node, "body", node), module_name, bindings)
         finally:
             self.visiting.discard(key)
@@ -458,12 +464,12 @@ def _is_definition(node) -> bool:
 
 
 def _builtin_member_piece(name: str):
-    """The written piece a dotted builtin member's name (`builtin.add`) stands
-    for, or None.
+    """The piece in the source a dotted builtin member's name (`builtin.add`)
+    stands for, or None.
 
     The bare spelling (`add`) is a builtin library name of its own, so
-    `BUILTIN_MODULE.lookup` answers it already; this is the member read that the
-    qualified spelling writes.
+    `BUILTIN_MODULE.lookup` answers it already; this one handles the member take
+    the qualified spelling gives.
     """
     head, dot, tag = name.rpartition(".")
     if not dot:
@@ -492,22 +498,23 @@ def _bindings_key(bindings: dict) -> tuple:
 
 
 def _call_parts(node):
-    """A written call read apart: (the head, the arguments in written order).
+    """A call in the source taken apart: (the head, the arguments in the order
+    the source has them).
 
     `f << a << b` nests to the left, so the spine is walked and reversed — the
-    same reading the interpreter gives a chain (`viba.partial` does it for the
+    interpreter takes a chain the same way (`viba.partial` does it for the
     layers that reduce a call).
     """
-    written = []
+    arguments = []
     while isinstance(node, viba_ast.Partial):
-        written.append(node.argument)
+        arguments.append(node.argument)
         node = node.function
-    return node, list(reversed(written))
+    return node, list(reversed(arguments))
 
 
 def _chain_elements(node) -> Optional[List]:
-    """Sum / product / exponent as the elements of the main chain, in written
-    order; None for anything else."""
+    """Sum / product / exponent as the elements of the main chain, in the order
+    the source has them; None for anything else."""
     if isinstance(node, (viba_ast.SumChain, viba_ast.ProductChain, viba_ast.ExponentChain)):
         return list(node.elements)
     if isinstance(node, (viba_ast.Sum, viba_ast.Product)):

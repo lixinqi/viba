@@ -1,4 +1,4 @@
-# The read never got an address.
+# The take never got an address.
 xs = ListLiteral[10]
 
 __impl__ = $__getitem__ << xs

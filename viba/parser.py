@@ -28,7 +28,7 @@ from viba.viba_ast.nodes import (
     Partial,
     Tagged,
     Member,
-    MemberRead,
+    MemberTaken,
     TypeApp,
     Tuple,
     TypeRef,
@@ -40,7 +40,7 @@ from viba.viba_ast.nodes import (
     CodeBlock,
     AST,
 )
-from viba.viba_ast.tagged import TAGGED_NAME, fold_written
+from viba.viba_ast.tagged import TAGGED_NAME, fold_tagged_symbols
 
 # ================================================================= #
 # 1. LEXER DEFINITIONS
@@ -209,7 +209,7 @@ def t_CODE_BLOCK(t):
     return t
 
 
-# \r is a line ending, not content: a file written with CRLF reads
+# \r is a line ending, not content: a file with CRLF in the source parses
 # the same as one with LF (the descriptor layer normalises it too).
 t_ignore = " \t\r"
 
@@ -301,7 +301,7 @@ def p_partial_expr(p):
     | adt_expr"""
     if len(p) == 4:
         p[0] = Partial(p[1], p[3])
-        # The line this call is written on: a stack frame is a call site. The
+        # The line this call stands on: a stack frame is a call site. The
         # apply operator is a token, so its line is the line; the symbols around
         # it are nonterminals, and ply keeps no line for those. The head carries
         # it too: a call is named by its head.
@@ -405,13 +405,13 @@ def p_tag_path(p):
     p[0] = p[1] if len(p) == 2 else f"{p[1]}.{p[3]}"
 
 
-# `a.b` reads a member: a name is one segment, so the read happens wherever the dot is written,
-# and `g[T].value` reads a member of the module that application picked.
+# `a.b` takes a member: a name is one segment, so the taking happens wherever the dot stands,
+# and `g[T].value` takes a member of the module that application picked.
 def p_member_expr(p):
     """member_expr : member_expr DOT CLASS_NAME
     | type_app_expr"""
     if len(p) == 4:
-        p[0] = MemberRead(p[1], p[3])
+        p[0] = MemberTaken(p[1], p[3])
     else:
         p[0] = p[1]
 
@@ -551,7 +551,7 @@ parser = yacc.yacc()
 # 3. THE GRAMMAR, AS SOURCE
 # ================================================================= #
 
-# The productions as a reader should meet them: `program` down to the
+# The productions as they are met in the source: `program` down to the
 # literal, each layer above the next. PLY does not care for the order, the
 # README does. `epsilon` is left out: it is the empty production, not a
 # syntactic category.
@@ -587,7 +587,7 @@ GRAMMAR_ORDER = (
 
 def _productions():
     """`{name: [alternative, ...]}` from the `p_*` docstrings, in the order
-    the rules were written. A docstring that does not open with `name :` is
+    the rules stand. A docstring that does not open with `name :` is
     not a production (the error handler has one)."""
     found = {}
     for func_name, value in list(globals().items()):
@@ -607,7 +607,7 @@ def grammar_text() -> str:
     `(empty)`.
 
     The README's Syntax section has to be this text: the self-test at the
-    bottom reads the file back and compares, so a rule added here cannot
+    bottom parses the file back and compares, so a rule added here cannot
     leave the manual behind.
     """
     found = _productions()
@@ -622,11 +622,11 @@ def grammar_text() -> str:
     for name in GRAMMAR_ORDER:
         alternatives = []
         for alternative in found[name]:
-            written = " ".join(alternative.split()) or "(empty)"
-            if written == "epsilon":
-                written = "(empty)"
-            if written not in alternatives:
-                alternatives.append(written)
+            spelling = " ".join(alternative.split()) or "(empty)"
+            if spelling == "epsilon":
+                spelling = "(empty)"
+            if spelling not in alternatives:
+                alternatives.append(spelling)
         lines.append(f"{name} : " + " | ".join(alternatives))
     return "\n".join(lines)
 
@@ -666,8 +666,8 @@ def parse_source(source: str):
 
     The lexer keeps `lineno` between calls, so without this a fresh one-line
     file by mistake reports the line it ended on in the file parsed before it.
-    Every caller that reads a whole source goes through here, and every source
-    comes out with its written `tagged[...]` symbols folded into the tags
+    Every caller that takes a whole source goes through here, and every source
+    comes out with its `tagged[...]` symbols folded into the tags
     they spell (`viba/viba_ast/tagged.py`).
     """
     lexer.lineno = 1
@@ -676,14 +676,14 @@ def parse_source(source: str):
         return statements
     _refuse_repeated_names([n for n in statements
                             if isinstance(n, (TypeDefinition, GenericDefinition))])
-    return fold_written(statements)
+    return fold_tagged_symbols(statements)
 
 
 def _refuse_repeated_names(definitions):
     """A module may not define the same name twice.
 
-    Written twice, a reader of that name has to guess which one it means, and the answer
-    depends on which of the two was written first — and written order is no part of the
+    Appearing twice, that name leaves the caller to guess which one it means, and the answer
+    depends on which of the two stands first — and the order in the source is no part of the
     design. A definition is `A = …`: one name on the left, with no dot.
     """
     seen = set()
@@ -870,7 +870,7 @@ if __name__ == "__main__":
             "import numpy\nimport torch as t\nTensor = t.Tensor * numpy.ndarray",
             "Imports before definitions",
         ),
-        ("Crlf = int\r\nCrlf2 = str\r\n", "A source written with CRLF line endings"),
+        ("Crlf = int\r\nCrlf2 = str\r\n", "A source with CRLF line endings"),
         # ====== PATTERN TESTS ======
         ("pattern bool | int | float | str\nKnown = true",
          "A pattern line restricting a parameter"),
@@ -879,7 +879,7 @@ if __name__ == "__main__":
          "A pattern line whose parameter is a function"),
         ("pattern list[A]\nElement = A",
          "A pattern line whose parameter is a container"),
-        ('X = tagged["a", int]', "A tag whose symbol is a written string"),
+        ('X = tagged["a", int]', "A tag whose symbol is a string in the source"),
         ("X = tagged[name, int]", "A tag whose symbol is a name"),
     ]
 
@@ -949,7 +949,7 @@ if __name__ == "__main__":
         print(f"{'a fresh source counts from line 1':<50} | {e}")
 
     # The README's Syntax section is this module's grammar: it spells the
-    # productions out, or it is telling a reader something else. Its samples
+    # productions out, or it is telling the caller something else. Its samples
     # are sources too, and a sample that does not compile teaches a mistake.
     print("-" * 65)
     doc_count = 0
@@ -967,9 +967,9 @@ if __name__ == "__main__":
 
     if manual is not None:
         try:
-            written = _readme_grammar(manual)
+            grammar = _readme_grammar(manual)
             expected = grammar_text()
-            if written == expected:
+            if grammar == expected:
                 doc_count += 1
                 print(f"{'the README spells this grammar':<50} | OK "
                       f"({len(expected.splitlines())} productions)")
@@ -978,11 +978,11 @@ if __name__ == "__main__":
                 print("--- the grammar in viba/parser.py ---")
                 print(expected)
                 print("--- the grammar in README.md ---")
-                print(written)
+                print(grammar)
         except Exception as e:                      # a stale GRAMMAR_ORDER, no block
             print(f"{'the README spells this grammar':<50} | {type(e).__name__}: {e}")
 
-    # The manual, the style guide, the tutorial and the pattern chapter are read
+    # The manual, the style guide, the tutorial and the pattern chapter are taken
     # as sources too: a sample that does not compile is teaching a mistake. The
     # docs of the layers above live in another repository.
     try:

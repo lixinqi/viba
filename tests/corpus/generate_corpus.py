@@ -146,7 +146,7 @@ def render_atom(node):
         return "never"
     if kind == "puretag":
         # bare $tag no longer parses (PureTag was cut from the grammar);
-        # a standalone tag atom is written with the unit body
+        # a standalone tag atom has the unit body
         return f"{node[1]} ()"
     if kind == "code":
         return "{" + node[1] + "}"

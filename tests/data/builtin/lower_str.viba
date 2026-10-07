@@ -1,4 +1,4 @@
-# lower_str —— "VIBA" 的小写得 "viba"
+# lower_str —— "VIBA" 换成 lower case 得 "viba"
 __decl__ = str <- $env Env
 
 args = __get_args__ << __decl__

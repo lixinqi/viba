@@ -17,7 +17,7 @@ from viba.viba_ast.nodes import (
     Partial,
     Tagged,
     Member,
-    MemberRead,
+    MemberTaken,
     TypeApp,
     Tuple,
     TypeRef,
@@ -65,7 +65,7 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
         Exponent=lambda e: _unparse_exponent(e, indent, depth),
         Partial=lambda a: _unparse_partial(a, indent, depth),
         Member=lambda m: f"{unparse_tag(m)}",
-        MemberRead=lambda m: _unparse_member_read(m, indent, depth),
+        MemberTaken=lambda m: _unparse_member_taken(m, indent, depth),
         Tagged=lambda t: f"{unparse_tag(t)}{_tagged_body_parens(t.type, _unparse_type(t.type, indent, depth), ' ' * (indent * depth))}",
         TypeApp=lambda a: _unparse_typeapp(a, indent, depth),
         Tuple=lambda t: _unparse_tuple(t, indent, depth),
@@ -82,11 +82,11 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
     )
 
 
-def _unparse_member_read(node: MemberRead, indent: int, depth: int) -> str:
-    """`owner.name`, the member read. The owner is a name chain or an application;
+def _unparse_member_taken(node: MemberTaken, indent: int, depth: int) -> str:
+    """`owner.name`, the member taken. The owner is a name chain or an application;
     anything else is parenthesized."""
     owner = _unparse_type(node.owner, indent, depth)
-    if isinstance(node.owner, (TypeRef, MemberRead, TypeApp)):
+    if isinstance(node.owner, (TypeRef, MemberTaken, TypeApp)):
         return f"{owner}.{node.name}"
     return f"({owner}).{node.name}"
 
@@ -177,7 +177,7 @@ def _unparse_typeapp(app_node: TypeApp, indent: int, depth: int) -> str:
 def _unparse_tuple(tuple_node: Tuple, indent: int, depth: int) -> str:
     """Unparse a Tuple: (A, B, C), and (A,) for a tuple of one.
 
-    One element needs the comma: `(A)` is just `A` when it is read back.
+    One element needs the comma: `(A)` is just `A` when it is parsed back.
     """
     args = ", ".join(_unparse_type(e, indent, depth + 1) for e in tuple_node.elements)
     if len(tuple_node.elements) == 1:
@@ -197,14 +197,14 @@ _FLOAT_SPELLING = re.compile(r"^(\d+\.\d*|\.\d+)$")
 
 
 def literal_spelling(value) -> str:
-    """The literal that reads back as this Python value.
+    """The literal that parses back as this Python value.
 
     A string gets a delimiter that does not occur in it — double quotes,
     single quotes, or triple quotes when it spans lines — so the text survives
-    the round trip untranslated (viba reads no escapes back). A number must be
-    spelled the way the lexer reads numbers: viba has no negative literal and
-    Python writes large and small floats with an exponent, so those raise
-    ValueError rather than being written as something else. Only the four
+    the round trip untranslated (viba takes no escapes back). A number must be
+    spelled the way the lexer takes numbers: viba has no negative literal and
+    Python gives large and small floats with an exponent, so those raise
+    ValueError rather than being given as something else. Only the four
     builtin literal types themselves are literals; a subclass is not one.
     """
     # The exact types, not subclasses: writing goes through the value's own
@@ -228,7 +228,7 @@ def literal_spelling(value) -> str:
 
 
 def _quote_string(value: str) -> str:
-    """One of the three string literals, chosen so the text reads back as is.
+    """One of the three string literals, chosen so the text parses back as is.
 
     A delimiter inside the text would end the literal early, and a trailing
     backslash would swallow the closing one, so each form is only used when
@@ -262,8 +262,8 @@ def _unparse_sumchain(chain: SumChain, indent: int, depth: int) -> str:
     lines = []
     for i, elem in enumerate(chain.elements):
         elem_str = _dedent(_unparse_type(elem, indent, depth + 1), inner_indent)
-        # A same-kind branch keeps its parentheses: written flat it would be
-        # read back as part of the main chain. A branch that is a call needs
+        # A same-kind branch keeps its parentheses: flat in the source it would be
+        # parse back as part of the main chain. A branch that is a call needs
         # them for the same reason — `| f << 1` runs on into the chain.
         if isinstance(elem, (SumChain, Partial)):
             elem_str = f"({elem_str})"
@@ -302,7 +302,7 @@ def _unparse_productchain(chain: ProductChain, indent: int, depth: int) -> str:
 
 
 def _unparse_exponentchain(chain: ExponentChain, indent: int, depth: int) -> str:
-    """Unparse an ExponentChain (elements in written order)."""
+    """Unparse an ExponentChain (elements in the order they stand)."""
     if not chain.elements:
         return "never"
 

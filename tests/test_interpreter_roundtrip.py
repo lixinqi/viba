@@ -1,20 +1,20 @@
 """回环：先缺一步 → 拿到 `$call` → 补上实现 → 把这次调用再跑一遍。
 
-每一份用例都走同一条路（`viba-interpreter.md`「把一次调用写成可执行的」）：
+每一份用例都走同一条路（`viba-interpreter.md`「`__dyn_call__` 与 `__dyn_method__`」）：
 
     1. `interpret` 跑一份程序，宿主那里**没有**这一步的实现 → `$not_implemented_err`；
     2. 从那次停止里拿出 `$call`（`stop_node(result, "$call")`）—— 它是**闭包**：类型
        `Any <- $env Env`，环境还没给；
-    3. 宿主补上这一步（同一个环境对象：实现表是可变的，`get_func` 每次都读它）；
+    3. 宿主补上这一步（同一个环境对象：实现表是可变的，`get_func` 每次都取它）；
     4. 把那份 `$call` **当数据**交给一次运行（`tests/data/roundtrip/runner.viba`：
        `held = hold << $env args.env`，再 `held << args.env`），这次运行给它一个环境 ——
        于是它就跑起来了，答案就是这一步本来会给出的值。
 
 第 4 步给它的环境在**它原来跑的那条数据路径**上（用例自己知道；给在哪儿由给它的环境说了算）。
-那次停止里的 `$module_path` 说的是**这一步声明在哪个模块**：就地写的步骤就是这份文件，import 进来的就是
+那次停止里的 `$module_path` 说的是**这一步声明在哪个模块**：就地给出的步骤就是这份文件，import 进来的就是
 那个模块（`/inner`、`/leaf`），而 `$full_qualified_func_name` 是这一步的整名（`inner.inc`：模块加它在那儿叫的名字）
 —— 名字带着模块，所以交给别的运行也知道是哪一步。`$call` 本身不是一份模块，
-所以第 4 步不把它写成代码：它是可序列化数据。另外两条路也测：用 `serialize` 把 `$call` 写成一份
+所以第 4 步不把它序列化成代码：它是可序列化数据。另外两条路也测：用 `serialize` 把 `$call` 序列化成一份
 viba 模块源代码（`call = …`）再 `exec`；以及把那份 `$call` **直接当节点**交给 `exec`（它本来就是
 节点，`exec(viba_code, environ)` 收文本，也收节点），答案一样。
 
@@ -47,13 +47,13 @@ check = checks.check
 HELD = "hold"
 CODE_LABEL = "<viba_code>"
 
-# 一条把 `$call` 写成代码的路用到的开头：主模块、它的环境，然后是那份 `$call` 的定义。
+# 一条把 `$call` 序列化成代码的路用到的开头：主模块、它的环境，然后是那份 `$call` 的定义。
 SOURCE_HEAD = ("__decl__ =\n    Any\n  <- $env Env\n\n"
                "args = __get_args__ << __decl__\n\n")
 
 
 class Host:
-    """一个可以先没有、后来补上的宿主：实现表可变，`get_func` 每次都读它。
+    """一个可以先没有、后来补上的宿主：实现表可变，`get_func` 每次都取它。
 
     同一个对象从头用到尾 —— 先跑那份程序（缺一步），补上实现，再跑 `$call`：
     这就是「准备好了 Environment 之后」。
@@ -167,7 +167,7 @@ def _a_product():
                     descriptor_of(AstNodeType(node, custom_module(""))), node)
 
 
-# 二十七份用例，每份换一个说法：参数怎么写、答案是什么类型、这一步在哪条数据路径上。
+# 二十七份用例，每份换一个说法：参数怎么给出、答案是什么类型、这一步在哪条数据路径上。
 CASES_LIST = [
     Case("tagged_two", "add", _everywhere(add=_add), 3, as_source=True, as_node=True),
     Case("positional_two", "add", _everywhere(add=_add), 3, as_exec=True),
@@ -259,18 +259,18 @@ def _one_case(case: Case):
         check(_the_wanted_answer(again, case),
               f"{case.name}: and the program itself runs now: {again!r}")
 
-    # 另一条路：把 `$call` 写成一份 viba 模块源代码，再 `exec` 跑它。
+    # 另一条路：把 `$call` 序列化成一份 viba 模块源代码，再 `exec` 跑它。
     if case.as_source:
         source = serialize.serialize("call", call)
         check(isinstance(source, Ok),
               f"{case.name}: the call is serializable viba data: {source!r}")
         code = SOURCE_HEAD + source.ok_value + "\n__impl__ = call << args.env\n"
-        written_out = exec(code, host.at(where))
-        check(_the_wanted_answer(written_out, case),
-              f"{case.name}: the same call written out as source runs too: "
-              f"{written_out!r}")
+        from_source = exec(code, host.at(where))
+        check(_the_wanted_answer(from_source, case),
+              f"{case.name}: the same call given as source runs too: "
+              f"{from_source!r}")
 
-    # 第三条路：那份 `$call` 本来就是节点，直接交给 `exec` —— 不用写出来读回去。
+    # 第三条路：那份 `$call` 本来就是节点，直接交给 `exec` —— 不用序列化成源码再解析回来。
     if case.as_node:
         handed_over = exec(call, host.at(where))
         check(_the_wanted_answer(handed_over, case),
@@ -322,13 +322,13 @@ def _both_entries_agree_on_the_call():
     by_file = interpret(str(CASES / "tagged_two.viba"), host.environ)
     by_code = exec((CASES / "tagged_two.viba").read_text(), host.environ)
 
-    def written(result):
+    def source_of(result):
         return " ".join(viba_ast.unparse_type(stop_node(result, "$call").data).split())
 
-    check(written(by_file) == '__dyn_call__ << "tagged_two.add" << $a 1 << $b 2' and
-          written(by_code) == '__dyn_call__ << "<viba_code>.add" << $a 1 << $b 2',
+    check(source_of(by_file) == '__dyn_call__ << "tagged_two.add" << $a 1 << $b 2' and
+          source_of(by_code) == '__dyn_call__ << "<viba_code>.add" << $a 1 << $b 2',
           f"one file, one step, each named by its own module: "
-          f"{written(by_file)!r} != {written(by_code)!r}")
+          f"{source_of(by_file)!r} != {source_of(by_code)!r}")
 
 
 def _first_run(case: Case, host: Host):

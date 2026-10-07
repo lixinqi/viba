@@ -1,4 +1,4 @@
-# 写成 `$find_by_relative_path << args.env << …` 时，链头那个值会被当成相对路径：
+# 源码里是 `$find_by_relative_path << args.env << …` 时，链头那个值会被当成相对路径：
 # 它是个环境，不是一个目录名
 __decl__ =
     Any

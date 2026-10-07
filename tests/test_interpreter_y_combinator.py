@@ -1,7 +1,7 @@
 """简版 Y 组合子（int -> int）：现有的解释器撑不撑得住。
 
 Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在内建词汇那一份旁边，是搜索
-路径的最后一站，所以任何模块写 `import Y` 就拿到 `Y`（`viba-interpreter.md`）。用例在
+路径的最后一站，所以任何模块给出 `import Y` 就拿到 `Y`（`viba-interpreter.md`）。用例在
 `tests/data/y_combinator/`：
 
     parts.viba             宿主实现的几步：lt / sub / add
@@ -11,7 +11,7 @@ Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在�
     main.viba              Y F 10，给出 55
     main_at_1.viba         Y F 1，给出 1（base case 在顶层就走通）
     main_at_5.viba         Y F 5，给出 5
-    main_in_a_sub_env.viba Y F 10，调用方自己写一层子环境，给出 55
+    main_in_a_sub_env.viba Y F 10，调用方自己给出一层子环境，给出 55
     main_two_args.viba     Y F 3 4，给出 7
     main_three_args.viba   Y F 3 4 5，给出 12
     helper_by_hand.viba    不用 Y，直接把 helper 用起来，给出 55
@@ -19,20 +19,20 @@ Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在�
 `main_*` 与 `helper_by_hand` 是**真正要跑通的**：文件就是函数（`__decl__` 进、`__impl__` 出），
 递归靠"欠着实参的调用就是值"（Y 的 eta 展开）和"一条数据路径上只该有一次调用"。
 `Y << F` 给的是那一步的不动点：`Y` 是入口（`y_helper << $f f << $y_helper y_helper` 这一件），
-`y_helper` 是自应用那一步 —— 上一步拿到的自己，就是下一次 `y_helper` 调用。Y 与 y_helper 都写
-`$env Env`：给环境就是执行，所以每一层的数据路径由调用方写下来 —— `main_*.viba` 写
-`args.env.sub_env << args.env << "Y"`（`main_in_a_sub_env.viba` 故意换个名字），`Y.viba` 往下写
-`"y_helper"`，步文件往下调时写 `"low"` 那样的名字；步自己那一层只是名字的出处，`y_helper` 用
-`convert_sub_to_sibling` 把它压成 workspace 旁边一个定长的名字（`viba-interpreter.md`）。这一层的实参接着 `<<` 写在后面
-（`Y << F << ($sub_env << args.env << "Y") << $n 3 << $m 4`），`Y` 那个写 `$args ...` 的参数把
+`y_helper` 是自应用那一步 —— 上一步拿到的自己，就是下一次 `y_helper` 调用。Y 与 y_helper 都给出
+`$env Env`：给环境就是执行，所以每一层的数据路径由调用方给出 —— `main_*.viba` 给出
+`args.env.sub_env << args.env << "Y"`（`main_in_a_sub_env.viba` 故意换个名字），`Y.viba` 往下给出
+`"y_helper"`，步文件往下调时给出 `"low"` 那样的名字；步自己那一层只是名字的出处，`y_helper` 用
+`convert_sub_to_sibling` 把它压成 workspace 旁边一个定长的名字（`viba-interpreter.md`）。这一层的实参接着 `<<` 跟在后面
+（`Y << F << ($sub_env << args.env << "Y") << $n 3 << $m 4`），`Y` 那个给出 `$args ...` 的参数把
 它们收成一份积；**这两个都不是泛型**：不用按参数个数分文件，`apply` 按那份积里有几个成员选
 `apply_impl` 哪一支，`F` 的参数列表有多长，由积里有几个成员说了算。
 
-参数个数不同仍然**各跑一次**：最后那一遍为 1 到 16 每个长度当场写一份 step 模块（那里只有参数
+参数个数不同仍然**各跑一次**：最后那一遍为 1 到 16 每个长度当场给出一份 step 模块（那里只有参数
 个数要紧），跑出来的结果就是那个长度 —— 每个长度都走到 `apply_impl` 对应的一支上。
 
 另外几条是记录，不是目标：一份**要别的文件把实参给它的模块不能当主文件跑**（宿主只给环境，
-没人写下 `$f`、`$n`），所以 `Y.viba`、`y_helper.viba`、`fib_module.viba`、`add2_module.viba`、
+没人给出 `$f`、`$n`），所以 `Y.viba`、`y_helper.viba`、`fib_module.viba`、`add2_module.viba`、
 `add3_module.viba` 单独跑只会报那句话；`parts.viba` 只有设计、没有 `__impl__`，本来就不是程序。
 
     python3 tests/test_interpreter_y_combinator.py
@@ -80,7 +80,7 @@ def host_for():
 
 def environ_for(store, also=()):
     """This host: files come from the case directory, the repository (for
-    `branch.viba`), and anything else a check wrote for itself."""
+    `branch.viba`), and anything else a check gave for itself."""
     return Environment(EnvironmentStorage("root", None, str(store)),
                        EnvironmentCompute(host_for()),
                        viba_path=":".join([*(str(path) for path in also),
@@ -111,10 +111,10 @@ RECORDED = [
 
 
 def _a_step_of(length: int) -> str:
-    """A step function of that many parameters, written here.
+    """A step function of that many parameters, given here.
 
     Only the parameter count matters to this check: this layer's arguments are
-    written as `<<` links after `args.self`, the product they are collected into
+    given as `<<` links after `args.self`, the product they are collected into
     has that many members, which is what decides the `apply_impl` branch, and the
     answer is the first parameter counted down to zero — so the run says which
     length it started from.
@@ -122,7 +122,7 @@ def _a_step_of(length: int) -> str:
     names = [f"n{index}" for index in range(length)]
     further = [f"$n0 below"] + [f"${name} args.{name}" for name in names[1:]]
     return "\n".join([
-        f"# written by the test: a step of {length} parameters",
+        f"# given by the test: a step of {length} parameters",
         "__decl__ =",
         "    Any",
         "  <- $env Env",
@@ -149,21 +149,21 @@ def _a_step_of(length: int) -> str:
 
 def _a_main_of(length: int) -> str:
     """`Y F (<length> 0 … 0)`: the step counts the first parameter down to zero."""
-    written = [f"$n0 {length}"] + [f"$n{index} 0" for index in range(1, length)]
+    given = [f"$n0 {length}"] + [f"$n{index} 0" for index in range(1, length)]
     return "\n".join([
         "__decl__ = int <- $env Env",
         "args = __get_args__ << __decl__",
         "import step as F",
         "import Y",
-        "__impl__ = " + " << ".join(["Y", "F", '($sub_env << args.env << "Y")'] + written),
+        "__impl__ = " + " << ".join(["Y", "F", '($sub_env << args.env << "Y")'] + given),
     ]) + "\n"
 
 
 def _every_length_runs(tmp: Path):
     """1 到 16 每个长度都跑一次：`apply_impl` 的 16 支没有一支是没人走过的。
 
-    这一层的实参接着 `<<` 写，`Y` 把它们收成一份积，`apply` 按积里有几个成员选文件；这一遍为
-    每个长度当场写一份 step 模块（只有参数个数要紧），跑出来的结果就是那个长度。
+    这一层的实参接着 `<<` 跟在后面，`Y` 把它们收成一份积，`apply` 按积里有几个成员选文件；这一遍为
+    每个长度当场给出一份 step 模块（只有参数个数要紧），跑出来的结果就是那个长度。
     """
     check((BUILTIN_DIR / "Y.viba").is_file()
           and (BUILTIN_DIR / "y_helper.viba").is_file(),

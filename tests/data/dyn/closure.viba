@@ -1,4 +1,4 @@
-# No environment: the call is a value — a closure, written as the same call.
+# No environment: the call is a value — a closure, given as the same call.
 __decl__ =
     int
   <- $env Env

@@ -1,14 +1,14 @@
-"""interpreter 各套件共用的东西：计数器、宿主、读结果的那几个小函数。
+"""interpreter 各套件共用的东西：计数器、宿主、取结果的那几个小函数。
 
 不是套件本身（没有 `__main__` 的跑法），`test_interpreter_*.py` 从这里取：
 
     from interpreter_support import Checks, Host, is_ok, value_of
 
 `Checks` 管每个套件自己的通过/失败计数与那一行汇总；失败会打出来。用例本身是
-`tests/data/` 下的 `.viba` 文件，不写在这里。
+`tests/data/` 下的 `.viba` 文件，不在这里。
 
-`interpret` 与 `exec` 回答的是一份 viba 数据（声明里的 `InterpretResult`），所以这里读它
-也按数据读：`is_ok`、`value_of`、`stop_tag`、`stop_text`、`stop_node`。
+`interpret` 与 `exec` 回答的是一份 viba 数据（声明里的 `InterpretResult`），所以这里取它
+也按数据取：`is_ok`、`value_of`、`stop_tag`、`stop_text`、`stop_node`。
 """
 
 import sys
@@ -38,7 +38,7 @@ def module_of(path) -> str:
 
 
 def module_path_of(path) -> str:
-    """The same module read as a path: `/memo`."""
+    """The same module taken as a path: `/memo`."""
     return "/" + module_of(path)
 
 
@@ -104,9 +104,9 @@ def error_of(result):
     """The error an object-form `Result` carries, or the error itself.
 
     The other APIs of this layer (`parse`, `serialize`, `load_generic`, the
-    descriptor builders) answer `Ok`/error objects, and their suites read the
+    descriptor builders) answer `Ok`/error objects, and their suites take the
     error with this. `interpret` and `exec` answer viba data instead: a suite that
-    ran one reads it with `stop_tag`, `stop_text` and `stop_node`.
+    ran one takes it with `stop_tag`, `stop_text` and `stop_node`.
     """
     if isinstance(result, VibaProgramErr):
         return result
@@ -176,9 +176,9 @@ class Checks:
 def value_of(result):
     """The leaf a run answered: None for a nil piece, the stop node otherwise.
 
-    A suite writes `is_ok(result) and value_of(result) == 7`, and the left side is
+    A suite gives `is_ok(result) and value_of(result) == 7`, and the left side is
     false when the run stopped, so this must not assume a value: a stop has no leaf
-    to read.
+    to take.
     """
     if not is_ok(result):
         return result
@@ -208,7 +208,7 @@ class Host:
 
     def get_func(self, module_path, func_name):
         self.calls.append((module_path, func_name))
-        # This host serves one module's steps, so it reads them by their own names.
+        # This host serves one module's steps, so it takes them by their own names.
         if self.knobs.get("get_func_raises"):
             raise RuntimeError("host broke")
         if self.knobs.get("hands_back") is not None:
@@ -225,7 +225,7 @@ class Host:
             return says_no
         said = self.knobs.get("says_no_with", {}).get(func_name)
         if said is not None:
-            # ... or hands back the failure it wrote itself
+            # ... or hands back the failure it made itself
             def says_no_with(env, *args):
                 return said
             return says_no_with

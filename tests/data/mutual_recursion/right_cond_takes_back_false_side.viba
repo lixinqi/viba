@@ -1,5 +1,5 @@
 import branch
-import left_cond_reads_back_false_side as left
+import left_cond_takes_back_false_side as left
 
 g =
     bool

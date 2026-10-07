@@ -4,9 +4,9 @@ Each case is a directory holding a few .viba files at different depths
 (some at the top, some three or four directories down) plus an
 ``expected.json`` that says what the descriptor side must report about
 them.  The files under test live here, one directory per case; the test
-only reads them.
+only takes them.
 
-    python tests/data/type_descriptor/build.py          # write the cases
+    python tests/data/type_descriptor/build.py          # give the cases
     python tests/data/type_descriptor/build.py --check   # fail if stale
 """
 
@@ -35,7 +35,7 @@ def module_name_of(rel_path: str) -> str:
 
 def local_name_of(module: str, aliased: bool, rng) -> str:
     """What the import binds: an alias, or the whole module name when the
-    import carries none (references then read a.b.Name)."""
+    import carries none (references then take a.b.Name)."""
     if aliased:
         return rng.choice(["m", "dep", "base", "up", "lib"])
     return module
@@ -64,13 +64,13 @@ def t_product_tagged(rng, name):
 
 
 def t_product_positional(rng, name):
-    written = rng.choice(["int * str * bool", "str * (int | nil)", "int * str"])
-    lines = [f"{name} = {written}"]
-    if written == "int * str * bool":
+    body = rng.choice(["int * str * bool", "str * (int | nil)", "int * str"])
+    lines = [f"{name} = {body}"]
+    if body == "int * str * bool":
         truth = [member(0, None, "int", "type_ref"),
                  member(1, None, "str", "type_ref"),
                  member(2, None, "bool", "type_ref")]
-    elif written == "str * (int | nil)":
+    elif body == "str * (int | nil)":
         truth = [member(0, None, "str", "type_ref"),
                  member(1, None, None, "sum", optional=True)]
     else:
@@ -255,7 +255,7 @@ def main(argv):
             return 1
         print(f"type_descriptor corpus is current ({CASE_COUNT} cases)")
         return 0
-    print(f"wrote {CASE_COUNT} cases under {HERE.relative_to(HERE.parent.parent)}")
+    print(f"gave {CASE_COUNT} cases under {HERE.relative_to(HERE.parent.parent)}")
     return 0
 
 

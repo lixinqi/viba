@@ -1,7 +1,7 @@
 __decl__ = Any <- $env Env
 
 import branch
-import right_edge_cycle_path_is_written as right
+import right_edge_cycle_path_in_source as right
 
 x = right.y
 __impl__ = x

@@ -1,6 +1,6 @@
 """Chain-style canonicalization of AST nodes.
 
-`|`, `*` and `<-` are left-associative, so in a written run the main chain is the
+`|`, `*` and `<-` are left-associative, so in a run in the source the main chain is the
 nesting that goes down `$left` (for an exponent, `$result`), folded into
 SumChain / ProductChain / ExponentChain; the nesting on the `$right` side (an
 exponent's `$argument`) is a branch, kept whole as one element of the main chain
@@ -24,7 +24,7 @@ from viba.viba_ast.nodes import (
     Partial,
     Tagged,
     Member,
-    MemberRead,
+    MemberTaken,
     TypeApp,
     Tuple,
     Nil,
@@ -53,7 +53,7 @@ def convert_to_chain_style(node: AST) -> AST:
         Pattern=lambda s: Pattern(convert_to_chain_style(s.pattern)),
         Tagged=lambda t: Tagged(t.tag, convert_to_chain_style(t.type)),
         Member=lambda m: m,
-        MemberRead=lambda m: MemberRead(convert_to_chain_style(m.owner), m.name),
+        MemberTaken=lambda m: MemberTaken(convert_to_chain_style(m.owner), m.name),
         TypeApp=lambda a: TypeApp(a.constructor, [convert_to_chain_style(arg) for arg in a.args]),
         Tuple=lambda t: Tuple([convert_to_chain_style(e) for e in t.elements]),
         Any=lambda a: a,
@@ -88,7 +88,7 @@ def _main_chain_elements(node: AST, chain_kind) -> List[AST]:
 
 def _flatten_exponent(exponent_type: Exponent) -> ExponentChain:
     """The main chain (a run of $result) folds into one exponent chain, elements in
-    written order; a branch stays one element.
+    the order they stand; a branch stays one element.
 
     Laid out like sums and products: ``A <- B <- C`` is ``ExponentChain([A, B, C])``
     and ``A <- (B <- C)`` is ``ExponentChain([A, ExponentChain([B, C])])``.
@@ -122,7 +122,7 @@ def convert_from_chain_style(node: AST) -> AST:
         ),
         Pattern=lambda s: Pattern(convert_from_chain_style(s.pattern)),
         Tagged=lambda t: Tagged(t.tag, convert_from_chain_style(t.type)),
-        MemberRead=lambda m: MemberRead(convert_from_chain_style(m.owner), m.name),
+        MemberTaken=lambda m: MemberTaken(convert_from_chain_style(m.owner), m.name),
         TypeApp=lambda a: TypeApp(a.constructor, [convert_from_chain_style(arg) for arg in a.args]),
         Tuple=lambda t: Tuple([convert_from_chain_style(e) for e in t.elements]),
         strict=False,

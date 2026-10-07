@@ -76,7 +76,7 @@ def run(tmp: Path):
             check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
 
-    # 这条规矩本身也写在话里
+    # 这条规矩本身也出现在话里
     result = interpret(str(CASES / "self_definition.viba"), environ_for(tmp / "store-rule"))
     check(stop_tag(result) == PROGRAM_ERR_TAG
           and "one file's definitions may not go round" in message_of(result),

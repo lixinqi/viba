@@ -1,4 +1,4 @@
-# sequential_arg: the argument a step's closure wrote is a variable reference
+# sequential_arg: the argument a step's closure gave is a variable reference
 # (`$a ($var "x")`), so what goes to the closure is the value that name holds at
 # the time this step runs.
 pattern $var X

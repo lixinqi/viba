@@ -1,4 +1,4 @@
-# sub 写成 nil：这一项要一个环境
+# sub 落成 nil：这一项要一个环境
 __decl__ =
     Any
   <- $env Env

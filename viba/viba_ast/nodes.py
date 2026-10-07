@@ -5,7 +5,7 @@ canonicalization, dump and visitors all work on this single hierarchy.
 
 Composite nodes:
     Module, TypeDefinition, GenericDefinition, Sum, Product, Exponent,
-    Tagged, MemberRead, TypeApp, Tuple
+    Tagged, MemberTaken, TypeApp, Tuple
 Atomic nodes:
     TypeRef, Constant, Nil, Never, Ellipsis, CodeBlock
 Canonical (chain-style) nodes, produced by convert_to_chain_style:
@@ -77,7 +77,7 @@ class Exponent(AST):
 
 
 class Partial(AST):
-    """function << argument — the written argument is given to the function."""
+    """function << argument — the argument in the source is given to the function."""
 
     _fields = ("function", "argument")
 
@@ -99,11 +99,11 @@ class Member(AST):
     _fields = ("tag",)
 
 
-class MemberRead(AST):
-    """owner.name — the member `name`, read out of what `owner` is.
+class MemberTaken(AST):
+    """owner.name — the member `name`, taken out of what `owner` is.
 
-    A name is one segment, so `a.b.c` is `MemberRead(MemberRead(TypeRef(a), b), c)`:
-    each dot is read where it is written, and the member is the member of what
+    A name is one segment, so `a.b.c` is `MemberTaken(MemberTaken(TypeRef(a), b), c)`:
+    each dot is taken where it stands, and the member is the member of what
     the step before it is (viba-style.md). The owner may also be an application
     — `g[T].value` is the member `value` of the module the decision picked —
     which is how a pattern file hands back a definition of its own
@@ -178,8 +178,8 @@ class Import(AST):
 class Pattern(AST):
     """`pattern T` — one generic parameter, as this file takes it.
 
-    A file inside a generic's directory writes one of these per parameter, in
-    written order: a name the file never defines is a parameter to extract,
+    A file inside a generic's directory gives one of these per parameter, in
+    the order they stand: a name the file never defines is a parameter to extract,
     while a known type restricts what that argument may be
     (viba-pattern.md).
     """
@@ -208,11 +208,11 @@ class ProductChain(AST):
 
 
 class ExponentChain(AST):
-    """Canonical main chain of an exponent, in written order.
+    """Canonical main chain of an exponent, in the order it stands.
 
     Laid out like SumChain / ProductChain: `elements[0]` is the result
-    (the leftmost thing written), the rest are the arguments in the order
-    they are written. An element may itself be an ExponentChain — that is
+    (the leftmost thing in the source), the rest are the arguments in the order
+    they stand. An element may itself be an ExponentChain — that is
     a branch: `A <- (B <- C)` is
     `ExponentChain([A, ExponentChain([B, C])])`.
     """

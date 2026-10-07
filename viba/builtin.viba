@@ -1,9 +1,9 @@
 # Builtin library — visible from every module, lowest precedence:
 # a custom module's own definitions and environment win.
 #
-# The environment a running module is handed (viba-interpreter.md). Read as
+# The environment a running module is handed (viba-interpreter.md). As
 # a type, `Env` is an Environment — that is what a module's `$env` parameter
-# asks for; read as computation it is the real environment, and a module reads
+# asks for; as computation it is the real environment, and a module takes
 # it as `args.env` (with `args = __get_args__ << __decl__`). `Environment` is
 # a plain function of the environment and the sub-environment's name, which is
 # how a module call hands a module its own — `$viba_path` is where its imports
@@ -16,14 +16,14 @@
 # The members below walk the chain a child belongs to: `$get_root` is the
 # environment at the top of it (`nil` in, `nil` out), and `$get_relative_path` is
 # a storage path seen from a root (`"b"` for `root/a/b` seen from `root/a`).
-# `$find_by_relative_path` is the way back: a relative path and the root to read
-# it from, and with no root it searches from the environment it was read off,
+# `$find_by_relative_path` is the way back: a relative path and the root to take
+# it from, and with no root it searches from the environment it came from,
 # which is what `args.env.find_by_relative_path << "a/b"` means.
 # `$convert_sub_to_sibling` is what keeps a recursion's paths short: given a
 # directory and a path that begins with its own at a name boundary (a directory
 # below it, or one already pressed from it), it answers the path that one stands
 # for, compressed into a single name beside the given directory —
-# `<that path>_<40 hex digits>` — and writes the path it compressed into the
+# `<that path>_<40 hex digits>` — and gives the path it compressed into the
 # answer's `uncompress_relative_path` (`nil` for every other environment).
 Environment =
     Object
@@ -39,11 +39,11 @@ Environment =
 Env = Environment
 
 # The builtin module: the operators every module can reach without writing an
-# import. Each operator is one member of `builtin`, written as a function of the
+# import. Each operator is one member of `builtin`, given as a function of the
 # environment and its arguments, and the host implements it under the member's
 # name — `builtin.add` is what `get_func` is asked for.
 #
-# A module may also write that member's own name on its own (`add << $env …`,
+# A module may also give that member's own name on its own (`add << $env …`,
 # `concat << $env …`): it is the same member, and the same call. The library is
 # the lowest-precedence stop of every name, so a module's own `add` wins over
 # the builtin one, and so does an import.
@@ -130,8 +130,8 @@ builtin =
     # From one type to another.
   * $int_to_float (float <- $env Env <- $x int <- { x as a float })
   * $float_to_int (int <- $env Env <- $x float <- { x with its fraction dropped })
-  * $int_to_str (str <- $env Env <- $x int <- { x written in decimal })
-  * $float_to_str (str <- $env Env <- $x float <- { x written as a number })
-  * $bool_to_str (str <- $env Env <- $x bool <- { x written as "true" or "false" })
-  * $str_to_int (int <- $env Env <- $x str <- { the whole number the string writes })
-  * $str_to_float (float <- $env Env <- $x str <- { the number the string writes })
+  * $int_to_str (str <- $env Env <- $x int <- { x given in decimal })
+  * $float_to_str (str <- $env Env <- $x float <- { x given as a number })
+  * $bool_to_str (str <- $env Env <- $x bool <- { x given as "true" or "false" })
+  * $str_to_int (int <- $env Env <- $x str <- { the whole number the string has })
+  * $str_to_float (float <- $env Env <- $x str <- { the number the string has })

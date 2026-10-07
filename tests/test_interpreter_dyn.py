@@ -1,12 +1,12 @@
 """`__dyn_call__` 与 `__dyn_method__`：名字当数据的那种调用。
 
-一步是按名字实现的，把那个名字当**数据**写下来，这次调用就从任何模块都读得起来 ——
-不用写它的那个模块在场：`__dyn_call__ << env << "a.b.c" << $a1` 就是 `a.b.c << env << $a1`。
+一步是按名字实现的，把那个名字当**数据**给出，这次调用就从任何模块都取得起来 ——
+不用给出它的那个模块在场：`__dyn_call__ << env << "a.b.c" << $a1` 就是 `a.b.c << env << $a1`。
 成员是某份值的成员时，名字不再是名字路径，走 `__dyn_method__`：
 `__dyn_method__ << env << "f" << value << …` 就是 `$f << value << …`。
 
-`UnderlyingOpErr` 的 `$call` 就是这两种写法：名字是字符串数据，环境剔掉，只留下闭包
-（`viba-interpreter.md`「把一次调用写成可执行的」）。
+`UnderlyingOpErr` 的 `$call` 就是这两种源码形式：名字是字符串数据，环境剔掉，只留下闭包
+（`viba-interpreter.md`「`__dyn_call__` 与 `__dyn_method__`」）。
 
     python3 tests/test_interpreter_dyn.py
 """
@@ -35,8 +35,8 @@ checks = Checks("interpreter_dyn")
 check = checks.check
 
 
-def _written(node) -> str:
-    """A piece of viba data as written, with the laying out flattened away."""
+def _source_of(node) -> str:
+    """A piece of viba data in the source, with the laying out flattened away."""
     return " ".join(viba_ast.unparse_type(node).split()).replace("( ", "(")
 
 
@@ -60,13 +60,13 @@ def _what_the_name_spells():
     """`__dyn_call__ << env << "add" << …` 与 `add << env << …` 是同一次调用。"""
     host = _host()
     by_name = interpret(str(CASES / "call_by_name.viba"), host.environ())
-    written = interpret(str(CASES / "call_written.viba"), host.environ())
+    as_source = interpret(str(CASES / "call_in_source.viba"), host.environ())
     check(is_ok(by_name) and value_of(by_name) == 3,
           f"a call whose name is data runs: {by_name!r}")
-    check(value_of(by_name) == value_of(written),
-          f"and it is the call the same name at the head makes: {written!r}")
+    check(value_of(by_name) == value_of(as_source),
+          f"and it is the call the same name at the head makes: {as_source!r}")
     check(("call_by_name", "add") in host.calls and
-          ("call_written", "add") in host.calls,
+          ("call_in_source", "add") in host.calls,
           f"the host was asked for that name, from the module that declares it: "
           f"{host.calls}")
 
@@ -94,9 +94,9 @@ def _a_call_without_an_environment_is_a_value():
     check(is_ok(closure)
           and isinstance(answer_of(closure).data, viba_ast.Partial),
           f"no environment: the call is a value: {closure!r}")
-    check(_written(answer_of(closure).data) == '__dyn_call__ << "add" << $a 1',
-          f"written as the same call, the environment left out: "
-          f"{_written(answer_of(closure).data)!r}")
+    check(_source_of(answer_of(closure).data) == '__dyn_call__ << "add" << $a 1',
+          f"given as the same call, the environment left out: "
+          f"{_source_of(answer_of(closure).data)!r}")
     ran = interpret(str(CASES / "closure_run.viba"), _host().environ())
     check(is_ok(ran) and value_of(ran) == 3,
           f"and giving that call an environment runs it: {ran!r}")
@@ -109,11 +109,11 @@ def _the_call_the_error_carries(tmp: Path):
           and stop_text(stopped, "$full_qualified_func_name")
           == full_name_of(CASES / "missing_step", "add"),
           f"the stop names the step: {stopped!r}")
-    call = _written(stop_node(stopped, "$call").data)
+    call = _source_of(stop_node(stopped, "$call").data)
     check(call == '__dyn_call__ << "missing_step.add" << $a 1 << $b 2',
           f"the call is the same call with the name as data: {call!r}")
 
-    # 照它再做一遍：把这段写法放进一份新模块，就地给上环境。
+    # 照它再做一遍：把这段源码形式放进一份新模块，就地给上环境。
     replay = tmp / "replay.viba"
     replay.write_text("__decl__ =\n    int\n  <- $env Env\n\n"
                       "args = __get_args__ << __decl__\n\n"
@@ -125,27 +125,27 @@ def _the_call_the_error_carries(tmp: Path):
 
 
 def _the_member_the_error_carries():
-    """成员那一支：`$call` 保留「取这份值的成员」，那份值里的调用按能跑的形式写。
+    """成员那一支：`$call` 保留「取这份值的成员」，那份值里的调用按能跑的形式给出。
 
     成员的值是一次调用（`box` 的 `$f` 是 `inc`）。成员那一层保留（`__dyn_method__`），而那份值里
-    写着这个调用的那个成员按**能再跑一遍的形式**写：`$f (__dyn_call__ << "inc")` —— 名字当数据走，
-    读回来时不必解析 `inc` 这个名字，也就不必让写它的那个模块在场。环境不在里面。
+    给出这个调用的那个成员按**能再跑一遍的形式**给出：`$f (__dyn_call__ << "inc")` —— 名字当数据走，
+    取回来时不必解析 `inc` 这个名字，也就不必让给出它的那个模块在场。环境不在里面。
     """
     stopped = interpret(str(CASES / "missing_member.viba"), _host(missing=("inc",)).environ())
     check(stop_tag(stopped) == NOT_IMPLEMENTED_TAG
           and stop_text(stopped, "$full_qualified_func_name")
           == full_name_of(CASES / "missing_member", "inc"),
           f"the stop names the step the member's value stands for: {stopped!r}")
-    call = _written(stop_node(stopped, "$call").data)
+    call = _source_of(stop_node(stopped, "$call").data)
     check(call == '__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1',
           f"the member layer is kept, the value comes first, the call in it is "
-          f"written the way a call travels, the environment is dropped: {call!r}")
+          f"given the way a call travels, the environment is dropped: {call!r}")
 
 
 def _what_a_call_hands_on():
-    """`$call` 里凡是调用都按能跑的形式写：名字当数据走，读的人不必解析它。
+    """`$call` 里凡是调用都按能跑的形式给出：名字当数据走，取的人不必解析它。
 
-    函数类型的参数就是这样（`$f inc`）：写下来的是那个名字，写进 `$call` 的是它的调用
+    函数类型的参数就是这样（`$f inc`）：给出的是那个名字，存进 `$call` 的是它的调用
     （`$f (__dyn_call__ << "inc")`）。另起一个运行，把这一步补上，照着它就能把这次调用做一遍。
     """
     stopped = interpret(str(CASES / "fn_argument.viba"), _host(missing=("apply",)).environ())
@@ -153,9 +153,9 @@ def _what_a_call_hands_on():
           and stop_text(stopped, "$full_qualified_func_name")
           == full_name_of(CASES / "fn_argument", "apply"),
           f"the stop names the step that is missing: {stopped!r}")
-    call = _written(stop_node(stopped, "$call").data)
+    call = _source_of(stop_node(stopped, "$call").data)
     check(call == '__dyn_call__ << "fn_argument.apply" << $f (__dyn_call__ << "inc")',
-          f"the function argument is the call it stands for, written the way a call "
+          f"the function argument is the call it stands for, given the way a call "
           f"travels: {call!r}")
 
     def get_func(path, func_name):
@@ -178,9 +178,9 @@ def _what_the_environment_api_error_records():
     stopped = interpret(str(CASES / "api_error_args.viba"), headless)
     checks.environment_api(stopped, "raised", "Environment.sub_env",
                            "an environment api that refused what it was given")
-    check(_written(stop_node(stopped, "$args").data) == '"kid"',
+    check(_source_of(stop_node(stopped, "$args").data) == '"kid"',
           f"what that api was given is recorded, the environment not among it: "
-          f"{_written(stop_node(stopped, '$args').data)!r}")
+          f"{_source_of(stop_node(stopped, '$args').data)!r}")
     check(stop_tag(stopped) not in (FAILURE_TAG, NOT_IMPLEMENTED_TAG),
           f"an environment api is no step of the program: {stopped!r}")
     check(stop_node(stopped, "$stack") is None,
@@ -194,14 +194,14 @@ def _what_the_environment_api_error_records():
 
 
 def _what_the_design_says():
-    """设计层读同一段写法：名字是数据，它说的是 `Any` —— 设计说不出更多。"""
+    """设计层看同一段源码形式：名字是数据，它说的是 `Any` —— 设计说不出更多。"""
     source = '__impl__ = __dyn_call__ << "add" << $a 1'
     module = custom_module(source)
     node = viba_ast.parse(source).body[0].body
     got = is_sub_type(AstNodeType(node, module), AstNodeType(viba_ast.Any(), module))
     check(isinstance(got, Ok) and got.ok_value is True,
           f"a call whose name is data is `Any` to the design: {got!r}")
-    # 同一段写法也要能当一份数据带着走（交给宿主、再递回来那条路）
+    # 同一段源码形式也要能当一份数据带着走（交给宿主、再递回来那条路）
     check(descriptor_of(AstNodeType(node, module)) is not None,
           "and it has a descriptor to travel with")
 

@@ -5,24 +5,24 @@ visible here.
 
 Ok(True/False) is the judgment. VibaProgramErr reports malformed input, never a
 judgment: ellipsis (...) anywhere on either side -> VibaProgramErr (an open type
-has no judgment), and a product that writes the same tag twice ->
+has no judgment), and a product that gives the same tag twice ->
 VibaProgramErr.
 
 Semantics (per design): there are no nominal types — a name is an
-alias of what it is written as, and judgment is structural throughout.
+alias of its source form, and judgment is structural throughout.
 - Every definition unfolds to its body and is compared structurally
   (B = A * $find bool <: A, and X[T] = list[T] gives X[int] the
   body of list[int]). A definition reference that cannot be unfolded
   — a bare generic name, whose parameters have no actuals — compares
   by name, which is all that is left of it.
-- Cycles are read coinductively (equi-recursive types), and the
+- Cycles are taken coinductively (equi-recursive types), and the
   assumption is the greatest fixed point: a (sub, sup) pair already in
   flight is true. `Tree[T] = $leaf T * $kids list[Tree[T]]` is
   therefore its own unfolding, `MyList[T] = $head T * $tail MyList[T]
   | nil` and the same type under another name are each other's
   subtype, and a definition that reaches only itself (`Loop[T] =
   Loop[T]`) is the largest type: it is both a subtype and a supertype
-  of anything it is compared with: whoever writes such a definition
+  of anything it is compared with: whoever spells such a definition
   gives their design a type everything fits.
 - Leaves compare by family: literal(v) <: base iff same family;
   literal <: literal iff equal values; never <: T; T <: never iff
@@ -38,10 +38,10 @@ alias of what it is written as, and judgment is structural throughout.
   `Object * $a int` is `$a int` in both directions. Any other
   untagged member is one positional member, paired with the other
   side's positionals in order. Tags hold the members together, so the
-  same tag twice in one product (inlined or written) is malformed
-  input: VibaProgramErr. So is a chain that never reaches a body because it
-  comes back to a definition it is already expanding — `A = A * $x
-  int` writes A as itself, and an alias or a generic can close the
+  same tag twice in one product (inlined, or as the source has it) is
+  malformed input: VibaProgramErr. So is a chain that never reaches a body
+  because it comes back to a definition it is already expanding — `A = A *
+  $x int` spells A as itself, and an alias or a generic can close the
   same loop.
 - TypeRef resolves through module_get_type in its own container
   module (lexical scoping); when that fails, the env_get bindings of
@@ -66,8 +66,8 @@ alias of what it is written as, and judgment is structural throughout.
 - A chain whose result is never (`never <- A`) is an exponent like any
   other: result covariant, argument contravariant, so never <- B <:
   never <- A iff A <: B. When the caller named terminators, two
-  readings of its branches apply on top: a branch is matched by a
-  terminator, or by a field that reads as `never <- branch`, and a sub
+  further takes apply to its branches: a branch is matched by a
+  terminator, or by a field that counts as `never <- branch`, and a sub
   that only copies the application matches nothing. With no terminators
   named, the exponent rule is all there is and never <- B <: never <- B
   holds.
@@ -84,7 +84,7 @@ alias of what it is written as, and judgment is structural throughout.
 from viba import viba_ast
 from viba.partial import (environment_result_problem, get_args_product,
                           module_as_function, product_elements, reduce_partial)
-from viba.pattern import reduce_application, tagged_reading
+from viba.pattern import reduce_application, tagged_type_of
 from viba.type import (
     PartialError,
     AnyType,
@@ -130,20 +130,20 @@ GET_ARGS_NAME = "__get_args__"
 def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> Result:
     """Ok(True/False) is the judgment; VibaProgramErr reports malformed input.
 
-    `terminators` names the written types a never-headed chain accepts
+    `terminators` names the types in the source a never-headed chain accepts
     where `never` itself would do. The core is told, not told about: which
     word that is belongs to the layer that uses the chain.
 
-    `config` is the same value the address layer reads with
-    (`VibaReflectConfig`: `never_eqv` and `nil_eqv`, the written names that
+    `config` is the same value the address layer takes its names by
+    (`VibaReflectConfig`: `never_eqv` and `nil_eqv`, the source names that
     stand for the units). A name in either set is that unit here too, bare
     or applied — `U[{...}]` is the unit when `U` is one — so a layer that
     parks documentation in such a block gets it bypassed instead of
     resolved. Such an argument is also not a position: documentation drops
     out of a function's argument list, so `A <- B <- U[{...}]` and
-    `A <- U[{...}] <- B` are both `A <- B`. A unit written as a plain name
-    does keep its position (it is the nil of the product, and nil is a real
-    slot in a tuple). Nothing named, nothing bypassed.
+    `A <- U[{...}] <- B` are both `A <- B`. A unit the source has as a plain
+    name does keep its position (it is the nil of the product, and nil is a
+    real slot in a tuple). Nothing named, nothing bypassed.
     """
     err = _input_error(sub, sup)
     if err is not None:
@@ -171,8 +171,8 @@ def _input_error(sub: Type, sup: Type):
     return None
 
 
-# The written units a config can name: shared, so a substituted unit keeps one
-# node and the memo keys stay put.
+# The units in the source a config can name: shared, so a substituted unit keeps
+# one node and the memo keys stay put.
 _UNIT_NIL = viba_ast.Nil()
 _UNIT_NEVER = viba_ast.Never()
 
@@ -249,31 +249,31 @@ class _Checker:
         return next((h for h in hits if isinstance(h, Ok)), resolved)
 
     def _product_member_type(self, name: str, module: ModuleType, side: str):
-        """`args.a` read as a type: the `$a` member's declared type.
+        """`args.a` taken as a type: the `$a` member's declared type.
 
         A member of a product is addressed by its tag, and that is what a dotted
         name does — `args.a` is `int` when the call was handed an `$a`, and
         `args.env` is `Env`. A definition whose body is a call is the value that
-        call answers (`args = __get_args__ << __decl__`), so its product is read
-        from there. The value layer reads the same name as the argument the call
+        call answers (`args = __get_args__ << __decl__`), so its product is taken
+        from there. The value layer takes the same name as the argument the call
         was given (viba-interpreter.md): one name, two layers, what it denotes
         each time. None when the head is no product.
         """
         head, dot, tag = name.rpartition(".")
         if not dot or not head:
             return None
-        body, written_in = self._head_body(head, module, side)
+        body, container_module = self._head_body(head, module, side)
         if body is None:
             return None
         if isinstance(body, viba_ast.Partial):
-            body, written_in = self._partial(body, written_in, side)
+            body, container_module = self._partial(body, container_module, side)
         for factor in product_elements(body):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == "$" + tag:
-                return Ok(AstNodeType(factor.type, written_in))
+                return Ok(AstNodeType(factor.type, container_module))
         return None
 
     def _head_body(self, name: str, module: ModuleType, side: str):
-        """(body, written_in) for the name, following aliases to the end."""
+        """(body, container_module) for the name, following aliases to the end."""
         seen = set()
         while name not in seen:
             seen.add(name)
@@ -290,15 +290,15 @@ class _Checker:
         return None, module
 
     def _tagged_side(self, sn, s_mod, sp, p_mod):
-        """Read `tagged[...]` as the tag it spells, on either side; else None.
+        """Take `tagged[...]` as the tag it spells, on either side; else None.
 
-        The symbol is a written string, or a name this comparison resolves — the
-        `env_get` channel a chosen file carries is one of those names
+        The symbol is a string in the source, or a name this comparison resolves
+        — the `env_get` channel a chosen file carries is one of those names
         (`_resolve_name`), which is what lets a `__decl__` build a tag out of the
         symbol a `pattern` line extracted.
         """
         for node, module, side in ((sn, s_mod, "sub"), (sp, p_mod, "sup")):
-            got = tagged_reading(node, module, self._symbol_resolver(side))
+            got = tagged_type_of(node, module, self._symbol_resolver(side))
             if isinstance(got, VibaProgramErr):
                 raise UnresolvedTypeError(got.msg)
             if got.ok_value is None:
@@ -314,9 +314,10 @@ class _Checker:
             resolved = self._resolve_name(name, module, side)
             if isinstance(resolved, VibaProgramErr):
                 return None
-            written = getattr(resolved.ok_value, "ast_node", None)
-            if isinstance(written, viba_ast.Constant) and isinstance(written.value, str):
-                return written.value
+            source_form = getattr(resolved.ok_value, "ast_node", None)
+            if (isinstance(source_form, viba_ast.Constant)
+                    and isinstance(source_form.value, str)):
+                return source_form.value
             return None
         return resolve
 
@@ -400,8 +401,8 @@ class _Checker:
         """Two bare generic names: the same name, and nothing else.
 
         A generic with no arguments has no parameters bound, so there is no
-        body to unfold; the name is all that can be compared. Which module it
-        was written in is how it was resolved, not part of the type.
+        body to unfold; the name is all that can be compared. The module the
+        source has it in is how it was resolved, not part of the type.
         """
         return sn.name == sp.name
 
@@ -434,9 +435,10 @@ class _Checker:
 
     def _unfold_ref(self, node, module: ModuleType, side: str):
         """A TypeRef is transparent unless it names a generic: it unfolds,
-        name after name, to the bound body, whose own TypeRefs resolve in its
-        written-in module. A generic parameter bound to inline structure (sum,
-        product, exponent, tag, tuple) unfolds to that structure.
+        name after name, to the bound body, whose own TypeRefs resolve in the
+        module the source has it in. A generic parameter bound to inline
+        structure (sum, product, exponent, tag, tuple) unfolds to that
+        structure.
 
         A name whose body is another name is still an alias of that name's
         body (`A = B` with `B = int` makes A int), so the unfolding runs to
@@ -462,21 +464,22 @@ class _Checker:
         return node, module
 
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
-        # A written `tagged[...]` is the tag it spells, read before anything
-        # else: the symbol may be a name a decision bound (viba-pattern.md).
+        # A `tagged[...]` in the source is the tag it spells, taken before
+        # anything else: the symbol may be a name a decision bound
+        # (viba-pattern.md).
         tagged = self._tagged_side(sn, s_mod, sp, p_mod)
         if tagged is not None:
             return tagged
-        # `g[T].value` / `g[T].type`: this reads a member of the file the decision chose (module
-        # semantics); the reading is that definition itself. A member read on a name chain is a name
-        # already when the AstNodeType is built, so it never reaches here (viba-style.md).
+        # `g[T].value` / `g[T].type`: this takes a member of the file the decision chose (module
+        # semantics); what it stands for is that definition itself. A member taken on a name chain is
+        # a name already when the AstNodeType is built, so it never reaches here (viba-style.md).
         sub_member = self._member_meaning(sn, s_mod)
         if sub_member is not None:
             return self._unfold_member(sub_member, "sub", sp, p_mod)
         sup_member = self._member_meaning(sp, p_mod)
         if sup_member is not None:
             return self._unfold_member(sup_member, "sup", sn, s_mod)
-        # A generic application is decided before anything else reads it: what
+        # A generic application is decided before anything else takes it: what
         # the decision picked takes its place, with the parameter names bound
         # through env_get (viba-pattern.md). A decision that fails is
         # malformed input, not a judgment.
@@ -493,8 +496,8 @@ class _Checker:
             # ordinary walk already says so.
             return True
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
-            # Leaf on leaf: a written name (a generic parameter too) must be recognized; names are
-            # transparent.
+            # Leaf on leaf: a name in the source (a generic parameter too) must be recognized;
+            # names are transparent.
             sub_leaf = self._lift(sn, s_mod, "sub")
             sup_leaf = self._lift(sp, p_mod, "sup")
             if sub_leaf is not None and sup_leaf is not None:
@@ -519,16 +522,16 @@ class _Checker:
 
     # ------------------------------------------------------------------
     # never-headed chains: an exponent chain whose result is never, either
-    # written out (never <- $x T) or reached through a definition's body.
-    # What is written is what counts, not the name.
+    # given in the source (never <- $x T) or reached through a definition's
+    # body. What the source has is what counts, not the name.
     #
-    # A chain reads as a function type, so its argument is contravariant.
-    # Two further readings apply to branches, and both end in a terminator
+    # A chain counts as a function type, so its argument is contravariant.
+    # Two further takes apply to branches, and both end in a terminator
     # the caller named (self.terminators):
     #   - settled: both sides are never-headed, the branch tags match, and
     #     every sub branch is a terminator;
     #   - per branch: through never <- (A | B) = (never <- A) * (never <- B),
-    #     the field at every branch tag must be a terminator or read as
+    #     the field at every branch tag must be a terminator or count as
     #     never <- branch, whose argument is then compared contravariantly.
     # A sub that is only a copy of the never-headed application settles
     # nothing: the chain head is not a terminator. Everything else falls to the
@@ -544,8 +547,8 @@ class _Checker:
         node, _ = self._unfold_ref(sn, s_mod, "sub")
         if isinstance(sp, viba_ast.TypeApp):
             if isinstance(node, viba_ast.TypeApp):
-                # Both sides written as applications: a copy settles
-                # nothing, and it is not read as an exponent here.
+                # Both sides are applications in the source: a copy settles
+                # nothing, and it does not count as an exponent here.
                 return False
             # Application form: unfold to the body and use the exponent rule.
             return self._unfold_typeapp(sp, p_mod, "sup", sn, s_mod)
@@ -622,7 +625,7 @@ class _Checker:
 
     def _branch_settled(self, field, branch_type, branch_mod) -> bool:
         """One branch is settled by a terminator at that tag, or by a field
-        reading as never <- branch whose argument is a supertype of it."""
+        that counts as never <- branch, whose argument is a supertype of it."""
         if field is None:
             return False
         node, module = self._unfold_ref(field[0], field[1], "sub")
@@ -642,9 +645,10 @@ class _Checker:
         """[(tag, body, module)] for the operand of a never-headed chain;
         None when a branch is untagged, since only a tag can hold one.
 
-        A sum written as a cycle (`S = S | $a int`) has no finite branch list
-        to read: the walk stops where it would meet a definition twice and
-        answers None, which leaves the branches unsettled rather than spinning.
+        A sum the source has as a cycle (`S = S | $a int`) has no finite
+        branch list to take: the walk stops where it would meet a definition
+        twice and answers None, which leaves the branches unsettled rather than
+        spinning.
         """
         out = []
         seen = set()
@@ -676,7 +680,7 @@ class _Checker:
         The same tag twice is malformed input, here as everywhere, and so is an
         inline chain that comes back to a definition it is already walking: an
         untagged member is an inline slot, so `A = A * $x int` has no expansion
-        to read (and asking for its fields must not spin).
+        to take (and asking for its fields must not spin).
         """
         target = self._inlining_key(node, module, "sub")
         if target is not None:
@@ -693,7 +697,7 @@ class _Checker:
                 for tag, field in self._tagged_fields(element, module, seen).items():
                     if tag in fields:
                         raise DuplicateTagError(
-                            f"the tag {tag} is written twice in one product")
+                            f"the tag {tag} appears twice in one product")
                     fields[tag] = field
             return fields
         return {}
@@ -730,11 +734,11 @@ class _Checker:
     def _member_meaning(self, node, module):
         """`g[T].name` -> the chosen file's definition `name`, or None.
 
-        None when the node is no such member read: a name chain is read as the
-        name it spells before it gets here, and an owner that is no decided
-        application is read the way it always was.
+        None when the node takes no member: a name chain counts as the name it
+        spells before it gets here, and an owner that is no decided application
+        is taken the way it always was.
         """
-        if not isinstance(node, viba_ast.MemberRead):
+        if not isinstance(node, viba_ast.MemberTaken):
             return None
         owner = node.owner
         if not isinstance(owner, viba_ast.TypeApp):
@@ -752,7 +756,7 @@ class _Checker:
         return AstNodeType(definition.body, chosen.module, chosen.env_get)
 
     def _unfold_member(self, entry, side, other, other_mod) -> bool:
-        """The member's body takes the member read's side in the walk."""
+        """The member's body takes, in the walk, the side the member take had."""
         self._env_stacks[side].append(entry.env_get)
         try:
             return self._walk_unfolded(entry, side, other, other_mod)
@@ -793,19 +797,19 @@ class _Checker:
 
     def _walk_unfolded(self, entry, side, other, other_mod) -> bool:
         """The generic's body takes the TypeApp's side in the walk."""
-        body, written_in = entry.ast_node, entry.container_module
+        body, container_module = entry.ast_node, entry.container_module
         if side == "sub":
-            return self._walk(body, written_in, other, other_mod)
-        return self._walk(other, other_mod, body, written_in)
+            return self._walk(body, container_module, other, other_mod)
+        return self._walk(other, other_mod, body, container_module)
 
     def _applied_meaning(self, app_key, node, module, side):
         """TypeApp -> the generic's body as an AstNodeType whose
         env_get binds formal parameters to the actual arguments.
 
         A generic application is its own case: which file answers is a
-        decision over the written arguments, and what answers is the chosen
-        file's `__decl__` read in that file, its parameter names bound to the
-        argument parts the patterns extracted (viba-pattern.md)."""
+        decision over the arguments in the source, and what answers is the
+        chosen file's `__decl__` taken in that file, its parameter names bound
+        to the argument parts the patterns extracted (viba-pattern.md)."""
         if app_key in self._unfolded:
             return self._unfolded[app_key]
         decision = self._decision(node, module)
@@ -814,8 +818,8 @@ class _Checker:
         if isinstance(decision, Ok) and decision.ok_value is not None:
             chosen = decision.ok_value
             if chosen.body is None:
-                # This file writes no `__decl__`: it answers its own module, so a member has to be
-                # read before there is anything to read.
+                # This file gives no `__decl__`: it answers its own module, so a member has to be
+                # taken before there is anything to take.
                 return None
             entry = AstNodeType(chosen.body, chosen.module, chosen.env_get)
             self._unfolded[app_key] = entry
@@ -908,8 +912,9 @@ class _Checker:
         if isinstance(sp, viba_ast.Tagged):
             return self._walk_tagged(sn, s_mod, sp, p_mod)
         if isinstance(sp, _PROD_NODES):
-            # The sub may be written as one tagged field or as something that
-            # is no product at all: splitting it reads it as a product of one.
+            # The source may have the sub as one tagged field, or as something
+            # that is no product at all: splitting it takes it as a product of
+            # one.
             return self._walk_products(sn, s_mod, sp, p_mod)
         if isinstance(sp, viba_ast.Tuple):
             return self._walk_tuple(sn, s_mod, sp, p_mod)
@@ -920,8 +925,8 @@ class _Checker:
         if isinstance(sp, viba_ast.CodeBlock):
             # A code block has no members: the unit is its only resident, and a
             # code block counts as one. Its text is not compared — the protocol
-            # hands no reader the viba data's code, so there is nothing to
-            # compare against.
+            # gives the viba data's code to no side that takes values, so there
+            # is nothing to compare against.
             if isinstance(sn, viba_ast.CodeBlock):
                 return True
             return isinstance(self._lift(sn, s_mod, "sub"), NilType)
@@ -958,7 +963,7 @@ class _Checker:
         return all(self._walk_bound(a, b) for a, b in zip(sub_bare, sup_bare))
 
     def _walk_bound(self, sub, sup) -> bool:
-        """Compare two member bodies, each written under its own bindings.
+        """Compare two member bodies, each under its own bindings in the source.
 
         A member is ``(node, module, env)`` — see _split_element. The bindings
         are pushed only for the comparison, so a parameter of an inlined
@@ -992,7 +997,7 @@ class _Checker:
             for tag, member in t.items():
                 if tag in tagged:
                     raise DuplicateTagError(
-                        f"the tag {tag} is written twice in one product")
+                        f"the tag {tag} appears twice in one product")
                 tagged[tag] = member
             bare.extend(b)
         return tagged, bare
@@ -1000,24 +1005,24 @@ class _Checker:
     def _split_element(self, elem, module, side: str, seen=frozenset(), env=None):
         """One untagged member: what it contributes to ({tag: member}, [member]).
 
-        A member is ``(node, module, env)``: what it is written as, the module
-        its other names resolve in, and the bindings it was written under. The
+        A member is ``(node, module, env)``: its source form, the module its
+        other names resolve in, and the bindings the source has it under. The
         bindings travel with the member because an inlined generic hands its
         own body over — with `Box[T] = $x T`, what B = Box[int] carries as
-        `$x`'s body is the written `T`, which only means `int` under Box's
+        `$x`'s body is the `T` in the source, which only means `int` under Box's
         binder. A binder resolves its actuals where it is built, so the
         innermost one is all a member needs.
 
         Names and applications unfold one after another, with a generic's
-        actuals bound, until the member is written out: a product inlines its own
-        members here, a single tagged thing is one member, the product unit is
-        no member. Anything else is one positional (bare) member, kept as it
-        was written.
+        actuals bound, until the member is unfolded to what it stands for: a
+        product inlines its own members here, a single tagged thing is one
+        member, the product unit is no member. Anything else is one positional
+        (bare) member, kept as the source has it.
 
         An inline chain has to bottom out: a definition the chain meets twice
         never bottoms out, so the design is malformed input — `A = A * $x
-        int` says A is written as itself. Refusing it is what keeps the walk
-        finite as well.
+        int` spells A as itself. Refusing it is what keeps the walk finite as
+        well.
         """
         pushed = []
         ambient = env
@@ -1041,7 +1046,7 @@ class _Checker:
                          if isinstance(node, viba_ast.TypeApp) else None)
                 if parts is None:
                     break
-                body, written_in, app_key, binder = parts
+                body, container_module, app_key, binder = parts
                 if app_key in seen:
                     raise InlineCycleError(
                         f"the inline chain comes back to {node.constructor!r}")
@@ -1049,7 +1054,7 @@ class _Checker:
                 self._env_stacks[side].append(binder)
                 pushed.append(side)
                 ambient = binder
-                node, node_mod = body, written_in
+                node, node_mod = body, container_module
             if isinstance(node, _PROD_NODES):
                 return self._split_product(node, node_mod, side, seen, ambient)
             if isinstance(node, viba_ast.Tagged):
@@ -1062,10 +1067,10 @@ class _Checker:
                 self._env_stacks[side].pop()
 
     def _application_parts(self, node, module, side: str):
-        """(body, written_in, key, binder) for a generic application with a body to
-        land on: the body as written, the module it was written in, the definition's
-        identity (the cycle key), and the env that binds the actuals to the
-        parameters. None when there is no such body."""
+        """(body, module, key, binder) for a generic application with a body to
+        land on: the body as the source has it, the module the source has it in,
+        the definition's identity (the cycle key), and the env that binds the
+        actuals to the parameters. None when there is no such body."""
         resolved = self._resolve_name(node.constructor, module, side)
         if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
             return None
@@ -1079,11 +1084,11 @@ class _Checker:
                 ("app", id(definition)), self._binder(params, node.args, module, side))
 
     def _inlining_key(self, node, module, side: str):
-        """(key, written name) of the definition an untagged member names, or
-        None when it names no definition of its own. The key is the definition's
-        identity, so a chain that meets it twice is caught — the alias case
-        included: with `B = A` and `A = B * $x int`, walking into B is walking
-        into A."""
+        """(key, the name in the source) of the definition an untagged member
+        names, or None when it names no definition of its own. The key is the
+        definition's identity, so a chain that meets it twice is caught — the
+        alias case included: with `B = A` and `A = B * $x int`, walking into B
+        is walking into A."""
         if not isinstance(node, viba_ast.TypeRef):
             return None
         resolved = self._resolve_name(node.name, module, side)
@@ -1105,8 +1110,8 @@ class _Checker:
     def _partial(self, node, module, side: str):
         """A design's `<<` reduced: the function with that argument given.
 
-        `__get_args__ << __decl__` is read before any of that: it is the arguments
-        a call was handed, read as one product (get_args_product).
+        `__get_args__ << __decl__` is taken before any of that: it is the
+        arguments a call was handed, taken as one product (get_args_product).
         """
         if not isinstance(node, viba_ast.Partial):
             return node, module
@@ -1115,39 +1120,42 @@ class _Checker:
             return product
         return reduce_partial(
             node, module,
-            lambda name, written_in: self._partial_target(name, written_in, side),
-            lambda given, given_module, written, written_module: self._walk(
-                given, given_module, written, written_module))
+            lambda name, container_module: self._partial_target(
+                name, container_module, side),
+            lambda given, given_module, other, other_module: self._walk(
+                given, given_module, other, other_module))
 
     def _get_args_call(self, node, module, side: str):
-        """(product, written_in) for `__get_args__ << <chain>`, or None.
+        """(product, module) for `__get_args__ << <chain>`, or None.
 
-        What a call was handed, read as a type: every parameter the chain
-        declares, in written order, the environment among them — which is how a
-        module names the environment (`args.env`) and its arguments (`args.a`).
-        The chain is usually the module's own `__decl__`, a name like any other.
+        What a call was handed, taken as a type: every parameter the chain
+        declares, in the order the source has them, the environment among them —
+        which is how a module names the environment (`args.env`) and its
+        arguments (`args.a`). The chain is usually the module's own `__decl__`,
+        a name like any other.
         """
         head, arguments = _partial_parts(node)
         if not (isinstance(head, viba_ast.TypeRef) and head.name == GET_ARGS_NAME):
             return None
         if len(arguments) != 1:
             raise PartialError(
-                f"{GET_ARGS_NAME} takes one argument, the function type it reads")
-        chain, written_in = self._normalize(arguments[0], module, side)
+                f"{GET_ARGS_NAME} takes one argument: the function type")
+        chain, container_module = self._normalize(arguments[0], module, side)
         if not isinstance(chain, _EXP_NODES):
             raise PartialError(
                 f"{GET_ARGS_NAME} asks for a function type, not "
                 f"{_one_line(chain)}")
-        return get_args_product(chain), written_in
+        return get_args_product(chain), container_module
 
     def _partial_target(self, name, module, side: str):
-        """(body, written_in) for the name a `<<` gives to, or None.
+        """(body, module) for the name a `<<` gives to, or None.
 
-        A definition is itself; a bare import name is the module read as a
+        A definition is itself; a bare import name is the module taken as a
         function (`module_as_function`), while `module.Name` stays what it
-        always was — that module's own definition. A function written in a module
-        never answers the environment itself: only a builtin function does, and
-        the builtin library is the one module the check steps aside for.
+        always was — that module's own definition. A function the source has in
+        a module never answers the environment itself: only a builtin function
+        does, and the builtin library is the one module the check steps aside
+        for.
         """
         resolved = self._resolve_name(name, module, side)
         if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
@@ -1186,8 +1194,9 @@ class _Checker:
         return None
 
     def _config_unit_node(self, node):
-        """The written unit a config names, so the rest of the walk reads it
-        like any other nil or never; the node itself when it names none."""
+        """The unit in the source that a config names, so the rest of the walk
+        takes it like any other nil or never; the node itself when it names
+        none."""
         unit = self._config_unit(node)
         if isinstance(unit, NilType):
             return _UNIT_NIL
@@ -1199,10 +1208,11 @@ class _Checker:
         """The arguments that carry documentation drop out of the chain, and
         only those: (A <- B <- U[{...}]) is (A <- B), and so is
         (A <- U[{...}] <- B) — what is dropped is the block, not the position
-        it was written in.
+        the source has it in.
 
-        A unit written as a name is an argument like any other: the argument
-        list is a tuple, and nil is a real slot in it (`Object` is that nil).
+        A unit the source has as a name is an argument like any other: the
+        argument list is a tuple, and nil is a real slot in it (`Object` is that
+        nil).
         Only documentation drops, so `never` is untouched too.
         """
         return [arg for arg in args if not self._carries_documentation(arg)]
@@ -1212,8 +1222,8 @@ class _Checker:
 
         `$env Environment` is the interpreter's rule — a call gives it, and a
         function that cannot be given it cannot run — not a parameter somebody
-        wrote a value for. So it is not part of a function's type: two functions
-        that take the same design arguments are the same function, one written as
+        gave a value for. So it is not part of a function's type: two functions
+        that take the same design arguments are the same function, one given as
         a definition and one as a module.
         """
         return [arg for arg in args
@@ -1221,8 +1231,8 @@ class _Checker:
 
     def _carries_documentation(self, node) -> bool:
         """A code block, or a unit a config names applied to one: where the
-        writing layers park documentation. Documentation is not an
-        argument. The block may sit behind a tag, as `U[$t {...}]` writes
+        layers that give source park documentation. Documentation is not an
+        argument. The block may sit behind a tag, as `U[$t {...}]` spells
         it."""
         if isinstance(node, viba_ast.CodeBlock):
             return True
@@ -1264,12 +1274,12 @@ class _Checker:
 
     def _walk_exponent(self, sn, s_mod, sp, p_mod) -> bool:
         """Two functions: the result covariantly, the arguments
-        contravariantly, in the order they are written.
+        contravariantly, in the order the source has them.
 
         Only functions compare with functions — never, the bottom, fits
         anywhere and is answered before this. Arguments that carry documentation (a
         code block, or a unit applied to one) drop out first, whatever
-        position they were written in (_drop_unit_args), so the chain the sup
+        position the source has them in (_drop_unit_args), so the chain the sup
         asks about is the chain of its real arguments. The sub is brought to
         the sup's arity then, the sup never moving:
 
@@ -1398,7 +1408,7 @@ class _Checker:
         return len(params) == len(node.args)
 
     def _constructor_name(self, constructor) -> str:
-        """The name a constructor was written as, builtin or definition."""
+        """The name a constructor has in the source, builtin or definition."""
         if isinstance(constructor, BuiltinGenericType):
             return constructor.name
         definition = _as_definition(getattr(constructor, "ast_node", None))
@@ -1473,8 +1483,8 @@ def _flatten_sum(node):
 
 
 def _param_index(node, params) -> "Optional[int]":
-    """Which of the generic's parameters the operand is written as (through
-    one tag at most); None when it is none of them."""
+    """The parameter the operand spells (through one tag at most); None when
+    it spells none of them."""
     if isinstance(node, viba_ast.Tagged):
         node = node.type
     if isinstance(node, viba_ast.TypeRef) and node.name in params:
@@ -1483,7 +1493,8 @@ def _param_index(node, params) -> "Optional[int]":
 
 
 def _exponent_elements(node):
-    """An exponent's elements (written order): the first is the result, the rest are arguments.
+    """An exponent's elements in the order the source has them: the first is
+    the result, the rest are arguments.
 
     A chain is the same as the binary spelling: ``A <- B <- C`` and ``(A <- B) <- C`` are
     both [A, B, C]; ``A <- (B <- C)`` is [A, [B, C]], a branch chain counting as one element.
@@ -1496,9 +1507,10 @@ def _exponent_elements(node):
 
 
 def _exponent_parts(node):
-    """An exponent read as (result, arguments): result first, arguments in written order.
+    """An exponent taken as (result, arguments): result first, arguments in the
+    order the source has them.
 
-    ``A <- B <- C`` reads as (A, [B, C]): the first is the ``$arg0`` slot, and when the
+    ``A <- B <- C`` counts as (A, [B, C]): the first is the ``$arg0`` slot, and when the
     chains differ in length the cut is made at this end. A branch chain (``A <- (B <- C)``)
     counts as one argument.
     """
@@ -1509,7 +1521,8 @@ def _exponent_parts(node):
 
 
 def _partial_parts(node):
-    """(chain head, argument list) for a written `<<` chain, arguments in written order."""
+    """(chain head, argument list) for a `<<` chain in the source, arguments in
+    the order the source has them."""
     arguments = []
     while isinstance(node, viba_ast.Partial):
         arguments.append(node.argument)
@@ -1518,7 +1531,8 @@ def _partial_parts(node):
 
 
 def _one_line(node) -> str:
-    """One piece written on one line: an error reads more clearly without layout."""
+    """One piece on one line, as the source has it: an error message is
+    clearer without layout."""
     return " ".join(viba_ast.unparse_type(node).split())
 
 

@@ -13,6 +13,6 @@ add =
   <- $b int
   <- { add two }
 
-# 实参接着 `<<` 写：两条都归 wrapper 那个写 `...` 的参数，打包成的积有两个成员，
+# 实参接着 `<<` 给出：两条都归 wrapper 那个带 `...` 的参数，打包成的积有两个成员，
 # wrapper 就走两个成员的那一支。
 __impl__ = wrapper << add << $a 1 << $b 2 << args.env

@@ -1,4 +1,4 @@
-# A step declared here is asked under the name written here.
+# A step declared here is asked under the name given here.
 __decl__ =
     int
   <- $env Env

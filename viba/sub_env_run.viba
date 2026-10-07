@@ -29,7 +29,7 @@ __decl__ =
 args = __get_args__ << __decl__
 
 # The environment the call runs at: this call's own environment's child, under
-# the name the caller wrote.
+# the name the caller gave.
 run_env = $sub_env << args.env << args.sub_env_name
 
 __impl__ = apply << $env run_env << args.f << args.args

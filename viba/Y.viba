@@ -3,12 +3,12 @@
 # rest of the chain, so those links are one product there (`$a 7 * $b 0`).
 #
 # The environment is a parameter. Giving it is what runs this call, and it is the storage
-# path this call runs at, so whoever writes `Y << …` writes the layer too — a module that is
-# already running in that environment writes a sub-environment of its own
+# path this call runs at, so whoever gives `Y << …` gives the layer too — a module that is
+# already running in that environment gives a sub-environment of its own
 # (`args.env.sub_env << args.env << "Y"`).
 #
 # The next layer the step is handed is this same call one layer down, so the entry and the
-# recursion are the same thing. The layer this call runs in is the one the caller wrote
+# recursion are the same thing. The layer this call runs in is the one the caller gave
 # (`…/Y`), and the fixed point works beside it, so that layer's relative path is what this
 # call hands the helper.
 import y_helper

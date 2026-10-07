@@ -1,5 +1,5 @@
-# `F << A` alone reads no such call: the tag is part of the piece, so a pattern
-# that wants the call inside it writes the tag.
+# `F << A` alone takes no such call: the tag is part of the piece, so a pattern
+# that wants the call inside it gives the tag.
 pattern $x (F << A)
 
 f = F

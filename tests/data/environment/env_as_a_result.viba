@@ -1,5 +1,5 @@
 # A module whose __decl__ declares the environment itself as its result: refused
-# where the file is read (only a builtin function may answer an environment).
+# where the file is taken (only a builtin function may answer an environment).
 __decl__ =
     Environment
   <- $env Env

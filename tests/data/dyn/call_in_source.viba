@@ -1,4 +1,4 @@
-# The same call, written with the name at the head.
+# The same call, given with the name at the head.
 __decl__ =
     int
   <- $env Env

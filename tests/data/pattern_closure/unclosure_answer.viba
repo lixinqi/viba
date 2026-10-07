@@ -1,4 +1,4 @@
-# `unclosure` 收下的那份积，跑到程序这一层就是它写下来的值。
+# `unclosure` 收下的那份积，跑到程序这一层就是它给出的那个值。
 import square_sum
 
 __decl__ = Any <- $env Env

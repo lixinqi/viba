@@ -1,4 +1,4 @@
-# A file with the empty argument written out.
+# A file with the empty argument given.
 __decl__ =
     int
   <- $env Env

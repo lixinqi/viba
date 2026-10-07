@@ -1,6 +1,6 @@
 """`<<`：给参数这一件事——给几个、给谁、什么时候算。
 
-写出来的实参按书写顺序算；说明块不是实参；给多了、给错了、给的不是函数都是 VibaProgramErr。
+给出的实参按源码里的顺序算；说明块不是实参；给多了、给错了、给的不是函数都是 VibaProgramErr。
 每条用例是一份可以打开的文件（`tests/data/application/*.viba`），被调的那个函数在
 `arithmetic.viba` 里，宿主的实现按名字认它，所以这里只列每份文件该跑出什么。
 
@@ -65,11 +65,11 @@ def _arguments(tmp: Path):
 
     result = interpret(str(CASES / "positional.viba"), environ)
     check(is_ok(result) and value_of(result) == 42,
-          f"arguments written without tags bind in order: {result!r}")
+          f"arguments given without tags bind in order: {result!r}")
 
 
 def _order_and_slots(tmp: Path):
-    """书写顺序与参数位：tag 的次序不影响结果；没有参数位的函数给不了实参。"""
+    """源码里的顺序与参数位：tag 的次序不影响结果；没有参数位的函数给不了实参。"""
     host = Host()
     environ = host.environ()
 
@@ -109,7 +109,7 @@ SLOT_CASES = [
 def _argument_types(tmp: Path):
     """实参要装得下那个参数：装不下是**程序错**，宿主还没看见这个实参。
 
-    值层现在也用得上判定的那套 <:：字面量、可序列化数据、环境都有写下来的类型。
+    值层现在也用得上判定的那套 <:：字面量、可序列化数据、环境都有在源码里给出的类型。
     判不出类型的（宿主自己的值、判定层 settle 不了的）照旧放过去，交给实现那一步的人。
     """
     def get_func(path, func_name):

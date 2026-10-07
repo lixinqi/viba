@@ -7,8 +7,8 @@ args = __get_args__ << __decl__
 import branch
 
 # The two switches behind names this directory can call. A step's own parameters
-# are written in its hint by the name of their tag (`env`, `cond`, `get_v`): what
-# the caller gave goes on to the switch unchanged. The body is written in
+# are given in its hint by the name of their tag (`env`, `cond`, `get_v`): what
+# the caller gave goes on to the switch unchanged. The body is given in
 # parentheses: a call after `<-` needs them.
 
 only_if =
@@ -25,7 +25,7 @@ only_if_not =
   <- $get_v (int <- $env Env)
   <- (branch.never_or_echo << $env env << $cond cond << $get_v get_v)
 
-# The condition is written in, so the call still owes the value and the
+# The condition is given in, so the call still owes the value and the
 # environment: `if_true << $get_v v` is that whole branch, half given.
 if_true =
     int

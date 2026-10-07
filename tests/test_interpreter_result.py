@@ -1,6 +1,6 @@
 """一次执行的结果：就是那个节点，而且它落在 `viba/interpret_result.viba` 这个定义里。
 
-`interpret` 与 `exec` 回答的是一份 viba 数据（声明里的 `InterpretResult`），这份数据按 tag 读得出来，
+`interpret` 与 `exec` 回答的是一份 viba 数据（声明里的 `InterpretResult`），这份数据按 tag 取得出来，
 也能拿声明本身判：`is_interpret_result` 用 `is_sub_type` 判它确实落在那份定义里。这里四种停法各钉一遍
 （值、没有实现、实现坏了、程序/环境不行、环境上的 api 收不下），并钉住宿主交回失败数据那条路。
 
@@ -54,26 +54,26 @@ def _fits(result, label: str):
     """`is_sub_type` 判它落在声明里 —— 每一支都要过这一关。"""
     check(is_interpret_result(result),
           f"{label}: the answer does not fit InterpretResult: {result!r}")
-    written = serialize.serialize("result", result)
-    check(isinstance(written, Ok) and written.ok_value.startswith("result ="),
-          f"{label}: and it writes out as viba source: {written!r}")
+    source = serialize.serialize("result", result)
+    check(isinstance(source, Ok) and source.ok_value.startswith("result ="),
+          f"{label}: and it serializes as viba source: {source!r}")
 
 
 def _a_value():
     """`$ok` 那一支：值是它自己，整份结果对得上声明。"""
     result = interpret(_case("value"), Host().environ())
     check(branch_of(result) == OK_TAG and is_ok(result) and value_of(result) == 42,
-          f"a run that answered is on $ok, and the leaf reads: {result!r}")
+          f"a run that answered is on $ok, and the leaf can be taken: {result!r}")
     _fits(result, "a value")
 
 
 def _a_value_with_members():
-    """值的读法跟着值走：一份积按它自己的成员读。"""
+    """值的取法跟着值走：一份积按它自己的成员取。"""
     result = interpret(_case("product"), Host().environ())
     answer = answer_of(result) if is_ok(result) else None
     check(answer is not None and leaf_of(answer.by_tag("$x")) == 1
           and leaf_of(answer.by_tag("$name")) == "b",
-          f"the answer is read through its own members: {result!r}")
+          f"the answer is taken through its own members: {result!r}")
     _fits(result, "a product")
 
 
@@ -124,8 +124,8 @@ def _a_host_that_hands_the_failure_back():
     check(message_of(result) == "no ghost here"
           and stop_text(result, "$module_path") == "root/elsewhere"
           and stop_text(result, "$full_qualified_func_name") == "no_impl.ghost",
-          f"what the host wrote is kept, the step name is filled in: {result!r}")
-    _fits(result, "a failure a get_func wrote itself")
+          f"what the host gave is kept, the step name is filled in: {result!r}")
+    _fits(result, "a failure a get_func gave itself")
 
     # 实现自己交回它（不是 get_func 交回的）
     result = interpret(_case("no_impl"), Host(says_no=("ghost",)).environ())
@@ -161,7 +161,7 @@ def _a_program_error():
 
 
 def _the_chain_it_stopped_in():
-    """`$stack`：执行里停下来时，一帧就是写这次调用的地方，最外那帧是主文件。"""
+    """`$stack`：执行里停下来时，一帧就是这次调用出现的源码位置，最外那帧是主文件。"""
     result = interpret(_case("chain"), Host().environ())
     check(stop_tag(result) == PROGRAM_ERR_TAG
           and message_of(result).startswith("no definition named"),
@@ -177,7 +177,7 @@ def _the_chain_it_stopped_in():
     check(str(leaf_of(entered.by_tag("$file_path"))).endswith("chain.viba")
           and leaf_of(entered.by_tag("$lineno")) == 10,
           f"and the next one is the call that entered the inner module, "
-          f"written in chain.viba on line 10: {entered!r}")
+          f"in chain.viba on line 10: {entered!r}")
     _fits(result, "a program error with a chain")
 
 

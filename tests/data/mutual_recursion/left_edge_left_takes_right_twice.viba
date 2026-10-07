@@ -1,7 +1,7 @@
 __decl__ = int <- $env Env
 
 import branch
-import right_edge_left_reads_right_twice as right
+import right_edge_left_takes_right_twice as right
 
 x = right.y
 __impl__ = x

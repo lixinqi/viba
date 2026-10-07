@@ -1,44 +1,44 @@
-"""内建目录里的 sequential：一串步骤严格按书写次序跑完，整个链的结果就是最后那一步的结果。
+"""内建目录里的 sequential：一串步骤严格按源码里的次序跑完，整个链的结果就是最后那一步的结果。
 
     sequential << $x (…) << $y (…) << (…) << env
 
-每一步都是一次调用，写在 `<<` 后面；除最后那一步之外，每一步前面都要写一个 tag（`$x (…)`），
-它的结果记在那个 tag 名下，后面的步骤用 `($var "x")` 读得到。**最后那个参数不写 tag**：它没有名字，
-它的结果就是整条链的结果 —— 想返回前面某一步的值，就把那个名字读出来交给内建的 `echo`
-（`echo << $x V` 原样给出 V）：`<< (echo << $x ($var "x"))`。步骤的实参里也可以写变量引用
+每一步都是一次调用，跟在 `<<` 后面；除最后那一步之外，每一步前面都要给出一个 tag（`$x (…)`），
+它的结果记在那个 tag 名下，后面的步骤用 `($var "x")` 取得到。**最后那个参数不给 tag**：它没有名字，
+它的结果就是整条链的结果 —— 想返回前面某一步的值，就把那个名字取出来交给内建的 `echo`
+（`echo << $x V` 原样给出 V）：`<< (echo << $x ($var "x"))`。步骤的实参里也可以放变量引用
 （`$a ($var "x")`），它们在调用跑起来之前先换成值。
 
-`sequential_impl` 按步骤数分文件（2..64 步各一份；一步没有 tag 钉住个数，按写下来的调用实参个数
+`sequential_impl` 按步骤数分文件（2..64 步各一份；一步没有 tag 钉住个数，按给出的调用实参个数
 各一份），`sequential_step` 按一步那次调用的实参个数分文件（1..16），`sequential_arg`
-按实参的写法分文件。每一个调用都跑在自己的数据路径上（`step0`、`step1`、…，最后一步是 `last`，
+按实参的源码形式分文件。每一个调用都跑在自己的数据路径上（`step0`、`step1`、…，最后一步是 `last`，
 实参是 `arg0`、`arg1`、…）：一条数据路径只处理一次调用。
 
-文件名前面写着这个文件读几份（`sequential_impl/2_200.viba`、`sequential_step/2_300.viba`）：
-决断先数一遍这次应用摆出来几份，只读那个份数对得上的文件，所以一条链只读它自己的那几份，
+文件名前面带着这个文件取几份（`sequential_impl/2_200.viba`、`sequential_step/2_300.viba`）：
+决断先数一遍这次应用摆出来几份，只取那个份数对得上的文件，所以一条链只取它自己的那几份，
 79 份模式文件不必翻一遍（`viba-pattern.md` 第 4 节）。
 
 用例在 `tests/data/sequential/`：
 
-    one_step.viba                 一步不写 tag，给出 3
-    two_steps.viba                两步：x 给最后一步读两次，给出 9
+    one_step.viba                 一步不给 tag，给出 3
+    two_steps.viba                两步：x 给最后一步取两次，给出 9
     three_steps.viba              三步一条链，给出 8
     a_var_step.viba               最后一步用 `echo` 把 `x` 交出去，给出 3
-    a_far_variable.viba           四步：最后一步读第一步的变量，给出 6（隔层的成员也取得出来）
+    a_far_variable.viba           四步：最后一步取第一步的变量，给出 6（隔层的成员也取得出来）
     the_chain_is_a_closure.viba   链先不给环境（是个闭包），`proc << args.env` 才跑，给出 3
-    order.viba                    三步之间没有依赖，宿主被问的次序仍是书写次序
+    order.viba                    三步之间没有依赖，宿主被问的次序仍是源码里的次序
     builtin_prefix.viba           `builtin.sequential` 叫的是同一个模块，给出 3
     the_environment_first.viba    环境给在第一位也认，给出 3
     a_module_in_a_step.viba       步骤是一次模块调用（helper 跑在步骤自己的那一层上），给出 7
-    a_missing_variable.viba       读一个没人写过的名字
+    a_missing_variable.viba       取一个没人给过的名字
     seventeen_steps.viba          17 步一条链（超过 16 也接），给出 17
     sixty_four_steps.viba         64 步（计数文件的上界），给出 64
-    a_tagged_last_step.viba       最后一个参数写了 tag：没有名字可记，没人接
+    a_tagged_last_step.viba       最后一个参数给了 tag：没有名字可记，没人接
     a_step_that_is_no_call.viba   最后那个参数不是一次调用
-    typed_slots.viba              变量引用落在 `$a int` 上：设计时读不出它的值，当场拒
+    typed_slots.viba              变量引用落在 `$a int` 上：设计时取不出它的值，当场拒
     sixty_five_steps.viba         65 步：2..64 各一份计数文件，没有文件接
 
 除这些用例之外，`sequential_impl` 的 **1..64 步槽位**各跑一遍：各造一条链（每一步把前一步的
-结果加一，最后一步不写 tag），跑出来就是步数本身。这些链在跑的时候写进临时目录，不在 `tests/data/` 里。
+结果加一，最后一步不给 tag），跑出来就是步数本身。这些链在跑的时候存进临时目录，不在 `tests/data/` 里。
 
     python3 tests/test_interpreter_sequential.py
 """
@@ -67,11 +67,11 @@ ANSWERS = [("one_step", 3), ("two_steps", 9), ("three_steps", 8),
            ("the_chain_is_a_closure", 3), ("builtin_prefix", 3),
            ("the_environment_first", 3), ("a_module_in_a_step", 7)]
 
-# 严格次序怎么看：`order.viba` 的三步互不依赖，宿主被问的次序仍是书写次序。
+# 严格次序怎么看：`order.viba` 的三步互不依赖，宿主被问的次序仍是源码里的次序。
 ORDER = ["first", "second", "third"]
 
-# `sequential_impl` 的步数槽位：1..64 各跑一条，链长就是槽位。每一步都要读一遍自己那份模式文件，
-# 一份一代价不到一毫秒（文件名上写着份数，决断不必翻别的文件）。
+# `sequential_impl` 的步数槽位：1..64 各跑一条，链长就是槽位。每一步都要取一遍自己那份模式文件，
+# 一份一代价不到一毫秒（文件名上带着份数，决断不必翻别的文件）。
 SLOTS = 64
 
 # (用例文件, 话里的片段)：设计层与决定层的拒绝
@@ -113,7 +113,7 @@ def run(tmp: Path):
 
 
 def _the_steps_in_order(tmp: Path):
-    """写下来的步骤一步步跑完：每个用例自己一个 store。"""
+    """给出的步骤一步步跑完：每个用例自己一个 store。"""
     for name, want in ANSWERS:
         record = []
         result = interpret(str(CASES / f"{name}.viba"),
@@ -123,11 +123,11 @@ def _the_steps_in_order(tmp: Path):
     record = []
     order = interpret(str(CASES / "order.viba"), environ_for(tmp / "order", record))
     check(is_ok(order) and record == ORDER,
-          f"三步没有依赖，宿主被问的次序是书写次序 {ORDER}：{record!r}")
+          f"三步没有依赖，宿主被问的次序是源码里的次序 {ORDER}：{record!r}")
 
 
 def _a_chain_of(n: int) -> str:
-    """n 步的链：每一步把前一步的结果加一，最后一步不写 tag，给出 n。"""
+    """n 步的链：每一步把前一步的结果加一，最后一步不给 tag，给出 n。"""
     lines = ["add =",
              "    int",
              "  <- $env Env",
@@ -157,8 +157,8 @@ def _a_chain_of(n: int) -> str:
 def _every_slot(tmp: Path):
     """`sequential_impl` 的 1..64 步槽位各跑一遍：各造一条链，给出步数本身。
 
-    造出来的链写进临时目录，不进 `tests/data/`。每一步都是一次调用（除最后一步外都带 tag），
-    所以这一轮同时压到一步那些文件（一步的调用有几个实参就读几份的那几份）与 2..64 步各一份。
+    造出来的链存进临时目录，不进 `tests/data/`。每一步都是一次调用（除最后一步外都带 tag），
+    所以这一轮同时压到一步那些文件（一步的调用有几个实参就取几份的那几份）与 2..64 步各一份。
     """
     cases = tmp / "slots"
     cases.mkdir(parents=True, exist_ok=True)
@@ -171,7 +171,7 @@ def _every_slot(tmp: Path):
 
 
 def _errors_are_named(tmp: Path):
-    """写错了的那几种：话里点名是哪一处。"""
+    """给错了的那几种：话里点名是哪一处。"""
     for name, want in RECORDED:
         result = interpret(str(CASES / f"{name}.viba"),
                            environ_for(tmp / f"error-{name}", []))

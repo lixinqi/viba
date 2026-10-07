@@ -2,12 +2,12 @@
 
 ## 1. 引言
 
-`viba.builder` 让你用 Python 的表达式写 Viba 源码。你写定义，`str(vb)` 给出整份文件。
+`viba.builder` 让你用 Python 的表达式拼出 Viba 源码。你给出定义，`str(vb)` 给出整份文件。
 
 它只做两件事：
 
-- **组装**：Python 的算子直接对应语言的算子，写出来的东西进的是同一套 AST，再由 `viba.viba_ast.unparse` 打印成**规范写法**（跟打印器互为定点）。
-- **把守**：写错的地方在赋值那一行就抛异常，不会等你落盘才发现。
+- **组装**：Python 的算子直接对应语言的算子，拼出来的东西进的是同一套 AST，再由 `viba.viba_ast.unparse` 打印成**规范形式**（跟打印器互为定点）。
+- **把守**：错的地方在赋值那一行就抛异常，不会等你落盘才发现。
 
 它不做：不重排既有文件、不校验语义（类型是否成立是判断层的事）、不猜你的意思。
 
@@ -74,8 +74,8 @@ latest_file[Ctx] =
 | `vb.a.b.Name` | `a.b.Name` |
 | `vb.Name[arg0, arg1]` | `Name[arg0, arg1]` |
 | `vb.Name[()]` | `Name[]` |
-| `A \| B` | `A \| B`（和）；定义摊成多行块时，头写 `vb.Oneof` |
-| `A * B` | `A * B`（积）；定义摊成多行块时，头写 `vb.Object` |
+| `A \| B` | `A \| B`（和）；定义摊成多行块时，头用 `vb.Oneof` |
+| `A * B` | `A * B`（积）；定义摊成多行块时，头用 `vb.Object` |
 | `A ** B` | `A <- B`（指数；`B` 必须是 tag 或分组） |
 | `A << B` | `A << B`（部分计算：把那个参数给掉；`B` 与 `**` 一样必须是 tag 或分组） |
 | `tag.name(body)` | `$name body` |
@@ -97,7 +97,7 @@ latest_file[Ctx] =
 | `builder.code(text)` | `{ text }` |
 | `builder.comment(vb, text)` | `# text` |
 | `builder.add_import(vb, m, a)` | `import m as a` |
-| `builder.check(vb)` | 让解析器把写出来的源码读一遍：返回解析出来的 Module，读不过去就抛 ValueError |
+| `builder.check(vb)` | 让解析器把 `str(vb)` 给出的源码解析一遍：返回解析出来的 Module，解析不过去就抛 ValueError |
 
 ## 4. 定义
 
@@ -106,9 +106,9 @@ vb.UserName = str                 # UserName = str
 vb.Map[vb.K, vb.V] = vb.V         # Map[K, V] = V
 ```
 
-- 定义名要是一个普通标识符：不能是关键字（`nil` / `never` / `true` / `false` / `void` / `None` / `import` / `as` / `pattern`），不能带点、不能带横杠 —— Python 的属性名里没有点，Viba 的定义左边也只有一段名字。要写"一个概念的几个成员"，就写 `vb.a = tag.b(vb.A) * tag.c(vb.C)`，读的时候 `a.b`、`a.c` 这样取成员。
-- 同一个名字可以写多次，顺序就是写的顺序（第 10 节的"既有文件里已有这个名字"是另一回事）。写的
-  顺序只是源码的顺序：定义是绑定，求值按需求值，写的次序不是求值的次序（[`viba-interpreter.md`](viba-interpreter.md)
+- 定义名要是一个普通标识符：不能是关键字（`nil` / `never` / `true` / `false` / `void` / `None` / `import` / `as` / `pattern`），不能带点、不能带横杠 —— Python 的属性名里没有点，Viba 的定义左边也只有一段名字。要表达"一个概念的几个成员"，就用 `vb.a = tag.b(vb.A) * tag.c(vb.C)`，用的时候 `a.b`、`a.c` 这样取成员。
+- 同一个名字可以出现多次，顺序就是源码里的顺序（第 10 节的"既有文件里已有这个名字"是另一回事）。这个
+  顺序只是源码的顺序：定义是绑定，求值按需求值，源码里的次序不是求值的次序（[`viba-interpreter.md`](viba-interpreter.md)
   的「求值策略：按需求值（call-by-need）」一节）。
 - 没有别的定义形式：Viba 的定义只有"带形参"和"不带形参"两种。
 
@@ -122,8 +122,8 @@ vb.E = vb.A ** tag.p(vb.B)         # A <- $p B
 
 **结合性与分组**跟语言一致：
 
-- `|` 与 `*` 两边都是左结合：`A | B | C` 长成一条主链；`A | (B | C)` 括号里那条是**支链**，会带着括号写出来。要分组，括号和 `tag(…)` 都行。
-- `**` 在 Python 里右结合、语言的 `<-` 是左结合，所以 `A ** tag.x(B) ** tag.y(C)` 到手是 `A ** (tag.x(B) ** tag.y(C))`，builder 会把它摊平成书写顺序的一条链 `A <- $x B <- $y C`。**括号在这里不分组**，要嵌套就写 `tag(…)`：
+- `|` 与 `*` 两边都是左结合：`A | B | C` 长成一条主链；`A | (B | C)` 括号里那条是**支链**，会带着括号输出。要分组，括号和 `tag(…)` 都行。
+- `**` 在 Python 里右结合、语言的 `<-` 是左结合，所以 `A ** tag.x(B) ** tag.y(C)` 到手是 `A ** (tag.x(B) ** tag.y(C))`，builder 会把它摊平成源码顺序的一条链 `A <- $x B <- $y C`。**括号在这里不分组**，要嵌套就用 `tag(…)`：
 
 ```python
 vb.Flat  = vb.A ** tag.p(vb.B) ** tag.q(vb.C)   # A <- $p B <- $q C
@@ -132,7 +132,7 @@ vb.Nest  = vb.A ** tag(vb.B ** tag.p(vb.C))     # A <- (B <- $p C)
 
 - 优先级也是语言的：`**` 高于 `*`，`*` 高于 `|`，所以 `vb.A * vb.B ** tag.p(vb.C)` 就是 `A * (B <- $p C)`。
 
-**分组**有两种写法：括号，或者 `tag(…)`。在 `|` 和 `*` 的位置上两者一模一样——`vb.A | tag(vb.B | vb.C)` 就是 `vb.A | (vb.B | vb.C)`，裹一个名字等于没裹；在 `**` 右边则**只能**用 `tag(…)`，因为那里的括号会被摊平。
+**分组**有两种形式：括号，或者 `tag(…)`。在 `|` 和 `*` 的位置上两者一模一样——`vb.A | tag(vb.B | vb.C)` 就是 `vb.A | (vb.B | vb.C)`，裹一个名字等于没裹；在 `**` 右边则**只能**用 `tag(…)`，因为那里的括号会被摊平。
 
 **`**` 的右边只能是两种东西**，别的当场抛：
 
@@ -156,9 +156,9 @@ vb.Z = vb.Map[vb.K, vb.V]      # Map[K, V]
 vb.W = vb.F[()]                # F[]
 ```
 
-`vb.F` 是**引用**，`vb.F[()]` 是**应用**（零实参）：Python 没有空下标，所以零实参只能这么写。实参可以是名字、应用、元组、字面量、tagged 字段。
+`vb.F` 是**引用**，`vb.F[()]` 是**应用**（零实参）：Python 没有空下标，所以零实参只能这么给。实参可以是名字、应用、元组、字面量、tagged 字段。
 
-Python 自己那套下标类型也认，落成语言里的写法：
+Python 自己那套下标类型也认，落成语言里的形式：
 
 ```python
 vb.ListA = list[vb.A]              # list[A]
@@ -188,9 +188,9 @@ vb.M = int | str   # int | str（Python 的联合类型就是和）
 vb.N = int | None  # int | nil
 ```
 
-这几行示范的是**值到写法的对照**，不是在示范一份定义该怎么起头：真写一份定义时，链要摊成多行块，块的头就得写出来——和链写 `vb.Oneof`、积链写 `vb.Object`（见 README 的 “Writing a definition” 一节）。
+这几行示范的是**值和源码形式的对照**，不是在示范一份定义该怎么起头：真给一份定义时，链要摊成多行块，块的头就要放在第一行——和链用 `vb.Oneof`、积链用 `vb.Object`（见 README 的 “Conventions of a definition” 一节）。
 
-`vb.nil` / `vb.never` 建出来的就是 `Nil` / `Never` 节点本身，不只是打印成 `nil` / `never`。`vb.true` / `vb.false` 是写错（Python 里该写 `True` / `False`），当场抛。
+`vb.nil` / `vb.never` 建出来的就是 `Nil` / `Never` 节点本身，不只是打印成 `nil` / `never`。`vb.true` / `vb.false` 是不行的（Python 里要用 `True` / `False`），当场抛。
 
 ## 8. 容器、元组、代码块
 
@@ -206,8 +206,8 @@ vb.Unit   = ()                       # ()
 vb.Code   = builder.code("return 1") # {return 1}
 ```
 
-- `list` 顺序照写；`dict` 顺序照写，键值成对；**`set` 按打印出来的文本排序**——集合本身无序，这样同一个集合每次给出的源码一样。**写给 reflect 读的实例不要用集合的糖**：读的时候是按位置走的（`len` + `at_index`），排序过的顺序跟实例里的可能不同，同一个数据路径两边会读到不同的元素；这种场合写应用形式 `vb.SetLiteral[a, b, c]`，顺序照给定。
-- 一元组必须留逗号：`(B)` 读回来只是 `B`，`(B,)` 才是元组。
+- `list` 顺序照给定；`dict` 顺序照给定，键值成对；**`set` 按打印出来的文本排序**——集合本身无序，这样同一个集合每次给出的源码一样。**交给 reflect 取的实例不要用集合的糖**：取的时候是按位置走的（`len` + `at_index`），排序过的顺序跟实例里的可能不同，同一个数据路径两边会取到不同的元素；这种场合用应用形式 `vb.SetLiteral[a, b, c]`，顺序照给定。
+- 一元组必须留逗号：`(B)` 解析回来只是 `B`，`(B,)` 才是元组。
 - 元素跟别处一样走同一套包装：字面量、名字、表达式都行。
 
 ## 9. 文件级的三件事
@@ -216,9 +216,9 @@ vb.Code   = builder.code("return 1") # {return 1}
 vb = viba.builder.Builder()
 vb.Answer = 42
 
-viba.builder.add_import(vb, "store_core", "sc")   # 排在最前，哪怕定义先写
-viba.builder.comment(vb, "先放一条注释")             # 写在它站的位置
-module = viba.builder.check(vb)                     # 让解析器读一遍 str(vb)
+viba.builder.add_import(vb, "store_core", "sc")   # 排在最前，哪怕定义先给出
+viba.builder.comment(vb, "先放一条注释")             # 落在它站的位置
+module = viba.builder.check(vb)                     # 让解析器解析一遍 str(vb)
 print(str(vb))
 ```
 
@@ -231,15 +231,15 @@ Answer =
 # 先放一条注释
 ```
 
-`check(vb)` 做的事就一件：把 `str(vb)` 交给 `viba_ast.parse`。写出来的是合法 Viba 就返回那棵 Module（AST），不是就抛 `ValueError`——等于落盘前先自己读一遍。
+`check(vb)` 做的事就一件：把 `str(vb)` 交给 `viba_ast.parse`。给出的是合法 Viba 就返回那棵 Module（AST），不是就抛 `ValueError`——等于落盘前先自己解析一遍。
 
 这几个都是模块函数，不是 `Builder` 的方法——`Builder` 上没有任何公开方法，所以 `vb.<名字>` 永远只可能是定义。
 
-`str(vb)` 的收尾永远只有一个换行；什么也没有的 builder 写出空串。
+`str(vb)` 的收尾永远只有一个换行；什么也没有的 builder 给出空串。
 
-## 10. 续写既有文件
+## 10. 在既有文件后面接着加
 
-`Builder(…)` 的参数是文件的起点，所以续写就是把它交进去：
+`Builder(…)` 的参数是文件的起点，所以接着加就是把它交进去：
 
 ```python
 vb = viba.builder.Builder(Path("store.viba").read_text())
@@ -256,36 +256,36 @@ Path("store.viba").write_text(str(vb))
 |---|---|
 | 起点不是合法 Viba 源码 | `ValueError`（当场） |
 | 重复定义文件里已有的名字 | `TypeError: 'DemoRule' is already defined: only new definitions can be appended` |
-| 给续写的 builder 加 import | `TypeError`（import 得站在最上面，那是插入，不是追加） |
+| 给接着加的 builder 加 import | `TypeError`（import 得站在最上面，那是插入，不是追加） |
 
 既有内容原样带在最前，不会被重排、不会掉注释。
 
 ## 11. 会当场报错的地方
 
-| 写法 | 报什么 |
+| 形式 | 报什么 |
 |---|---|
 | `vb.X = vb.A ** vb.B` | 右边是名字：只收 tag |
-| `vb.X = vb.A ** tag.head` | `tag.head is a tag with no body: write tag.head(body)` |
+| `vb.X = vb.A ** tag.head` | `tag.head is a tag with no body: spell tag.head(body)` |
 | `vb.X = vb.Object * tag.float_value` | 同上（积里也一样） |
 | `vb.X = vb.A ** (vb.B \| vb.C)` | 右边是和/积/字面量：只收 tag |
-| `vb.X = vb.true` | `write True, not vb.true` |
+| `vb.X = vb.true` | `spell True, not vb.true` |
 | `vb.nil = 1` | `'nil' is not a definition name` |
 | `setattr(vb, "a-b", 1)` | 同上（定义名得是标识符） |
-| `vb.a.b = 1` | Python 的属性名里没有点；点分名字在源码里写，见第 4 节 |
+| `vb.a.b = 1` | Python 的属性名里没有点；点分名字出现在源码里，见第 4 节 |
 | `vb.List[1] = vb.A` | 泛型形参只能是名字 |
 | `vb.Map[vb.T, vb.T] = vb.A` | 泛型形参不能重复 |
-| `vb.X = object()` | 写不出来的 Python 值 |
+| `vb.X = object()` | 没法落成源码的 Python 值 |
 
 ## 12. 边界
 
-- **Python 没有空下标**：零实参应用写 `vb.F[()]`（写成 `vb.F[]` 是 Python 语法错）。
+- **Python 没有空下标**：零实参应用用 `vb.F[()]`（`vb.F[]` 是 Python 语法错）。
 - **最左边那个操作数得是 builder 出来的**：`vb.A | 1` 可以，`1 | vb.A` 也可以（走 `__ror__`），但 `"a" | 1` 两边都不认识 builder，Python 直接不让。要这么起头就用 `builder.literal`：
 
   ```python
   vb.X = builder.literal("a") | 1        # "a" | 1
   vb.Y = builder.literal(1) * "x"        # 1 * "x"
   ```
-- **注释只在你写的位置**：起点里原有注释原样保留；新注释用 `builder.comment`，落在调用它的位置。
-- **不重排**：builder 只往后面接，既有文件哪怕写法不"规范"也照原样留着——要统一格式，自己拿 `viba_ast.unparse(viba_ast.parse(text))` 走一遍。
-- **字面量得是语言读得回来的**：Viba 的字面量没有负号、也没有指数，所以 `-3`、`1e30`、`nan` 这类 Python 数字写出来会被读成另一个值——builder 不写，`str(vb)` / `builder.check` 直接抛 `ValueError`。字符串按内容挑引号（能用双引号就双引号，含 `"` 就用单引号，跨行用三引号），三种引号都在文本里的，语言里没有装得下它的字面量，同样抛 `ValueError`。
+- **注释只在你的位置上**：起点里原有注释原样保留；新注释用 `builder.comment`，落在调用它的位置。
+- **不重排**：builder 只往后面接，既有文件哪怕形式不"规范"也照原样留着——要统一格式，自己拿 `viba_ast.unparse(viba_ast.parse(text))` 走一遍。
+- **字面量得是语言解析得回来的**：Viba 的字面量没有负号、也没有指数，所以 `-3`、`1e30`、`nan` 这类 Python 数字序列化出去会被解析成另一个值——builder 不给，`str(vb)` / `builder.check` 直接抛 `ValueError`。字符串按内容挑引号（能用双引号就双引号，含 `"` 就用单引号，跨行用三引号），三种引号都在文本里的，语言里没有装得下它的字面量，同样抛 `ValueError`。
 - **不管语义**：`vb.X = vb.Y * vb.Y` 这种重复、未定义的名字、单位元的用法，builder 不查，那是判断层（`viba.is_sub_type`）的事。

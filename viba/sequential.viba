@@ -1,4 +1,4 @@
-# sequential — run a chain of steps strictly in the order they are written, and
+# sequential — run a chain of steps strictly in the order they are given, and
 # answer what the last one answers.
 #
 # `sequential << $x (add << $a 1 << $b 2) << (echo << $x ($var "x"))`

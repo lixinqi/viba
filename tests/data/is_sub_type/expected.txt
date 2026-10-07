@@ -9,7 +9,7 @@
 008 false
 009 false
 010 false
-011 false  # was ()<:nil under the old alias reading; () is the empty tuple now
+011 false  # was ()<:nil under the old alias rule; () is the empty tuple now
 012 true
 013 true
 014 false
@@ -31,7 +31,7 @@
 030 true
 031 true
 032 false
-033 true  # two modules' List have the same body: structural, the module a body was written in is not the type
+033 true  # two modules' List have the same body: structural, the module a body stands in is not the type
 034 false
 035 true  # MyList and List unfold into each other (equi-recursive)
 036 true  # two modules' Box have the same body
@@ -69,7 +69,7 @@
 068 false
 069 true
 070 true
-071 error  # one product may not write the same tag twice
+071 error  # one product may not have the same tag twice
 072 true  # nil is the unit of product: nil * A == A
 073 error  # mid-sum ellipsis is a lint Err now
 074 true
@@ -108,10 +108,10 @@
 107 true
 108 true  # nil is the unit: the identity holds both ways
 109 true  # an untagged product member is inlined
-110 true  # and read back the same way
+110 true  # and taken back the same way
 111 false  # the inlined tags are the ones that count
 112 error  # the same tag twice, the inline counted
-113 error  # written twice at one level is malformed too
+113 error  # a tag twice at one level is malformed too
 114 true  # inlining runs down the whole chain
 115 true  # a name over the unit is the unit
 116 true  # a member that is no product still pairs by position

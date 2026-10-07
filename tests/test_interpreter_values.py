@@ -1,4 +1,4 @@
-"""值：宿主给出什么、__impl__ 能写成什么、一个名字算几次。
+"""值：宿主给出什么、__impl__ 能是哪些源码形式、一个名字算几次。
 
 不纯的东西从这里出去（宿主函数），回来的必须是叶子或可序列化数据；函数、模块、泛型应用都不是值。
 每条用例是一份可以打开的文件（`tests/data/values/*.viba`），这里只列它该跑出什么。
@@ -38,8 +38,8 @@ def _case(name: str) -> str:
 def run(tmp: Path):
     _the_branches(tmp)
     _host_answers(tmp)
-    _written_as_ret(tmp)
-    _written(tmp)
+    _given_as_ret(tmp)
+    _given(tmp)
     _names_and_repeats(tmp)
     _crossing_the_host_boundary(tmp)
 
@@ -153,67 +153,67 @@ LITERAL_CASES = [("lit_42", 42, "a literal int"), ("lit_hi", "hi", "a literal st
                  ("lit_true", True, "a literal bool")]
 UNIT_CASES = [("unit_nil", "nil"), ("unit_never", "never"), ("unit_Any", "Any")]
 # (文件, 说法, 停下来的那句话里有什么)
-NOT_A_VALUE_CASES = [("written_application", "a generic application",
+NOT_A_VALUE_CASES = [("application_in_source", "a generic application",
                       "no definition named 'list'"),
-                     ("written_exponent", "an exponent", "cannot compute")]
+                     ("exponent_in_source", "an exponent", "cannot compute")]
 
 
-def _written_as_ret(tmp: Path):
-    """__impl__ 写成字面量、单位、和/积、名字：哪些是值。"""
+def _given_as_ret(tmp: Path):
+    """__impl__ 的源码形式是字面量、单位、和/积、名字：哪些是值。"""
     host = Host()
     environ = host.environ()
 
     for name, want, label in LITERAL_CASES:
         result = interpret(_case(name), environ)
         check(is_ok(result) and value_of(result) == want,
-              f"__impl__ written as {label}: {result!r}")
+              f"__impl__ given as {label}: {result!r}")
     for name, label in UNIT_CASES:
         result = interpret(_case(name), environ)
-        check(is_ok(result), f"__impl__ written as {label}: {result!r}")
+        check(is_ok(result), f"__impl__ given as {label}: {result!r}")
     for name, label, want in NOT_A_VALUE_CASES:
-        # `list[int]` 写在值的位置上时，没有哪个泛型回答 `list`，于是按简写去读这个名字 ——
-        # 读不进来，报的就是这个名字（`_addressed_reading`）。类型名不是一个值。
+        # `list[int]` 出现在值的位置上时，没有哪个泛型回答 `list`，于是按简称去判这个名字 ——
+        # 判不成，报的就是这个名字（`_shorthand_chain`）。类型名不是一个值。
         labelled(interpret(_case(name), environ), want,
-                 f"__impl__ written as {label} -> VibaProgramErr")
+                 f"__impl__ given as {label} -> VibaProgramErr")
 
-    # 写下来的和值是 viba 数据：没给出的那几支留下的都是 never
-    result = interpret(_case("written_sum"), environ)
+    # 源码里的和值也是 viba 数据：没给出的那几支留下的都是 never
+    result = interpret(_case("sum_in_source"), environ)
     check(is_ok(result),
-          f"__impl__ written as a sum is viba data, not an error: {result!r}")
+          f"__impl__ given as a sum is viba data, not an error: {result!r}")
 
     check(is_ok(interpret(_case("module_value"), environ)),
-          "__impl__ written as a module is the closure it stands for")
+          "__impl__ given as a module is the closure it stands for")
 
     labelled(interpret(_case("builtin_value"), environ), "no definition named",
              "a builtin type name used as a value -> VibaProgramErr")
 
 
 # (文件, 有几个成员)
-DATA_CASES = [("written_tuple", 2, "a tuple of two"),
-              ("written_empty_tuple", 0, "the empty tuple")]
+DATA_CASES = [("tuple_in_source", 2, "a tuple of two"),
+              ("empty_tuple_in_source", 0, "the empty tuple")]
 
 
-def _written(tmp: Path):
-    """写在值位置上的数据就是可序列化数据：元组、tag、积。"""
+def _given(tmp: Path):
+    """出现在值位置上的数据就是可序列化数据：元组、tag、积。"""
     host = Host()
     environ = host.environ()
     for name, want, label in DATA_CASES:
         result = interpret(_case(name), environ)
         check(is_ok(result) and len(result.by_tag(OK_TAG)) == want,
-              f"__impl__ written as {label} is viba data: {result!r}")
+              f"__impl__ given as {label} is viba data: {result!r}")
 
-    # 一份按 tag 与积写下来的可序列化数据，写法和它的类型写法一样
+    # 一份按 tag 与积给出的可序列化数据，源码形式和它的类型源码形式一样
     result = interpret(_case("tags_and_product"), environ)
-    check(is_ok(result), f"data written as tags and a product: {result!r}")
+    check(is_ok(result), f"data given as tags and a product: {result!r}")
     if is_ok(result):
         node = result.by_tag(OK_TAG)
         check(reflect_access.leaf(node.by_tag("victim").by_tag("x")).ok_value == 0 and
               reflect_access.leaf(node.by_tag("suspect").by_tag("y")).ok_value == 4,
-              f"and its members read back: {node!r}")
+              f"and its members come back: {node!r}")
 
 
 def _names_and_repeats(tmp: Path):
-    """名字与次序：定义写在用之后也算、一个定义只算一次、同一个名字不许写两次。"""
+    """名字与次序：定义出现在用之后也算、一个定义只算一次、同一个名字不许给两次。"""
     host = Host()
     environ = host.environ()
 
@@ -222,12 +222,12 @@ def _names_and_repeats(tmp: Path):
 
     result = interpret(_case("defined_after"), environ)
     check(is_ok(result) and value_of(result) == 7,
-          f"a definition written after its use: {result!r}")
+          f"a definition in the source after its use: {result!r}")
 
     # `__impl__` first, everything it uses after it: the same answer either way
-    result = interpret(_case("impl_written_first"), environ)
+    result = interpret(_case("impl_given_first"), environ)
     check(is_ok(result) and value_of(result) == 3,
-          f"__impl__ written before everything it uses: {result!r}")
+          f"__impl__ in the source before everything it uses: {result!r}")
 
     result = interpret(_case("nested"), environ)
     check(is_ok(result) and value_of(result) == 3 and
@@ -261,7 +261,7 @@ def _crossing_the_host_boundary(tmp: Path):
     result = interpret(higher, host2)
     check(is_ok(result)
           and isinstance(result.by_tag(OK_TAG).data, viba_ast.TypeRef),
-          f"a viba function handed to the host is viba data (its written name): {result!r}")
+          f"a viba function handed to the host is viba data (the name it carries): {result!r}")
     check(result.by_tag(OK_TAG).data.name == "inc",
           f"and what it holds is that name: {result.by_tag(OK_TAG).data!r}")
     host.get_func = original

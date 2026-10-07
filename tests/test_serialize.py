@@ -1,7 +1,7 @@
-"""viba.serialize 的测试：写出来、读得回来、是居民。
+"""viba.serialize 的测试：序列化成源码、反序列化、是居民。
 
-每个用例都做三件事：把可序列化数据写成源码；用同一个设计把源码当可序列化数据读回来，逐数据路径比
-叶子；把写出来的体判成那个定义体的子类型。
+每个用例都做三件事：把可序列化数据序列化成源码；用同一个设计把源码当可序列化数据按那个定义起成一个
+节点，逐数据路径比叶子；把源码里的那个体判成那个定义体的子类型。
 
     python3 tests/test_serialize.py
 """
@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from viba import builder, serialize, viba_ast
+from viba.interpret import RESULT_MODULE_NAME, RESULT_TYPE_NAME
 from viba.is_sub_type import is_sub_type
 from viba.type import AstNodeType, VibaProgramErr, Ok, custom_module
 from viba.viba_type_descriptor import (empty_pool, parse_viba_file,
@@ -48,36 +49,36 @@ def _leaves(access, node):
 
 def _round_trip(label, definition, access, node, design_source, design_name,
                 resident=True, strict=True):
-    written = serialize.serialize("entry", node)
-    check(isinstance(written, Ok), f"{label}: writes ({written})")
-    if not isinstance(written, Ok):
+    serialized = serialize.serialize("entry", node)
+    check(isinstance(serialized, Ok), f"{label}: gives source ({serialized})")
+    if not isinstance(serialized, Ok):
         return
-    source = written.ok_value
+    source = serialized.ok_value
     check(source.startswith("entry ="), f"{label}: the definition is named entry")
     check(source.endswith("\n"), f"{label}: one trailing newline")
 
     body = _entry_body(source)
     again = access.root(definition, VibaData(body))
-    check(isinstance(again, Ok), f"{label}: the written body roots")
+    check(isinstance(again, Ok), f"{label}: the serialized body roots")
     if not isinstance(again, Ok):
         return
     before, after = _leaves(access, node), _leaves(access, again.ok_value)
     if strict:
         missing = {address: value for address, value in before.items()
                    if after.get(address, "<missing>") != value}
-        check(not missing, f"{label}: every address reads the same leaf ({missing})")
+        check(not missing, f"{label}: every address takes the same leaf ({missing})")
     else:
-        # 可序列化数据把和式那一支写全了，写出来只剩值：数据路径少一跳，叶子还是那些。
+        # 可序列化数据把和式那一支也带上了，序列化成源码只剩值：数据路径少一跳，叶子还是那些。
         check(sorted(map(repr, before.values())) == sorted(map(repr, after.values())),
               f"{label}: the same leaves under either spelling ({before} vs {after})")
 
     twice = serialize.serialize("entry", again.ok_value)
     check(isinstance(twice, Ok) and twice.ok_value == source,
-          f"{label}: written again it is the same source ({twice})")
+          f"{label}: serialized again it is the same source ({twice})")
 
     canonical = viba_ast.unparse(viba_ast.parse(source)).rstrip("\n")
     check(canonical == source.rstrip("\n"),
-          f"{label}: the source is already canonical viba ({canonical!r})")
+          f"{label}: the source is canonical viba ({canonical!r})")
 
     if not resident:
         return
@@ -86,7 +87,7 @@ def _round_trip(label, definition, access, node, design_source, design_name,
     judged = is_sub_type(AstNodeType(body, module),
                          AstNodeType(design[design_name], module))
     check(isinstance(judged, Ok) and judged.ok_value is True,
-          f"{label}: the written body is a resident of the definition ({judged})")
+          f"{label}: the serialized body is a resident of the definition ({judged})")
 
 
 def _definition_of(pool, full_name: str):
@@ -135,7 +136,7 @@ def _node(design, body):
 
 
 def run_case_files():
-    """两份手搓的可序列化数据：一个 int/积/list 写出来的样子，一个 list/set/dict 的节点。"""
+    """两份手搓的可序列化数据：一个 int/积/list 序列化成源码的样子，一个 list/set/dict 的节点。"""
     from viba.reflect import access
 
     pool, definition = _design(DEMO_DESIGN, "Report")
@@ -181,20 +182,20 @@ def run_empty_container_cases():
     ])
     from viba.reflect import access
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", node)
-    check(isinstance(written, Ok), f"empty: writes ({written})")
-    if isinstance(written, Ok):
-        source_out = written.ok_value
+    serialized = serialize.serialize("entry", node)
+    check(isinstance(serialized, Ok), f"empty: gives source ({serialized})")
+    if isinstance(serialized, Ok):
+        source_out = serialized.ok_value
         check("ListLiteral[]" in source_out and "SetLiteral[]" in source_out
               and "DictLiteral[]" in source_out, "empty: three empty literals")
         _round_trip("empty", definition, access, node, source, "Box")
 
 
 def run_literal_design_cases():
-    """字面量容器也是容器：设计里写成 `ListLiteral[int]`，数据写的是那个字面量。
+    """字面量容器也是容器：设计里是 `ListLiteral[int]`，数据里是那个字面量。
 
-    这曾经是没有写法的（描述符那层不认它），现在它是 list/set/dict 之一，所以
-    写得出来、读得回来。
+    这曾经是没有源码形式的（描述符那层不认它），现在它是 list/set/dict 之一，所以
+    序列化得出来、反序列化得回来。
     """
     from viba.reflect import access
 
@@ -222,10 +223,10 @@ def run_nil_slot_cases():
         viba_ast.Tagged("$a", viba_ast.Constant(1)),
     ])
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", node)
-    check(isinstance(written, Ok), f"nil slot: writes ({written})")
-    if isinstance(written, Ok):
-        check("* $b nil" in written.ok_value, "nil slot: written as nil")
+    serialized = serialize.serialize("entry", node)
+    check(isinstance(serialized, Ok), f"nil slot: gives source ({serialized})")
+    if isinstance(serialized, Ok):
+        check("* $b nil" in serialized.ok_value, "nil slot: serialized as nil")
         _round_trip("nil slot", definition, access, node, source, "Maybe")
 
 
@@ -240,16 +241,16 @@ def run_set_order_cases():
             "SetLiteral", [viba_ast.Constant("c"), viba_ast.Constant("a")])),
     ])
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", node)
-    check(isinstance(written, Ok), f"set order: writes ({written})")
-    if isinstance(written, Ok):
-        check('SetLiteral["c", "a"]' in written.ok_value,
+    serialized = serialize.serialize("entry", node)
+    check(isinstance(serialized, Ok), f"set order: gives source ({serialized})")
+    if isinstance(serialized, Ok):
+        check('SetLiteral["c", "a"]' in serialized.ok_value,
               "set order: the viba data's order, not sorted")
         _round_trip("set order", definition, access, node, source, "Box")
 
 
 def run_exponent_cases():
-    """指数字段：按设计写 never <- $not_operand (...)，值从可序列化数据里拿。"""
+    """指数字段：按设计给出 never <- $not_operand (...)，值从可序列化数据里拿。"""
     source = """Guard = Object * $no (never <- $not_operand Bad)
 Bad = $kill int | $steal int
 """
@@ -265,19 +266,19 @@ Bad = $kill int | $steal int
         ])),
     ])
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", node)
-    check(isinstance(written, Ok), f"exponent: writes ({written})")
-    if isinstance(written, Ok):
-        out = written.ok_value
+    serialized = serialize.serialize("entry", node)
+    check(isinstance(serialized, Ok), f"exponent: gives source ({serialized})")
+    if isinstance(serialized, Ok):
+        out = serialized.ok_value
         check("<- $not_operand" in out and "never" in out,
-              "exponent: written as never <- $not_operand (...)")
-        # 这份可序列化数据只带一支，写出来也只有一支；判成居民与否是可序列化数据自己的事
+              "exponent: serialized as never <- $not_operand (...)")
+        # 这份可序列化数据只带一支，序列化成源码也只有一支；判成居民与否是可序列化数据自己的事
         _round_trip("exponent", definition, access, node, source, "Guard",
                     resident=False)
 
 
 def run_code_block_cases():
-    """代码块没有参数取它自己的文本，按约定写 nil。"""
+    """代码块没有参数取它自己的文本，按约定给出 nil。"""
     source = """Guard = Object * $code {return 1}
 """
     pool, definition = _design(source, "Guard")
@@ -287,10 +288,10 @@ def run_code_block_cases():
         viba_ast.Tagged("$code", viba_ast.CodeBlock("return 1")),
     ])
     node = access.root(definition, VibaData(body)).ok_value
-    written = serialize.serialize("entry", node)
-    check(isinstance(written, Ok), f"code block: writes ({written})")
-    if isinstance(written, Ok):
-        check("* $code nil" in written.ok_value, "code block: written as nil")
+    serialized = serialize.serialize("entry", node)
+    check(isinstance(serialized, Ok), f"code block: gives source ({serialized})")
+    if isinstance(serialized, Ok):
+        check("* $code nil" in serialized.ok_value, "code block: serialized as nil")
 
 
 def _product(*items):
@@ -303,35 +304,35 @@ def _tagged(tag, body):
 
 
 def _corner(label, source, name, body, expect=None, resident=True, strict=True):
-    """同一个设计写一份可序列化数据：文本里有 expect，读得回来，还是居民。"""
+    """同一个设计配一份可序列化数据：文本里有 expect，反序列化得回来，还是居民。"""
     from viba.reflect import access
     pool, definition = _design(source, name)
     rooted = access.root(definition, VibaData(body))
     check(isinstance(rooted, Ok), f"{label}: the viba data roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
-    written = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(written, Ok), f"{label}: writes ({written})")
-    if not isinstance(written, Ok):
+    serialized = serialize.serialize("entry", rooted.ok_value)
+    check(isinstance(serialized, Ok), f"{label}: gives source ({serialized})")
+    if not isinstance(serialized, Ok):
         return
     if expect is not None:
-        check(expect in written.ok_value,
-              f"{label}: {expect!r} is in\n{written.ok_value}")
+        check(expect in serialized.ok_value,
+              f"{label}: {expect!r} is in\n{serialized.ok_value}")
     _round_trip(label, definition, access, rooted.ok_value, source, name,
                 resident=resident, strict=strict)
 
 
 def _gap(label, source, name, body, needle):
-    """写不出来：VibaProgramErr，且说的是那件事。"""
+    """序列化不出来：VibaProgramErr，且说的是那件事。"""
     from viba.reflect import access
     pool, definition = _design(source, name)
     rooted = access.root(definition, VibaData(body))
     check(isinstance(rooted, Ok), f"{label}: the viba data roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
-    written = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(written, VibaProgramErr) and needle in written.msg,
-          f"{label}: a VibaProgramErr saying {needle!r} ({written})")
+    serialized = serialize.serialize("entry", rooted.ok_value)
+    check(isinstance(serialized, VibaProgramErr) and needle in serialized.msg,
+          f"{label}: a VibaProgramErr saying {needle!r} ({serialized})")
 
 
 def run_member_corner_cases():
@@ -420,7 +421,7 @@ def run_sum_corner_cases():
             expect='* $s "deep"')
     _corner("sum: the nil branch", "S = nil | int\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.Nil())), expect="* $s nil")
-    _corner("sum: nil written last", "S = int | nil\nBox = Object * $s S\n", "Box",
+    _corner("sum: nil serialized last", "S = int | nil\nBox = Object * $s S\n", "Box",
             _product(_tagged("$s", viba_ast.Nil())), expect="* $s nil")
 
 
@@ -459,7 +460,7 @@ def run_leaf_corner_cases():
                 viba_ast.Tuple([viba_ast.Constant('q"uote'), viba_ast.Constant(2)]),
                 viba_ast.Tuple([viba_ast.Constant("中文"), viba_ast.Constant(3)])]))),
             expect="""("", 1), ('q"uote', 2), ("中文", 3)""")
-    _corner("code block: nil where its text cannot be read",
+    _corner("code block: nil where its text is not available",
             "Box = Object * $g list[{x}]\n", "Box",
             _product(_tagged("$g", viba_ast.TypeApp("ListLiteral", [
                 viba_ast.CodeBlock("x")]))),
@@ -491,7 +492,7 @@ def run_exponent_corner_cases():
 
 
 def run_more_gap_cases():
-    """更多写不出来的边角：数字、字符串、never、名字当值。"""
+    """更多序列化不出来的边角：数字、字符串、never、名字当值。"""
     _gap("gap: never inside a container", "Box = Object * $a list[never]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral", [viba_ast.Never()]))),
          "nothing resides in never")
@@ -506,29 +507,29 @@ def run_more_gap_cases():
          _product(_tagged("$s", viba_ast.Constant("a'''b\nd"))),
          "no viba string literal holds this text")
     _gap("gap: a name where a value goes", "Only = Object\n", "Only",
-         viba_ast.TypeRef("Object"), "cannot write this piece out")
+         viba_ast.TypeRef("Object"), "cannot serialize this piece out")
 
 
 def run_never_and_key_cases():
-    """never 没有居民；键不是 str 的 dict 没有写法。"""
+    """never 没有居民；键不是 str 的 dict 没有源码形式。"""
     from viba.reflect import access
     pool, definition = _design("Guard = Object * $a never\n", "Guard")
     node = access.root(definition, VibaData(viba_ast.ProductChain([
         viba_ast.TypeRef("Object"), viba_ast.Tagged("$a", viba_ast.Never())]))).ok_value
-    written = serialize.serialize("entry", node)
-    check(isinstance(written, VibaProgramErr), f"never slot: a VibaProgramErr ({written})")
+    serialized = serialize.serialize("entry", node)
+    check(isinstance(serialized, VibaProgramErr), f"never slot: a VibaProgramErr ({serialized})")
 
     pool2, definition2 = _design("Guard = Object * $t dict[int, str]\n", "Guard")
     node2 = access.root(definition2, VibaData(viba_ast.ProductChain([
         viba_ast.TypeRef("Object"),
         viba_ast.Tagged("$t", viba_ast.TypeApp("DictLiteral", [
             viba_ast.Tuple([viba_ast.Constant(7), viba_ast.Constant("x")])]))]))).ok_value
-    written2 = serialize.serialize("entry", node2)
-    check(isinstance(written2, VibaProgramErr), f"int-keyed dict: a VibaProgramErr ({written2})")
+    serialized2 = serialize.serialize("entry", node2)
+    check(isinstance(serialized2, VibaProgramErr), f"int-keyed dict: a VibaProgramErr ({serialized2})")
 
 
 def run_gap_cases():
-    """写不出来给 VibaProgramErr，不硬写。"""
+    """序列化不出来给 VibaProgramErr，不硬凑。"""
     source = """Box = Object * $a int * $b int
 """
     pool, definition = _design(source, "Box")
@@ -536,15 +537,15 @@ def run_gap_cases():
     sparse = viba_ast.ProductChain([viba_ast.TypeRef("Object"),
                                     viba_ast.Tagged("$a", viba_ast.Constant(1))])
     node = access.root(definition, VibaData(sparse)).ok_value
-    written = serialize.serialize("entry", node)
-    check(isinstance(written, VibaProgramErr) and "no value here" in written.msg,
-          f"gap: a tagged slot with no value and no nil is a VibaProgramErr ({written})")
+    serialized = serialize.serialize("entry", node)
+    check(isinstance(serialized, VibaProgramErr) and "no value here" in serialized.msg,
+          f"gap: a tagged slot with no value and no nil is a VibaProgramErr ({serialized})")
 
-    # 可序列化数据本身是空的：设计里的那个数据路径上什么都没有，就写成 gap，不硬编
+    # 可序列化数据本身是空的：设计里的那个数据路径上什么都没有，就判成 gap，不硬编
     pool2, definition2 = _design("not[A] = never <- $not_operand A\n", "not")
     node2 = access.root(definition2, VibaData(viba_ast.Never())).ok_value
-    written2 = serialize.serialize("entry", node2)
-    check(isinstance(written2, VibaProgramErr), f"gap: an exponent is a VibaProgramErr ({written2})")
+    serialized2 = serialize.serialize("entry", node2)
+    check(isinstance(serialized2, VibaProgramErr), f"gap: an exponent is a VibaProgramErr ({serialized2})")
 
 
 # ---------------------------------------------------------------------------
@@ -552,7 +553,7 @@ def run_gap_cases():
 # ---------------------------------------------------------------------------
 
 # 字符串这一列挑的是"引号、转义、空、换行、看起来像语言关键字"这些点：
-# 每一种都得挑出一个装得下它的字面量，读回来还得一个字不差。
+# 每一种都得挑出一个装得下它的字面量，反序列化回来还得一个字不差。
 _STRINGS = [
     "", "a", "0", " ", "\n", "a\nb", "\r\n", "line\n", "\t", "\\", "a\\b",
     '"', '""', "'", "''", 'a"b', "a'b", 'a"b\'c', "中文", "🙂", "a b",
@@ -563,7 +564,7 @@ _STRINGS = [
 _INTS = [0, 1, 7, 42, 10 ** 9, 2 ** 63, 10 ** 40, 123456789012345678901234567890]
 _FLOATS = [0.0, 0.5, 1.0, 2.0, 0.1, 0.0001, 3.141592653589793, 100.0, 1e15,
            123456.789, 1e-3]
-# 语言里没有写法的：没有负号，也没有指数；nan / inf 更不是数。
+# 语言里没有源码形式的：没有负号，也没有指数；nan / inf 更不是数。
 _UNSPELLABLE_NUMBERS = [-1, -(10 ** 20), -0.5, -0.0, 1e30, 1e16, 1e-5,
                         float("inf"), float("-inf"), float("nan")]
 # 三种引号都占上了的文本（跨行的还带上 '''），没有一个字面量装得下。
@@ -571,7 +572,7 @@ _UNSPELLABLE_STRINGS = ["a'''b\nc", "'''\n'''", "a'''b\"c'd"]
 
 
 def run_leaf_matrix():
-    """叶子逐个过：写得出、读回来一模一样、还是那个类型的居民。"""
+    """叶子逐个过：序列化得出、反序列化回来一模一样、还是那个类型的居民。"""
     for index, text in enumerate(_STRINGS):
         _corner(f"leaf str[{index}]", "Box = Object * $s str\n", "Box",
                 _product(_tagged("$s", viba_ast.Constant(text))))
@@ -590,7 +591,7 @@ def run_leaf_matrix():
 
 
 def run_number_and_string_gaps():
-    """写不出来的数字与文本：VibaProgramErr，不是"写成别的"。"""
+    """序列化不出来的数字与文本：VibaProgramErr，不是"换成别的源码形式"。"""
     for value in _UNSPELLABLE_NUMBERS:
         _gap(f"gap number {value}", "Box = Object * $f float\n", "Box",
              _product(_tagged("$f", viba_ast.Constant(value))),
@@ -630,7 +631,7 @@ def run_depth_and_width_ladders():
 
 
 def run_absent_member_positions():
-    """nil 收得下的成员缺在头、中、尾三处，都写 nil。"""
+    """nil 收得下的成员缺在头、中、尾三处，源码里都是 nil。"""
     for position in range(3):
         members = ["$a int", "$b int", "$c int"]
         members[position] = members[position].split()[0] + " (int | nil)"
@@ -785,7 +786,7 @@ def run_never_positions():
 
 
 def run_dict_key_aliases():
-    """键类型是 str 的别名或泛型：还是 str，照样写得出来。"""
+    """键类型是 str 的别名或泛型：还是 str，照样序列化得出来。"""
     for label, source in (("an alias of str", "S = str\nBox = Object * $d dict[S, int]\n"),
                           ("a generic landing on str",
                            "G[V] = str\nBox = Object * $d dict[G[int], int]\n"),
@@ -800,7 +801,7 @@ def run_dict_key_aliases():
 
 
 def run_dict_key_gaps():
-    """键不是 str 的 dict：int / float / bool / 容器键都没有写法。"""
+    """键不是 str 的 dict：int / float / bool / 容器键都没有源码形式。"""
     for key_type in ("int", "float", "bool", "list[int]"):
         _gap(f"gap dict keyed by {key_type}",
              f"Box = Object * $a dict[{key_type}, str]\n", "Box",
@@ -829,13 +830,13 @@ def run_positional_gaps():
          "Box = Object * $a list[int]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
                                                  [viba_ast.TypeRef("int")]))),
-         "cannot write this piece out")
+         "cannot serialize this piece out")
 
 
 def run_unit_members():
     """单位成员：带标签、不带标签、在产品头后面。
 
-    不带标签的单位元不是成员：不占位置，也不写出来（带标签的照写，只是没有值）。
+    不带标签的单位元不是成员：不占位置，也不序列化成源码（带标签的照样序列化，只是没有值）。
     """
     _corner("a unit member with no tag", "Box = Object * Object * $a int\n", "Box",
             _product(viba_ast.Nil(), _tagged("$a", viba_ast.Constant(1))),
@@ -977,14 +978,14 @@ def run_name_gaps():
 
 
 class _HostileString(str):
-    """一个把 __format__ 改掉的 str：写它等于让它往源码里塞东西。"""
+    """一个把 __format__ 改掉的 str：序列化它等于让它往源码里塞东西。"""
 
     def __format__(self, spec):
         return 'x" * $b 1 * "y'
 
 
 def run_subclass_leaf_cases():
-    """叶子就是那四个内建类型本身，子类不是：写不出 VibaProgramErr，不会被带出去。"""
+    """叶子就是那四个内建类型本身，子类不是：序列化不出来给的是 VibaProgramErr，不会被带出去。"""
     _gap("gap a str subclass that formats elsewhere", "Box = Object * $s str\n",
          "Box", _product(_tagged("$s", viba_ast.Constant(_HostileString("plain")))),
          "no literal for")
@@ -1008,7 +1009,7 @@ def run_more_gap_corners():
 
 
 # ---------------------------------------------------------------------------
-# 再一轮：跨模块、环、可序列化数据本身怎么写、名字参数、和式的容器、指数字段实参、压力。
+# 再一轮：跨模块、环、可序列化数据本身的源码形式、名字参数、和式的容器、指数字段实参、压力。
 # ---------------------------------------------------------------------------
 
 
@@ -1026,7 +1027,7 @@ def _pool(*files):
 
 def _corner_in(label, pool, full_name, body, expect=None, resident=True,
                strict=True, resident_source=None, resident_name=None):
-    """同一个池子里的定义写一份可序列化数据；居民那一判用本地拼法的等价设计来问。"""
+    """同一个池子里的定义配一份可序列化数据；居民那一判用本地拼法的等价设计来问。"""
     from viba.reflect import access
     found = pool_find_definition(pool, full_name)
     check(isinstance(found, Ok), f"{label}: the definition is in the pool ({found})")
@@ -1036,13 +1037,13 @@ def _corner_in(label, pool, full_name, body, expect=None, resident=True,
     check(isinstance(rooted, Ok), f"{label}: the viba data roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
-    written = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(written, Ok), f"{label}: writes ({written})")
-    if not isinstance(written, Ok):
+    serialized = serialize.serialize("entry", rooted.ok_value)
+    check(isinstance(serialized, Ok), f"{label}: gives source ({serialized})")
+    if not isinstance(serialized, Ok):
         return
     if expect is not None:
-        check(expect in written.ok_value,
-              f"{label}: {expect!r} is in\n{written.ok_value}")
+        check(expect in serialized.ok_value,
+              f"{label}: {expect!r} is in\n{serialized.ok_value}")
     _round_trip(label, found.ok_value, access, rooted.ok_value,
                 resident_source if resident_source is not None else "",
                 resident_name or full_name.split(".")[-1],
@@ -1060,9 +1061,9 @@ def _gap_in(label, pool, full_name, body, needle):
     check(isinstance(rooted, Ok), f"{label}: the viba data roots ({rooted})")
     if not isinstance(rooted, Ok):
         return
-    written = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(written, VibaProgramErr) and needle in written.msg,
-          f"{label}: a VibaProgramErr saying {needle!r} ({written})")
+    serialized = serialize.serialize("entry", rooted.ok_value)
+    check(isinstance(serialized, VibaProgramErr) and needle in serialized.msg,
+          f"{label}: a VibaProgramErr saying {needle!r} ({serialized})")
 
 
 _DEFS = ("defs.viba", "defs",
@@ -1146,7 +1147,7 @@ def run_cross_module_cases():
     _gap_in("a tag repeated across modules",
             pool_of("Box = d.P * $x int\n"), "main.Box",
             _product(_tagged("$x", viba_ast.Constant(1)),
-                     _tagged("$a", viba_ast.Constant(2))), "written twice")
+                     _tagged("$a", viba_ast.Constant(2))), "appears twice")
     _gap_in("gap an inline ring across two files",
             _pool(("other.viba", "other",
                    "import base\nA = base.B * $x int\n"),
@@ -1198,37 +1199,37 @@ def run_viba_data_root_cases():
 
 
 def run_definition_name_cases():
-    """serialize 的名字参数：普通名字写得出来，内建名与关键字写不出来。"""
+    """serialize 的名字参数：普通名字序列化得出来，内建名与关键字序列化不出来。"""
     pool = _pool(("m.viba", "m", "Box = Object * $a int\n"))
     definition = pool_find_definition(pool, "m.Box").ok_value
     from viba.reflect import access
     node = access.root(definition, VibaData(
         _product(_tagged("$a", viba_ast.Constant(1))))).ok_value
     for name in ("entry", "Entry_2", "a", "中文"):
-        written = serialize.serialize(name, node)
-        check(isinstance(written, Ok) and written.ok_value.startswith(f"{name} ="),
-              f"definition name {name!r}: writes ({written})")
+        serialized = serialize.serialize(name, node)
+        check(isinstance(serialized, Ok) and serialized.ok_value.startswith(f"{name} ="),
+              f"definition name {name!r}: gives source ({serialized})")
     for name in ("", "a.b", "a-b", "nil", "never", "void", "None", "true",
                  "false", "import", "as", "list", "set", "dict", "ListLiteral"):
-        written = serialize.serialize(name, node)
-        check(isinstance(written, VibaProgramErr),
-              f"definition name {name!r}: a VibaProgramErr ({written})")
+        serialized = serialize.serialize(name, node)
+        check(isinstance(serialized, VibaProgramErr),
+              f"definition name {name!r}: a VibaProgramErr ({serialized})")
 
 
 def run_alias_of_definition_cases():
-    """定义自己的别名：写出来的源码跟写原定义时一样。"""
+    """定义自己的别名：序列化出来的源码跟序列化原定义时一样。"""
     from viba.reflect import access
     pool = _pool(("m.viba", "m", "Box = Object * $a int\nAlias = Box\nDeeper = Alias\n"))
     body = _product(_tagged("$a", viba_ast.Constant(1)))
-    written = []
+    serialized = []
     for full_name in ("m.Box", "m.Alias", "m.Deeper"):
         definition = pool_find_definition(pool, full_name).ok_value
         node = access.root(definition, VibaData(body)).ok_value
         got = serialize.serialize("entry", node)
-        check(isinstance(got, Ok), f"{full_name}: writes ({got})")
-        written.append(got.ok_value if isinstance(got, Ok) else None)
-    check(written[0] == written[1] == written[2],
-          f"the alias writes the same source ({written})")
+        check(isinstance(got, Ok), f"{full_name}: gives source ({got})")
+        serialized.append(got.ok_value if isinstance(got, Ok) else None)
+    check(serialized[0] == serialized[1] == serialized[2],
+          f"the alias gives the same source ({serialized})")
 
 
 def run_sums_in_containers():
@@ -1300,9 +1301,9 @@ def run_deep_stress():
                           for i in range(64)]), expect="* $f63 63")
 
 
-def run_head_written_as_unit():
-    """产品头写成 nil：写出来的单位还是语言的那个 Object。"""
-    _corner_in("the head written as nil",
+def run_head_nil_becomes_unit():
+    """产品头在源码里是 nil：序列化出来的单位还是语言的那个 Object。"""
+    _corner_in("the head serialized as nil",
                _pool(("m.viba", "m", "Box = nil * $a int\n")), "m.Box",
                _product(_tagged("$a", viba_ast.Constant(1))),
                expect="entry =\n  Object\n  * $a 1\n")
@@ -1316,7 +1317,7 @@ def run_head_written_as_unit():
 
 def run_inline_member_cases():
     """内联成员：第一个不带标签的成员摊进自己的成员，递归；单位元不算成员；
-    重标签写不出来；内联环不转圈。"""
+    重标签序列化不出来；内联环不转圈。"""
     _corner("an inline product member",
             "A = $x int * $y int\nB = A * $z int\n", "B",
             _product(_tagged("$x", viba_ast.Constant(1)),
@@ -1345,11 +1346,11 @@ def run_inline_member_cases():
             _product(viba_ast.Constant(7), viba_ast.Nil(),
                      viba_ast.Constant(8), _tagged("$a", viba_ast.Constant(1))),
             expect="entry =\n  Object\n  * 7\n  * 8\n  * $a 1\n")
-    _corner("the head written as a name over the unit",
+    _corner("the head serialized as a name over the unit",
             "U = Object\nBox = U * $a int\n", "Box",
             _product(_tagged("$a", viba_ast.Constant(1))),
             expect="entry =\n  Object\n  * $a 1\n")
-    _corner("the member written as a name on the viba data side",
+    _corner("the member serialized as a name on the viba data side",
             "Data = $x 1 * $y 2\nA = $x int * $y int\nB = A * $z int\n", "B",
             _product(viba_ast.TypeRef("Data"), _tagged("$z", viba_ast.Constant(3))),
             expect="entry =\n  Object\n  * $x 1\n  * $y 2\n  * $z 3\n")
@@ -1361,11 +1362,11 @@ def run_inline_member_cases():
             expect="entry =\n  Object\n  * $x 1\n  * $y 2\n  * $z 3\n")
     _gap("the same tag twice through an inline",
          "A = $x int\nB = A * $x str\n", "B",
-         _product(_tagged("$x", viba_ast.Constant(1))), "written twice")
+         _product(_tagged("$x", viba_ast.Constant(1))), "appears twice")
     _gap("the same tag twice, one of them inlined",
          "A = $x int * $y int\nB = A * $y str\n", "B",
          _product(_tagged("$x", viba_ast.Constant(1)),
-                  _tagged("$y", viba_ast.Constant(2))), "written twice")
+                  _tagged("$y", viba_ast.Constant(2))), "appears twice")
     _gap("a member that inlines itself",
          "A = A * $x int\n", "A",
          _product(_tagged("$x", viba_ast.Constant(1))), "comes back to 'A'")
@@ -1376,6 +1377,128 @@ def run_inline_member_cases():
          "A = $x int * A * $y int\n", "A",
          _product(_tagged("$x", viba_ast.Constant(1)),
                   _tagged("$y", viba_ast.Constant(2))), "comes back to 'A'")
+
+
+# 那一份声明：interpret 与 exec 交出来的数据的类型，就在这个文件里。名字取 interpret 用的
+# 那两个字，声明换了名字（或搬了地方）这里跟着走。
+RESULT_FILE = (Path(__file__).resolve().parent.parent / "viba"
+               / f"{RESULT_MODULE_NAME}.viba")
+
+
+def _a_call(name: str):
+    """一份 `$call`：`__dyn_call__ << "模块.步名"`，环境还没给，序列化出来就是这条链。"""
+    return viba_ast.Partial(viba_ast.TypeRef("__dyn_call__"), viba_ast.Constant(name))
+
+
+def _a_frame():
+    """一个 `Frame`：哪个文件、哪一行。"""
+    return _product(_tagged("$file_path", viba_ast.Constant("demo.viba")),
+                    _tagged("$lineno", viba_ast.Constant(3)))
+
+
+def _an_op_err_body(name: str):
+    """`UnderlyingOpErr` 的四个成员：说了什么、哪个模块、整名、那次调用。"""
+    return _product(_tagged("$msg", viba_ast.Constant("no implementation")),
+                    _tagged("$module_path", viba_ast.Constant("/demo")),
+                    _tagged("$full_qualified_func_name", viba_ast.Constant(name)),
+                    _tagged("$call", _a_call(name)))
+
+
+def _an_op_err(tag: str, name: str):
+    """`$not_implemented_err` / `$underlying_viba_op_err`：成员一样，tag 不同。"""
+    return _tagged(tag, _an_op_err_body(name))
+
+
+def _a_program_err():
+    """`ProgramErr`：一句话，加上这次执行走过的那串调用。"""
+    return _product(_tagged("$msg", viba_ast.Constant("no definition named 'x'")),
+                    _tagged("$stack", viba_ast.TypeApp("ListLiteral", [_a_frame()])))
+
+
+def _an_api_err():
+    """`EnvironmentApiInvalidArgumentErr`：哪条 api、给了什么（环境不算）。"""
+    return _product(_tagged("$msg", viba_ast.Constant("sub_env wants a name")),
+                    _tagged("$api_name", viba_ast.Constant("Environment.sub_env")),
+                    _tagged("$args", _a_call("sub_env")))
+
+
+def run_result_cases():
+    """回环：interpret / exec 交出来的那种数据，拿声明本身当设计走一遍。
+
+    声明是仓库里那一份 `viba/interpret_result.viba`，不在这里抄一份 —— 抄一份就会各走
+    各的。它的每个定义、每条分支都过一遍：序列化成源码、解析回来、按同一个定义起一个
+    VObject、逐条数据路径比叶子，再加上第二遍序列化文本不变、文本已经是规范源码形式、体是
+    那个定义的居民。
+
+    `Any` 那两格（`$ok` 的载荷、`$call` / `$args`）是重点：类型说不出这一段是什么，所以
+    序列化只能从这一段自己的源码形式取值。声明里是这种源码形式，仍然要能回环 —— 一份 `$ok` 带
+    成员的答案，序列化之后按声明反序列化，再序列化必须还是同一段源码。
+    """
+    design = RESULT_FILE.read_text()
+    for label, name, body, expect in (
+            ("a frame", "Frame", _a_frame(),
+             'entry =\n  Object\n  * $file_path "demo.viba"'),
+            ("a stack", "Stack", viba_ast.TypeApp("ListLiteral", [_a_frame()]),
+             "ListLiteral[Object"),
+            ("a program error", "ProgramErr", _a_program_err(),
+             "* $stack ListLiteral[Object"),
+            ("one step's failure", "UnderlyingOpErr", _an_op_err_body("demo.ghost"),
+             '* $call (__dyn_call__ << "demo.ghost")'),
+            ("an api that cannot take it", "EnvironmentApiInvalidArgumentErr",
+             _an_api_err(), '* $args (__dyn_call__ << "sub_env")'),
+            ("the step nobody implements", "InterpretError",
+             _an_op_err("$not_implemented_err", "demo.ghost"),
+             "$not_implemented_err (Object"),
+            ("the step that broke", "InterpretError",
+             _an_op_err("$underlying_viba_op_err", "demo.boom"),
+             "$underlying_viba_op_err"),
+            ("the program's own error", "InterpretError",
+             _tagged("$viba_program_err", _a_program_err()), "$viba_program_err"),
+            ("the api that refused", "InterpretError",
+             _tagged("$environment_api_invalid_argument_err", _an_api_err()),
+             "$environment_api_invalid_argument_err"),
+            ("a run that answered", RESULT_TYPE_NAME,
+             _tagged("$ok", viba_ast.Constant(42)), "entry =\n  $ok 42\n"),
+            ("a run that answered nothing", RESULT_TYPE_NAME,
+             _tagged("$ok", viba_ast.Nil()), "entry =\n  $ok nil\n"),
+            ("a run that answered a call", RESULT_TYPE_NAME,
+             _tagged("$ok", _a_call("demo.add")),
+             '$ok (__dyn_call__ << "demo.add")'),
+            ("a run that stopped: nobody implements it", RESULT_TYPE_NAME,
+             _tagged("$err", _an_op_err("$not_implemented_err", "demo.ghost")),
+             "$err ($not_implemented_err (Object"),
+            ("a run that stopped: the step broke", RESULT_TYPE_NAME,
+             _tagged("$err", _an_op_err("$underlying_viba_op_err", "demo.boom")),
+             "$err ($underlying_viba_op_err (Object"),
+            ("a run that stopped: the program", RESULT_TYPE_NAME,
+             _tagged("$err", _tagged("$viba_program_err", _a_program_err())),
+             "$err ($viba_program_err (Object"),
+            ("a run that stopped: the api", RESULT_TYPE_NAME,
+             _tagged("$err",
+                     _tagged("$environment_api_invalid_argument_err", _an_api_err())),
+             "$err ($environment_api_invalid_argument_err (Object"),
+            # `$ok Any`：类型说不出这一格是什么，回环要能靠这一段自己的源码形式走完。
+            ("an answer with members of its own", RESULT_TYPE_NAME,
+             _tagged("$ok", _product(_tagged("$x", viba_ast.Constant(1)),
+                                      _tagged("$name", viba_ast.Constant("b")))),
+             'entry =\n  $ok (Object\n  * $x 1\n  * $name "b")\n'),
+            ("an answer that is a container", RESULT_TYPE_NAME,
+             _tagged("$ok", viba_ast.TypeApp(
+                 "ListLiteral", [viba_ast.Constant(1), viba_ast.Constant(2)])),
+             "$ok ListLiteral[1, 2]"),
+            ("an answer that is a container of containers", RESULT_TYPE_NAME,
+             _tagged("$ok", viba_ast.TypeApp("ListLiteral", [
+                 viba_ast.TypeApp("ListLiteral", [viba_ast.Constant(1)])])),
+             "$ok ListLiteral[ListLiteral[1]]")):
+        _corner(label, design, name, body, expect=expect)
+
+    # 成员那一格也可以是 `Any`：`$args` 上放一份积，同样要能回环。
+    _corner("an api argument with members of its own",
+            design, "EnvironmentApiInvalidArgumentErr",
+            _product(_tagged("$msg", viba_ast.Constant("sub_env wants a name")),
+                     _tagged("$api_name", viba_ast.Constant("Environment.sub_env")),
+                     _tagged("$args", _product(_tagged("$x", viba_ast.Constant(1))))),
+            expect='* $args (Object\n    * $x 1)')
 
 
 def run():
@@ -1397,7 +1520,8 @@ def run():
                  run_viba_data_root_cases, run_definition_name_cases,
                  run_alias_of_definition_cases, run_sums_in_containers,
                  run_exponent_arguments, run_deep_stress,
-                 run_head_written_as_unit, run_inline_member_cases):
+                 run_head_nil_becomes_unit, run_inline_member_cases,
+                 run_result_cases):
         case()
     print(f"serialize: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

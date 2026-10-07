@@ -1,7 +1,7 @@
 # `$sub_env << args.env << "child"` is `args.env.sub_env << args.env << "child"`: the tag
 # names a member of the first argument, and that value is given to the member first —
 # a member of an environment is a plain function of the environment. A run answers
-# viba data only, so where that child lives is read through a host step (`path_of`).
+# viba data only, so where that child lives is taken through a host step (`path_of`).
 __decl__ =
     Any
   <- $env Env

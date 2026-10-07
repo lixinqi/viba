@@ -7,7 +7,7 @@ args = __get_args__ << __decl__
 import branch
 import counters as counters
 
-# 条件那一步算一次就够：两个开关读的是同一个值，它只叫一次。
+# 条件那一步算一次就够：两个开关取的是同一个值，它只叫一次。
 __impl__ =
     Oneof
   | (

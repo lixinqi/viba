@@ -1,0 +1,4 @@
+import branch
+import left_edge_cycle_path_in_source as left
+
+y = left.x

@@ -7,7 +7,7 @@ args = __get_args__ << __decl__
 import branch
 import kinds as kinds
 
-# `$cond` 那一格写的是 bool，给一个算出来的 int：程序写错了。
+# `$cond` 那一格源码里是 bool，给一个算出来的 int：程序给错了。
 __impl__ =
     Oneof
   | (

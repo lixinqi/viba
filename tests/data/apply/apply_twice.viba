@@ -1,5 +1,5 @@
 # `apply` 自己当函数再套一层：外面那份积里的成员就是里面那次调用要的两件
-# （`$f`、`$args` 正是 `apply` 的两个参数，决断的 `pattern tagged[...]` 按 tag 读它们）。
+# （`$f`、`$args` 正是 `apply` 的两个参数，决断的 `pattern tagged[...]` 按 tag 取它们）。
 __decl__ = int <- $env Env
 
 args = __get_args__ << __decl__

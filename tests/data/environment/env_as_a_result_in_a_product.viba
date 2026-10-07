@@ -1,5 +1,5 @@
-# A chain written inside a product answers the environment as well: the file is
-# refused where it is read, and the definition that wrote it is named.
+# A chain given inside a product answers the environment as well: the file is
+# refused where it is taken, and the definition that gave it is named.
 __decl__ =
     Any
   <- $env Env

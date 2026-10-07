@@ -1,5 +1,5 @@
 # The same step reached through a local alias: the name it is asked under is the one
-# the alias stands for, not the local name it was written with.
+# the alias stands for, not the local name in the source.
 __decl__ =
     int
   <- $env Env

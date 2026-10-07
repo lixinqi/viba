@@ -33,13 +33,13 @@ def check(name: str, got, want):
         print(f"FAIL: {name}: expected {want}, got {got}")
 
 
-def read(path: Path) -> str:
+def source_of(path: Path) -> str:
     return path.read_text()
 
 
 def entry() -> str:
     """The deep entry of case_081: import util as base."""
-    return read(CASES / "lv1" / "lv2" / "lv3" / "leaf.viba")
+    return source_of(CASES / "lv1" / "lv2" / "lv3" / "leaf.viba")
 
 
 def main():
@@ -48,7 +48,7 @@ def main():
     check("deep entry, no dependencies",
           is_complete(entry(), [], [], set()), False)
     check("deep entry, dependencies through library",
-          is_complete(entry(), [("util.viba", read(CASES / "util.viba"))], [], set()), True)
+          is_complete(entry(), [("util.viba", source_of(CASES / "util.viba"))], [], set()), True)
 
     # A design with documentation blocks: the terminators are the caller's words
     demo = ("Note[T] = $text T\n"
@@ -62,18 +62,18 @@ def main():
           is_complete(demo, [], [], {"Note"}), False)
 
     # Recursive definitions: coinduction lets them through
-    check("recursive Chain", is_complete(read(TYPES / "sub030.viba"), [], [], set()), True)
+    check("recursive Chain", is_complete(source_of(TYPES / "sub030.viba"), [], [], set()), True)
 
     # Ellipsis: incomplete by default, ends a walk once it is a terminator
-    ellipsis = read(TYPES / "sup025.viba")
+    ellipsis = source_of(TYPES / "sup025.viba")
     check("ellipsis, no terminators", is_complete(ellipsis, [], [], set()), False)
     check("ellipsis + \"...\"", is_complete(ellipsis, [], [], {"..."}), True)
 
-    # A written call is a chain too: the head has to be something to call
+    # A call in the source is a chain too: the head has to be something to call
     add = "add = int <- $env Env <- $a int <- $b int\n"
-    check("a written call, finished", is_complete(add + "X = add << $env Env << $a 1 << $b 2\n",
+    check("a call in the source, finished", is_complete(add + "X = add << $env Env << $a 1 << $b 2\n",
                                                  [], [], set()), True)
-    check("a written call, still owing an argument",
+    check("a call in the source, still owing an argument",
           is_complete(add + "X = add << $env Env << $a 1\n", [], [], set()), True)
     check("a call whose head is a name that does not resolve",
           is_complete("X = missing << $a 1\n", [], [], set()), False)
@@ -94,7 +94,7 @@ def main():
           is_complete("X = A @ B", [], [], set()), False)
     check("an unterminated code block is a compile error",
           is_complete("X = {never closed", [], [], set()), False)
-    check("a source written with CRLF",
+    check("a source with CRLF",
           is_complete("X =\r\n  int\r\n", [], [], set()), True)
     check("a byte-order mark is a compile error",
           is_complete("\ufeffX = int", [], [], set()), False)
@@ -107,7 +107,7 @@ def main():
 
 def corners():
     """边角：顶类型、内建定义、终结符、泛型实参、依赖从哪来。"""
-    # The top type has no members, and no leaf reads out of it either — unlike
+    # The top type has no members, and no leaf takes one out of it either — unlike
     # never, which admits no viba_data at all. So a design resting on it does
     # not walk through.
     check("Any alone", is_complete("X = Any", [], [], set()), False)
@@ -194,14 +194,14 @@ def corners():
     check("a library file that takes the entry's name",
           is_complete("X = int\n", [("entry.viba", "Y = str\n")], [], set()), True)
 
-    # A directory named like a module: reading it fails, so the module is not
+    # A directory named like a module: loading it fails, so the module is not
     # there (and the walk says so instead of crashing).
     with tempfile.TemporaryDirectory() as directory:
         (Path(directory) / "pkg.viba").mkdir()
         check("a directory where a module should be",
               is_complete("import pkg\nX = pkg.M\n", [], [directory], set()), False)
 
-    # The chain helper also has to read the binary form the parser builds
+    # The chain helper also has to take the binary form the parser builds
     # before canonicalisation (nothing walks those through the entry).
     from viba import viba_ast as nodes
     from viba.is_complete import _chain_elements
@@ -212,7 +212,7 @@ def corners():
     check(f"a binary product flattens in order ({same_names})",
           same_names == ["A", "B", "C"], True)
     # A right-nested run is a branch, not part of the main chain: the walk
-    # reads it as one element, the way the chain form keeps it.
+    # counts it as one element, the way the chain form keeps it.
     binary_sum = nodes.Sum(nodes.TypeRef("A"), nodes.Sum(nodes.TypeRef("B"), nodes.TypeRef("C")))
     sum_elements = _chain_elements(binary_sum)
     check("a right-nested sum stays a branch",

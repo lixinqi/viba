@@ -3,8 +3,8 @@
 Every case is a directory with .viba files at different depths (some at the
 top, some three or four directories down) plus an ``expected.json``.  Each
 file is parsed into one pool, and then the descriptor side has to report
-exactly what the case says: imports, definitions, members, their written
-names, their members, and which definition a written name resolves to.
+exactly what the case says: imports, definitions, members, their names in the
+source, their members, and which definition a name in the source resolves to.
 """
 
 import hashlib
@@ -90,11 +90,11 @@ def check_case(case_dir: Path):
                 assert member.member_type.kind == truth["kind"], (case_dir, truth)
                 assert member_containing_definition(member).ok_value.full_name == wanted["full_name"]
 
-                written = member_type_name(member)
+                type_name = member_type_name(member)
                 if truth["type_name"] is None:
-                    assert isinstance(written, VibaProgramErr), (case_dir, truth, written)
+                    assert isinstance(type_name, VibaProgramErr), (case_dir, truth, type_name)
                 else:
-                    assert isinstance(written, Ok) and written.ok_value == truth["type_name"], (case_dir, truth)
+                    assert isinstance(type_name, Ok) and type_name.ok_value == truth["type_name"], (case_dir, truth)
 
                 resolved = member_resolved_definition(member)
                 if truth["resolved"] is None:
@@ -138,8 +138,8 @@ def run():
     assert named.ok_value.file_name == "deep/dir/x.viba"
     assert named.ok_value.module_name == "some.module"
 
-    # `args.a` 写在链头：一次调用的实参积是那个成员的声明类型，`args.next << …` 读的就是它。
-    # 这条在池子里编得过（`_product_member`），编不过的话后面那些成员一个都读不出来。
+    # `args.a` 在源码里位于链头：一次调用的实参积是那个成员的声明类型，`args.next << …` 取的就是它。
+    # 这条在池子里编得过（`_product_member`），编不过的话后面那些成员一个都取不到。
     step = ("__decl__ =\n"
             "    Any\n"
             "  <- $env Env\n"

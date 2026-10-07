@@ -1,4 +1,4 @@
-# int_to_float —— 7 写成 float 得 7.0
+# int_to_float —— 7 落成 float 得 7.0
 __decl__ = float <- $env Env
 
 args = __get_args__ << __decl__

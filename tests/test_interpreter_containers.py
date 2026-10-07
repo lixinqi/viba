@@ -1,8 +1,8 @@
-"""容器：`ListLiteral` / `SetLiteral` / `DictLiteral` 算成值，`$__getitem__` 把元素读出来。
+"""容器：`ListLiteral` / `SetLiteral` / `DictLiteral` 算成值，`$__getitem__` 把元素取出来。
 
-三个字面量构造器写在**实例**那一侧（`viba-style.md` 第 8 节）：`ListLiteral[1, 2]` 是
-`list[int]` 的居民，和 `$x 1 * $y 2` 一样是就地写下来的可序列化数据，所以一次运行能把它算成
-值，值能数、能寻址、能写回去。寻址在语言这一侧是 `$__getitem__`：位置给 int，键给 str
+三个字面量构造器站在**实例**那一侧（`viba-style.md` 第 8 节）：`ListLiteral[1, 2]` 是
+`list[int]` 的居民，和 `$x 1 * $y 2` 一样是就地给出的可序列化数据，所以一次运行能把它算成
+值，值能数、能寻址、能序列化成源码。寻址在语言这一侧是 `$__getitem__`：位置给 int，键给 str
 （`$__getattr__` 是按名字取成员的那一个，这是按地址取元素的那一个）。
 
     python3 tests/test_interpreter_containers.py
@@ -32,7 +32,7 @@ def _run(name: str, env=None):
 
 
 def _data(result):
-    """What the run answered, as it is written; None when it stopped."""
+    """What the run answered, in the source; None when it stopped."""
     if not is_ok(result):
         return None
     return viba_ast.unparse_type(answer_of(result).data).replace("\n", " ")
@@ -44,16 +44,16 @@ def _leaf(node):
     return got.ok_value if isinstance(got, Ok) else got
 
 
-def _written(result):
-    """The same piece written back out as viba source."""
-    written = serialize.serialize("x", answer_of(result))
-    return written.ok_value if isinstance(written, Ok) else written
+def _serialized(result):
+    """The same piece serialized back out as viba source."""
+    serialized = serialize.serialize("x", answer_of(result))
+    return serialized.ok_value if isinstance(serialized, Ok) else serialized
 
 
 def run():
     _a_literal_is_a_value()
     _a_member_is_a_container()
-    _what_getitem_reads()
+    _what_getitem_takes()
     _what_getitem_refuses()
     _what_in_answers()
     _the_index_shorthand()
@@ -61,35 +61,35 @@ def run():
 
 
 def _a_literal_is_a_value():
-    """三个字面量都算成值：能数、能寻址、写得回去。"""
+    """三个字面量都算成值：能数、能寻址、能序列化成源码。"""
     got = _run("list")
     check(is_ok(got) and _data(got) == "ListLiteral[1, 2]",
-          f"a list literal is the list it writes: {got!r}")
+          f"a list literal is the list it gives: {got!r}")
     check(is_ok(got) and answer_of(got).is_list and len(answer_of(got)) == 2,
           f"and it is a list of two: {got!r}")
     check(_leaf(answer_of(got).at_index(1)) == 2,
           f"whose second element is the second literal")
-    check(_written(got) == 'x =\n  ListLiteral[1, 2]\n',
-          f"and it is written back the way it was written: {_written(got)!r}")
+    check(_serialized(got) == 'x =\n  ListLiteral[1, 2]\n',
+          f"and it is serialized the way it was given: {_serialized(got)!r}")
 
     empty = _run("empty_list")
     check(is_ok(empty) and answer_of(empty).is_list
           and len(answer_of(empty)) == 0
-          and _written(empty) == "x =\n  ListLiteral[]\n",
+          and _serialized(empty) == "x =\n  ListLiteral[]\n",
           f"the empty list is a list of nothing: {empty!r}")
 
     a_set = _run("set")
     check(is_ok(a_set) and answer_of(a_set).is_set
           and _leaf(answer_of(a_set).at_index(1)) == "b",
-          f"a set literal is the set it writes: {a_set!r}")
+          f"a set literal is the set it gives: {a_set!r}")
 
     table = _run("dict")
     check(is_ok(table) and answer_of(table).is_dict
           and answer_of(table).keys() == ["k", "m"]
           and _leaf(answer_of(table).at_key("m")) == 2,
-          f"a dict literal is read by key: {table!r}")
-    check(_written(table) == 'x =\n  DictLiteral[("k", 1), ("m", 2)]\n',
-          f"and written back with its pairs: {_written(table)!r}")
+          f"a dict literal is taken by key: {table!r}")
+    check(_serialized(table) == 'x =\n  DictLiteral[("k", 1), ("m", 2)]\n',
+          f"and serialized with its pairs: {_serialized(table)!r}")
 
     nothing = _run("empty_dict")
     check(is_ok(nothing) and answer_of(nothing).is_dict
@@ -101,34 +101,34 @@ def _a_literal_is_a_value():
     check(is_ok(deep) and len(answer_of(deep)) == 2
           and _leaf(inner.at_index(1)) == 3,
           f"a container holds containers: {deep!r}")
-    check(_written(deep) == 'x =\n  ListLiteral[ListLiteral[1], ListLiteral[2, 3]]\n',
-          f"and the nesting is written back member by member: {_written(deep)!r}")
+    check(_serialized(deep) == 'x =\n  ListLiteral[ListLiteral[1], ListLiteral[2, 3]]\n',
+          f"and the nesting is serialized member by member: {_serialized(deep)!r}")
 
     lists = _run("nested_dict")
     check(is_ok(lists)
           and _leaf(answer_of(lists).at_key("b").at_index(0)) == 3,
-          f"a dict of lists reads all the way down: {lists!r}")
+          f"a dict of lists is taken from all the way down: {lists!r}")
 
     mixed = _run("mixed")
     check(_leaf(answer_of(mixed).at_index(0)) == 1
           and _leaf(answer_of(mixed).at_index(1)) == "a",
-          f"a list holds what it was written with, member by member: {mixed!r}")
+          f"a list holds what it was given, member by member: {mixed!r}")
 
 
 def _a_member_is_a_container():
-    """积里那一格也是容器：数得出、寻得到、写得回去。"""
+    """积里那一格也是容器：数得出、寻得到、能序列化成源码。"""
     got = _run("box")
     check(is_ok(got) and _leaf(answer_of(got).by_tag("$y")) == 3,
-          f"the product is the product it writes: {got!r}")
+          f"the product is the product it gives: {got!r}")
     xs = answer_of(got).get_xs()
     check(xs.is_list and len(xs) == 2 and _leaf(xs.at_index(0)) == 1,
           f"and the list inside it is a list: {xs!r}")
-    check(_written(got) == "x =\n  Object\n  * $xs ListLiteral[1, 2]\n  * $y 3\n",
-          f"written back, the member keeps its own spelling: {_written(got)!r}")
+    check(_serialized(got) == "x =\n  Object\n  * $xs ListLiteral[1, 2]\n  * $y 3\n",
+          f"serialized back, the member keeps its own spelling: {_serialized(got)!r}")
 
 
-def _what_getitem_reads():
-    """`$__getitem__`：位置给 int，键给 str，读出来就是那个元素。"""
+def _what_getitem_takes():
+    """`$__getitem__`：位置给 int，键给 str，取出来就是那个元素。"""
     by_index = _run("get_by_index")
     check(value_of(by_index) == 20, f"an element by position: {by_index!r}")
 
@@ -139,11 +139,11 @@ def _what_getitem_reads():
     check(value_of(nested) == 3, f"an address into an element: {nested!r}")
 
     a_tuple = _run("get_tuple")
-    check(value_of(a_tuple) == 20, f"a tuple is read by position too: {a_tuple!r}")
+    check(value_of(a_tuple) == 20, f"a tuple is taken by position too: {a_tuple!r}")
 
     later = _run("get_partial")
     check(value_of(later) == 20,
-          f"an address given after the fact still reads the element: {later!r}")
+          f"an address given after the fact still takes the element: {later!r}")
 
 
 def _what_getitem_refuses():
@@ -152,8 +152,8 @@ def _what_getitem_refuses():
                        ("get_missing_key", "no such address"),
                        ("get_index_on_dict", "no such address"),
                        ("get_key_on_list", "no such address"),
-                       ("get_bad_address", "an element is read by position (an int)"),
-                       ("get_no_address", "an element is read by an address"),
+                       ("get_bad_address", "an element is taken by position (an int)"),
+                       ("get_no_address", "an element is taken by an address"),
                        ("get_non_container", "no such address")):
         got = _run(name)
         checks.labelled(got, want,
@@ -179,7 +179,7 @@ def _what_in_answers():
 
 
 def _the_index_shorthand():
-    """`xs[i]` / `table[key]` 是 `$__getitem__ << xs << i` 的简写。"""
+    """`xs[i]` / `table[key]` 是 `$__getitem__ << xs << i` 的简略形式。"""
     for name, want in (("index_list", 20), ("index_dict", 8), ("index_member", 20),
                        ("index_element", 2)):
         got = _run(name)
@@ -192,7 +192,7 @@ def _the_index_shorthand():
 
     undefined = _run("index_undefined")
     checks.labelled(undefined, "no definition named 'Nope'",
-                    "a name no generic answers to is read as a value")
+                    "a name no generic answers to counts as a value")
 
 
 def _a_container_travels():
@@ -207,7 +207,7 @@ def _a_container_travels():
     env = Environment(Host().environ().storage, EnvironmentCompute(get_func))
     got = _run("argument", env)
     check(value_of(got) == 7,
-          f"a list written as an argument reaches the host as a list: {got!r}")
+          f"a list given as an argument reaches the host as a list: {got!r}")
 
 
 if __name__ == "__main__":

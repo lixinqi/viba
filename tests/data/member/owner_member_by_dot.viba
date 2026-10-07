@@ -1,5 +1,5 @@
-# The same call with the member read by its dotted name: the value it came from
-# is written out as its first argument.
+# The same call with the member taken by its dotted name: the value it came from
+# is given as its first argument.
 __decl__ =
     Any
   <- $env Env

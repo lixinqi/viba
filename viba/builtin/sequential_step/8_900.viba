@@ -1,5 +1,5 @@
-# sequential_step: a step written as a call with 8 tagged
-# arguments. Every argument is answered first — a `$var "x"` written inside
+# sequential_step: a step given as a call with 8 tagged
+# arguments. Every argument is answered first — a `$var "x"` inside
 # one becomes the value that name holds — and the call then runs at a child of
 # this environment (`run` beside it), so the step and the call it makes never
 # share one storage path. Each argument is answered at a child named by its own

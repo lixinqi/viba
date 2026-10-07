@@ -1,5 +1,5 @@
 # The step's name travels as data: `__dyn_call__ << env << "add" << …` is the
-# call `add << env << …`, read from any module.
+# call `add << env << …`, taken from any module.
 __decl__ =
     int
   <- $env Env

@@ -1,4 +1,4 @@
-# `f` 是写下来的那个链头：这一份是模块 `square_sum` 本身。
+# `f` 就是源码里的那个链头：这一份是模块 `square_sum` 本身。
 import square_sum
 
 __decl__ = Any <- $env Env

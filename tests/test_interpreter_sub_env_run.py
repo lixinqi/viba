@@ -3,9 +3,9 @@
     sub_env_run << $sub_env_name << env << f << ...
         ===  f << ($sub_env << env << sub_env_name) << ...
 
-`sub_env_run` 是内建目录里的一个模块，跟 `Y`、`apply` 一样：名字对每个模块可见，所以写它不用
+`sub_env_run` 是内建目录里的一个模块，跟 `Y`、`apply` 一样：名字对每个模块可见，所以用它不用
 import（带前缀的 `builtin.sub_env_run` 叫的是同一个模块）。它的 `$args ...` 把链上剩下的实参收成
-一份积，交给 `apply` 摊开——所以 `f` 拿到几个实参就写几个。
+一份积，交给 `apply` 摊开——所以给 `f` 几个实参，它就收到几个。
 
 用例在 `tests/data/sub_env_run/`：
 
@@ -15,12 +15,12 @@ import（带前缀的 `builtin.sub_env_run` 叫的是同一个模块）。它的
     the_qualified_name.viba      `builtin.sub_env_run` 叫的是同一个模块
     the_rest_is_f_s_arguments.viba `...` 收下的那几个摊开就是那次调用的实参
     the_arguments_are_computed_here.viba 实参算在调用方那一层，f 跑在子环境里
-    the_tagged_call.viba         每个实参都写全 tag
+    the_tagged_call.viba         每个实参都带全 tag
     a_nameless_parent.viba       给它的环境叫什么无所谓
-    a_module_of_its_own.viba     自己模块写了这个名字，内建目录里那个就被压住了
+    a_module_of_its_own.viba     自己模块给出了这个名字，内建目录里那个就被压住了
 
 宿主记下每一步的 `module_path` 与名字，套件看的就是数据路径：`f` 的那一步跑在给它的环境的名字底下
-（`root/run/low/...`），而调用方写的实参算在调用方那一层（`root`）。
+（`root/run/low/...`），而调用方给出的实参算在调用方那一层（`root`）。
 
     python3 tests/test_interpreter_sub_env_run.py
 """
@@ -48,7 +48,7 @@ UNDER_THE_NAME = "root/run/low"
 
 
 def host_for(calls, ran_at):
-    """宿主：`builtin.add`、用例自己写的 `here`、以及那个遮蔽用例的 `sub_env_run`。
+    """宿主：`builtin.add`、用例自己给出的 `here`、以及那个遮蔽用例的 `sub_env_run`。
 
     `calls` 记 `get_func` 收到的（模块路径，名字）；`ran_at` 记每一步实际跑在哪个环境里 ——
     那是环境带的数据路径，`get_func` 不再收到它（`viba-interpreter.md`）。
@@ -88,7 +88,7 @@ def run(tmp: Path):
 
 
 def _a_module_may_shadow_it(tmp: Path):
-    """自己模块里写了这个名字，读到的就是它：内建目录里那个排在任何别的名字之后。"""
+    """自己模块里给出了这个名字，拿到的就是它：内建目录里那个排在任何别的名字之后。"""
     calls, ran_at = [], []
     result = interpret(str(CASES / "a_module_of_its_own.viba"),
                        environ_for(tmp / "shadow", calls, ran_at))
@@ -124,7 +124,7 @@ def _a_nameless_parent(tmp: Path):
 
 
 def _the_rest_is_f_s_arguments(tmp: Path):
-    """`...` 收下的那份积摊开就是 f 的实参：写三个，f 就收到三个。"""
+    """`...` 收下的那份积摊开就是 f 的实参：给三个，f 就收到三个。"""
     calls, ran_at = [], []
     result = interpret(str(CASES / "the_rest_is_f_s_arguments.viba"),
                        environ_for(tmp / "rest", calls, ran_at))
@@ -143,7 +143,7 @@ def _the_arguments_are_computed_here(tmp: Path):
     check(is_ok(result) and value_of(result) == 6,
           f"the argument answered 1, and 1 + 5 = 6: {result!r}")
     check([path for path, name in ran_at if name == "here"] == ["root"],
-          f"the argument was worked out where it was written: {ran_at}")
+          f"the argument was worked out where it appears in the source: {ran_at}")
     places = [where for where, what in ran_at if what == "add"]
     check(bool(places) and all(one.startswith(UNDER_THE_NAME) for one in places),
           f"and the call itself ran under the name: {ran_at}")

@@ -1,4 +1,4 @@
-# The same call with the member written as a tag at the chain head.
+# The same call with the member given as a tag at the chain head.
 __decl__ =
     Any
   <- $env Env

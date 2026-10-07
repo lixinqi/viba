@@ -43,7 +43,7 @@ class Frame:
           * $file_path str
           * $lineno int
 
-    `file_path` is the `.viba` file the call is written in, `lineno` the line
+    `file_path` is the `.viba` file the call has as its source form, `lineno` the line
     the call is on. The main file is the outermost frame of every chain, and it
     is no call site: its `lineno` is 0.
     """
@@ -122,7 +122,7 @@ class EnvironmentApiInvalidArgumentErr(InterpretError, Exception):
     a path with a `.` or `..` segment, an environment with no storage under it —
     is neither a step that failed nor a module that cannot run; it is this: an
     api of the environment, and the arguments it could not take. `api_name` says
-    which api, written `Environment.<member>`; `args` says what it was given, as
+    which api, spelled in the source as `Environment.<member>`; `args` says what it was given, as
     viba data — the environment itself is the api's own value, so it is not among
     them. `msg` is one sentence that says what happened and why; it opens with
     the reason (`raised`).
@@ -173,7 +173,7 @@ class UnderlyingOpErr(InterpretError):
     which way — `$not_implemented_err` when `get_func` had nothing for it (the
     ordinary case: this layer ships no library), `$underlying_viba_op_err`
     when it broke. `tag` carries that tag, so the two are told apart without
-    reading a message.
+    looking at a message.
 
     `msg` is one sentence that says what happened and why — it opens with the
     reason (`no implementation`, `get_func raised`, `raised`, `no leaf`) and goes
@@ -182,23 +182,23 @@ class UnderlyingOpErr(InterpretError):
     `$underlying_viba_op_err`.
 
     `module_path` and `full_qualified_func_name` are the step
-    `get_func(module_path, func_name)` was handed, read as two fields: the module
+    `get_func(module_path, func_name)` was handed, taken as two fields: the module
     the step is declared in, as a path, and the step's whole name there (the module
     and the name it has in it). Where
     the call ran is not in them — that is the data path of the environment the
     step was handed (viba-interpreter.md). `call` is the call itself in the form that
     can be run again, with the environment left out: `__dyn_call__` and the name
     the host was asked for, or `__dyn_method__` and the member a value carries,
-    then the arguments written on it, each with the tag it was written with
-    (`__dyn_call__ << "add" << $a 1 << $b 2`). A call written *inside* that data —
-    a member of a value that holds one, a function handed to a step — is written
-    the same way and not as the name it was written with
+    then the arguments the source has on it, each with the tag it stands under
+    (`__dyn_call__ << "add" << $a 1 << $b 2`). A call the source has *inside* that
+    data — a member of a value that holds one, a function handed to a step — has
+    the same source form and not the name it was given with
     (`__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`), so
-    nothing has to be resolved to read the call. The judgment reads such a chain
+    nothing has to be resolved to take the call. The judgment counts such a chain
     as `Any` — the name travels as data, so there is nothing to unfold
     (`viba/partial.py`, `reduce_partial`) — which is why the member is declared
     `Any` here. Giving the piece an environment is what runs it, from any module,
-    inside the arguments' own readings. It is viba data, functions and closures
+    inside what the arguments themselves stand for. It is viba data, functions and closures
     among the arguments included, so the same call can be made again from this
     result alone, without running anything over; the environment is not part of
     it, another run makes its own (`viba-interpreter.md`).
@@ -206,7 +206,7 @@ class UnderlyingOpErr(InterpretError):
     A host says the same thing by handing this failure's data back — from
     `get_func`, or from the implementation of a step while it runs
     (`viba/interpret.py`, `not_implemented`). The run fills in the step and the
-    call it knows, keeping whatever the host did write and the tag it wrote it
+    call it knows, keeping whatever the host did give and the tag it gave it
     under. It is no exception: what a host answers is data, and a stop is data.
     """
 
@@ -229,7 +229,7 @@ FAILURE_TAG = "$underlying_viba_op_err"   # the implementation, or `get_func`, b
 NOT_IMPLEMENTED_TAG = "$not_implemented_err"     # nothing implements that step
 
 # The two branches a run answers under, and the tags the other two stops carry
-# (`InterpretResult` below). A host that hands the failure back writes the same
+# (`InterpretResult` below). A host that hands the failure back gives the same
 # tag it would be answered under.
 OK_TAG = "$ok"                                   # the answer
 ERR_TAG = "$err"                                 # why it stopped
@@ -237,15 +237,15 @@ PROGRAM_ERR_TAG = "$viba_program_err"            # the program, or the environme
 ENVIRONMENT_API_TAG = "$environment_api_invalid_argument_err"   # one api of it
 
 
-# The words a failure's `msg` opens with: short, stable, the same ones a reader
-# switches on.
+# The words a failure's `msg` opens with: short, stable, the same ones whoever
+# looks at the message switches on.
 REASON_NO_IMPLEMENTATION = "no implementation"   # get_func answered None
 REASON_GET_FUNC_RAISED = "get_func raised"       # get_func broke
 REASON_RAISED = "raised"                         # the implementation broke
 REASON_NO_LEAF = "no leaf"                       # it answered something with no leaf
 
 
-# The declared result, its branches written out:
+# The declared result, its branches serialized:
 #
 #     InterpretResult =
 #         Oneof
@@ -259,7 +259,7 @@ REASON_NO_LEAF = "no leaf"                       # it answered something with no
 # `interpret` and `exec` answer that declaration as **one node of viba data**:
 # `$ok (<the answer>)` or `$err (<why it stopped>)`, with the members of each
 # stop addressable by tag (`viba/interpret.py`). So the answer serializes as it
-# stands, and nothing on this side has to be read to carry it anywhere.
+# stands, and nothing on this side has to be taken apart to carry it anywhere.
 
 
 # ----------------------------------------------------------------------
@@ -340,17 +340,17 @@ class ModuleType(Type):
 
 
 # The concept in the builtin library that holds the builtin operators: its
-# members are written `builtin.add`, and read on their own as `add`.
+# members are spelled `builtin.add`, and count as `add` on their own.
 BUILTIN_CONCEPT = "builtin"
 
 
 def builtin_directory_name(name: str) -> Optional[str]:
-    """The bare name a written name stands for in the builtin directory, or None.
+    """The bare name a name in the source stands for in the builtin directory, or None.
 
     The built-in vocabulary is the package's own: beside `builtin.viba` sit the
     modules (`Y.viba`, `apply.viba`, `sub_env_run.viba`), and under `builtin/`
     the generics (`builtin/is_closure/`, `builtin/unclosure/`). Those names are
-    read from every module, after its own definitions and its imports.
+    taken from every module, after its own definitions and its imports.
     `sub_env_run` and `builtin.sub_env_run` are the same one, and so are
     `is_closure` and `builtin.is_closure`; a dotted name that carries no
     `builtin.` prefix (`demo.print`) is no builtin name, and neither is `builtin`
@@ -366,8 +366,8 @@ class BuiltinModuleType(ModuleType):
     """The module that holds built-in types.
 
     Every lookup is answered by the registry or the builtin
-    library (viba/builtin.viba): the definitions it writes, and the builtin
-    operators the concept `builtin` holds — read on their own, `add` is
+    library (viba/builtin.viba): the definitions it gives, and the builtin
+    operators the concept `builtin` holds — taken on their own, `add` is
     `builtin.add`. Anything else is an error.
     """
 
@@ -392,7 +392,7 @@ class BuiltinModuleType(ModuleType):
     # What it records about itself: the built-in vocabulary is the file the
     # package ships (`viba/builtin.viba`), so a step of the concept is known by
     # `/builtin` like any other module of the search path
-    # (`CustomModuleType.module_path`). These are read when they are asked for:
+    # (`CustomModuleType.module_path`). These are taken when they are asked for:
     # the class is defined above the constants that say where the file is.
     @property
     def name(self) -> str:
@@ -429,11 +429,11 @@ class BuiltinModuleType(ModuleType):
         return VibaProgramErr(f"no built-in type named {type_name!r}")
 
     def operator(self, name: str):
-        """The written piece of the builtin operator `name`, or None.
+        """The source form of the builtin operator `name`, or None.
 
         `builtin.add` and `add` are the same member of the concept `builtin`
         (viba/builtin.viba), and this is that member's signature: the chain a
-        written call unfolds to, whichever spelling it uses.
+        call's source form unfolds to, whichever spelling it uses.
         """
         return self._operators.get(name)
 
@@ -447,11 +447,11 @@ def _load_builtin_library() -> dict:
 
 
 def _load_builtin_operators(library: dict) -> dict:
-    """{name: written piece} for the tagged members of the builtin concept.
+    """{name: source form of the piece} for the tagged members of the builtin concept.
 
-    The members are the builtin operators (`builtin.add`, read on its own as
-    `add`), and the concept is one definition in the library: this reads its
-    product apart once, so every lookup of an operator is a dictionary read.
+    The members are the builtin operators (`builtin.add`, taken on its own as
+    `add`), and the concept is one definition in the library: this takes its
+    product apart once, so every lookup of an operator is a dictionary lookup.
     """
     definition = library.get(BUILTIN_CONCEPT)
     if definition is None:
@@ -464,7 +464,7 @@ def _load_builtin_operators(library: dict) -> dict:
 
 
 def _product_factors(node) -> list:
-    """The factors of a written product, flattened in written order."""
+    """The factors of a product in the source, flattened in source order."""
     if isinstance(node, viba_ast.Product):
         return _product_factors(node.left) + _product_factors(node.right)
     if isinstance(node, viba_ast.ProductChain):
@@ -477,12 +477,12 @@ BUILTIN_MODULE = BuiltinModuleType()
 
 # The directory the built-in vocabulary lives in: `builtin.viba` and what sits
 # next to it (`Y.viba`, `y_helper.viba`, `type.viba`). It is the last stop of the search
-# path, so a module that writes `import Y` finds it without naming this
+# path, so a module that gives `import Y` finds it without naming this
 # directory anywhere — the package's own vocabulary is part of the language.
 BUILTIN_DIR = Path(__file__).resolve().parent
 
 # The directory the `builtin.` names live in on disk: `builtin/is_closure/` is
-# the generic `builtin.is_closure`, whose bare name `is_closure` is read from
+# the generic `builtin.is_closure`, whose bare name `is_closure` is taken from
 # every module too. It is a stop of the search path like `BUILTIN_DIR`, so the
 # bare name finds it.
 BUILTIN_CONCEPT_DIR = BUILTIN_DIR / BUILTIN_CONCEPT
@@ -496,13 +496,13 @@ class CustomModuleType(ModuleType):
     for cross-module references; returning VibaProgramErr ends resolution.
 
     $imports maps a file's import local name to the module it names, so a
-    written name that carries an import prefix (`d.Report` under
+    name in the source that carries an import prefix (`d.Report` under
     `import a.b as d`) lands on the definition it really points at.
 
     A module records where it came from, as it is: the name it was loaded as, the
-    file it was read from, and the search root it was found under. A step of this
+    file it was taken from, and the search root it was found under. A step of this
     module is asked from the name it was loaded as — `get_func("foo.bar", "add")`
-    — and `module_path` is that name read as a path (viba-interpreter.md,
+    — and `module_path` is that name taken as a path (viba-interpreter.md,
     "`get_func` 与 `full_qualified_func_name`").
     """
 
@@ -521,16 +521,16 @@ class CustomModuleType(ModuleType):
         self.module_environment = module_environment
         self.imports = dict(imports or {})
         self.name = name                 # the name it was loaded as ("" when it has none)
-        self.file_path = file_path       # the file it was read from (None for code)
+        self.file_path = file_path       # the file it was taken from (None for code)
         self.root = root                 # the search root it was found under (None when none)
 
     @property
     def module_path(self) -> str:
         """The path this module is known by: rooted, no dots, no file suffix.
 
-        The name it was loaded as, read as a path: `foo.bar` is `/foo/bar`, and a
+        The name it was loaded as, taken as a path: `foo.bar` is `/foo/bar`, and a
         file reached by its own path is that path without the suffix. A module with
-        no name falls back on the file it was read from, relative to the root it was
+        no name falls back on the file it was taken from, relative to the root it was
         found under. A module that records none of it is known by the empty string.
         """
         if self.name:
@@ -553,7 +553,7 @@ class CustomModuleType(ModuleType):
         found = None
         for node in self.module.body:
             if _is_definition(node) and node.name == type_name:
-                found = node          # the parser blocks a name written twice, so take that one
+                found = node          # the parser blocks a name that appears twice, so take that one
         if found is not None:
             return Ok(AstNodeType(found, self))
         return self._lookup_imported(type_name)
@@ -563,7 +563,7 @@ class CustomModuleType(ModuleType):
         the name is that module's own. What an import binds is its alias when it
         has one and its whole module name when it has none: `import a.b as c`
         answers `c.Name`, `import a.b` answers `a.b.Name`. The longest prefix
-        wins, so a dotted module is not read as a shorter one plus a member.
+        wins, so a dotted module does not count as a shorter one plus a member.
 
         A binding that names a generic answers no name at all: a generic is a
         directory of patterns, not a module of definitions, and what it
@@ -622,12 +622,12 @@ class AstNodeType(Type):
         container_module: ModuleType,
         env_get: Callable[[str], Result] = None,
     ):
-        # On a name chain a member read is that name (`a.b.c` reads as `a.b.c`), so the layers that
-        # resolve by name (judgment, descriptors) see it; a member read whose left side is an
+        # On a name chain a member taken is that name (`a.b.c` counts as `a.b.c`), so the layers that
+        # resolve by name (judgment, descriptors) see it; a member taken whose left side is an
         # application (`g[T].value`) is no name, and stays as it is for the layer that knows it
         # (viba-style.md).
-        if isinstance(ast_node, viba_ast.MemberRead):
-            path = viba_ast.written_path(ast_node)
+        if isinstance(ast_node, viba_ast.MemberTaken):
+            path = viba_ast.source_path(ast_node)
             if path is not None:
                 ast_node = viba_ast.TypeRef(path)
         self.ast_node = ast_node
@@ -645,7 +645,7 @@ class UnresolvedTypeError(Exception):
 
 
 class DuplicateTagError(Exception):
-    """One product writes the same tag twice, inlined members counted."""
+    """One product gives the same tag twice, inlined members counted."""
 
 
 class PartialError(Exception):

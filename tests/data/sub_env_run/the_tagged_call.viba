@@ -1,4 +1,4 @@
-# the_tagged_call —— 每个实参都写全 tag：名字、环境、f、剩下的
+# the_tagged_call —— 每个实参都带全 tag：名字、环境、f、剩下的
 __decl__ =
     int
   <- $env Env

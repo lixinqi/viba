@@ -2,7 +2,7 @@
 `$find_by_relative_path`、`$convert_sub_to_sibling`、`$uncompress_relative_path`。
 
 两边的规矩都测：宿主那一侧（`viba/interpret.py` 里那几个函数，以及子环境记着的父级），
-和 viba 那一侧（`tests/data/environment/env_*.viba`）。每个成员自己有哪几条规矩、写错时
+和 viba 那一侧（`tests/data/environment/env_*.viba`）。每个成员自己有哪几条规矩、给错时
 报什么，以及它们合起来的用法 —— 根 → 相对路径 → 按那条路径找回来，以及把一个很深的数据路径
 压成 sup 旁边的 `名字_sha1`、原数据路径记在返回值上。
 
@@ -70,7 +70,7 @@ def run(tmp: Path):
     _uncompress_relative_path(tmp)
     _combinations(tmp)
     _the_declaration(tmp)
-    _written_in_viba(tmp)
+    _given_in_viba(tmp)
 
 
 def _the_chain(tmp: Path):
@@ -100,7 +100,7 @@ def _get_root(tmp: Path):
     check(get_root(a) is get_root(c), "one chain, one root")
     check(get_root(environ) is environ, "the root is its own root")
     check(get_root(None) is None, "no environment, no root")
-    check(c.get_root(c) is environ, "the member hung on an environment reads the same")
+    check(c.get_root(c) is environ, "the member hung on an environment takes the same")
 
     raised(lambda: get_root(7), "takes an Environment", "a root asked of a number")
     raised(lambda: get_root("root"), "takes an Environment", "a root asked of a string")
@@ -120,8 +120,8 @@ def _get_relative_path(tmp: Path):
     check(get_relative_path(c, None) == "a/b/c", "with nil for the root the chain's own is used")
     check(get_relative_path(environ, None) == "", "the root seen from a nil root is empty")
 
-    check(c.get_relative_path(c, environ) == "a/b/c", "the member reads the same")
-    check(c.get_relative_path(c, None) == "a/b/c", "and reads a nil root the same way")
+    check(c.get_relative_path(c, environ) == "a/b/c", "the member takes the same")
+    check(c.get_relative_path(c, None) == "a/b/c", "and takes a nil root the same way")
 
     raised(lambda: get_relative_path(c, chain(a, "x")), "is no child of",
            "a root in another branch")
@@ -158,21 +158,21 @@ def _find_by_relative_path(tmp: Path):
     check(get_root(find_by_relative_path("a/b", environ)) is environ,
           "so the chain it belongs to is the root's")
 
-    # 成员读法：不写 root 就从读到它那个环境往下走
+    # 成员取法：不给 root 就从取到它的那个环境往下走
     check(c.find_by_relative_path("x", None).storage.cur_storage_path == "root/a/b/c/x",
-          "with a nil root the member searches from the environment it was read off")
+          "with a nil root the member searches from the environment it was taken off")
     check(c.find_by_relative_path("", None).storage is c.storage,
           "and the empty path is that environment itself")
-    check(c.find_by_relative_path("a", environ).storage is a.storage, "a written root wins")
+    check(c.find_by_relative_path("a", environ).storage is a.storage, "a given root wins")
 
     raised(lambda: find_by_relative_path("a/b", None), "takes an Environment",
-           "a relative path with no root to read it from")
+           "a relative path with no root to take it from")
     raised(lambda: find_by_relative_path("../x", c), "is no relative path", "a .. segment")
     raised(lambda: find_by_relative_path("./x", c), "is no relative path", "a . segment")
     raised(lambda: find_by_relative_path(c, environ), "takes a relative path",
-           "an environment written where the path goes")
+           "an environment given where the path goes")
     raised(lambda: find_by_relative_path(7, environ), "takes a relative path",
-           "a number written where the path goes")
+           "a number given where the path goes")
 
 
 def _convert_sub_to_sibling(tmp: Path):
@@ -258,10 +258,10 @@ def _combinations(tmp: Path):
         check(find_by_relative_path(relative, environ).storage is target.storage,
               f"{relative!r} found again is the same path")
         check(get_relative_path(find_by_relative_path(relative, environ), environ) == relative,
-              f"{relative!r} written out again is the same path")
+              f"{relative!r} given out again is the same path")
 
     check(get_relative_path(c, b) == "c",
-          "a child's own path is written from its parent")
+          "a child's own path is given from its parent")
     raised(lambda: get_relative_path(pressed, c), "is no child of",
            "a sibling is no child of the one beside it")
     check(find_by_relative_path(get_relative_path(pressed, environ), environ).storage
@@ -298,15 +298,15 @@ def _the_declaration(tmp: Path):
           "get_root takes an environment and may answer none")
 
 
-def _written_in_viba(tmp: Path):
-    """viba 那边写出来的调用：每一个成员，加上写错的那几种。
+def _given_in_viba(tmp: Path):
+    """viba 那边给出的调用：每一个成员，加上给错的那几种。
 
     环境不是值：交回一份环境的那几种，交出一个宿主实现的步骤来接管 —— `PlacedHost.ran_at`
     记下那一步实际跑在哪条数据路径上，那正是这些成员该走到的地方。
     """
     cases = tmp / "cases"
 
-    # 根：read off 这一层，用 tag 写在链头；宿主那一步拿到的就是链顶那一份环境
+    # 根：从这一层取，用 tag 放在链头；宿主那一步拿到的就是链顶那一份环境
     host = PlacedHost()
     top = host.environ(store_root_dir=str(cases / "root"))
     here = chain(top, "a", "b", "c")
@@ -328,11 +328,11 @@ def _written_in_viba(tmp: Path):
           f"the root's own relative path is empty: {result!r}")
     result = interpret(str(CASES / "env_relative_path_no_root.viba"), here)
     check(is_ok(result) and value_of(result) == "a/b/c",
-          f"with nil written for the root, the chain's own root is used: {result!r}")
+          f"with nil given for the root, the chain's own root is used: {result!r}")
 
     environment_api(interpret(str(CASES / "env_relative_path_wrong_root.viba"), here),
                     "is no child of", "Environment.get_relative_path",
-                    "a root written as this layer's child")
+                    "a root given as this layer's child")
 
     # 按相对路径找回来：宿主那一步跑在哪条数据路径上，就是找回了哪一份环境
     host.ran_at.clear()
@@ -342,7 +342,7 @@ def _written_in_viba(tmp: Path):
     host.ran_at.clear()
     result = interpret(str(CASES / "env_find_from_me.viba"), here)
     check(is_ok(result) and host.ran_at == [("root/a/b/c/x", "leaf")],
-          f"with no root it searches from the environment it was read off: "
+          f"with no root it searches from the environment it was taken off: "
           f"{result!r}, {host.ran_at}")
     environment_api(interpret(str(CASES / "env_find_by_path_bad_path.viba"), here),
                     "is no relative path", "Environment.find_by_relative_path",
@@ -357,7 +357,7 @@ def _written_in_viba(tmp: Path):
           f"a plain layer records nothing: {result!r}")
     result = interpret(str(CASES / "env_uncompress_relative_path_tag.viba"), here)
     check(is_ok(result) and value_of(result) is None,
-          f"the tag form reads the same member: {result!r}")
+          f"the tag form takes the same member: {result!r}")
 
     result = interpret(str(CASES / "env_convert_sub_to_sibling.viba"), here)
     check(is_ok(result) and value_of(result) == "root/a/b/c/child",
@@ -368,7 +368,7 @@ def _written_in_viba(tmp: Path):
                     "a sup that is the chain's own root")
     environment_api(interpret(str(CASES / "env_convert_sub_to_sibling_nil.viba"), here),
                     "takes an Environment", "Environment.convert_sub_to_sibling",
-                    "nil written for the sub")
+                    "nil given for the sub")
 
 
 if __name__ == "__main__":

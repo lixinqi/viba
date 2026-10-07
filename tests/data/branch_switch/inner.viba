@@ -6,7 +6,7 @@ args = __get_args__ << __decl__
 
 import branch
 
-# A switch written as an independent file, called as one step from another.
+# A switch given as an independent file, called as one step from another.
 inner_if =
     int
   <- $env Env

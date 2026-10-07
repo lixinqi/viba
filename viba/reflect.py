@@ -1,7 +1,7 @@
-"""viba.reflect — treat a design as a map and read a viba data through it.
+"""viba.reflect — treat a design as a map and take a viba data through it.
 
 This is the access side of ``viba-reflect.md``: the map (the descriptors) comes
-from the descriptor side reading the design, the data (Data) is one viba data's
+from the descriptor side walking the design, the data (Data) is one viba data's
 type expression, and access walks the map's addresses one step at a time. Names
 follow the rule ``viba_type_descriptor.py`` keeps for
 ``viba_type_descriptor.viba``: the protocol's class names stay as they are, its
@@ -27,7 +27,7 @@ What the protocol does not name is this layer's binding or helping, not a protoc
 
     the Data parameter    -> VibaData: one viba data's type expression
     section 5.4 "throw"   -> VibaReflectError
-    reading the map       -> VibaAccess's underscore methods and this module's
+    walking the map       -> VibaAccess's underscore methods and this module's
 
 Two rules from the protocol:
 
@@ -39,7 +39,7 @@ Two rules from the protocol:
   ``VibaProgramErr``; ``leaf`` / ``length`` / ``keys`` give ``VibaProgramErr`` when they cannot.
 
 The config is the one thing an implementation is told and this module is not:
-which written names stand for the units ``nil`` and ``never``. Every accessor
+which names in the source stand for the units ``nil`` and ``never``. Every accessor
 carries one, and this module's own ``access`` carries the language layer's
 default.
 
@@ -63,7 +63,7 @@ from viba.viba_type_descriptor import (
     EXPONENT,
     LITERAL,
     NEVER,
-    MEMBER_READ,
+    MEMBER_TAKEN,
     NIL,
     PRODUCT,
     SUM,
@@ -87,7 +87,7 @@ CONTAINERS = ("list", "set", "dict")
 LITERAL_CTORS = ("ListLiteral", "SetLiteral", "DictLiteral")
 # A literal spells the container it is a resident of (`viba/type.viba`:
 # `ListLiteral[a, b, c]` is a resident of `list[a | b | c]`), so a piece whose data
-# is written that way is read the way any other piece of that container is.
+# has that source form is taken the way any other piece of that container is.
 LITERAL_KINDS = {"ListLiteral": "list", "SetLiteral": "set", "DictLiteral": "dict"}
 
 
@@ -111,7 +111,7 @@ class VibaReflectError(Exception):
 
 
 def _type_name(value) -> str:
-    """A written name, however the caller wrote it: a string, or a type node."""
+    """A name in the source, however the caller gave it: a string, or a type node."""
     if isinstance(value, str):
         return value
     for attribute in ("type_name", "name", "full_name"):
@@ -122,15 +122,15 @@ def _type_name(value) -> str:
 
 
 class Config:
-    """Which written names stand for the units ``never`` and ``nil``.
+    """Which names in the source stand for the units ``never`` and ``nil``.
 
     ``never_eqv`` holds the names equivalent to ``never``, the sum's unit, and
     ``nil_eqv`` the names equivalent to ``nil``, the product's unit. The units
     themselves are units by kind, so naming them again changes nothing.
     Whoever builds an accessor fills these in.
 
-    Either a name or a descriptor/type node may be given; only its written
-    name is kept.
+    Either a name or a descriptor/type node may be given; only its name in the
+    source is kept.
     """
 
     def __init__(self, never_eqv=(), nil_eqv=()):
@@ -188,7 +188,7 @@ VibaPath = List[VibaStep]
 
 
 def _tag_of(name: str) -> str:
-    """Chained calls write names without the $; with it counts too."""
+    """Chained calls spell names without the $; with it counts too."""
     if not isinstance(name, str):
         raise TypeError(f"a tag name is a string, not {type(name).__name__}")
     return name if name.startswith("$") else "$" + name
@@ -203,9 +203,9 @@ class VibaData:
     """This layer's binding of the protocol's Data parameter: one viba data's
     type expression.
 
-    The protocol leaves Data to the implementation; on this side a viba data is
-    written in the design's own language, so it lands as an AST node. Versions
-    and the like are carried by the caller, not by the protocol.
+    The protocol leaves Data to the implementation; on this side a viba data has
+    the design's own language as its source form, so it lands as an AST node.
+    Versions and the like are carried by the caller, not by the protocol.
     """
 
     __slots__ = ("node", "module")
@@ -239,7 +239,7 @@ class VObject:
         self.descriptor = descriptor
         self.data = data
         self.path = tuple(path)
-        # The module the viba data was written in: a name on the data side is
+        # The module the viba data's source is in: a name on the data side is
         # resolved there, not where the design piece came from.
         self.data_module = data_module
 
@@ -272,7 +272,7 @@ class VObject:
         naked value (bool / int / float / str / None)."""
         return self.leaf
 
-    # ---- the written chain head only, no unfolding ----
+    # ---- the chain head as the source has it, no unfolding ----
 
     @property
     def is_list(self) -> bool:
@@ -357,11 +357,11 @@ class VObject:
 
 
 class VibaAccess:
-    """An accessor: section 5.3's six cells plus this layer's map-reading
+    """An accessor: section 5.3's six cells plus this layer's map-walking
     helpers, all sharing one VibaReflectConfig.
 
     The definition is handed to VibaRoot, not to the constructor: the same
-    accessor reads any design, and the config is what an implementation is
+    accessor takes any design, and the config is what an implementation is
     told once.
     """
 
@@ -455,10 +455,10 @@ class VibaAccess:
         return self.leaf(resolved.ok_value)
 
     def list_fields(self, node: VObject, definition: VibaDefinitionDescriptor) -> Result:
-        """VibaListFields: VibaGet each member the map reads off the definition;
+        """VibaListFields: VibaGet each member the map finds on the definition;
         take what comes back.
 
-        The members are read the way the map reads them — inlined members
+        The members are taken the way the map takes them — inlined members
         promoted, units left out — so the listing and the walk agree on where a
         field sits. What is missing does not enter the table.
         """
@@ -486,11 +486,11 @@ class VibaAccess:
             raise VibaReflectError("this piece has no value")
         return given.ok_value
 
-    # ---- private: the map (descriptors read as addressable pieces) ----
+    # ---- private: the map (descriptors taken as addressable pieces) ----
 
     def unfold(self, descriptor: VibaTypeDescriptor,
                seen: Optional[set] = None) -> VibaTypeDescriptor:
-        """Unfold a piece written as a name into something addressable.
+        """Unfold a piece whose source form is a name into something addressable.
 
         Two things, both by the definitions in the pool: a name unfolds to its
         definition body, and a generic application folds its arguments in and
@@ -501,7 +501,7 @@ class VibaAccess:
         are no other exceptions.
 
         A definition already being unfolded stops the walk, since a pool may
-        write a cycle (`A = B` with `B = A`) or a generic that asks for
+        give a cycle (`A = B` with `B = A`) or a generic that asks for
         itself (`W[T] = W[T]`, or `W[T] = W[list[T]]`, whose body only grows);
         neither has a body to land on, so the piece stays the name it is."""
         return self._unfold_seen(descriptor, set() if seen is None else set(seen))[0]
@@ -543,9 +543,9 @@ class VibaAccess:
 
         None when this piece is no such application — an ordinary application
         the generic branch below unfolds, a name, a leaf. The decision is made
-        where the application was written, and what comes back is the chosen
-        file's `__decl__`, read in that file with this file's parameter names
-        standing for the argument parts the patterns extracted
+        where the application sits in the source, and what comes back is the
+        chosen file's `__decl__`, taken in that file with this file's parameter
+        names standing for the argument parts the patterns extracted
         (viba-pattern.md). A decision that finds no file has no body to land
         on, so the piece stays the application it is.
         """
@@ -575,10 +575,10 @@ class VibaAccess:
     def _decided_member(self, descriptor: VibaTypeDescriptor, seen: set):
         """`g[T].name`: the definition in the chosen file, with the decision's bindings.
 
-        None when this piece is no such member read, or when the decision finds
-        no file: the piece then stays what it is.
+        None when this piece is no such member taken out, or when the decision
+        finds no file: the piece then stays what it is.
         """
-        if descriptor.kind != MEMBER_READ:
+        if descriptor.kind != MEMBER_TAKEN:
             return None
         owner = descriptor.payload.owner
         if owner.kind != TYPE_APP:
@@ -611,7 +611,7 @@ class VibaAccess:
         return self._unfold_seen(self._substitute(built, bindings), seen | {key})
 
     def _definition_target(self, descriptor: VibaTypeDescriptor):
-        """(key, definition) for a descriptor written as a name or an
+        """(key, definition) for a descriptor whose source form is a name or an
         application that has a body to land on; None otherwise.
 
         The key is the definition's identity, which is what both unfolding and
@@ -619,24 +619,24 @@ class VibaAccess:
         are told apart, and the same definition twice is the same key.
         """
         if descriptor.kind == TYPE_REF:
-            target = self._written_target(descriptor, descriptor.payload.type_name)
+            target = self._source_target(descriptor, descriptor.payload.type_name)
             if target is None or not isinstance(target.ast_node, viba_ast.TypeDefinition):
                 return None
             return ("ref", id(target.ast_node)), target
         if descriptor.kind == TYPE_APP:
-            target = self._written_target(descriptor, descriptor.payload.constructor_name)
+            target = self._source_target(descriptor, descriptor.payload.constructor_name)
             if target is None or not isinstance(target.ast_node, viba_ast.GenericDefinition):
                 return None
             return ("app", id(target.ast_node)), target
         return None
 
-    def _written_target(self, descriptor: VibaTypeDescriptor, written: str):
-        """The definition a written name lands on — import prefix and all —
-        or None when it names no definition of the pool."""
+    def _source_target(self, descriptor: VibaTypeDescriptor, name: str):
+        """The definition a name in the source lands on — import prefix and
+        all — or None when it names no definition of the pool."""
         resolvable = descriptor.payload.resolvable_type
         if resolvable is None:
             return None
-        resolved = module_get_type(resolvable.container_module, written)
+        resolved = module_get_type(resolvable.container_module, name)
         if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
             return None
         return resolved.ok_value
@@ -649,7 +649,7 @@ class VibaAccess:
         params = list(target.ast_node.generic_params or [])
         if len(params) != len(payload.args):
             return None
-        # The builtin library is loaded as written (never canonicalized), so
+        # The builtin library is loaded as the source has it (never canonicalized), so
         # canonicalize here first.
         from viba.viba_type_descriptor import _build_type
 
@@ -688,10 +688,11 @@ class VibaAccess:
         return descriptor
 
     def carries_nil(self, descriptor: VibaTypeDescriptor) -> bool:
-        """Whether this written type admits nil.
+        """Whether this type in the source admits nil.
 
-        Unfolded, that is a sum with a branch that is the product unit: a
-        writer asking whether a slot with no value may be written `nil`.
+        Unfolded, that is a sum with a branch that is the product unit:
+        someone giving the source asks here whether a slot with no value may be
+        spelled `nil`.
         """
         unfolded = self.unfold(descriptor)
         if unfolded.kind != SUM:
@@ -704,8 +705,9 @@ class VibaAccess:
         is a product matched by position.
 
         A literal is the container it spells (`ListLiteral[1, 2]` is a list, and
-        `DictLiteral[("k", 1)]` a dict), so its data is counted, taken by index or
-        read by key the way the same piece under `list[int]` / `dict[str, int]` is.
+        `DictLiteral[("k", 1)]` a dict), so its data is counted, taken by index
+        or taken by key the way the same piece under `list[int]` /
+        `dict[str, int]` is.
         """
         if descriptor.kind == TYPE_APP:
             name = descriptor.payload.constructor_name
@@ -717,7 +719,7 @@ class VibaAccess:
     def _has_elements_by_index(self, descriptor: VibaTypeDescriptor) -> bool:
         """Pieces that can be counted and taken by index: list / set / tuple.
 
-        A dict is not one of them: its elements are read through keys and
+        A dict is not one of them: its elements are taken through keys and
         at_key, so asking a dict by index is an address the design lacks.
         """
         return self.container_kind(descriptor) in ("list", "set") or descriptor.kind == TUPLE
@@ -729,7 +731,7 @@ class VibaAccess:
 
     def members_of(self, descriptor: VibaTypeDescriptor) -> Optional[List[tuple]]:
         """The same, straight from a piece of the map: the members a descriptor
-        has, without a data piece to hang them on. A checker that reads the
+        has, without a data piece to hang them on. A checker that takes the
         design alone (no viba_data involved) asks here."""
         return self._design_members(descriptor)
 
@@ -737,8 +739,8 @@ class VibaAccess:
         """[(tag or None, that step, descriptor)]: the members of this piece,
         each with the step that takes you there; a None tag goes by position.
 
-        The step is what VibaGet takes, so a writer walks a viba data the same
-        way a reader does.
+        The step is what VibaGet takes, so the side that gives source walks a
+        viba data the same way the side that takes values does.
         """
         out, positional = [], 0
         for tag, descriptor in self.members(node) or []:
@@ -753,7 +755,7 @@ class VibaAccess:
         """Same, straight from a design descriptor.
 
         Sum and exponent chains follow one rule: the members are $elements,
-        and a unit chain head does not count. A product is read by
+        and a unit chain head does not count. A product is taken by
         _product_members: its untagged members may stand for members of their
         own. A branch (a chain nested in $elements) counts as one member like
         any other element.
@@ -787,10 +789,10 @@ class VibaAccess:
         to a single tagged member hands those members over, recursively; one
         that unfolds to the product unit — nil, or a name the config calls nil —
         is no member at all (that is what the head `Object` has always meant);
-        anything else is one positional member, as written.
+        anything else is one positional member, as the source has it.
 
         A definition the chain meets twice (`A = A * $x int`) has no expansion
-        to read: this layer still hands the member out as it stands — it cannot
+        to take: this layer still hands the member out as it stands — it cannot
         throw — and names it in ``cycles`` when a caller asks for the malformed
         design to be caught (see inline_cycle).
         """
@@ -811,7 +813,7 @@ class VibaAccess:
                 if cycles is not None:
                     found = self._definition_target(element)
                     if found is not None and found[0] in seen:
-                        cycles.append(_written_name(element))
+                        cycles.append(_source_name(element))
                 out.append((None, element))
         return out
 
@@ -820,7 +822,7 @@ class VibaAccess:
 
         An untagged member is an inline slot, so a member that reaches a
         definition already being inlined has no full expansion: `A = A * $x
-        int` writes A as itself, and there is nothing to read. This layer still
+        int` spells A as itself, and there is nothing to take. This layer still
         hands the member out (`member_steps` cannot throw), so a checker that
         needs a well-formed design asks here — `is_sub_type` and `serialize`
         both refuse such a design.
@@ -836,10 +838,11 @@ class VibaAccess:
         """The positional branches of an untagged sum whose layer a viba data may
         skip: [(index, role, descriptor), ...], else None.
 
-        A sum with at most one inner node can be written without the sum layer:
-        the viba data carries that branch's content directly, and leaf branches
-        are told apart by the value itself. Two inner nodes cannot be told
-        apart, and a tagged sum is addressed by tag, so neither qualifies.
+        A sum with at most one inner node can have the sum layer left out of
+        the source: the viba data carries that branch's content directly, and
+        leaf branches are told apart by the value itself. Two inner nodes cannot
+        be told apart, and a tagged sum is addressed by tag, so neither
+        qualifies.
         """
         descriptor = self.unfold(descriptor)
         if descriptor.kind != SUM:
@@ -857,7 +860,7 @@ class VibaAccess:
         return members if inner <= 1 else None
 
     def _branch_role(self, descriptor: VibaTypeDescriptor) -> str:
-        """How one branch of a sum reads: "unit", "leaf" or "inner"."""
+        """The role one branch of a sum is taken as: "unit", "leaf" or "inner"."""
         descriptor = self.unfold(descriptor)
         if descriptor.kind in (NIL, NEVER):
             return "unit"
@@ -945,14 +948,15 @@ class VibaAccess:
         return _as_value(self._match(data, step, design, data_module))
 
     def _expand_data(self, data, design, data_module=None):
-        """Unfold a viba data written as a name or a generic application: a name
-        gives its definition body, an application fills its arguments in.
+        """Unfold a viba data whose source form is a name or a generic
+        application: a name gives its definition body, an application fills its
+        arguments in.
 
         One rule on both sides (the design side works on descriptors, this one
         on syntax trees); a name resolves in the module the design piece comes
         from, hence the module carried by ``design``. A definition already
-        expanded stays as written, so a cycle (`A = B` with `B = A`) and a
-        body that only grows (`W[T] = W[list[T]]`) both terminate.
+        expanded stays as the source has it, so a cycle (`A = B` with `B = A`)
+        and a body that only grows (`W[T] = W[list[T]]`) both terminate.
         """
         return self._expand_data_seen(data, design, set(), data_module)
 
@@ -1085,7 +1089,7 @@ class VibaAccess:
                 and unfolded.payload.type_name in self.config.nil_eqv)
 
     def _is_unit_data(self, node) -> bool:
-        """The same on the viba data side: a unit written as a form or a name."""
+        """The same on the viba data side: a unit whose source is a form or a name."""
         if isinstance(node, (viba_ast.Nil, viba_ast.Never)):
             return True
         return (isinstance(node, viba_ast.TypeRef)
@@ -1102,9 +1106,9 @@ class VibaAccess:
     def _data_members(self, data, design=None, data_module=None) -> Optional[List[tuple]]:
         """The members of this data piece: [(tag or None, piece), ...].
 
-        A product design is read by the design's own rule
+        A product design is taken by the design's own rule
         (_product_data_members). Sum and exponent designs follow one rule: the
-        elements of the written chain, minus a unit chain head.
+        elements of the chain as the source has it, minus a unit chain head.
         """
         expanded = self._expand_data(data, design, data_module)
         if design is not None and self.unfold(design).kind == PRODUCT:
@@ -1127,13 +1131,13 @@ class VibaAccess:
     def _product_data_members(self, data, design, seen, data_module=None) -> List[tuple]:
         """A product's members on the viba data side, by the design's rule.
 
-        An untagged piece written as a name or an application that unfolds to a
-        product or to a single tagged member hands those members over,
-        recursively; one that is the product unit is no member at all; anything
-        else is one positional piece. A definition already being inlined stays
-        one positional piece, so an inline cycle terminates. A group written on
-        the right of the chain is a branch and stays one piece (the protocol's
-        own reading).
+        An untagged piece whose source form is a name or an application that
+        unfolds to a product or to a single tagged member hands those members
+        over, recursively; one that is the product unit is no member at all;
+        anything else is one positional piece. A definition already being
+        inlined stays one positional piece, so an inline cycle terminates. A
+        group the source puts on the right of the chain is a branch and stays
+        one piece (the protocol's own way of taking it).
         """
         elements = _flatten(data)
         if elements is None:
@@ -1211,8 +1215,8 @@ class VibaAccess:
 # ----------------------------------------------------------------------
 
 # The language layer's units: what viba/type.viba and the descriptor's own
-# docs write for the sum unit and the product unit. The config is a value a
-# caller can hand around; the accessor built from it is not.
+# docs give as the source for the sum unit and the product unit. The config is a
+# value a caller can hand around; the accessor built from it is not.
 language_config = Config(never_eqv={"Oneof"},
                          nil_eqv={"Object", "Assert", "Appendix", "Hint"})
 
@@ -1232,12 +1236,12 @@ def _as_value(piece):
 
 
 def _flatten(node) -> Optional[List]:
-    """Sum / product / exponent read as an element list: the main chain flat,
+    """Sum / product / exponent taken as an element list: the main chain flat,
     a branch as one element.
 
-    The reading matches canonicalization (the chain is the main chain and its
-    elements may be branches); a binary tree that was never canonicalized reads
-    the same way, so both sides give the same element list.
+    What is taken here matches canonicalization (the chain is the main chain and
+    its elements may be branches); a binary tree that was never canonicalized is
+    taken the same way, so both sides give the same element list.
     """
     if isinstance(node, (viba_ast.ProductChain, viba_ast.SumChain, viba_ast.ExponentChain)):
         return list(node.elements)
@@ -1252,7 +1256,7 @@ def _flatten(node) -> Optional[List]:
 
 
 def _is_leaf_data(node) -> bool:
-    """A viba_data piece written as a leaf: a literal, nil or never."""
+    """A viba_data piece whose source form is a leaf: a literal, nil or never."""
     return isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never))
 
 
@@ -1262,8 +1266,8 @@ def _design_module(descriptor):
     return getattr(resolvable, "container_module", None)
 
 
-def _written_name(descriptor) -> str:
-    """The name a reference or an application was written as."""
+def _source_name(descriptor) -> str:
+    """The name a reference or an application has in the source."""
     if descriptor.kind == TYPE_REF:
         return descriptor.payload.type_name
     return descriptor.payload.constructor_name
@@ -1288,7 +1292,7 @@ def _generic_definition(module, name):
 
 
 class _ParamFiller(viba_ast.NodeTransformer):
-    """Replace the parameter names written in a definition body by arguments."""
+    """Replace the parameter names the source puts in a definition body by arguments."""
 
     def __init__(self, bindings):
         self.bindings = bindings
@@ -1305,7 +1309,7 @@ def _pair_of(pair, key: str):
     """The value design of the entry this key names, or None.
 
     `pair` is one entry of a `DictLiteral`'s design: a tuple of the key's design
-    and the value's, both already designs (so this reads them, not the source).
+    and the value's, both already designs (so this takes them, not the source).
     """
     if getattr(pair, "kind", None) != TUPLE:
         return None
@@ -1326,7 +1330,7 @@ def _key_text(key) -> Optional[str]:
 
 
 def _scalar_name(value) -> Optional[str]:
-    """The name the design writes for this literal: bool / int / float / str."""
+    """The name the design gives this literal in the source: bool / int / float / str."""
     if isinstance(value, bool):
         return "bool"
     if isinstance(value, int):

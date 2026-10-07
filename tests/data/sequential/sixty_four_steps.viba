@@ -1,4 +1,4 @@
-# sixty_four_steps —— 六十四步（计数文件的上界）：每一步把前一步的结果加一，最后一步不写 tag
+# sixty_four_steps —— 六十四步（计数文件的上界）：每一步把前一步的结果加一，最后一步不带 tag
 add =
     int
   <- $env Env

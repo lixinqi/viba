@@ -70,7 +70,7 @@ a_nested_capture = unclosure[add << $a (mul << $b 2)].captured
 a_module_capture = unclosure[square_sum << 3].captured
 a_qualified_capture = builtin.unclosure[add << $a 1].captured
 
-# ---- 闭包模式在别的泛型里的读法：模式写几个 `<<`，就认几个实参 ----
+# ---- 闭包模式在别的泛型里的取法：模式给出几个 `<<`，就认几个实参 ----
 first_of_two = take_apart[add << $a 1 << $b 2].first
 second_of_two = take_apart[add << $a 1 << $b 2].second
 take_apart_api = take_apart[add << $a 1 << $b 2].f

@@ -10,5 +10,5 @@ args = __get_args__ << __decl__
 import add2_module as Two
 import Y
 
-# 这一层的实参接着 `<<` 写（两个），`Y` 把它们收成一份积，`apply` 按成员个数选 apply_impl 那一支。
+# 这一层的实参接着 `<<` 给出（两个），`Y` 把它们收成一份积，`apply` 按成员个数选 apply_impl 那一支。
 __impl__ = Y << Two << ($sub_env << args.env << "Y") << $n 3 << $m 4

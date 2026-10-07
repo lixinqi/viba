@@ -1,6 +1,6 @@
 # The step's helper: the step itself, this helper (the next layer), and the product of
 # this layer's arguments. The environment is a parameter, so this call runs at the storage path
-# its caller wrote: a step writes one name per layer it starts
+# its caller gave: a step gives one name per layer it starts
 # (`args.fib << (sub_env << args.env << "low") << $n below << $m other`), and that layer's
 # arguments arrive as the links after it, collected into one product by `$args ...`.
 #
@@ -25,7 +25,7 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-# The workspace: the same layer for every call, read back from its relative path. The root is
+# The workspace: the same layer for every call, taken back from its relative path. The root is
 # this chain's own root, so the path is still measured from the top even though this call
 # sits deeper.
 caller_workspace_env =
@@ -43,7 +43,7 @@ workspace =
 
 # y(f, y): with only the step and the helper it stops partially applied — the eta step. Its
 # head is the helper the caller handed over, which is this call itself; the layer the next
-# call runs in and this layer's arguments are still to come, and the step writes both. The
+# call runs in and this layer's arguments are still to come, and the step gives both. The
 # workspace is the same one every layer, so the path goes on as it came.
 recursive =
     args.y_helper

@@ -1,5 +1,5 @@
-# sequential_arg: anything else goes to the closure as it was written — a
-# literal, a written call, whatever stands there.
+# sequential_arg: anything else goes to the closure as it was given — a
+# literal, a call, whatever stands there.
 pattern A
 
 __decl__ =

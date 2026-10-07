@@ -6,10 +6,10 @@
 
 分支和部分计算决定那条路走不走：
 
-- 分支值那一格是**函数类型**，写在里面的递归调用只有宿主叫它的时候才算——条件不成立时，绕回去的
+- 分支值那一格是**函数类型**，出现在那一格里的递归调用只有宿主叫它的时候才算——条件不成立时，绕回去的
   那一步一次都不发作；
 - 一个调用先给一半（`right.f << $a 1`）就是一个值：它没进入另一份文件，所以也不发作；
-- 条件的那个参数是照旧先算的，所以写在条件里的递归调用一定会发作。
+- 条件的那个参数是照旧先算的，所以出现在条件里的递归调用一定会发作。
 
     python3 tests/test_interpreter_mutual_recursion.py
 
@@ -23,7 +23,7 @@
     never     $ok，结果是 never
     sum       $ok，结果是几支并起来的和
     product   $ok，结果是积
-    name      $ok，结果是写下来的那个名字
+    name      $ok，结果是源码里的那个名字
     error     $viba_program_err，话里含这个片段
 """
 
@@ -131,8 +131,8 @@ CASES_TO_RUN = [
     ("cond_true_gate", "value", 7),
     ("cond_false_gate", "value", 0),
     ("cond_both_gates", "value", 0),
-    ("cond_reads_back", "cycle", None),
-    ("cond_reads_back_false_side", "value", True),
+    ("cond_takes_back", "cycle", None),
+    ("cond_takes_back_false_side", "value", True),
     ("cond_inside_the_kept_side", "value", True),
     ("cond_calls_the_other_file", "value", 2),
     ("cond_dropped_before_the_other_file", "value", 0),
@@ -179,9 +179,9 @@ CASES_TO_RUN = [
     ("edge_sum_in_the_other_file", "cycle", None),
     ("edge_function_body_is_a_hint", "value", 2),
     ("edge_two_left_definitions", "value", 5),
-    ("edge_left_reads_right_twice", "value", 1),
+    ("edge_left_takes_right_twice", "value", 1),
     ("edge_right_imports_twice", "cycle", None),
-    ("edge_cycle_path_is_written", "cycle", None),
+    ("edge_cycle_path_in_source", "cycle", None),
 ]
 
 
@@ -235,7 +235,7 @@ def run(tmp: Path):
                   f"{name}: expected a product, got {result!r}")
         elif kind == "name":
             check(isinstance(_data(result), viba_ast.TypeRef),
-                  f"{name}: expected the written name, got {result!r}")
+                  f"{name}: expected the name in the source, got {result!r}")
         elif kind == "error":
             check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")

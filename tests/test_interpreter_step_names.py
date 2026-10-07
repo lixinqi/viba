@@ -1,11 +1,11 @@
 """一步是按哪两个名字问的：它在哪个模块、在那个模块里叫什么。
 
 viba 里怎么 import，就怎么传给 `get_func` —— `import foo.bar`（或者 `import foo.bar as foo_bar`）
-之后写 `foo.bar.b_scale << …` 也好、写别名 `b_scale << …` 也好，问的都是
+之后用 `foo.bar.b_scale << …` 也好、用别名 `b_scale << …` 也好，问的都是
 `get_func("foo.bar", "b_scale")`（`viba-interpreter.md`「`get_func` 与 `func_name`」）。就地声明的
 步骤问的是跑起来的那份模块，和它在那儿的名字。
 
-结果里记的是同一件事的另外两种读法：`$module_path` 是那个模块读成路径（`/foo/bar`），`$full_qualified_func_name` 是
+结果里记的是同一件事的另外两种取法：`$module_path` 是那个模块判成路径（`/foo/bar`），`$full_qualified_func_name` 是
 整名（`foo.bar.b_scale`），而 `$call` 里带的就是这个整名 —— 拿它再跑一遍时按最后一个点切开，前面是模块、
 后面是名字。
 
@@ -90,7 +90,7 @@ def _an_alias_asks_the_name_it_stands_for():
 
 
 def _an_own_step_keeps_its_own_name():
-    """就地声明的步骤问就地写的名字（它没有前缀可带）。"""
+    """就地声明的步骤问就地给出的名字（它没有前缀可带）。"""
     calls, result = _asked("own")
     check(calls == [("own", "b_scale")],
           f"a step of this file is asked from this file's module: {calls}")
@@ -104,13 +104,13 @@ def _an_own_step_keeps_its_own_name():
 
 
 def _the_call_carries_the_same_name():
-    """`$call` 里的名字与问的名字是同一个（`$call` 写的就是被问的那次调用）。"""
+    """`$call` 里的名字与问的名字是同一个（`$call` 给出的就是被问的那次调用）。"""
     calls, result = _asked("alias")
     check(stop_tag(result) == NOT_IMPLEMENTED_TAG,
           f"this case stops at a step: {result!r}")
-    written = " ".join(viba_ast.unparse_type(stop_node(result, "$call").data).split())
-    check(written == '__dyn_call__ << "foo.bar.b_scale" << $x 2',
-          f"the call the stop carries says the whole name: {written!r}")
+    source = " ".join(viba_ast.unparse_type(stop_node(result, "$call").data).split())
+    check(source == '__dyn_call__ << "foo.bar.b_scale" << $x 2',
+          f"the call the stop carries says the whole name: {source!r}")
 
 
 if __name__ == "__main__":

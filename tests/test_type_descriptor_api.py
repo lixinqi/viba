@@ -2,7 +2,7 @@
 
 The 100 generated cases in data/type_descriptor/case_* are the regression;
 these checks are the readable ones: each is a small directory of
-hand-written .viba files under data/type_descriptor/api plus the exact
+hand-built .viba files under data/type_descriptor/api plus the exact
 assertions it is there to make.
 
     python tests/test_type_descriptor_api.py
@@ -53,7 +53,7 @@ def _member(pool, definition_full_name, tag):
 
 
 def _check_alias_and_depth():
-    """深浅目录 + 两种 import 写法 + 前缀必须是 import 的本地名。"""
+    """深浅目录 + 两种 import 源码形式 + 前缀必须是 import 的本地名。"""
     pool = load("alias_and_depth", [
         ("top.viba", "top"),
         ("pkg/mod.viba", "pkg.mod"),
@@ -70,7 +70,7 @@ def _check_alias_and_depth():
     assert member_resolved_definition(_member(pool, deep.full_name, "$m")).ok_value.full_name == "pkg.mod.Mid"
     # 单段模块名：import top 绑的就是 top，top.Base 解析得到
     assert member_resolved_definition(_member(pool, deep.full_name, "$root")).ok_value.full_name == "top.Base"
-    # mod 是别名，写成 pkg.mod.Mid 不是别名，解析不了
+    # mod 是别名，pkg.mod.Mid 不是别名，解析不了
     assert isinstance(member_resolved_definition(_member(pool, deep.full_name, "$bad")), VibaProgramErr)
     assert isinstance(file_find_import_by_local_name(file, "nope"), VibaProgramErr)
 
@@ -115,7 +115,7 @@ def _check_members():
                                                      "sum", "tuple", "sum",
                                                      "literal", "code_block", "exponent",
                                                      "any"]
-    # 只有写成名字的成员才有 type_name；内联结构没有
+    # 只有是名字的成员才有 type_name；内联结构没有
     assert isinstance(member_type_name(members[0]), VibaProgramErr)
     assert isinstance(member_type_name(members[5]), VibaProgramErr)
     assert member_containing_definition(members[0]).ok_value.full_name == "members.Members"
@@ -178,7 +178,7 @@ def _check_errors():
     assert isinstance(member_resolved_definition(member), VibaProgramErr)          # gone.mod 不在池子里
     assert isinstance(pool_find_member(orphan_pool, "err.orphan.Orphan.$nope"), VibaProgramErr)
 
-    # 内建容器不是名字，是内建写法：等号左边出现就编不出来
+    # 内建容器不是名字，是内建形式：等号左边出现就编不出来
     for bad in ("ListLiteral = int\n",
                 "SetLiteral[T] = T\n",
                 "DictLiteral[K] = K\n",
@@ -192,7 +192,7 @@ def _check_errors():
                 "X[K, set] = K\n",
                 "X[dict, K] = K\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "literal.viba", "literal"), VibaProgramErr), bad
-    # 环境不是结果：只有内建函数能把它声明成返回值，模块里写的函数一概不行
+    # 环境不是结果：只有内建函数能把它声明成返回值，模块里的函数一概不行
     for bad in ("f =\n    Env\n  <- $env Env\nX = f << $env Env\n",
                 "env_of =\n    Environment\n  <- $env Env\nX = env_of << $env Environment\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "env.viba", "env"),
@@ -218,7 +218,7 @@ def _check_errors():
                 "A = int\nX[B, C, set] = B\n",
                 "X[dict] = int\n"):
         assert isinstance(parse_viba_file(empty_pool(), bad, "later.viba", "later"), VibaProgramErr), bad
-    # 只在类型表达式里用的写法不受影响
+    # 只在类型表达式里用的形式不受影响
     for good in ("Y = ListLiteral[1]\n",
                  "Y = set[dict[str, int]]\n",
                  "Y = $items list[int] * $more set[str]\n",
@@ -227,7 +227,7 @@ def _check_errors():
                  "import list\nY = int\n",          # 模块名可以叫 list
                  "X = Object * $list list[int]\n"):  # tag 可以叫 $list
         assert isinstance(parse_viba_file(empty_pool(), good, "uses.viba", "uses"), Ok), good
-    # 空白的写法不影响判定
+    # 空白的形式不影响判定
     for bad in ("list [ T ] = T\n",
                 "list\n= int\n",
                 "list = int  # note\n",
@@ -236,7 +236,7 @@ def _check_errors():
     # import 一个叫 list 的模块不会把内建容器顶掉
     shadow = custom_module("import list\nZ = int\n")
     assert isinstance(module_get_type(shadow, "list"), Ok), "list still resolves"
-    # `<<` 给的不是函数：设计写错，编的时候就给 VibaProgramErr（不是留到判定）
+    # `<<` 给的不是函数：设计错了，编的时候就给 VibaProgramErr（不是留到判定）
     for bad in ("P = (int * str) << $b str\n",
                 "S = (int | str) << $b str\n",
                 "L = 7 << $b str\n",
@@ -277,9 +277,9 @@ def _check_reprs():
     binding = load("import_binding", [("user.viba", "user")])
     imports = pool_find_file(binding, "user.viba").ok_value.imports
     assert repr(imports[0]) == "VibaImportDescriptor('pkg.mod' as 'pkg.mod')"
-    written = "".join([repr(pool), repr(definition)]
+    text = "".join([repr(pool), repr(definition)]
                       + [repr(m.member_type) for m in definition.members])
-    assert "0x" not in written, written
+    assert "0x" not in text, text
 
 
 def run():
@@ -290,7 +290,7 @@ def run():
         check()
     print(f"type_descriptor_api: {len(checks)} checks passed "
           f"(imports and prefixes, import binding, members, generics, "
-          f"unit chain heads, an argument read on demand, negatives, "
+          f"unit chain heads, an argument taken on demand, negatives, "
           f"descriptor reprs)")
     return 0
 

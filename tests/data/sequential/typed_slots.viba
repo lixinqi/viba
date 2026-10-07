@@ -1,4 +1,4 @@
-# typed_slots —— 变量引用落在 `$a int` 这样的槽位上：设计时读不出它的值，当场拒
+# typed_slots —— 变量引用落在 `$a int` 这样的槽位上：设计时取不出它的值，当场拒
 add =
     int
   <- $env Env

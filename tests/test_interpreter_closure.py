@@ -1,6 +1,6 @@
 """闭包：没给环境的调用就是一个值，可序列化、可存、可传。
 
-环境是执行那一步，也只有它是：给了环境就是执行（实参必须齐），没给环境就是闭包——写下来的函数名
+环境是执行那一步，也只有它是：给了环境就是执行（实参必须齐），没给环境就是闭包——源码里的函数名
 加上已经算好的实参。这份可序列化数据里没有环境，所以它跨得过运行边界。
 
     python3 tests/test_interpreter_closure.py
@@ -34,7 +34,7 @@ CASES = Path(__file__).resolve().parent / "data" / "closure"
 
 
 def host_for(calls):
-    """宿主：四则、读积的那个成员、给出 7、把拿到的闭包原样交回来。"""
+    """宿主：四则、取积的那个成员、给出 7、把拿到的闭包原样交回来。"""
     def get_func(module_path, func_name):
         if func_name == "add":
             return lambda env, a, b: a.value + b.value
@@ -67,7 +67,7 @@ def environ_for(store, calls=()):
 
 # (文件, 该跑出什么)：
 #   ("value", 叶子)     $ok，且叶子是这个值
-#   ("closure", 写法)   $ok，给出的是一个闭包，写出来是这个样子
+#   ("closure", 源码形式)   $ok，给出的是一个闭包，序列化成源码是这个样子
 #   ("error", 片段)     $viba_program_err，话里含这个片段
 #   ("viba_data", None)  $ok，是一个闭包装在可序列化数据里的值（后面单独看）
 # 最后一列是要看住的副作用调用；None 表示不看。
@@ -100,8 +100,8 @@ CASES_TO_RUN = [
 ]
 
 
-def written(value) -> str:
-    """One piece of viba data as written, layout flattened away."""
+def as_source(value) -> str:
+    """One piece of viba data as source, layout flattened away."""
     answer = serialize.serialize("piece", value)
     if not isinstance(answer, Ok):
         return repr(value)
@@ -130,8 +130,8 @@ def run(tmp: Path):
             check(is_ok(result) and isinstance(answer_of(result).data, viba_ast.Partial),
                   f"{name}: expected a closure, got {result!r}")
             if is_ok(result):
-                check(written(answer_of(result)) == want,
-                      f"{name}: the closure is written {want!r}, got {written(answer_of(result))!r}")
+                check(as_source(answer_of(result)) == want,
+                      f"{name}: the closure as source is {want!r}, got {as_source(answer_of(result))!r}")
         elif kind == "error":
             check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
@@ -139,15 +139,15 @@ def run(tmp: Path):
             check(calls == calls_wanted,
                   f"{name}: expected the calls {calls_wanted}, got {calls}")
 
-    # 存下来的闭包：写出来就是那条链，读回来还是同一个闭包
+    # 存下来的闭包：序列化成源码就是那条链，反序列化回来还是同一个闭包
     source = (CASES / "closure_as_answer.viba").read_text()
     body = viba_ast.parse(source).body[-2].body
     stored = one_line(body)
     check(stored == "add << $a 1 << $b 2",
-          f"a stored closure is written back as its chain: {stored!r}")
+          f"a stored closure comes back as its chain: {stored!r}")
     again = viba_ast.parse(f"again = {stored}\n").body[0].body
     check(one_line(again) == stored,
-          f"and reading it back gives the same closure: {one_line(again)!r}")
+          f"and deserializing it gives the same closure: {one_line(again)!r}")
 
     # 可序列化数据里装一个闭包：装的是数据，不会被执行（那个参数是 `$f`，不是一次调用）
     viba_data = interpret(str(CASES / "closure_in_viba_data.viba"), environ_for(tmp / "store-mat"))
@@ -155,7 +155,7 @@ def run(tmp: Path):
     if is_ok(viba_data):
         inner = answer_of(viba_data).by_tag("f")
         check(isinstance(inner.data, viba_ast.Partial),
-              f"and what is inside is the written call: {inner.data!r}")
+              f"and what is inside is the call in the source: {inner.data!r}")
 
 
 if __name__ == "__main__":

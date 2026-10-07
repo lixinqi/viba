@@ -1,6 +1,6 @@
 # add3_module.viba —— 一步：`f(n, m, k)` 用 `f(n - 1, m, k)` 把 n 加到 m 与 k 上，三个参数。
 #
-# 与 fib_module.viba、add2_module.viba 同一种写法，区别只在参数列表有几个参数：这一层的算完，
+# 与 fib_module.viba、add2_module.viba 同一种源码形式，区别只在参数列表有几个参数：这一层的算完，
 # 把下三个参数接着 `<<` 交给下一层。
 __decl__ =
     Any
@@ -20,7 +20,7 @@ below = parts.sub << $env args.env << $x args.n << $y 1
 # base case 要的是其余两位的和，也是这一步给出去的那个值
 base = parts.add << $env args.env << $x args.m << $y args.k
 
-# 每一层给一条自己的子环境，名字写在这个文件里 —— 这次调用的数据路径因此是可复现的
+# 每一层给一条自己的子环境，名字在这个文件里给出 —— 这次调用的数据路径因此是可复现的
 low = args.add3 << ($sub_env << args.env << "low") << $n below << $m args.m << $k args.k
 __impl__ =
   Oneof

@@ -28,7 +28,7 @@ from viba.viba_ast.nodes import (
     Partial,
     Tagged,
     Member,
-    MemberRead,
+    MemberTaken,
     TypeApp,
     Tuple,
     TypeRef,
@@ -46,10 +46,10 @@ from viba.viba_ast.chain import convert_to_chain_style, convert_from_chain_style
 from viba.viba_ast.unparse import unparse_module
 __all__ = [
     "AST", "Module", "TypeDefinition", "GenericDefinition", "Import", "Pattern",
-    "Sum", "Product", "Exponent", "Partial", "Tagged", "Member", "MemberRead",
+    "Sum", "Product", "Exponent", "Partial", "Tagged", "Member", "MemberTaken",
     "TypeApp", "Tuple", "TypeRef", "Constant", "Nil", "Never", "Any", "Ellipsis",
     "CodeBlock", "SumChain", "ProductChain", "ExponentChain",
-    "parse", "unparse", "unparse_type", "canonical", "dump", "written_path",
+    "parse", "unparse", "unparse_type", "canonical", "dump", "source_path",
     "convert_to_chain_style", "convert_from_chain_style",
     "iter_child_nodes", "walk", "NodeVisitor", "NodeTransformer",
 ]
@@ -86,18 +86,18 @@ def unparse(tree: Module) -> str:
 # ----------------------------------------------------------------------
 
 
-def written_path(node: AST) -> Optional[str]:
-    """The name a chain of member reads spells, or None when it spells none.
+def source_path(node: AST) -> Optional[str]:
+    """The name a chain of member takings spells, or None when it spells none.
 
-    `a.b.c` is `MemberRead(MemberRead(TypeRef(a), b), c)`, and read as a name it
-    is the string "a.b.c" — the one spelling the layers that resolve a written
-    name read (viba-style.md). An owner that is no name — an application, say —
-    spells no name: there the member is read out of what the owner is.
+    `a.b.c` is `MemberTaken(MemberTaken(TypeRef(a), b), c)`, and taken as a name it
+    is the string "a.b.c" — the one spelling the layers that resolve a
+    name in the source take (viba-style.md). An owner that is no name — an application, say —
+    spells no name: there the member is taken out of what the owner is.
     """
     if isinstance(node, TypeRef):
         return node.name
-    if isinstance(node, MemberRead):
-        owner = written_path(node.owner)
+    if isinstance(node, MemberTaken):
+        owner = source_path(node.owner)
         return None if owner is None else f"{owner}.{node.name}"
     return None
 

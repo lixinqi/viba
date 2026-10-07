@@ -1,20 +1,20 @@
 # `InterpretResult` — what `interpret` and `exec` answer, and what they answer with.
 #
-# This is the declaration those two entries are held to, written out as a viba
-# type so the answer can be read and judged like any other piece of viba data:
+# This is the declaration those two entries are held to, given as a viba
+# type so the answer can be taken and judged like any other piece of viba data:
 # `is_sub_type` over the node `interpret` hands out and this definition says
 # whether the run answered what it says it answers (viba/interpret.py,
 # `is_interpret_result`).
 #
 # A run answers on one of two branches. `$ok` carries the answer of `__impl__`,
-# and it is any value the run produced — so it is written `Any`, the one type
+# and it is any value the run produced — so it is given `Any`, the one type
 # every answer is below. `$err` carries why the run stopped: one of the four
 # kinds of `InterpretError`, each an object with the members that say which step,
 # which call, and why (viba-interpreter.md, "一次执行会得到什么").
 #
-# `$call` is the call itself, written the way a call whose name is data is
-# written (`__dyn_call__ << "demo.add" << $a 1 << $b 2`, the environment left
-# out). The judgment reads such a chain as `Any` — the name travels as data, so
+# `$call` is the call itself, the way a call whose name is data is
+# given (`__dyn_call__ << "demo.add" << $a 1 << $b 2`, the environment left
+# out). The judgment counts such a chain as `Any` — the name travels as data, so
 # there is nothing to unfold (`viba/partial.py`, `reduce_partial`) — which is why
 # the member is declared `Any` here and not as a function type.
 InterpretResult =
@@ -39,7 +39,7 @@ Stack =
 
 Frame =
     Object
-  * $file_path str                                     # the .viba file the call is written in
+  * $file_path str                                     # the .viba file the call is given in
   * $lineno int                                        # the line it is on
 
 UnderlyingOpErr =

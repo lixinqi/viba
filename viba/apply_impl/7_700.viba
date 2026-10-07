@@ -1,13 +1,13 @@
 # apply_impl, 7 arguments: the product of arguments has 7 members,
-# and each one is read out of it by the tag the `pattern` line extracted.
+# and each one is taken out of it by the tag the `pattern` line extracted.
 pattern tagged[arg0_name, Arg0] * tagged[arg1_name, Arg1] * tagged[arg2_name, Arg2] * tagged[arg3_name, Arg3] * tagged[arg4_name, Arg4] * tagged[arg5_name, Arg5] * tagged[arg6_name, Arg6]
 
 # The module's own signature: it answers whatever the function answers, and it takes
-# the function and the product of arguments — the product comes as one piece, written
+# the function and the product of arguments — the product comes as one piece, given
 # `($a 1 * $b 2)` at the call site, which is what `$args Any` says. The call this file
 # builds wants the environment too, and this file declares no `$env Env` parameter: the
 # environment is appended to that call when this call's body answers it. What the
-# product's members are is what the `pattern` line reads, not this.
+# product's members are is what the `pattern` line takes, not this.
 __decl__ =
     Any
   <- $f Any

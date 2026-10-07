@@ -1,4 +1,4 @@
-# A definition written in a module that answers the environment: refused the same
+# A definition given in a module that answers the environment: refused the same
 # way, whether the module is applied or the definition is.
 __decl__ =
     Any

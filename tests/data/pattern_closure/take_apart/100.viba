@@ -1,5 +1,5 @@
-# `F << A << B` writes exactly two links, so this file reads a call that gave
-# exactly two arguments — one file per length, the way `apply_impl` reads a
+# `F << A << B` gives exactly two links, so this file takes a call that gave
+# exactly two arguments — one file per length, the way `apply_impl` takes a
 # product of a given size.
 pattern F << A << B
 

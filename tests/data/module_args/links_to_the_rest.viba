@@ -1,4 +1,4 @@
-# links_to_the_rest.viba —— 接着写两条 `<<`，它们都归 `sums_the_rest` 那个写 `...` 的参数。
+# links_to_the_rest.viba —— 接着给出两条 `<<`，它们都归 `sums_the_rest` 那个带 `...` 的参数。
 __decl__ =
     int
   <- $env Env

@@ -1,4 +1,4 @@
-"""viba.builder — write Viba source with Python operators.
+"""viba.builder — spell Viba source with Python operators.
 
     import viba.builder
 
@@ -34,7 +34,7 @@ The operators are the language's operators:
     vb.nil       nil            (None is nil too)
     vb.never     never
     ...          the ellipsis
-    vb.Name      a written name, and the slot a definition lands in
+    vb.Name      a name in the source, and the slot a definition lands in
     vb.Name[T] = body           Name[T] = body
     vb.Name = body              Name = body
     vb.Name[arg0, arg1]         Name[arg0, arg1], an application
@@ -45,7 +45,7 @@ The operators are the language's operators:
 Python's own `str` / `int` / `float` / `bool` / `list` / `set` / `dict` are the
 language's names, `int | str` (what Python itself makes of a union) is a sum,
 `None` is `nil`, `...` is the ellipsis, and any other Python value is a literal. A Python `list` / `set` / `dict` is the container literal it
-means — `[a, b]` is `ListLiteral[a, b]`, `{a, b}` is `SetLiteral[a, b]` (written
+means — `[a, b]` is `ListLiteral[a, b]`, `{a, b}` is `SetLiteral[a, b]` (spelled
 in sorted order, a set has none of its own) and `{a: 0}` is
 `DictLiteral[(a, 0)]`, in the order given.
 
@@ -56,7 +56,7 @@ definition and never a method:
     viba.builder.code(text)                    { text }
     viba.builder.add_import(vb, module, alias) import module as alias
     viba.builder.comment(vb, text)             # text
-    viba.builder.check(vb)                     read str(vb) back; raises otherwise
+    viba.builder.check(vb)                     parse str(vb) back; raises otherwise
 
 Starting from a file that is already there appends to it:
 
@@ -69,17 +69,17 @@ right away: `A ** tag.count(vb.T)` is `A <- $count T`, `A ** tag(B ** tag.p(C))`
 is `A <- (B <- $p C)`, and `A ** vb.T` is a TypeError — `**` is not a power
 here.
 
-A definition is written `vb.Name = body` or `vb.Name[Params] = body`, and comes
+A definition is spelled `vb.Name = body` or `vb.Name[Params] = body`, and comes
 out as `Name = body` or `Name[Params] = body`: the same `=` in both places, and
 no second spelling to remember.
 
 Associativity: the language's `|` and `*` are left-associative and Python's are
 too, so `A | B | C` grows the one chain and `A | (B | C)` keeps a branch — the
-same chains the parser reads back. Python's `**` is right-associative while
-`<-` is left-associative, so `A ** B ** C` is read as the written chain
+same chains the parser takes back. Python's `**` is right-associative while
+`<-` is left-associative, so `A ** B ** C` is taken as the source chain
 `A <- B <- C`; the nested group `A <- (B <- C)` needs `vb(...)`.
 
-What is written is canonical: definitions come out in one style, chains as
+The source form is canonical: definitions come out in one style, chains as
 chains, so `str(vb)` is stable — parse it and unparse it and nothing moves.
 """
 
@@ -95,7 +95,7 @@ __all__ = ["Builder", "tag", "literal", "code", "add_import", "comment",
 
 
 class _Expr:
-    """One written type expression."""
+    """One type expression in the source."""
 
     def to_ast(self):  # pragma: no cover - every subclass answers
         raise NotImplementedError
@@ -119,15 +119,15 @@ class _Expr:
 
     # `<-` is left-associative in the language and `**` is right-associative in
     # Python: `A ** B ** C` arrives as `A ** (B ** C)` and _splice puts it back
-    # into the written order A <- B <- C.
+    # into the source order A <- B <- C.
     def __pow__(self, other):
         return _Exponent(_splice([self], _power_argument(other)))
 
     def __rpow__(self, other):
         return _Exponent(_splice([other], _power_argument(self)))
 
-    # `<<` gives one written argument to a function: left-associative in the
-    # language too, so the nest Python builds is the nest that is written.
+    # `<<` gives one argument in the source to a function: left-associative in the
+    # language too, so the nest Python builds is the nest the source has.
     def __lshift__(self, other):
         return _Partial(self, _partial_argument(other))
 
@@ -169,7 +169,7 @@ def _power_argument(value) -> _Expr:
     """The right side of `**`: a tagged field, a group, or a run of tags.
 
     `A ** B` means "A with a tagged field", not "A to the power B", so anything
-    else is a slip and is refused here rather than written out.
+    else is a slip and is refused here rather than serialized.
     """
     if isinstance(value, (_Tagged, _Branch)):
         return value
@@ -185,9 +185,9 @@ def _power_argument(value) -> _Expr:
 def _partial_argument(value) -> _Expr:
     """The right side of `<<`: a tagged field, or a group.
 
-    It names the argument that is being given, so it is written the way `**`
+    It names the argument that is being given, so it is spelled the way `**`
     wants: `tag.name(body)`, or `tag(body)` for a group. Anything else is a
-    slip and is refused here rather than written out.
+    slip and is refused here rather than serialized.
     """
     if isinstance(value, (_Tagged, _Branch)):
         return value
@@ -197,7 +197,7 @@ def _partial_argument(value) -> _Expr:
 
 
 def _splice(elements, other) -> list:
-    """The written chain: the run on the left, then a right `**` chain's own
+    """The source chain: the run on the left, then a right `**` chain's own
     elements, so that A ** (B ** C) is the flat A <- B <- C."""
     if isinstance(other, _Exponent):
         return list(elements) + other.elements
@@ -235,7 +235,7 @@ class _Tag:
 
 
 class _TagFactory:
-    """`tag.head(T)` writes `$head T`; `tag(expr)` keeps a group whole."""
+    """`tag.head(T)` spells `$head T`; `tag(expr)` keeps a group whole."""
 
     def __getattr__(self, name: str) -> _Tag:
         if name.startswith("_"):
@@ -306,7 +306,7 @@ class _Code(_Expr):
 
 
 class _Name(_Expr):
-    """A written name: a reference, an application head, a definition slot."""
+    """A name in the source: a reference, an application head, a definition slot."""
 
     def __init__(self, path: str, owner: Optional["Builder"] = None):
         object.__setattr__(self, "path", path)
@@ -318,7 +318,7 @@ class _Name(_Expr):
     def __setattr__(self, name: str, body) -> None:
         """`vb.a.b = body` is a slip: a definition's name is one name."""
         raise TypeError(
-            f"a definition's name is one name: write vb.{name} = ..., not "
+            f"a definition's name is one name: give vb.{name} = ..., not "
             f"vb.{self.path}.{name} = ...")
 
     def __getattr__(self, name: str) -> "_Name":
@@ -330,7 +330,7 @@ class _Name(_Expr):
         return _TypeApp(self.path, _items(key))
 
     def __setitem__(self, key, body) -> None:
-        """`vb.Name[T] = body` writes `Name[T] = body`."""
+        """`vb.Name[T] = body` spells `Name[T] = body`."""
         if self.owner is None:
             raise TypeError(f"{self.path!r} is a name, not a definition slot")
         params = [_param(p) for p in _items(key)]
@@ -341,7 +341,7 @@ class _Name(_Expr):
         self.owner._add(definition)
 
     def to_ast(self):
-        # `nil` and `never` are keywords: however they are written, what comes
+        # `nil` and `never` are keywords: however the source has them, what comes
         # out is the unit itself. The other keywords are slips here — Python
         # has a spelling for them — and are refused.
         if self.path in ("nil", "void", "None"):
@@ -351,7 +351,7 @@ class _Name(_Expr):
         if self.path == "Any":
             return viba_ast.Any()
         if self.path in _SLIPS:
-            raise TypeError(f"write {_SLIPS[self.path]}, not vb.{self.path}")
+            raise TypeError(f"spell {_SLIPS[self.path]}, not vb.{self.path}")
         return viba_ast.TypeRef(self.path)
 
 
@@ -365,14 +365,14 @@ def literal(value) -> _Expr:
 
 
 def name(path: str) -> _Name:
-    """The written name `path`: what `vb.<name>` gives.
+    """The name in the source `path`: what `vb.<name>` gives.
 
     A builder spells names as its own attributes, so a name it cannot reach that
     way — one beginning with an underscore, the two `__dyn_*` names among them —
-    is written here instead.
+    is spelled here instead.
     """
     if not isinstance(path, str) or not path:
-        raise TypeError(f"a written name is a non-empty str, not {path!r}")
+        raise TypeError(f"a name in the source is a non-empty str, not {path!r}")
     return _Name(path)
 
 
@@ -394,23 +394,23 @@ def add_import(vb: "Builder", module: str, alias: Optional[str] = None) -> "Buil
 
 
 def comment(vb: "Builder", text: str) -> "Builder":
-    """A `# text` line, written where it stands between the definitions."""
+    """A `# text` line, spelled where it stands between the definitions."""
     return vb._add(_Comment(text))
 
 
 def check(vb: "Builder") -> "viba_ast.Module":
     """Parse `str(vb)` back into a Module; raises ValueError when the source
-    that was written is not Viba source."""
+    form is not Viba source."""
     try:
         return viba_ast.parse(str(vb))
     except SyntaxError as error:
-        raise ValueError(f"what was written does not parse: {error}") from None
+        raise ValueError(f"the source form does not parse: {error}") from None
 
 
 _BUILTIN_NAMES = {str: "str", int: "int", float: "float", bool: "bool",
                   list: "list", set: "set", dict: "dict"}
 
-# The keywords that are not the language's own spelling of a value: writing one
+# The keywords that are not the language's own spelling of a value: giving one
 # as a name is a slip, and Python has the spelling that was meant.
 _SLIPS = {"true": "True", "false": "False"}
 
@@ -447,7 +447,7 @@ def _origin_name(origin) -> str:
     name = getattr(origin, "__name__", None)
     if isinstance(name, str):
         return name
-    raise TypeError(f"{origin!r} has no name to write")
+    raise TypeError(f"{origin!r} has no name to give")
 
 
 def _definition_name(name: str) -> str:
@@ -499,7 +499,7 @@ def _wrap(value) -> _Expr:
     if isinstance(value, type) and value in _BUILTIN_NAMES:
         return _Name(_BUILTIN_NAMES[value])
     if isinstance(value, _Tag):
-        raise TypeError(f"{value!r} is a tag with no body: write {value!r}(body)")
+        raise TypeError(f"{value!r} is a tag with no body: spell {value!r}(body)")
     if isinstance(value, (bool, int, float, str)):
         return _Literal(value)
     if isinstance(value, tuple):
@@ -507,13 +507,13 @@ def _wrap(value) -> _Expr:
     if isinstance(value, list):
         return _TypeApp("ListLiteral", value)
     if isinstance(value, set):
-        # A set has no order of its own: write the members sorted, so the same
+        # A set has no order of its own: give the members sorted, so the same
         # set always gives the same source.
         return _TypeApp("SetLiteral",
                       sorted(value, key=lambda member: viba_ast.unparse_type(_ast(member))))
     if isinstance(value, dict):
         return _TypeApp("DictLiteral", [_Tuple([key, item]) for key, item in value.items()])
-    raise TypeError(f"cannot write {value!r} as a viba type expression")
+    raise TypeError(f"cannot spell {value!r} as a viba type expression")
 
 
 def _ast(value) -> "viba_ast.AST":
@@ -537,7 +537,7 @@ def _param(value) -> str:
 
 
 def _path(value) -> str:
-    """The written name an application hangs off."""
+    """The name in the source an application hangs off."""
     if isinstance(value, _Name):
         return value.path
     if isinstance(value, str):
@@ -546,7 +546,7 @@ def _path(value) -> str:
 
 
 class _Comment:
-    """A `# ...` line: not a node, kept as written."""
+    """A `# ...` line: not a node, kept as the source has it."""
 
     def __init__(self, text: str):
         self.text = text.strip().lstrip("#").strip()
@@ -563,7 +563,7 @@ class Builder:
     with that header, and `Builder(existing)` starts from a whole file that is
     already there — only new definitions are appended to it, and a name it
     already defines is refused. `str(vb)` gives the file: what it started from
-    as written, then the new definitions canonically.
+    as the source has it, then the new definitions canonically.
     """
 
     def __init__(self, existing: str = ""):
@@ -586,7 +586,7 @@ class Builder:
         return _Branch(expr)
 
     def __setattr__(self, name: str, value) -> None:
-        """`vb.Name = body` writes `Name = body`."""
+        """`vb.Name = body` spells `Name = body`."""
         if name.startswith("_"):
             object.__setattr__(self, name, value)
             return

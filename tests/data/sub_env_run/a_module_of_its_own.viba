@@ -1,4 +1,4 @@
-# a_module_of_its_own —— 自己模块里写了这个名字，内建目录里那个就被压住了
+# a_module_of_its_own —— 自己模块里给出这个名字，内建目录里那个就被压住了
 __decl__ =
     int
   <- $env Env

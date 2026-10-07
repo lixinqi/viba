@@ -16,5 +16,5 @@ inc =
   <- { add one }
 
 box = Object * $f inc * $y 2
-# 实参按它落的那一位写：`$x` 是 `inc` 自己声明的 tag。
+# 实参按它落的那一位给出：`$x` 是 `inc` 自己声明的 tag。
 __impl__ = tagged["f"] << box << args.env << $x 1

@@ -1,4 +1,4 @@
-"""函数类型的槽：写在那一格上的实参不在这里算，宿主叫它的时候才算。
+"""函数类型的槽：出现在那一格上的实参不在这里算，宿主叫它的时候才算。
 
 每条用例是一份可以打开的文件（`tests/data/lazy/*.viba`），这里只列它该跑出什么。宿主那一边
 只叫它想叫的那个实参，所以没走的那一支既不做副作用、也不会因为没有实现而挡路。同一份分支文件
@@ -72,7 +72,7 @@ def host_for(calls, knobs):
             # 两个实参都不问
             return lambda env, get_a, get_b: 0
         if func_name == "positional":
-            # 两个函数类型的槽都收，按写下来的顺序给
+            # 两个函数类型的槽都收，按源码里的顺序给
             def positional(env, get_cond, get_v):
                 return get_v(env).value if get_cond(env).value else 0
             return positional
@@ -100,7 +100,7 @@ CASES_TO_RUN = [
     # 只有选中那一支的实参被算：门槛由宿主给，同一个文件跑两个方向
     ("branches", "value", 1, ["tick"], 0),
     ("branches", "value", 2, ["tock"], 5),
-    # 分支值写成一次调用：只有走的那一支留下记录
+    # 分支值源码里是一次调用：只有走的那一支留下记录
     ("recorded_branches", "value", 0, ["true_branch"], 0),
     ("recorded_branches", "value", 0, ["false_branch"], 5),
     # 分支背后那一步没有实现：报的就是那一步，而且它没被算过

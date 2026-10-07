@@ -97,10 +97,10 @@ def run_name_helpers():
     same("nil is no scalar", _scalar_name(None), None)
 
     same("no key is no text", _key_text(None), None)
-    same("true keys write true", _key_text(True), "true")
-    same("false keys write false", _key_text(False), "false")
-    same("other keys write themselves", _key_text(7), "7")
-    same("str keys write themselves", _key_text("k"), "k")
+    same("true keys give true", _key_text(True), "true")
+    same("false keys give false", _key_text(False), "false")
+    same("other keys give themselves", _key_text(7), "7")
+    same("str keys give themselves", _key_text("k"), "k")
 
 
 def run_access_edges():
@@ -123,7 +123,7 @@ def run_access_edges():
 
     thin = _product([viba_ast.Tagged("$a", viba_ast.Constant(1))])
     thin_root = _root(definition, thin)
-    same("a piece the viba data lacks reads nil",
+    same("a piece the viba data lacks takes nil",
          access.get(thin_root, by_tag("$b")).ok_value, None)
     same("and has says false", access.has(thin_root, by_tag("$b")).ok_value, False)
 
@@ -157,11 +157,11 @@ def run_dynamic_accessors():
     ]))
     same("get_a takes the step", access.leaf(root.get_a()).ok_value, 1)
     same("has_b answers a bool", root.has_b(), True)
-    same("len() reads a container", len(root.get_xs()), 1)
-    same("keys() reads a dict", root.get_d().keys(), ["k"])
-    same("values() reads a dict", root.get_d().values()[0].leaf, 2)
-    same("items() reads a dict", root.get_d().items()[0][0], "k")
-    same("a dict reads by key", access.leaf(root.get_d()["k"]).ok_value, 2)
+    same("len() takes a container", len(root.get_xs()), 1)
+    same("keys() takes a dict", root.get_d().keys(), ["k"])
+    same("values() takes a dict", root.get_d().values()[0].leaf, 2)
+    same("items() takes a dict", root.get_d().items()[0][0], "k")
+    same("a dict is taken by key", access.leaf(root.get_d()["k"]).ok_value, 2)
     same("a list iterates by position",
          [access.leaf(item).ok_value for item in root.get_xs()], [1])
     same("membership works by tag", "a" in root, True)
@@ -179,12 +179,12 @@ def run_dynamic_accessors():
     position = _definition("Pos = Object * int * $a int\n", "Pos")
     pos = _root(position, _product([viba_ast.Constant(5),
                                     viba_ast.Tagged("$a", viba_ast.Constant(6))]))
-    same("a positional member reads by index", access.leaf(pos.get_field_0()).ok_value, 5)
+    same("a positional member is taken by index", access.leaf(pos.get_field_0()).ok_value, 5)
     same("has_field answers a bool", pos.has_field_0(), True)
     check("dir() names positional accessors too", "get_field_0" in dir(pos))
     is_err("try_get_field_ answers VibaProgramErr for one that is not there",
            pos.try_get_field_9(), "no such address")
-    same("and the tag still reads by name", access.leaf(pos.get_a()).ok_value, 6)
+    same("and the tag is still taken by name", access.leaf(pos.get_a()).ok_value, 6)
 
     # 一个不是名字的东西当 tag：说清楚要的是字符串，不是 AttributeError
     try:

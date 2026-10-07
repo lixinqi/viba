@@ -1,4 +1,4 @@
-# The dotted name written at the call site.
+# The dotted name given at the call site.
 __decl__ =
     int
   <- $env Env
