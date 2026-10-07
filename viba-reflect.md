@@ -124,14 +124,14 @@ VibaPath = list[VibaStep]
 ### 5.1 接口
 
 ```viba
-VibaNode[Data] =
+VObject[Data] =
     Object
   * $descriptor VibaTypeDescriptor
   * $data Data
-  * $by_tag (VibaNode[Data] <- $tag str)
-  * $by_field_index (VibaNode[Data] <- $i int)
-  * $at_index (VibaNode[Data] <- $i int)
-  * $at_key (VibaNode[Data] <- $key str)
+  * $by_tag (VObject[Data] <- $tag str)
+  * $by_field_index (VObject[Data] <- $i int)
+  * $at_index (VObject[Data] <- $i int)
+  * $at_key (VObject[Data] <- $key str)
   * $leaf VibaConstant
   * $is_list bool
   * $is_set bool
@@ -154,7 +154,7 @@ Result[T] =
 [`viba-interpreter.md`](viba-interpreter.md) 开头的签名那一块。
 
 VibaRoot[Data] =
-    Result[VibaNode[Data]]
+    Result[VObject[Data]]
   <- $config VibaReflectConfig
   <- $definition VibaDefinitionDescriptor
   <- $data Data
@@ -163,35 +163,35 @@ VibaRoot[Data] =
 VibaHas[Data] =
     Result[bool]
   <- $config VibaReflectConfig
-  <- $node VibaNode[Data]
+  <- $node VObject[Data]
   <- $step VibaStep
 
 VibaGet[Data] =
-    Result[VibaNode[Data]]
+    Result[VObject[Data]]
   <- $config VibaReflectConfig
-  <- $node VibaNode[Data]
+  <- $node VObject[Data]
   <- $step VibaStep
 
 VibaLeaf[Data] =
     Result[VibaConstant]
   <- $config VibaReflectConfig
-  <- $node VibaNode[Data]
+  <- $node VObject[Data]
 
 VibaLength[Data] =
     Result[int]
   <- $config VibaReflectConfig
-  <- $node VibaNode[Data]
+  <- $node VObject[Data]
 
 VibaKeys[Data] =
     Result[list[str]]
   <- $config VibaReflectConfig
-  <- $node VibaNode[Data]
+  <- $node VObject[Data]
 
 ```
 
 | 接口 | 说明 |
 |---|---|
-| `VibaNode[Data]` | 一个节点：类型侧的一段描述符，加上实现侧的一份数据；其余部分都是第 5.4 节的访问器 |
+| `VObject[Data]` | 一个对象：类型侧的一段描述符，加上实现侧的一份数据；其余部分都是第 5.4 节的访问器 |
 | `VibaRoot` | 起点：这份数据对应类型里的哪个定义 |
 | `VibaHas` | 这一步有没有。给出 `false`：类型里没这个数据路径，或者实现那边没有这一段——后者是没覆盖类型 |
 | `VibaGet` | 往里走一步，得到一个新的节点，因此可以继续往下走 |
@@ -207,21 +207,21 @@ VibaKeys[Data] =
 
 ```viba
 VibaResolve[Data] =
-    Result[VibaNode[Data]]
+    Result[VObject[Data]]
   <- $config VibaReflectConfig
-  <- $node VibaNode[Data]
+  <- $node VObject[Data]
   <- $path VibaPath
 
 VibaGetByPath[Data] =
     Result[VibaConstant]
   <- $config VibaReflectConfig
-  <- $node VibaNode[Data]
+  <- $node VObject[Data]
   <- $path VibaPath
 
 VibaListFields[Data] =
-    Result[list[VibaNode[Data]]]
+    Result[list[VObject[Data]]]
   <- $config VibaReflectConfig
-  <- $node VibaNode[Data]
+  <- $node VObject[Data]
   <- $definition VibaDefinitionDescriptor
 
 ```
@@ -237,12 +237,12 @@ VibaListFields[Data] =
 ```viba
 VibaAccess[Data] =
     Object
-  * $root (Result[VibaNode[Data]] <- $definition VibaDefinitionDescriptor <- $data Data)
-  * $has (Result[bool] <- $node VibaNode[Data] <- $step VibaStep)
-  * $get (Result[VibaNode[Data]] <- $node VibaNode[Data] <- $step VibaStep)
-  * $leaf (Result[VibaConstant] <- $node VibaNode[Data])
-  * $length (Result[int] <- $node VibaNode[Data])
-  * $keys (Result[list[str]] <- $node VibaNode[Data])
+  * $root (Result[VObject[Data]] <- $definition VibaDefinitionDescriptor <- $data Data)
+  * $has (Result[bool] <- $node VObject[Data] <- $step VibaStep)
+  * $get (Result[VObject[Data]] <- $node VObject[Data] <- $step VibaStep)
+  * $leaf (Result[VibaConstant] <- $node VObject[Data])
+  * $length (Result[int] <- $node VObject[Data])
+  * $keys (Result[list[str]] <- $node VObject[Data])
   * Assert[{
   	其构造方法必须接受 VibaReflectConfig 参数。
   }]
@@ -259,7 +259,7 @@ root.by_tag('len').leaf()
 root.by_tag('counter').at_key('value').leaf()
 ```
 
-每一步回来的还是 `VibaNode[Data]`，所以能一直点；`leaf` 是终点。它们全是第 5.1 节的糖。节点上这些都是**访问器**：取的时候才算，算不出来就抛异常，不是造节点时就算好：
+每一步回来的还是 `VObject[Data]`，所以能一直点；`leaf` 是终点。它们全是第 5.1 节的糖。节点上这些都是**访问器**：取的时候才算，算不出来就抛异常，不是造节点时就算好：
 
 | 便捷函数 | 等价于 |
 |---|---|
@@ -303,7 +303,7 @@ root.by_tag('counter').at_key('value').leaf()
 
 **取值失败抛 `VibaReflectError`**：上面会抛的那一类，抛出来的异常都叫 `VibaReflectError`，`VibaProgramErr` 的那句话原样在异常信息里；catch 它就能接住反射一路上所有取不出来的情况。
 
-问"有没有"的一类**永远不抛**：类型里有、数据里没有就是 `False`（这就是"实现没做到"），实现自己坏了也是 `False`——对问话的人来说两者一样是"这里没有可用的东西"。要区分这两种，用 `try_get_{name}()`：它返回 `Result`，`Ok(node)` 是取到了，`Ok(nil)` 是没有，`VibaProgramErr` 才是问不出来。它对应规格里的 `Result[VibaNode[Data] | nil]`。
+问"有没有"的一类**永远不抛**：类型里有、数据里没有就是 `False`（这就是"实现没做到"），实现自己坏了也是 `False`——对问话的人来说两者一样是"这里没有可用的东西"。要区分这两种，用 `try_get_{name}()`：它返回 `Result`，`Ok(node)` 是取到了，`Ok(nil)` 是没有，`VibaProgramErr` 才是问不出来。它对应规格里的 `Result[VObject[Data] | nil]`。
 
 名字由 `__getattr__` 兜底合成（Python 没有 `__hasattr__` 这种协议；`hasattr(x, n)` 就是 `getattr(x, n)` 加上吃掉 `AttributeError`），`__contains__` 与 `__dir__` 是真的魔术方法。
 

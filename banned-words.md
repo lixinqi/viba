@@ -97,7 +97,7 @@ viba 层不预设「另一方」、不预设「一次运行分几轮」、不预
 | **能力表** / **capability table** | 那张「名字 → 实现」的表本身，一个进程一张 | 它把「谁会什么」当成一件要调度的事 | 某个宿主实现了哪些名字 |
 | **调度** / **scheduler** | 一个程序：反复启动那几个进程、读它们印出来的行、把上一轮欠下的补上 | 起进程、分轮；本层没有对应概念 | 不要写 |
 | **轮** / **round**（指一次批次时） | 一次「先补账、再跑一遍程序」的完整启动 | 本层的一次运行就是一个程序在一个环境里跑 | 不要写 |
-| **结局** / **outcome**，以及取值 `ok` / `stuck` / `unfinished` / `broken` / `crashed` / `failed` / `program_err` / `not_my_duty` / `answered` | 一次调度收尾时印出来的那行 JSON 的第一个字段：这一轮是跑完了、卡住了，还是坏在某个进程上 | 一次调度的结果分类 | 本层的结果只有两支：`$ok VibaNode`、`$err InterpretError`；`InterpretError` 只有三种停法（见第 3.1 节） |
+| **结局** / **outcome**，以及取值 `ok` / `stuck` / `unfinished` / `broken` / `crashed` / `failed` / `program_err` / `not_my_duty` / `answered` | 一次调度收尾时印出来的那行 JSON 的第一个字段：这一轮是跑完了、卡住了，还是坏在某个进程上 | 一次调度的结果分类 | 本层的结果只有两支：`$ok`（答案）、`$err InterpretError`；`InterpretError` 只有三种停法（见第 3.1 节） |
 | **报告** / **report**（服务进程那一行 JSON） | 一个服务进程往 stdout 印的一行 JSON：`service`、`phase`、`api`、`path`、`computed`、`value` … | 进程之间通信的格式 | 不要写 |
 | **补账** / **answer phase** / **失败状态** / `failure/round-<k>.viba` | 一轮里先起一遍进程，把它们名下「还没量过」的记录补上；失败状态是这一轮停在哪、写进了哪个文件 | 一轮里的两个阶段与落盘的失败记录 | 不要写 |
 | **路由** / **routing**、**派单** | 决定某一步该交给谁 | 谁接、按什么规则接 | 不要写；本层只有「数据路径不同 = 两次不同的调用」 |

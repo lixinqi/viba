@@ -13,7 +13,7 @@ underscore.
     VibaStep                          VibaStep
     the four VibaStep branches         by_tag / by_field_index / at_index / at_key
     VibaPath                          VibaPath (= list[VibaStep])
-    VibaNode[Data]                    VibaNode
+    VObject[Data]                     VObject
     VibaReflectConfig                 Config
     Result[T]                         Ok / VibaProgramErr (viba.type)
     VibaConstant                      the naked value (bool / int / float / str / None)
@@ -43,7 +43,7 @@ which written names stand for the units ``nil`` and ``never``. Every accessor
 carries one, and this module's own ``access`` carries the language layer's
 default.
 
-The section 5.4 Python landing lives on VibaNode: ``get_{name}()`` / ``has_{name}()`` /
+The section 5.4 Python landing lives on `VObject`: ``get_{name}()`` / ``has_{name}()`` /
 ``in`` / ``try_get_{name}()`` / ``node[i]`` / ``node.value`` / ``len(node)`` /
 iteration / ``keys()`` / ``values()`` / ``items()``. The taking ones throw; the asking
 ones never throw.
@@ -219,15 +219,15 @@ class VibaData:
 
 
 # ----------------------------------------------------------------------
-# VibaNode[Data]
+# VObject[Data]
 # ----------------------------------------------------------------------
 
 
-class VibaNode:
-    """One node: a piece of the design's descriptor plus a piece of the viba data.
+class VObject:
+    """One object: a piece of the design's descriptor plus a piece of the viba data.
 
-    ``path`` is the VibaPath walked from the root (the protocol's node has no
-    such field; this layer keeps it so an address can be stored, printed and
+    ``path`` is the VibaPath walked from the root (the protocol's `VObject` has
+    no such field; this layer keeps it so an address can be stored, printed and
     compared).
     """
 
@@ -245,20 +245,20 @@ class VibaNode:
 
     def __repr__(self):
         where = ".".join(repr(step) for step in self.path) or "root"
-        return f"VibaNode({where})"
+        return f"VObject({where})"
 
-    # ---- section 5.4 node accessors: the taking ones throw ----
+    # ---- section 5.4 accessors on a `VObject`: the taking ones throw ----
 
-    def by_tag(self, name: str) -> "VibaNode":
+    def by_tag(self, name: str) -> "VObject":
         return self._access._unwrap(self._access.get(self, by_tag(name)))
 
-    def by_field_index(self, index: int) -> "VibaNode":
+    def by_field_index(self, index: int) -> "VObject":
         return self._access._unwrap(self._access.get(self, by_field_index(index)))
 
-    def at_index(self, index: int) -> "VibaNode":
+    def at_index(self, index: int) -> "VObject":
         return self._access._unwrap(self._access.get(self, at_index(index)))
 
-    def at_key(self, key: str) -> "VibaNode":
+    def at_key(self, key: str) -> "VObject":
         return self._access._unwrap(self._access.get(self, at_key(key)))
 
     @property
@@ -375,10 +375,10 @@ class VibaAccess:
 
     def root(self, definition: VibaDefinitionDescriptor, data: VibaData) -> Result:
         """VibaRoot: hand out the (descriptor, data) pair."""
-        return Ok(VibaNode(self, definition.body, data.node,
+        return Ok(VObject(self, definition.body, data.node,
                            data_module=data.module))
 
-    def has(self, node: VibaNode, step: VibaStep) -> Result:
+    def has(self, node: VObject, step: VibaStep) -> Result:
         """VibaHas: is this step there. No such address in the design and no
         such piece in the viba data are both false."""
         if not self._knows(node, step, self.members(node)):
@@ -386,7 +386,7 @@ class VibaAccess:
         return Ok(self._value_at(node.data, step, node.descriptor,
                                  node.data_module) is not None)
 
-    def get(self, node: VibaNode, step: VibaStep) -> Result:
+    def get(self, node: VObject, step: VibaStep) -> Result:
         """VibaGet: take one step. A piece the viba data lacks is Ok(nil); an
         address the map lacks is VibaProgramErr."""
         slots = self.members(node)
@@ -398,10 +398,10 @@ class VibaAccess:
         piece = self._value_at(node.data, step, node.descriptor, node.data_module)
         if piece is None:
             return Ok(None)
-        return Ok(VibaNode(self, descriptor, piece, tuple(node.path) + (step,),
+        return Ok(VObject(self, descriptor, piece, tuple(node.path) + (step,),
                            data_module=node.data_module))
 
-    def leaf(self, node: VibaNode) -> Result:
+    def leaf(self, node: VObject) -> Result:
         data = node.data
         if isinstance(data, viba_ast.Constant):
             return Ok(data.value)
@@ -409,13 +409,13 @@ class VibaAccess:
             return Ok(None)
         return VibaProgramErr(f"this piece is not a leaf: {node!r}")
 
-    def length(self, node: VibaNode) -> Result:
+    def length(self, node: VObject) -> Result:
         elements = self._elements_of(node.data)
         if elements is None:
             return VibaProgramErr(f"this piece is not a container: {node!r}")
         return Ok(len(elements))
 
-    def keys(self, node: VibaNode) -> Result:
+    def keys(self, node: VObject) -> Result:
         if not isinstance(node.data, viba_ast.TypeApp) or node.data.constructor != "DictLiteral":
             return VibaProgramErr(f"this piece is not a dict: {node!r}")
         out = []
@@ -428,7 +428,7 @@ class VibaAccess:
 
     # ---- the section 5.2 convenience functions ----
 
-    def resolve(self, node: VibaNode, path: Sequence[VibaStep]) -> Result:
+    def resolve(self, node: VObject, path: Sequence[VibaStep]) -> Result:
         """VibaResolve: walk the path with VibaGet, one step at a time.
 
         Walking onto "the viba data has no such piece" (``Ok(nil)``) is as far
@@ -445,7 +445,7 @@ class VibaAccess:
             current = given.ok_value
         return Ok(current)
 
-    def get_by_path(self, node: VibaNode, path: Sequence[VibaStep]) -> Result:
+    def get_by_path(self, node: VObject, path: Sequence[VibaStep]) -> Result:
         """VibaGetByPath: VibaResolve first, then VibaLeaf."""
         resolved = self.resolve(node, path)
         if isinstance(resolved, VibaProgramErr):
@@ -454,7 +454,7 @@ class VibaAccess:
             return VibaProgramErr("this step has no value")
         return self.leaf(resolved.ok_value)
 
-    def list_fields(self, node: VibaNode, definition: VibaDefinitionDescriptor) -> Result:
+    def list_fields(self, node: VObject, definition: VibaDefinitionDescriptor) -> Result:
         """VibaListFields: VibaGet each member the map reads off the definition;
         take what comes back.
 
@@ -722,7 +722,7 @@ class VibaAccess:
         """
         return self.container_kind(descriptor) in ("list", "set") or descriptor.kind == TUPLE
 
-    def members(self, node: VibaNode) -> Optional[List[tuple]]:
+    def members(self, node: VObject) -> Optional[List[tuple]]:
         """The members of this piece: [(tag or None, descriptor), ...], None when
         it has none."""
         return self._design_members(node.descriptor)
@@ -733,7 +733,7 @@ class VibaAccess:
         design alone (no viba_data involved) asks here."""
         return self._design_members(descriptor)
 
-    def member_steps(self, node: VibaNode) -> List[tuple]:
+    def member_steps(self, node: VObject) -> List[tuple]:
         """[(tag or None, that step, descriptor)]: the members of this piece,
         each with the step that takes you there; a None tag goes by position.
 
@@ -880,7 +880,7 @@ class VibaAccess:
                     return branch_type
         return None
 
-    def _knows(self, node: VibaNode, step: VibaStep, slots: Optional[List[tuple]]) -> bool:
+    def _knows(self, node: VObject, step: VibaStep, slots: Optional[List[tuple]]) -> bool:
         if step.kind == "by_tag":
             if any(tag == step.value for tag, _ in slots or []):
                 return True
@@ -894,7 +894,7 @@ class VibaAccess:
             return self.container_kind(self.unfold(node.descriptor)) == "dict"
         return False
 
-    def target_of(self, node: VibaNode, step: VibaStep, slots: Optional[List[tuple]]):
+    def target_of(self, node: VObject, step: VibaStep, slots: Optional[List[tuple]]):
         if step.kind == "by_tag":
             for tag, descriptor in slots or []:
                 if tag == step.value:
@@ -1180,7 +1180,7 @@ class VibaAccess:
             return ("app", id(definition))
         return None
 
-    def _walk(self, node: VibaNode) -> List[VibaNode]:
+    def _walk(self, node: VObject) -> List[VObject]:
         """Walk every address reachable on this map."""
         out = [node]
         for _, step, _ in self.member_steps(node):
@@ -1341,7 +1341,7 @@ def _scalar_name(value) -> Optional[str]:
 # The protocol names (viba-reflect.md sections 4 and 5), and only these.
 __all__ = [
     "access", "Config", "language_config",
-    "VibaAccess", "VibaNode", "VibaStep", "VibaPath",
+    "VibaAccess", "VObject", "VibaStep", "VibaPath",
     "by_tag", "by_field_index", "at_index", "at_key",
 ]
 

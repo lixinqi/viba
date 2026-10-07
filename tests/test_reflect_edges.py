@@ -76,10 +76,10 @@ def run_reprs():
     same("a key step", repr(at_key("k")), "at_key('k')")
 
     definition = _definition(BOX, "Box")
-    same("a node is named by its address", repr(_root(definition, _product([]))), "VibaNode(root)")
+    same("a node is named by its address", repr(_root(definition, _product([]))), "VObject(root)")
     node = _root(definition, _product([viba_ast.Tagged("$a", viba_ast.Constant(1))]))
     child = access.get(node, by_tag("$a")).ok_value
-    same("a child node carries its path", repr(child), "VibaNode(by_tag('$a'))")
+    same("a child node carries its path", repr(child), "VObject(by_tag('$a'))")
 
 
 def run_name_helpers():

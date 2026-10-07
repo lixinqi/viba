@@ -282,7 +282,8 @@ The host provides the environment — where snapshots go (`EnvironmentStorage`,
 by default a temporary directory) and the implementations (`EnvironmentCompute`,
 a `get_func(module_path, func_name)`) — and `interpret` reads a file and runs it.
 Its signature, as a viba type; the names it uses but does not define are
-`Environment` (the host's) and `VibaNode` (the node accessors) — both in
+`Environment` (the host's) and `VObject` (a piece of viba data, with the
+accessors that read it) — both in
 [`viba-interpreter.md`](viba-interpreter.md):
 
 ```viba
@@ -408,7 +409,7 @@ print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
   A host that has no implementation for a step says so by answering that data —
   `not_implemented()` — rather than by raising: what a host answers is data, and a
   stop is data. `node.value` is the answer when it landed on a literal; a product or
-  a sum is walked with the node accessors of [`viba-reflect.md`](viba-reflect.md).
+  a sum is walked with the accessors of `VObject` ([`viba-reflect.md`](viba-reflect.md)).
 
 ### Calling one module from another
 

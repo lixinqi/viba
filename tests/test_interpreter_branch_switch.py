@@ -23,7 +23,7 @@ from interpreter_support import answer_of, Checks, is_ok, message_of, stop_tag, 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, viba_data)
-from viba.reflect import VibaNode, access as reflect_access
+from viba.reflect import VObject, access as reflect_access
 from viba.type import FAILURE_TAG, PROGRAM_ERR_TAG
 
 checks = Checks("interpreter_branch_switch")

@@ -12,24 +12,24 @@ answers `never` (`never * value = never`), and the surrounding sum drops it.
             return get_v()
         return _never()
 
-The environment arrives as itself and the condition as its `VibaNode` — the
+The environment arrives as itself and the condition as its `VObject` — the
 other slots are ordinary ones — so the leaf of a `bool` is `.value`.
 """
 
 from viba import viba_ast
 from viba.interpret import sub_env
-from viba.reflect import VibaNode, access
+from viba.reflect import VObject, access
 from viba.type import AstNodeType, custom_module
 from viba.viba_type_descriptor import descriptor_of
 
 _MODULE = custom_module("")
 
 
-def _unit(node) -> VibaNode:
-    return VibaNode(access, descriptor_of(AstNodeType(node, _MODULE)), node)
+def _unit(node) -> VObject:
+    return VObject(access, descriptor_of(AstNodeType(node, _MODULE)), node)
 
 
-def _never() -> VibaNode:
+def _never() -> VObject:
     return _unit(viba_ast.Never())
 
 

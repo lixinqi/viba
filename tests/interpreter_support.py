@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, not_implemented)
-from viba.reflect import VibaNode, access as reflect_access, by_tag
+from viba.reflect import VObject, access as reflect_access, by_tag
 from viba.type import (ENVIRONMENT_API_TAG, ERR_TAG, FAILURE_TAG,
                        NOT_IMPLEMENTED_TAG, OK_TAG, PROGRAM_ERR_TAG, Ok,
                        VibaProgramErr)
@@ -119,7 +119,7 @@ def message_of(result) -> str:
     Both forms go through here: the node `interpret` answers, and the object form
     the other APIs of this layer answer.
     """
-    if isinstance(result, VibaNode):
+    if isinstance(result, VObject):
         return stop_text(result, "$msg")
     return getattr(error_of(result), "msg", "")
 
@@ -275,11 +275,11 @@ class Host:
         if func_name == "make_node":
             def make_node(env):
                 from viba import viba_ast
-                from viba.reflect import VibaNode, access
+                from viba.reflect import VObject, access
                 from viba.viba_type_descriptor import descriptor_of
                 from viba.type import AstNodeType, custom_module
                 node = viba_ast.Constant(11)
-                return VibaNode(access,
+                return VObject(access,
                                 descriptor_of(AstNodeType(node, custom_module(""))), node)
             return make_node
         if func_name == "answer_a_function":

@@ -31,7 +31,7 @@ from viba import viba_ast
 from viba.interpret import (BUILTIN_DIR, Environment, EnvironmentCompute,
                             EnvironmentStorage, interpret)
 from viba.partial import product_elements
-from viba.reflect import VibaNode
+from viba.reflect import VObject
 from viba.type import BUILTIN_CONCEPT
 
 checks = Checks("interpreter_builtin")
@@ -135,7 +135,7 @@ def host_for(seen=None, extra=None, ran_at=None):
 
 def _leaf(one):
     """宿主拿到的一个实参：viba 数据读它的叶子，别的（环境）原样。"""
-    return one.value if isinstance(one, VibaNode) else one
+    return one.value if isinstance(one, VObject) else one
 
 
 def environ_for(get_func, store):

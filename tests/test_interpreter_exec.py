@@ -1,7 +1,7 @@
 """`exec`：跑写出来的一份代码（`interpret` 那个入口，第一个参数换成代码本身）。
 
 参数形式和 `interpret` 一样（环境、`get_file`、`list_files`），只是第一份不是文件路径而是模块本身：
-可以是模块文本，也可以是**已经写好的那份 viba 数据**（一个 `VibaNode`）—— 后者不用再写出来读回去。
+可以是模块文本，也可以是**已经写好的那份 viba 数据**（一个 `VObject`）—— 后者不用再写出来读回去。
 主模块不从文件读，所以它**没有文件、也没有名字** —— `import` 只按环境的搜索路径找（它旁边没有目录），
 `$stack` 最外那一帧的 `$file_path` 是空串，编译不过时那条话说的是 `<viba_code>`
 （`viba-interpreter.md`）。
@@ -22,7 +22,7 @@ from interpreter_support import (Checks, Host, is_ok, message_of, stop_node,
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             exec, interpret, viba_data)
-from viba.reflect import VibaNode, access as reflect_access
+from viba.reflect import VObject, access as reflect_access
 from viba.type import (AstNodeType, NOT_IMPLEMENTED_TAG, PROGRAM_ERR_TAG,
                        custom_module)
 from viba.viba_type_descriptor import descriptor_of
@@ -107,7 +107,7 @@ def _a_node_is_a_module_too():
     # 模块本身在描述那一层没有描述符（`descriptor_of` 不认 `Module`），所以这里那个描述符只是个占位：
     # `exec` 读的是数据，不是类型。
     inert = descriptor_of(AstNodeType(viba_ast.Nil(), custom_module("")))
-    by_node = VibaNode(reflect_access, inert, tree)
+    by_node = VObject(reflect_access, inert, tree)
     check(value_of(exec(by_node, host.environ())) == value_of(exec(ADD, host.environ())) == 3,
           f"a module tree handed as a node runs like the text it was parsed from")
 

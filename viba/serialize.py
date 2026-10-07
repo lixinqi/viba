@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from viba import builder
 from viba import viba_ast
-from viba.reflect import LITERAL_KINDS, VibaAccess, VibaNode, at_index, at_key
+from viba.reflect import LITERAL_KINDS, VibaAccess, VObject, at_index, at_key
 from viba.type import VibaProgramErr, Ok, Result
 from viba.viba_type_descriptor import (
     CODE_BLOCK,
@@ -47,8 +47,8 @@ class SerializeGap(Exception):
 # is the name `Object`, _NAMES.Object[...] an application of it.
 _NAMES = builder.Builder()
 
-def serialize(name: str, node: VibaNode) -> Result:
-    """A piece of the design in hand (a VibaNode) -> viba source: the definition
+def serialize(name: str, node: VObject) -> Result:
+    """A piece of the design in hand (a VObject) -> viba source: the definition
     named `name` whose body is that piece's spelling.
 
     The node carries the accessor it was read through, so this reads the piece
@@ -76,13 +76,13 @@ def _call_parts(node):
     return node, list(reversed(written))
 
 
-def _bare(piece, access: VibaAccess, written_in=None) -> VibaNode:
+def _bare(piece, access: VibaAccess, written_in=None) -> VObject:
     """One written piece as a node of its own: a closure keeps its arguments as
     the viba data they already are, read in the module the call was written in
     (`written_in`) — a name among them is a name there, not nowhere."""
     from viba.type import AstNodeType
     from viba.viba_type_descriptor import descriptor_of
-    return VibaNode(access, descriptor_of(AstNodeType(piece, written_in)), piece)
+    return VObject(access, descriptor_of(AstNodeType(piece, written_in)), piece)
 
 
 def _written_in(node):
@@ -92,7 +92,7 @@ def _written_in(node):
     return getattr(written, "container_module", None)
 
 
-def _emit_closure(access: VibaAccess, node: VibaNode):
+def _emit_closure(access: VibaAccess, node: VObject):
     """A closure: a call whose environment has not been given.
 
     The design reads such a node as the type it would have when executed, which
@@ -118,7 +118,7 @@ def _emit_closure(access: VibaAccess, node: VibaNode):
     return expression
 
 
-def _emit(access: VibaAccess, node: VibaNode):
+def _emit(access: VibaAccess, node: VObject):
     data = getattr(node, "data", None)
     if isinstance(data, viba_ast.Partial):
         return _emit_closure(access, node)
@@ -172,7 +172,7 @@ def _emit(access: VibaAccess, node: VibaNode):
     raise SerializeGap(f"cannot write this piece out: {unfolded.kind}")
 
 
-def _emit_sum(access: VibaAccess, node: VibaNode):
+def _emit_sum(access: VibaAccess, node: VObject):
     """Sum: write the selected branch; a branch reached through a name keeps
     that name's own spelling, so nothing here names the branch."""
     for tag, step, _ in access.member_steps(node):
@@ -195,7 +195,7 @@ def _unit_expression(descriptor):
     return _NAMES.Object
 
 
-def _emit_product(access: VibaAccess, node: VibaNode, unfolded):
+def _emit_product(access: VibaAccess, node: VObject, unfolded):
     """Product: the leading unit (when the design wrote one), then every member
     in order.
 
@@ -249,7 +249,7 @@ def _emit_product(access: VibaAccess, node: VibaNode, unfolded):
     return product
 
 
-def _emit_tuple(access: VibaAccess, node: VibaNode):
+def _emit_tuple(access: VibaAccess, node: VObject):
     """Tuple: a product by position, written as the tuple it is."""
     length = access.length(node)
     if isinstance(length, VibaProgramErr):
@@ -258,7 +258,7 @@ def _emit_tuple(access: VibaAccess, node: VibaNode):
                  for index in range(length.ok_value))
 
 
-def _emit_tagged(access: VibaAccess, node: VibaNode):
+def _emit_tagged(access: VibaAccess, node: VObject):
     """One written tag whose body is the design's: the viba data keeps the tag
     (that is how a reader finds `$value` under a metric)."""
     for tag, step, _ in access.member_steps(node):
@@ -273,7 +273,7 @@ def _emit_code_block(unfolded):
     return None
 
 
-def _emit_exponent(access: VibaAccess, node: VibaNode, unfolded):
+def _emit_exponent(access: VibaAccess, node: VObject, unfolded):
     """Exponent chain: the result, then every argument under its own tag.
 
     Written the way the design writes it — never <- $not_operand (...) is just
@@ -319,7 +319,7 @@ def _may_be_nil(access: VibaAccess, step, node) -> bool:
     return target is not None and access.carries_nil(target)
 
 
-def _emit_container(access: VibaAccess, node: VibaNode, container: str, unfolded):
+def _emit_container(access: VibaAccess, node: VObject, container: str, unfolded):
     """Container: a literal (ListLiteral / SetLiteral / DictLiteral).
 
     The members are written in the order the viba data has them, not sorted: a
@@ -401,7 +401,7 @@ def _tag(name: str):
     return getattr(builder.tag, name.lstrip("$"))
 
 
-def _child(access: VibaAccess, node: VibaNode, step):
+def _child(access: VibaAccess, node: VObject, step):
     given = access.get(node, step)
     if not isinstance(given, Ok) or given.ok_value is None:
         raise SerializeGap(f"this step has no value: {step}")

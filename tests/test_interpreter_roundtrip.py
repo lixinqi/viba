@@ -34,7 +34,7 @@ from interpreter_support import (answer_of, full_name_of, module_of, module_path
 from viba import serialize, viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             exec, interpret, sub_env)
-from viba.reflect import VibaNode, access as reflect_access
+from viba.reflect import VObject, access as reflect_access
 from viba.type import (AstNodeType, NOT_IMPLEMENTED_TAG, Ok, custom_module)
 from viba.viba_type_descriptor import descriptor_of
 
@@ -163,7 +163,7 @@ def _a_product():
     """一份积，宿主自己造的：`$a 1 * $b 2`。"""
     node = viba_ast.Product(viba_ast.Tagged("$a", viba_ast.Constant(1)),
                             viba_ast.Tagged("$b", viba_ast.Constant(2)))
-    return VibaNode(reflect_access,
+    return VObject(reflect_access,
                     descriptor_of(AstNodeType(node, custom_module(""))), node)
 
 

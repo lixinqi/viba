@@ -12,7 +12,7 @@
 算出来的值，`$err` 那一支带它为什么停下。声明写在 [`viba/interpret_result.viba`](viba/interpret_result.viba)
 里 —— 那份文件就是这个类型的定义，`interpret` 与 `exec` 的回答按它读、按它判
 （`viba/interpret.py` 的 `is_interpret_result` 用 `is_sub_type` 判它，所以"回答到底符不符合这个定义"
-本身是可查的）。它用到的名字里，`Environment` 与 `VibaNode` 不在定义里（前者在「宿主侧：Environment」，
+本身是可查的）。它用到的名字里，`Environment` 与 `VObject` 不在定义里（前者在「宿主侧：Environment」，
 后者在 [`viba-reflect.md`](viba-reflect.md)）：
 
 它的签名（viba 一型）：
@@ -24,7 +24,7 @@ interpret =
   <- $environ Environment
 ```
 
-Python 侧写 `interpret(viba_main_file, environ)`，回来的是一个 `VibaNode`：`$ok` 是这次执行算出来的值，
+Python 侧写 `interpret(viba_main_file, environ)`，回来的是一个 `VObject`：`$ok` 是这次执行算出来的值，
 `$err` 是这次执行是怎么停下的。声明本身（`InterpretResult`、`InterpretError`、四种停法各自的那些字段）
 写在 [`viba/interpret_result.viba`](viba/interpret_result.viba)，读它就是读那份文件。
 
@@ -34,7 +34,7 @@ Python 侧写 `interpret(viba_main_file, environ)`，回来的是一个 `VibaNod
 ```viba
 exec =
     InterpretResult
-  <- $viba_code (str | VibaNode)
+  <- $viba_code (str | VObject)
   <- $environ Environment
 ```
 
@@ -479,16 +479,16 @@ content)`（在 store root 底下的纯文本读写，读不到返回 `None`）�
 一个只服务一个模块的宿主，直接拿 `func_name` 就行了。
 
 `HostLanguageFunc` 与 interpreter 匹配：Python interpreter 里就是一个 Python 函数，收到的参数是
-**已经算好的实参**，按书写顺序给——实例是 `viba.reflect.VibaNode`，别的（环境在内）是它本身。
-返回值是 `VibaNode`，或者一个普通 Python 值（落到函数声明结果的一个叶子上）。
+**已经算好的实参**，按书写顺序给——实例是 `viba.reflect.VObject`，别的（环境在内）是它本身。
+返回值是 `VObject`，或者一个普通 Python 值（落到函数声明结果的一个叶子上）。
 
 参数里出现 **viba 函数**（`$f (int <- $env Env <- $x int)` 这种高阶签名）时，宿主拿到的是**可序列化数据**：
-那个函数名本身（一个 `VibaNode`），或者一个闭包——写下来的函数名加上已经算好的实参。**宿主调不动它**：
+那个函数名本身（一个 `VObject`），或者一个闭包——写下来的函数名加上已经算好的实参。**宿主调不动它**：
 viba 函数不是宿主侧的 Python 可调用对象，执行它们只有一条路，就是给环境（`<< args.env`），那是 viba 那一侧
 的事。所以宿主得到的是数据：可以拿着、存着、原样递回来，不能 `f(env, x)`。
 
-宿主自己造一个 `VibaNode` 当结果也可以；但**列表、字典、可调用对象这类给不了**——它们没有对应的叶子，
-只能给出 `VibaNode`、标量或 `None`（`None` 就是 `nil`）。
+宿主自己造一个 `VObject` 当结果也可以；但**列表、字典、可调用对象这类给不了**——它们没有对应的叶子，
+只能给出 `VObject`、标量或 `None`（`None` 就是 `nil`）。
 
 **interpret 不认识任何具体函数**：viba 默认不带任何库函数，实现全部来自 `get_func`，
 谁写、怎么生成，interpret 不感知——文件里 `{...}` 那句提示只说这一步要实现什么，实现从外面交进来；

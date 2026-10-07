@@ -152,7 +152,7 @@ class UnderlyingOpErr(InterpretError):
 
         InterpretResult =
             Oneof
-          | $ok VibaNode
+          | $ok Any
           | $err InterpretError
 
         InterpretError =
@@ -249,7 +249,7 @@ REASON_NO_LEAF = "no leaf"                       # it answered something with no
 #
 #     InterpretResult =
 #         Oneof
-#       | $ok VibaNode
+#       | $ok Any
 #       | $err InterpretError
 #
 # The error side is `InterpretError` (`$viba_program_err`, an

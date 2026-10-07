@@ -9,7 +9,7 @@ call handed over — `args.env` above all.
 
     from viba.interpret import interpret
 
-    interpret("add_demo.viba", environ)   # -> one VibaNode: $ok ..., or $err ...
+    interpret("add_demo.viba", environ)   # -> one VObject: $ok ..., or $err ...
 
 What it answers is the declared `InterpretResult`, as one node of viba data:
 `$ok` carries the `__impl__` that came out, `$err` why the run stopped. The
@@ -53,9 +53,9 @@ The host side, spelled out:
         which keeps the parent's compute and its module search path.
 
 A host function is called with the arguments already evaluated, in the order
-they are written: a piece of viba data arrives as a `viba.reflect.VibaNode`,
+they are written: a piece of viba data arrives as a `viba.reflect.VObject`,
 anything else as itself (the environment among them). It answers with a
-`VibaNode`, or with a plain Python value, which lands as a leaf.
+`VObject`, or with a plain Python value, which lands as a leaf.
 
 A result has to be replayable, and a host function that is not pure — it
 reads a clock, a random number, a service — is where that is decided: it
@@ -78,7 +78,7 @@ from typing import Optional, Union
 from viba import serialize, viba_ast
 from viba.partial import (file_environment_result_problem, parameters_of,
                           product_elements, names_the_environment)
-from viba.reflect import (LITERAL_CTORS, VibaNode, VibaReflectError,
+from viba.reflect import (LITERAL_CTORS, VObject, VibaReflectError,
                           access as reflect_access, by_tag)
 from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
@@ -261,7 +261,7 @@ def sub_env(environ: "Environment", name) -> "Environment":
     carries, so `args.env.sub_env << args.env << "add_demo"` names the module. The
     same name is the same child, handed back again.
     """
-    if isinstance(name, VibaNode):
+    if isinstance(name, VObject):
         name = name.value
     return Environment(environ.storage.sub(str(name)), environ.compute,
                        environ.viba_path, parent=environ)
@@ -287,7 +287,7 @@ def _an_environment_or_nil(value, name: str) -> Optional["Environment"]:
     A written `nil` reaches a host member as the viba data it is, so it is the
     node that says so; anything else has to be an environment.
     """
-    if isinstance(value, VibaNode):
+    if isinstance(value, VObject):
         if isinstance(value.data, viba_ast.Nil):
             return None
         raise RuntimeError(f"{name} takes an Environment or nil, not a written value")
@@ -335,7 +335,7 @@ def _the_relative_path(relative_path) -> str:
     puts the environment where the path goes, and saying so is more use than
     reporting the string as a bad root.
     """
-    text = relative_path.value if isinstance(relative_path, VibaNode) else relative_path
+    text = relative_path.value if isinstance(relative_path, VObject) else relative_path
     if not isinstance(text, str):
         raise RuntimeError(
             f"find_by_relative_path takes a relative path, not {type(text).__name__}: "
@@ -422,7 +422,7 @@ def read_snapshot(environ: Environment, name: str = SNAPSHOT_NAME):
     if stored is None:
         raise RuntimeError(f"the snapshot has no {SNAPSHOT_NAME}: {text!r}")
     node = stored.body
-    return VibaNode(reflect_access, descriptor_of(AstNodeType(node, module)), node)
+    return VObject(reflect_access, descriptor_of(AstNodeType(node, module)), node)
 
 
 def write_snapshot(environ: Environment, value, name: str = SNAPSHOT_NAME) -> None:
@@ -455,22 +455,22 @@ def _storage(environ: Environment) -> EnvironmentStorage:
     return storage
 
 
-def viba_data(value) -> VibaNode:
+def viba_data(value) -> VObject:
     """A host value as viba data.
 
-    A `VibaNode` as it is; an AST piece a host built (a product of tags and
+    A `VObject` as it is; an AST piece a host built (a product of tags and
     literals, say) gets the design written on it; a scalar becomes its leaf.
     """
-    if isinstance(value, VibaNode):
+    if isinstance(value, VObject):
         return value
     if isinstance(value, viba_ast.AST):
-        return VibaNode(reflect_access,
+        return VObject(reflect_access,
                         descriptor_of(AstNodeType(value, _NO_MODULE)), value)
     if value is not None and not isinstance(value, (bool, int, float, str)):
         raise RuntimeError(f"cannot take {type(value).__name__} as viba data: "
-                           f"only a VibaNode, an AST piece, a scalar, or None")
+                           f"only a VObject, an AST piece, a scalar, or None")
     node = viba_ast.Nil() if value is None else viba_ast.Constant(value)
-    return VibaNode(reflect_access, descriptor_of(AstNodeType(node, _NO_MODULE)), node)
+    return VObject(reflect_access, descriptor_of(AstNodeType(node, _NO_MODULE)), node)
 
 
 def _is_never(value) -> bool:
@@ -594,7 +594,7 @@ def _builtin_member_data(inner):
     It belongs to no file of its own, so its names resolve in the builtin
     library (`int`, `Env` and the rest of `viba/builtin.viba`).
     """
-    return Ok(_VibaData(VibaNode(
+    return Ok(_VibaData(VObject(
         reflect_access,
         descriptor_of(AstNodeType(inner, BUILTIN_MODULE)), inner)))
 
@@ -602,7 +602,7 @@ def _builtin_member_data(inner):
 def _never_viba_data():
     """The `never` value as viba data."""
     node = viba_ast.Never()
-    return _VibaData(VibaNode(reflect_access,
+    return _VibaData(VObject(reflect_access,
                               descriptor_of(AstNodeType(node, _NO_MODULE)), node))
 
 
@@ -637,7 +637,7 @@ def _written_in_of(node):
 
 
 class _VibaData:
-    """A piece of viba data with its design: a `VibaNode`.
+    """A piece of viba data with its design: a `VObject`.
 
     It also carries **the module that wrote it**, **the names a decision bound**
     for the file it was written in (`bindings`), and, for a call stored as a
@@ -650,7 +650,7 @@ class _VibaData:
 
     __slots__ = ("node", "written_in", "given", "bindings")
 
-    def __init__(self, node: VibaNode, written_in=None, given=None,
+    def __init__(self, node: VObject, written_in=None, given=None,
                  bindings=None):
         self.node = node
         self.written_in = written_in if written_in is not None else _written_in_of(node)
@@ -843,7 +843,7 @@ def _kept_as_its_own_tag(tag, value):
         return value
     node = viba_ast.Tagged(tag, value.node.data)
     descriptor = descriptor_of_tagged(tag, value.node.descriptor, node, value.written_in)
-    return _VibaData(VibaNode(reflect_access, descriptor, node),
+    return _VibaData(VObject(reflect_access, descriptor, node),
                      written_in=value.written_in, given=value.given,
                      bindings=value.bindings)
 
@@ -881,7 +881,7 @@ def _the_members(value):
                           else descriptor_of(AstNodeType(inner, value.written_in)))
         else:
             inner = factor
-        members.append((tag, _VibaData(VibaNode(reflect_access, descriptor, inner),
+        members.append((tag, _VibaData(VObject(reflect_access, descriptor, inner),
                                        written_in=value.written_in,
                                        bindings=value.bindings)))
     return members
@@ -904,7 +904,7 @@ def _one_more_member(product, tag, value, written_in):
     nodes = [viba_ast.Tagged(one, member.node.data) if one else member.node.data
              for one, member in members]
     chain = viba_ast.ProductChain(nodes)
-    return _VibaData(VibaNode(reflect_access,
+    return _VibaData(VObject(reflect_access,
                               descriptor_of_values(chain, written_in, kept), chain),
                      written_in=written_in, bindings=product.bindings), None
 
@@ -972,7 +972,7 @@ def _argument_value(value):
 def _given_value(value):
     """A value a host handed back into a call: a node, a scalar, or an object."""
     if isinstance(value, _HostArgument):
-        return _VibaData(VibaNode(reflect_access,
+        return _VibaData(VObject(reflect_access,
                                   descriptor_of(AstNodeType(value.node, value.module)),
                                   value.node))
     if isinstance(value, _VibaData):
@@ -1086,7 +1086,7 @@ _MEMBER_TAGS = {
 
 def not_implemented(msg: str = "", module_path: str = "",
                     full_qualified_func_name: str = "",
-                    call=None) -> VibaNode:
+                    call=None) -> VObject:
     """What a step answers with when it has no implementation: the failure data.
 
     A host says this instead of raising: `get_func` answers it where it would
@@ -1139,7 +1139,7 @@ def is_interpret_result(value) -> bool:
 
 
 def _failure_viba_data(tag: str, msg: str, module_path: str,
-                       full_qualified_func_name: str, call) -> VibaNode:
+                       full_qualified_func_name: str, call) -> VObject:
     """One `UnderlyingOpErr` as viba data, under the tag given."""
     return _tagged_viba_data(tag, _members_viba_data([
         (_MEMBER_TAGS["msg"], viba_data(msg)),
@@ -1150,12 +1150,12 @@ def _failure_viba_data(tag: str, msg: str, module_path: str,
     ]))
 
 
-def _result_viba_data(answer) -> VibaNode:
+def _result_viba_data(answer) -> VObject:
     """What `interpret` and `exec` answer: the declared `InterpretResult` itself.
 
         InterpretResult =
             Oneof
-          | $ok VibaNode
+          | $ok Any
           | $err InterpretError
 
     `$ok` carries the answer, `$err` why it stopped. The value side is read from
@@ -1174,7 +1174,7 @@ def _result_viba_data(answer) -> VibaNode:
         chosen = viba_ast.Tagged(ERR_TAG, payload.data)
         ok_branch = _declared_branch(OK_TAG)
         err_branch = _branch_descriptor(ERR_TAG, _INTERPRET_ERROR, payload.data)
-    return VibaNode(reflect_access,
+    return VObject(reflect_access,
                     VibaTypeDescriptor(SUM, VibaChainDescriptor(
                         empty_pool(), AstNodeType(chosen, _RESULT_MODULE),
                         [ok_branch, err_branch])),
@@ -1209,7 +1209,7 @@ def _declared_branch(tag: str) -> VibaTypeDescriptor:
     raise TypeError(f"{RESULT_TYPE_NAME} declares no branch {tag}")
 
 
-def _error_viba_data(error) -> VibaNode:
+def _error_viba_data(error) -> VObject:
     """One `InterpretError` as viba data: the tag it answers under, and its members."""
     if isinstance(error, VibaProgramErr):
         return _tagged_viba_data(PROGRAM_ERR_TAG, _members_viba_data([
@@ -1233,32 +1233,32 @@ def _error_viba_data(error) -> VibaNode:
     raise TypeError(f"no viba data for {type(error).__name__}")
 
 
-def _stack_viba_data(stack) -> VibaNode:
+def _stack_viba_data(stack) -> VObject:
     """The call chain as viba data: `list[Frame]`, one object per call site."""
     frames = [_members_viba_data([
         (_MEMBER_TAGS["file_path"], viba_data(frame.file_path)),
         (_MEMBER_TAGS["lineno"], viba_data(frame.lineno)),
     ]) for frame in stack]
     node = viba_ast.TypeApp("ListLiteral", [frame.data for frame in frames])
-    return VibaNode(reflect_access,
+    return VObject(reflect_access,
                     descriptor_of(AstNodeType(node, BUILTIN_MODULE)), node)
 
 
-def _members_viba_data(members) -> VibaNode:
+def _members_viba_data(members) -> VObject:
     """The members of one declared object, as viba data: each under its tag."""
     node = viba_ast.ProductChain([viba_ast.Tagged(tag, member.data)
                                   for tag, member in members])
-    return VibaNode(reflect_access,
+    return VObject(reflect_access,
                     descriptor_of_values(node, _NO_MODULE,
                                          [_VibaData(member)
                                           for _tag, member in members]),
                     node)
 
 
-def _tagged_viba_data(tag: str, inner: VibaNode) -> VibaNode:
+def _tagged_viba_data(tag: str, inner: VObject) -> VObject:
     """One branch of a sum, as viba data: the tag, and the piece under it."""
     node = viba_ast.Tagged(tag, inner.data)
-    return VibaNode(reflect_access,
+    return VObject(reflect_access,
                     descriptor_of_tagged(tag, inner.descriptor, node, _NO_MODULE),
                     node)
 
@@ -1276,11 +1276,11 @@ def _handed_back_failure(answer):
     `$full_qualified_func_name`, `$call`), one member at a time: the tag is what
     says whose object it is, and the members under it are the declared ones.
     """
-    piece = answer.data if isinstance(answer, VibaNode) else answer
+    piece = answer.data if isinstance(answer, VObject) else answer
     if not (isinstance(piece, viba_ast.Tagged)
             and piece.tag in (NOT_IMPLEMENTED_TAG, FAILURE_TAG)):
         return None
-    node = VibaNode(reflect_access, _UNDERLYING_OP_ERR, piece.type)
+    node = VObject(reflect_access, _UNDERLYING_OP_ERR, piece.type)
     reason = (REASON_NO_IMPLEMENTATION if piece.tag == NOT_IMPLEMENTED_TAG
               else REASON_RAISED)
     call = _node_member(node, "call")
@@ -1293,7 +1293,7 @@ def _handed_back_failure(answer):
                            tag=piece.tag)
 
 
-def _text_member(node: VibaNode, member: str) -> str:
+def _text_member(node: VObject, member: str) -> str:
     """The str one declared member carries, or '' when it is not written."""
     given = reflect_access.get(node, by_tag(_MEMBER_TAGS[member]))
     if not isinstance(given, Ok) or given.ok_value is None:
@@ -1304,7 +1304,7 @@ def _text_member(node: VibaNode, member: str) -> str:
     return ""
 
 
-def _node_member(node: VibaNode, member: str):
+def _node_member(node: VObject, member: str):
     """The piece one declared member carries, as viba data, or None."""
     given = reflect_access.get(node, by_tag(_MEMBER_TAGS[member]))
     if not isinstance(given, Ok) or given.ok_value is None:
@@ -1319,7 +1319,7 @@ def _node_member(node: VibaNode, member: str):
 
 
 def interpret(viba_main_file: str, environ: Environment, get_file=None,
-              list_files=None) -> VibaNode:
+              list_files=None) -> VObject:
     """Run `viba_main_file` with `environ`; its `__impl__` is the answer.
 
     What it answers is the declared result, as **one node of viba data** —
@@ -1329,7 +1329,7 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
         $ok (<the answer>)                      # what the run answered
         $err ($not_implemented_err (...))       # ... or why it stopped
 
-    Its signature, as a viba type (`Environment` and `VibaNode` are the two names
+    Its signature, as a viba type (`Environment` and `VObject` are the two names
     it does not define; viba-interpreter.md says what each branch carries):
 
         interpret =
@@ -1378,8 +1378,8 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
     return _finished(answer)
 
 
-def exec(viba_code: Union[str, VibaNode], environ: Environment, get_file=None,
-         list_files=None) -> VibaNode:
+def exec(viba_code: Union[str, VObject], environ: Environment, get_file=None,
+         list_files=None) -> VObject:
     """Run the module `viba_code` writes with `environ`; its `__impl__` is the `Ok` value.
 
     The same entry as `interpret` — the same environment, the same file readers,
@@ -1387,7 +1387,7 @@ def exec(viba_code: Union[str, VibaNode], environ: Environment, get_file=None,
 
         exec =
             InterpretResult
-          <- $viba_code (str | VibaNode)
+          <- $viba_code (str | VObject)
           <- $environ Environment
 
     The module travels either as its text or as the viba data that already
@@ -1402,7 +1402,7 @@ def exec(viba_code: Union[str, VibaNode], environ: Environment, get_file=None,
     a module written out is compiled as `<viba_code>` — which is what a parse
     error names (viba-interpreter.md).
     """
-    if not isinstance(viba_code, (str, VibaNode)):
+    if not isinstance(viba_code, (str, VObject)):
         return _result_viba_data(VibaProgramErr(
             f"exec needs a module — its text or a node — not "
             f"{type(viba_code).__name__}"))
@@ -1438,7 +1438,7 @@ def _run_problem(entry: str, environ: Environment, get_file, list_files):
     return None
 
 
-def _finished(answer) -> VibaNode:
+def _finished(answer) -> VObject:
     """What a run answered, as the `InterpretResult` node.
 
     A run answers data, so what is no data is no answer: a Python callable is a
@@ -1456,7 +1456,7 @@ def _finished(answer) -> VibaNode:
             answer = VibaProgramErr(
                 f"the run answered the environment: {ENV_TYPE} is the call's rule "
                 f"rather than a value")
-        elif not isinstance(value, VibaNode):
+        elif not isinstance(value, VObject):
             answer = VibaProgramErr(
                 f"the run answered a host value ({type(value).__name__}), "
                 f"which is no viba data")
@@ -1508,7 +1508,7 @@ class _Runner:
             return module
         return _run_module(self, module.ok_value, environ, "", None)
 
-    def run_node(self, node: VibaNode, environ: Environment) -> Result:
+    def run_node(self, node: VObject, environ: Environment) -> Result:
         """Run viba data as the module, without writing it out and reading it back.
 
         Data that is a module tree is that module: it runs the way a written one
@@ -1602,7 +1602,7 @@ class _Runner:
         return self._built(path, tree, near, name=name, file_path=file_path,
                            root=root)
 
-    def _node_of(self, node: VibaNode, path: Path):
+    def _node_of(self, node: VObject, path: Path):
         """The module one piece of viba data writes: the data is the module.
 
         Nothing is parsed and nothing is written out: data that is a module tree
@@ -2024,7 +2024,7 @@ def _module_arg_slots(module: ModuleType):
             None)
 
 
-def _viba_data_factors(node: VibaNode):
+def _viba_data_factors(node: VObject):
     """The factors of a product viba data, in written order."""
     data = node.data
     if isinstance(data, (viba_ast.Product, viba_ast.ProductChain)):
@@ -2095,7 +2095,7 @@ class _Activation:
         if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never,
                              viba_ast.Any, viba_ast.Tuple, viba_ast.Tagged)):
             node = _substituted(node, scope)
-            return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(node), node)))
+            return Ok(_VibaData(VObject(reflect_access, self._descriptor(node), node)))
         if isinstance(node, (viba_ast.Product, viba_ast.ProductChain)):
             return self._product(node, scope)
         if isinstance(node, (viba_ast.Sum, viba_ast.SumChain)):
@@ -2169,7 +2169,7 @@ class _Activation:
         if len(kept) == 1:
             return Ok(kept[0])
         chain = viba_ast.ProductChain([factor.node.data for factor in kept])
-        return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(chain), chain)))
+        return Ok(_VibaData(VObject(reflect_access, self._descriptor(chain), chain)))
 
     def _inlined_members(self, piece):
         """The members this piece contributes to the product it is a factor of.
@@ -2184,7 +2184,7 @@ class _Activation:
         if not isinstance(data, (viba_ast.Product, viba_ast.ProductChain)):
             return [piece]
         written_in = piece.written_in or self.module
-        return [_VibaData(VibaNode(reflect_access,
+        return [_VibaData(VObject(reflect_access,
                                    descriptor_of(AstNodeType(member, written_in)),
                                    member),
                           written_in=piece.written_in, bindings=piece.bindings)
@@ -2215,7 +2215,7 @@ class _Activation:
             return Ok(kept[0])
         elements = [branch.node.data for branch in kept]
         chain = viba_ast.SumChain(elements)
-        return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(chain), chain)))
+        return Ok(_VibaData(VObject(reflect_access, self._descriptor(chain), chain)))
 
     def _imports(self) -> dict:
         """The file's import table: what each import binds, and the module it
@@ -2240,7 +2240,7 @@ class _Activation:
             definition = _definition(self.module, DEF_NAME)
             if definition is not None:
                 node = definition.body
-                return Ok(_VibaData(VibaNode(
+                return Ok(_VibaData(VObject(
                     reflect_access,
                     descriptor_of(AstNodeType(node, self.module)), node)))
         definition = _definition(self.module, name)
@@ -2255,7 +2255,7 @@ class _Activation:
             if rest:
                 return self._member_of(imported.ok_value, module_name, rest, name)
             node = viba_ast.TypeRef(name)
-            return Ok(_VibaData(VibaNode(
+            return Ok(_VibaData(VObject(
                 reflect_access, descriptor_of(AstNodeType(node, self.module)), node)))
         module_name = builtin_directory_name(name)
         if module_name is not None:
@@ -2266,7 +2266,7 @@ class _Activation:
                 if _stopped(found):
                     return found
                 node = viba_ast.TypeRef(name)
-                return Ok(_VibaData(VibaNode(
+                return Ok(_VibaData(VObject(
                     reflect_access, descriptor_of(AstNodeType(node, self.module)), node)))
         member = self._tagged_member(name, scope)
         if member is not None:
@@ -2311,7 +2311,7 @@ class _Activation:
         for factor in _viba_data_factors(value.ok_value.node):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == wanted:
                 inner = factor.type          # the member's value, not its tag
-                return Ok(_VibaData(VibaNode(
+                return Ok(_VibaData(VObject(
                     reflect_access, descriptor_of(AstNodeType(inner, self.module)), inner)))
         return VibaProgramErr(f"{head!r} has no member tagged {wanted!r}")
 
@@ -2455,7 +2455,7 @@ class _Activation:
         if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
             node = (written if isinstance(written, viba_ast.AST)
                     else viba_ast.TypeRef(written or name))
-            return Ok(_VibaData(VibaNode(
+            return Ok(_VibaData(VObject(
                 reflect_access, descriptor_of(AstNodeType(node, written_in)), node)))
         return self._defined(name, definition)
 
@@ -2575,7 +2575,7 @@ class _Activation:
                     # module the product was written in still says what that member's
                     # names mean (`_getting`), so a name read out of a product travels.
                     return Ok(_VibaData(
-                        VibaNode(reflect_access,
+                        VObject(reflect_access,
                                  descriptor_of(AstNodeType(inner, self.module)), inner),
                         written_in=value.written_in, bindings=value.bindings))
             return VibaProgramErr(f"no member tagged {tag!r} to take from it")
@@ -2617,7 +2617,7 @@ class _Activation:
         inside it resolve where the caller wrote them.
         """
         return {
-            name: _VibaData(VibaNode(
+            name: _VibaData(VObject(
                 reflect_access,
                 descriptor_of(AstNodeType(bound.ast_node, bound.container_module)),
                 bound.ast_node), written_in=bound.container_module)
@@ -2723,7 +2723,7 @@ class _Activation:
             # constructor spells (`ListLiteral[1, 2]` is a list). Naming that
             # constructor in a *type* expression is the other reading of the same
             # text: there it is the resident of `list[a | b | c]` (viba/type.viba).
-            return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(node), node)))
+            return Ok(_VibaData(VObject(reflect_access, self._descriptor(node), node)))
         written, modules = self._application_reading(node, scope)
         decision = reduce_application(written, self.module, modules)
         if _stopped(decision):
@@ -2747,7 +2747,7 @@ class _Activation:
             # The application written down is the call it stands for: the names
             # in it are the ones this file wrote, so the decision that owns them
             # travels with it (`_VibaData.bindings`).
-            return Ok(_VibaData(VibaNode(
+            return Ok(_VibaData(VObject(
                 reflect_access,
                 descriptor_of(AstNodeType(node, self.module)), node),
                 written_in=self.module, bindings=self.bindings or None))
@@ -2779,7 +2779,7 @@ class _Activation:
         # parameters are bound to "the data the caller wrote" and read in the definition's own
         # file (the same path as a decision's bindings).
         bindings = {
-            param: _VibaData(VibaNode(
+            param: _VibaData(VObject(
                 reflect_access,
                 descriptor_of(AstNodeType(argument, self.module)), argument))
             for param, argument in zip(params, node.args)}
@@ -2822,7 +2822,7 @@ class _Activation:
         # was written as while the value is the member itself: the chain head is
         # what reads it (`_target_and_arguments`).
         described = node if isinstance(built, viba_ast.Member) else built
-        return Ok(_VibaData(VibaNode(
+        return Ok(_VibaData(VObject(
             reflect_access, descriptor_of(AstNodeType(described, self.module)), built),
             written_in=self.module))
 
@@ -3140,7 +3140,7 @@ class _Activation:
             pieces.append(viba_ast.Tagged(factor.tag, answered.node.data))
         chain = (pieces[0] if len(pieces) == 1
                  else viba_ast.ProductChain(pieces))
-        return (_VibaData(VibaNode(reflect_access, self._descriptor(chain), chain)),
+        return (_VibaData(VObject(reflect_access, self._descriptor(chain), chain)),
                 None)
 
     def _in_module(self, module, bindings=None):
@@ -3929,7 +3929,7 @@ def _is_environ_value(value) -> bool:
 def _as_environ_value(value):
     """An environment a host handed over, as a value this run can give on.
 
-    The host side speaks plain objects and `VibaNode`s, while inside a run an
+    The host side speaks plain objects and `VObject`s, while inside a run an
     environment is the `_Host` that carries it; a node that writes the
     environment is viba data and stays one. That is the same pair `_answer`
     answers with, so this only says which of the two it is.
@@ -4318,7 +4318,7 @@ class _Pending:
             tag = tags[index]
             kept.append((tag, value if isinstance(value, _VibaData) else None))
             node = viba_ast.Partial(node, viba_ast.Tagged(tag, piece) if tag else piece)
-        return Ok(_VibaData(VibaNode(reflect_access, self.descriptor(node), node),
+        return Ok(_VibaData(VObject(reflect_access, self.descriptor(node), node),
                             written_in=self.written_in, given=kept,
                             bindings=self.written_bindings))
 
@@ -4397,7 +4397,7 @@ class _Pending:
                 continue                    # a host value: it does not travel
             tag = self.given_tags.get(index)
             node = viba_ast.Partial(node, viba_ast.Tagged(tag, piece) if tag else piece)
-        return VibaNode(reflect_access, self.descriptor(node), node)
+        return VObject(reflect_access, self.descriptor(node), node)
 
     def _the_value_itself(self, value):
         """The slot that value went into: the one the member is a member of.
@@ -4488,10 +4488,10 @@ class _Pending:
                 # tag is added outside.
                 descriptor = descriptor_of_tagged(nodes[0].tag, descriptor,
                                                   nodes[0], self.written_in)
-            args = _VibaData(VibaNode(reflect_access, descriptor, nodes[0]))
+            args = _VibaData(VObject(reflect_access, descriptor, nodes[0]))
         else:
             chain = viba_ast.ProductChain(nodes)
-            args = _VibaData(VibaNode(
+            args = _VibaData(VObject(
                 reflect_access,
                 descriptor_of_values(chain, self.written_in, kept), chain))
         answer = _run_module(self.runner, self.module, self.environ, self.module_name,
@@ -4503,7 +4503,7 @@ class _Pending:
         # `interpret` hands the node out; inside a run a module's answer is a
         # value like any other, so it goes back into the value model.
         node = answer.ok_value
-        return Ok(_VibaData(node) if isinstance(node, VibaNode) else _Host(node))
+        return Ok(_VibaData(node) if isinstance(node, VObject) else _Host(node))
 
 
 class _GetArgs:
@@ -4806,7 +4806,7 @@ class _DynCall:
             if piece is None:
                 continue                    # a host value: it does not travel
             node = viba_ast.Partial(node, viba_ast.Tagged(tag, piece) if tag else piece)
-        return VibaNode(reflect_access,
+        return VObject(reflect_access,
                         descriptor_of(AstNodeType(viba_ast.TypeRef(self.written),
                                                   _NO_MODULE)), node)
 
@@ -4869,12 +4869,12 @@ def _answer(name, answer, module_path: str = None,
         closure = answer.closure_of()
         if closure is not None:
             return Ok(_VibaData(closure))
-        return Ok(_VibaData(VibaNode(
+        return Ok(_VibaData(VObject(
             reflect_access, descriptor_of(AstNodeType(answer.node, answer.module)),
             answer.node)))
     """Result: what a host function answered, as a value.
 
-    A `VibaNode` is taken as it is, an `Environment` stays a host value, and
+    A `VObject` is taken as it is, an `Environment` stays a host value, and
     `None` is `nil` the way it is in the builder. A plain Python value lands
     as a leaf — but only a scalar one: a list, a dict, a callable or any other
     object has no leaf to be, and guessing one would put a piece into the
@@ -4882,19 +4882,19 @@ def _answer(name, answer, module_path: str = None,
     is a failure of it; without one — a value a host is handing back into a call,
     or what an environment api answered — it is a plain `VibaProgramErr`.
     """
-    if isinstance(answer, VibaNode):
+    if isinstance(answer, VObject):
         return Ok(_VibaData(answer))
     if isinstance(answer, Environment):
         return Ok(_Host(answer))
     if answer is not None and not isinstance(answer, (bool, int, float, str)):
         msg = (f"{name} answered {type(answer).__name__}, "
-               f"which is no leaf: answer a VibaNode, a scalar, or None")
+               f"which is no leaf: answer a VObject, a scalar, or None")
         if module_path is not None:
             return UnderlyingOpErr(f"{REASON_NO_LEAF}: {msg}", module_path,
                                    full_qualified_func_name, call)
         return VibaProgramErr(msg)
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
-    return Ok(_VibaData(VibaNode(reflect_access,
+    return Ok(_VibaData(VObject(reflect_access,
                                  descriptor_of(AstNodeType(node, _NO_MODULE)), node)))
 
 

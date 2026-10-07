@@ -21,7 +21,7 @@ from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, read_snapshot, replayed, snapshot_path,
                               write_snapshot)
-from viba.reflect import VibaNode, access as reflect_access
+from viba.reflect import VObject, access as reflect_access
 from viba.type import AstNodeType, custom_module
 from viba.viba_type_descriptor import descriptor_of
 
@@ -110,11 +110,11 @@ def _store_text(tmp: Path):
         viba_ast.TypeRef("Object"),
         viba_ast.Tagged("$a", viba_ast.Constant(1)),
         viba_ast.Tagged("$b", viba_ast.Constant("x"))])
-    written = VibaNode(reflect_access, descriptor_of(
+    written = VObject(reflect_access, descriptor_of(
         AstNodeType(given, custom_module(""))), given)
     write_snapshot(empty, written, "product")
     again = read_snapshot(empty, "product")
-    check(isinstance(again, VibaNode) and
+    check(isinstance(again, VObject) and
           reflect_access.leaf(again.by_tag("a")).ok_value == 1 and
           reflect_access.leaf(again.by_tag("b")).ok_value == "x",
           f"a viba data goes out and comes back: {again!r}")
