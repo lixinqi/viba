@@ -15,6 +15,14 @@ viba.builder), and `builder.check` reads it back before it is handed over.
 A piece the design has no spelling for gives VibaProgramErr rather than a wrong spelling:
 that is a viba data the design cannot carry, and the caller decides what to do
 about it.
+
+Two things about the layer a piece is on:
+
+- A product leads with `Object` whether or not the design headed its chain with a
+  unit, so the block a product comes out as always says on its first line which
+  layer it is (viba-style.md §6).
+- A sum writes the branch the piece is on and nothing else: the value does not
+  carry the other branches, and one branch is no sum (viba-style.md §7).
 """
 
 from __future__ import annotations
@@ -155,7 +163,7 @@ def _emit(access: VibaAccess, node: VObject):
     if unfolded.kind == SUM:
         return _emit_sum(access, node)
     if unfolded.kind == PRODUCT:
-        return _emit_product(access, node, unfolded)
+        return _emit_product(access, node)
     if unfolded.kind == TUPLE:
         return _emit_tuple(access, node)
     container = access.container_kind(unfolded)
@@ -184,24 +192,25 @@ def _emit_sum(access: VibaAccess, node: VObject):
     raise SerializeGap(f"no branch of this sum carries a value: {node!r}")
 
 
-def _unit_expression(descriptor):
+def _product_head():
     """The product identity as the language writes it: `Object`.
 
-    A design may head a product with a word of its own layer. Writing the
-    *design's* word would carry that layer's vocabulary into every viba_data this
-    writes, so the language's own unit goes out instead: `Object` is the product
-    identity and a builtin name.
+    A design may head a product with a word of its own layer, and may head it
+    with nothing at all. What goes out either way is the language's own unit:
+    writing the *design's* word would carry that layer's vocabulary into every
+    viba_data this writes, and writing no head at all would leave a block whose
+    first line does not say whether the piece is a product or a sum
+    (viba-style.md §6). `Object` is the product identity and a builtin name.
     """
     return _NAMES.Object
 
 
-def _emit_product(access: VibaAccess, node: VObject, unfolded):
-    """Product: the leading unit (when the design wrote one), then every member
-    in order.
+def _emit_product(access: VibaAccess, node: VObject):
+    """Product: the leading unit, then every member in order.
 
-    A product the design heads with no unit is written as the design writes it;
-    when it does write one, the language's own unit leads (`Object`), so a
-    product under a block is a product a reader can read back.
+    The head is written whether or not the design wrote one — the piece that
+    comes out is a block, and a block's first line is its head — while the
+    members are written as the design's own chain has them.
 
     The members come from the map, so an untagged member that stands for a
     product has already handed its own members over and units are gone. A
@@ -212,10 +221,7 @@ def _emit_product(access: VibaAccess, node: VObject, unfolded):
     are addressed by position, tagged ones by tag; the same tag twice is a gap,
     since the two pieces could not be told apart when read back.
     """
-    written = []
-    elements = list(unfolded.payload.elements)
-    if elements and access._is_product_unit(elements[0]):
-        written.append(_unit_expression(elements[0]))
+    written = [_product_head()]
     seen_tags = set()
     for tag, step, descriptor in access.member_steps(node):
         # A tag holds one member: the same tag twice is a design this cannot

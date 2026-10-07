@@ -1125,13 +1125,13 @@ def run_cross_module_cases():
                pool_of("Box = d.P * $a int\n"), "main.Box",
                _product(_tagged("$x", viba_ast.Constant(1)),
                         _tagged("$a", viba_ast.Constant(2))),
-               expect="entry =\n  $x 1\n  * $a 2\n",
+               expect="entry =\n  Object\n  * $x 1\n  * $a 2\n",
                resident_source="P = Object * $x int\nBox = P * $a int\n")
     _corner_in("a product from another module inlined behind a name",
                pool_of("Q = d.P\nBox = Q * $a int\n"), "main.Box",
                _product(_tagged("$x", viba_ast.Constant(1)),
                         _tagged("$a", viba_ast.Constant(2))),
-               expect="entry =\n  $x 1\n  * $a 2\n",
+               expect="entry =\n  Object\n  * $x 1\n  * $a 2\n",
                resident_source="P = Object * $x int\nBox = P * $a int\n")
     _corner_in("an import of an import, inlined",
                _pool(_DEFS,
@@ -1141,7 +1141,7 @@ def run_cross_module_cases():
                "main.Box",
                _product(_tagged("$x", viba_ast.Constant(1)),
                         _tagged("$a", viba_ast.Constant(2))),
-               expect="entry =\n  $x 1\n  * $a 2\n",
+               expect="entry =\n  Object\n  * $x 1\n  * $a 2\n",
                resident_source="P = Object * $x int\nBox = P * $a int\n")
     _gap_in("a tag repeated across modules",
             pool_of("Box = d.P * $x int\n"), "main.Box",
@@ -1322,24 +1322,24 @@ def run_inline_member_cases():
             _product(_tagged("$x", viba_ast.Constant(1)),
                      _tagged("$y", viba_ast.Constant(2)),
                      _tagged("$z", viba_ast.Constant(3))),
-            expect="entry =\n  $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  Object\n  * $x 1\n  * $y 2\n  * $z 3\n")
     _corner("an inline chain two deep",
             "A = $x int\nB = A * $y int\nC = B * $z int\n", "C",
             _product(_tagged("$x", viba_ast.Constant(1)),
                      _tagged("$y", viba_ast.Constant(2)),
                      _tagged("$z", viba_ast.Constant(3))),
-            expect="entry =\n  $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  Object\n  * $x 1\n  * $y 2\n  * $z 3\n")
     _corner("a member that is no product keeps its place",
             "Box = int * $a int\n", "Box",
             _product(viba_ast.Constant(7), _tagged("$a", viba_ast.Constant(1))),
-            expect="entry =\n  7\n  * $a 1\n")
+            expect="entry =\n  Object\n  * 7\n  * $a 1\n")
     _corner("an inline member after a positional one",
             "A = $x int * $y int\nBox = int * A * $z int\n", "Box",
             _product(viba_ast.Constant(7),
                      _tagged("$x", viba_ast.Constant(1)),
                      _tagged("$y", viba_ast.Constant(2)),
                      _tagged("$z", viba_ast.Constant(3))),
-            expect="entry =\n  7\n  * $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  Object\n  * 7\n  * $x 1\n  * $y 2\n  * $z 3\n")
     _corner("a unit member between positional ones",
             "Box = Object * int * Object * int * $a int\n", "Box",
             _product(viba_ast.Constant(7), viba_ast.Nil(),
@@ -1352,13 +1352,13 @@ def run_inline_member_cases():
     _corner("the member written as a name on the viba data side",
             "Data = $x 1 * $y 2\nA = $x int * $y int\nB = A * $z int\n", "B",
             _product(viba_ast.TypeRef("Data"), _tagged("$z", viba_ast.Constant(3))),
-            expect="entry =\n  $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  Object\n  * $x 1\n  * $y 2\n  * $z 3\n")
     _corner("an inline member behind a generic application",
             "Inner = $x int * $y int\nBox[T] = T * $z int\nB = Box[Inner]\n", "B",
             _product(_tagged("$x", viba_ast.Constant(1)),
                      _tagged("$y", viba_ast.Constant(2)),
                      _tagged("$z", viba_ast.Constant(3))),
-            expect="entry =\n  $x 1\n  * $y 2\n  * $z 3\n")
+            expect="entry =\n  Object\n  * $x 1\n  * $y 2\n  * $z 3\n")
     _gap("the same tag twice through an inline",
          "A = $x int\nB = A * $x str\n", "B",
          _product(_tagged("$x", viba_ast.Constant(1))), "written twice")

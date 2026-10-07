@@ -123,7 +123,7 @@ def _a_member_is_a_container():
     xs = answer_of(got).get_xs()
     check(xs.is_list and len(xs) == 2 and _leaf(xs.at_index(0)) == 1,
           f"and the list inside it is a list: {xs!r}")
-    check(_written(got) == "x =\n  $xs ListLiteral[1, 2]\n  * $y 3\n",
+    check(_written(got) == "x =\n  Object\n  * $xs ListLiteral[1, 2]\n  * $y 3\n",
           f"written back, the member keeps its own spelling: {_written(got)!r}")
 
 
