@@ -17,14 +17,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, Host, value_of
+from interpreter_support import Checks, Host, PlacedHost, is_ok, value_of
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             convert_sub_to_sibling, find_by_relative_path,
                             get_relative_path, get_root, interpret,
                             sub_env, tmp_env)
 from viba.interpret import BUILTIN_DIR
-from viba.type import Ok
 
 checks = Checks("interpreter_env_paths")
 check = checks.check
@@ -300,44 +299,51 @@ def _the_declaration(tmp: Path):
 
 
 def _written_in_viba(tmp: Path):
-    """viba 那边写出来的调用：每一个成员，加上写错的那几种。"""
+    """viba 那边写出来的调用：每一个成员，加上写错的那几种。
+
+    环境不是值：交回一份环境的那几种，交出一个宿主实现的步骤来接管 —— `PlacedHost.ran_at`
+    记下那一步实际跑在哪条数据路径上，那正是这些成员该走到的地方。
+    """
     cases = tmp / "cases"
 
-    # 根：read off 这一层，用 tag 写在链头
-    host = Host()
+    # 根：read off 这一层，用 tag 写在链头；宿主那一步拿到的就是链顶那一份环境
+    host = PlacedHost()
     top = host.environ(store_root_dir=str(cases / "root"))
     here = chain(top, "a", "b", "c")
     result = interpret(str(CASES / "env_root.viba"), here)
-    check(isinstance(result, Ok) and result.ok_value is top,
-          f"$get_root << args.env answers the chain's root: {result!r}")
+    check(is_ok(result) and value_of(result) == 7 and host.ran_at == [("root", "leaf")],
+          f"$get_root << args.env hands the chain's root over: "
+          f"{result!r}, {host.ran_at}")
 
     result = interpret(str(CASES / "env_root_nil.viba"), here)
-    check(isinstance(result, Ok) and value_of(result) is None,
+    check(is_ok(result) and value_of(result) is None,
           f"args.env.get_root << nil answers nil: {result!r}")
 
     # 相对路径：从根往下，以及不给根
     result = interpret(str(CASES / "env_relative_path.viba"), here)
-    check(isinstance(result, Ok) and value_of(result) == "a/b/c",
+    check(is_ok(result) and value_of(result) == "a/b/c",
           f"the relative path from the root: {result!r}")
     result = interpret(str(CASES / "env_relative_path.viba"), top)
-    check(isinstance(result, Ok) and value_of(result) == "",
+    check(is_ok(result) and value_of(result) == "",
           f"the root's own relative path is empty: {result!r}")
     result = interpret(str(CASES / "env_relative_path_no_root.viba"), here)
-    check(isinstance(result, Ok) and value_of(result) == "a/b/c",
+    check(is_ok(result) and value_of(result) == "a/b/c",
           f"with nil written for the root, the chain's own root is used: {result!r}")
 
     environment_api(interpret(str(CASES / "env_relative_path_wrong_root.viba"), here),
                     "is no child of", "Environment.get_relative_path",
                     "a root written as this layer's child")
 
-    # 按相对路径找回来
+    # 按相对路径找回来：宿主那一步跑在哪条数据路径上，就是找回了哪一份环境
+    host.ran_at.clear()
     result = interpret(str(CASES / "env_find_by_path.viba"), here)
-    check(isinstance(result, Ok) and result.ok_value.storage is chain(top, "a", "b").storage,
-          f"find_by_relative_path reaches root/a/b: {result!r}")
+    check(is_ok(result) and host.ran_at == [("root/a/b", "leaf")],
+          f"find_by_relative_path reaches root/a/b: {result!r}, {host.ran_at}")
+    host.ran_at.clear()
     result = interpret(str(CASES / "env_find_from_me.viba"), here)
-    check(isinstance(result, Ok) and
-          result.ok_value.storage.cur_storage_path == "root/a/b/c/x",
-          f"with no root it searches from the environment it was read off: {result!r}")
+    check(is_ok(result) and host.ran_at == [("root/a/b/c/x", "leaf")],
+          f"with no root it searches from the environment it was read off: "
+          f"{result!r}, {host.ran_at}")
     environment_api(interpret(str(CASES / "env_find_by_path_bad_path.viba"), here),
                     "is no relative path", "Environment.find_by_relative_path",
                     "a path with a .. segment")
@@ -347,14 +353,14 @@ def _written_in_viba(tmp: Path):
 
     # convert_sub_to_sibling 与 uncompress_relative_path
     result = interpret(str(CASES / "env_uncompress_relative_path.viba"), here)
-    check(isinstance(result, Ok) and value_of(result) is None,
+    check(is_ok(result) and value_of(result) is None,
           f"a plain layer records nothing: {result!r}")
     result = interpret(str(CASES / "env_uncompress_relative_path_tag.viba"), here)
-    check(isinstance(result, Ok) and value_of(result) is None,
+    check(is_ok(result) and value_of(result) is None,
           f"the tag form reads the same member: {result!r}")
 
     result = interpret(str(CASES / "env_convert_sub_to_sibling.viba"), here)
-    check(isinstance(result, Ok) and value_of(result) == "root/a/b/c/child",
+    check(is_ok(result) and value_of(result) == "root/a/b/c/child",
           f"the pressed layer records the path it stands for: {result!r}")
 
     environment_api(interpret(str(CASES / "env_convert_sub_to_sibling_root.viba"), here),

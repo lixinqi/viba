@@ -1,0 +1,8 @@
+# 一个定不下来的名字：执行里停下来，`$stack` 记着这次调用写在哪一行。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = nosuch << $env args.env

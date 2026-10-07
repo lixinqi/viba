@@ -18,13 +18,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import error_of, message_of, Checks, value_of
+from interpreter_support import (answer_of, Checks, is_ok, message_of, stop_tag,
+                                  value_of)
 
 from viba.reflect import access as reflect_access
 
 from viba import serialize, viba_ast
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Ok, VibaProgramErr
+from viba.type import Ok, PROGRAM_ERR_TAG
 
 checks = Checks("interpreter_closure")
 check = checks.check
@@ -65,10 +66,10 @@ def environ_for(store, calls=()):
 
 
 # (文件, 该跑出什么)：
-#   ("value", 叶子)     Ok，且叶子是这个值
-#   ("closure", 写法)   Ok，给出的是一个闭包，写出来是这个样子
-#   ("error", 片段)     VibaProgramErr，话里含这个片段
-#   ("viba_data", None)  Ok，是一个闭包装在可序列化数据里的值（后面单独看）
+#   ("value", 叶子)     $ok，且叶子是这个值
+#   ("closure", 写法)   $ok，给出的是一个闭包，写出来是这个样子
+#   ("error", 片段)     $viba_program_err，话里含这个片段
+#   ("viba_data", None)  $ok，是一个闭包装在可序列化数据里的值（后面单独看）
 # 最后一列是要看住的副作用调用；None 表示不看。
 CASES_TO_RUN = [
     # 闭包是什么、能拿它做什么
@@ -120,19 +121,19 @@ def run(tmp: Path):
         calls = []
         result = interpret(str(program), environ_for(tmp / f"store-{index}", calls))
         if kind == "value":
-            check(isinstance(result, Ok) and value_of(result) == want,
+            check(is_ok(result) and value_of(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
         elif kind == "viba_data":
-            check(isinstance(result, Ok),
+            check(is_ok(result),
                   f"{name}: expected the viba data, got {result!r}")
         elif kind == "closure":
-            check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.Partial),
+            check(is_ok(result) and isinstance(answer_of(result).data, viba_ast.Partial),
                   f"{name}: expected a closure, got {result!r}")
-            if isinstance(result, Ok):
-                check(written(result.ok_value) == want,
-                      f"{name}: the closure is written {want!r}, got {written(result.ok_value)!r}")
+            if is_ok(result):
+                check(written(answer_of(result)) == want,
+                      f"{name}: the closure is written {want!r}, got {written(answer_of(result))!r}")
         elif kind == "error":
-            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
+            check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
         if calls_wanted is not None:
             check(calls == calls_wanted,
@@ -150,9 +151,9 @@ def run(tmp: Path):
 
     # 可序列化数据里装一个闭包：装的是数据，不会被执行（那个参数是 `$f`，不是一次调用）
     viba_data = interpret(str(CASES / "closure_in_viba_data.viba"), environ_for(tmp / "store-mat"))
-    check(isinstance(viba_data, Ok), f"a closure inside viba data stays viba data: {viba_data!r}")
-    if isinstance(viba_data, Ok):
-        inner = viba_data.ok_value.by_tag("f")
+    check(is_ok(viba_data), f"a closure inside viba data stays viba data: {viba_data!r}")
+    if is_ok(viba_data):
+        inner = answer_of(viba_data).by_tag("f")
         check(isinstance(inner.data, viba_ast.Partial),
               f"and what is inside is the written call: {inner.data!r}")
 

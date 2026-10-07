@@ -21,7 +21,12 @@ from viba import viba_ast
 # ----------------------------------------------------------------------
 
 class Ok:
-    """The $ok branch: its payload is ok_value."""
+    """The value branch, inside a run: what this run has answered so far.
+
+    The interpreter's own working form — a run in progress threads `Ok` and the
+    errors below — while the two entry points, `interpret` and `exec`, answer the
+    declared `InterpretResult` as one node of viba data (`viba/interpret.py`).
+    """
 
     def __init__(self, ok_value):
         self.ok_value = ok_value
@@ -122,8 +127,9 @@ class EnvironmentApiInvalidArgumentErr(InterpretError, Exception):
     them. `msg` is one sentence that says what happened and why; it opens with
     the reason (`raised`).
 
-    It is an exception as well, the way every error of this layer is: the same
-    news has to cross a callable the run handed to a host.
+    It is an exception as well: the environment's members are Python callables of
+    this layer's own, and one of them refusing what it was given says so by
+    raising this. A host's own member may either raise it or hand its data back.
     """
 
     def __init__(self, msg: str = "", api_name: str = "", arguments=None):
@@ -138,26 +144,20 @@ class EnvironmentApiInvalidArgumentErr(InterpretError, Exception):
         return f"EnvironmentApiInvalidArgumentErr({self.msg!r}, {self.api_name!r})"
 
 
-class Err:
-    """`$err InterpretError`: the run stopped; `error` says why."""
-
-    def __init__(self, error: InterpretError):
-        self.error = error
-
-    def __repr__(self):
-        return f"Err({self.error!r})"
-
-
 Result = Union[Ok, VibaProgramErr]
 
 
-class UnderlyingOpErr(InterpretError, Exception):
+class UnderlyingOpErr(InterpretError):
     """`Failure`: this step did not answer. Its two tags are below.
 
         InterpretResult =
             Oneof
           | $ok VibaNode
-          | $viba_program_err str
+          | $err InterpretError
+
+        InterpretError =
+            Oneof
+          | $viba_program_err ProgramErr
           | $underlying_viba_op_err UnderlyingOpErr     # it broke
           | $not_implemented_err UnderlyingOpErr               # nothing implements it
           | $environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr
@@ -167,7 +167,7 @@ class UnderlyingOpErr(InterpretError, Exception):
           * $msg str
           * $module_path str
           * $full_qualified_func_name str
-          * $call (Any <- $env Env)
+          * $call Any
 
     One payload, two tags: a step stopped without answering, and the tag says
     which way — `$not_implemented_err` when `get_func` had nothing for it (the
@@ -176,8 +176,10 @@ class UnderlyingOpErr(InterpretError, Exception):
     reading a message.
 
     `msg` is one sentence that says what happened and why — it opens with the
-    reason (`no implementation`, `refused`, `get_func raised`, `raised`,
-    `no leaf`) and goes on with the detail.
+    reason (`no implementation`, `get_func raised`, `raised`, `no leaf`) and goes
+    on with the detail. A host that hands the failure back without words gets the
+    run's own: `no implementation` under `$not_implemented_err`, `raised` under
+    `$underlying_viba_op_err`.
 
     `module_path` and `full_qualified_func_name` are the step
     `get_func(module_path, func_name)` was handed, read as two fields: the module
@@ -192,24 +194,25 @@ class UnderlyingOpErr(InterpretError, Exception):
     a member of a value that holds one, a function handed to a step — is written
     the same way and not as the name it was written with
     (`__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`), so
-    nothing has to be resolved to read the call. So its type is `Any <- $env Env` —
-    a call that still wants its environment, and giving it one runs it, from any
-    module, because the name is data. It is viba data, functions and closures
+    nothing has to be resolved to read the call. The judgment reads such a chain
+    as `Any` — the name travels as data, so there is nothing to unfold
+    (`viba/partial.py`, `reduce_partial`) — which is why the member is declared
+    `Any` here. Giving the piece an environment is what runs it, from any module,
+    inside the arguments' own readings. It is viba data, functions and closures
     among the arguments included, so the same call can be made again from this
     result alone, without running anything over; the environment is not part of
     it, another run makes its own (`viba-interpreter.md`).
 
-    It is an exception as well, because that is how the same news crosses a
-    callable the run handed to a host; a `get_func` may raise it too, to say it
-    has no implementation for a call — raising it with `NOT_IMPLEMENTED_TAG` says
-    that, and the run fills in the step and the call it knows, keeping whatever
-    the host said.
+    A host says the same thing by handing this failure's data back — from
+    `get_func`, or from the implementation of a step while it runs
+    (`viba/interpret.py`, `not_implemented`). The run fills in the step and the
+    call it knows, keeping whatever the host did write and the tag it wrote it
+    under. It is no exception: what a host answers is data, and a stop is data.
     """
 
     def __init__(self, msg: str = "", module_path: str = "",
                  full_qualified_func_name: str = "",
                  call=None, tag: str = None):
-        super().__init__(msg)
         self.msg = msg
         self.module_path = module_path
         self.full_qualified_func_name = full_qualified_func_name
@@ -225,17 +228,24 @@ class UnderlyingOpErr(InterpretError, Exception):
 FAILURE_TAG = "$underlying_viba_op_err"   # the implementation, or `get_func`, broke
 NOT_IMPLEMENTED_TAG = "$not_implemented_err"     # nothing implements that step
 
+# The two branches a run answers under, and the tags the other two stops carry
+# (`InterpretResult` below). A host that hands the failure back writes the same
+# tag it would be answered under.
+OK_TAG = "$ok"                                   # the answer
+ERR_TAG = "$err"                                 # why it stopped
+PROGRAM_ERR_TAG = "$viba_program_err"            # the program, or the environment
+ENVIRONMENT_API_TAG = "$environment_api_invalid_argument_err"   # one api of it
+
 
 # The words a failure's `msg` opens with: short, stable, the same ones a reader
 # switches on.
 REASON_NO_IMPLEMENTATION = "no implementation"   # get_func answered None
-REASON_REFUSED = "refused"                       # get_func said so itself
 REASON_GET_FUNC_RAISED = "get_func raised"       # get_func broke
 REASON_RAISED = "raised"                         # the implementation broke
 REASON_NO_LEAF = "no leaf"                       # it answered something with no leaf
 
 
-# What `interpret` answers, its branches written out:
+# The declared result, its branches written out:
 #
 #     InterpretResult =
 #         Oneof
@@ -244,9 +254,12 @@ REASON_NO_LEAF = "no leaf"                       # it answered something with no
 #
 # The error side is `InterpretError` (`$viba_program_err`, an
 # `EnvironmentApiInvalidArgumentErr` under `$environment_api_invalid_argument_err`,
-# or a `Failure` under one of its two tags). The other APIs keep the two-branch
-# `Result`: their work is all here.
-InterpretResult = Union[Ok, Err]
+# or a `Failure` under one of its two tags).
+#
+# `interpret` and `exec` answer that declaration as **one node of viba data**:
+# `$ok (<the answer>)` or `$err (<why it stopped>)`, with the members of each
+# stop addressable by tag (`viba/interpret.py`). So the answer serializes as it
+# stands, and nothing on this side has to be read to carry it anywhere.
 
 
 # ----------------------------------------------------------------------

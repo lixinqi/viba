@@ -10,10 +10,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, Host, value_of
+from interpreter_support import Checks, Host, is_ok, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Ok, VibaProgramErr
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES = ROOT / "tests" / "data" / "apply"
@@ -50,12 +49,11 @@ def environ_for(store):
 def run(tmp: Path):
     for name, want in ANSWERS:
         result = interpret(str(CASES / f"{name}.viba"), environ_for(tmp))
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"{name} 给出 {want}：{result!r}")
     for name, want in RECORDED:
         result = interpret(str(CASES / f"{name}.viba"), environ_for(tmp))
-        check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
-              f"{name}: recorded stop {want!r}，{result!r}")
+        checks.labelled(result, want, f"{name}: recorded stop {want!r}，{result!r}")
     impl_files()
 
 

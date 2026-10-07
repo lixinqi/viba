@@ -16,10 +16,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, value_of
+from interpreter_support import Checks, is_ok, message_of, stop_tag, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Ok, VibaProgramErr
+from viba.type import PROGRAM_ERR_TAG
 
 checks = Checks("interpreter_recursion")
 check = checks.check
@@ -70,15 +70,15 @@ def run(tmp: Path):
         check(program.is_file(), f"the case is a file: {program.name}")
         result = interpret(str(program), environ_for(tmp / f"store-{index}"))
         if isinstance(want, int):
-            check(isinstance(result, Ok) and value_of(result) == want,
+            check(is_ok(result) and value_of(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
         else:
-            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
+            check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
 
     # 这条规矩本身也写在话里
     result = interpret(str(CASES / "self_definition.viba"), environ_for(tmp / "store-rule"))
-    check(isinstance(error_of(result), VibaProgramErr)
+    check(stop_tag(result) == PROGRAM_ERR_TAG
           and "one file's definitions may not go round" in message_of(result),
           f"the message states the rule: {result!r}")
 

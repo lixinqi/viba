@@ -55,7 +55,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import message_of, error_of, Checks, Host, value_of
+from interpreter_support import (answer_of, message_of, error_of, is_ok,
+                                 stop_tag, Checks, Host, value_of)
 
 from viba import viba_ast
 from viba.interpret import interpret
@@ -64,7 +65,8 @@ from viba.is_sub_type import is_sub_type
 from viba.reflect import VibaData, access, by_tag
 from viba.pattern import (GENERIC_FILE, load_generic, patterns_of,
                           structural_pattern_match)
-from viba.type import AstNodeType, Ok, VibaProgramErr, custom_module
+from viba.type import (AstNodeType, Ok, PROGRAM_ERR_TAG, VibaProgramErr,
+                       custom_module)
 from viba.viba_type_descriptor import (empty_pool, parse_viba_file,
                                        pool_add_file, pool_find_definition)
 
@@ -156,11 +158,11 @@ def _wrapper_environ():
 
 
 def _the_runtime_answers():
-    """一份模块应用一个泛型：选中的那一支就是它的结果。"""
+    """一份模块应用一个泛型：选中的那一支就是它给出的值。"""
     environ = _environ()
     for name, want, label in RUNTIME_CASES:
         result = interpret(_case(name), environ)
-        check(isinstance(result, Ok) and value_of(result) is want,
+        check(is_ok(result) and value_of(result) is want,
               f"{label} -> {want}: {result!r}")
 
 
@@ -169,9 +171,9 @@ def _what_was_extracted():
     environ = _environ()
     for name, want, label in EXTRACTED_CASES:
         result = interpret(_case(name), environ)
-        got = (viba_ast.unparse_type(result.ok_value.data)
-               if isinstance(result, Ok) else repr(result))
-        check(isinstance(result, Ok) and got == want,
+        got = (viba_ast.unparse_type(answer_of(result).data)
+               if is_ok(result) else repr(result))
+        check(is_ok(result) and got == want,
               f"{label} -> {want}: {got!r}")
 
 
@@ -440,10 +442,10 @@ def _a_count_is_a_bucket(scratch: Path):
         return interpret(str(case), Host().environ(viba_path=str(where)))
 
     got = answered("two", "int * str")
-    check(isinstance(got, Ok) and value_of(got) == 2,
+    check(is_ok(got) and value_of(got) == 2,
           f"摆出两份的应用读 2_200，给出 2：{got!r}")
     got = answered("three", "int * str * bool")
-    check(isinstance(error_of(got), VibaProgramErr) and "cannot parse" in message_of(got),
+    check(stop_tag(got) == PROGRAM_ERR_TAG and "cannot parse" in message_of(got),
           f"摆出三份的应用读到 3_300，当场说它编不过：{got!r}")
 
     # 名字上写的份数与 `pattern` 行读的份数不符：读到那一份就说
@@ -454,7 +456,7 @@ def _a_count_is_a_bucket(scratch: Path):
     (root / "wrong_case.viba").write_text(
         "import wrong as wrong\n\n__impl__ = wrong[int * str].value\n")
     got = interpret(str(root / "wrong_case.viba"), Host().environ(viba_path=str(root)))
-    check(isinstance(error_of(got), VibaProgramErr)
+    check(stop_tag(got) == PROGRAM_ERR_TAG
           and "the name says the file reads 3 parts, and its `pattern` lines read 2"
           in message_of(got),
           f"名字说三份、pattern 读两份：{got!r}")
@@ -467,7 +469,7 @@ def _a_count_is_a_bucket(scratch: Path):
     (root / "loose_case.viba").write_text(
         "import loose as loose\n\n__impl__ = loose[int * str].value\n")
     got = interpret(str(root / "loose_case.viba"), Host().environ(viba_path=str(root)))
-    check(isinstance(error_of(got), VibaProgramErr)
+    check(stop_tag(got) == PROGRAM_ERR_TAG
           and "and a `pattern` line in it reads no count" in message_of(got),
           f"名字写了份数、pattern 读不出份数：{got!r}")
 
@@ -493,11 +495,11 @@ def _a_sum_is_no_bucket(scratch: Path):
         return interpret(str(case), Host().environ(viba_path=str(root)))
 
     got = asked("a_product", "summed", "int * str")
-    check(isinstance(got, Ok) and value_of(got) == 2,
+    check(is_ok(got) and value_of(got) == 2,
           f"积实参摆出两份，3_300 被跳过，2_200 给出 2：{got!r}")
 
     got = asked("a_sum", "summed", "int | str")
-    check(isinstance(error_of(got), VibaProgramErr) and "cannot parse" in message_of(got),
+    check(stop_tag(got) == PROGRAM_ERR_TAG and "cannot parse" in message_of(got),
           f"和实参摆不出份数，3_300 也被读出来并报它编不过：{got!r}")
 
     either = root / "either"
@@ -507,7 +509,7 @@ def _a_sum_is_no_bucket(scratch: Path):
     for name, argument in (("two_branches", "int | str"),
                            ("three_branches", "int | str | bool")):
         got = asked(name, "either", argument)
-        check(isinstance(got, Ok) and value_of(got) == 1,
+        check(is_ok(got) and value_of(got) == 1,
               f"同一份 pattern A | B | C 命中 {argument}：{got!r}")
 
     named = root / "named"
@@ -515,7 +517,7 @@ def _a_sum_is_no_bucket(scratch: Path):
     (named / GENERIC_FILE).write_text("# __generic__.viba\n")
     (named / "2_100.viba").write_text("pattern A | B | C\n\nvalue = 1\n")
     got = asked("named_case", "named", "int | str")
-    check(isinstance(error_of(got), VibaProgramErr)
+    check(stop_tag(got) == PROGRAM_ERR_TAG
           and "and a `pattern` line in it reads no count" in message_of(got),
           f"和模式的份数写不出来：{got!r}")
 
@@ -575,9 +577,9 @@ def _a_generic_is_no_module():
 def _a_function_type_is_a_call():
     """选中的那份文件的成员是个函数链时，这个名字代表的就是那次调用。"""
     result = interpret(_case("call_it_answer"), _environ())
-    written = (viba_ast.unparse_type(result.ok_value.data)
-               if isinstance(result, Ok) else repr(result))
-    check(isinstance(result, Ok) and written == "call_it[list[int]].type",
+    written = (viba_ast.unparse_type(answer_of(result).data)
+               if is_ok(result) else repr(result))
+    check(is_ok(result) and written == "call_it[list[int]].type",
           f"the member stands for the call it is: {written!r}")
 
 
@@ -623,9 +625,9 @@ def _a_tag_written_as_a_symbol():
 
     tagged = interpret(_case("tagged_written"), _environ())
     as_tag = interpret(_case("tagged_written_by_tag"), _environ())
-    check(isinstance(tagged, Ok) and isinstance(as_tag, Ok)
-          and viba_ast.unparse_type(tagged.ok_value.data)
-          == viba_ast.unparse_type(as_tag.ok_value.data) == "$a 3",
+    check(is_ok(tagged) and is_ok(as_tag)
+          and viba_ast.unparse_type(answer_of(tagged).data)
+          == viba_ast.unparse_type(answer_of(as_tag).data) == "$a 3",
           "the application answers the value the tag writes")
 
     check(value_of(interpret(_case("arg_name_of_a"), _environ())) == "a",
@@ -636,8 +638,8 @@ def _a_tag_written_as_a_symbol():
     check(got is False, f"not another symbol: {got!r}")
 
     again = interpret(_case("tagged_again_a"), _environ())
-    check(isinstance(again, Ok)
-          and viba_ast.unparse_type(again.ok_value.data) == "$a int",
+    check(is_ok(again)
+          and viba_ast.unparse_type(answer_of(again).data) == "$a int",
           f"the symbol a decision bound builds the tag again: {again!r}")
     for sub, sup, want in (("X", "$a int", True), ("$a int", "X", True),
                            ("X", "$b int", False)):

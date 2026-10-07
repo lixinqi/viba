@@ -25,14 +25,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import (error_of, message_of, module_of, Checks, value_of)
+from interpreter_support import module_of, Checks, is_ok, value_of
 
 from viba import viba_ast
 from viba.interpret import (BUILTIN_DIR, Environment, EnvironmentCompute,
                             EnvironmentStorage, interpret)
 from viba.partial import product_elements
 from viba.reflect import VibaNode
-from viba.type import BUILTIN_CONCEPT, VibaProgramErr, Ok
+from viba.type import BUILTIN_CONCEPT
 
 checks = Checks("interpreter_builtin")
 check = checks.check
@@ -159,7 +159,7 @@ def _every_operator(tmp: Path):
         seen = []
         result = interpret(str(CASES / f"{name}.viba"),
                            environ_for(host_for(seen), tmp / f"operator-{index}"))
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"{name}: answers {want!r}, got {result!r}")
         asked = set(seen)
         check(("builtin", name) in asked,
@@ -171,7 +171,7 @@ def _the_two_spellings_are_one_call(tmp: Path):
     seen = []
     result = interpret(str(CASES / "both_spellings.viba"),
                        environ_for(host_for(seen), tmp / "spellings"))
-    check(isinstance(result, Ok) and value_of(result) is True,
+    check(is_ok(result) and value_of(result) is True,
           f"the two spellings answer the same value: {result!r}")
     check(seen.count(("builtin", "add")) == 2 and
           set(seen) == {("builtin", "add"), ("builtin", "eq")},
@@ -184,7 +184,7 @@ def _a_module_may_shadow_a_builtin(tmp: Path):
     local = {"add": lambda x, y: x * y}
     result = interpret(str(CASES / "shadowed_by_the_module.viba"),
                        environ_for(host_for(seen, local), tmp / "shadowed"))
-    check(isinstance(result, Ok) and value_of(result) == 13,
+    check(is_ok(result) and value_of(result) == 13,
           f"its own add runs first (3 times 4), the builtin one adds 1: {result!r}")
     check({("builtin", "add"),
            (module_of(CASES / "shadowed_by_the_module"), "add")} <= set(seen),
@@ -196,7 +196,7 @@ def _it_runs_where_it_is_given(tmp: Path):
     seen, ran_at = [], []
     result = interpret(str(CASES / "runs_where_it_is_given.viba"),
                        environ_for(host_for(seen, ran_at=ran_at), tmp / "where"))
-    check(isinstance(result, Ok) and value_of(result) == 3,
+    check(is_ok(result) and value_of(result) == 3,
           f"the operator answers 3: {result!r}")
     check(ran_at == ["root/operators"],
           f"it ran at the environment it was given, which is what carries the data path: "

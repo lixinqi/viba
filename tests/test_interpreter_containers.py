@@ -14,12 +14,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import Checks, Host, error_of, value_of
+from interpreter_support import answer_of, Checks, Host, is_ok, value_of
 
 from viba import serialize, viba_ast
 from viba.interpret import Environment, EnvironmentCompute, interpret
 from viba.reflect import access as reflect_access
-from viba.type import Ok, VibaProgramErr
+from viba.type import Ok
 
 CASES = Path(__file__).resolve().parent / "data" / "containers"
 
@@ -32,9 +32,10 @@ def _run(name: str, env=None):
 
 
 def _data(result):
-    """What the run answered, as it is written."""
-    node = getattr(result, "ok_value", None)
-    return None if node is None else viba_ast.unparse_type(node.data).replace("\n", " ")
+    """What the run answered, as it is written; None when it stopped."""
+    if not is_ok(result):
+        return None
+    return viba_ast.unparse_type(answer_of(result).data).replace("\n", " ")
 
 
 def _leaf(node):
@@ -45,7 +46,7 @@ def _leaf(node):
 
 def _written(result):
     """The same piece written back out as viba source."""
-    written = serialize.serialize("x", result.ok_value)
+    written = serialize.serialize("x", answer_of(result))
     return written.ok_value if isinstance(written, Ok) else written
 
 
@@ -62,62 +63,64 @@ def run():
 def _a_literal_is_a_value():
     """三个字面量都算成值：能数、能寻址、写得回去。"""
     got = _run("list")
-    check(isinstance(got, Ok) and _data(got) == "ListLiteral[1, 2]",
+    check(is_ok(got) and _data(got) == "ListLiteral[1, 2]",
           f"a list literal is the list it writes: {got!r}")
-    check(got.ok_value.is_list and len(got.ok_value) == 2,
+    check(is_ok(got) and answer_of(got).is_list and len(answer_of(got)) == 2,
           f"and it is a list of two: {got!r}")
-    check(_leaf(got.ok_value.at_index(1)) == 2,
+    check(_leaf(answer_of(got).at_index(1)) == 2,
           f"whose second element is the second literal")
     check(_written(got) == 'x =\n  ListLiteral[1, 2]\n',
           f"and it is written back the way it was written: {_written(got)!r}")
 
     empty = _run("empty_list")
-    check(isinstance(empty, Ok) and empty.ok_value.is_list
-          and len(empty.ok_value) == 0 and _written(empty) == "x =\n  ListLiteral[]\n",
+    check(is_ok(empty) and answer_of(empty).is_list
+          and len(answer_of(empty)) == 0
+          and _written(empty) == "x =\n  ListLiteral[]\n",
           f"the empty list is a list of nothing: {empty!r}")
 
     a_set = _run("set")
-    check(isinstance(a_set, Ok) and a_set.ok_value.is_set
-          and _leaf(a_set.ok_value.at_index(1)) == "b",
+    check(is_ok(a_set) and answer_of(a_set).is_set
+          and _leaf(answer_of(a_set).at_index(1)) == "b",
           f"a set literal is the set it writes: {a_set!r}")
 
     table = _run("dict")
-    check(isinstance(table, Ok) and table.ok_value.is_dict
-          and table.ok_value.keys() == ["k", "m"]
-          and _leaf(table.ok_value.at_key("m")) == 2,
+    check(is_ok(table) and answer_of(table).is_dict
+          and answer_of(table).keys() == ["k", "m"]
+          and _leaf(answer_of(table).at_key("m")) == 2,
           f"a dict literal is read by key: {table!r}")
     check(_written(table) == 'x =\n  DictLiteral[("k", 1), ("m", 2)]\n',
           f"and written back with its pairs: {_written(table)!r}")
 
     nothing = _run("empty_dict")
-    check(isinstance(nothing, Ok) and nothing.ok_value.is_dict
-          and nothing.ok_value.keys() == [],
+    check(is_ok(nothing) and answer_of(nothing).is_dict
+          and answer_of(nothing).keys() == [],
           f"the empty dict has no keys: {nothing!r}")
 
     deep = _run("nested")
-    inner = deep.ok_value.at_index(1)
-    check(isinstance(deep, Ok) and len(deep.ok_value) == 2
+    inner = answer_of(deep).at_index(1)
+    check(is_ok(deep) and len(answer_of(deep)) == 2
           and _leaf(inner.at_index(1)) == 3,
           f"a container holds containers: {deep!r}")
     check(_written(deep) == 'x =\n  ListLiteral[ListLiteral[1], ListLiteral[2, 3]]\n',
-          f"and the nesting is written back whole: {_written(deep)!r}")
+          f"and the nesting is written back member by member: {_written(deep)!r}")
 
     lists = _run("nested_dict")
-    check(isinstance(lists, Ok) and _leaf(lists.ok_value.at_key("b").at_index(0)) == 3,
+    check(is_ok(lists)
+          and _leaf(answer_of(lists).at_key("b").at_index(0)) == 3,
           f"a dict of lists reads all the way down: {lists!r}")
 
     mixed = _run("mixed")
-    check(_leaf(mixed.ok_value.at_index(0)) == 1
-          and _leaf(mixed.ok_value.at_index(1)) == "a",
+    check(_leaf(answer_of(mixed).at_index(0)) == 1
+          and _leaf(answer_of(mixed).at_index(1)) == "a",
           f"a list holds what it was written with, member by member: {mixed!r}")
 
 
 def _a_member_is_a_container():
     """积里那一格也是容器：数得出、寻得到、写得回去。"""
     got = _run("box")
-    check(isinstance(got, Ok) and _leaf(got.ok_value.by_tag("$y")) == 3,
+    check(is_ok(got) and _leaf(answer_of(got).by_tag("$y")) == 3,
           f"the product is the product it writes: {got!r}")
-    xs = got.ok_value.get_xs()
+    xs = answer_of(got).get_xs()
     check(xs.is_list and len(xs) == 2 and _leaf(xs.at_index(0)) == 1,
           f"and the list inside it is a list: {xs!r}")
     check(_written(got) == "x =\n  $xs ListLiteral[1, 2]\n  * $y 3\n",
@@ -153,9 +156,8 @@ def _what_getitem_refuses():
                        ("get_no_address", "an element is read by an address"),
                        ("get_non_container", "no such address")):
         got = _run(name)
-        error = error_of(got)
-        check(isinstance(error, VibaProgramErr) and want in error.msg,
-              f"{name}: expected a program error saying {want!r}, got {got!r}")
+        checks.labelled(got, want,
+                        f"{name}: expected a program error saying {want!r}")
 
 
 def _what_in_answers():
@@ -165,16 +167,15 @@ def _what_in_answers():
                        ("in_dict_value", False), ("in_nested", True),
                        ("in_partial", True)):
         got = _run(name)
-        check(isinstance(got, Ok) and value_of(got) is want,
+        check(is_ok(got) and value_of(got) is want,
               f"{name}: expected {want}, got {got!r}")
 
     for name, want in (("in_not_container", "asks about a list, a set, a tuple or a dict"),
                        ("in_dict_bad_key", "a dict holds keys"),
                        ("in_no_piece", "asked about a piece, and none was given")):
         got = _run(name)
-        error = error_of(got)
-        check(isinstance(error, VibaProgramErr) and want in error.msg,
-              f"{name}: expected a program error saying {want!r}, got {got!r}")
+        checks.labelled(got, want,
+                        f"{name}: expected a program error saying {want!r}")
 
 
 def _the_index_shorthand():
@@ -182,18 +183,16 @@ def _the_index_shorthand():
     for name, want in (("index_list", 20), ("index_dict", 8), ("index_member", 20),
                        ("index_element", 2)):
         got = _run(name)
-        check(isinstance(got, Ok) and value_of(got) == want,
+        check(is_ok(got) and value_of(got) == want,
               f"{name}: expected {want}, got {got!r}")
 
     out_of_range = _run("index_out_of_range")
-    error = error_of(out_of_range)
-    check(isinstance(error, VibaProgramErr) and "no such address" in error.msg,
-          f"index_out_of_range: expected a program error, got {out_of_range!r}")
+    checks.labelled(out_of_range, "no such address",
+                    "index_out_of_range: expected a program error")
 
     undefined = _run("index_undefined")
-    error = error_of(undefined)
-    check(isinstance(error, VibaProgramErr) and "no definition named 'Nope'" in error.msg,
-          f"a name no generic answers to is read as a value: {undefined!r}")
+    checks.labelled(undefined, "no definition named 'Nope'",
+                    "a name no generic answers to is read as a value")
 
 
 def _a_container_travels():

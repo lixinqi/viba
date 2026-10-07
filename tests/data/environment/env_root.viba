@@ -1,8 +1,10 @@
-# `$get_root << args.env`：这一层那条链的根（顶上那一个），用 tag 写在链头
+# `$get_root << args.env`：这一层那条链的根（顶上那一个），用 tag 写在链头。
+# 根是一份环境，不是值，所以把它交给一个宿主实现的步骤，由那一步报出它跑在哪条数据路径上。
 __decl__ =
-    Any
+    int
   <- $env Env
 
 args = __get_args__ << __decl__
 
-__impl__ = $get_root << args.env
+import tmp_lib as lib
+__impl__ = lib << ($get_root << args.env)

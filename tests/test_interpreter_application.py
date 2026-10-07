@@ -14,13 +14,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import (error_of, full_name_of, message_of,
-                                  module_of, module_path_of, Checks, Host, value_of)
+from interpreter_support import (full_name_of, module_of, module_path_of,
+                                  stop_text, Checks, Host, is_ok, value_of)
 
 from viba.reflect import access as reflect_access
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import VibaProgramErr, Ok
 
 checks = Checks("interpreter_application")
 check = checks.check
@@ -37,7 +36,7 @@ def run(tmp: Path):
     _long_chain(tmp)
 
 
-# (文件, 该跑出什么)：want 为 None 表示 Ok。
+# (文件, 该跑出什么)：want 为 None 表示跑出一个值。
 ARGUMENT_CASES = [
     ("all_given", None, "all three given"),
     ("one_short", "was given 2 of its 3 arguments", "one argument short (the environment is in)"),
@@ -61,11 +60,11 @@ def _arguments(tmp: Path):
         labelled(interpret(str(CASES / f"{name}.viba"), environ), want, label)
 
     result = interpret(str(CASES / "two_steps.viba"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 42,
+    check(is_ok(result) and value_of(result) == 42,
           f"a partially applied function kept in a definition: {result!r}")
 
     result = interpret(str(CASES / "positional.viba"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 42,
+    check(is_ok(result) and value_of(result) == 42,
           f"arguments written without tags bind in order: {result!r}")
 
 
@@ -75,7 +74,7 @@ def _order_and_slots(tmp: Path):
     environ = host.environ()
 
     result = interpret(str(CASES / "out_of_order.viba"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 3,
+    check(is_ok(result) and value_of(result) == 3,
           f"tags may be given in any order: {result!r}")
 
     labelled(interpret(str(CASES / "no_slots.viba"), environ),
@@ -86,15 +85,15 @@ def _order_and_slots(tmp: Path):
     host.calls.clear()
     exploded = interpret(str(CASES / "argument_boom.viba"), environ)
     checks.failed(exploded, "raised", "an argument that blows up")
-    check(error_of(exploded).module_path == module_path_of(CASES / "argument_boom")
-          and error_of(exploded).full_qualified_func_name ==
+    check(stop_text(exploded, "$module_path") == module_path_of(CASES / "argument_boom")
+          and stop_text(exploded, "$full_qualified_func_name") ==
           full_name_of(CASES / "argument_boom", "explode"),
           f"the step that stopped is the argument's, not the call's: {exploded!r}")
     check((module_of(CASES / "argument_boom"), "add") not in host.calls,
           f"the call itself never happens: {host.calls}")
 
 
-# (文件, 该跑出什么)：want 为 None 表示 Ok。
+# (文件, 该跑出什么)：want 为 None 表示跑出一个值。
 SLOT_CASES = [
     ("slot_0", "does not fit $a int", "a string in an int slot"),
     ("slot_1", "does not fit $b int", "and in the second slot"),
@@ -138,7 +137,7 @@ def _lazy_argument_types(tmp: Path):
     labelled(interpret(str(CASES / "lazy_asked.viba"), host), "does not fit int",
              "a function-typed slot is checked when the host asks")
     result = interpret(str(CASES / "lazy_ignored.viba"), host)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"and an argument nobody asks for is never checked: {result!r}")
 
 
@@ -155,7 +154,7 @@ def _long_chain(tmp: Path):
     host.get_func = summing
     environ = Environment(EnvironmentStorage("root"), EnvironmentCompute(host.get_func))
     result = interpret(str(CASES / "long_chain.viba"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 210,
+    check(is_ok(result) and value_of(result) == 210,
           f"a twenty-argument chain: {result!r}")
 
 

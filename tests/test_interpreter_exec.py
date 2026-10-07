@@ -16,13 +16,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, Checks, Host, value_of
+from interpreter_support import (Checks, Host, is_ok, message_of, stop_node,
+                                  stop_tag, stop_text, value_of)
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             exec, interpret, viba_data)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import (AstNodeType, Ok, UnderlyingOpErr, VibaProgramErr,
+from viba.type import (AstNodeType, NOT_IMPLEMENTED_TAG, PROGRAM_ERR_TAG,
                        custom_module)
 from viba.viba_type_descriptor import descriptor_of
 
@@ -59,7 +60,7 @@ def _the_code_runs():
     """写出来的代码就是主模块：跑出它的 `__impl__`。"""
     host = Host()
     result = exec(ADD, host.environ())
-    check(isinstance(result, Ok) and value_of(result) == 3,
+    check(is_ok(result) and value_of(result) == 3,
           f"the code written out runs: {result!r}")
     check(("<viba_code>", "add") in host.calls,
           f"the code module is known by the label it was compiled under: {host.calls}")
@@ -84,21 +85,21 @@ def _a_node_is_a_module_too():
     """
     host = Host(missing=("add",))
     stopped = exec(ADD, host.environ())
-    error = error_of(stopped)
-    check(isinstance(error, UnderlyingOpErr)
-          and error.full_qualified_func_name == "<viba_code>.add",
-          f"the step that is missing is the one the error names: {stopped!r}")
+    check(stop_tag(stopped) == NOT_IMPLEMENTED_TAG
+          and stop_text(stopped, "$full_qualified_func_name") == "<viba_code>.add",
+          f"the step that is missing is the one the stop names: {stopped!r}")
+    call = stop_node(stopped, "$call")
 
     # 实现还没补上：给环境就是执行它，所以这次运行照样停在同一个名字上，
     # 而不是像一份写出来的模块那样把这个调用当值交回（那份 `closure.viba` 钉的是后者）。
-    still = error_of(exec(error.call, host.environ()))
-    check(isinstance(still, UnderlyingOpErr)
-          and still.full_qualified_func_name == "<viba_code>.add",
+    still = exec(call, host.environ())
+    check(stop_tag(still) == NOT_IMPLEMENTED_TAG
+          and stop_text(still, "$full_qualified_func_name") == "<viba_code>.add",
           f"handed a node, the call is run, not answered as a value: {still!r}")
 
     host.knobs["missing"] = ()              # 同一个宿主：实现表每次读，这次它有 add 了
-    again = exec(error.call, host.environ())
-    check(isinstance(again, Ok) and value_of(again) == 3,
+    again = exec(call, host.environ())
+    check(is_ok(again) and value_of(again) == 3,
           f"with the step implemented, the call the error carried runs: {again!r}")
 
     # 一份模块树也是如此：同一个模块，文本和节点两条路答案一样。
@@ -111,8 +112,8 @@ def _a_node_is_a_module_too():
           f"a module tree handed as a node runs like the text it was parsed from")
 
     # 不是模块树的一份数据就是那个模块的 `__impl__`：读名字仍在这个没有名字的模块里解析。
-    check("in module ''" in getattr(
-        error_of(exec(viba_data(viba_ast.TypeRef("nope")), host.environ())), "msg", ""),
+    check("in module ''" in message_of(
+        exec(viba_data(viba_ast.TypeRef("nope")), host.environ())),
         "a node that is no module is that module's `__impl__`, with no name of its own")
 
 
@@ -124,16 +125,17 @@ def _no_name_and_no_file():
                    "ghost =\n\tint\n\t<- $env Env\n"
                    "\t<- { nothing implements this }\n"
                    "__impl__ = ghost << $env args.env\n", host.environ())
-    error = error_of(stopped)
-    check(error.full_qualified_func_name == "<viba_code>.ghost",
+    check(stop_tag(stopped) == NOT_IMPLEMENTED_TAG
+          and stop_text(stopped, "$full_qualified_func_name") == "<viba_code>.ghost",
           f"the step is the one that stopped: {stopped!r}")
     # 名字解析不了是程序错，而 `$stack` 只在程序错那一支上：那一帧就是这份代码
-    named = error_of(exec("__impl__ = nope", host.environ()))
-    check(isinstance(named, VibaProgramErr) and "in module ''" in named.msg,
+    named = exec("__impl__ = nope", host.environ())
+    check(stop_tag(named) == PROGRAM_ERR_TAG and "in module ''" in message_of(named),
           f"the module has no name to report either: {named!r}")
-    check(len(named.stack) == 1 and named.stack[0].file_path == ""
-          and named.stack[0].lineno == 0,
-          f"and the outermost frame has no file: {named.stack!r}")
+    stack = stop_node(named, "$stack")
+    check(len(stack) == 1 and stack[0].by_tag("$file_path").leaf == ""
+          and stack[0].by_tag("$lineno").leaf == 0,
+          f"and the outermost frame has no file: {stack!r}")
 
 
 def _imports_come_from_the_search_path(tmp: Path):
@@ -147,37 +149,38 @@ def _imports_come_from_the_search_path(tmp: Path):
     code = ("__decl__ =\n    int\n  <- $env Env\n\nargs = __get_args__ << __decl__\n\n"
             "import helper\n\n__impl__ = helper << (args.env.tmp_env << args.env)\n")
     found = exec(code, Host().environ(viba_path=str(place)))
-    check(isinstance(found, Ok) and value_of(found) == 42,
+    check(is_ok(found) and value_of(found) == 42,
           f"an import is looked up on the search path: {found!r}")
     missing = exec(code, Host().environ(viba_path=str(tmp)))
-    check("not found" in getattr(error_of(missing), "msg", ""),
+    check("not found" in message_of(missing),
           f"and nowhere else — there is no directory beside the code: {missing!r}")
 
 
 def _what_it_refuses():
     """环境、`get_file`、`list_files` 和第一份本身：说法和 `interpret` 那套一样。"""
     host = Host()
-    check("needs an Environment" in getattr(error_of(exec(ADD, "nope")), "msg", ""),
+    check("needs an Environment" in message_of(exec(ADD, "nope")),
           "an environment is an environment")
     check("get_file is a function" in
-          getattr(error_of(exec(ADD, host.environ(), get_file=7)), "msg", ""),
+          message_of(exec(ADD, host.environ(), get_file=7)),
           "get_file is a function or None")
     check("list_files is a function" in
-          getattr(error_of(exec(ADD, host.environ(), list_files=7)), "msg", ""),
+          message_of(exec(ADD, host.environ(), list_files=7)),
           "list_files is a function or None")
     check("exec needs a module" in
-          getattr(error_of(exec(7, host.environ())), "msg", ""),
+          message_of(exec(7, host.environ())),
           "the module comes as its text or as a node, nothing else")
 
     # 编不过：报的是程序错，说的名字是那份代码的标签
-    bad = error_of(exec("__impl__ = )(", host.environ()))
-    check(isinstance(bad, VibaProgramErr) and "cannot parse <viba_code>" in bad.msg,
+    bad = exec("__impl__ = )(", host.environ())
+    check(stop_tag(bad) == PROGRAM_ERR_TAG
+          and "cannot parse <viba_code>" in message_of(bad),
           f"code that does not compile names the label it was compiled as: {bad!r}")
 
     # 没有 storage 的环境：什么环境上的 api 都不碰时照样跑得起来
     headless = Environment(None, EnvironmentCompute(host.get_func))
     plain = exec("__impl__ = 7", headless)
-    check(isinstance(plain, Ok) and value_of(plain) == 7,
+    check(is_ok(plain) and value_of(plain) == 7,
           f"an environment with no storage still runs code that needs nothing: {plain!r}")
 
 

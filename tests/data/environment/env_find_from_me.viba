@@ -1,8 +1,10 @@
-# root 写 nil：从读到这个成员的那个环境往下找 —— 这里就是 args.env 自己
+# root 写 nil：从读到这个成员的那个环境往下找 —— 这里就是 args.env 自己。
+# 找到的是一份环境，不是值，交给一个宿主实现的步骤，由那一步报出它的数据路径。
 __decl__ =
-    Any
+    int
   <- $env Env
 
 args = __get_args__ << __decl__
 
-__impl__ = args.env.find_by_relative_path << "x" << nil
+import tmp_lib as lib
+__impl__ = lib << (args.env.find_by_relative_path << "x" << nil)

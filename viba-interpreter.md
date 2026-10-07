@@ -8,56 +8,25 @@
 同一份语法，两种模式。跑的时候，模块**就是函数**：`__decl__` 是它的签名，输入是环境与实参，
 输出是 `__impl__`。
 
-它的签名（viba 一型）——它用到的名字都在这一块里定义了，`Environment` 与 `VibaNode` 除外（前者在
-「宿主侧：Environment」，后者在 [`viba-reflect.md`](viba-reflect.md)）：
+它回答的就是声明里那个 `InterpretResult`，**一份 viba 数据**（一个节点）：`$ok` 那一支带这次执行
+算出来的值，`$err` 那一支带它为什么停下。声明写在 [`viba/interpret_result.viba`](viba/interpret_result.viba)
+里 —— 那份文件就是这个类型的定义，`interpret` 与 `exec` 的回答按它读、按它判
+（`viba/interpret.py` 的 `is_interpret_result` 用 `is_sub_type` 判它，所以"回答到底符不符合这个定义"
+本身是可查的）。它用到的名字里，`Environment` 与 `VibaNode` 不在定义里（前者在「宿主侧：Environment」，
+后者在 [`viba-reflect.md`](viba-reflect.md)）：
+
+它的签名（viba 一型）：
 
 ```viba
 interpret =
     InterpretResult
   <- $viba_main_file str
   <- $environ Environment
-
-InterpretResult =
-    Oneof
-  | $ok VibaNode
-  | $err InterpretError
-
-InterpretError =
-    Oneof
-  | $viba_program_err ProgramErr           # 关于程序或环境，不指某一步
-  | $underlying_viba_op_err UnderlyingOpErr   # 某一步坏了
-  | $not_implemented_err UnderlyingOpErr             # 某一步没有实现
-  | $environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr   # 环境上的 api 收不下给它的东西
-
-ProgramErr =
-    Object
-  * $msg str                               # 一句话
-  * $stack Stack                           # 这次执行走到哪儿
-
-Stack =
-    list[Frame]
-
-Frame =
-    Object
-  * $file_path str                         # 调用写在哪个 .viba 文件里
-  * $lineno int                            # 写在哪一行
-
-UnderlyingOpErr =
-    Object
-  * $msg str                               # 一句话，开头就是原因
-  * $module_path str                       # 这一步声明在哪个模块（读成路径）
-  * $full_qualified_func_name str          # 这一步的整名（模块 + 它在那儿叫的名字）
-  * $call (Any <- $env Env)                # 这次调用本身，可执行的写法，环境不在里面
-
-EnvironmentApiInvalidArgumentErr =
-    Object
-  * $msg str                               # 一句话，开头就是原因
-  * $api_name str                          # 哪一个 api：`Environment.sub_env`
-  * $args Any                              # 给它的实参，环境不在里面
 ```
 
-Python 侧写 `interpret(viba_main_file, environ)`；`InterpretResult`（Python 侧 `viba.type.InterpretResult`）
-`$err` 那一支是 `InterpretError`：这次执行是怎么停下的，四种停法都在里面，改一个种类，调用方按种类分的支就变了。
+Python 侧写 `interpret(viba_main_file, environ)`，回来的是一个 `VibaNode`：`$ok` 是这次执行算出来的值，
+`$err` 是这次执行是怎么停下的。声明本身（`InterpretResult`、`InterpretError`、四种停法各自的那些字段）
+写在 [`viba/interpret_result.viba`](viba/interpret_result.viba)，读它就是读那份文件。
 
 要跑的模块**写在手里**、不从文件读时，用 `exec`：参数形式和 `interpret` 一样（环境、`get_file`、`list_files`），
 只是第一份不是文件路径，而是那份模块本身 —— 它的文本，或者已经写着它的那份 viba 数据。
@@ -73,8 +42,9 @@ exec =
   和 `interpret` 同一套规矩。
 - `viba_code` 是**一个节点**时，不用写成文本再读回来：那份数据写着模块，`Module` 就是那个模块（`__decl__`、
   `__impl__` 照旧）；不是 `Module` 的一份数据就是这次主模块的 `__impl__`，而**这次运行给它环境** ——
-  `$call` 是闭包（类型 `Any <- $env Env`），给环境就是执行它，所以 `exec(error.call, environ)` 就是
-  「把这次调用再做一遍」，中间没有文本（`tests/test_interpreter_roundtrip.py` 里那条 `as_node` 的路）。
+  `$call` 是一份写着这次调用的数据（名是数据，判定层读这种链就读成 `Any`），给它一个环境就是执行它，
+  所以把 `$call` 那一格交给 `exec` 就是「把这次调用再做一遍」，中间没有文本
+  （`tests/test_interpreter_roundtrip.py` 里那条 `as_node` 的路）。
 - **主模块没有文件、也没有名字**：`import` 只按环境的搜索路径找（它旁边没有目录可以找），`$stack` 最外那一帧
   的 `$file_path` 是空串，解析不了的名字报的是 `in module ''`，文本编不过时说 `<viba_code>`（那份文本编译时
   用的就是这个名字）。它也不绑名字：写出来的模块不是谁 import 得到的文件。
@@ -483,15 +453,16 @@ content)`（在 store root 底下的纯文本读写，读不到返回 `None`）�
 `store_root_dir`。
 
 `get_func(module_path, func_name)` 返回一个可调用对象；没有就返回 `None`，于是这一次调用没有实现
-（结果里 `$msg` 是 `no implementation`，见最后一节）——它也可以自己抛 `UnderlyingOpErr`，
-直接说它没有实现；它抛别的异常，run 也照这一支作答，`$msg` 开头是 `get_func raised`。
+（结果里 `$msg` 是 `no implementation`，见最后一节）——它也可以**交回那份"没有实现"的数据**
+（`viba.interpret.not_implemented()`，见最后一节），这一步的实现自己交回它也一样。它抛异常，run 也照这一支
+作答，`$msg` 开头是 `get_func raised`。
 `module_path` 是**这一步声明在哪个模块**，写法就是它在 viba 里被 import 的那个名字：`import foo.bar`
 （或者 `import foo.bar as foo_bar`）里的 `foo.bar`；就地声明的步骤说的是 `interpret` 跑的那份模块
 （一份文件按它的名字，`exec` 那份代码按 `<viba_code>`）。`func_name` 是这一步**在那个模块里的名字**：
 `foo.bar.b_scale << …` 问的是 `get_func("foo.bar", "b_scale")`，`foo_bar.b_scale << …` 问的是同一次。
 
 内建词汇是一个模块（`builtin`），它的成员是那儿的名字：`builtin.add << …` 与裸写的 `add << …`
-问的都是 `get_func("builtin", "add")` —— 两个写法是一次调用。宿主按 `module_path` 路由，
+问的都是 `get_func("builtin", "add")` —— 两个写法是一次调用。宿主按那两个名字找实现，
 两个服务各有一份 `b_scale` 时，`foo.bar` 说的是哪一份。
 
 结果里 `UnderlyingOpErr` 的头两个字段是这一步的**整名**与它那个模块的**路径**：`$module_path` 是
@@ -923,8 +894,8 @@ __dyn_method__ =
   就是 `$foo << bar << 实参…` —— 那份值当成员的第一个实参，环境是这次调用的规矩。成员自己是一份值时
   （`uncompress_relative_path` 那种）取出来就是这个值；值就是环境时（`args.env.tmp_env` 那种），
   取的是那个环境自己的那一个。
-- **不带环境就是闭包**：`__dyn_call__ << "add" << $a 1` 是一个值，类型 `Any <- $env Env`；给它一个环境就执行，
-  和别的没给环境的调用一样。
+- **不带环境就是闭包**：`__dyn_call__ << "add" << $a 1` 是一个值 —— 判定层读它读成 `Any`，因为名是数据、
+  没有名字可展开；给它一个环境就执行，和别的没给环境的调用一样。
 - **`$call` 用的就是这两种写法**（见「一次执行会得到什么」）：名字是字符串数据，环境剔掉 —— 链上写了环境的那一处也剔掉，
   剩下的就是那个闭包。**一份数据里凡是调用，都按这两种写法写**：给宿主的数据里写着调用的那一处不写名字，写
   那个调用本身。成员那一支正是这样：`$f << box << args.env << 1` 写成
@@ -939,32 +910,47 @@ __dyn_method__ =
 
 ## 一次执行会得到什么
 
-`interpret` 返回的 `InterpretResult` 只有两支：`$ok VibaNode` 是值，`$err InterpretError` 是这次执行
-停下的方式。停下的方式有四种：
+`interpret` 与 `exec` 回答的是**一份 viba 数据**：声明里那个 `InterpretResult` 的一个节点
+（定义在 [`viba/interpret_result.viba`](viba/interpret_result.viba)）。它只有两支：`$ok` 是这次执行算出来的
+值，`$err` 是它停下的方式。按数据读它就行 —— 两支各有自己的 tag，停下来之后那一支再按 tag 往下读一层：
 
-- `$viba_program_err ProgramErr`（Python 侧 `VibaProgramErr`）：**这一份程序或环境不行** —— 编不过、
-  文件不在、没有 `__impl__`、`$env` 没给……它不说"哪一步"，所以不带步名；`$msg` 一句话说是什么事，
-  `$stack` 是这次执行走过的调用链（见下）；
-- `$underlying_viba_op_err UnderlyingOpErr`（Python 侧 `UnderlyingOpErr`）：**这一步坏了** —— 它的实现抛了、
-  给出了没有叶子的东西，或者 `get_func` 自己坏了；
+```viba
+answer = interpret("demo.viba", environ)
+answer.by_tag("$ok")                      # 值那一支（就是 __impl__ 的答案）
+answer.by_tag("$err")                     # 停下那一支
+answer.by_tag("$err").by_tag("$not_implemented_err")
+                                          # 哪一种停法，再往下就是它的字段
+```
+
+`viba/interpret.py` 的 `is_interpret_result` 用 `is_sub_type` 拿同一个定义判这份数据，所以"这个回答是不是
+一个 `InterpretResult`"是能查的；声明改了而回答没跟着改，当场就是 `False`。
+
+停下的方式有四种：
+
+- `$viba_program_err ProgramErr`：**这一份程序或环境不行** —— 编不过、文件不在、没有 `__impl__`、
+  `$env` 没给……它不说"哪一步"，所以不带步名；`$msg` 一句话说是什么事，`$stack` 是这次执行走过的调用链（见下）；
+- `$underlying_viba_op_err UnderlyingOpErr`：**这一步坏了** —— 它的实现抛了、给出了没有叶子的东西，
+  或者 `get_func` 自己坏了；
 - `$not_implemented_err UnderlyingOpErr`：**这一步没有实现** —— `get_func` 那里没有它（`get_func` 返回 `None`，
-  或者自己抛出这一支说自己没有实现）。这不是失败：`interpret` 不带库函数，所以"没有实现"很正常。
-- `$environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr`（Python 侧
-  `EnvironmentApiInvalidArgumentErr`）：**环境上的一个 api 收不下给它的东西** —— `Environment` 的成员
-  （`sub_env`、`tmp_env`、`get_relative_path`……），或者宿主挂在环境上的那些，把这次调用退回来了：
-  给的根不是它的祖先、路径里带 `.` 或 `..`、那个环境底下没有 storage……它是 viba 自己这一侧的活：
-  `get_func` 从来没有被问过它们，所以这不是"某一步失败了"，也不带步名。
+  或者交回了这一支）。这不是失败：`interpret` 不带库函数，所以"没有实现"很正常。
+- `$environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr`：**环境上的一个 api 收不下给它的
+  东西** —— `Environment` 的成员（`sub_env`、`tmp_env`、`get_relative_path`……），或者宿主挂在环境上的那些，
+  把这次调用退回来了：给的根不是它的祖先、路径里带 `.` 或 `..`、那个环境底下没有 storage……它是 viba 自己
+  这一侧的活：`get_func` 从来没有被问过它们，所以这不是"某一步失败了"，也不带步名。
 
-后两支的载荷是**同一个 `UnderlyingOpErr`**，靠 tag 分开 —— 调用方按 tag 分，不必读那句话。`$msg` 一句话说清是
-什么事，**开头就是原因**：`no implementation`（`get_func` 给了 `None`）、`refused`（`get_func` 自己抛出了
-它，后面跟着它自己的说法）、`get_func raised`（`get_func` 自己坏了）、`raised`（实现抛了）、`no leaf`
-（实现给出了没有叶子的东西）。
+后两支的字段是**同一个 `UnderlyingOpErr`**，靠 tag 分开 —— 调用方按 tag 分，不必读那句话。`$msg` 一句话说清是
+什么事，**开头就是原因**：`no implementation`（`get_func` 给了 `None`）、`get_func raised`（`get_func` 自己坏了）、
+`raised`（实现抛了，它自己没说为什么时就是这个词）、`no leaf`（实现给出了没有叶子的东西）。
 
 `EnvironmentApiInvalidArgumentErr` 的 `$api_name` 是**哪一个 api**，写成它定义里那个名字：
 `Environment.sub_env`（[`viba/builtin.viba`](viba/builtin.viba) 里 `Environment` 的成员就是这几个）；
 `$args` 是**给它的实参**，能写成数据的那几份，按写的次序，环境不在里面（它是那个 api 自己的值）——
 所以 `sub_env << "kid"` 记的就是 `"kid"`，只收环境的 `tmp_env` 记的是 `nil`。它的 `$msg` 也开头就是原因：
 `raised`（那个 api 收不下，抛了）。
+
+一次执行回答的必须是数据，所以**环境不是答案**：环境是这次调用的规则，不是值，一个模块的 `__impl__` 写成
+`args.env` 时，这次执行停下，报的就是上面第一种（`the run answered the environment`），与写在文件里的一条链被判定层拦下时
+是同一个道理（[`viba/partial.py`](viba/partial.py)）。
 
 `$stack` 是这次执行停下的**调用链**，最外一帧在前：一帧就是一次调用点 —— 调用写在哪个 `.viba` 文件里
 （`$file_path`）、写在哪一行（`$lineno`）。最外那一帧是主文件本身，它不是被谁调用的，行号写 0。
@@ -982,21 +968,41 @@ __dyn_method__ =
 `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1` —— 环境那一处剔掉了，那份值里
 `$f` 这一格是调用 `inc`，就按能跑的形式写（上一节）。同一个规矩也在函数类型的实参上：`$f inc` 写成
 `$f (__dyn_call__ << "inc")`。
-环境不在里面：给出环境就是执行这次调用，它不是这次调用的数据，另一次运行自己造。所以写出来它是一份
-**闭包**（类型 `Any <- $env Env`）：把它当数据交给一次运行、让那次运行给它一个环境
+环境不在里面：给出环境就是执行这次调用，它不是这次调用的数据，另一次运行自己造。声明里这一格写的是
+`Any`：名是数据，判定层读这种链就读成 `Any`（没有名字可展开，[`viba/partial.py`](viba/partial.py) 的
+`reduce_partial`），所以它就是这个类型。把它当数据交给一次运行、让那次运行给它一个环境
 （`held = hold << $env args.env`，再 `held << args.env`），这次调用就跑起来了；也可以把它用
 `serialize` 写成 viba 源代码（`call = __dyn_call__ << "add" << $a 1`）再跑，或者把它**直接当节点**
-交给 `exec`（`exec(error.call, environ)`：它本来就是节点，不用写出来读回去）。实参里是函数、是闭包也一样，
-它们本来就是可序列化的 —— 照着它就能把这次调用重新做一遍，不必重跑一次运行，也不必让写它的那个模块
-在场（上一节）。这三条路都钉在用例里
+交给 `exec`（把停下来那一支里的 `$call` 那一格交给它：它本来就是节点，不用写出来读回去）。实参里是函数、
+是闭包也一样，它们本来就是可序列化的 —— 照着它就能把这次调用重新做一遍，不必重跑一次运行，也不必让写它的
+那个模块在场（上一节）。这三条路都钉在用例里
 （[`tests/test_interpreter_roundtrip.py`](tests/test_interpreter_roundtrip.py)：二十七份，先缺一步、
 补上、把 `$call` 跑一遍，含同一个名字在两条数据路径上、以及一轮一轮补下去的那种）。
 
-这四种停法都会一路穿回调用方，而且**原样上传、不被改写**：被调用的模块里那一步没实现，带回来的
-那一步是**里面那一次调用**（`root/模块名` 下的那个定义），不是外面那一层；穿过运行、再交给宿主的可
-调用对象时也一样。`get_func` 自己抛出它时，run 会把缺的补上：步名与 `$call` 用它知道的这次调用，
-`$msg` 留着宿主自己说的（没说就是 `refused`）。环境上的 api 那次也一样：坏的是里面那一个 api，
-带回来的就是它，不是外面那一层。
+这四种停法都会一路穿回调用方，而且**带回来的那一步是里面那一次调用、不是外面那一层**：被调用的模块里
+那一步没实现，带回来的就是那个定义（`root/模块名` 下那个），穿过运行、再交给宿主的可调用对象时也一样。
+
+宿主自己要说这句话时，**交回那份数据**，不抛异常：`get_func` 在本来该回答 `None` 的地方交回它，
+这一步的实现在本来该回答一个值的地方交回它。`viba.interpret.not_implemented(...)` 写的就是这份数据
+（`$not_implemented_err (...)`，字段都在，留空也行）：
+
+```python
+from viba.interpret import not_implemented
+
+def get_func(module_path, func_name):
+    if (module_path, func_name) == ("service_b", "b_scale"):
+        return not_implemented()               # 这一步没有实现，别的不写
+    if (module_path, func_name) == ("service_b", "b_scale2"):
+        return lambda env, x: not_implemented("no b_scale2 here")
+    return None                                # 这个模块别的步骤也没有实现
+```
+
+它已经写出来的东西（步名、`$call`、`$msg`、tag）一律留着，缺的由 run 用它知道的这次调用补上
+（留空不是错：步名与 `$call` 照补，`$msg` 按 tag 给 —— `$not_implemented_err` 时是 `no implementation`，
+`$underlying_viba_op_err` 时是 `raised`）。所以 `not_implemented()` 一个字段都不写也一样，`$call` 不会是空的。
+实现抛 Python 异常仍然算"实现坏了"（`$msg` 开头 `raised:`），`get_func` 抛算"`get_func` 坏了"
+（`get_func raised:`）—— 那两句话说的是这层代码自己出了事，不是"这一步没有实现"。
+环境上的 api 那次也一样：坏的是里面那一个 api，带回来的就是它，不是外面那一层。
 
 `$viba_program_err` 的 `$msg` 长这样：
 
@@ -1011,6 +1017,7 @@ module 'm' has no __impl__: ...        类型，不是程序
 module 'x' ... same arguments         同一个模块带着同一份实参又在跑（没有进展）
 ... storage path ... already used     两个模块挤同一条数据路径
 ... is a function still waiting ...   __impl__ 不是值
+the run answered the environment ...   __impl__ 回答的是环境，而环境不是值
 ... was given no Environment to run in  __dyn_call__ 拿到环境才能跑
 ... was given no name to call         __dyn_call__ 没拿到名字
 ... was given no value ...            __dyn_method__ 没拿到取值的那份值
@@ -1023,10 +1030,10 @@ viba_path is a string ...             viba_path 给错了类型
 每种原因都在开头那一个词上：
 
 ```
-no implementation                      `get_func` 给了 `None`
-refused ...                            `get_func` 自己抛出了它，后面是它自己的说法
+no implementation                      `get_func` 给了 `None`，或者宿主交回这一支时没写话
 get_func raised: get_func('root', 'add') raised ...    `get_func` 自己坏了
 raised: add raised ZeroDivisionError(...)   实现抛了
+raised                                实现自己交回这一支时没说为什么
 no leaf: add answered list, ...        实现给出了没有叶子的东西
 ```
 

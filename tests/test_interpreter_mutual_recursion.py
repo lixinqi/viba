@@ -15,16 +15,16 @@
 
 每条说该跑出什么：
 
-    value     Ok，叶子是这个值
+    value     $ok，叶子是这个值
     cycle     跨文件绕回去：`left.x -> right.y -> left.x: the run came back to where it started`
     in-file   一份文件里的定义绕回自己
     running   模块调用成环：`module 'left_x' is already running: a module call cycle`
-    closure   Ok，给出的是一个还没给环境的调用
-    never     Ok，结果是 never
-    sum       Ok，结果是几支并起来的和
-    product   Ok，结果是积
-    name      Ok，结果是写下来的那个名字
-    error     VibaProgramErr，话里含这个片段
+    closure   $ok，给出的是一个还没给环境的调用
+    never     $ok，结果是 never
+    sum       $ok，结果是几支并起来的和
+    product   $ok，结果是积
+    name      $ok，结果是写下来的那个名字
+    error     $viba_program_err，话里含这个片段
 """
 
 import sys
@@ -36,12 +36,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import error_of, message_of, Checks
+from interpreter_support import answer_of, Checks, is_ok, message_of, stop_tag
 
 from viba import viba_ast
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.reflect import VibaNode, access as reflect_access
-from viba.type import Ok, UnderlyingOpErr, VibaProgramErr
+from viba.reflect import access as reflect_access
+from viba.type import Ok, PROGRAM_ERR_TAG
 
 checks = Checks("interpreter_mutual_recursion")
 check = checks.check
@@ -187,16 +187,14 @@ CASES_TO_RUN = [
 
 def _leaf(result):
     """The leaf a run answered, or None when the answer is not a leaf."""
-    if not isinstance(result, Ok) or not isinstance(result.ok_value, VibaNode):
+    if not is_ok(result):
         return None
-    leaf = reflect_access.leaf(result.ok_value)
+    leaf = reflect_access.leaf(answer_of(result))
     return leaf.ok_value if isinstance(leaf, Ok) else None
 
 
 def _data(result):
-    if isinstance(result, Ok) and isinstance(result.ok_value, VibaNode):
-        return result.ok_value.data
-    return None
+    return answer_of(result).data if is_ok(result) else None
 
 
 def run(tmp: Path):
@@ -208,18 +206,18 @@ def run(tmp: Path):
               f"the case is a pair of files: {program.name} + {helper.name}")
         result = interpret(str(program), environ_for(tmp / f"store-{index}"))
         if kind == "value":
-            check(isinstance(result, Ok) and _leaf(result) == want,
+            check(is_ok(result) and _leaf(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
         elif kind == "cycle":
-            check(isinstance(error_of(result), VibaProgramErr)
+            check(stop_tag(result) == PROGRAM_ERR_TAG
                   and "came back to where it started" in message_of(result),
                   f"{name}: expected the cross-file cycle report, got {result!r}")
         elif kind == "in-file":
-            check(isinstance(error_of(result), VibaProgramErr)
+            check(stop_tag(result) == PROGRAM_ERR_TAG
                   and "one file's definitions may not go round" in message_of(result),
                   f"{name}: expected the in-file cycle report, got {result!r}")
         elif kind == "running":
-            check(isinstance(error_of(result), VibaProgramErr)
+            check(stop_tag(result) == PROGRAM_ERR_TAG
                   and "already running" in message_of(result),
                   f"{name}: expected the module-call cycle report, got {result!r}")
         elif kind == "closure":
@@ -239,13 +237,13 @@ def run(tmp: Path):
             check(isinstance(_data(result), viba_ast.TypeRef),
                   f"{name}: expected the written name, got {result!r}")
         elif kind == "error":
-            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
+            check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
                   f"{name}: expected an error saying {want!r}, got {result!r}")
 
     # 绕回去的那条路上,两个文件的名字都在话里
     result = interpret(str(CASES / "left_direct_cycle.viba"),
                        environ_for(tmp / "store-name"))
-    check(isinstance(error_of(result), VibaProgramErr)
+    check(stop_tag(result) == PROGRAM_ERR_TAG
           and "left_direct_cycle.x" in message_of(result)
           and "right_direct_cycle.y" in message_of(result),
           f"the cycle report names both files: {result!r}")

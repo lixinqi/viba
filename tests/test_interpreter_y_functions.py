@@ -44,11 +44,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import error_of, message_of, Checks, value_of
+from interpreter_support import Checks, is_ok, value_of
 
 from viba.interpret import (BUILTIN_DIR, Environment, EnvironmentCompute,
                             EnvironmentStorage, interpret)
-from viba.type import Ok
 
 checks = Checks("interpreter_y_functions")
 check = checks.check
@@ -132,14 +131,14 @@ def run(tmp: Path):
         check(step.is_file(), f"the step is a file: {step.name}")
         check(program.is_file(), f"the program is a file: {program.name}")
         result = interpret(str(program), environ_for(tmp / f"store-{index}"))
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"{name}: Y on that step answers {want!r}, got {result!r}")
 
     for index, (name, want) in enumerate(BASE_ENTRY):
         program = CASES / "main" / f"{name}.viba"
         check(program.is_file(), f"the program is a file: {program.name}")
         result = interpret(str(program), environ_for(tmp / f"base-{index}"))
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"{name}: entered at the base case it answers {want!r} without reading "
               f"the recursion, got {result!r}")
 

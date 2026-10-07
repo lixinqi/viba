@@ -1,0 +1,10 @@
+# 一个模块调用里停下：`$stack` 两帧，最外那帧是主文件。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import inner as inner
+
+__impl__ = inner << (args.env.sub_env << args.env << "inner")

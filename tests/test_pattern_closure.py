@@ -40,7 +40,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import message_of, error_of, Checks, Host, value_of
+from interpreter_support import (answer_of, message_of, error_of, is_ok,
+                                 Checks, Host, value_of)
 
 from viba import viba_ast
 from viba.interpret import interpret
@@ -423,7 +424,7 @@ def _the_runtime_answers():
     environ = Host().environ(viba_path=str(CASES))
     for name, want, label in RUNTIME_CASES:
         result = interpret(str(CASES / f"{name}.viba"), environ)
-        check(isinstance(result, Ok) and value_of(result) is want,
+        check(is_ok(result) and value_of(result) is want,
               f"{label} -> {want!r}: {result!r}")
 
 
@@ -432,9 +433,9 @@ def _what_was_extracted():
     environ = Host().environ(viba_path=str(CASES))
     for name, want, label in RUNTIME_EXTRACTED_CASES:
         result = interpret(str(CASES / f"{name}.viba"), environ)
-        got = (viba_ast.unparse_type(result.ok_value.data)
-               if isinstance(result, Ok) else repr(result))
-        check(isinstance(result, Ok) and got == want,
+        got = (viba_ast.unparse_type(answer_of(result).data)
+               if is_ok(result) else repr(result))
+        check(is_ok(result) and got == want,
               f"{label} -> {want!r}: {got!r}")
 
 

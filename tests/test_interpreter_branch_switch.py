@@ -18,13 +18,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import error_of, message_of, Checks, value_of
+from interpreter_support import answer_of, Checks, is_ok, message_of, stop_tag, value_of
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, viba_data)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import Ok, UnderlyingOpErr, VibaProgramErr
+from viba.type import FAILURE_TAG, PROGRAM_ERR_TAG
 
 checks = Checks("interpreter_branch_switch")
 check = checks.check
@@ -136,10 +136,10 @@ def environ_for(store, calls):
 
 
 # (文件, 该跑出什么)：
-#   ("value", 叶子)     Ok，且叶子是这个值
-#   ("error", 片段)     VibaProgramErr，话里含这个片段
+#   ("value", 叶子)     $ok 那一支，且叶子是这个值
+#   ("error", 片段)     $viba_program_err，话里含这个片段
 #   ("not_implemented", None)  没有实现：宿主没实现那一步
-#   ("fail", 片段)      UnderlyingOpErr，话里含这个片段
+#   ("fail", 片段)      $underlying_viba_op_err，话里含这个片段
 # 最后一列是要看住的副作用调用；None 表示不看。
 CASES_TO_RUN = [
     ("a_half_given_switch_completed_here", "value", 7, []),
@@ -254,35 +254,35 @@ def run(tmp: Path):
         calls = []
         result = interpret(str(program), environ_for(tmp / f"store-{index}", calls))
         if kind == "value":
-            check(isinstance(result, Ok) and value_of(result) == want,
+            check(is_ok(result) and value_of(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
         elif kind == "error":
-            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
-                  f"{name}: expected an error saying {want!r}, got {result!r}")
+            check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
+                  f"{name}: expected a $viba_program_err saying {want!r}, got {result!r}")
         elif kind == "not_implemented":
             checks.not_implemented(result, name)
         elif kind == "fail":
-            check(isinstance(error_of(result), UnderlyingOpErr) and want in message_of(result),
-                  f"{name}: expected a failure saying {want!r}, got {result!r}")
+            check(stop_tag(result) == FAILURE_TAG and want in message_of(result),
+                  f"{name}: expected a $underlying_viba_op_err saying {want!r}, got {result!r}")
         elif kind == "sum":
             # 多个非 never 的分支同时活着：结果保留为和值，不擅自选一支。
-            data = result.ok_value.data if isinstance(result, Ok) else None
+            data = answer_of(result).data if is_ok(result) else None
             check(isinstance(data, viba_ast.SumChain) and len(data.elements) == want,
                   f"{name}: expected a sum of {want} live branches, got {result!r}")
         elif kind == "never":
-            check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.Never),
+            check(is_ok(result) and isinstance(answer_of(result).data, viba_ast.Never),
                   f"{name}: expected never, got {result!r}")
         elif kind == "product":
-            check(isinstance(result, Ok)
-                  and isinstance(result.ok_value.data, viba_ast.ProductChain),
+            check(is_ok(result)
+                  and isinstance(answer_of(result).data, viba_ast.ProductChain),
                   f"{name}: expected a product, got {result!r}")
         elif kind == "sum_value":
-            data = result.ok_value.data if isinstance(result, Ok) else None
+            data = answer_of(result).data if is_ok(result) else None
             check(isinstance(data, viba_ast.SumChain) and len(data.elements) == want,
                   f"{name}: expected a value that is a sum of {want}, got {result!r}")
         elif kind == "closure":
-            check(isinstance(result, Ok)
-                  and isinstance(result.ok_value.data, viba_ast.Partial),
+            check(is_ok(result)
+                  and isinstance(answer_of(result).data, viba_ast.Partial),
                   f"{name}: expected a closure, got {result!r}")
         if calls_wanted is not None:
             check(calls == calls_wanted,
@@ -291,7 +291,7 @@ def run(tmp: Path):
     # 一份闭包在两次运行里都用得上：同一个半成品补两次
     result = interpret(str(CASES / "half_twice_check.viba"),
                        environ_for(tmp / "store-twice", []))
-    check(isinstance(result, Ok) and value_of(result) == 42,
+    check(is_ok(result) and value_of(result) == 42,
           f"a half-given call carried across a run: {result!r}")
 
 

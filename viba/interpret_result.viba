@@ -1,0 +1,56 @@
+# `InterpretResult` — what `interpret` and `exec` answer, and what they answer with.
+#
+# This is the declaration those two entries are held to, written out as a viba
+# type so the answer can be read and judged like any other piece of viba data:
+# `is_sub_type` over the node `interpret` hands out and this definition says
+# whether the run answered what it says it answers (viba/interpret.py,
+# `is_interpret_result`).
+#
+# A run answers on one of two branches. `$ok` carries the answer of `__impl__`,
+# and it is any value the run produced — so it is written `Any`, the one type
+# every answer is below. `$err` carries why the run stopped: one of the four
+# kinds of `InterpretError`, each an object with the members that say which step,
+# which call, and why (viba-interpreter.md, "一次执行会得到什么").
+#
+# `$call` is the call itself, written the way a call whose name is data is
+# written (`__dyn_call__ << "demo.add" << $a 1 << $b 2`, the environment left
+# out). The judgment reads such a chain as `Any` — the name travels as data, so
+# there is nothing to unfold (`viba/partial.py`, `reduce_partial`) — which is why
+# the member is declared `Any` here and not as a function type.
+InterpretResult =
+    Oneof
+  | $ok Any
+  | $err InterpretError
+
+InterpretError =
+    Oneof
+  | $viba_program_err ProgramErr                       # the program, or the environment
+  | $underlying_viba_op_err UnderlyingOpErr            # this step broke
+  | $not_implemented_err UnderlyingOpErr               # nothing implements it
+  | $environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr
+
+ProgramErr =
+    Object
+  * $msg str                                           # one sentence
+  * $stack Stack                                       # the calls this run was in
+
+Stack =
+    list[Frame]
+
+Frame =
+    Object
+  * $file_path str                                     # the .viba file the call is written in
+  * $lineno int                                        # the line it is on
+
+UnderlyingOpErr =
+    Object
+  * $msg str                                           # one sentence, the reason first
+  * $module_path str                                   # the module the step is declared in, as a path
+  * $full_qualified_func_name str                      # the whole name of the step (module + name)
+  * $call Any                                          # the call itself, in a runnable form
+
+EnvironmentApiInvalidArgumentErr =
+    Object
+  * $msg str                                           # one sentence, the reason first
+  * $api_name str                                      # which api: `Environment.sub_env`
+  * $args Any                                          # what it was given, environment left out

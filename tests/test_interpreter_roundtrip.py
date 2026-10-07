@@ -3,14 +3,15 @@
 每一份用例都走同一条路（`viba-interpreter.md`「把一次调用写成可执行的」）：
 
     1. `interpret` 跑一份程序，宿主那里**没有**这一步的实现 → `$not_implemented_err`；
-    2. 从错误里拿出 `$call`（`error.call`）—— 它是**闭包**：类型 `Any <- $env Env`，环境还没给；
+    2. 从那次停止里拿出 `$call`（`stop_node(result, "$call")`）—— 它是**闭包**：类型
+       `Any <- $env Env`，环境还没给；
     3. 宿主补上这一步（同一个环境对象：实现表是可变的，`get_func` 每次都读它）；
     4. 把那份 `$call` **当数据**交给一次运行（`tests/data/roundtrip/runner.viba`：
        `held = hold << $env args.env`，再 `held << args.env`），这次运行给它一个环境 ——
        于是它就跑起来了，答案就是这一步本来会给出的值。
 
 第 4 步给它的环境在**它原来跑的那条数据路径**上（用例自己知道；给在哪儿由给它的环境说了算）。
-错误里的 `$module_path` 说的是**这一步声明在哪个模块**：就地写的步骤就是这份文件，import 进来的就是
+那次停止里的 `$module_path` 说的是**这一步声明在哪个模块**：就地写的步骤就是这份文件，import 进来的就是
 那个模块（`/inner`、`/leaf`），而 `$full_qualified_func_name` 是这一步的整名（`inner.inc`：模块加它在那儿叫的名字）
 —— 名字带着模块，所以交给别的运行也知道是哪一步。`$call` 本身不是一份模块，
 所以第 4 步不把它写成代码：它是可序列化数据。另外两条路也测：用 `serialize` 把 `$call` 写成一份
@@ -26,15 +27,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import (error_of, full_name_of, module_of, module_path_of,
+from interpreter_support import (answer_of, full_name_of, module_of, module_path_of,
+                                  is_ok, stop_node, stop_tag, stop_text,
                                   Checks, value_of)
 
 from viba import serialize, viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             exec, interpret, sub_env)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import (AstNodeType, NOT_IMPLEMENTED_TAG, Ok, UnderlyingOpErr,
-                       custom_module)
+from viba.type import (AstNodeType, NOT_IMPLEMENTED_TAG, Ok, custom_module)
 from viba.viba_type_descriptor import descriptor_of
 
 CASES = Path(__file__).resolve().parent / "data" / "roundtrip"
@@ -234,21 +235,22 @@ def _one_case(case: Case):
     """一份用例的整条回环：缺一步、补上、把 `$call` 跑一遍。"""
     host = Host()
     host.prepare(case.before)
-    error = _the_missing_step(case, host)
-    if error is None:
+    stopped = _the_missing_step(case, host)
+    if stopped is None:
         return                          # it already said what went wrong
-    check(error.module_path == case.module_path,
+    check(stop_text(stopped, "$module_path") == case.module_path,
           f"{case.name}: the step that stopped is the one declared in that module: "
-          f"{error.module_path!r}")
+          f"{stop_text(stopped, '$module_path')!r}")
+    call = stop_node(stopped, "$call")
     host.prepare(case.after)
 
     # 把那份闭包当数据交给一次运行，这次运行给它一个环境：给在它原来跑的那条数据路径上
     # —— `$module_path` 说的是这一步声明在哪个模块，跑在哪儿由给它的环境说了算。
     where = case.replay_at or case.path
-    host.holding = error.call
+    host.holding = call
     replayed = interpret(str(RUNNER), host.at(where))
     check(_the_wanted_answer(replayed, case),
-          f"{case.name}: the call the error carried runs, given that environment: "
+          f"{case.name}: the call the stop carried runs, given that environment: "
           f"{replayed!r}")
 
     # 补上之后，原程序自己也跑得通。
@@ -259,7 +261,7 @@ def _one_case(case: Case):
 
     # 另一条路：把 `$call` 写成一份 viba 模块源代码，再 `exec` 跑它。
     if case.as_source:
-        source = serialize.serialize("call", error.call)
+        source = serialize.serialize("call", call)
         check(isinstance(source, Ok),
               f"{case.name}: the call is serializable viba data: {source!r}")
         code = SOURCE_HEAD + source.ok_value + "\n__impl__ = call << args.env\n"
@@ -270,7 +272,7 @@ def _one_case(case: Case):
 
     # 第三条路：那份 `$call` 本来就是节点，直接交给 `exec` —— 不用写出来读回去。
     if case.as_node:
-        handed_over = exec(error.call, host.at(where))
+        handed_over = exec(call, host.at(where))
         check(_the_wanted_answer(handed_over, case),
               f"{case.name}: the call handed over as the node it already is runs too: "
               f"{handed_over!r}")
@@ -279,30 +281,35 @@ def _one_case(case: Case):
 def _one_step_at_a_time():
     """缺的那一步补上，下一次缺的是外面那一步：一轮一轮地走完。"""
     host = Host()
-    first = error_of(interpret(str(CASES / "nested_calls.viba"), host.environ))
-    check(isinstance(first, UnderlyingOpErr) and
-          first.full_qualified_func_name == full_name_of(CASES / "nested_calls", "mul"),
+    first = interpret(str(CASES / "nested_calls.viba"), host.environ)
+    check(stop_tag(first) == NOT_IMPLEMENTED_TAG and
+          stop_text(first, "$full_qualified_func_name") ==
+          full_name_of(CASES / "nested_calls", "mul"),
           f"the innermost step stops first: {first!r}")
     host.prepare(_everywhere(mul=lambda env, x, y: x.value * y.value))
-    host.holding = first.call
+    host.holding = stop_node(first, "$call")
     inner = interpret(str(RUNNER), host.environ)
-    check(value_of(inner) == 6, f"the inner call runs once it is implemented: {inner!r}")
+    check(is_ok(inner) and value_of(inner) == 6,
+          f"the inner call runs once it is implemented: {inner!r}")
 
-    second = error_of(interpret(str(CASES / "nested_calls.viba"), host.environ))
-    check(isinstance(second, UnderlyingOpErr) and
-          second.full_qualified_func_name == full_name_of(CASES / "nested_calls", "add"),
+    second = interpret(str(CASES / "nested_calls.viba"), host.environ)
+    check(stop_tag(second) == NOT_IMPLEMENTED_TAG and
+          stop_text(second, "$full_qualified_func_name") ==
+          full_name_of(CASES / "nested_calls", "add"),
           f"the run then stops one step further out: {second!r}")
-    check(" ".join(viba_ast.unparse_type(second.call.data).split()) ==
+    check(" ".join(viba_ast.unparse_type(stop_node(second, "$call").data).split()) ==
           '__dyn_call__ << "nested_calls.add" << $a 6 << $b 4',
           f"and that call carries the argument the first one answered: "
-          f"{viba_ast.unparse_type(second.call.data)!r}")
+          f"{viba_ast.unparse_type(stop_node(second, '$call').data)!r}")
     host.prepare(_everywhere(add=_add))
-    host.holding = second.call
+    host.holding = stop_node(second, "$call")
     outer = interpret(str(RUNNER), host.environ)
-    check(value_of(outer) == 10, f"the outer call runs too: {outer!r}")
+    check(is_ok(outer) and value_of(outer) == 10,
+          f"the outer call runs too: {outer!r}")
 
     whole = interpret(str(CASES / "nested_calls.viba"), host.environ)
-    check(value_of(whole) == 10, f"and the program runs to the end: {whole!r}")
+    check(is_ok(whole) and value_of(whole) == 10,
+          f"and the program runs to the end: {whole!r}")
 
 
 def _both_entries_agree_on_the_call():
@@ -312,11 +319,11 @@ def _both_entries_agree_on_the_call():
     它的模块就是编译用的标签（`<viba_code>.add`）。名字不同正是「这一步在哪个模块」的意思。
     """
     host = Host()
-    by_file = error_of(interpret(str(CASES / "tagged_two.viba"), host.environ))
-    by_code = error_of(exec((CASES / "tagged_two.viba").read_text(), host.environ))
+    by_file = interpret(str(CASES / "tagged_two.viba"), host.environ)
+    by_code = exec((CASES / "tagged_two.viba").read_text(), host.environ)
 
-    def written(error):
-        return " ".join(viba_ast.unparse_type(error.call.data).split())
+    def written(result):
+        return " ".join(viba_ast.unparse_type(stop_node(result, "$call").data).split())
 
     check(written(by_file) == '__dyn_call__ << "tagged_two.add" << $a 1 << $b 2' and
           written(by_code) == '__dyn_call__ << "<viba_code>.add" << $a 1 << $b 2',
@@ -332,22 +339,21 @@ def _first_run(case: Case, host: Host):
 
 
 def _the_missing_step(case: Case, host: Host):
-    """跑那份程序，确认它缺的就是那一步，并把错误交回来。"""
+    """跑那份程序，确认它缺的就是那一步，并把整份结果交回来。"""
     stopped = _first_run(case, host)
-    error = error_of(stopped)
-    if not (isinstance(error, UnderlyingOpErr) and error.tag == NOT_IMPLEMENTED_TAG
-            and error.full_qualified_func_name == case.missing_name):
+    if not (stop_tag(stopped) == NOT_IMPLEMENTED_TAG
+            and stop_text(stopped, "$full_qualified_func_name") == case.missing_name):
         check(False, f"{case.name}: the run stops at the step nothing implements "
                      f"({case.missing!r}): {stopped!r}")
         return None
-    return error
+    return stopped
 
 
 def _the_wanted_answer(result, case: Case) -> bool:
     if case.want_text is not None:
-        data = getattr(getattr(result, "ok_value", None), "data", None)
-        return (" ".join(viba_ast.unparse_type(data).split()) == case.want_text
-                if data is not None else False)
+        return (is_ok(result)
+                and " ".join(viba_ast.unparse_type(answer_of(result).data).split())
+                == case.want_text)
     return value_of(result) == case.want
 
 

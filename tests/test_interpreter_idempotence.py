@@ -15,14 +15,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, value_of
+from interpreter_support import Checks, is_ok, value_of
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, read_snapshot, replayed, snapshot_path,
                               write_snapshot)
 from viba.reflect import VibaNode, access as reflect_access
-from viba.type import AstNodeType, VibaProgramErr, Ok, custom_module
+from viba.type import AstNodeType, custom_module
 from viba.viba_type_descriptor import descriptor_of
 
 checks = Checks("interpreter_idempotence")
@@ -60,12 +60,12 @@ def _snapshots_and_replay(tmp: Path):
         return Environment(EnvironmentStorage("root", None, str(root)), compute)
 
     first = interpret(source, fresh_environ())
-    check(isinstance(first, Ok), f"the first run computes: {first!r}")
+    check(is_ok(first), f"the first run computes: {first!r}")
     first_value = value_of(first)
     check(calls == [1], f"and the impure function ran once: {calls}")
 
     second = interpret(source, fresh_environ())
-    check(isinstance(second, Ok) and value_of(second) == first_value,
+    check(is_ok(second) and value_of(second) == first_value,
           f"the second run answers the first run's value: {second!r}")
     check(calls == [1], f"the impure function is not called again: {calls}")
 
@@ -82,7 +82,7 @@ def _snapshots_and_replay(tmp: Path):
     # 换一个 store：没有快照可回放，那条路又走了一次
     calls.clear()
     other = interpret(source, fresh_environ(tmp / "other-store"))
-    check(isinstance(other, Ok) and calls == [1],
+    check(is_ok(other) and calls == [1],
           f"another store has nothing to replay: {other!r} {calls}")
 
 
@@ -119,7 +119,7 @@ def _store_text(tmp: Path):
           reflect_access.leaf(again.by_tag("b")).ok_value == "x",
           f"a viba data goes out and comes back: {again!r}")
 
-    # 快照坏了：宿主抛，interpret 给出 VibaProgramErr，不是崩
+    # 快照坏了：宿主抛，interpret 给出一次 $underlying_viba_op_err，不是崩
     broken = fresh_environ()
     broken.storage.write_text(snapshot_path(broken, "roll-1"), "value = (")
     checks.failed(interpret(source, broken), "raised", "a snapshot that does not parse")
@@ -161,7 +161,7 @@ def _tmp_paths_never_replay(tmp: Path):
     calls.clear()
     first = interpret(named, fresh_environ())
     second = interpret(named, fresh_environ())
-    check(isinstance(first, Ok) and isinstance(second, Ok) and
+    check(is_ok(first) and is_ok(second) and
           value_of(first) == value_of(second) and calls == [1],
           f"a named path replays across runs: {first!r} {second!r} {calls}")
 
@@ -170,7 +170,7 @@ def _tmp_paths_never_replay(tmp: Path):
     first = interpret(temporary, fresh_environ())
     second = interpret(temporary, fresh_environ())
     after = sorted(path.name for path in (store / "root").glob("tmp_*"))
-    check(isinstance(first, Ok) and isinstance(second, Ok) and
+    check(is_ok(first) and is_ok(second) and
           value_of(first) is not None and value_of(second) is not None and
           calls == [1, 1],
           f"a temporary path cannot replay: {first!r} {second!r} {calls}")

@@ -14,11 +14,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, value_of
+from interpreter_support import answer_of, Checks, is_ok, value_of
 
 import branch
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
-from viba.type import Ok
 from viba import viba_ast
 
 checks = Checks("interpreter_branch")
@@ -190,65 +189,65 @@ SUM_LIVE_CASES = [
 def run(tmp: Path):
     for index, (threshold, a_value, want) in enumerate(COMPARISON_CASES):
         result = _run(tmp, "comparison_if_else", a_value, threshold)
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"if a={a_value} >= {threshold} answers {want}: {result!r}")
 
     for a_value, want in NESTED_CASES:
         result = _run(tmp, "nested_classification", a_value)
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"nested branch classifies {a_value} as {want}: {result!r}")
 
     for name, want in LITERAL_CASES:
         result = _run(tmp, name)
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"{name} answers {want!r}: {result!r}")
 
     for name, live in GUARD_CASES:
         result = _run(tmp, name)
         if not live:
-            valid = (isinstance(result, Ok)
-                     and isinstance(result.ok_value.data, viba_ast.Never))
+            valid = (is_ok(result)
+                     and isinstance(answer_of(result).data, viba_ast.Never))
         elif len(live) == 1:
-            valid = isinstance(result, Ok) and value_of(result) == live[0]
+            valid = is_ok(result) and value_of(result) == live[0]
         else:
-            data = result.ok_value.data if isinstance(result, Ok) else None
+            data = answer_of(result).data if is_ok(result) else None
             valid = isinstance(data, viba_ast.SumChain) and len(data.elements) == len(live)
         check(valid, f"{name} preserves branches {live}: {result!r}")
 
     for name, keeps in SELECTOR_CASES:
         result = _run(tmp, name)
-        data = result.ok_value.data if isinstance(result, Ok) else None
+        data = answer_of(result).data if is_ok(result) else None
         if keeps:
             # 保住了：拿走的那一支就是那个值（`nil` 也算值，只有 `never` 不算）
-            check(isinstance(result, Ok) and not isinstance(data, viba_ast.Never),
+            check(is_ok(result) and not isinstance(data, viba_ast.Never),
                   f"{name} keeps its value: {result!r}")
         else:
-            check(isinstance(result, Ok) and isinstance(data, viba_ast.Never),
+            check(is_ok(result) and isinstance(data, viba_ast.Never),
                   f"{name} eliminates its branch: {result!r}")
 
     for name in PRODUCT_IDENTITY_CASES:
         result = _run(tmp, name)
-        check(isinstance(result, Ok) and value_of(result) == 7,
+        check(is_ok(result) and value_of(result) == 7,
               f"{name} is 7: {result!r}")
 
     for name in PRODUCT_ABSORPTION_CASES:
         result = _run(tmp, name)
-        check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.Never),
+        check(is_ok(result) and isinstance(answer_of(result).data, viba_ast.Never),
               f"{name} is never: {result!r}")
 
     for name in SUM_IDENTITY_CASES:
         result = _run(tmp, name)
-        check(isinstance(result, Ok) and value_of(result) == 7,
+        check(is_ok(result) and value_of(result) == 7,
               f"{name} is 7: {result!r}")
 
     for name in SUM_NEVER_CASES:
         result = _run(tmp, name)
-        check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.Never),
+        check(is_ok(result) and isinstance(answer_of(result).data, viba_ast.Never),
               f"{name} is never: {result!r}")
 
     for name, count in SUM_LIVE_CASES:
         result = _run(tmp, name)
-        data = result.ok_value.data if isinstance(result, Ok) else None
+        data = answer_of(result).data if is_ok(result) else None
         check(isinstance(data, viba_ast.SumChain) and len(data.elements) == count,
               f"{name} keeps {count} live branches: {result!r}")
 

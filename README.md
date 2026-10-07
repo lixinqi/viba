@@ -281,7 +281,7 @@ half — the logic — is what the caller hands in through `get_func`.
 The host provides the environment — where snapshots go (`EnvironmentStorage`,
 by default a temporary directory) and the implementations (`EnvironmentCompute`,
 a `get_func(module_path, func_name)`) — and `interpret` reads a file and runs it.
-Its signature, as a viba type; every name it uses is defined here except
+Its signature, as a viba type; the names it uses but does not define are
 `Environment` (the host's) and `VibaNode` (the node accessors) — both in
 [`viba-interpreter.md`](viba-interpreter.md):
 
@@ -290,49 +290,19 @@ interpret =
     InterpretResult
   <- $viba_main_file str
   <- $environ Environment
-
-InterpretResult =
-    Oneof
-  | $ok VibaNode
-  | $err InterpretError
-
-InterpretError =
-    Oneof
-  | $viba_program_err ProgramErr           # the program or the environment
-  | $underlying_viba_op_err UnderlyingOpErr   # the step broke
-  | $not_implemented_err UnderlyingOpErr             # nothing implements it
-  | $environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr
-
-ProgramErr =
-    Object
-  * $msg str                               # one sentence
-  * $stack Stack                           # the calls this run was in
-
-Stack =
-    list[Frame]
-
-Frame =
-    Object
-  * $file_path str                         # the .viba file the call is written in
-  * $lineno int                            # the line it is on
-
-UnderlyingOpErr =
-    Object
-  * $msg str                               # one sentence, the reason first
-  * $module_path str                       # the module the step is declared in, as a path
-  * $full_qualified_func_name str          # the whole name of the step (module + name)
-  * $call (Any <- $env Env)                # the call itself, in a runnable form
-
-EnvironmentApiInvalidArgumentErr =
-    Object
-  * $msg str                               # one sentence, the reason first
-  * $api_name str                          # which api: `Environment.sub_env`
-  * $args Any                              # what it was given, environment left out
 ```
+
+What it answers is the declared result, as **one node of viba data**: `$ok` carries
+the answer of `__impl__`, `$err` why the run stopped. The declaration —
+`InterpretResult`, `InterpretError` and the fields of each stop — is
+[`viba/interpret_result.viba`](viba/interpret_result.viba), and the answer is read
+and judged against it like any other viba data (`is_interpret_result`, built on
+`is_sub_type`).
 
 ```python
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             exec, interpret)
+from viba.reflect import access
 
 def get_func(module_path, func_name):
     # module_path is where the step is declared, as it was imported (`demo`, `foo.bar`);
@@ -344,16 +314,16 @@ def get_func(module_path, func_name):
 environ = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
 
 answer = interpret("add_demo.viba", environ)
-print(answer)                    # Ok(VibaNode(root))
-print(answer.ok_value.value)     # 1000000 — the number the host answered
+print(answer)                                     # $ok 1000000
+print(access.leaf(answer.by_tag("$ok")).ok_value) # 1000000 — the number the host answered
 
 ADD_DEMO = open("add_demo.viba").read()   # the same entry, with the module written out
-print(exec(ADD_DEMO, environ))            # Ok(VibaNode(root)) — the same run
+print(exec(ADD_DEMO, environ))            # the same run, the same piece
 
 # `exec` takes the module as its text or as the viba data that already writes it:
 # data that is no module tree is the run's `__impl__`, and this run gives it the
-# environment — so the `$call` an error carries runs again, written out nowhere.
-print(exec(answer.ok_value, environ))     # Ok(VibaNode(root)) — that piece, run
+# environment — so the `$call` a stop carries runs again, written out nowhere.
+print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
 ```
 
 - An executable function may write `$env Env` as one of its parameters, or write
@@ -367,8 +337,10 @@ print(exec(answer.ok_value, environ))     # Ok(VibaNode(root)) — that piece, r
   result, and writing `Env` (or `Environment`) as the result of a module's
   `__decl__`, of a definition inside a module, or of a chain a product carries as
   a member refuses the file with a `VibaProgramErr` — the environment is the
-  call's rule, not a value to hand back. (A `__impl__` may still be the
-  environment: `args.env` is that object, it is simply declared `Any`.)
+  call's rule, not a value to hand back. A run answers viba data, so a `__impl__`
+  that answers the environment (declared `Any`, answering `args.env`) is refused
+  at the end of the run the same way, with the same words: the stop is a
+  `$viba_program_err`, and it says `the run answered the environment`.
 - A written argument arrives at the host as an instance — the literal
   `999999` lands as a node, whose `.value` is the bare number — while the
   environment arrives as itself.
@@ -406,28 +378,37 @@ print(exec(answer.ok_value, environ))     # Ok(VibaNode(root)) — that piece, r
   (`viba-pattern.md`).
 - `interpret` ships no library of its own: every implementation a run can reach
   comes from a single `get_func` answer, written from the hints the file carries.
-- What comes back is `Ok(node)` or `Err(error)`, the error an `InterpretError`:
-  a `ProgramErr` (`msg`, and `stack` — the calls this run was in, each frame the
-  `.viba` file a call is written in and the line it is on) when the program or the
-  environment cannot run at all, a `UnderlyingOpErr` when a step did not answer, or an
-  `EnvironmentApiInvalidArgumentErr` when one of the environment's own members — the
-  apis this layer runs itself, `get_func` is never asked for them — refused what a
+- A host says "this step has no implementation" by answering the failure data —
+  `not_implemented()` — where it would have raised it: `get_func` answers it where
+  it would answer `None`, and an implementation answers it where it would answer a
+  value. Whatever it wrote is kept (the sentence, a step it knows, the call), and
+  the step and the call the run knows are filled in. A plain Python exception
+  still means the implementation broke (`raised:` in the message).
+- What comes back is one node: `$ok (<the answer>)`, or `$err (<why it stopped>)`
+  — the declaration is [`viba/interpret_result.viba`](viba/interpret_result.viba),
+  and every member is addressable by its tag (`answer.by_tag("$err").by_tag("$not_implemented_err")`).
+  The stop is a `$viba_program_err` (`msg`, and `stack` — the calls this run was in,
+  each frame the `.viba` file a call is written in and the line it is on) when the
+  program or the environment cannot run at all, one of the two `$underlying_viba_op_err`
+  / `$not_implemented_err` tags when a step did not answer, or a
+  `$environment_api_invalid_argument_err` when one of the environment's own members —
+  the apis this layer runs itself, `get_func` is never asked for them — refused what a
   program handed it (`api_name`, e.g. `Environment.sub_env`, and `args`, what it was
-  given with the environment left out). A `UnderlyingOpErr` names the step (`module_path`, the module as a path, and
+  given with the environment left out). A step's stop names the step (`module_path`, the module as a path, and
   `full_qualified_func_name`, its whole name there — `__dyn_call__ << "demo.add" << $a 1 << $b 2`
   carries the same whole name), the call in
   the form that can be run again (`call`, e.g. `__dyn_call__ << "demo.add" << $a 1 << $b 2`
   — the name as data, so any module can read it, the environment left out; a call
   that is a member of a value keeps that layer, and a call inside the data is
   written the same way, e.g. `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`) and
-  one message (`msg`) that opens with the reason (`no implementation`, `refused`,
-  `get_func raised`, `raised`, `no leaf`); its `tag` says which of its two it is
-  (`$underlying_viba_op_err` when that step broke, `$not_implemented_err` when
-  `get_func` has no implementation for it). Two names a run answers itself,
+  one message (`msg`) that opens with the reason (`no implementation`,
+  `get_func raised`, `raised`, `no leaf`). Two names a run answers itself,
   `__dyn_call__` and `__dyn_method__`, are how such a call is written: the name
   travels as data.
-  `node.value` is the answer when it landed on a literal; a product or a sum is walked
-  with the node accessors of [`viba-reflect.md`](viba-reflect.md).
+  A host that has no implementation for a step says so by answering that data —
+  `not_implemented()` — rather than by raising: what a host answers is data, and a
+  stop is data. `node.value` is the answer when it landed on a literal; a product or
+  a sum is walked with the node accessors of [`viba-reflect.md`](viba-reflect.md).
 
 ### Calling one module from another
 

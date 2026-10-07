@@ -1,0 +1,3 @@
+__decl__ = int <- $env Env
+
+__impl__ = 42

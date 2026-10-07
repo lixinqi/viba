@@ -14,11 +14,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, value_of
+from interpreter_support import message_of, stop_tag, Checks, is_ok, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.reflect import access as reflect_access
-from viba.type import Ok, VibaProgramErr
+from viba.type import PROGRAM_ERR_TAG
 
 checks = Checks("interpreter_module_args")
 check = checks.check
@@ -52,9 +52,9 @@ def environ_for(calls, store):
 
 
 # (文件, 该跑出什么)：
-#   ("value", 叶子)   Ok，且叶子是这个值
-#   ("ok", None)      Ok，叶子是什么不管（给出的是一个闭包时用它）
-#   ("error", 片段)   VibaProgramErr，话里含这个片段
+#   ("value", 叶子)   $ok，且叶子是这个值
+#   ("ok", None)      $ok，叶子是什么不管（给出的是一个闭包时用它）
+#   ("error", 片段)   $viba_program_err，话里含这个片段
 CASES_TO_RUN = [
     ("calls_positionally", "value", 25, None),
     ("calls_by_tag", "value", 25, None),
@@ -93,14 +93,14 @@ def run(tmp: Path):
         calls = []
         result = interpret(str(program), environ_for(calls, tmp / f"store-{index}"))
         if kind == "value":
-            check(isinstance(result, Ok) and value_of(result) == want,
+            check(is_ok(result) and value_of(result) == want,
                   f"{name}: expected {want!r}, got {result!r}")
         elif kind == "ok":
-            check(isinstance(result, Ok),
-                  f"{name}: expected Ok, got {result!r}")
+            check(is_ok(result),
+                  f"{name}: expected a value, got {result!r}")
         elif kind == "error":
-            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
-                  f"{name}: expected an error saying {want!r}, got {result!r}")
+            check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
+                  f"{name}: expected a $viba_program_err saying {want!r}, got {result!r}")
         if calls_wanted is not None:
             check(calls == calls_wanted,
                   f"{name}: expected the calls {calls_wanted}, got {calls}")

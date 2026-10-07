@@ -1,11 +1,14 @@
-"""interpreter 各套件共用的东西：计数器、宿主。
+"""interpreter 各套件共用的东西：计数器、宿主、读结果的那几个小函数。
 
 不是套件本身（没有 `__main__` 的跑法），`test_interpreter_*.py` 从这里取：
 
-    from interpreter_support import Checks, Host, value_of
+    from interpreter_support import Checks, Host, is_ok, value_of
 
 `Checks` 管每个套件自己的通过/失败计数与那一行汇总；失败会打出来。用例本身是
 `tests/data/` 下的 `.viba` 文件，不写在这里。
+
+`interpret` 与 `exec` 回答的是一份 viba 数据（声明里的 `InterpretResult`），所以这里读它
+也按数据读：`is_ok`、`value_of`、`stop_tag`、`stop_text`、`stop_node`。
 """
 
 import sys
@@ -14,11 +17,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
-                              interpret)
-from viba.reflect import VibaNode, access as reflect_access
-from viba.type import (FAILURE_TAG, NOT_IMPLEMENTED_TAG,
-                       EnvironmentApiInvalidArgumentErr, Err, InterpretError,
-                       VibaProgramErr, UnderlyingOpErr, Ok)
+                              interpret, not_implemented)
+from viba.reflect import VibaNode, access as reflect_access, by_tag
+from viba.type import (ENVIRONMENT_API_TAG, ERR_TAG, FAILURE_TAG,
+                       NOT_IMPLEMENTED_TAG, OK_TAG, PROGRAM_ERR_TAG, Ok,
+                       VibaProgramErr)
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
 
@@ -44,19 +47,80 @@ def full_name_of(path, name: str) -> str:
     return f"{module_of(path)}.{name}"
 
 
-def error_of(result):
-    """The error a result carries: an `Err`'s, or the error itself.
+def branch_of(result) -> str:
+    """Which branch the run answered on: `$ok`, or `$err` when it stopped."""
+    return result.data.tag
 
-    `interpret` answers `Err(error)`; the other APIs hand the error back as it
-    is. Both go through here, so a suite can check either without knowing which.
+
+def is_ok(result) -> bool:
+    """Did the run answer a value, rather than stop?"""
+    return branch_of(result) == OK_TAG
+
+
+def stop_of(result):
+    """What the run stopped with, as viba data (`$err`'s payload); None for a value."""
+    return None if is_ok(result) else result.by_tag(ERR_TAG)
+
+
+def stop_tag(result) -> str:
+    """Which kind of stop it was: `$not_implemented_err`, `$viba_program_err`, ..."""
+    stop = stop_of(result)
+    return "" if stop is None else stop.data.tag
+
+
+def stop_members(result):
+    """The members of the stop: its payload's object — `$msg`, `$call`, `$api_name`."""
+    stop = stop_of(result)
+    return None if stop is None else stop.by_tag(stop.data.tag)
+
+
+def _member(result, tag):
+    members = stop_members(result)
+    if members is None:
+        return None
+    given = reflect_access.get(members, by_tag(tag))
+    if not isinstance(given, Ok) or given.ok_value is None:
+        return None
+    return given.ok_value
+
+
+def stop_text(result, tag: str) -> str:
+    """The str one member of the stop carries; '' when it carries none."""
+    given = _member(result, tag)
+    if given is None:
+        return ""
+    leaf = reflect_access.leaf(given)
+    if isinstance(leaf, Ok) and isinstance(leaf.ok_value, str):
+        return leaf.ok_value
+    return ""
+
+
+def stop_node(result, tag: str):
+    """One member of the stop, as viba data; None when it carries none."""
+    return _member(result, tag)
+
+
+def error_of(result):
+    """The error an object-form `Result` carries, or the error itself.
+
+    The other APIs of this layer (`parse`, `serialize`, `load_generic`, the
+    descriptor builders) answer `Ok`/error objects, and their suites read the
+    error with this. `interpret` and `exec` answer viba data instead: a suite that
+    ran one reads it with `stop_tag`, `stop_text` and `stop_node`.
     """
-    if isinstance(result, Err):
-        return result.error
-    return result if isinstance(result, InterpretError) else None
+    if isinstance(result, VibaProgramErr):
+        return result
+    return getattr(result, "error", None)
 
 
 def message_of(result) -> str:
-    """What the run stopped with, as a sentence; '' when it answered a value."""
+    """What a stop says, as a sentence; '' when it answered a value.
+
+    Both forms go through here: the node `interpret` answers, and the object form
+    the other APIs of this layer answer.
+    """
+    if isinstance(result, VibaNode):
+        return stop_text(result, "$msg")
     return getattr(error_of(result), "msg", "")
 
 
@@ -76,35 +140,33 @@ class Checks:
             print(f"FAIL: {label}")
 
     def labelled(self, result, want, label: str):
-        """`want` is a substring of the VibaProgramErr, or None for Ok."""
-        error = error_of(result)
+        """`want` is a substring of the `$viba_program_err` message, or None for a value."""
         if want is None:
-            self.check(isinstance(result, Ok), f"{label}: {result!r}")
+            self.check(is_ok(result), f"{label}: {result!r}")
         else:
-            self.check(isinstance(error, VibaProgramErr) and want in error.msg,
-                       f"{label}: expected VibaProgramErr({want!r}), got {result!r}")
+            self.check(stop_tag(result) == PROGRAM_ERR_TAG
+                       and want in message_of(result),
+                       f"{label}: expected a $viba_program_err with {want!r}, "
+                       f"got {result!r}")
 
     def not_implemented(self, result, label: str):
         """The run stopped at a step `get_func` does not implement: that tag."""
-        error = error_of(result)
-        self.check(isinstance(error, UnderlyingOpErr)
-                   and error.tag == NOT_IMPLEMENTED_TAG,
+        self.check(stop_tag(result) == NOT_IMPLEMENTED_TAG,
                    f"{label}: expected a step with no implementation, got {result!r}")
 
     def failed(self, result, want: str, label: str):
         """A step's implementation broke: that tag, and `want` in its message."""
-        error = error_of(result)
-        self.check(isinstance(error, UnderlyingOpErr)
-                   and error.tag == FAILURE_TAG and want in error.msg,
-                   f"{label}: expected UnderlyingOpErr({want!r}), got {result!r}")
+        self.check(stop_tag(result) == FAILURE_TAG and want in message_of(result),
+                   f"{label}: expected a $underlying_viba_op_err with {want!r}, "
+                   f"got {result!r}")
 
     def environment_api(self, result, want: str, api_name: str, label: str):
-        """An environment api refused what it was given: that error, that api, that message."""
-        error = error_of(result)
-        self.check(isinstance(error, EnvironmentApiInvalidArgumentErr)
-                   and api_name == error.api_name and want in error.msg,
-                   f"{label}: expected EnvironmentApiInvalidArgumentErr("
-                   f"{api_name!r}, {want!r}), got {result!r}")
+        """An environment api refused what it was given: that stop, that api, that message."""
+        self.check(stop_tag(result) == ENVIRONMENT_API_TAG
+                   and stop_text(result, "$api_name") == api_name
+                   and want in message_of(result),
+                   f"{label}: expected a $environment_api_invalid_argument_err"
+                   f"({api_name!r}, {want!r}), got {result!r}")
 
     def report(self) -> int:
         print(f"{self.name}: {self.passed} passed, {self.failures} failed")
@@ -112,20 +174,25 @@ class Checks:
 
 
 def value_of(result):
-    """The leaf a run answered: None for a nil piece, the stop itself otherwise.
+    """The leaf a run answered: None for a nil piece, the stop node otherwise.
 
-    A suite writes `isinstance(result, Ok) and value_of(result) == 7` and the
-    left side is false when the run stopped, so this must not assume a value:
-    a stop has no leaf to read.
+    A suite writes `is_ok(result) and value_of(result) == 7`, and the left side is
+    false when the run stopped, so this must not assume a value: a stop has no leaf
+    to read.
     """
-    if not isinstance(result, Ok):
+    if not is_ok(result):
         return result
-    value = result.ok_value
-    if isinstance(value, (Ok, VibaProgramErr)):
-        return value.msg if isinstance(value, VibaProgramErr) else value.ok_value
-    if not isinstance(value, VibaNode):
-        return value
-    leaf = reflect_access.leaf(value)
+    return leaf_of(answer_of(result))
+
+
+def answer_of(result):
+    """The answer a run gave, as viba data: the `$ok` branch's payload."""
+    return result.by_tag(OK_TAG)
+
+
+def leaf_of(node):
+    """The leaf one piece of viba data carries, or the error the accessor gave."""
+    leaf = reflect_access.leaf(node)
     if not isinstance(leaf, Ok):
         return leaf
     return leaf.ok_value
@@ -144,13 +211,24 @@ class Host:
         # This host serves one module's steps, so it reads them by their own names.
         if self.knobs.get("get_func_raises"):
             raise RuntimeError("host broke")
-        if self.knobs.get("refuse_with") is not None:
-            raise self.knobs["refuse_with"]     # get_func says so itself, in its own words
+        if self.knobs.get("hands_back") is not None:
+            return self.knobs["hands_back"]   # get_func hands the failure back itself
         if func_name in self.knobs.get("refuse", ()):
-            # a host that refuses the call without saying why
-            raise UnderlyingOpErr(tag=NOT_IMPLEMENTED_TAG)
+            # a host that hands back the failure without saying anything more
+            return not_implemented()
         if func_name in self.knobs.get("missing", ()):
             return None
+        if func_name in self.knobs.get("says_no", ()):
+            # the implementation itself says the same thing, without words of its own
+            def says_no(env, *args):
+                return not_implemented()
+            return says_no
+        said = self.knobs.get("says_no_with", {}).get(func_name)
+        if said is not None:
+            # ... or hands back the failure it wrote itself
+            def says_no_with(env, *args):
+                return said
+            return says_no_with
         if func_name == "add":
             return lambda env, a, b: a.value + b.value
         if func_name == "join":
@@ -213,9 +291,9 @@ class Host:
         if func_name == "inner_value":
             def inner_value(env):
                 result = interpret(self.knobs["inner_file"], env)
-                if isinstance(result, VibaProgramErr):
-                    raise RuntimeError(result.msg)
-                return result.ok_value
+                if not is_ok(result):
+                    raise RuntimeError(message_of(result))
+                return result.by_tag(OK_TAG)
             return inner_value
         if func_name == "feed_a_list":
             def feed_a_list(env, f):
@@ -246,8 +324,8 @@ class PlacedHost(Host):
 
     def get_func(self, module_path, func_name):
         step = super().get_func(module_path, func_name)
-        if step is None:
-            return None
+        if step is None or not callable(step):
+            return step                  # nothing implements it, or it said so itself
 
         def ran(env, *args):
             self.ran_at.append((env.storage.cur_storage_path, func_name))

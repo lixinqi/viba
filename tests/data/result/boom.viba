@@ -1,0 +1,11 @@
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+explode =
+	int
+	<- $env Env
+	<- { go }
+__impl__ = explode << $env args.env

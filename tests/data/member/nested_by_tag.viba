@@ -1,8 +1,16 @@
-# The first argument may itself be a call: a child of a child.
+# The first argument may itself be a call: a child of a child, whose path the host
+# step answers.
 __decl__ =
     Any
   <- $env Env
 
 args = __get_args__ << __decl__
 
-__impl__ = $sub_env << ($sub_env << args.env << "a") << "b"
+path_of =
+    str
+  <- $env Env
+  <- $where Environment
+  <- { where that environment lives }
+
+__impl__ = path_of << $env args.env
+           << $where ($sub_env << ($sub_env << args.env << "a") << "b")

@@ -1,6 +1,7 @@
 # The environment is no answer: only a builtin function may declare one as its
 # result, so this module declares `Any` and hands back the very environment it was
-# given — the test pins that `args.env` is that object, not a copy.
+# given — and the run stops with a `$viba_program_err`, because the environment is
+# the call's rule rather than a value.
 __decl__ =
     Any
   <- $env Env

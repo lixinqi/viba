@@ -1,0 +1,8 @@
+# 被 chain.viba 调用的模块：这里有一个定不下来的名字。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = nosuch << $env args.env

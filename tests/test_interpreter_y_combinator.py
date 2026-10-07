@@ -47,11 +47,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import branch
 
-from interpreter_support import error_of, message_of, Checks, value_of
+from interpreter_support import message_of, stop_tag, Checks, is_ok, value_of
 
 from viba.interpret import (BUILTIN_DIR, Environment, EnvironmentCompute,
                             EnvironmentStorage, interpret)
-from viba.type import Ok, UnderlyingOpErr, VibaProgramErr
+from viba.type import FAILURE_TAG, PROGRAM_ERR_TAG
 
 checks = Checks("interpreter_y_combinator")
 check = checks.check
@@ -175,7 +175,7 @@ def _every_length_runs(tmp: Path):
         (where / "main.viba").write_text(_a_main_of(length))
         result = interpret(str(where / "main.viba"),
                            environ_for(where / "store", also=[where]))
-        check(isinstance(result, Ok) and value_of(result) == length,
+        check(is_ok(result) and value_of(result) == length,
               f"a step of {length} parameters runs, got {result!r}")
 
 
@@ -186,7 +186,7 @@ def run(tmp: Path):
         program = CASES / f"{name}.viba"
         check(program.is_file(), f"the case is a file: {program.name}")
         result = interpret(str(program), environ_for(tmp / f"store-{index}"))
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"{name}: Y F that many answers {want}, got {result!r}")
 
     for index, (program, kind, want) in enumerate(RECORDED):
@@ -194,10 +194,10 @@ def run(tmp: Path):
         result = interpret(str(program), environ_for(tmp / f"record-{index}"))
         label = program.name
         if kind == "error":
-            check(isinstance(error_of(result), VibaProgramErr) and want in message_of(result),
+            check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
                   f"{label}: recorded stop {want!r}, got {result!r}")
         elif kind == "failed":
-            check(isinstance(error_of(result), UnderlyingOpErr) and want in message_of(result),
+            check(stop_tag(result) == FAILURE_TAG and want in message_of(result),
                   f"{label}: recorded stop {want!r}, got {result!r}")
 
 

@@ -17,11 +17,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, CASES, Checks, Host, value_of
+from interpreter_support import (message_of, stop_tag, CASES, Checks, Host,
+                                  is_ok, value_of)
 
 from viba.interpret import (BUILTIN_CONCEPT_DIR, BUILTIN_DIR, interpret, sub_env,
                             tmp_env)
-from viba.type import VibaProgramErr, Ok
+from viba.type import PROGRAM_ERR_TAG
 
 checks = Checks("interpreter_imports")
 check = checks.check
@@ -72,31 +73,31 @@ def _names(tmp: Path):
     environ = host.environ()
 
     for name, want, label in NAME_CASES:
-        labelled(interpret(_case(name), environ), want, f"{label} -> VibaProgramErr")
+        labelled(interpret(_case(name), environ), want, f"{label} -> $viba_program_err")
 
     labelled(interpret(_case("wrong_arg"), environ), "needs an Environment",
-             "a module called without an Environment -> VibaProgramErr")
+             "a module called without an Environment -> $viba_program_err")
 
     # import 没写 as：绑定的就是模块全名
     result = interpret(_case("plain_user"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"an import without as binds its whole name: {result!r}")
 
     # 本地定义压过 import 的别名
     result = interpret(_case("shadow"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 5,
+    check(is_ok(result) and value_of(result) == 5,
           f"a local definition shadows an import alias: {result!r}")
 
     # import 写在定义之后也算
     result = interpret(_case("late_import"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"an import written at the end of the file: {result!r}")
 
     labelled(interpret(_case("missing_import"), environ), "not found",
-             "an import that names no file -> VibaProgramErr")
+             "an import that names no file -> $viba_program_err")
 
     labelled(interpret(_case("nothing_here"), environ), "no such file",
-             "a main file that is not there -> VibaProgramErr")
+             "a main file that is not there -> $viba_program_err")
 
 
 def _paths(tmp: Path):
@@ -106,48 +107,48 @@ def _paths(tmp: Path):
 
     on_path = host.environ(viba_path=f"{ONE}:{TWO}")
     result = interpret(_case("uses_path"), on_path)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"the first directory on VIBA_PATH wins: {result!r}")
 
     result = interpret(str(TWO / "near.viba"), on_path)
-    check(isinstance(result, Ok) and value_of(result) == "hi",
+    check(is_ok(result) and value_of(result) == "hi",
           f"a module next to the importer beats VIBA_PATH: {result!r}")
 
     # 空条目、不存在的目录：跳过，不炸
     ragged = f":{ONE}:{MODULES / 'missing'}::{FLAT}:"
     result = interpret(_case("dotted"), host.environ(viba_path=ragged))
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a dotted module found on VIBA_PATH, empty and missing entries skipped: {result!r}")
 
     result = interpret(_case("aliased"), host.environ(viba_path=ragged))
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"the same module under an alias: {result!r}")
 
     # 相对路径按当前目录算
     relative = os.path.relpath(str(FLAT), os.getcwd())
     result = interpret(_case("dotted"), host.environ(viba_path=relative))
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a relative VIBA_PATH entry: {result!r}")
 
     # 仓库里现成的两份 .viba：main.viba 旁边没有 pkg/，模块只在给进来的目录里
     paths_case = CASES / "paths"
     main_file = str(paths_case / "main.viba")
     result = interpret(main_file, host.environ(viba_path=paths_case / "elsewhere"))
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a dotted module on a VIBA_PATH that is one Path: {result!r}")
     labelled(interpret(main_file, host.environ(viba_path=7)), "viba_path is a string",
-             "a VIBA_PATH that is not a string or a path -> VibaProgramErr")
+             "a VIBA_PATH that is not a string or a path -> $viba_program_err")
     labelled(interpret(main_file, environ), "not found",
-             "the same module with no VIBA_PATH at all -> VibaProgramErr")
+             "the same module with no VIBA_PATH at all -> $viba_program_err")
 
     # 点分 import 的最长前缀赢：a.b 与 a.b.c 各是各的模块
     result = interpret(_case("both_dotted"), host.environ(viba_path=str(DOTTED_TREE)))
-    check(isinstance(result, Ok) and value_of(result) == 2,
+    check(is_ok(result) and value_of(result) == 2,
           f"the longest import prefix wins: {result!r}")
 
     # 点分名也可以是一个带点的平面文件：pkg.inner.viba
     result = interpret(_case("flat_dotted"), host.environ(viba_path=str(FLAT_DOTTED)))
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a dotted import that is one file named pkg.inner.viba: {result!r}")
 
     # 主文件：相对路径、Path、都行
@@ -157,15 +158,15 @@ def _paths(tmp: Path):
         result = interpret("relative_main.viba", environ)
     finally:
         os.chdir(here)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a main file named by a relative path: {result!r}")
     result = interpret(str(MODULES / "relative_main.viba"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a main file given as a Path: {result!r}")
 
     # 深 import：五层，每层给下一个一条自己的路径
     result = interpret(str(DEEP / "leaf1.viba"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a five-deep import chain: {result!r}")
     check(sub_env(on_path, "child").viba_path == on_path.viba_path and
           tmp_env(on_path).viba_path == on_path.viba_path,
@@ -192,7 +193,7 @@ def _virtual_files(tmp: Path):
         return files.get(path)
 
     result = interpret("/vfs/main.viba", environ, get_file=get_file)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a run served out of a dict: {result!r}")
     check("/vfs/pkg/inner.viba" in asked,
           f"the hook is asked for the module next to the importer: {asked}")
@@ -224,7 +225,7 @@ def _virtual_files(tmp: Path):
     files[twice] = _text_of(VFS / "twice.viba")
     files[lib_path] = _text_of(VFS / "lib.viba")
     result = interpret(twice, environ, get_file=get_file)
-    check(isinstance(result, Ok) and value_of(result) == 14 and
+    check(is_ok(result) and value_of(result) == 14 and
           asked.count(lib_path) == 1,
           f"a module already loaded is not asked for again: {result!r} {asked}")
 
@@ -241,12 +242,12 @@ def _virtual_files(tmp: Path):
              "a hook that raises FileNotFoundError -> not found")
     labelled(interpret(missing, environ, get_file=with_main(
         lambda path: (_ for _ in ()).throw(ValueError("数据库连不上")))), "raised",
-        "a hook that raises something else -> VibaProgramErr")
+        "a hook that raises something else -> $viba_program_err")
     labelled(interpret(missing, environ, get_file=with_main(lambda path: b"bytes")),
-             "not the file's text", "a hook that answers bytes -> VibaProgramErr")
+             "not the file's text", "a hook that answers bytes -> $viba_program_err")
     labelled(interpret(missing, environ, get_file=with_main(lambda path: "X = (")),
              "cannot parse",
-             "a hook that answers something that does not compile -> VibaProgramErr")
+             "a hook that answers something that does not compile -> $viba_program_err")
 
     # 主文件也要走 hook
     labelled(interpret("/vfs/nowhere.viba", environ, get_file=get_file), "no such file",
@@ -257,15 +258,15 @@ def _virtual_files(tmp: Path):
     served = dict(files)
     served[real] = _text_of(MODULES / "two" / "lib.viba")
     result = interpret(real, environ, get_file=served.get)
-    check(isinstance(result, Ok) and value_of(result) == "hi",
+    check(is_ok(result) and value_of(result) == "hi",
           f"get_file wins over the filesystem: {result!r}")
 
     labelled(interpret(missing, environ, get_file=7), "get_file is a function",
-             "a get_file that is not callable -> VibaProgramErr")
+             "a get_file that is not callable -> $viba_program_err")
 
 
 def _refuses(tmp: Path):
-    """`interpret` 自己拒绝时的返回值：`VibaProgramErr`，话一字不差。
+    """`interpret` 自己拒绝时的那一支：`$viba_program_err`，话一字不差。
 
     它不为这些参数抛异常，答案就是这一支值。四条都在读文件之前就定下来：用的主文件根本不存在，
     所以拿到的只要不是 `no such file`，顺序就对了（环境、viba_path、get_file、list_files）。
@@ -275,21 +276,21 @@ def _refuses(tmp: Path):
     absent = _case("gone")
 
     def refuses(result, message, label):
-        check(isinstance(error_of(result), VibaProgramErr) and message_of(result) == message,
-              f"{label}: expected VibaProgramErr({message!r}), got {result!r}")
+        check(stop_tag(result) == PROGRAM_ERR_TAG and message_of(result) == message,
+              f"{label}: expected a $viba_program_err({message!r}), got {result!r}")
 
     refuses(interpret(absent, "root"),
             "interpret needs an Environment",
-            "no Environment -> VibaProgramErr")
+            "no Environment -> $viba_program_err")
     refuses(interpret(absent, host.environ(viba_path=7)),
             "viba_path is a string of directories (or one path), not int",
-            "a viba_path that is neither a path nor a string -> VibaProgramErr")
+            "a viba_path that is neither a path nor a string -> $viba_program_err")
     refuses(interpret(absent, environ, get_file=7),
             "get_file is a function (or None), not int",
-            "a get_file that is not callable -> VibaProgramErr")
+            "a get_file that is not callable -> $viba_program_err")
     refuses(interpret(absent, environ, list_files=7),
             "list_files is a function (or None), not int",
-            "a list_files that is not callable -> VibaProgramErr")
+            "a list_files that is not callable -> $viba_program_err")
 
 
 def _bad_sources(tmp: Path):
@@ -298,25 +299,25 @@ def _bad_sources(tmp: Path):
     environ = host.environ()
 
     labelled(interpret(_case("broken"), environ), "cannot parse",
-             "a main file that does not compile -> VibaProgramErr")
+             "a main file that does not compile -> $viba_program_err")
     labelled(interpret(_case("bad_import"), environ), "cannot parse",
-             "an imported module that does not compile -> VibaProgramErr")
+             "an imported module that does not compile -> $viba_program_err")
 
     # 词法上就没有这个词：'-' 不能被悄悄跳过，否则 -5 会跑成 5
     result = interpret(_case("negative"), environ)
-    check(isinstance(error_of(result), VibaProgramErr) and "cannot parse" in message_of(result)
+    check(stop_tag(result) == PROGRAM_ERR_TAG and "cannot parse" in message_of(result)
           and "illegal character" in message_of(result),
-          f"a character with no token of its own -> VibaProgramErr: {result!r}")
+          f"a character with no token of its own -> $viba_program_err: {result!r}")
 
     # CRLF 只是行尾：写得跟 LF 一样读
     result = interpret(_case("crlf"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a module written with CRLF line endings: {result!r}")
 
     labelled(interpret(str(MODULES), environ), "cannot read",
-             "the main path is a directory -> VibaProgramErr")
+             "the main path is a directory -> $viba_program_err")
     labelled(interpret(_case("gone"), environ), "no such file",
-             "no such file -> VibaProgramErr")
+             "no such file -> $viba_program_err")
 
     bad = Host()
     bad.get_func = lambda p, n: "not callable"
@@ -344,13 +345,13 @@ def _compiled_once(tmp: Path):
         result = interpret(top, environ)
     finally:
         interpreter_module.viba_ast.parse = original
-    check(isinstance(result, Ok) and value_of(result) == 14,
+    check(is_ok(result) and value_of(result) == 14,
           f"one module reached by two importers runs for both: {result!r}")
     check(len(parsed) == 4,
           f"each file is parsed once, however many importers it has: {len(parsed)}")
 
     result = interpret(_case("twice_tag"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 5,
+    check(is_ok(result) and value_of(result) == 5,
           f"a tag given twice: the later value stands: {result!r}")
 
 

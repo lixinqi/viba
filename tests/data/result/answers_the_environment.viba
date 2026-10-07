@@ -1,0 +1,8 @@
+# 环境不是答案：`__impl__` 回答它，整次执行就停在这里。
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = args.env

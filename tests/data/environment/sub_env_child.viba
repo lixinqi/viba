@@ -1,0 +1,12 @@
+# `args.env.sub_env << args.env << "child"` written in viba names a child: the call
+# is handed that child, and the step the host implements reports the data path it ran
+# under (the test reads `PlacedHost.ran_at`). The child itself is no answer — this
+# module answers the step's value instead, so the run reaches that step.
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import tmp_lib as lib
+__impl__ = lib << (args.env.sub_env << args.env << "child")

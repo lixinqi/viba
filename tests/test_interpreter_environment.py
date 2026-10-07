@@ -1,8 +1,9 @@
 """Environment：$env 那个参数、子环境、宿主给自己加的东西，以及 store 里的一次写。
 
 每个可执行函数都要 $env Environment，而且那个参数必须写成 $env；sub_env 按名字给子环境，
-tmp_env 每次给一个新的；子环境带着父级的 compute。store 的写入一次落完整（另一个进程可能同时在
-读写同一份 store）。
+tmp_env 每次给一个新的；子环境带着父级的 compute。环境不是值：一次运行把环境当答案交回来，
+就以 `$viba_program_err` 停下（环境是这次调用的规则）。store 的写入一次落完整（另一个进程可能
+同时在读写同一份 store）。
 
     python3 tests/test_interpreter_environment.py
 """
@@ -14,12 +15,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import (error_of, message_of, module_of, Checks,
-                                  Host, PlacedHost, value_of)
+from interpreter_support import (Checks, Host, PlacedHost, is_ok, module_of,
+                                  value_of)
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             interpret, sub_env, tmp_env)
-from viba.type import VibaProgramErr, Ok
 
 checks = Checks("interpreter_environment")
 check = checks.check
@@ -53,10 +53,10 @@ def _the_env_is_no_answer(tmp: Path):
     labelled(interpret(str(CASES / "env_as_a_result_in_a_product.viba"), environ),
              "answers the environment", "a member chain answering Env -> VibaProgramErr")
 
-    # 收一个 Environment 当参数不在此列：那不是结果
-    result = interpret(str(CASES / "the_env.viba"), environ)
-    check(isinstance(result, Ok) and result.ok_value is environ,
-          f"a module that declares Any and answers the environment: {result!r}")
+    # 收一个 Environment 当参数不在此列：那不是结果；但把它当答案交回来，这一次运行
+    # 也停下 —— 环境是这次调用的规则，不是值
+    labelled(interpret(str(CASES / "the_env.viba"), environ), "answered the environment",
+             "a module that declares Any and answers the environment -> VibaProgramErr")
 
 
 def _the_env_slot(tmp: Path):
@@ -67,7 +67,7 @@ def _the_env_slot(tmp: Path):
     labelled(interpret(str(CASES / "no_env.viba"), environ), "$env Env",
              "a function without $env -> VibaProgramErr")
 
-    check(isinstance(interpret(str(CASES / "not_given.viba"), environ), Ok),
+    check(is_ok(interpret(str(CASES / "not_given.viba"), environ)),
           "a call that was not given the environment is a closure, not an error")
 
     labelled(interpret(str(CASES / "env_not_env_function.viba"), environ),
@@ -145,7 +145,12 @@ def _children(tmp: Path):
 
 
 def _written_in_viba(tmp: Path):
-    """viba 那边调 environ.sub_env / tmp_env，以及 __impl__ 就是环境。"""
+    """viba 那边调 environ.sub_env / tmp_env，以及 __impl__ 就是环境。
+
+    viba 写出来的 sub_env 交出的那个孩子不是值，所以让宿主实现的那一步把它拿到的环境
+    报回来，看的就是它的数据路径（`PlacedHost.ran_at`）；而把环境当答案交回来的运行，
+    以 `$viba_program_err` 停下。
+    """
     host = PlacedHost()
     environ = host.environ()
     ran_at = host.ran_at
@@ -154,7 +159,7 @@ def _written_in_viba(tmp: Path):
     host.calls.clear()
     ran_at.clear()
     result = interpret(str(CASES / "tmp_calls.viba"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 14,
+    check(is_ok(result) and value_of(result) == 14,
           f"two module calls, each under a temporary environment: {result!r}")
     check([name for _, name in host.calls].count("leaf") == 2,
           f"the leaf step is asked twice, under its module's path: {host.calls}")
@@ -163,18 +168,24 @@ def _written_in_viba(tmp: Path):
           all(path.startswith("root/tmp_") for path in leaves),
           f"and each call runs at a temporary environment of its own: {ran_at}")
 
-    # 它收的就是那个环境：写别的值不成立（判定层拦下，见 test_is_sub_type.py）
-    check(not isinstance(interpret(str(CASES / "tmp_wrong.viba"), environ), Ok),
+    # 它收的就是那个环境：写别的值不成立（那个 api 当场拒绝）
+    check(not is_ok(interpret(str(CASES / "tmp_wrong.viba"), environ)),
           "a temporary child is asked for with the environment it belongs to")
 
-    result = interpret(str(CASES / "sub.viba"), environ)
-    check(isinstance(result, Ok) and isinstance(result.ok_value, Environment) and
-          result.ok_value.storage.cur_storage_path == "root/child",
-          f"environ.sub_env written in viba names a child: {result!r}")
+    # sub_env 交出的那个孩子：让宿主实现的那一步报出它跑在哪条数据路径上
+    host.calls.clear()
+    ran_at.clear()
+    result = interpret(str(CASES / "sub_env_child.viba"), environ)
+    check(is_ok(result) and value_of(result) == 7,
+          f"a host step run under the child of a written sub_env: {result!r}")
+    check(ran_at == [("root/child", "leaf")],
+          f"environ.sub_env written in viba names the child it should: {ran_at}")
 
-    result = interpret(str(CASES / "the_env.viba"), environ)
-    check(isinstance(result, Ok) and result.ok_value is environ,
-          f"a module whose __impl__ is the environment: {result!r}")
+    # 答案就是环境：环境是这次调用的规则，不是值，运行以 $viba_program_err 停下
+    labelled(interpret(str(CASES / "sub.viba"), environ), "answered the environment",
+             "environ.sub_env written in viba, answered -> VibaProgramErr")
+    labelled(interpret(str(CASES / "the_env.viba"), environ), "answered the environment",
+             "a module whose __impl__ is the environment -> VibaProgramErr")
 
     # 已经处理完的 sub_env 再给参数：那不是函数
     labelled(interpret(str(CASES / "env_answered.viba"), environ), "is not a function",
@@ -194,7 +205,7 @@ def _host_members(tmp: Path):
 
     shouting = Shouting(EnvironmentStorage("root"), EnvironmentCompute(host.get_func))
     result = interpret(str(CASES / "shout.viba"), shouting)
-    check(isinstance(result, Ok) and value_of(result) == "hi!",
+    check(is_ok(result) and value_of(result) == "hi!",
           f"a method the host hung on its environment: {result!r}")
 
     # 成员是一个值时，读出来就是那个值；值本身不是标量（这里是一个 storage 对象）才报错
@@ -206,7 +217,7 @@ def _host_members(tmp: Path):
 
     # 名字就是名字：import 绑到 env 上，`args.env` 仍是这次调用收到的那份环境
     result = interpret(str(CASES / "env_alias.viba"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a name bound as an import is a name, not the environment: {result!r}")
 
     # 没有 storage 的环境：那个 api 拿到的环境它收不下，报的是

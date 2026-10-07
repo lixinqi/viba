@@ -1,0 +1,8 @@
+# 环境上的 api 收不下给它的东西：没有 storage 的环境里 `sub_env` 造不出孩子。
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = args.env.sub_env << args.env << "kid"

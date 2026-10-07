@@ -1,8 +1,15 @@
-# The dotted reading the tag form stands for: the environment is written out.
+# The dotted reading the tag form stands for: the environment is written out, and
+# the child it names is handed to the same host step so its path can be read.
 __decl__ =
     Any
   <- $env Env
 
 args = __get_args__ << __decl__
 
-__impl__ = args.env.sub_env << args.env << "child"
+path_of =
+    str
+  <- $env Env
+  <- $where Environment
+  <- { where that environment lives }
+
+__impl__ = path_of << $env args.env << $where (args.env.sub_env << args.env << "child")

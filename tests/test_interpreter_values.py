@@ -9,20 +9,20 @@
 import sys
 import tempfile
 from pathlib import Path
-from typing import get_args
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import (error_of, full_name_of, message_of, module_of,
-                                  module_path_of, Checks, Host, value_of)
+from interpreter_support import (branch_of, full_name_of, message_of, module_of,
+                                  module_path_of, stop_node, stop_tag, stop_text,
+                                  Checks, Host, is_ok, value_of)
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             interpret)
 from viba.reflect import access as reflect_access
-from viba.type import (FAILURE_TAG, NOT_IMPLEMENTED_TAG, Err, InterpretResult, VibaProgramErr,
-                       Ok, UnderlyingOpErr)
+from viba.type import (ERR_TAG, FAILURE_TAG, NOT_IMPLEMENTED_TAG, OK_TAG,
+                       PROGRAM_ERR_TAG)
 
 checks = Checks("interpreter_values")
 check = checks.check
@@ -69,13 +69,19 @@ NO_LEAF_CASES = [
 
 
 def _the_branches(tmp: Path):
-    """`interpret` 的答案就是那几支：类型少一个、tag 改一个，按类型分的支就变了。"""
-    branches = get_args(InterpretResult)
-    check(set(branches) == {Ok, Err},
-          f"the two branches interpret answers with: {branches!r}")
+    """结果就是那一支数据：跑出值的落在 `$ok` 上，`$err` 那一支也在设计里。"""
+    host = Host()
+    result = interpret(_case("leaf"), host.environ())
+    check(branch_of(result) == OK_TAG,
+          f"a run that answered is on the $ok branch: {result!r}")
+    check([tag for tag, _step, _given in reflect_access.member_steps(result)]
+          == [OK_TAG, ERR_TAG],
+          "the design carries both branches, the value one first")
     check(FAILURE_TAG == "$underlying_viba_op_err"
-          and NOT_IMPLEMENTED_TAG == "$not_implemented_err",
-          f"the two tags a UnderlyingOpErr answers under: {FAILURE_TAG!r}, {NOT_IMPLEMENTED_TAG!r}")
+          and NOT_IMPLEMENTED_TAG == "$not_implemented_err"
+          and PROGRAM_ERR_TAG == "$viba_program_err",
+          f"the tags a stop answers under: {FAILURE_TAG!r}, "
+          f"{NOT_IMPLEMENTED_TAG!r}, {PROGRAM_ERR_TAG!r}")
 
 
 def _host_answers(tmp: Path):
@@ -84,12 +90,12 @@ def _host_answers(tmp: Path):
     environ = host.environ()
     for name, want, label in HOST_ANSWER_CASES:
         result = interpret(_case(name), environ)
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"a host function returning {label}: {result!r}")
 
     for name, want, label in FALSY_CASES:
         result = interpret(_case(name), environ)
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"a host answer of {label} is a leaf, not nil: {result!r}")
 
     for name, label in NO_LEAF_CASES:
@@ -99,42 +105,43 @@ def _host_answers(tmp: Path):
     boom = _case("boom")
     exploded = interpret(boom, environ)
     checks.failed(exploded, "ZeroDivision", "a host function that raises")
-    check(error_of(exploded).module_path == module_path_of(boom)
-          and error_of(exploded).full_qualified_func_name == full_name_of(boom, "explode")
-          and error_of(exploded).msg.startswith("raised"),
+    check(stop_text(exploded, "$module_path") == module_path_of(boom)
+          and stop_text(exploded, "$full_qualified_func_name") ==
+          full_name_of(boom, "explode")
+          and message_of(exploded).startswith("raised"),
           f"and the failure names the step and why: {exploded!r}")
     checks.failed(interpret(boom, Host(get_func_raises=True).environ()), "raised",
                   "a get_func that raises")
 
     stopped = interpret(_case("no_impl"), environ)
-    check(isinstance(error_of(stopped), UnderlyingOpErr)
-          and error_of(stopped).tag == NOT_IMPLEMENTED_TAG
-          and error_of(stopped).msg == "no implementation",
+    check(stop_tag(stopped) == NOT_IMPLEMENTED_TAG
+          and message_of(stopped) == "no implementation",
           "get_func says None: the run stops with no implementation, not a VibaProgramErr")
-    check(not isinstance(error_of(stopped), VibaProgramErr),
+    check(stop_tag(stopped) != PROGRAM_ERR_TAG,
           "and that stop is not a VibaProgramErr: nothing broke, one step has no implementation")
-    check(error_of(stopped).module_path == module_path_of(_case("no_impl"))
-          and error_of(stopped).full_qualified_func_name == full_name_of(_case("no_impl"), "ghost")
-          and error_of(stopped).msg == "no implementation",
+    check(stop_text(stopped, "$module_path") == module_path_of(_case("no_impl"))
+          and stop_text(stopped, "$full_qualified_func_name") ==
+          full_name_of(_case("no_impl"), "ghost")
+          and message_of(stopped) == "no implementation",
           f"the stop names the step and why: {stopped!r}")
-    call = error_of(stopped).call.data
+    call = stop_node(stopped, "$call").data
     check(isinstance(call, viba_ast.Partial)
           and isinstance(call.function, viba_ast.TypeRef)
           and call.function.name == "__dyn_call__"
           and isinstance(call.argument, viba_ast.Constant)
           and call.argument.value == full_name_of(_case("no_impl"), "ghost"),
           f"a call with no argument of its own is the name and then nothing: "
-          f"{error_of(stopped).call!r}")
+          f"{stop_node(stopped, '$call')!r}")
 
     result = interpret(_case("echo"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 42,
+    check(is_ok(result) and value_of(result) == 42,
           f"a host function echoing its argument: {result!r}")
 
     checks.failed(interpret(_case("arity"), environ), "raised",
                   "a host function of the wrong arity")
 
     result = interpret(_case("made"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 11,
+    check(is_ok(result) and value_of(result) == 11,
           f"a node the host built itself: {result!r}")
 
     checks.failed(interpret(_case("afunc"), environ), "no leaf",
@@ -158,11 +165,11 @@ def _written_as_ret(tmp: Path):
 
     for name, want, label in LITERAL_CASES:
         result = interpret(_case(name), environ)
-        check(isinstance(result, Ok) and value_of(result) == want,
+        check(is_ok(result) and value_of(result) == want,
               f"__impl__ written as {label}: {result!r}")
     for name, label in UNIT_CASES:
         result = interpret(_case(name), environ)
-        check(isinstance(result, Ok), f"__impl__ written as {label}: {result!r}")
+        check(is_ok(result), f"__impl__ written as {label}: {result!r}")
     for name, label, want in NOT_A_VALUE_CASES:
         # `list[int]` 写在值的位置上时，没有哪个泛型回答 `list`，于是按简写去读这个名字 ——
         # 读不进来，报的就是这个名字（`_addressed_reading`）。类型名不是一个值。
@@ -171,10 +178,10 @@ def _written_as_ret(tmp: Path):
 
     # 写下来的和值是 viba 数据：没给出的那几支留下的都是 never
     result = interpret(_case("written_sum"), environ)
-    check(isinstance(result, Ok),
+    check(is_ok(result),
           f"__impl__ written as a sum is viba data, not an error: {result!r}")
 
-    check(isinstance(interpret(_case("module_value"), environ), Ok),
+    check(is_ok(interpret(_case("module_value"), environ)),
           "__impl__ written as a module is the closure it stands for")
 
     labelled(interpret(_case("builtin_value"), environ), "no definition named",
@@ -192,14 +199,14 @@ def _written(tmp: Path):
     environ = host.environ()
     for name, want, label in DATA_CASES:
         result = interpret(_case(name), environ)
-        check(isinstance(result, Ok) and len(result.ok_value) == want,
+        check(is_ok(result) and len(result.by_tag(OK_TAG)) == want,
               f"__impl__ written as {label} is viba data: {result!r}")
 
     # 一份按 tag 与积写下来的可序列化数据，写法和它的类型写法一样
     result = interpret(_case("tags_and_product"), environ)
-    check(isinstance(result, Ok), f"data written as tags and a product: {result!r}")
-    if isinstance(result, Ok):
-        node = result.ok_value
+    check(is_ok(result), f"data written as tags and a product: {result!r}")
+    if is_ok(result):
+        node = result.by_tag(OK_TAG)
         check(reflect_access.leaf(node.by_tag("victim").by_tag("x")).ok_value == 0 and
               reflect_access.leaf(node.by_tag("suspect").by_tag("y")).ok_value == 4,
               f"and its members read back: {node!r}")
@@ -214,23 +221,23 @@ def _names_and_repeats(tmp: Path):
              "one name defined twice in one module -> VibaProgramErr")
 
     result = interpret(_case("defined_after"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a definition written after its use: {result!r}")
 
     # `__impl__` first, everything it uses after it: the same answer either way
     result = interpret(_case("impl_written_first"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 3,
+    check(is_ok(result) and value_of(result) == 3,
           f"__impl__ written before everything it uses: {result!r}")
 
     result = interpret(_case("nested"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 3 and
+    check(is_ok(result) and value_of(result) == 3 and
           (module_of(_case("nested")), "unused") not in host.calls,
           f"a definition nobody asks for is never run: {result!r}")
 
     # 一个定义算一次：两处用它，宿主只被叫一次
     host.calls.clear()
     result = interpret(_case("memo"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 14,
+    check(is_ok(result) and value_of(result) == 14,
           f"a definition used twice: {result!r}")
     check(host.calls.count((module_of(_case("memo")), "leaf")) == 1,
           f"a definition is computed once: {host.calls}")
@@ -252,16 +259,17 @@ def _crossing_the_host_boundary(tmp: Path):
     host.get_func = hand_back
     host2 = Environment(EnvironmentStorage("root"), EnvironmentCompute(host.get_func))
     result = interpret(higher, host2)
-    check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.TypeRef),
+    check(is_ok(result)
+          and isinstance(result.by_tag(OK_TAG).data, viba_ast.TypeRef),
           f"a viba function handed to the host is viba data (its written name): {result!r}")
-    check(result.ok_value.data.name == "inc",
-          f"and what it holds is that name: {result.ok_value.data!r}")
+    check(result.by_tag(OK_TAG).data.name == "inc",
+          f"and what it holds is that name: {result.by_tag(OK_TAG).data!r}")
     host.get_func = original
 
-    # 宿主自己说：get_func 抛出它，等于这次调用没有实现
+    # 宿主自己说：get_func 交回那份"没有实现"的数据，等于这次调用没有实现
     host.knobs["refuse"] = ("twice",)
     checks.not_implemented(interpret(higher, environ),
-                             "a get_func that refuses the call")
+                             "a get_func that hands back the failure")
     host.knobs.pop("refuse")
 
     # 函数类型的实参交给宿主的是"它代表的那次调用"：宿主可以带上自己的实参叫它
@@ -279,13 +287,14 @@ def _crossing_the_host_boundary(tmp: Path):
 
     # 那个参数声明的是 Any：函数装得下，宿主拿到它再交回来，才轮到"没有叶子"
     result = interpret(_case("handed_any"), environ)
-    check(isinstance(result, Ok) and isinstance(result.ok_value.data, viba_ast.TypeRef),
+    check(is_ok(result)
+          and isinstance(result.by_tag(OK_TAG).data, viba_ast.TypeRef),
           f"a viba function handed where Any is declared comes back as data: {result!r}")
 
     # 宿主里面再跑一次 interpret：两个 run 互不干扰
     host.knobs["inner_file"] = _case("inner_module")
     result = interpret(_case("outer_run"), environ)
-    check(isinstance(result, Ok) and value_of(result) == 7,
+    check(is_ok(result) and value_of(result) == 7,
           f"a host function that runs interpret itself: {result!r}")
     host.knobs.pop("inner_file")
 

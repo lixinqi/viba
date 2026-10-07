@@ -14,12 +14,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, Host, value_of
+from interpreter_support import (Checks, Host, is_ok, message_of, stop_tag,
+                                  value_of)
 
 from viba import viba_ast
-from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
+from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
+                            exec, interpret)
 from viba.is_sub_type import is_sub_type
-from viba.type import AstNodeType, Ok, custom_module
+from viba.type import AstNodeType, Ok, PROGRAM_ERR_TAG, custom_module
 
 CASES = Path(__file__).resolve().parent / "data" / "member"
 
@@ -29,12 +31,25 @@ labelled = checks.labelled
 
 
 def environ_for():
-    return Host().environ()
+    """The shared host, plus the one step that says where an environment lives.
+
+    A run answers viba data only, so the case files hand the environment a member
+    answered to this step; its storage path is then the answer, and the member is
+    still what named the child.
+    """
+    host = Host()
+
+    def get_func(module_path, func_name):
+        if func_name == "path_of":
+            return lambda env, where: where.storage.cur_storage_path
+        return host.get_func(module_path, func_name)
+
+    return Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
 
 
 def _path_of(result) -> str:
-    value = result.ok_value
-    return getattr(getattr(value, "storage", None), "cur_storage_path", repr(value))
+    """Where the environment the run named lives: the path is the answer itself."""
+    return value_of(result)
 
 
 def run(tmp: Path):
@@ -44,6 +59,7 @@ def run(tmp: Path):
     _a_member_that_takes_its_owner()
     _a_member_read_by_a_name()
     _the_tag_is_not_a_value()
+    _answering_the_environment_is_no_answer(tmp)
     _what_is_not_there_is_reported(tmp)
 
 
@@ -51,8 +67,8 @@ def _the_same_child(tmp: Path):
     """`$sub_env << args.env << "child"` 和 `args.env.sub_env << args.env << "child"` 是同一次调用。"""
     by_tag = interpret(str(CASES / "child_by_tag.viba"), environ_for())
     by_dot = interpret(str(CASES / "child_by_dot.viba"), environ_for())
-    check(isinstance(by_tag, Ok) and isinstance(by_tag.ok_value, Environment),
-          f"taking the member by tag answers an environment: {by_tag!r}")
+    check(is_ok(by_tag) and isinstance(value_of(by_tag), str),
+          f"taking the member by tag answers where that child lives: {by_tag!r}")
     check(_path_of(by_tag) == "root/child",
           f"and the name is the one written: {_path_of(by_tag)!r}")
     check(_path_of(by_tag) == _path_of(by_dot),
@@ -62,7 +78,7 @@ def _the_same_child(tmp: Path):
 def _the_same_temporary_child(tmp: Path):
     """空实参不用写：`$tmp_env << environ` 就是执行。"""
     result = interpret(str(CASES / "temporary_by_tag.viba"), environ_for())
-    check(isinstance(result, Ok) and isinstance(result.ok_value, Environment),
+    check(is_ok(result) and isinstance(value_of(result), str),
           f"a member that takes no argument runs when the member is taken: {result!r}")
     check(_path_of(result).startswith("root/tmp_"),
           f"and it is a temporary child: {_path_of(result)!r}")
@@ -71,11 +87,11 @@ def _the_same_temporary_child(tmp: Path):
 def _the_first_argument_is_the_receiver(tmp: Path):
     """第一个参数是取成员的那个值：它就是最前面写的那个。"""
     nested = interpret(str(CASES / "nested_by_tag.viba"), environ_for())
-    check(isinstance(nested, Ok) and _path_of(nested) == "root/a/b",
+    check(is_ok(nested) and _path_of(nested) == "root/a/b",
           f"a child of a child: {nested!r}")
 
     by_tag = interpret(str(CASES / "argument_written_by_tag.viba"), environ_for())
-    check(isinstance(by_tag, Ok) and _path_of(by_tag) == "root/kid",
+    check(is_ok(by_tag) and _path_of(by_tag) == "root/kid",
           f"the first argument may be written by tag: {by_tag!r}")
 
 
@@ -90,9 +106,9 @@ def _a_member_that_takes_its_owner():
     host = Environment(EnvironmentStorage("root", None, None), EnvironmentCompute(get_func))
     by_tag = interpret(str(CASES / "owner_member_by_tag.viba"), host)
     by_dot = interpret(str(CASES / "owner_member_by_dot.viba"), host)
-    check(isinstance(by_tag, Ok) and value_of(by_tag) == 2,
+    check(is_ok(by_tag) and value_of(by_tag) == 2,
           f"a member that takes its owner: {by_tag!r}")
-    check(isinstance(by_dot, Ok) and value_of(by_dot) == 2,
+    check(is_ok(by_dot) and value_of(by_dot) == 2,
           f"and the dotted spelling is the same call: {by_dot!r}")
 
 
@@ -119,10 +135,10 @@ def _a_member_read_by_a_name():
 
     host = Environment(EnvironmentStorage("root", None, None), EnvironmentCompute(get_func))
     by_tag = interpret(str(CASES / "tagged_member.viba"), host)
-    check(isinstance(by_tag, Ok) and value_of(by_tag) == 2,
+    check(is_ok(by_tag) and value_of(by_tag) == 2,
           f"a tag written as a symbol takes the member it names: {by_tag!r}")
     by_name = interpret(str(CASES / "getattr_member.viba"), host)
-    check(isinstance(by_name, Ok) and value_of(by_name) == 2,
+    check(is_ok(by_name) and value_of(by_name) == 2,
           f"a member read by the name a value spells: {by_name!r}")
 
     source = ("Args = Object * $a int * $b str\n"
@@ -160,6 +176,25 @@ def _what_is_not_there_is_reported(tmp: Path):
     wrong = interpret(str(CASES / "first_argument_is_not_the_value.viba"), environ_for())
     labelled(wrong, "no member tagged '$sub_env' to take from it",
              "the first argument is the value the member is taken from")
+
+
+# 环境不是可序列化数据：把它当答案写出来就不是值，整次运行停在程序错上。
+ANSWERS_THE_ENVIRONMENT = """__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $sub_env << args.env << "child"
+"""
+
+
+def _answering_the_environment_is_no_answer(tmp: Path):
+    """环境只是这次调用的规则，不是值：答出环境就是 `$viba_program_err`。"""
+    stopped = exec(ANSWERS_THE_ENVIRONMENT, environ_for())
+    check(stop_tag(stopped) == PROGRAM_ERR_TAG
+          and "the run answered the environment" in message_of(stopped),
+          f"a run that answers the environment stops: {stopped!r}")
 
 
 if __name__ == "__main__":

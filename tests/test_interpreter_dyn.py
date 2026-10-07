@@ -18,14 +18,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, full_name_of, Checks, Host, value_of
+from interpreter_support import (answer_of, Checks, full_name_of, Host, is_ok,
+                                  stop_node, stop_tag, stop_text, value_of)
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             exec, interpret)
 from viba.is_sub_type import is_sub_type
-from viba.type import (AstNodeType, EnvironmentApiInvalidArgumentErr, Ok,
-                       UnderlyingOpErr, custom_module)
+from viba.type import (AstNodeType, ENVIRONMENT_API_TAG, FAILURE_TAG,
+                       NOT_IMPLEMENTED_TAG, Ok, custom_module)
 from viba.viba_type_descriptor import descriptor_of
 
 CASES = Path(__file__).resolve().parent / "data" / "dyn"
@@ -60,7 +61,7 @@ def _what_the_name_spells():
     host = _host()
     by_name = interpret(str(CASES / "call_by_name.viba"), host.environ())
     written = interpret(str(CASES / "call_written.viba"), host.environ())
-    check(isinstance(by_name, Ok) and value_of(by_name) == 3,
+    check(is_ok(by_name) and value_of(by_name) == 3,
           f"a call whose name is data runs: {by_name!r}")
     check(value_of(by_name) == value_of(written),
           f"and it is the call the same name at the head makes: {written!r}")
@@ -81,7 +82,7 @@ def _what_the_member_name_spells():
     env = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
     by_name = interpret(str(CASES / "method_by_name.viba"), env)
     by_tag = interpret(str(CASES / "method_by_tag.viba"), env)
-    check(isinstance(by_name, Ok) and value_of(by_name) == 2,
+    check(is_ok(by_name) and value_of(by_name) == 2,
           f"a member whose name is data is taken from the value and run: {by_name!r}")
     check(value_of(by_name) == value_of(by_tag),
           f"and it is the call the tag at the head makes: {by_tag!r}")
@@ -90,25 +91,25 @@ def _what_the_member_name_spells():
 def _a_call_without_an_environment_is_a_value():
     """环境没给，`__dyn_call__` 还是一个闭包；给它环境就执行。"""
     closure = interpret(str(CASES / "closure.viba"), _host().environ())
-    check(isinstance(closure, Ok)
-          and isinstance(getattr(closure.ok_value, "data", None), viba_ast.Partial),
+    check(is_ok(closure)
+          and isinstance(answer_of(closure).data, viba_ast.Partial),
           f"no environment: the call is a value: {closure!r}")
-    check(_written(closure.ok_value.data) == '__dyn_call__ << "add" << $a 1',
+    check(_written(answer_of(closure).data) == '__dyn_call__ << "add" << $a 1',
           f"written as the same call, the environment left out: "
-          f"{_written(closure.ok_value.data)!r}")
+          f"{_written(answer_of(closure).data)!r}")
     ran = interpret(str(CASES / "closure_run.viba"), _host().environ())
-    check(isinstance(ran, Ok) and value_of(ran) == 3,
+    check(is_ok(ran) and value_of(ran) == 3,
           f"and giving that call an environment runs it: {ran!r}")
 
 
 def _the_call_the_error_carries(tmp: Path):
     """没实现的那一步带回来的 `$call`：名字是数据，环境不在里面，照它能把这次调用做一遍。"""
     stopped = interpret(str(CASES / "missing_step.viba"), _host(missing=("add",)).environ())
-    error = error_of(stopped)
-    check(isinstance(error, UnderlyingOpErr) and
-          error.full_qualified_func_name == full_name_of(CASES / "missing_step", "add"),
+    check(stop_tag(stopped) == NOT_IMPLEMENTED_TAG
+          and stop_text(stopped, "$full_qualified_func_name")
+          == full_name_of(CASES / "missing_step", "add"),
           f"the stop names the step: {stopped!r}")
-    call = _written(error.call.data)
+    call = _written(stop_node(stopped, "$call").data)
     check(call == '__dyn_call__ << "missing_step.add" << $a 1 << $b 2',
           f"the call is the same call with the name as data: {call!r}")
 
@@ -119,7 +120,7 @@ def _the_call_the_error_carries(tmp: Path):
                       "__impl__ = " + call.replace(
                           "__dyn_call__ << ", "__dyn_call__ << args.env << ", 1) + "\n")
     again = interpret(str(replay), _host().environ())
-    check(isinstance(again, Ok) and value_of(again) == 3,
+    check(is_ok(again) and value_of(again) == 3,
           f"the call the error carried runs again, from another module: {again!r}")
 
 
@@ -131,11 +132,11 @@ def _the_member_the_error_carries():
     读回来时不必解析 `inc` 这个名字，也就不必让写它的那个模块在场。环境不在里面。
     """
     stopped = interpret(str(CASES / "missing_member.viba"), _host(missing=("inc",)).environ())
-    error = error_of(stopped)
-    check(isinstance(error, UnderlyingOpErr) and
-          error.full_qualified_func_name == full_name_of(CASES / "missing_member", "inc"),
+    check(stop_tag(stopped) == NOT_IMPLEMENTED_TAG
+          and stop_text(stopped, "$full_qualified_func_name")
+          == full_name_of(CASES / "missing_member", "inc"),
           f"the stop names the step the member's value stands for: {stopped!r}")
-    call = _written(error.call.data)
+    call = _written(stop_node(stopped, "$call").data)
     check(call == '__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1',
           f"the member layer is kept, the value comes first, the call in it is "
           f"written the way a call travels, the environment is dropped: {call!r}")
@@ -148,11 +149,11 @@ def _what_a_call_hands_on():
     （`$f (__dyn_call__ << "inc")`）。另起一个运行，把这一步补上，照着它就能把这次调用做一遍。
     """
     stopped = interpret(str(CASES / "fn_argument.viba"), _host(missing=("apply",)).environ())
-    error = error_of(stopped)
-    check(isinstance(error, UnderlyingOpErr) and
-          error.full_qualified_func_name == full_name_of(CASES / "fn_argument", "apply"),
+    check(stop_tag(stopped) == NOT_IMPLEMENTED_TAG
+          and stop_text(stopped, "$full_qualified_func_name")
+          == full_name_of(CASES / "fn_argument", "apply"),
           f"the stop names the step that is missing: {stopped!r}")
-    call = _written(error.call.data)
+    call = _written(stop_node(stopped, "$call").data)
     check(call == '__dyn_call__ << "fn_argument.apply" << $f (__dyn_call__ << "inc")',
           f"the function argument is the call it stands for, written the way a call "
           f"travels: {call!r}")
@@ -165,34 +166,30 @@ def _what_a_call_hands_on():
         return None
 
     env = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
-    again = exec(error.call, env)
-    check(isinstance(again, Ok) and value_of(again) == 7,
+    again = exec(stop_node(stopped, "$call"), env)
+    check(is_ok(again) and value_of(again) == 7,
           f"and that call runs again with no module to resolve the name in: {again!r}")
 
 
 def _what_the_environment_api_error_records():
-    """环境上的 api 收不下给它的东西：错误里记下是哪一个 api、拿到了什么参数。"""
+    """环境上的 api 收不下给它的东西：这一停里记下是哪一个 api、拿到了什么参数。"""
     headless = Environment(None, EnvironmentCompute(lambda path, name: None))
 
     stopped = interpret(str(CASES / "api_error_args.viba"), headless)
-    error = error_of(stopped)
-    check(isinstance(error, EnvironmentApiInvalidArgumentErr)
-          and error.api_name == "Environment.sub_env",
-          f"an environment api that refused what it was given is that error, "
-          f"naming that api: {stopped!r}")
-    check(isinstance(error, Exception) and "raised" in error.msg,
-          f"and the error is an exception saying so: {error!r}")
-    check(_written(error.arguments) == '"kid"',
+    checks.environment_api(stopped, "raised", "Environment.sub_env",
+                           "an environment api that refused what it was given")
+    check(_written(stop_node(stopped, "$args").data) == '"kid"',
           f"what that api was given is recorded, the environment not among it: "
-          f"{_written(error.arguments)!r}")
-    check(not isinstance(error, UnderlyingOpErr),
-          f"an environment api is no step of the program: {error!r}")
-    check(getattr(error, "stack", None) is None,
+          f"{_written(stop_node(stopped, '$args').data)!r}")
+    check(stop_tag(stopped) not in (FAILURE_TAG, NOT_IMPLEMENTED_TAG),
+          f"an environment api is no step of the program: {stopped!r}")
+    check(stop_node(stopped, "$stack") is None,
           "and it names no stack: it is not about the program")
 
-    nothing = error_of(interpret(str(CASES / "api_error_no_args.viba"), headless))
-    check(isinstance(nothing, EnvironmentApiInvalidArgumentErr)
-          and nothing.api_name == "Environment.tmp_env" and nothing.arguments is None,
+    nothing = interpret(str(CASES / "api_error_no_args.viba"), headless)
+    check(stop_tag(nothing) == ENVIRONMENT_API_TAG
+          and stop_text(nothing, "$api_name") == "Environment.tmp_env"
+          and isinstance(stop_node(nothing, "$args").data, viba_ast.Nil),
           f"an api given nothing that travels records nothing: {nothing!r}")
 
 

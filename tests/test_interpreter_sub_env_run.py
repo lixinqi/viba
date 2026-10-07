@@ -32,11 +32,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, module_of, Checks, value_of
+from interpreter_support import Checks, is_ok, module_of, value_of
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             interpret)
-from viba.type import Ok
 
 checks = Checks("interpreter_sub_env_run")
 check = checks.check
@@ -93,7 +92,7 @@ def _a_module_may_shadow_it(tmp: Path):
     calls, ran_at = [], []
     result = interpret(str(CASES / "a_module_of_its_own.viba"),
                        environ_for(tmp / "shadow", calls, ran_at))
-    check(isinstance(result, Ok) and value_of(result) == 1,
+    check(is_ok(result) and value_of(result) == 1,
           f"its own sub_env_run answered 1: {result!r}")
     check((module_of(CASES / "a_module_of_its_own"), "sub_env_run") in calls and
           not [one for one in calls if one[0] == "builtin"],
@@ -104,7 +103,7 @@ def _under_the_name(tmp: Path, name: str, label: str, want):
     """`f` 跑在给它的环境的那名字底下，跑出来的就是 f 给出的那个值。"""
     calls, ran_at = [], []
     result = interpret(str(CASES / f"{name}.viba"), environ_for(tmp / name, calls, ran_at))
-    check(isinstance(result, Ok) and value_of(result) == want,
+    check(is_ok(result) and value_of(result) == want,
           f"{name}: {label} answers {want!r}, got {result!r}")
     places = [where for where, what in ran_at if what == "add"]
     check(bool(places) and all(one.startswith(UNDER_THE_NAME) for one in places),
@@ -116,7 +115,7 @@ def _a_nameless_parent(tmp: Path):
     calls, ran_at = [], []
     result = interpret(str(CASES / "a_nameless_parent.viba"),
                        environ_for(tmp / "nameless", calls, ran_at))
-    check(isinstance(result, Ok) and value_of(result) == 9,
+    check(is_ok(result) and value_of(result) == 9,
           f"4 + 5 = 9 under a nameless parent: {result!r}")
     places = [where for where, what in ran_at if what == "add"]
     check(bool(places) and all(one.startswith("root/tmp_") and "/low/" in one
@@ -129,7 +128,7 @@ def _the_rest_is_f_s_arguments(tmp: Path):
     calls, ran_at = [], []
     result = interpret(str(CASES / "the_rest_is_f_s_arguments.viba"),
                        environ_for(tmp / "rest", calls, ran_at))
-    check(isinstance(result, Ok) and value_of(result) == 6,
+    check(is_ok(result) and value_of(result) == 6,
           f"1 + 2 + 3 = 6: {result!r}")
     places = [where for where, what in ran_at if what == "add"]
     check(len(places) == 2 and all(one.startswith(UNDER_THE_NAME) for one in places),
@@ -141,7 +140,7 @@ def _the_arguments_are_computed_here(tmp: Path):
     calls, ran_at = [], []
     result = interpret(str(CASES / "the_arguments_are_computed_here.viba"),
                        environ_for(tmp / "here", calls, ran_at))
-    check(isinstance(result, Ok) and value_of(result) == 6,
+    check(is_ok(result) and value_of(result) == 6,
           f"the argument answered 1, and 1 + 5 = 6: {result!r}")
     check([path for path, name in ran_at if name == "here"] == ["root"],
           f"the argument was worked out where it was written: {ran_at}")
