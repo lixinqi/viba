@@ -29,15 +29,20 @@ labelled = checks.labelled
 
 
 def host_for(calls):
+    """宿主把每一步实际跑在哪个环境里记下来 —— 那是环境带的数据路径。
+
+    `get_func` 收到的是「这一步声明在哪个模块」；一步跑在哪儿由给它的环境说了算
+    （`viba-interpreter.md`「`get_func` 与 `func_name`」）。
+    """
     def get_func(module_path, func_name):
         if func_name == "leaf":
             def leaf(env):
-                calls.append((module_path, "leaf"))
+                calls.append((env.storage.cur_storage_path, "leaf"))
                 return 42
             return leaf
-        if func_name == "builtin.echo":
+        if func_name == "echo":
             def echo(env, x):
-                calls.append((module_path, "echo"))
+                calls.append((env.storage.cur_storage_path, "echo"))
                 return x
             return echo
         return branch.get_func(module_path, func_name)

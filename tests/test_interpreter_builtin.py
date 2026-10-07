@@ -25,7 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, value_of
+from interpreter_support import (error_of, message_of, module_of, Checks, value_of)
 
 from viba import viba_ast
 from viba.interpret import (BUILTIN_DIR, Environment, EnvironmentCompute,
@@ -108,19 +108,28 @@ OPERATORS = {
 }
 
 
-def host_for(seen=None, extra=None):
-    """宿主：内建算子按 `OPERATORS` 实现，另加 `extra` 里那几样本模块自己的定义。"""
+def host_for(seen=None, extra=None, ran_at=None):
+    """宿主：内建算子按 `OPERATORS` 实现，另加 `extra` 里那几样本模块自己的定义。
+
+    `seen` 记下 `get_func` 收到的（模块路径，名字）；`ran_at` 记下一步跑在哪个环境里
+    —— 那是环境带的数据路径，`get_func` 不再收到它（`viba-interpreter.md`）。
+    """
     def get_func(module_path, func_name):
         if seen is not None:
             seen.append((module_path, func_name))
-        if func_name.startswith("builtin."):
-            entry = OPERATORS.get(func_name[len("builtin."):])
+        if module_path == "builtin":
+            entry = OPERATORS.get(func_name)
             step = entry[0] if entry is not None else None
         else:
             step = (extra or {}).get(func_name)
         if step is None:
             return None
-        return lambda env, *args: step(*[_leaf(one) for one in args])
+
+        def ran(env, *args):
+            if ran_at is not None:
+                ran_at.append(env.storage.cur_storage_path)
+            return step(*[_leaf(one) for one in args])
+        return ran
     return get_func
 
 
@@ -152,9 +161,9 @@ def _every_operator(tmp: Path):
                            environ_for(host_for(seen), tmp / f"operator-{index}"))
         check(isinstance(result, Ok) and value_of(result) == want,
               f"{name}: answers {want!r}, got {result!r}")
-        names = {func_name for _, func_name in seen}
-        check(f"builtin.{name}" in names,
-              f"{name}: its own step is the one that ran: {sorted(names)}")
+        asked = set(seen)
+        check(("builtin", name) in asked,
+              f"{name}: its own step is the one that ran: {sorted(asked)}")
 
 
 def _the_two_spellings_are_one_call(tmp: Path):
@@ -164,8 +173,8 @@ def _the_two_spellings_are_one_call(tmp: Path):
                        environ_for(host_for(seen), tmp / "spellings"))
     check(isinstance(result, Ok) and value_of(result) is True,
           f"the two spellings answer the same value: {result!r}")
-    check(seen.count(("root", "builtin.add")) == 2 and
-          set(seen) == {("root", "builtin.add"), ("root", "builtin.eq")},
+    check(seen.count(("builtin", "add")) == 2 and
+          set(seen) == {("builtin", "add"), ("builtin", "eq")},
           f"both spellings land on the same member: {seen}")
 
 
@@ -177,19 +186,21 @@ def _a_module_may_shadow_a_builtin(tmp: Path):
                        environ_for(host_for(seen, local), tmp / "shadowed"))
     check(isinstance(result, Ok) and value_of(result) == 13,
           f"its own add runs first (3 times 4), the builtin one adds 1: {result!r}")
-    check({("root", "add"), ("root", "builtin.add")} <= set(seen),
+    check({("builtin", "add"),
+           (module_of(CASES / "shadowed_by_the_module"), "add")} <= set(seen),
           f"both names reached the host: {seen}")
 
 
 def _it_runs_where_it_is_given(tmp: Path):
     """内建算子跑在给它的环境里，不在调用方那条路径上。"""
-    seen = []
+    seen, ran_at = [], []
     result = interpret(str(CASES / "runs_where_it_is_given.viba"),
-                       environ_for(host_for(seen), tmp / "where"))
+                       environ_for(host_for(seen, ran_at=ran_at), tmp / "where"))
     check(isinstance(result, Ok) and value_of(result) == 3,
           f"the operator answers 3: {result!r}")
-    check(("root/operators", "builtin.add") in seen,
-          f"it ran at the environment it was given: {seen}")
+    check(ran_at == ["root/operators"],
+          f"it ran at the environment it was given, which is what carries the data path: "
+          f"{ran_at}")
 
 
 def _the_wrong_type_is_refused(tmp: Path):

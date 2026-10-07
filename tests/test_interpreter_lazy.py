@@ -56,7 +56,7 @@ def host_for(calls, knobs):
             return lambda env, x, y: x.value >= y.value
         if func_name == "condition_holds":
             return lambda env: True
-        if func_name == "builtin.echo":
+        if module_path == "builtin" and func_name == "echo":
             return lambda env, x: x
         if func_name == "inner_lambda_record":
             # 分支值本身也是一次调用：它被算过就说明那一支走了

@@ -61,8 +61,8 @@ def _the_code_runs():
     result = exec(ADD, host.environ())
     check(isinstance(result, Ok) and value_of(result) == 3,
           f"the code written out runs: {result!r}")
-    check(("root", "add") in host.calls,
-          f"and the host is asked the way it always is: {host.calls}")
+    check(("<viba_code>", "add") in host.calls,
+          f"the code module is known by the label it was compiled under: {host.calls}")
 
 
 def _the_entry_points_agree(tmp: Path):
@@ -85,13 +85,15 @@ def _a_node_is_a_module_too():
     host = Host(missing=("add",))
     stopped = exec(ADD, host.environ())
     error = error_of(stopped)
-    check(isinstance(error, UnderlyingOpErr) and error.func_name == "add",
+    check(isinstance(error, UnderlyingOpErr)
+          and error.full_qualified_func_name == "<viba_code>.add",
           f"the step that is missing is the one the error names: {stopped!r}")
 
     # 实现还没补上：给环境就是执行它，所以这次运行照样停在同一个名字上，
     # 而不是像一份写出来的模块那样把这个调用当值交回（那份 `closure.viba` 钉的是后者）。
     still = error_of(exec(error.call, host.environ()))
-    check(isinstance(still, UnderlyingOpErr) and still.func_name == "add",
+    check(isinstance(still, UnderlyingOpErr)
+          and still.full_qualified_func_name == "<viba_code>.add",
           f"handed a node, the call is run, not answered as a value: {still!r}")
 
     host.knobs["missing"] = ()              # 同一个宿主：实现表每次读，这次它有 add 了
@@ -123,7 +125,8 @@ def _no_name_and_no_file():
                    "\t<- { nothing implements this }\n"
                    "__impl__ = ghost << $env args.env\n", host.environ())
     error = error_of(stopped)
-    check(error.func_name == "ghost", f"the step is the one that stopped: {stopped!r}")
+    check(error.full_qualified_func_name == "<viba_code>.ghost",
+          f"the step is the one that stopped: {stopped!r}")
     # 名字解析不了是程序错，而 `$stack` 只在程序错那一支上：那一帧就是这份代码
     named = error_of(exec("__impl__ = nope", host.environ()))
     check(isinstance(named, VibaProgramErr) and "in module ''" in named.msg,

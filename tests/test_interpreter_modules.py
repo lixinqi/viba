@@ -12,7 +12,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, CASES, Checks, Host, value_of
+from interpreter_support import (error_of, full_name_of, message_of, module_of,
+                                  module_path_of, CASES, Checks, Host, PlacedHost,
+                                  value_of)
 
 from viba import serialize
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
@@ -54,12 +56,14 @@ def _not_implemented(tmp: Path):
     host.knobs["missing"] = ("add",)
     stopped = interpret(outer, environ)
     checks.not_implemented(stopped, "a step with no implementation inside a called module")
-    check(error_of(stopped).module_path == "root/not_implemented_module"
-          and error_of(stopped).func_name == "add",
+    check(error_of(stopped).module_path == module_path_of(CASES / "not_implemented_module")
+          and error_of(stopped).full_qualified_func_name ==
+          full_name_of(CASES / "not_implemented_module", "add"),
           f"the step is the call that stopped, not the module that called it: {stopped!r}")
     check(error_of(stopped).msg == "no implementation",
           f"and why: {error_of(stopped).msg!r}")
-    check(_text_of(error_of(stopped).call) == '__dyn_call__ << "add" << $a 1 << $b 2',
+    check(_text_of(error_of(stopped).call) ==
+          '__dyn_call__ << "not_implemented_module.add" << $a 1 << $b 2',
           f"the call as it was written, a name that travels: "
           f"{_text_of(error_of(stopped).call)!r}")
     host.knobs.pop("missing")
@@ -71,8 +75,9 @@ def _not_implemented(tmp: Path):
     host.knobs["refuse"] = ("add",)
     stopped = interpret(outer, environ)
     checks.not_implemented(stopped, "a get_func that refuses the call it cannot serve")
-    check(error_of(stopped).module_path == "root/not_implemented_module"
-          and error_of(stopped).func_name == "add"
+    check(error_of(stopped).module_path == module_path_of(CASES / "not_implemented_module")
+          and error_of(stopped).full_qualified_func_name ==
+          full_name_of(CASES / "not_implemented_module", "add")
           and error_of(stopped).msg == "refused",
           f"a bare refusal is completed with the step the run knows: {stopped!r}")
     host.knobs.pop("refuse")
@@ -83,7 +88,7 @@ def _not_implemented(tmp: Path):
     stopped = interpret(outer, environ)
     checks.not_implemented(stopped, "a get_func that refuses in its own words")
     check(error_of(stopped).module_path == "root/elsewhere"
-          and error_of(stopped).func_name == "add"
+          and error_of(stopped).full_qualified_func_name == "add"
           and error_of(stopped).msg == "no add here",
           f"and what it said is kept: {stopped!r}")
     host.knobs.pop("refuse_with")
@@ -99,26 +104,26 @@ def _text_of(node):
 
 def _spec_modules():
     """设计里那两份：模块当函数、import、sub_env、print。"""
-    host = Host()
+    host = PlacedHost()
     environ = host.environ()
 
     result = interpret(str(CASES / "add_demo.viba"), environ)
     check(isinstance(result, Ok) and value_of(result) == 1000000,
           f"add_demo's __impl__ is what add answered: {result!r}")
-    check(("root", "add") in host.calls,
-          f"the implementation is looked up at the environment's path: {host.calls}")
+    check((module_of(CASES / "add_demo"), "add") in host.calls,
+          f"a step is asked from the module that declares it: {host.calls}")
 
     result = interpret(str(CASES / "main.viba"), environ)
     check(isinstance(result, Ok), f"main runs: {result!r}")
-    check(("root/add_demo", "add") in host.calls,
-          f"a module called through a sub-environment looks its functions up there: {host.calls}")
+    check(("add_demo", "add") in host.calls,
+          f"a called module's own step is asked from that module: {host.calls}")
     check(len(host.printed) == 1 and getattr(host.printed[0], "value", None) == 1000000,
           f"print got the value main computed: {host.printed!r}")
 
 
 def _nested_modules(tmp: Path):
     """模块里 import 模块、dotted import、设计模块、模块成员。"""
-    host = Host()
+    host = PlacedHost()
     environ = host.environ()
 
     result = interpret(_case("outer"), environ)
@@ -137,17 +142,18 @@ def _nested_modules(tmp: Path):
 
     # 同一个模块两次调用：两条自己的路径，跑两次
     host.calls.clear()
+    host.ran_at.clear()
     result = interpret(_case("twice_module"), environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"one module called twice: {result!r}")
-    leaf_calls = [call for call in host.calls if call[1] == "leaf"]
-    check([path for path, _ in leaf_calls] == ["root/first", "root/second"],
-          f"each call runs the module again, under its own path: {host.calls}")
+    leaves = [path for path, name in host.ran_at if name == "leaf"]
+    check(leaves == ["root/first", "root/second"],
+          f"each call runs the module again, under a path of its own: {host.ran_at}")
 
 
 def _cycles(tmp: Path):
     """自调用与 A→B→A：环按名字抓。"""
-    host = Host()
+    host = PlacedHost()
     environ = host.environ()
 
     labelled(interpret(_case("loop"), environ), "already running",
@@ -163,12 +169,12 @@ def _storage_paths(tmp: Path):
     同一条数据路径上：正在跑的调用不能再进去（环）；已经处理过的**同一个**模块就是同一个
     子计算，把它给出的那份交回去；换个模块挤同一条数据路径才是错的。
     """
-    host = Host()
+    host = PlacedHost()
     environ = host.environ()
     # 主文件自己也占着它那个路径：直接拿 environ 调模块就是撞车
     same_env = _case("same_env")
     labelled(interpret(same_env, environ), "storage path",
-             "a module handed the caller's own environment -> VibaProgramErr")
+             "a module handed the caller's func_name environment -> VibaProgramErr")
 
     # 两次调用给同一个子环境（同名子环境就是同一个 storage）：同一个模块、同一条
     # 数据路径 = 同一个子计算，第二次拿的是第一次给出的那份
@@ -182,12 +188,13 @@ def _storage_paths(tmp: Path):
 
     # 各给各的名字：两次都跑得起来，宿主看到两个路径，按书写顺序
     host.calls.clear()
+    host.ran_at.clear()
     result = interpret(_case("two_names"), environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"two modules, two storage paths: {result!r}")
-    check([path for path, func in host.calls if func == "leaf"]
+    check([path for path, name in host.ran_at if name == "leaf"]
           == ["root/one", "root/two"],
-          f"the host sees each module under its own path: {host.calls}")
+          f"each module call runs under a path of its own: {host.ran_at}")
 
     # 没有 storage 的环境：主文件先占下那条空路径，模块再用它就是撞车
     headless = Environment(None, EnvironmentCompute(host.get_func))

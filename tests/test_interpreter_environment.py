@@ -14,7 +14,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, Host, value_of
+from interpreter_support import (error_of, message_of, module_of, Checks,
+                                  Host, PlacedHost, value_of)
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             interpret, sub_env, tmp_env)
@@ -89,8 +90,9 @@ def _the_env_slot(tmp: Path):
 
 def _children(tmp: Path):
     """sub_env：路径是 <父>/<名>，同名同一个；tmp_env：每次一个新的。"""
-    host = Host()
+    host = PlacedHost()
     environ = host.environ()
+    ran_at = host.ran_at
 
     child = sub_env(environ, "a")
     grand = sub_env(child, "b")
@@ -110,10 +112,13 @@ def _children(tmp: Path):
           "the same name under two parents is two storages")
 
     host.calls.clear()
+    ran_at.clear()
     labelled(interpret(str(CASES / "paths.viba"), child), None,
              "a module runs under a sub-environment")
-    check(("root/a", "add") in host.calls,
-          f"its path is what get_func sees: {host.calls}")
+    check((module_of(CASES / "paths"), "add") in host.calls,
+          f"the module path is what get_func sees: {host.calls}")
+    check(ran_at == [("root/a", "add")],
+          f"and the place it ran is what the environment carries: {ran_at}")
 
     # 子环境的名来自 viba 那边写下的东西：可序列化数据取它的叶子，别的就 str 一下
     seeded = EnvironmentStorage("root", {"a": EnvironmentStorage("root/a")})
@@ -141,18 +146,22 @@ def _children(tmp: Path):
 
 def _written_in_viba(tmp: Path):
     """viba 那边调 environ.sub_env / tmp_env，以及 __impl__ 就是环境。"""
-    host = Host()
+    host = PlacedHost()
     environ = host.environ()
+    ran_at = host.ran_at
 
     # 两次模块调用各拿一个临时环境，直接过唯一性那一关
     host.calls.clear()
+    ran_at.clear()
     result = interpret(str(CASES / "tmp_calls.viba"), environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"two module calls, each under a temporary environment: {result!r}")
-    leaf_paths = [path for path, func in host.calls if func == "leaf"]
-    check(len(leaf_paths) == 2 and len(set(leaf_paths)) == 2 and
-          all(path.startswith("root/tmp_") for path in leaf_paths),
-          f"each call under a path of its own: {host.calls}")
+    check([name for _, name in host.calls].count("leaf") == 2,
+          f"the leaf step is asked twice, under its module's path: {host.calls}")
+    leaves = [path for path, name in ran_at if name == "leaf"]
+    check(len(leaves) == 2 and len(set(leaves)) == 2 and
+          all(path.startswith("root/tmp_") for path in leaves),
+          f"and each call runs at a temporary environment of its own: {ran_at}")
 
     # 它收的就是那个环境：写别的值不成立（判定层拦下，见 test_is_sub_type.py）
     check(not isinstance(interpret(str(CASES / "tmp_wrong.viba"), environ), Ok),

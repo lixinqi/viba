@@ -37,7 +37,7 @@ def host_for(a_value, threshold):
             return lambda env, x, y: x.value >= y.value
         if func_name == "threshold_of":
             return lambda env: threshold
-        if func_name == "builtin.echo":
+        if module_path == "builtin" and func_name == "echo":
             return lambda env, x: x
         if func_name in ("pick_high", "pick_nonnegative", "pick_negative"):
             return lambda env: func_name[len("pick_"):]

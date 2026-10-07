@@ -1,0 +1,14 @@
+# A step declared here is asked under the name written here.
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+b_scale =
+    int
+  <- $env Env
+  <- $x int
+  <- { scale b }
+
+__impl__ = b_scale << $env args.env << $x 2

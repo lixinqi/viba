@@ -14,7 +14,8 @@ from typing import get_args
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, Host, value_of
+from interpreter_support import (error_of, full_name_of, message_of, module_of,
+                                  module_path_of, Checks, Host, value_of)
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
@@ -98,8 +99,8 @@ def _host_answers(tmp: Path):
     boom = _case("boom")
     exploded = interpret(boom, environ)
     checks.failed(exploded, "ZeroDivision", "a host function that raises")
-    check(error_of(exploded).module_path == "root"
-          and error_of(exploded).func_name == "explode"
+    check(error_of(exploded).module_path == module_path_of(boom)
+          and error_of(exploded).full_qualified_func_name == full_name_of(boom, "explode")
           and error_of(exploded).msg.startswith("raised"),
           f"and the failure names the step and why: {exploded!r}")
     checks.failed(interpret(boom, Host(get_func_raises=True).environ()), "raised",
@@ -112,8 +113,8 @@ def _host_answers(tmp: Path):
           "get_func says None: the run stops with no implementation, not a VibaProgramErr")
     check(not isinstance(error_of(stopped), VibaProgramErr),
           "and that stop is not a VibaProgramErr: nothing broke, one step has no implementation")
-    check(error_of(stopped).module_path == "root"
-          and error_of(stopped).func_name == "ghost"
+    check(error_of(stopped).module_path == module_path_of(_case("no_impl"))
+          and error_of(stopped).full_qualified_func_name == full_name_of(_case("no_impl"), "ghost")
           and error_of(stopped).msg == "no implementation",
           f"the stop names the step and why: {stopped!r}")
     call = error_of(stopped).call.data
@@ -121,7 +122,7 @@ def _host_answers(tmp: Path):
           and isinstance(call.function, viba_ast.TypeRef)
           and call.function.name == "__dyn_call__"
           and isinstance(call.argument, viba_ast.Constant)
-          and call.argument.value == "ghost",
+          and call.argument.value == full_name_of(_case("no_impl"), "ghost"),
           f"a call with no argument of its own is the name and then nothing: "
           f"{error_of(stopped).call!r}")
 
@@ -223,7 +224,7 @@ def _names_and_repeats(tmp: Path):
 
     result = interpret(_case("nested"), environ)
     check(isinstance(result, Ok) and value_of(result) == 3 and
-          ("root", "unused") not in host.calls,
+          (module_of(_case("nested")), "unused") not in host.calls,
           f"a definition nobody asks for is never run: {result!r}")
 
     # 一个定义算一次：两处用它，宿主只被叫一次
@@ -231,7 +232,7 @@ def _names_and_repeats(tmp: Path):
     result = interpret(_case("memo"), environ)
     check(isinstance(result, Ok) and value_of(result) == 14,
           f"a definition used twice: {result!r}")
-    check(host.calls.count(("root", "leaf")) == 1,
+    check(host.calls.count((module_of(_case("memo")), "leaf")) == 1,
           f"a definition is computed once: {host.calls}")
 
 

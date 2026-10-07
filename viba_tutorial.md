@@ -178,7 +178,8 @@ __impl__ = demo.print << args.env << ret
 `args.env.sub_env << args.env << "add_demo"` 拿一个子环境：**它带着父级的 compute**，数据路径是
 `root/add_demo`。它也可以写成 `$sub_env << args.env << "add_demo"`——tag 写在链头时命中的是第一个参数
 的成员，两种写法是同一次调用（第 8 节）。这个模块只收环境这一个参数，所以给环境就是执行。
-那条路径就是这次调用的**数据路径**（宿主拿到的 `module_path` 就是它），而一条数据路径上只该有一次调用：
+那条路径就是这次调用的**数据路径**（它是环境带着的；宿主拿到的 `module_path` 说的是这一步声明在哪个
+模块，`func_name` 是它在那个模块里的名字），而一条数据路径上只该有一次调用：
 同一条路径上正在跑就是环（报错并把写法写在话里）；已经处理过、又是**同一个模块**，就是同一个子
 计算被问了第二次，把它处理过的那份交回去；已经处理过、却是**另一个模块**，那是两条调用挤一条数据路径，
 宿主分不出谁是谁，也报错。
@@ -340,9 +341,10 @@ tag 本身不是值，`method = $sub_env` 编不过：标签只有写在链头�
   `$args` 是给它的实参（环境不在里面）。
 
 后两支的载荷是同一个 `UnderlyingOpErr`，靠 tag 分开；`$msg` 一句话说清是什么事，开头就是原因（`no implementation`、
-`refused`、`get_func raised`、`raised`、`no leaf`）。这一支里还带着是哪一步（`$module_path` 与 `$func_name`）
+`refused`、`get_func raised`、`raised`、`no leaf`）。这一支里还带着是哪一步（`$module_path` 与 `$full_qualified_func_name`）
 和这次调用本身（`$call`：`__dyn_call__` 加上名字和写下来的实参，名字是数据，环境不在里面 ——
-`__dyn_call__ << "add" << $a 1 << $b 2` 就是 `add << $a 1 << $b 2`；成员是某份值的成员时保留成员那一层，
+`__dyn_call__ << "demo.add" << $a 1 << $b 2` 就是 `demo.add << $a 1 << $b 2`（名字是整名：模块加它在那儿
+叫的名字，读回来按最后一个点切开）；成员是某份值的成员时保留成员那一层，
 那份值里写着调用的那一格按能跑的形式写，写成 `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`），
 照着它就能把这次调用重新做一遍，不必重跑一次运行，也不必让写它的那个模块在场（`viba-interpreter.md`
 「把一次调用写成可执行的」）。

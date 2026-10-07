@@ -44,7 +44,7 @@ def host_for(calls):
             return counted
         if func_name == "asked_twice":
             return lambda env, get_x: get_x(env).value + get_x(env).value
-        if func_name == "builtin.echo":
+        if module_path == "builtin" and func_name == "echo":
             return lambda env, x: x
         if func_name == "gate":
             return lambda env, mode: mode.value

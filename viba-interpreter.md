@@ -45,8 +45,8 @@ Frame =
 UnderlyingOpErr =
     Object
   * $msg str                               # 一句话，开头就是原因
-  * $module_path str                       # `get_func` 收到的那条数据路径
-  * $func_name str                         # `get_func` 收到的那个名字
+  * $module_path str                       # 这一步声明在哪个模块（读成路径）
+  * $full_qualified_func_name str          # 这一步的整名（模块 + 它在那儿叫的名字）
   * $call (Any <- $env Env)                # 这次调用本身，可执行的写法，环境不在里面
 
 EnvironmentApiInvalidArgumentErr =
@@ -88,8 +88,10 @@ exec =
 顺序（见 [`viba-pattern.md`](viba-pattern.md)）。
 写了 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
 点号读的是成员：`a.b` 是在 `a` 上取成员 `b`（[`viba-style.md`](viba-style.md) 第 5 节），
-所以 `a.b` 当类型读是那个成员的声明类型，写在链头就是那一步的调用 —— 宿主拿到的 `func_name` 是写下来的整串；
-定义左边只有一个名字，`a.b = A` 编不过。
+所以 `a.b` 当类型读是那个成员的声明类型，写在链头就是那一步的调用 —— 这一步问的是它**在哪个模块、
+在那儿叫什么**（下一节的 `get_func`）；定义左边只有一个名字，`a.b = A` 编不过。用别名包一层也一样：
+`b_scale = foo.bar.b_scale` 之后 `b_scale << …` 问的还是 `foo.bar` 那个模块里的 `b_scale` ——
+一步是按它**代表的那次调用**问的，不是按就地写的名字问的。
 同一个名字不许在同一个模块里写两次：写两次是程序错误，读一个名字不必猜它指哪一份。
 `Environment.viba_path` 也可以直接给一个路径（`Path`）；给了别的类型是 `VibaProgramErr`，不是把
 `AttributeError` 抛出来。**同一个文件只问一次**：模块按路径认，已经加载过的（哪怕换了别名）不会再问
@@ -197,7 +199,7 @@ add_module : int <- $env Env <- $a int <- $b int   # 一个模块：`__decl__` �
 ```
 
 **给环境就是执行**，也只有这一个动作是执行：给它的那一刻，`interpret` 去问宿主哪一步来实现
-（`get_func(module_path, func_name)`），并按这次调用的数据路径把它认下来。
+（`get_func(module_path, func_name)`），而这一步跑在给它的那个环境的数据路径上。
 
 **不给环境，链就是一个闭包**——一个值：
 
@@ -330,8 +332,8 @@ __impl__ = demo.print << args.env << ret
   `父路径/add_demo`（见「幂等与快照：结果要能回放」）。同一个调用还可以写成
   `$sub_env << args.env << "add_demo"`（见「如何调用方法：链头写 tag」）。
 
-**一条数据路径上只该有一次调用**：宿主拿到的 `get_func(module_path, func_name)` 里的
-`module_path` 就是这次调用的数据路径。三种情形分得很清楚：
+**一条数据路径上只该有一次调用**：一次运行里，每个模块调用跑在自己的数据路径上（那是环境的
+`cur_storage_path`，不是 `get_func` 收到的 `module_path`）。三种情形分得很清楚：
 
 - **这条路径正在跑**（同一个数据路径上还没处理完，又要进去一次）：真是环，`VibaProgramErr`，话里给出
   写法：
@@ -483,9 +485,27 @@ content)`（在 store root 底下的纯文本读写，读不到返回 `None`）�
 `get_func(module_path, func_name)` 返回一个可调用对象；没有就返回 `None`，于是这一次调用没有实现
 （结果里 `$msg` 是 `no implementation`，见最后一节）——它也可以自己抛 `UnderlyingOpErr`，
 直接说它没有实现；它抛别的异常，run 也照这一支作答，`$msg` 开头是 `get_func raised`。
-`module_path` 是**调用时那个 environment 的数据路径**——所以同一个 `add`，从
-`root/add_demo` 进来和从 `root` 进来，宿主看到的是不同的路径，可以给它们各自一个实现；也正是
-这个路径，加上 `func_name`，就是结果里 `UnderlyingOpErr` 的头两个字段。
+`module_path` 是**这一步声明在哪个模块**，写法就是它在 viba 里被 import 的那个名字：`import foo.bar`
+（或者 `import foo.bar as foo_bar`）里的 `foo.bar`；就地声明的步骤说的是 `interpret` 跑的那份模块
+（一份文件按它的名字，`exec` 那份代码按 `<viba_code>`）。`func_name` 是这一步**在那个模块里的名字**：
+`foo.bar.b_scale << …` 问的是 `get_func("foo.bar", "b_scale")`，`foo_bar.b_scale << …` 问的是同一次。
+
+内建词汇是一个模块（`builtin`），它的成员是那儿的名字：`builtin.add << …` 与裸写的 `add << …`
+问的都是 `get_func("builtin", "add")` —— 两个写法是一次调用。宿主按 `module_path` 路由，
+两个服务各有一份 `b_scale` 时，`foo.bar` 说的是哪一份。
+
+结果里 `UnderlyingOpErr` 的头两个字段是这一步的**整名**与它那个模块的**路径**：`$module_path` 是
+`module_path` 读成路径（`foo.bar` 是 `/foo/bar`，内建词汇是 `/builtin`），
+`$full_qualified_func_name` 是整名
+（`foo.bar.b_scale`）—— 名字带模块，所以拿到它的人不看别的也知道是哪一步。
+
+**这次调用跑在哪儿**不在这里：那是给它的那个 environment 的数据路径，宿主从环境上读
+（`env.storage.cur_storage_path`）。所以同一个模块的两条数据路径是同一批步骤、两次计算。
+
+`func_name` 是这一步**在 `module_path` 那个模块里的名字**：`demo.print << …` 问的是
+`get_func("demo", "print")` —— 模块说哪一份，名字说那儿的哪一个；`demo` 这个模块自己叫它什么就是
+什么。别名不改变这件事：`b_scale = foo.bar.b_scale` 之后问的还是 `("foo.bar", "b_scale")`（上一节）。
+一个只服务一个模块的宿主，直接拿 `func_name` 就行了。
 
 `HostLanguageFunc` 与 interpreter 匹配：Python interpreter 里就是一个 Python 函数，收到的参数是
 **已经算好的实参**，按书写顺序给——实例是 `viba.reflect.VibaNode`，别的（环境在内）是它本身。
@@ -949,12 +969,15 @@ __dyn_method__ =
 `$stack` 是这次执行停下的**调用链**，最外一帧在前：一帧就是一次调用点 —— 调用写在哪个 `.viba` 文件里
 （`$file_path`）、写在哪一行（`$lineno`）。最外那一帧是主文件本身，它不是被谁调用的，行号写 0。
 
-`$module_path` 与 `$func_name` 就是 `get_func(module_path, func_name)` 收到的那两个：路径是这次调用的
-**数据路径**，所以同一个定义、另一条数据路径，是另一步 —— 拿 `$call` 再跑一遍时，给它的环境要落在
-`$module_path` 那条路径上，那次调用是在那儿发生的。
+`$module_path` 是这一步声明在哪个模块（读成路径，`/foo/bar`），
+`$full_qualified_func_name` 是它的整名
+（`foo.bar.b_scale`，也就是 `get_func` 收到的那两个读成一条：模块和它在那儿叫的名字）。这次调用跑在
+哪儿不在里面 —— 那是给它的环境的数据路径。拿 `$call` 再跑一遍时，环境由你自己给：给在哪儿它就跑在
+哪儿；名字里带着模块，所以问的是哪个模块的哪一步从名字就看得出。
 
-`$call` 是**这次调用本身，写成能再跑一遍的样子**：一步坏了的时候，名字只有写它的那个模块认得，所以
-名在这里当数据走 —— `__dyn_call__ << "add" << $a 1 << $b 2`（就是 `add << $a 1 << $b 2`）。成员是某份
+`$call` 是**这次调用本身，写成能再跑一遍的样子**：一步坏了的时候，读它的那份运行不一定是写它的那个
+模块，所以名在这里当数据走，而且是**整名** —— `__dyn_call__ << "foo.bar.b_scale" << $x 2`（就是
+`foo.bar.b_scale << $x 2`）；读回来时按最后一个点切开，前面是模块、后面是名字（上一节）。成员是某份
 值的成员时保留成员那一层：`$f << box << args.env << 1` 写成
 `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1` —— 环境那一处剔掉了，那份值里
 `$f` 这一格是调用 `inc`，就按能跑的形式写（上一节）。同一个规矩也在函数类型的实参上：`$f inc` 写成
@@ -996,7 +1019,7 @@ cannot parse ...                      编译不过（语法错误）
 viba_path is a string ...             viba_path 给错了类型
 ```
 
-`$underlying_viba_op_err` 的 `$msg` 一行（`$module_path`、`$func_name`、`$call` 是另外三个字段），
+`$underlying_viba_op_err` 的 `$msg` 一行（`$module_path`、`$full_qualified_func_name`、`$call` 是另外三个字段），
 每种原因都在开头那一个词上：
 
 ```

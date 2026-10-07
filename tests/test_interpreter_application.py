@@ -14,7 +14,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, message_of, Checks, Host, value_of
+from interpreter_support import (error_of, full_name_of, message_of,
+                                  module_of, module_path_of, Checks, Host, value_of)
 
 from viba.reflect import access as reflect_access
 
@@ -85,10 +86,11 @@ def _order_and_slots(tmp: Path):
     host.calls.clear()
     exploded = interpret(str(CASES / "argument_boom.viba"), environ)
     checks.failed(exploded, "raised", "an argument that blows up")
-    check(error_of(exploded).module_path == "root"
-          and error_of(exploded).func_name == "explode",
+    check(error_of(exploded).module_path == module_path_of(CASES / "argument_boom")
+          and error_of(exploded).full_qualified_func_name ==
+          full_name_of(CASES / "argument_boom", "explode"),
           f"the step that stopped is the argument's, not the call's: {exploded!r}")
-    check(("root", "add") not in host.calls,
+    check((module_of(CASES / "argument_boom"), "add") not in host.calls,
           f"the call itself never happens: {host.calls}")
 
 
@@ -128,7 +130,7 @@ def _lazy_argument_types(tmp: Path):
             return lambda env, x: x(env)      # 叫了那个实参：这时才算、才核
         if func_name == "ignore":
             return lambda env, x: 7           # 不叫它：那个实参一次都不算
-        if func_name == "builtin.echo":
+        if path == "builtin" and func_name == "echo":
             return lambda env, x: x
         return Host().get_func(path, func_name)
 

@@ -9,6 +9,7 @@ Decoupling contract: this layer knows how to build Type values from
 viba.viba_ast nodes, and nothing about how a module runs.
 """
 
+import os
 from pathlib import Path
 from typing import Callable, List, Optional, Union
 
@@ -165,7 +166,7 @@ class UnderlyingOpErr(InterpretError, Exception):
             Object
           * $msg str
           * $module_path str
-          * $func_name str
+          * $full_qualified_func_name str
           * $call (Any <- $env Env)
 
     One payload, two tags: a step stopped without answering, and the tag says
@@ -178,9 +179,12 @@ class UnderlyingOpErr(InterpretError, Exception):
     reason (`no implementation`, `refused`, `get_func raised`, `raised`,
     `no leaf`) and goes on with the detail.
 
-    `module_path` and `func_name` are the two `get_func(module_path, func_name)`
-    was handed: which definition, at which data path — the same definition at
-    another data path is another step. `call` is the call itself in the form that
+    `module_path` and `full_qualified_func_name` are the step
+    `get_func(module_path, func_name)` was handed, read as two fields: the module
+    the step is declared in, as a path, and the step's whole name there (the module
+    and the name it has in it). Where
+    the call ran is not in them — that is the data path of the environment the
+    step was handed (viba-interpreter.md). `call` is the call itself in the form that
     can be run again, with the environment left out: `__dyn_call__` and the name
     the host was asked for, or `__dyn_method__` and the member a value carries,
     then the arguments written on it, each with the tag it was written with
@@ -202,18 +206,19 @@ class UnderlyingOpErr(InterpretError, Exception):
     the host said.
     """
 
-    def __init__(self, msg: str = "", module_path: str = "", func_name: str = "",
+    def __init__(self, msg: str = "", module_path: str = "",
+                 full_qualified_func_name: str = "",
                  call=None, tag: str = None):
         super().__init__(msg)
         self.msg = msg
         self.module_path = module_path
-        self.func_name = func_name
+        self.full_qualified_func_name = full_qualified_func_name
         self.call = call
         self.tag = tag or FAILURE_TAG
 
     def __repr__(self):
         return (f"UnderlyingOpErr({self.msg!r}, {self.module_path!r}, "
-                f"{self.func_name!r}, tag={self.tag!r})")
+                f"{self.full_qualified_func_name!r}, tag={self.tag!r})")
 
 
 # The two tags a `Failure` answers under: one payload, told apart by the tag.
@@ -371,6 +376,28 @@ class BuiltinModuleType(ModuleType):
         "tagged",
     }
 
+    # What it records about itself: the built-in vocabulary is the file the
+    # package ships (`viba/builtin.viba`), so a step of the concept is known by
+    # `/builtin` like any other module of the search path
+    # (`CustomModuleType.module_path`). These are read when they are asked for:
+    # the class is defined above the constants that say where the file is.
+    @property
+    def name(self) -> str:
+        return BUILTIN_CONCEPT
+
+    @property
+    def file_path(self) -> str:
+        return str(BUILTIN_DIR / f"{BUILTIN_CONCEPT}.viba")
+
+    @property
+    def root(self) -> str:
+        return str(BUILTIN_DIR)
+
+    @property
+    def module_path(self) -> str:
+        """The path the built-in vocabulary is known by: `/builtin`."""
+        return "/" + BUILTIN_CONCEPT
+
     def __init__(self):
         self._library = _load_builtin_library()
         self._operators = _load_builtin_operators(self._library)
@@ -446,6 +473,7 @@ BUILTIN_DIR = Path(__file__).resolve().parent
 # every module too. It is a stop of the search path like `BUILTIN_DIR`, so the
 # bare name finds it.
 BUILTIN_CONCEPT_DIR = BUILTIN_DIR / BUILTIN_CONCEPT
+VIBA_SUFFIX = ".viba"
 
 
 class CustomModuleType(ModuleType):
@@ -457,6 +485,12 @@ class CustomModuleType(ModuleType):
     $imports maps a file's import local name to the module it names, so a
     written name that carries an import prefix (`d.Report` under
     `import a.b as d`) lands on the definition it really points at.
+
+    A module records where it came from, as it is: the name it was loaded as, the
+    file it was read from, and the search root it was found under. A step of this
+    module is asked from the name it was loaded as — `get_func("foo.bar", "add")`
+    — and `module_path` is that name read as a path (viba-interpreter.md,
+    "`get_func` 与 `full_qualified_func_name`").
     """
 
     def __init__(
@@ -464,12 +498,41 @@ class CustomModuleType(ModuleType):
         module: viba_ast.Module,
         module_environment: Callable[[str], Result] = None,
         imports: dict = None,
+        name: str = "",
+        file_path: Optional[str] = None,
+        root: Optional[str] = None,
     ):
         self.module = module
         if module_environment is None:
             module_environment = lambda name: VibaProgramErr(f"module {name!r} not found")
         self.module_environment = module_environment
         self.imports = dict(imports or {})
+        self.name = name                 # the name it was loaded as ("" when it has none)
+        self.file_path = file_path       # the file it was read from (None for code)
+        self.root = root                 # the search root it was found under (None when none)
+
+    @property
+    def module_path(self) -> str:
+        """The path this module is known by: rooted, no dots, no file suffix.
+
+        The name it was loaded as, read as a path: `foo.bar` is `/foo/bar`, and a
+        file reached by its own path is that path without the suffix. A module with
+        no name falls back on the file it was read from, relative to the root it was
+        found under. A module that records none of it is known by the empty string.
+        """
+        if self.name:
+            return "/" + self.name.replace(".", "/")
+        if self.file_path:
+            file = self.file_path
+            if self.root:
+                try:
+                    file = os.path.relpath(file, self.root)
+                except ValueError:            # no relative path between the two
+                    file = self.file_path
+            if file.endswith(VIBA_SUFFIX):
+                file = file[: -len(VIBA_SUFFIX)]
+            return file if file.startswith("/") else "/" + file
+        return ""
 
     def lookup_local(self, type_name: str) -> Result:
         """Find a top-level definition by name; failing that, through this

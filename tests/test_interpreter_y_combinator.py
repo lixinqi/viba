@@ -66,7 +66,7 @@ LENGTHS = list(range(1, 17))
 def host_for():
     """每一步的实现：比较、减、加，以及 `builtin.echo`。"""
     def get_func(module_path, func_name):
-        if func_name == "builtin.echo":
+        if module_path == "builtin" and func_name == "echo":
             return lambda env, x: x
         if func_name == "lt":
             return lambda env, x, y: x.value < y.value

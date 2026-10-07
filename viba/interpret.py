@@ -74,7 +74,8 @@ from viba.reflect import (LITERAL_CTORS, VibaNode, VibaReflectError,
 from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
                           reduce_application, tagged_reading)
-from viba.type import (CustomModuleType, NOT_IMPLEMENTED_TAG, REASON_GET_FUNC_RAISED,
+from viba.type import (BUILTIN_MODULE, CustomModuleType, NOT_IMPLEMENTED_TAG,
+                       REASON_GET_FUNC_RAISED,
                        REASON_NO_IMPLEMENTATION, REASON_NO_LEAF, REASON_RAISED, REASON_REFUSED, AstNodeType,
                        EnvironmentApiInvalidArgumentErr, Err, Frame, InterpretError,
                        Stack, VibaProgramErr, UnderlyingOpErr,
@@ -989,19 +990,21 @@ def _stopped(result) -> bool:
     return not isinstance(result, Ok)
 
 
-def _not_implemented(module_path: str, func_name: str, call) -> UnderlyingOpErr:
+def _not_implemented(module_path: str, full_qualified_func_name: str,
+                     call) -> UnderlyingOpErr:
     """What `get_func` answers with when it has no implementation for that call.
 
     The step, the call it was about and why are all in it (`msg` is the reason
     itself here), so that call can be taken up again from this result alone,
     without reading the run again.
     """
-    return UnderlyingOpErr(REASON_NO_IMPLEMENTATION, module_path, func_name,
-                                  call, tag=NOT_IMPLEMENTED_TAG)
+    return UnderlyingOpErr(REASON_NO_IMPLEMENTATION, module_path,
+                           full_qualified_func_name, call,
+                           tag=NOT_IMPLEMENTED_TAG)
 
 
-def _refused(answered: UnderlyingOpErr, module_path: str, func_name: str,
-             call) -> UnderlyingOpErr:
+def _refused(answered: UnderlyingOpErr, module_path: str,
+             full_qualified_func_name: str, call) -> UnderlyingOpErr:
     """What a `get_func` that raised it itself is completed into.
 
     A host that says so need not know where it stands: the run fills in the step
@@ -1010,10 +1013,10 @@ def _refused(answered: UnderlyingOpErr, module_path: str, func_name: str,
     implementation for that call".
     """
     return UnderlyingOpErr(answered.msg or REASON_REFUSED,
-                                  answered.module_path or module_path,
-                                  answered.func_name or func_name,
-                                  answered.call if answered.call is not None else call,
-                                  tag=answered.tag)
+                           answered.module_path or module_path,
+                           answered.full_qualified_func_name or full_qualified_func_name,
+                           answered.call if answered.call is not None else call,
+                           tag=answered.tag)
 
 
 # ----------------------------------------------------------------------
@@ -1062,7 +1065,7 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
             Object
           * $msg str                                 # one sentence, the reason first
           * $module_path str                         # the data path `get_func` was given
-          * $func_name str                           # the name `get_func` was given
+          * $full_qualified_func_name str            # the whole name of the step
           * $call (Any <- $env Env)                  # the call itself, in a runnable form
 
         EnvironmentApiInvalidArgumentErr =
@@ -1079,7 +1082,8 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
     members — the apis this layer runs itself, which `get_func` is never asked —
     refusing what a program handed it. A `ProgramErr`
     carries the chain of calls this run was in; a `UnderlyingOpErr` names the step
-    (`module_path`, `func_name`), the call in the form that can be run again
+    (`module_path`, `full_qualified_func_name`), the call in the form that can be
+    run again
     (`call`, the name as data, the environment left out) and why (`msg`, which
     opens with the reason); an `EnvironmentApiInvalidArgumentErr` names the api
     (`api_name`) and what it was given (`args`, the environment left out).
@@ -1207,7 +1211,7 @@ class _Runner:
             return VibaProgramErr(problem)
         if source is None:
             return VibaProgramErr(f"no such file: {file}")
-        module = self._file_of(path, path.stem, source)
+        module = self._file_of(path, path.stem, source, file_path=str(path))
         if _stopped(module):
             return module
         return _run_module(self, module.ok_value, environ, path.stem, str(path))
@@ -1222,7 +1226,7 @@ class _Runner:
         looked up on the search path alone: there is no directory beside it
         (`near=""`).
         """
-        module = self._module_of(Path(CODE_LABEL), "", viba_code, near="")
+        module = self._module_of(Path(CODE_LABEL), CODE_LABEL, viba_code, near="")
         if _stopped(module):
             return module
         return _run_module(self, module.ok_value, environ, "", None)
@@ -1281,22 +1285,27 @@ class _Runner:
         resolved — a host's file need not be on this filesystem at all."""
         return os.path.normpath(str(path))
 
-    def _file_of(self, path: Path, name: str, source: str):
+    def _file_of(self, path: Path, name: str, source: str, file_path=None, root=None):
         """Parse one source, remember it under its path, bind it to `name`.
 
         A path whose file is `__generic__.viba` is no module at all: it is the
         marker of a generic, and what is built for it is the whole directory —
         every pattern file numbered inside it (viba-pattern.md).
+
+        `file_path` and `root` are what the module records about where it came
+        from: the file it was read from, and the search root it was found under
+        (viba/type.py, `CustomModuleType.module_path`).
         """
         key = self._key(path)
         if key not in self.by_path:
-            built = self._module_of(path, name, source)
+            built = self._module_of(path, name, source, file_path=file_path, root=root)
             if _stopped(built):
                 return built
             self.by_path[key] = built.ok_value
         return self._bind(self.by_path[key], path, name)
 
-    def _module_of(self, path: Path, name: str, source: str, near=None):
+    def _module_of(self, path: Path, name: str, source: str, near=None,
+                   file_path=None, root=None):
         """The module one file writes: parsed, and remembered under its path only.
 
         No name is bound to it here: a module of the builtin directory is loaded
@@ -1308,12 +1317,13 @@ class _Runner:
         with a file is, and "" is a module with no directory beside it.
         """
         if path.name == GENERIC_FILE:
-            return self._generic_of(path, name)
+            return self._generic_of(path, name, file_path, root)
         try:
             tree = viba_ast.parse(source)
         except SyntaxError as exc:
             return VibaProgramErr(f"cannot parse {path}: {exc}")
-        return self._built(path, tree, near)
+        return self._built(path, tree, near, name=name, file_path=file_path,
+                           root=root)
 
     def _node_of(self, node: VibaNode, path: Path):
         """The module one piece of viba data writes: the data is the module.
@@ -1326,9 +1336,9 @@ class _Runner:
         data = node.data
         tree = (data if isinstance(data, viba_ast.Module)
                 else viba_ast.Module(body=[viba_ast.TypeDefinition(RET_NAME, data)]))
-        return self._built(path, tree, "")
+        return self._built(path, tree, "", name=CODE_LABEL)
 
-    def _built(self, path: Path, tree, near):
+    def _built(self, path: Path, tree, near, name="", file_path=None, root=None):
         """The module a parse tree writes, remembered under its path only.
 
         The tree is already parsed (or already built): this is where the two
@@ -1350,7 +1360,7 @@ class _Runner:
         # (they do not go through `_Runner.imported`); finding modules by file is run's call.
         # The tree parsed above is the module: one file is parsed once.
         beside = str(path) if near is None else near
-        module = CustomModuleType(tree)
+        module = CustomModuleType(tree, name=name, file_path=file_path, root=root)
         module.module_environment = lambda asked, near=beside: self.imported(asked, near)
         module.imports = imports
         return Ok(module)
@@ -1372,13 +1382,14 @@ class _Runner:
                 return VibaProgramErr(problem)
             if source is None:
                 return None
-            built = self._module_of(place, name, source)
+            built = self._module_of(place, name, source, file_path=str(place),
+                                    root=str(BUILTIN_DIR))
             if _stopped(built):
                 return built
             self.by_path[key] = built.ok_value
         return Ok(self.by_path[key])
 
-    def _generic_of(self, path: Path, name: str):
+    def _generic_of(self, path: Path, name: str, file_path=None, root=None):
         """The generic a `__generic__.viba` marker stands for: its directory.
 
         The patterns are files like any other: each is parsed by
@@ -1389,7 +1400,8 @@ class _Runner:
         generic = load_generic(
             str(path.parent), name, self._read_source, self._list_files,
             lambda entry_path, entry_name, text: self._file_of(
-                Path(entry_path), entry_name, text))
+                Path(entry_path), entry_name, text, file_path=entry_path,
+                root=str(path.parent)))
         if _stopped(generic):
             return generic
         self.by_path[self._key(path)] = generic.ok_value
@@ -1434,7 +1446,7 @@ class _Runner:
         """The module `name`: loaded, or found next to `near`, or on the path."""
         if name in self.by_name:
             return Ok(self.by_name[name])
-        for place in self._places(name, near):
+        for root, place in self._places(name, near):
             cached = self.by_path.get(self._key(place))
             if cached is not None:
                 return self._bind(cached, place, name)
@@ -1443,7 +1455,8 @@ class _Runner:
                 return VibaProgramErr(problem)
             if source is None:
                 continue                    # no file here: the next place
-            return self._file_of(place, name, source)
+            return self._file_of(place, name, source, file_path=str(place),
+                                 root=str(root))
         where = f"next to {near} and on VIBA_PATH" if near else "on VIBA_PATH"
         return VibaProgramErr(f"module {name!r} not found ({where})")
 
@@ -1459,14 +1472,16 @@ class _Runner:
         generic = Path(*name.split(".")) / GENERIC_FILE
         places = []
         if near:
-            places += [Path(near).parent / rel, Path(near).parent / generic,
-                       Path(near).parent / f"{name}.viba"]
+            base = Path(near).parent
+            places += [(base, base / rel), (base, base / generic),
+                       (base, base / f"{name}.viba")]
         for base in [*self.paths, BUILTIN_DIR, BUILTIN_CONCEPT_DIR]:
-            places += [base / rel, base / generic, base / f"{name}.viba"]
+            places += [(base, base / rel), (base, base / generic),
+                       (base, base / f"{name}.viba")]
         out = []
-        for place in places:
-            if place not in out:
-                out.append(place)
+        for pair in places:
+            if pair not in out:
+                out.append(pair)
         return out
 
 
@@ -1513,8 +1528,8 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     The module the host runs has no caller to write its arguments, so the
     environment it is handed is the only member of that product.
 
-    The storage path a module runs under is what the host is handed as
-    `module_path`, so two activations under one path cannot be told apart. No two module calls may share one — the caller gives each call
+    The storage path a module runs under is where the host's steps are handed an
+    environment, so two activations under one path cannot be told apart. No two module calls may share one — the caller gives each call
     a sub-environment of its own.
     """
 
@@ -1643,6 +1658,31 @@ def _signature_of(value) -> str:
     if isinstance(value, _VibaData):
         return viba_ast.unparse_type(value.node.data)
     return type(value).__name__
+
+
+def _module_name_of(module) -> str:
+    """The name a module was loaded as (`foo.bar`), or "" when it records none.
+
+    It is what a step of that module is asked under and what its whole name starts
+    with (`CustomModuleType.name`).
+    """
+    return getattr(module, "name", "")
+
+
+def _module_path_of_name(name: str) -> str:
+    """A module name read as a path: `foo.bar` is `/foo/bar`."""
+    return "/" + name.replace(".", "/") if name else ""
+
+
+def _module_path_of(module) -> str:
+    """The path of the module a step is declared in, as that module records it.
+
+    The module knows where it came from — the file it was read from and the search
+    root it was found under — so this is that, read as one string
+    (`CustomModuleType.module_path`); a module that records none of it answers the
+    empty string rather than a guess (viba-interpreter.md).
+    """
+    return getattr(module, "module_path", "")
 
 
 def _storage_path(environ: Environment) -> str:
@@ -3083,9 +3123,10 @@ class _Activation:
         definition = _definition(self.module, name)
         if definition is not None:
             return self._pending_of(definition, name_node, name, self.module, name)
-        chain = self._member_function(name)
-        if chain is not None:
-            return self._func_pending(name_node, name, self.module, chain, name)
+        member = self._member_function(name)
+        if member is not None:
+            chain, declared_in, own = member
+            return self._func_pending(name_node, name, declared_in, chain, own)
         bound = self._imported_name(name)
         if bound is None:
             # A bare name that is a member of the builtin concept is that
@@ -3195,8 +3236,10 @@ class _Activation:
         chain = member.ok_value.node.data
         if not isinstance(chain, (viba_ast.Exponent, viba_ast.ExponentChain)):
             return None
-        return self._func_pending(name_node, name, self.module, chain,
-                                  f"{BUILTIN_CONCEPT}.{name}")
+        # A builtin member is declared in the built-in vocabulary, not in the
+        # module that wrote the name: that is the module it is asked from, and the
+        # two spellings of the member are one call (`get_func("builtin", "add")`).
+        return self._func_pending(name_node, name, BUILTIN_MODULE, chain, name)
 
     def _builtin_module_call(self, name_node, name):
         """The call a builtin directory module's name stands for, or None.
@@ -3219,24 +3262,30 @@ class _Activation:
                                   written_bindings=self.bindings or None))
 
     def _member_function(self, name):
-        """`a.b` written at a chain head, with `b` a function member of `a`: this step's
-        function body.
+        """`a.b` at a chain head, with `b` a function member of `a`: (its body, its module).
 
         A dotted name defines a member of the parent concept (viba-style.md), so `a.b << …`
-        calls that step, and the name stays the whole written string — the `func_name` the
-        host gets is that string. When it is not a function member, or the parent concept
-        has no such member, it answers None and other readings take over.
+        calls that step, and the name stays the whole written string — the whole name the
+        host gets is that string. The module is the one the member is declared in: the
+        built-in vocabulary for a builtin member, and the module the value was written in
+        for a member of one this module names. When it is not a function member, or the
+        parent concept has no such member, it answers None and other readings take over.
         """
         if "." not in name:
             return None
+        own = name.rpartition(".")[2]
         member = self._tagged_member(name)
-        if member is None or not isinstance(member, Ok):
+        if member is not None and isinstance(member, Ok):
+            declared_in = (getattr(member.ok_value, "written_in", None)
+                           or self.module)
+        else:
             member = self._builtin_member(name)
+            declared_in = BUILTIN_MODULE
         if not isinstance(member, Ok) or not isinstance(member.ok_value, _VibaData):
             return None
         piece = member.ok_value.node.data
         if isinstance(piece, (viba_ast.Exponent, viba_ast.ExponentChain)):
-            return piece
+            return piece, declared_in, own
         return None
 
     def _pending_of(self, definition, name_node, name, owner_module, written,
@@ -3278,6 +3327,8 @@ class _Activation:
             return VibaProgramErr(f"module {module_name!r} has no {rest!r}")
         other = _Activation(self.runner, module, self.environ, module_name,
                             self.runner.path_of.get(module_name))
+        # The step is asked by its own name in the module that declares it:
+        # `get_func("demo", "print")` for `demo.print` (viba-interpreter.md).
         return other._pending_of(definition, name_node, rest, module, written,
                                  written_in=written_in)
 
@@ -4005,6 +4056,25 @@ class _Pending:
             return descriptor_of(AstNodeType(self.head, self.written_in))
         return descriptor_of(AstNodeType(node, self.written_in))
 
+    def declaring_module_name(self) -> str:
+        """The module this step is declared in, as it was imported (`foo.bar`)."""
+        return _module_name_of(self.module)
+
+    def declaring_module_path(self) -> str:
+        """The same module read as a path: `/foo/bar`."""
+        return _module_path_of(self.module)
+
+    def full_name(self) -> str:
+        """The whole name of this step: the module it is declared in, and its name there.
+
+        A step is asked as `get_func(<module>, <name>)` — the module as it was
+        imported, and the name the step has in that module — and written down as data
+        it is the one string `<module>.<name>`, which is what `__dyn_call__` carries
+        and splits at the last dot (viba-interpreter.md).
+        """
+        module = self.declaring_module_name()
+        return f"{module}.{self.name}" if module else self.name
+
     def call_viba_data(self):
         """The call itself in the form that can be run again: a name that travels.
 
@@ -4040,7 +4110,7 @@ class _Pending:
             # `__dyn_method__`: it is the value the member is taken from.
             taken_from = self._the_value_itself(value)
         else:
-            node = viba_ast.Partial(node, viba_ast.Constant(self.name))
+            node = viba_ast.Partial(node, viba_ast.Constant(self.full_name()))
         environ_slot = self.environ_slot()
         for index in sorted(self.given):
             if index == environ_slot or index == taken_from:
@@ -4072,19 +4142,20 @@ class _Pending:
         if compute is None:
             return VibaProgramErr(
                 f"{self.written}: the environment carries no compute side")
-        module_path = _storage_path(environ)
+        module_path = self.declaring_module_path()
+        name = self.full_name()
         call = self.call_viba_data()
         try:
-            host = compute.get_func(module_path, self.name)
+            host = compute.get_func(self.declaring_module_name(), self.name)
         except UnderlyingOpErr as answered:   # get_func says so itself
-            return _refused(answered, module_path, self.name, call)
+            return _refused(answered, module_path, name, call)
         except Exception as exc:            # the host is the host's business
             return UnderlyingOpErr(
-                f"{REASON_GET_FUNC_RAISED}: get_func({module_path!r}, {self.name!r}) "
-                f"raised {exc!r}",
-                module_path, self.name, call)
+                f"{REASON_GET_FUNC_RAISED}: get_func({self.declaring_module_name()!r}"
+                f", {self.name!r}) raised {exc!r}",
+                module_path, name, call)
         if host is None:
-            return _not_implemented(module_path, self.name, call)
+            return _not_implemented(module_path, name, call)
         handed = [_handed_to_host(self, index, self.given[index])
                   for index in range(len(self.elements))]
         try:
@@ -4095,8 +4166,8 @@ class _Pending:
             return raised.result
         except Exception as exc:
             return UnderlyingOpErr(f"{REASON_RAISED}: {self.name} raised {exc!r}",
-                                          module_path, self.name, call)
-        return _answer(self.name, answer, module_path, self.name, call)
+                                   module_path, name, call)
+        return _answer(self.name, answer, module_path, name, call)
 
     def _run_module_call(self):
         """Every parameter of `__decl__` is in: hand them to the module, as one product.
@@ -4345,21 +4416,30 @@ class _DynCall:
         return _VibaData(self.call_viba_data())
 
     def _call_the_name(self, name: str):
-        """`__dyn_call__`: the step that name is implemented under, asked of the host."""
+        """`__dyn_call__`: the step that whole name spells, asked of the host.
+
+        The name is `<module>.<name>` — the module as it was imported, then the name
+        the step has in it — so the host is asked `get_func(<module>, <name>)`, the
+        module being the part before the last dot. A name with no dot is a step of
+        the module this call is written in.
+        """
         environ = self.environ
         compute = getattr(environ, "compute", None)
         if compute is None:
             return VibaProgramErr(
                 f"{self.written}: the environment carries no compute side")
-        module_path = _storage_path(environ)
+        module, dot, own = name.rpartition(".")
+        if not dot:
+            module, own = _module_name_of(self.activation.module), name
+        module_path = _module_path_of_name(module)
         call = self.call_viba_data()
         try:
-            host = compute.get_func(module_path, name)
+            host = compute.get_func(module, own)
         except UnderlyingOpErr as answered:       # get_func says so itself
             return _refused(answered, module_path, name, call)
         except Exception as exc:                  # the host is the host's business
             return UnderlyingOpErr(
-                f"{REASON_GET_FUNC_RAISED}: get_func({module_path!r}, {name!r}) "
+                f"{REASON_GET_FUNC_RAISED}: get_func({module!r}, {own!r}) "
                 f"raised {exc!r}", module_path, name, call)
         if host is None:
             return _not_implemented(module_path, name, call)
@@ -4492,7 +4572,8 @@ def _written_slots(slots) -> str:
     return ", ".join(_slot_name(index, tag) for index, (tag, _written) in enumerate(slots))
 
 
-def _answer(name, answer, module_path: str = None, func_name: str = None, call=None):
+def _answer(name, answer, module_path: str = None,
+            full_qualified_func_name: str = None, call=None):
     if isinstance(answer, _HostArgument):
         # The host hands that written call straight back: the value it stands for is this call.
         # The closure the name stands for is worked out by `__call__`, so ask it once here.
@@ -4522,7 +4603,7 @@ def _answer(name, answer, module_path: str = None, func_name: str = None, call=N
                f"which is no leaf: answer a VibaNode, a scalar, or None")
         if module_path is not None:
             return UnderlyingOpErr(f"{REASON_NO_LEAF}: {msg}", module_path,
-                                          func_name, call)
+                                   full_qualified_func_name, call)
         return VibaProgramErr(msg)
     node = viba_ast.Nil() if answer is None else viba_ast.Constant(answer)
     return Ok(_VibaData(VibaNode(reflect_access,

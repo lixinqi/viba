@@ -91,23 +91,23 @@ BASE_ENTRY = [
 def host_for():
     """每一步的实现：内建的那几个算子（`builtin.lt` 这样），以及 `builtin.echo`。"""
     def get_func(module_path, func_name):
-        if func_name == "builtin.echo":
+        if module_path == "builtin" and func_name == "echo":
             return lambda env, x: x
-        if func_name == "builtin.lt":
+        if module_path == "builtin" and func_name == "lt":
             return lambda env, x, y: x.value < y.value
-        if func_name == "builtin.eq":
+        if module_path == "builtin" and func_name == "eq":
             return lambda env, x, y: x.value == y.value
-        if func_name == "builtin.add":
+        if module_path == "builtin" and func_name == "add":
             return lambda env, x, y: x.value + y.value
-        if func_name == "builtin.sub":
+        if module_path == "builtin" and func_name == "sub":
             return lambda env, x, y: x.value - y.value
-        if func_name == "builtin.mul":
+        if module_path == "builtin" and func_name == "mul":
             return lambda env, x, y: x.value * y.value
-        if func_name == "builtin.div":
+        if module_path == "builtin" and func_name == "div":
             return lambda env, x, y: x.value // y.value
-        if func_name == "builtin.rem":
+        if module_path == "builtin" and func_name == "rem":
             return lambda env, x, y: x.value % y.value
-        if func_name == "builtin.add_f":
+        if module_path == "builtin" and func_name == "add_f":
             return lambda env, x, y: x.value + y.value
         return branch.get_func(module_path, func_name)
     return get_func

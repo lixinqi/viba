@@ -77,7 +77,7 @@ viba 层不预设「另一方」、不预设「一次运行分几轮」、不预
 
 | 禁用词 | 它实际指什么 | 为什么禁 | 改成什么 |
 |---|---|---|---|
-| **递延** / **deferral**、**不归我** / **not my duty**、`$not_my_duty_exception`、**`NotMyDutyException`**、**`Duty`** | `interpret` 的结果里三种停法之一：一次运行走到某一步，而 `get_func` 那里没有这一步的实现，运行就停在那一步，并把「哪一步、这一步拿到的可序列化数据、为什么没有实现」原样带回调用方 | 这一支说的是**事实**（这一步没有实现），旧名字说的是**归属**（不归我，是别人的差事）。「不归我」预设了已经有人分好工、有另一侧会来接；本层不知道有谁，也不知道谁接 | 「这一步没有实现」/ the step has no implementation。它在结果里是 `$err InterpretError` 的第三种（`$not_implemented_err UnderlyingOpErr`；`$msg` 开头那一个词写 `no implementation`，`$module_path`、`$func_name`、`$call` 是本层的字段）。旧名字一个都不用 |
+| **递延** / **deferral**、**不归我** / **not my duty**、`$not_my_duty_exception`、**`NotMyDutyException`**、**`Duty`** | `interpret` 的结果里三种停法之一：一次运行走到某一步，而 `get_func` 那里没有这一步的实现，运行就停在那一步，并把「哪一步、这一步拿到的可序列化数据、为什么没有实现」原样带回调用方 | 这一支说的是**事实**（这一步没有实现），旧名字说的是**归属**（不归我，是别人的差事）。「不归我」预设了已经有人分好工、有另一侧会来接；本层不知道有谁，也不知道谁接 | 「这一步没有实现」/ the step has no implementation。它在结果里是 `$err InterpretError` 的第三种（`$not_implemented_err UnderlyingOpErr`；`$msg` 开头那一个词写 `no implementation`，`$module_path`、`$full_qualified_func_name`、`$call` 是本层的字段）。旧名字一个都不用 |
 | **这台机器** / **这一侧** / **另一侧**、**接手的那一方**、**等别人来补** | 把 `get_func` 讲成两台机器上的两方：一边有实现，一边没有 | 这是部署事实。本层只有一次调用、一条数据路径、一个 `get_func`；换一份名字表就是另一次运行 | 说「这个 `get_func` 没有实现这个名字」；要讲多台机器，那是第 3.2 节那一层的说法 |
 | `refused` 的解释句：**路由说这条差事不归我** | `$msg` 的一种开头：`get_func` 自己把「我没有实现」说了出来（抛出来），而不是返回 `None` | `refused` 这个取值只说「这次调用被拒绝了」，不预设谁；但解释句里带进了「路由」与「差事」这两个分工词 | 「`get_func` 自己说它没有实现」/ `get_func` said it has no implementation。（`refused` 另有「写错的地方被拒绝」这个意思，那处不禁） |
 

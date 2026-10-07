@@ -9,8 +9,10 @@
        `held = hold << $env args.env`，再 `held << args.env`），这次运行给它一个环境 ——
        于是它就跑起来了，答案就是这一步本来会给出的值。
 
-第 4 步给它的环境在那条**数据路径**上：错误里的 `$module_path` 说这次调用发生在哪儿，
-同一个定义、另一条数据路径是另一步（`two_paths` 那份用例把这条钉住）。`$call` 本身不是一份模块，
+第 4 步给它的环境在**它原来跑的那条数据路径**上（用例自己知道；给在哪儿由给它的环境说了算）。
+错误里的 `$module_path` 说的是**这一步声明在哪个模块**：就地写的步骤就是这份文件，import 进来的就是
+那个模块（`/inner`、`/leaf`），而 `$full_qualified_func_name` 是这一步的整名（`inner.inc`：模块加它在那儿叫的名字）
+—— 名字带着模块，所以交给别的运行也知道是哪一步。`$call` 本身不是一份模块，
 所以第 4 步不把它写成代码：它是可序列化数据。另外两条路也测：用 `serialize` 把 `$call` 写成一份
 viba 模块源代码（`call = …`）再 `exec`；以及把那份 `$call` **直接当节点**交给 `exec`（它本来就是
 节点，`exec(viba_code, environ)` 收文本，也收节点），答案一样。
@@ -24,7 +26,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, Checks, value_of
+from interpreter_support import (error_of, full_name_of, module_of, module_path_of,
+                                  Checks, value_of)
 
 from viba import serialize, viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
@@ -41,6 +44,7 @@ checks = Checks("interpreter_roundtrip")
 check = checks.check
 
 HELD = "hold"
+CODE_LABEL = "<viba_code>"
 
 # 一条把 `$call` 写成代码的路用到的开头：主模块、它的环境，然后是那份 `$call` 的定义。
 SOURCE_HEAD = ("__decl__ =\n    Any\n  <- $env Env\n\n"
@@ -63,12 +67,15 @@ class Host:
                                    EnvironmentCompute(self.get_func))
 
     def get_func(self, module_path, func_name):
+        # 一步是按“模块 + 它自己的名字”问的；这张表按名字记，模块由那一步自己看。
         self.calls.append((module_path, func_name))
         if func_name == HELD:
             # 那条闭包就在手里：这个步骤把它交回给运行。
             held = self.holding
             return (lambda env: held) if held is not None else None
         rule = self.table.get(func_name)
+        if rule is None:
+            rule = self.table.get(func_name)
         return rule(module_path) if rule is not None else None
 
     def prepare(self, table):
@@ -100,16 +107,17 @@ class Case:
     """一份回环用例：跑哪份程序、缺哪一步、怎么补、补完该答什么。"""
 
     def __init__(self, name, missing, after, want, *, before=None, path="root",
-                 whole_program=True, strict_path=False, as_source=False,
+                 module=None, replay_at=None, whole_program=True, as_source=False,
                  as_exec=False, want_text=None, as_node=False):
         self.name = name
         self.missing = missing
         self.after = after
         self.want = want
         self.before = before or {}
-        self.path = path
+        self.path = path                   # where the call ran (the data path)
+        self.module = module               # the path of the module that declares the step
+        self.replay_at = replay_at         # where to give the `$call` an environment
         self.whole_program = whole_program
-        self.strict_path = strict_path
         self.as_source = as_source
         self.as_exec = as_exec
         self.want_text = want_text
@@ -118,6 +126,32 @@ class Case:
     @property
     def file(self) -> Path:
         return CASES / f"{self.name}.viba"
+
+    @property
+    def missing_name(self) -> str:
+        """The whole name of the step that is missing: the module, then the name there."""
+        if self.module is not None:
+            module = self.module.lstrip("/").replace("/", ".")
+        elif self.as_exec:
+            module = CODE_LABEL
+        else:
+            module = module_of(self.file)
+        return f"{module}.{self.missing}"
+
+    @property
+    def module_path(self) -> str:
+        """What `$module_path` should say: the module that declares the step.
+
+        A step of the case file itself is that file; a step of a module the case
+        imported is that module (`/inner`, `/leaf`); a builtin member is the
+        built-in vocabulary (`/builtin`); and a run started from code has no file,
+        so its module is the label it was compiled under.
+        """
+        if self.module is not None:
+            return self.module
+        if self.as_exec:
+            return "/<viba_code>"
+        return module_path_of(self.file)
 
 
 def _add(env, a, b):
@@ -152,19 +186,20 @@ CASES_LIST = [
          _everywhere(count_nothing=lambda env, x: 0), 0),
     Case("sum_typed_argument", "widen",
          _everywhere(widen=lambda env, x: x.value + 1), 2),
-    Case("bare_builtin", "builtin.concat",
-         _everywhere(**{"builtin.concat": lambda env, x, y: x.value + y.value}),
-         "ab", as_source=True),
-    Case("dotted_builtin", "builtin.mul",
-         _everywhere(**{"builtin.mul": lambda env, x, y: x.value * y.value}), 42),
+    Case("bare_builtin", "concat",
+         _everywhere(concat=lambda env, x, y: x.value + y.value),
+         "ab", module="/builtin", as_source=True),
+    Case("dotted_builtin", "mul",
+         _everywhere(mul=lambda env, x, y: x.value * y.value), 42,
+         module="/builtin"),
     Case("imported_step", "inc", _everywhere(inc=lambda env, x: x.value + 1), 42,
-         path="root/inner", as_source=True, as_node=True),
+         path="root/inner", module="/inner", as_source=True, as_node=True),
     Case("kid_step", "inc", _everywhere(inc=lambda env, x: x.value + 1), 42,
-         path="root/kid"),
+         path="root/kid", module="/inner"),
     Case("two_level", "deep", _everywhere(deep=lambda env, x: x.value), 5,
-         path="root/mid/leaf"),
+         path="root/mid/leaf", module="/leaf"),
     Case("tmp_path", "inc", _everywhere(inc=lambda env, x: x.value + 1), 42,
-         path="root/"),          # the exact path is the one the error names
+         path="root/tmp_", module="/inner", replay_at="root"),
     Case("computed_argument", "not_of",
          _everywhere(not_of=lambda env, x: not x.value), False,
          before=_everywhere(lt=lambda env, x, y: x.value < y.value)),
@@ -172,13 +207,11 @@ CASES_LIST = [
          _everywhere(add3=lambda env, a, b, c: a.value + b.value + c.value), 6,
          as_node=True),
     Case("module_arguments", "total",
-         _everywhere(total=lambda env, x: x.value + 1), 42, path="root/with_args"),
+         _everywhere(total=lambda env, x: x.value + 1), 42, path="root/with_args",
+         module="/with_args"),
     Case("nil_answer", "noop", _everywhere(noop=lambda env: None), None),
     Case("product_answer", "pair", _everywhere(pair=lambda env, x: _a_product()),
          None, want_text="$a 1 * $b 2", as_node=True),
-    Case("two_paths", "inc", _only_at("root/b", inc=lambda env, x: x.value + 2), 4,
-         before=_only_at("root/a", inc=lambda env, x: x.value + 1),
-         path="root/b", whole_program=False, strict_path=True),
     Case("function_argument", "apply", _everywhere(apply=lambda env, f: 7), 7,
          as_source=True, as_node=True),
     Case("member_value", "inc", _everywhere(inc=lambda box, env, x: x.value + 1), 2,
@@ -204,14 +237,16 @@ def _one_case(case: Case):
     error = _the_missing_step(case, host)
     if error is None:
         return                          # it already said what went wrong
-    check(_at_the_path(error.module_path, case),
-          f"{case.name}: the step that stopped is the one at that data path: "
+    check(error.module_path == case.module_path,
+          f"{case.name}: the step that stopped is the one declared in that module: "
           f"{error.module_path!r}")
     host.prepare(case.after)
 
-    # 把那份闭包当数据交给一次运行，这次运行给它一个环境。
+    # 把那份闭包当数据交给一次运行，这次运行给它一个环境：给在它原来跑的那条数据路径上
+    # —— `$module_path` 说的是这一步声明在哪个模块，跑在哪儿由给它的环境说了算。
+    where = case.replay_at or case.path
     host.holding = error.call
-    replayed = interpret(str(RUNNER), host.at(error.module_path))
+    replayed = interpret(str(RUNNER), host.at(where))
     check(_the_wanted_answer(replayed, case),
           f"{case.name}: the call the error carried runs, given that environment: "
           f"{replayed!r}")
@@ -222,29 +257,20 @@ def _one_case(case: Case):
         check(_the_wanted_answer(again, case),
               f"{case.name}: and the program itself runs now: {again!r}")
 
-    # 那条数据路径是这次调用的一部分：换一条就没有这一步。
-    if case.strict_path:
-        elsewhere = Host()
-        elsewhere.prepare(case.after)
-        elsewhere.holding = error.call
-        wrong = interpret(str(RUNNER), elsewhere.environ)
-        check("no implementation" in getattr(error_of(wrong), "msg", ""),
-              f"{case.name}: another data path is another step: {wrong!r}")
-
     # 另一条路：把 `$call` 写成一份 viba 模块源代码，再 `exec` 跑它。
     if case.as_source:
         source = serialize.serialize("call", error.call)
         check(isinstance(source, Ok),
               f"{case.name}: the call is serializable viba data: {source!r}")
         code = SOURCE_HEAD + source.ok_value + "\n__impl__ = call << args.env\n"
-        written_out = exec(code, host.at(error.module_path))
+        written_out = exec(code, host.at(where))
         check(_the_wanted_answer(written_out, case),
               f"{case.name}: the same call written out as source runs too: "
               f"{written_out!r}")
 
     # 第三条路：那份 `$call` 本来就是节点，直接交给 `exec` —— 不用写出来读回去。
     if case.as_node:
-        handed_over = exec(error.call, host.at(error.module_path))
+        handed_over = exec(error.call, host.at(where))
         check(_the_wanted_answer(handed_over, case),
               f"{case.name}: the call handed over as the node it already is runs too: "
               f"{handed_over!r}")
@@ -254,23 +280,25 @@ def _one_step_at_a_time():
     """缺的那一步补上，下一次缺的是外面那一步：一轮一轮地走完。"""
     host = Host()
     first = error_of(interpret(str(CASES / "nested_calls.viba"), host.environ))
-    check(isinstance(first, UnderlyingOpErr) and first.func_name == "mul",
+    check(isinstance(first, UnderlyingOpErr) and
+          first.full_qualified_func_name == full_name_of(CASES / "nested_calls", "mul"),
           f"the innermost step stops first: {first!r}")
     host.prepare(_everywhere(mul=lambda env, x, y: x.value * y.value))
     host.holding = first.call
-    inner = interpret(str(RUNNER), host.at(first.module_path))
+    inner = interpret(str(RUNNER), host.environ)
     check(value_of(inner) == 6, f"the inner call runs once it is implemented: {inner!r}")
 
     second = error_of(interpret(str(CASES / "nested_calls.viba"), host.environ))
-    check(isinstance(second, UnderlyingOpErr) and second.func_name == "add",
+    check(isinstance(second, UnderlyingOpErr) and
+          second.full_qualified_func_name == full_name_of(CASES / "nested_calls", "add"),
           f"the run then stops one step further out: {second!r}")
     check(" ".join(viba_ast.unparse_type(second.call.data).split()) ==
-          '__dyn_call__ << "add" << $a 6 << $b 4',
+          '__dyn_call__ << "nested_calls.add" << $a 6 << $b 4',
           f"and that call carries the argument the first one answered: "
           f"{viba_ast.unparse_type(second.call.data)!r}")
     host.prepare(_everywhere(add=_add))
     host.holding = second.call
-    outer = interpret(str(RUNNER), host.at(second.module_path))
+    outer = interpret(str(RUNNER), host.environ)
     check(value_of(outer) == 10, f"the outer call runs too: {outer!r}")
 
     whole = interpret(str(CASES / "nested_calls.viba"), host.environ)
@@ -278,13 +306,22 @@ def _one_step_at_a_time():
 
 
 def _both_entries_agree_on_the_call():
-    """`interpret` 与 `exec` 跑同一份程序，缺的那一步带回来的 `$call` 是同一份数据。"""
+    """`interpret` 与 `exec` 跑同一份程序：缺的是同一步，名字各自说自己那个模块。
+
+    一份文件跑起来时这一步声明在那份文件的模块里（`tagged_two.add`）；`exec` 那段代码没有文件，
+    它的模块就是编译用的标签（`<viba_code>.add`）。名字不同正是「这一步在哪个模块」的意思。
+    """
     host = Host()
     by_file = error_of(interpret(str(CASES / "tagged_two.viba"), host.environ))
     by_code = error_of(exec((CASES / "tagged_two.viba").read_text(), host.environ))
-    check(" ".join(viba_ast.unparse_type(by_file.call.data).split()) ==
-          " ".join(viba_ast.unparse_type(by_code.call.data).split()),
-          f"one file, one entry: {by_file.call!r} != {by_code.call!r}")
+
+    def written(error):
+        return " ".join(viba_ast.unparse_type(error.call.data).split())
+
+    check(written(by_file) == '__dyn_call__ << "tagged_two.add" << $a 1 << $b 2' and
+          written(by_code) == '__dyn_call__ << "<viba_code>.add" << $a 1 << $b 2',
+          f"one file, one step, each named by its own module: "
+          f"{written(by_file)!r} != {written(by_code)!r}")
 
 
 def _first_run(case: Case, host: Host):
@@ -299,19 +336,11 @@ def _the_missing_step(case: Case, host: Host):
     stopped = _first_run(case, host)
     error = error_of(stopped)
     if not (isinstance(error, UnderlyingOpErr) and error.tag == NOT_IMPLEMENTED_TAG
-            and error.func_name == case.missing):
+            and error.full_qualified_func_name == case.missing_name):
         check(False, f"{case.name}: the run stops at the step nothing implements "
                      f"({case.missing!r}): {stopped!r}")
         return None
     return error
-
-
-def _at_the_path(path: str, case: Case) -> bool:
-    if case.path is None:
-        return True
-    if case.path == "root/":            # a temporary environment: the path is a fresh name
-        return path.startswith("root/tmp_")
-    return path == case.path
 
 
 def _the_wanted_answer(result, case: Case) -> bool:

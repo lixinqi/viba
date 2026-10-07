@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from interpreter_support import error_of, Checks, Host, value_of
+from interpreter_support import error_of, full_name_of, Checks, Host, value_of
 
 from viba import viba_ast
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
@@ -64,8 +64,10 @@ def _what_the_name_spells():
           f"a call whose name is data runs: {by_name!r}")
     check(value_of(by_name) == value_of(written),
           f"and it is the call the same name at the head makes: {written!r}")
-    check(("root", "add") in host.calls,
-          f"the host was asked for that name, at that data path: {host.calls}")
+    check(("call_by_name", "add") in host.calls and
+          ("call_written", "add") in host.calls,
+          f"the host was asked for that name, from the module that declares it: "
+          f"{host.calls}")
 
 
 def _what_the_member_name_spells():
@@ -103,10 +105,11 @@ def _the_call_the_error_carries(tmp: Path):
     """没实现的那一步带回来的 `$call`：名字是数据，环境不在里面，照它能把这次调用做一遍。"""
     stopped = interpret(str(CASES / "missing_step.viba"), _host(missing=("add",)).environ())
     error = error_of(stopped)
-    check(isinstance(error, UnderlyingOpErr) and error.func_name == "add",
+    check(isinstance(error, UnderlyingOpErr) and
+          error.full_qualified_func_name == full_name_of(CASES / "missing_step", "add"),
           f"the stop names the step: {stopped!r}")
     call = _written(error.call.data)
-    check(call == '__dyn_call__ << "add" << $a 1 << $b 2',
+    check(call == '__dyn_call__ << "missing_step.add" << $a 1 << $b 2',
           f"the call is the same call with the name as data: {call!r}")
 
     # 照它再做一遍：把这段写法放进一份新模块，就地给上环境。
@@ -129,7 +132,8 @@ def _the_member_the_error_carries():
     """
     stopped = interpret(str(CASES / "missing_member.viba"), _host(missing=("inc",)).environ())
     error = error_of(stopped)
-    check(isinstance(error, UnderlyingOpErr) and error.func_name == "inc",
+    check(isinstance(error, UnderlyingOpErr) and
+          error.full_qualified_func_name == full_name_of(CASES / "missing_member", "inc"),
           f"the stop names the step the member's value stands for: {stopped!r}")
     call = _written(error.call.data)
     check(call == '__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1',
@@ -145,10 +149,11 @@ def _what_a_call_hands_on():
     """
     stopped = interpret(str(CASES / "fn_argument.viba"), _host(missing=("apply",)).environ())
     error = error_of(stopped)
-    check(isinstance(error, UnderlyingOpErr) and error.func_name == "apply",
+    check(isinstance(error, UnderlyingOpErr) and
+          error.full_qualified_func_name == full_name_of(CASES / "fn_argument", "apply"),
           f"the stop names the step that is missing: {stopped!r}")
     call = _written(error.call.data)
-    check(call == '__dyn_call__ << "apply" << $f (__dyn_call__ << "inc")',
+    check(call == '__dyn_call__ << "fn_argument.apply" << $f (__dyn_call__ << "inc")',
           f"the function argument is the call it stands for, written the way a call "
           f"travels: {call!r}")
 

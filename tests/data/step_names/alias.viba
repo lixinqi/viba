@@ -1,0 +1,13 @@
+# The same step reached through a local alias: the name it is asked under is the one
+# the alias stands for, not the local name it was written with.
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import foo.bar
+
+b_scale = foo.bar.b_scale
+
+__impl__ = b_scale << $env args.env << $x 2

@@ -1,0 +1,10 @@
+# The dotted name written at the call site.
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import foo.bar
+
+__impl__ = foo.bar.b_scale << $env args.env << $x 2

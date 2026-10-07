@@ -319,8 +319,8 @@ Frame =
 UnderlyingOpErr =
     Object
   * $msg str                               # one sentence, the reason first
-  * $module_path str                       # the data path `get_func` was given
-  * $func_name str                         # the name `get_func` was given
+  * $module_path str                       # the module the step is declared in, as a path
+  * $full_qualified_func_name str          # the whole name of the step (module + name)
   * $call (Any <- $env Env)                # the call itself, in a runnable form
 
 EnvironmentApiInvalidArgumentErr =
@@ -335,7 +335,9 @@ from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                             exec, interpret)
 
 def get_func(module_path, func_name):
-    if func_name == "add":
+    # module_path is where the step is declared, as it was imported (`demo`, `foo.bar`);
+    # func_name is the name the step has there (`add`, `print`).
+    if module_path == "demo" and func_name == "add":
         return lambda env, a, b: a.value + b.value
     return None
 
@@ -411,8 +413,10 @@ print(exec(answer.ok_value, environ))     # Ok(VibaNode(root)) — that piece, r
   `EnvironmentApiInvalidArgumentErr` when one of the environment's own members — the
   apis this layer runs itself, `get_func` is never asked for them — refused what a
   program handed it (`api_name`, e.g. `Environment.sub_env`, and `args`, what it was
-  given with the environment left out). A `UnderlyingOpErr` names the step (`module_path`, `func_name`), the call in
-  the form that can be run again (`call`, e.g. `__dyn_call__ << "add" << $a 1 << $b 2`
+  given with the environment left out). A `UnderlyingOpErr` names the step (`module_path`, the module as a path, and
+  `full_qualified_func_name`, its whole name there — `__dyn_call__ << "demo.add" << $a 1 << $b 2`
+  carries the same whole name), the call in
+  the form that can be run again (`call`, e.g. `__dyn_call__ << "demo.add" << $a 1 << $b 2`
   — the name as data, so any module can read it, the environment left out; a call
   that is a member of a value keeps that layer, and a call inside the data is
   written the same way, e.g. `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1`) and
@@ -442,7 +446,7 @@ environment is what runs a call, and it is the storage path the call runs at, so
 caller that is already running in that environment writes a layer of its own. `Y.viba`
 and `y_helper.viba` both write `$env Env`: the caller writes Y's layer, Y writes
 `y_helper`'s, and a step writes the layer of each layer it starts. The name given to
-`args.env.sub_env` is what `get_func` sees as `module_path`, and that storage path is
+`args.env.sub_env` is the storage path the step is handed as part of its environment, and that path is
 where the call's result is recorded. Three things can happen at one storage path: a
 call already running there is a cycle (`the storage path '...' is already running a
 call`, with the fix spelled out); a call that already answered there **by the same

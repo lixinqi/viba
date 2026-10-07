@@ -53,7 +53,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 def host_for():
     """每一步的实现：两个开关的宿主实现、几个别的文件里的步、一个不叫实参的步。"""
     def get_func(module_path, func_name):
-        if func_name == "builtin.echo":
+        if module_path == "builtin" and func_name == "echo":
             return lambda env, x: x
         if func_name == "f":
             return lambda env, a: a.value + 1

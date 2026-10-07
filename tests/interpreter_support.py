@@ -23,6 +23,27 @@ from viba.type import (FAILURE_TAG, NOT_IMPLEMENTED_TAG,
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
 
 
+def module_of(path) -> str:
+    """The module a case file is known by: its stem.
+
+    A module records the name it was loaded as (`CustomModuleType.name`), and a file
+    handed to `interpret` is bound under its stem, so that is what a step of it is
+    asked under: `get_func("memo", "leaf")` (viba-interpreter.md, "`get_func` 与
+    `func_name`").
+    """
+    return Path(str(path)).stem
+
+
+def module_path_of(path) -> str:
+    """The same module read as a path: `/memo`."""
+    return "/" + module_of(path)
+
+
+def full_name_of(path, name: str) -> str:
+    """The whole name of a step declared in that file: `memo.leaf`."""
+    return f"{module_of(path)}.{name}"
+
+
 def error_of(result):
     """The error a result carries: an `Err`'s, or the error itself.
 
@@ -120,6 +141,7 @@ class Host:
 
     def get_func(self, module_path, func_name):
         self.calls.append((module_path, func_name))
+        # This host serves one module's steps, so it reads them by their own names.
         if self.knobs.get("get_func_raises"):
             raise RuntimeError("host broke")
         if self.knobs.get("refuse_with") is not None:
@@ -209,3 +231,25 @@ class Host:
         return Environment(EnvironmentStorage(path, None, store_root_dir),
                            EnvironmentCompute(self.get_func), viba_path)
 
+
+class PlacedHost(Host):
+    """The shared host, plus where each step actually ran.
+
+    `get_func` is handed the module a step is declared in; where a call *runs* is
+    what the environment it receives carries, so a step records that here
+    (viba-interpreter.md, "`get_func` 与 `func_name`").
+    """
+
+    def __init__(self, **knobs):
+        super().__init__(**knobs)
+        self.ran_at = []                 # (data path, name), in the order steps ran
+
+    def get_func(self, module_path, func_name):
+        step = super().get_func(module_path, func_name)
+        if step is None:
+            return None
+
+        def ran(env, *args):
+            self.ran_at.append((env.storage.cur_storage_path, func_name))
+            return step(env, *args)
+        return ran
