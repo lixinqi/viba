@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from viba import builder
 from viba import viba_ast
-from viba.reflect import VibaAccess, VibaNode, at_index, at_key
+from viba.reflect import LITERAL_KINDS, VibaAccess, VibaNode, at_index, at_key
 from viba.type import VibaProgramErr, Ok, Result
 from viba.viba_type_descriptor import (
     CODE_BLOCK,
@@ -32,6 +32,7 @@ from viba.viba_type_descriptor import (
     SUM,
     TAGGED,
     TUPLE,
+    TYPE_APP,
     TYPE_REF,
 )
 
@@ -327,16 +328,24 @@ def _emit_container(access: VibaAccess, node: VibaNode, container: str, unfolded
     """
     if container == "dict":
         keys = access.keys(node)
-        # The written key type, through however many names: `S = str` and
-        # `G[V] = str` are the str the protocol hands keys over as.
-        key_type = (access.unfold(unfolded.payload.args[0])
-                    if unfolded.payload.args else None)
-        if not (key_type is not None and key_type.kind == TYPE_REF
-                and key_type.payload.type_name == "str"):
-            raise SerializeGap("the protocol hands dict keys over as strings; "
-                               "this one is written with another key type")
         if isinstance(keys, VibaProgramErr):
             raise SerializeGap(keys.msg)
+        if _is_literal(unfolded):
+            # The design is the literal itself, so there is no key type to ask:
+            # the keys are in the piece, and every one of them has to be the
+            # string the protocol hands keys over as.
+            if not _literal_keys_are_strings(node):
+                raise SerializeGap("the protocol hands dict keys over as strings; "
+                                   "this one is written with another key type")
+        else:
+            # The written key type, through however many names: `S = str` and
+            # `G[V] = str` are the str the protocol hands keys over as.
+            key_type = (access.unfold(unfolded.payload.args[0])
+                        if unfolded.payload.args else None)
+            if not (key_type is not None and key_type.kind == TYPE_REF
+                    and key_type.payload.type_name == "str"):
+                raise SerializeGap("the protocol hands dict keys over as strings; "
+                                   "this one is written with another key type")
         pairs = tuple((key, _emit(access, _child(access, node, at_key(key))))
                       for key in keys.ok_value)
         return _NAMES.DictLiteral[pairs]
@@ -350,6 +359,32 @@ def _emit_container(access: VibaAccess, node: VibaNode, container: str, unfolded
     if container == "set":
         return _NAMES.SetLiteral[payloads]
     raise SerializeGap(f"cannot write this container out: {container}")
+
+
+def _is_literal(unfolded) -> bool:
+    """Whether this design piece is one of the three literal constructors."""
+    return (unfolded.kind == TYPE_APP
+            and unfolded.payload.constructor_name in LITERAL_KINDS)
+
+
+def _literal_keys_are_strings(node) -> bool:
+    """Whether every key a dict literal writes is a string.
+
+    `True` only when the piece is written as the literal and each pair's key is a
+    string constant: a key of another type has no reading the protocol can hand
+    back, and writing it as the string it was handed over as would be a wrong
+    spelling rather than a missing one.
+    """
+    data = node.data
+    if not (isinstance(data, viba_ast.TypeApp) and data.constructor == "DictLiteral"):
+        return False
+    for pair in data.args:
+        elements = pair.elements if isinstance(pair, viba_ast.Tuple) else ()
+        if not elements or not isinstance(elements[0], viba_ast.Constant):
+            return False
+        if not isinstance(elements[0].value, str):
+            return False
+    return True
 
 
 def _emit_leaf(value):

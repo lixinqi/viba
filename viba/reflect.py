@@ -85,6 +85,16 @@ from viba.viba_type_descriptor import (
 SCALAR_NAMES = ("bool", "int", "float", "str")  # builtin leaves a sum can name
 CONTAINERS = ("list", "set", "dict")
 LITERAL_CTORS = ("ListLiteral", "SetLiteral", "DictLiteral")
+# A literal spells the container it is a resident of (`viba/type.viba`:
+# `ListLiteral[a, b, c]` is a resident of `list[a | b | c]`), so a piece whose data
+# is written that way is read the way any other piece of that container is.
+LITERAL_KINDS = {"ListLiteral": "list", "SetLiteral": "set", "DictLiteral": "dict"}
+
+
+def _is_literal(descriptor) -> bool:
+    """Whether this design piece is one of the three literal constructors."""
+    return (descriptor.kind == TYPE_APP
+            and descriptor.payload.constructor_name in LITERAL_KINDS)
 
 
 class VibaReflectError(Exception):
@@ -691,9 +701,17 @@ class VibaAccess:
 
     def container_kind(self, descriptor: VibaTypeDescriptor) -> Optional[str]:
         """The three builtin containers list / set / dict; a tuple is not one, it
-        is a product matched by position."""
-        if descriptor.kind == TYPE_APP and descriptor.payload.constructor_name in CONTAINERS:
-            return descriptor.payload.constructor_name
+        is a product matched by position.
+
+        A literal is the container it spells (`ListLiteral[1, 2]` is a list, and
+        `DictLiteral[("k", 1)]` a dict), so its data is counted, taken by index or
+        read by key the way the same piece under `list[int]` / `dict[str, int]` is.
+        """
+        if descriptor.kind == TYPE_APP:
+            name = descriptor.payload.constructor_name
+            if name in CONTAINERS:
+                return name
+            return LITERAL_KINDS.get(name)
         return None
 
     def _has_elements_by_index(self, descriptor: VibaTypeDescriptor) -> bool:
@@ -895,10 +913,26 @@ class VibaAccess:
                 if 0 <= step.value < len(unfolded.payload.elements):
                     return unfolded.payload.elements[step.value]
                 return None
+            if _is_literal(unfolded):
+                # A literal's arguments are its elements' own designs, so the piece
+                # at this position is that one — a list may hold an int here and a
+                # str there.
+                elements = unfolded.payload.args
+                if not (0 <= step.value < len(elements)):
+                    return None
+                return elements[step.value]
             return unfolded.payload.args[0]
         if step.kind == "at_key":
             unfolded = self.unfold(node.descriptor)
             if self.container_kind(unfolded) != "dict":
+                return None
+            if _is_literal(unfolded):
+                for pair in unfolded.payload.args:
+                    value = _pair_of(pair, step.value)
+                    if value is not None:
+                        return value
+                return None
+            if len(unfolded.payload.args) < 2:
                 return None
             return unfolded.payload.args[1]
         return None
@@ -1265,6 +1299,22 @@ class _ParamFiller(viba_ast.NodeTransformer):
 
 def _fill_params(body, bindings):
     return _ParamFiller(bindings).visit(copy.deepcopy(body))
+
+
+def _pair_of(pair, key: str):
+    """The value design of the entry this key names, or None.
+
+    `pair` is one entry of a `DictLiteral`'s design: a tuple of the key's design
+    and the value's, both already designs (so this reads them, not the source).
+    """
+    if getattr(pair, "kind", None) != TUPLE:
+        return None
+    elements = pair.payload.elements
+    if len(elements) < 2 or elements[0].kind != LITERAL:
+        return None
+    if _key_text(elements[0].payload.value) != key:
+        return None
+    return elements[1]
 
 
 def _key_text(key) -> Optional[str]:

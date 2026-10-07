@@ -1,0 +1,4 @@
+# The element is in the list.
+xs = ListLiteral[10, 20]
+
+__impl__ = $__in__ << xs << 20

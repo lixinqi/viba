@@ -1,0 +1,4 @@
+# Neither an int nor a str addresses anything.
+xs = ListLiteral[10]
+
+__impl__ = $__getitem__ << xs << true

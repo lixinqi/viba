@@ -23,6 +23,14 @@ TAGGED_NAME = "tagged"
 # The builtin member that reads a member by a name given as a value: `$__getattr__`.
 GETATTR_TAG = "$__getattr__"
 
+# The builtin member that reads an element by an address given as a value:
+# `$__getitem__` — an index for a list, a key for a dict.
+GETITEM_TAG = "$__getitem__"
+
+# The builtin member that asks whether a piece is in a container:
+# `$__in__` — an element for a list, a set or a tuple, a key for a dict.
+IN_TAG = "$__in__"
+
 
 def symbol_of(text) -> Optional[str]:
     """The symbol a written string spells, or None when it spells none.

@@ -1,0 +1,2 @@
+# There is no container to ask.
+__impl__ = $__in__ << 7 << 1

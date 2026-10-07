@@ -69,7 +69,8 @@ from typing import Optional, Union
 from viba import serialize, viba_ast
 from viba.partial import (file_environment_result_problem, parameters_of,
                           product_elements, names_the_environment)
-from viba.reflect import VibaNode, access as reflect_access
+from viba.reflect import (LITERAL_CTORS, VibaNode, VibaReflectError,
+                          access as reflect_access)
 from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
                           reduce_application, tagged_reading)
@@ -82,9 +83,10 @@ from viba.type import (CustomModuleType, NOT_IMPLEMENTED_TAG, REASON_GET_FUNC_RA
                        BUILTIN_MODULE, NilType, NeverType,
                        builtin_directory_name,
                        custom_module, module_get_type)
-from viba.viba_ast.tagged import (GETATTR_TAG, TAGGED_NAME, symbol_of,
-                                  symbol_problem, tag_of, tagged_node)
-from viba.viba_type_descriptor import (descriptor_of, descriptor_of_tagged,
+from viba.viba_ast.tagged import (GETATTR_TAG, GETITEM_TAG, IN_TAG, TAGGED_NAME,
+                                  symbol_of, symbol_problem, tag_of,
+                                  tagged_node)
+from viba.viba_type_descriptor import (TUPLE, descriptor_of, descriptor_of_tagged,
                                         descriptor_of_values)
 
 # A scalar a host answers belongs to no file: its leaf gets an empty module.
@@ -681,6 +683,38 @@ class _GetattrMember:
     def __init__(self, owner, argument):
         self.owner = owner          # the value the member is read out of
         self.argument = argument    # how that value was written, to give it on
+
+
+class _GetitemMember:
+    """`$__getitem__ << C` while the address is still to come.
+
+    `$__getitem__` is the builtin member that reads an element by an address given
+    as a value — an index for a list, a key for a dict — so what it reads is known
+    when the chain gives that address: the next argument is the address and `C` is
+    the container the element is read out of (viba-interpreter.md). It is gone as
+    soon as the address is in.
+    """
+
+    __slots__ = ("owner",)
+
+    def __init__(self, owner):
+        self.owner = owner          # the container the element is read out of
+
+
+class _InMember:
+    """`$__in__ << C` while the piece to look for is still to come.
+
+    `$__in__` is the builtin member that asks whether a piece is in a container —
+    an element of a list, a set or a tuple, a key of a dict — so the answer is
+    known when the chain gives that piece: the next argument is what to look for
+    and `C` is the container (viba-interpreter.md). It is gone as soon as the
+    piece is in.
+    """
+
+    __slots__ = ("owner",)
+
+    def __init__(self, owner):
+        self.owner = owner          # the container the piece is looked for in
 
 
 class _Given:
@@ -1565,6 +1599,20 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                                                           (_VibaData, _Host))):
                 value = stopped(VibaProgramErr(
                     f"{name}.{RET_NAME} is a function still waiting for arguments"))
+        if not _stopped(value) and isinstance(value.ok_value,
+                                              (_GetattrMember, _GetitemMember,
+                                               _InMember)):
+            # A member read that never got its name, or an element read that never
+            # got its address, is no value: the piece says which member or element
+            # it wants, and nothing said which one.
+            if isinstance(value.ok_value, _GetattrMember):
+                waiting = "a member is read by a name, and none was given"
+            elif isinstance(value.ok_value, _GetitemMember):
+                waiting = ("an element is read by an address — an int or a str — "
+                           "and none was given")
+            else:
+                waiting = "a container is asked about a piece, and none was given"
+            value = stopped(VibaProgramErr(f"{name}.{RET_NAME}: {waiting}"))
     finally:
         runner.running.pop()
     if _stopped(value):
@@ -1751,6 +1799,27 @@ class _Activation:
         if isinstance(node, viba_ast.CodeBlock):
             return VibaProgramErr("a code block is documentation: it is not a value")
         return VibaProgramErr(f"cannot compute {type(node).__name__}")
+
+    def _addressed_reading(self, node, scope=()):
+        """`list_obj[i]` / `dict_obj[key]`: the chain the shorthand stands for.
+
+        A name no generic answers to is a value, and one bracket's arguments are
+        the addresses: `xs[1]` is `$__getitem__ << xs << 1` and `table["k"]` is
+        `$__getitem__ << table << "k"` (viba-style.md, the containers section), so
+        the reading is that chain, built here and read the way any chain is.
+
+        The name is read first: a name this run can read nothing into — a name
+        nothing defines, a type's name written where a value goes — is no read of
+        this layer's, and the stop it answers with (which names it) is the answer.
+        """
+        container = self._resolve(node.constructor, scope)
+        if _stopped(container):
+            return container
+        chain = viba_ast.Partial(viba_ast.Member(GETITEM_TAG),
+                                 viba_ast.TypeRef(node.constructor))
+        for argument in node.args:
+            chain = viba_ast.Partial(chain, argument)
+        return self._apply_chain(chain, scope)
 
     def _descriptor(self, node):
         return descriptor_of(AstNodeType(node, self.module))
@@ -2094,6 +2163,63 @@ class _Activation:
                 return member
         return None
 
+    def _in_container(self, container, asked):
+        """Whether the piece is in the container: an element, or a key for a dict.
+
+        `container` is the value the chain asks about and `asked` is the piece to
+        look for. A list, a set and a tuple hold elements, so the answer is
+        whether one of them is written the way that piece is; a dict holds keys,
+        and the key is the string the protocol hands keys over as. Anything else
+        is a program error: the piece named is not a container, this is no viba
+        data, or a dict was asked about something that is no key.
+        """
+        if not isinstance(container, _VibaData) or not isinstance(asked, _VibaData):
+            return VibaProgramErr(
+                "an element is looked for in viba data, and this is no viba data")
+        node = container.node
+        unfolded = reflect_access.unfold(node.descriptor)
+        kind = reflect_access.container_kind(unfolded)
+        if kind == "dict":
+            key = _symbol_text(asked)
+            if key is None:
+                return VibaProgramErr(
+                    "a dict holds keys, and a key is the string the protocol "
+                    "hands keys over as")
+            return Ok(_VibaData(viba_data(key in node.keys())))
+        if kind in ("list", "set") or unfolded.kind == TUPLE:
+            wanted = viba_ast.unparse_type(asked.node.data)
+            found = any(viba_ast.unparse_type(one.data) == wanted for one in node)
+            return Ok(_VibaData(viba_data(found)))
+        return VibaProgramErr(
+            "`$__in__` asks about a list, a set, a tuple or a dict, and this is "
+            "none of them")
+
+    def _take_item(self, container, address):
+        """The element `$__getitem__` reads: by position, or by key for a dict.
+
+        `container` is the value the chain read the element out of, and `address`
+        is the value that says which element — an int for the pieces read by
+        position (a list, a set, a tuple), a str for a dict, which is what the
+        protocol's own addressing takes (`$at_index int`, `$at_key str`,
+        viba-reflect.md). Anything else is a program error: the piece that was
+        named is not a container, or the address is of the other kind.
+        """
+        if not isinstance(container, _VibaData):
+            return VibaProgramErr(
+                "an element is read out of viba data, and this is no viba data")
+        kind, asked = _address_of(address)
+        if kind is None:
+            return VibaProgramErr(
+                "an element is read by position (an int) or by key (a str), "
+                "and this is neither")
+        try:
+            taken = (container.node.at_index(asked) if kind == "index"
+                     else container.node.at_key(asked))
+        except VibaReflectError as failed:
+            return VibaProgramErr(str(failed))
+        return Ok(_VibaData(taken, written_in=container.written_in,
+                            bindings=container.bindings))
+
     def _take_member(self, member, value):
         """The member `$tag` of the value the chain gave first.
 
@@ -2274,6 +2400,13 @@ class _Activation:
         """
         if node.constructor == TAGGED_NAME:
             return self._tagged_data(node, scope)
+        if node.constructor in LITERAL_CTORS:
+            # A container literal is viba data as it stands: its members are written
+            # pieces, the way a product's are, and what it is is the container its
+            # constructor spells (`ListLiteral[1, 2]` is a list). Naming that
+            # constructor in a *type* expression is the other reading of the same
+            # text: there it is the resident of `list[a | b | c]` (viba/type.viba).
+            return Ok(_VibaData(VibaNode(reflect_access, self._descriptor(node), node)))
         written, modules = self._application_reading(node, scope)
         decision = reduce_application(written, self.module, modules)
         if _stopped(decision):
@@ -2283,7 +2416,10 @@ class _Activation:
             applied = self._definition_generic(node, scope)
             if applied is not None:
                 return applied
-            return VibaProgramErr(f"cannot compute {type(node).__name__}")
+            # No generic answers to that name, so `A[b]` is no generic application:
+            # it is the shorthand of an element read, `$__getitem__ << A << b`
+            # (viba-style.md, the containers section).
+            return self._addressed_reading(node, scope)
         if chosen.body is None:
             # This file writes no `__decl__`: it answers its own module, so a member must be read
             # before there is anything to read.
@@ -2452,6 +2588,52 @@ class _Activation:
                 # `$__getattr__ << X << <name>`: X is the value the member is
                 # read out of, and the name that tags it is the next argument.
                 current = _GetattrMember(value.ok_value.value, argument)
+                continue
+            if isinstance(current, _Member) and current.tag == GETITEM_TAG:
+                # `$__getitem__ << C << <index or key>`: C is the container the
+                # element is read out of, and the address is the next argument.
+                current = _GetitemMember(value.ok_value.value)
+                continue
+            if isinstance(current, _Member) and current.tag == IN_TAG:
+                # `$__in__ << C << <piece>`: C is the container the piece is looked
+                # for in, and the next argument is the piece itself.
+                current = _InMember(value.ok_value.value)
+                continue
+            if isinstance(current, _InMember):
+                answered = self._in_container(current.owner, value.ok_value.value)
+                if _stopped(answered):
+                    return answered
+                current = answered.ok_value
+                continue
+            if isinstance(current, _GetitemMember):
+                taken = self._take_item(current.owner, value.ok_value.value)
+                if _stopped(taken):
+                    return taken
+                current = taken.ok_value
+                # The element is what the chain goes on with: arguments written
+                # after the address are given to it (`$__getitem__ << xs << 0 << $x 1`
+                # is `xs[0] << $x 1`).
+                further = list(written[index + 1:])
+                if further and _is_a_written_call(current):
+                    node = current.node.data
+                    for later in further:
+                        node = viba_ast.Partial(node, later)
+                    written_in = _writing_module(current)
+                    other = (self._in_module(written_in, _writing_bindings(current))
+                             if written_in is not None else None)
+                    if other is None or written_in is self.module:
+                        return self._apply_chain(node, scope)
+                    # The element is written in that module, so its names mean what
+                    # they mean there; the arguments after it are written here.
+                    target, arguments = other._target_and_arguments(node, scope)
+                    if arguments is None or _stopped(target):
+                        return target
+                    return self._give_all(target.ok_value, arguments, scope)
+                if isinstance(current, _HostFunction) and current.filled():
+                    run = current.run()
+                    if _stopped(run):
+                        return run
+                    current = run.ok_value
                 continue
             if isinstance(current, _GetattrMember):
                 named = _member_tag_of(value.ok_value.value)
@@ -4379,6 +4561,24 @@ def _symbol_text(value):
     if isinstance(written, viba_ast.Constant) and isinstance(written.value, str):
         return written.value
     return None
+
+
+def _address_of(value):
+    """(kind, address) for a value `$__getitem__` is given, or (None, None).
+
+    The address travels as a value: an int is a position, a str is a key, and
+    anything else addresses nothing (`viba-reflect.md`, the two address steps).
+    `True` is no int here — it is the bool literal it is written as.
+    """
+    if not isinstance(value, _VibaData):
+        return None, None
+    written = value.node.data
+    if isinstance(written, viba_ast.Constant):
+        if isinstance(written.value, str):
+            return "key", written.value
+        if isinstance(written.value, int) and not isinstance(written.value, bool):
+            return "index", written.value
+    return None, None
 
 
 def _member_tag_of(value):

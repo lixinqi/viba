@@ -1,0 +1,2 @@
+# The empty list.
+__impl__ = ListLiteral[]

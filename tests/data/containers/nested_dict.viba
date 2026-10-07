@@ -1,0 +1,2 @@
+# A dict of lists.
+__impl__ = DictLiteral[("a", ListLiteral[1, 2]), ("b", ListLiteral[3])]

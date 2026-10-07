@@ -1,0 +1,14 @@
+# A container handed to a step: what the host receives is a list.
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+head =
+    int
+  <- $env Env
+  <- $xs list[int]
+  <- { the first element }
+
+__impl__ = head << $env args.env << $xs ListLiteral[7, 8]

@@ -1,0 +1,4 @@
+# A literal in a product, whose slot says what it is.
+Box = Object * $xs list[int] * $y int
+
+__impl__ = Object * $xs ListLiteral[1, 2] * $y 3

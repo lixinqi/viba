@@ -1,0 +1,2 @@
+# A dict literal.
+__impl__ = DictLiteral[("k", 1), ("m", 2)]

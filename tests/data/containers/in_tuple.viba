@@ -1,0 +1,2 @@
+# So does a tuple.
+__impl__ = $__in__ << (1, 2) << 2

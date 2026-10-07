@@ -1,0 +1,2 @@
+# The empty dict.
+__impl__ = DictLiteral[]

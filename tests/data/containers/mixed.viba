@@ -1,0 +1,2 @@
+# Members of another type: a list holds what it was written with.
+__impl__ = ListLiteral[1, "a"]

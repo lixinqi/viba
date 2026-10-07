@@ -148,7 +148,7 @@ Result =
 
 ## 8. 容器：`list` / `set` / `dict`
 
-三个容器是内建的，用法就三件事：**写法、字面量、寻址**。
+三个容器是内建的，用法就四件事：**写法、字面量、寻址、问在不在**。
 
 ```viba
 Items = $items list[int]
@@ -161,10 +161,22 @@ Nested = $nested list[dict[str, int]]
   键写 `str`——访问协议里按键那一步就是 `$at_key str`。
 - **没有 `repeated` 这回事**：一个字段可重复就把类型写成 `list[T]`，不要再包一层。
 - **字面量有自己的写法**：`ListLiteral[1, "x"]`、`SetLiteral[1, 2]`、`DictLiteral[("k", 1)]`，
-  空的是 `ListLiteral[]`。它们是 `list[...]` 之类的居民，写在**实例**那一侧。
+  空的是 `ListLiteral[]`。它们是 `list[...]` 之类的居民，写在**实例**那一侧：写在值的位置上就是那个
+  容器本身，所以能数、能按地址取、能当实参交给宿主、也能原样写回去。
+- **寻址用 `$__getitem__`**：位置给 int，键给 str，两者各对应一条地址步子
+  （`$at_index int` / `$at_key str`）。`$__getitem__ << xs << 1` 是 `xs[1]`，
+  `$__getitem__ << table << "k"` 是 `table["k"]`；地址还没给时它是一个值，给了才是读。
+  按名字取成员是另一个：`$__getattr__`（见 [`viba-interpreter.md`](viba-interpreter.md)）。
+- **方括号是它的简写**：`xs[1]` 就是 `$__getitem__ << xs << 1`，`table["k"]` 就是
+  `$__getitem__ << table << "k"`，容器可以是一条名字路径（`box.xs[1]`）。方括号只跟在名字后面，
+  一层：`xs[0][1]` 要写成 `$__getitem__ << xs[0] << 1`。写在**值**的位置上它是这一步读取；
+  写在积的成员里时它跟别的成员一样是**写下来的数据**（不在这里读，`viba-interpreter.md`）。
+- **问在不在用 `$__in__`**：`$__in__ << xs << 3` 问元素在不在（list / set / tuple），
+  `$__in__ << table << "k"` 问键在不在（dict）。答的是 `bool`；被问的不是容器、或者给 dict 的不是
+  一个字符串键，都是程序错。
 - **可以任意嵌套**：`list[dict[str, int]]`、`dict[str, list[$x int]]`。
 - **这三个名字（连 `ListLiteral` / `SetLiteral` / `DictLiteral`）不能拿来定义**：定义名和泛型形参
-  里出现它们，解析器当场拒；它们只在类型表达式里出现。
+  里出现它们，解析器当场拒。它们出现在类型表达式里是「这个容器的居民」，出现在值的位置上是那个容器。
 
 ## 9. 函数：结果在前，实参带 tag，提示收尾
 

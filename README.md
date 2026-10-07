@@ -209,6 +209,13 @@ Variadic = $a A | $b B | ...
 # Literals
 Config = $mode "fast" * $threads 42 * $ratio 3.14
 
+# Containers: the literals are written on the value side, and an element is read
+# by its address — an int for a position, a str for a key
+Items = $items list[int]
+first = items[0]                     # the shorthand of `$__getitem__ << items << 0`
+there = $__in__ << items << 3
+pair = ListLiteral[1, 2] * DictLiteral[("k", "v")]
+
 # Code block
 Handler = {def forward(self, x): return x}
 ```

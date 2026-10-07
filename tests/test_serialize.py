@@ -190,6 +190,28 @@ def run_empty_container_cases():
         _round_trip("empty", definition, access, node, source, "Box")
 
 
+def run_literal_design_cases():
+    """字面量容器也是容器：设计里写成 `ListLiteral[int]`，数据写的是那个字面量。
+
+    这曾经是没有写法的（描述符那层不认它），现在它是 list/set/dict 之一，所以
+    写得出来、读得回来。
+    """
+    from viba.reflect import access
+
+    for design, body in (("Box = Object * $a ListLiteral[int]\n",
+                          viba_ast.TypeApp("ListLiteral", [viba_ast.Constant(1)])),
+                         ("Box = Object * $a SetLiteral[str]\n",
+                          viba_ast.TypeApp("SetLiteral", [viba_ast.Constant("x")])),
+                         ("Box = Object * $a DictLiteral[('k', int)]\n",
+                          viba_ast.TypeApp("DictLiteral", [
+                              viba_ast.Tuple([viba_ast.Constant("k"),
+                                              viba_ast.Constant(1)])]))):
+        pool, definition = _design(design, "Box")
+        _, node = _node(definition, viba_ast.ProductChain([
+            viba_ast.TypeRef("Object"), viba_ast.Tagged("$a", body)]))
+        _round_trip("literal design", definition, access, node, design, "Box")
+
+
 def run_nil_slot_cases():
     source = """Maybe = Object * $a int * $b (int | nil)
 """
@@ -981,11 +1003,7 @@ def run_more_gap_corners():
          _product(_tagged("$a", viba_ast.Ellipsis())), "no value here: $a")
     _gap("gap an ellipsis design", "Box = Object * $a ...\n", "Box",
          _product(_tagged("$a", viba_ast.Ellipsis())), "no value here: $a")
-    _gap("gap a literal container as the design type",
-         "Box = Object * $a ListLiteral[int]\n", "Box",
-         _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
-                                                  [viba_ast.Constant(1)]))),
-         "cannot write this piece out")
+
 
 
 
@@ -1361,7 +1379,8 @@ def run_inline_member_cases():
 
 
 def run():
-    for case in (run_case_files, run_empty_container_cases, run_nil_slot_cases,
+    for case in (run_case_files, run_empty_container_cases,
+                 run_literal_design_cases, run_nil_slot_cases,
                  run_set_order_cases, run_exponent_cases, run_code_block_cases,
                  run_member_corner_cases, run_sum_corner_cases,
                  run_leaf_corner_cases, run_exponent_corner_cases,

@@ -1,0 +1,6 @@
+# The container may be a member: `box.xs[1]`.
+Box = Object * $xs list[int]
+
+box = Object * $xs ListLiteral[10, 20]
+
+__impl__ = box.xs[1]

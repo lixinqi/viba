@@ -144,8 +144,10 @@ def _host_answers(tmp: Path):
 LITERAL_CASES = [("lit_42", 42, "a literal int"), ("lit_hi", "hi", "a literal str"),
                  ("lit_true", True, "a literal bool")]
 UNIT_CASES = [("unit_nil", "nil"), ("unit_never", "never"), ("unit_Any", "Any")]
-NOT_A_VALUE_CASES = [("written_application", "a generic application"),
-                     ("written_exponent", "an exponent")]
+# (文件, 说法, 停下来的那句话里有什么)
+NOT_A_VALUE_CASES = [("written_application", "a generic application",
+                      "no definition named 'list'"),
+                     ("written_exponent", "an exponent", "cannot compute")]
 
 
 def _written_as_ret(tmp: Path):
@@ -160,8 +162,10 @@ def _written_as_ret(tmp: Path):
     for name, label in UNIT_CASES:
         result = interpret(_case(name), environ)
         check(isinstance(result, Ok), f"__impl__ written as {label}: {result!r}")
-    for name, label in NOT_A_VALUE_CASES:
-        labelled(interpret(_case(name), environ), "cannot compute",
+    for name, label, want in NOT_A_VALUE_CASES:
+        # `list[int]` 写在值的位置上时，没有哪个泛型回答 `list`，于是按简写去读这个名字 ——
+        # 读不进来，报的就是这个名字（`_addressed_reading`）。类型名不是一个值。
+        labelled(interpret(_case(name), environ), want,
                  f"__impl__ written as {label} -> VibaProgramErr")
 
     # 写下来的和值是 viba 数据：没给出的那几支留下的都是 never

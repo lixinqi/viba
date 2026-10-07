@@ -1,0 +1,4 @@
+# A list is read by position, not by key.
+xs = ListLiteral[10]
+
+__impl__ = $__getitem__ << xs << "k"

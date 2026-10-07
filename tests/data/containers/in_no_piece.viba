@@ -1,0 +1,4 @@
+# The question never got a piece to look for.
+xs = ListLiteral[10]
+
+__impl__ = $__in__ << xs

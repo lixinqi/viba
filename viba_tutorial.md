@@ -393,6 +393,12 @@ Point =
 
 一份设计也能被序列化回源码（`viba.serialize`），所以存下来的东西是可读的。
 
+容器也一样：`ListLiteral[1, 2]` / `SetLiteral["a"]` / `DictLiteral[("k", 1)]` 写在值的位置上就是
+那个 list / set / dict（空的写 `ListLiteral[]`、`DictLiteral[]`），写成什么样就读回什么样；元素按
+地址取，`$__getitem__ << xs << 0` 就是 `xs[0]`（写方括号就行），`$__getitem__ << table << "k"`
+就是 `table["k"]`；问在不在用 `$__in__`（`$__in__ << xs << 0`）。
+（[`viba-style.md`](viba-style.md) 第 8 节、[`viba-interpreter.md`](viba-interpreter.md)）。
+
 ## 12. 泛型：一个目录，某个文件给出结果
 
 写一个"什么类型配什么结果"的表时，用的是**模式**：泛型不是一份带形参的定义，而是一个目录，

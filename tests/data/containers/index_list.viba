@@ -1,0 +1,4 @@
+# The shorthand: `xs[1]` is `$__getitem__ << xs << 1`.
+xs = ListLiteral[10, 20, 30]
+
+__impl__ = xs[1]

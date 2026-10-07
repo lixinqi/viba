@@ -1,0 +1,2 @@
+# A set literal.
+__impl__ = SetLiteral["a", "b"]

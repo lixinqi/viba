@@ -1,0 +1,4 @@
+# A dict is read by key, not by position.
+table = DictLiteral[("k", 1)]
+
+__impl__ = $__getitem__ << table << 0

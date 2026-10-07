@@ -1,0 +1,4 @@
+# No such key.
+table = DictLiteral[("k", 1)]
+
+__impl__ = $__getitem__ << table << "nope"

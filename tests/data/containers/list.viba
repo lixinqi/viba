@@ -1,0 +1,2 @@
+# A list literal, where a value is computed.
+__impl__ = ListLiteral[1, 2]
