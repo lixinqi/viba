@@ -1,10 +1,10 @@
-"""容器：`ListLiteral` / `SetLiteral` / `DictLiteral` 算成值，`$__getitem__` 取元素、
-`$__in__` 问在不在、`$__len__` 数一数、`$__keys__` 取字典的键。
+"""容器：`ListLiteral` / `SetLiteral` / `DictLiteral` 算成值，`$get_item` 取元素、
+`$in` 问在不在、`$len` 数一数、`$keys` 取字典的键。
 
 三个字面量构造器站在**实例**那一侧（`viba-style.md` 第 8 节）：`ListLiteral[1, 2]` 是
 `list[int]` 的居民，和 `$x 1 * $y 2` 一样是就地给出的可序列化数据，所以一次运行能把它算成
-值，值能数、能寻址、能序列化成源码。寻址在语言这一侧是 `$__getitem__`：位置给 int，键给 str
-（`$__getattr__` 是按名字取成员的那一个，这是按地址取元素的那一个）。
+值，值能数、能寻址、能序列化成源码。寻址在语言这一侧是 `$get_item`：位置给 int，键给 str
+（`$get_attr` 是按名字取成员的那一个，这是按地址取元素的那一个）。
 
     python3 tests/test_interpreter_containers.py
 """
@@ -131,7 +131,7 @@ def _a_member_is_a_container():
 
 
 def _what_getitem_takes():
-    """`$__getitem__`：位置给 int，键给 str，取出来就是那个元素。"""
+    """`$get_item`：位置给 int，键给 str，取出来就是那个元素。"""
     by_index = _run("get_by_index")
     check(value_of(by_index) == 20, f"an element by position: {by_index!r}")
 
@@ -164,7 +164,7 @@ def _what_getitem_refuses():
 
 
 def _what_in_answers():
-    """`$__in__`：元素在不在（list / set / tuple），键在不在（dict）。"""
+    """`$in`：元素在不在（list / set / tuple），键在不在（dict）。"""
     for name, want in (("in_list", True), ("in_list_no", False), ("in_set", True),
                        ("in_tuple", True), ("in_dict_key", True),
                        ("in_dict_value", False), ("in_nested", True),
@@ -182,7 +182,7 @@ def _what_in_answers():
 
 
 def _what_len_counts():
-    """`$__len__`：list / set / dict / tuple 都数得出，dict 数的是键；别的不是容器。"""
+    """`$len`：list / set / dict / tuple 都数得出，dict 数的是键；别的不是容器。"""
     for name, want in (("len_list", 3), ("len_set", 2), ("len_dict", 2),
                        ("len_tuple", 3), ("len_empty_list", 0),
                        ("len_empty_dict", 0)):
@@ -197,7 +197,7 @@ def _what_len_counts():
 
 
 def _what_keys_gives():
-    """`$__keys__`：dict 的键，顺序按实现给的；拿到的是一份能寻址的列表。"""
+    """`$keys`：dict 的键，顺序按实现给的；拿到的是一份能寻址的列表。"""
     got = _run("keys_dict")
     check(is_ok(got) and value_of(got) == "m",
           f"keys_dict: the second key of two: {got!r}")
@@ -213,7 +213,7 @@ def _what_keys_gives():
 
 
 def _the_index_shorthand():
-    """`xs[i]` / `table[key]` 是 `$__getitem__ << xs << i` 的简略形式。"""
+    """`xs[i]` / `table[key]` 是 `$get_item << xs << i` 的简略形式。"""
     for name, want in (("index_list", 20), ("index_dict", 8), ("index_member", 20),
                        ("index_element", 2)):
         got = _run(name)

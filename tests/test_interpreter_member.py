@@ -122,9 +122,9 @@ def _judge(source: str, sub: str, sup: str):
 
 
 def _a_member_taken_by_a_name():
-    """名字出现在字符串里时，成员就按那个名字取：`tagged["f"]` 与 `$__getattr__`。
+    """名字出现在字符串里时，成员就按那个名字取：`tagged["f"]` 与 `$get_attr`。
 
-    `tagged["f"] << box << …` 是 `$f << box << …`；`$__getattr__ << box << name << …`
+    `tagged["f"] << box << …` 是 `$f << box << …`；`$get_attr << box << name << …`
     是 `box.f << …`，区别只在于名字是一份可以算出来的值。
     """
     def get_func(path, func_name):
@@ -142,10 +142,10 @@ def _a_member_taken_by_a_name():
           f"a member taken by the name a value spells: {by_name!r}")
 
     source = ("Args = Object * $a int * $b str\n"
-              'Picked = $__getattr__ << Args << "a"\n'
+              'Picked = $get_attr << Args << "a"\n'
               'Named = "a"\n'
-              "By_name = $__getattr__ << Args << Named\n"
-              "Dynamic = $__getattr__ << Args << SomethingElse\n")
+              "By_name = $get_attr << Args << Named\n"
+              "Dynamic = $get_attr << Args << SomethingElse\n")
     check(_judge(source, "Picked", "int") is True,
           "a name in the source picks the member it tags")
     check(_judge(source, "Picked", "str") is False,

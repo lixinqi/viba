@@ -1,2 +1,2 @@
 # There is nothing to take an element out of.
-__impl__ = $__getitem__ << 7 << 0
+__impl__ = $get_item << 7 << 0

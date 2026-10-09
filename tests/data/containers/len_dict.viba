@@ -1,2 +1,2 @@
 # A dict is counted by its keys: two pairs, two.
-__impl__ = $__len__ << DictLiteral[("k", 1), ("m", 2)]
+__impl__ = $len << DictLiteral[("k", 1), ("m", 2)]

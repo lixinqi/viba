@@ -29,7 +29,7 @@ from typing import Callable, Optional, Tuple
 from viba import viba_ast
 from viba.type import (BUILTIN_MODULE, DuplicateTagError, InlineCycleError, Ok,
                        PartialError, UnresolvedTypeError)
-from viba.viba_ast.tagged import (GETATTR_TAG, TAGGED_NAME, literal_symbol,
+from viba.viba_ast.tagged import (GET_ATTR_TAG, TAGGED_NAME, literal_symbol,
                                   symbol_of, symbol_problem, tag_of,
                                   tagged_node, tagged_problem)
 
@@ -39,9 +39,9 @@ _EXP_NODES = (viba_ast.Exponent, viba_ast.ExponentChain)
 
 
 class _NamedMember:
-    """`$__getattr__ << X` while the name is still to come.
+    """`$get_attr << X` while the name is still to come.
 
-    `$__getattr__` takes a member by a name given as a value, so the member is
+    `$get_attr` takes a member by a name given as a value, so the member is
     known when the chain gives that name: the next argument is the name and `X`
     is the value the member is taken out of (viba-interpreter.md). It is gone as
     soon as the name is in.
@@ -320,8 +320,8 @@ def _give(base, module, argument, argument_module, resolve, judge):
     base = _tagged_base(base, module, resolve)
     if isinstance(base, _NamedMember):
         return _named_member(base, argument, argument_module, resolve)
-    if isinstance(base, viba_ast.Member) and base.tag == GETATTR_TAG:
-        # `$__getattr__ << X << <name>`: X is the value the member is taken out
+    if isinstance(base, viba_ast.Member) and base.tag == GET_ATTR_TAG:
+        # `$get_attr << X << <name>`: X is the value the member is taken out
         # of, and the name that tags it is the next argument.
         return _NamedMember(argument, argument_module), module
     if isinstance(base, viba_ast.Member):
@@ -411,7 +411,7 @@ def _tagged_base(node, module, resolve):
 
 
 def _named_member(base, name, name_module, resolve):
-    """`$__getattr__ << X << <name>`: the member the name tags.
+    """`$get_attr << X << <name>`: the member the name tags.
 
     `X.<name>` takes the member the same way, and this is where a name that is a
     *value* becomes a tag: the member is the one the member name addresses. A

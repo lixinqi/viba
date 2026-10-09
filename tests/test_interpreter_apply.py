@@ -58,16 +58,16 @@ def run(tmp: Path):
 
 
 def impl_files():
-    """`apply_impl` 的每一支：名字上给出这一份取几个成员，`pattern` 就摆几个，`$__getattr__` 就给几个。
+    """`apply_impl` 的每一支：名字上给出这一份取几个成员，`pattern` 就摆几个，`$get_attr` 就给几个。
 
     这些文件是同一份东西按个数摆开的，没有 4 个以上实参的用例会选到它们，所以这里
-    直接数一遍：名字上的份数、`pattern` 的成员数、`$__getattr__` 的个数三者一致。
+    直接数一遍：名字上的份数、`pattern` 的成员数、`$get_attr` 的个数三者一致。
     """
     for count in range(1, 17):
         name = f"{count}_{count * 100}.viba"
         text = (ROOT / "viba" / "apply_impl" / name).read_text()
         members = text.count("tagged[")
-        given = text.count("$__getattr__")
+        given = text.count("$get_attr")
         check(members == count and given == count,
               f"apply_impl/{name}: 名字上给出 {count} 个实参，"
               f"pattern 了 {members} 个成员，给了 {given} 个实参")

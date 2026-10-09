@@ -1,4 +1,4 @@
 # The element at a position.
 xs = ListLiteral[10, 20, 30]
 
-__impl__ = $__getitem__ << xs << 1
+__impl__ = $get_item << xs << 1

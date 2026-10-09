@@ -1,2 +1,2 @@
 # A set holds elements too.
-__impl__ = $__in__ << SetLiteral["a", "b"] << "b"
+__impl__ = $in << SetLiteral["a", "b"] << "b"

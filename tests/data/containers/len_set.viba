@@ -1,2 +1,2 @@
 # A set is counted the same way.
-__impl__ = $__len__ << SetLiteral["a", "b"]
+__impl__ = $len << SetLiteral["a", "b"]

@@ -1,4 +1,4 @@
-# `$__getattr__ << box << "f" << …` is `box.f << …`: the member is taken by a
+# `$get_attr << box << "f" << …` is `box.f << …`: the member is taken by a
 # name given as a value, not by a tag on the chain.
 __decl__ =
     Any
@@ -18,4 +18,4 @@ inc =
 box = Object * $f inc * $y 2
 name = "f"
 # 实参按它落的那一位给出：`$x` 是 `inc` 自己声明的 tag。
-__impl__ = $__getattr__ << box << name << args.env << $x 1
+__impl__ = $get_attr << box << name << args.env << $x 1

@@ -1,2 +1,2 @@
 # The keys of a dict, in the order it keeps them in: the second one is "m".
-__impl__ = $__getitem__ << ($__keys__ << DictLiteral[("k", 1), ("m", 2)]) << 1
+__impl__ = $get_item << ($keys << DictLiteral[("k", 1), ("m", 2)]) << 1

@@ -163,23 +163,23 @@ Nested = $nested list[dict[str, int]]
 - **字面量有它自己的源码形式**：`ListLiteral[1, "x"]`、`SetLiteral[1, 2]`、`DictLiteral[("k", 1)]`，
   空的是 `ListLiteral[]`。它们是 `list[...]` 之类的居民，出现在**实例**那一侧：放在值的位置上就是那个
   容器本身，所以能数、能按地址取、能当实参交给宿主、也能原样序列化回去。
-- **寻址用 `$__getitem__`**：位置给 int，键给 str，两者各对应一条地址步子
-  （`$at_index int` / `$at_key str`）。`$__getitem__ << xs << 1` 是 `xs[1]`，
-  `$__getitem__ << table << "k"` 是 `table["k"]`；地址还没给时它是一个值，给了才走这一步取它。
-  按名字取成员是另一个：`$__getattr__`（见 [`viba-interpreter.md`](viba-interpreter.md)）。
-- **方括号是它的简式**：`xs[1]` 就是 `$__getitem__ << xs << 1`，`table["k"]` 就是
-  `$__getitem__ << table << "k"`，容器可以是一条名字路径（`box.xs[1]`）。方括号只跟在名字后面，
-  一层：`xs[0][1]` 要落成 `$__getitem__ << xs[0] << 1`。放在**值**的位置上它是这一步的取用；
+- **寻址用 `$get_item`**：位置给 int，键给 str，两者各对应一条地址步子
+  （`$at_index int` / `$at_key str`）。`$get_item << xs << 1` 是 `xs[1]`，
+  `$get_item << table << "k"` 是 `table["k"]`；地址还没给时它是一个值，给了才走这一步取它。
+  按名字取成员是另一个：`$get_attr`（见 [`viba-interpreter.md`](viba-interpreter.md)）。
+- **方括号是它的简式**：`xs[1]` 就是 `$get_item << xs << 1`，`table["k"]` 就是
+  `$get_item << table << "k"`，容器可以是一条名字路径（`box.xs[1]`）。方括号只跟在名字后面，
+  一层：`xs[0][1]` 要落成 `$get_item << xs[0] << 1`。放在**值**的位置上它是这一步的取用；
   放在积的成员里时它跟别的成员一样是**源码里的数据**（不在这里取它，`viba-interpreter.md`）。
-- **问在不在用 `$__in__`**：`$__in__ << xs << 3` 问元素在不在（list / set / tuple），
-  `$__in__ << table << "k"` 问键在不在（dict）。答的是 `bool`；被问的不是容器、或者给 dict 的不是
+- **问在不在用 `$in`**：`$in << xs << 3` 问元素在不在（list / set / tuple），
+  `$in << table << "k"` 问键在不在（dict）。答的是 `bool`；被问的不是容器、或者给 dict 的不是
   一个字符串键，都是程序错。
-- **数一数用 `$__len__`**：`$__len__ << xs` 给元素个数（list / set / tuple），
-  `$__len__ << table` 给键数（dict）。答的是 `int`；数的不是容器就是程序错，字符串要数用 `len_str`。
-- **取字典的键用 `$__keys__`**：`$__keys__ << table` 给键组成的一份 `list[str]`，顺序由实现定，
-  所以能接着 `$__getitem__` 取、能 `$__len__` 数。不是 dict、或者键不是字面量，都是程序错。
-- **走一遍是自己搭的**：语言里没有循环，枚举一个序列是 `$__len__` 加 `$__getitem__`、
-  取 dict 的值是 `$__keys__` 加 `$__getitem__`，配起来从头走到尾（`Y` 递归，
+- **数一数用 `$len`**：`$len << xs` 给元素个数（list / set / tuple），
+  `$len << table` 给键数（dict）。答的是 `int`；数的不是容器就是程序错，字符串要数用 `len_str`。
+- **取字典的键用 `$keys`**：`$keys << table` 给键组成的一份 `list[str]`，顺序由实现定，
+  所以能接着 `$get_item` 取、能 `$len` 数。不是 dict、或者键不是字面量，都是程序错。
+- **走一遍是自己搭的**：语言里没有循环，枚举一个序列是 `$len` 加 `$get_item`、
+  取 dict 的值是 `$keys` 加 `$get_item`，配起来从头走到尾（`Y` 递归，
   [`viba-interpreter.md`](viba-interpreter.md)）。
 - **可以任意嵌套**：`list[dict[str, int]]`、`dict[str, list[$x int]]`。
 - **这三个名字（连 `ListLiteral` / `SetLiteral` / `DictLiteral`）不能拿来定义**：定义名和泛型形参

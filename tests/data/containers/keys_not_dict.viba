@@ -1,2 +1,2 @@
 # A list keeps no keys to hand over.
-__impl__ = $__keys__ << ListLiteral[1, 2]
+__impl__ = $keys << ListLiteral[1, 2]

@@ -15,4 +15,4 @@ bump =
 
 box = Object * $g bump * $y 2
 name = "g"
-__impl__ = $__getattr__ << box << name << args.env << $x 1
+__impl__ = $get_attr << box << name << args.env << $x 1

@@ -1,4 +1,4 @@
-# And `table[key]` is `$__getitem__ << table << key`.
+# And `table[key]` is `$get_item << table << key`.
 table = DictLiteral[("k", 7), ("m", 8)]
 
 __impl__ = table["m"]

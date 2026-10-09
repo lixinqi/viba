@@ -1,2 +1,2 @@
 # A tuple is taken by position too.
-__impl__ = $__getitem__ << (10, 20) << 1
+__impl__ = $get_item << (10, 20) << 1

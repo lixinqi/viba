@@ -96,7 +96,7 @@ from viba.type import (BUILTIN_MODULE, CustomModuleType, ENVIRONMENT_API_TAG,
                        BUILTIN_MODULE, NilType, NeverType,
                        builtin_directory_name,
                        custom_module, module_get_type)
-from viba.viba_ast.tagged import (GETATTR_TAG, GETITEM_TAG, IN_TAG, KEYS_TAG,
+from viba.viba_ast.tagged import (GET_ATTR_TAG, GET_ITEM_TAG, IN_TAG, KEYS_TAG,
                                   LEN_TAG, TAGGED_NAME,
                                   symbol_of, symbol_problem, tag_of,
                                   tagged_node)
@@ -972,10 +972,10 @@ class _Member:
         self.tag = tag
 
 
-class _GetattrMember:
-    """`$__getattr__ << X` while the name is still to come.
+class _GetAttrMember:
+    """`$get_attr << X` while the name is still to come.
 
-    `$__getattr__` is the builtin member that takes a member by a name given as a
+    `$get_attr` is the builtin member that takes a member by a name given as a
     value, so what it tags is known when the chain gives that name: the next
     argument is the name and `X` is the value the member is taken out of
     (viba-interpreter.md). It is gone as soon as the name is in.
@@ -988,10 +988,10 @@ class _GetattrMember:
         self.argument = argument    # the argument as the source has it, to give it on
 
 
-class _GetitemMember:
-    """`$__getitem__ << C` while the address is still to come.
+class _GetItemMember:
+    """`$get_item << C` while the address is still to come.
 
-    `$__getitem__` is the builtin member that takes an element by an address given
+    `$get_item` is the builtin member that takes an element by an address given
     as a value — an index for a list, a key for a dict — so what it takes is known
     when the chain gives that address: the next argument is the address and `C` is
     the container the element is taken out of (viba-interpreter.md). It is gone as
@@ -1005,9 +1005,9 @@ class _GetitemMember:
 
 
 class _InMember:
-    """`$__in__ << C` while the piece to look for is still to come.
+    """`$in << C` while the piece to look for is still to come.
 
-    `$__in__` is the builtin member that asks whether a piece is in a container —
+    `$in` is the builtin member that asks whether a piece is in a container —
     an element of a list, a set or a tuple, a key of a dict — so the answer is
     known when the chain gives that piece: the next argument is what to look for
     and `C` is the container (viba-interpreter.md). It is gone as soon as the
@@ -2209,14 +2209,14 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                 value = stopped(VibaProgramErr(
                     f"{name}.{RET_NAME} is a function still waiting for arguments"))
         if not _stopped(value) and isinstance(value.ok_value,
-                                              (_GetattrMember, _GetitemMember,
+                                              (_GetAttrMember, _GetItemMember,
                                                _InMember)):
             # A member taken that never got its name, or an element taken that never
             # got its address, is no value: the piece says which member or element
             # it wants, and nothing said which one.
-            if isinstance(value.ok_value, _GetattrMember):
+            if isinstance(value.ok_value, _GetAttrMember):
                 waiting = "a member is taken by a name, and none was given"
-            elif isinstance(value.ok_value, _GetitemMember):
+            elif isinstance(value.ok_value, _GetItemMember):
                 waiting = ("an element is taken by an address — an int or a str — "
                            "and none was given")
             else:
@@ -2584,8 +2584,8 @@ class _Activation:
         """`list_obj[i]` / `dict_obj[key]`: the chain the shorthand stands for.
 
         A name no generic answers to is a value, and one bracket's arguments are
-        the addresses: `xs[1]` is `$__getitem__ << xs << 1` and `table["k"]` is
-        `$__getitem__ << table << "k"` (viba-style.md, the containers section), so
+        the addresses: `xs[1]` is `$get_item << xs << 1` and `table["k"]` is
+        `$get_item << table << "k"` (viba-style.md, the containers section), so
         what it stands for is that chain, built here and taken the way any chain is.
 
         The name is taken first: a name this run can take nothing into — a name
@@ -2595,7 +2595,7 @@ class _Activation:
         container = self._resolve(node.constructor, scope)
         if _stopped(container):
             return container
-        chain = viba_ast.Partial(viba_ast.Member(GETITEM_TAG),
+        chain = viba_ast.Partial(viba_ast.Member(GET_ITEM_TAG),
                                  viba_ast.TypeRef(node.constructor))
         for argument in node.args:
             chain = viba_ast.Partial(chain, argument)
@@ -2981,11 +2981,11 @@ class _Activation:
             found = any(viba_ast.unparse_type(one.data) == wanted for one in node)
             return Ok(_VibaData(viba_data(found)))
         return VibaProgramErr(
-            "`$__in__` asks about a list, a set, a tuple or a dict, and this is "
+            "`$in` asks about a list, a set, a tuple or a dict, and this is "
             "none of them")
 
     def _container_len(self, container):
-        """How many pieces `$__len__` counts: elements for a list, a set or a
+        """How many pieces `$len` counts: elements for a list, a set or a
         tuple, keys for a dict (`viba-reflect.md`, `VibaLength`).
 
         What is counted is the container itself, and a piece that holds none — a
@@ -3000,7 +3000,7 @@ class _Activation:
         if (reflect_access.container_kind(unfolded) not in ("list", "set", "dict")
                 and unfolded.kind != TUPLE):
             return VibaProgramErr(
-                "`$__len__` counts a list, a set, a tuple or a dict, and this is "
+                "`$len` counts a list, a set, a tuple or a dict, and this is "
                 "none of them")
         counted = reflect_access.length(container.node)
         if _stopped(counted):
@@ -3010,7 +3010,7 @@ class _Activation:
                             bindings=container.bindings))
 
     def _container_keys(self, container):
-        """The keys `$__keys__` gives, as a list of strings: the dict's own keys,
+        """The keys `$keys` gives, as a list of strings: the dict's own keys,
         in the order the implementation keeps them (`viba-reflect.md`, `VibaKeys`).
 
         A piece that is no dict is a program error, and so is a dict whose keys
@@ -3023,7 +3023,7 @@ class _Activation:
         unfolded = reflect_access.unfold(container.node.descriptor)
         if reflect_access.container_kind(unfolded) != "dict":
             return VibaProgramErr(
-                "`$__keys__` gives the keys of a dict, and this is not one")
+                "`$keys` gives the keys of a dict, and this is not one")
         keys = reflect_access.keys(container.node)
         if _stopped(keys):
             return keys             # a key that is no literal says so itself
@@ -3032,7 +3032,7 @@ class _Activation:
         return Ok(_VibaData(viba_data(node)))
 
     def _take_item(self, container, address):
-        """The element `$__getitem__` takes: by position, or by key for a dict.
+        """The element `$get_item` takes: by position, or by key for a dict.
 
         `container` is the value the chain took the element out of, and `address`
         is the value that says which element — an int for the pieces taken by
@@ -3257,7 +3257,7 @@ class _Activation:
             if applied is not None:
                 return applied
             # No generic answers to that name, so `A[b]` is no generic application:
-            # it is the shorthand of an element taken, `$__getitem__ << A << b`
+            # it is the shorthand of an element taken, `$get_item << A << b`
             # (viba-style.md, the containers section).
             return self._shorthand_chain(node, scope)
         if chosen.body is None:
@@ -3360,7 +3360,7 @@ class _Activation:
         applying more arguments to one is taking it apart again and carrying on.
 
         `member` is set when what the chain takes is a *member of a value*
-        (`$f << box << …`, `$__getattr__ << box << <name> << …`): the call that
+        (`$f << box << …`, `$get_attr << box << <name> << …`): the call that
         comes out of it keeps that layer, so serializing it back out is
         `__dyn_method__ << "<member>" << <the value> << …` and not the name the
         member's value happened to be (`_Pending.member_of`).
@@ -3424,23 +3424,23 @@ class _Activation:
                 return value
             if value.ok_value is None:
                 continue                        # documentation is no argument
-            if isinstance(current, _Member) and current.tag == GETATTR_TAG:
-                # `$__getattr__ << X << <name>`: X is the value the member is
+            if isinstance(current, _Member) and current.tag == GET_ATTR_TAG:
+                # `$get_attr << X << <name>`: X is the value the member is
                 # taken out of, and the name that tags it is the next argument.
-                current = _GetattrMember(value.ok_value.value, argument)
+                current = _GetAttrMember(value.ok_value.value, argument)
                 continue
-            if isinstance(current, _Member) and current.tag == GETITEM_TAG:
-                # `$__getitem__ << C << <index or key>`: C is the container the
+            if isinstance(current, _Member) and current.tag == GET_ITEM_TAG:
+                # `$get_item << C << <index or key>`: C is the container the
                 # element is taken out of, and the address is the next argument.
-                current = _GetitemMember(value.ok_value.value)
+                current = _GetItemMember(value.ok_value.value)
                 continue
             if isinstance(current, _Member) and current.tag == IN_TAG:
-                # `$__in__ << C << <piece>`: C is the container the piece is looked
+                # `$in << C << <piece>`: C is the container the piece is looked
                 # for in, and the next argument is the piece itself.
                 current = _InMember(value.ok_value.value)
                 continue
             if isinstance(current, _Member) and current.tag == LEN_TAG:
-                # `$__len__ << C`: C is the container to count, and the count is
+                # `$len << C`: C is the container to count, and the count is
                 # the answer itself — nothing is still to come for it.
                 counted = self._container_len(value.ok_value.value)
                 if _stopped(counted):
@@ -3448,7 +3448,7 @@ class _Activation:
                 current = counted.ok_value
                 continue
             if isinstance(current, _Member) and current.tag == KEYS_TAG:
-                # `$__keys__ << C`: C is the dict whose keys are asked for, and
+                # `$keys << C`: C is the dict whose keys are asked for, and
                 # they are the answer itself.
                 keys = self._container_keys(value.ok_value.value)
                 if _stopped(keys):
@@ -3461,13 +3461,13 @@ class _Activation:
                     return answered
                 current = answered.ok_value
                 continue
-            if isinstance(current, _GetitemMember):
+            if isinstance(current, _GetItemMember):
                 taken = self._take_item(current.owner, value.ok_value.value)
                 if _stopped(taken):
                     return taken
                 current = taken.ok_value
                 # The element is what the chain goes on with: arguments spelled
-                # after the address are given to it (`$__getitem__ << xs << 0 << $x 1`
+                # after the address are given to it (`$get_item << xs << 0 << $x 1`
                 # is `xs[0] << $x 1`).
                 further = list(source[index + 1:])
                 if further and _is_a_source_call(current):
@@ -3491,12 +3491,12 @@ class _Activation:
                         return run
                     current = run.ok_value
                 continue
-            if isinstance(current, _GetattrMember):
+            if isinstance(current, _GetAttrMember):
                 named = _member_tag_of(value.ok_value.value)
                 if _stopped(named):
                     return named
                 # The member that name picks. The chain goes on from there: with
-                # arguments spelled after the name (`$__getattr__ << box << name
+                # arguments spelled after the name (`$get_attr << box << name
                 # << $x 1`) the member is called as a method of X, which means X
                 # comes first (`box.f << box << $x 1`); taken on its own — passed
                 # on as an argument, say — it is the value or the call it names.
@@ -4184,14 +4184,14 @@ class _Activation:
             return Ok(None)
         tag, inner = _addressed(node)
         if tag is None:
-            tag = self._tag_from_getattr(node, scope)
+            tag = self._tag_from_get_attr(node, scope)
         value = self.evaluate(inner, scope)
         if _stopped(value):
             return value
         return Ok(_Given(tag, value.ok_value))
 
-    def _tag_from_getattr(self, node, scope):
-        """`$__getattr__ << X << <name>`: the tag that name spells.
+    def _tag_from_get_attr(self, node, scope):
+        """`$get_attr << X << <name>`: the tag that name spells.
 
         The member such a chain takes is given on under its own tag (`$a 1`), not
         by position: `apply_impl` takes the product's members one by one, and each
@@ -4199,7 +4199,7 @@ class _Activation:
         product. None for anything else, and for a name that is not a name.
         """
         head, arguments = _call_parts(node)
-        if not (isinstance(head, viba_ast.Member) and head.tag == GETATTR_TAG):
+        if not (isinstance(head, viba_ast.Member) and head.tag == GET_ATTR_TAG):
             return None
         if len(arguments) < 2 or not isinstance(arguments[-1], viba_ast.TypeRef):
             return None
@@ -5319,7 +5319,7 @@ class _DynCall:
         value the way a tag head takes it, that value goes in as the member's
         first argument, and the arguments follow in source order. A member that
         is no call — a value of the product — is that value, with or without
-        arguments to refuse (`$__getattr__` takes the same two ways).
+        arguments to refuse (`$get_attr` takes the same two ways).
         """
         symbol = symbol_of(name)
         if symbol is None:
@@ -5502,7 +5502,7 @@ def _symbol_text(value):
 
 
 def _address_of(value):
-    """(kind, address) for a value `$__getitem__` is given, or (None, None).
+    """(kind, address) for a value `$get_item` is given, or (None, None).
 
     The address travels as a value: an int is a position, a str is a key, and
     anything else addresses nothing (`viba-reflect.md`, the two address steps).
@@ -5522,7 +5522,7 @@ def _address_of(value):
 def _member_tag_of(value):
     """The tag a value names when it is a symbol string, or why it names none.
 
-    `$__getattr__` takes a member by this name, so the name has to be one:
+    `$get_attr` takes a member by this name, so the name has to be one:
     letters, digits and `_`, not starting with a digit.
     """
     text = _symbol_text(value)

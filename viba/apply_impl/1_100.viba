@@ -17,4 +17,4 @@ args = __get_args__ << __decl__
 
 __impl__ =
     args.f
-  << ($__getattr__ << args.args << arg0_name)
+  << ($get_attr << args.args << arg0_name)

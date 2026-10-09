@@ -1,4 +1,4 @@
 # The value under a key.
 table = DictLiteral[("k", 7), ("m", 8)]
 
-__impl__ = $__getitem__ << table << "m"
+__impl__ = $get_item << table << "m"

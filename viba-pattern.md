@@ -207,11 +207,11 @@ __decl__ =
 __impl__ =
     args.f
   << args.env
-  << ($__getattr__ << args.args << arg0_name)
+  << ($get_attr << args.args << arg0_name)
 ```
 
 `pattern tagged[arg0_name, Arg0]` 每一位收下积里一个成员的 tag（`arg0_name` 是符号 `"x"`），
-`$__getattr__ << args.args << arg0_name` 再按那个名字把成员取回来 —— 成员原来带什么 tag，取回来
+`$get_attr << args.args << arg0_name` 再按那个名字把成员取回来 —— 成员原来带什么 tag，取回来
 还是那个 tag，于是它落进函数对应的那个参数。积里有几个成员就选哪一份文件，1 到 16 各一份
 （[`viba/apply_impl/`](viba/apply_impl)），所以调用方不用给实参个数。
 

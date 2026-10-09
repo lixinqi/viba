@@ -1,4 +1,4 @@
 # An element that is itself a container: the piece given the same way is in.
 xs = ListLiteral[ListLiteral[1], ListLiteral[2, 3]]
 
-__impl__ = $__in__ << xs << ListLiteral[1]
+__impl__ = $in << xs << ListLiteral[1]

@@ -1,4 +1,4 @@
 # What comes out is the element, whatever it is: a further take from it.
 xs = ListLiteral[ListLiteral[1, 2]]
 
-__impl__ = $__getitem__ << xs[0] << 1
+__impl__ = $get_item << xs[0] << 1

@@ -1,6 +1,6 @@
 # The piece to look for given later.
 xs = ListLiteral[10]
 
-pick = $__in__ << xs
+pick = $in << xs
 
 __impl__ = pick << 10

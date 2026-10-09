@@ -20,24 +20,24 @@ from viba.viba_ast.nodes import (AST, Constant, Member, Module, Tagged, TypeApp)
 
 TAGGED_NAME = "tagged"
 
-# The builtin member that takes a member by a name given as a value: `$__getattr__`.
-GETATTR_TAG = "$__getattr__"
+# The builtin member that takes a member by a name given as a value: `$get_attr`.
+GET_ATTR_TAG = "$get_attr"
 
 # The builtin member that takes an element by an address given as a value:
-# `$__getitem__` — an index for a list, a key for a dict.
-GETITEM_TAG = "$__getitem__"
+# `$get_item` — an index for a list, a key for a dict.
+GET_ITEM_TAG = "$get_item"
 
 # The builtin member that asks whether a piece is in a container:
-# `$__in__` — an element for a list, a set or a tuple, a key for a dict.
-IN_TAG = "$__in__"
+# `$in` — an element for a list, a set or a tuple, a key for a dict.
+IN_TAG = "$in"
 
-# The builtin member that counts a container: `$__len__` — its elements for a
+# The builtin member that counts a container: `$len` — its elements for a
 # list, a set or a tuple, its keys for a dict.
-LEN_TAG = "$__len__"
+LEN_TAG = "$len"
 
-# The builtin member that gives a dict's keys: `$__keys__`, in the order the
+# The builtin member that gives a dict's keys: `$keys`, in the order the
 # implementation keeps them in.
-KEYS_TAG = "$__keys__"
+KEYS_TAG = "$keys"
 
 
 def symbol_of(text) -> Optional[str]:

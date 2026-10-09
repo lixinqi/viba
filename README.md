@@ -159,7 +159,7 @@ file is a program error, not `never`. A tag may be given as a symbol string:
 `tagged["a", T]` is `$a T`, `tagged["hello"] << persion` is `$hello << persion`,
 and a pattern line may claim the symbol itself — `pattern tagged[name, T]` takes `"a"`
 for `$a int`, so a design builds a tag out of what another one carried. The member a name
-gives as a value is taken with `$__getattr__` (`$__getattr__ << args << "name"` is
+gives as a value is taken with `$get_attr` (`$get_attr << args << "name"` is
 `args.name`). The whole rule, the pattern forms and the errors:
 [`viba-pattern.md`](viba-pattern.md).
 
@@ -212,10 +212,10 @@ Config = $mode "fast" * $threads 42 * $ratio 3.14
 # Containers: the literals stand on the value side, and an element is taken
 # by its address — an int for a position, a str for a key
 Items = $items list[int]
-first = items[0]                     # the shorthand of `$__getitem__ << items << 0`
-there = $__in__ << items << 3
-how_many = $__len__ << items         # elements; a dict is counted by its keys
-keys = $__keys__ << DictLiteral[("k", "v")]   # a dict's keys, as a list[str]
+first = items[0]                                # the shorthand of `$get_item << items << 0`
+there = $in << items << 3
+how_many = $len << items                        # elements; a dict is counted by its keys
+keys = $keys << DictLiteral[("k", "v")]         # a dict's keys, as a list[str]
 pair = ListLiteral[1, 2] * DictLiteral[("k", "v")]
 
 # Code block

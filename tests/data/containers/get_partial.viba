@@ -1,6 +1,6 @@
 # The address given later: the take is a value until then.
 xs = ListLiteral[10, 20]
 
-pick = $__getitem__ << xs
+pick = $get_item << xs
 
 __impl__ = pick << 1

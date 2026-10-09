@@ -17,4 +17,4 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-__impl__ = $__getattr__ << args.vars << X
+__impl__ = $get_attr << args.vars << X

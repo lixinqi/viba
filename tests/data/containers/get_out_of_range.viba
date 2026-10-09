@@ -1,4 +1,4 @@
 # No element there.
 xs = ListLiteral[10, 20]
 
-__impl__ = $__getitem__ << xs << 5
+__impl__ = $get_item << xs << 5

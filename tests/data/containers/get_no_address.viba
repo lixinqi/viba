@@ -1,4 +1,4 @@
 # The take never got an address.
 xs = ListLiteral[10]
 
-__impl__ = $__getitem__ << xs
+__impl__ = $get_item << xs

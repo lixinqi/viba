@@ -29,7 +29,7 @@ a symbol: `pattern tagged[arg_name, T]` takes the symbol the argument carries
 (`arg_name_of[$a int]` answers `"a"`), and `__decl__ = tagged[arg_name, T]`
 builds the same tag back out of it. `tests/data/member/` holds the chain-head
 side: `tagged["f"] << box << …` takes the member the symbol names, and
-`$__getattr__ << box << name << …` takes it by the name a value spells.
+`$get_attr << box << name << …` takes it by the name a value spells.
 
 `demo/wrapped_item/` is the one file whose answer is its own definition, so the
 call's parameter has to reach into that definition too. `broken/` and

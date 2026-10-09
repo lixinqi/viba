@@ -1,4 +1,4 @@
 # A dict is taken by key, not by position.
 table = DictLiteral[("k", 1)]
 
-__impl__ = $__getitem__ << table << 0
+__impl__ = $get_item << table << 0
