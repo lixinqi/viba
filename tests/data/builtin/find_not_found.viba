@@ -1,0 +1,6 @@
+# find —— "zz" 在 "viba" 里没有，给 nil（不是 -1，也不是停）
+__decl__ = (int | nil) <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = find << $env args.env << $x "viba" << $needle "zz"

@@ -1,0 +1,6 @@
+# contains —— "viba" 里有 "ib"
+__decl__ = bool <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = contains << $env args.env << $x "viba" << $needle "ib"

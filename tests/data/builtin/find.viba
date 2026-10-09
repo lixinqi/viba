@@ -1,0 +1,6 @@
+# find —— "ba" 在 "viba" 里第一次出现是第 2 个位置
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = find << $env args.env << $x "viba" << $needle "ba"

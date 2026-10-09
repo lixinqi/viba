@@ -1,0 +1,6 @@
+# replace —— 要替换的是空字符串：换不出东西，实现停下
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = replace << $env args.env << $x "viba" << $old "" << $new "-"

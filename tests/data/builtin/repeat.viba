@@ -1,0 +1,6 @@
+# repeat —— "ab" 重复 3 次得 "ababab"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = repeat << $env args.env << $x "ab" << $times 3

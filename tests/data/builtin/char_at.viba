@@ -1,0 +1,6 @@
+# char_at —— "viba" 第 1 个位置上是 "i"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = char_at << $env args.env << $x "viba" << $at 1

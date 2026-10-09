@@ -1,0 +1,6 @@
+# char_at —— "viba" 没有第 9 个位置：实现停下
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = char_at << $env args.env << $x "viba" << $at 9

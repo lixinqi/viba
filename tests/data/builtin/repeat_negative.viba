@@ -1,0 +1,6 @@
+# repeat —— 重复次数是负的：实现停下
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = repeat << $env args.env << $x "ab" << $times -1

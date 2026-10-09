@@ -1,0 +1,6 @@
+# split —— 分隔符是空字符串：切不开，实现停下
+__decl__ = list[str] <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = split << $env args.env << $x "viba" << $separator ""

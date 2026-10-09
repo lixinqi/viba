@@ -7,6 +7,9 @@
     shadowed_by_the_module.viba 模块自己给一个 `add`，它赢过内建那个
     runs_where_it_is_given.viba 内建算子跑在给它的那个环境里
     the_wrong_type.viba         参数类型不对，拒绝
+    find_not_found.viba         找不到是 `nil`：一个值，不是停
+    REFUSAL_CASES 里那几个       给出的东西没有答案：`substr` / `char_at` 越界、空分隔符、
+                                空 `$old`、负次数，都由实现停下
 
 `OPERATORS` 就是这张表：每个算子在宿主那一步怎么算，以及它的用例该给出什么。实参固定落在用例
 文件里，结果列在这里 —— 一个算子一份，所以每个算子的结果都单独被钉住。一个算子的两个方向都
@@ -29,16 +32,49 @@ from interpreter_support import module_of, Checks, is_ok, value_of
 
 from viba import viba_ast
 from viba.interpret import (BUILTIN_DIR, Environment, EnvironmentCompute,
-                            EnvironmentStorage, interpret)
+                            EnvironmentStorage, interpret, viba_data)
 from viba.partial import product_elements
-from viba.reflect import VObject
-from viba.type import BUILTIN_CONCEPT
+from viba.reflect import VObject, access as reflect_access
+from viba.type import BUILTIN_CONCEPT, Ok
 
 checks = Checks("interpreter_builtin")
 check = checks.check
 
 CASES = Path(__file__).resolve().parent / "data" / "builtin"
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _leaf(one):
+    """宿主拿到的一个实参：viba 数据取它的叶子，别的（环境）原样。
+
+    没有叶子的那一类（一个容器）原样交出去：实现按 `VObject` 的访问器取它的成员
+    （`tests/test_interpreter_containers.py` 里宿主拿到列表也是这样）。
+    """
+    if not isinstance(one, VObject):
+        return one
+    leaf = reflect_access.leaf(one)
+    return leaf.ok_value if isinstance(leaf, Ok) else one
+
+
+def _refused(why: str):
+    """一步拒绝了它拿到的东西：实现在这里停（`$underlying_viba_op_err`）。
+
+    宿主没有别的说法：它答的就是值，要说不，只能在这里抛出。
+    """
+    raise ValueError(why)
+
+
+def _split(x, sep):
+    """`split`：切出来的几段，作为一个 `ListLiteral` 交给这次运行。
+
+    宿主答不了一个 Python 列表（它没有叶子），能答的是一个 `VObject`、一块
+    语法树、一个标量或者 None，所以这里按语法树给。
+    """
+    if not sep:
+        _refused("split takes a separator, and this one is empty")
+    return viba_data(viba_ast.TypeApp(
+        "ListLiteral", [viba_ast.Constant(one) for one in x.split(sep)]))
+
 
 # 表里没有的那几个成员：`echo` 把实参原样交回去，两个开关的 `$get_v` 是一个函数型的槽
 # （那一支的调用，由开关决定算不算）。它们的用例在别处（`tests/data/echo/`、
@@ -95,6 +131,26 @@ OPERATORS = {
     "gt_str": (lambda x, y: x > y, "truefalse"),
     "ge_str": (lambda x, y: x >= y, "truefalse"),
 
+    # 一段一段地处理 str：切、取、找、接、换、修。越界、空分隔符、空 old、负次数
+    # 都在这里停下（`_refused`），各自的用例见下面那组 `REFUSAL_CASES`。
+    "substr": (lambda x, start, end: x[start:end]
+               if 0 <= start <= end <= len(x)
+               else _refused("the range is not inside the string"), "ib"),
+    "char_at": (lambda x, at: x[at]
+                if 0 <= at < len(x)
+                else _refused("there is no character there"), "i"),
+    "find": (lambda x, needle: x.find(needle) if x.find(needle) >= 0 else None, 2),
+    "contains": (lambda x, needle: needle in x, True),
+    "starts_with": (lambda x, prefix: x.startswith(prefix), True),
+    "ends_with": (lambda x, suffix: x.endswith(suffix), True),
+    "split": (_split, "b"),
+    "join": (lambda parts, sep: sep.join(one.value for one in parts), "a-b-c"),
+    "replace": (lambda x, old, new: x.replace(old, new) if old
+                else _refused("replace takes something to replace, and this is empty"), "voba"),
+    "trim": (lambda x: x.strip(), "viba"),
+    "repeat": (lambda x, times: x * times if times >= 0
+               else _refused("repeat takes a count that is not negative"), "ababab"),
+
     "and": (lambda x, y: x and y, "truefalsefalse"),
     "or": (lambda x, y: x or y, "falsetruetrue"),
     "not": (lambda x: not x, "falsetrue"),
@@ -137,11 +193,6 @@ def host_for(seen=None, extra=None, ran_at=None):
     return get_func
 
 
-def _leaf(one):
-    """宿主拿到的一个实参：viba 数据取它的叶子，别的（环境）原样。"""
-    return one.value if isinstance(one, VObject) else one
-
-
 def environ_for(get_func, store):
     return Environment(EnvironmentStorage("root", None, str(store)),
                        EnvironmentCompute(get_func),
@@ -154,6 +205,7 @@ def run(tmp: Path):
     _a_module_may_shadow_a_builtin(tmp)
     _it_runs_where_it_is_given(tmp)
     _the_wrong_type_reaches_the_step(tmp)
+    _what_the_string_operators_refuse(tmp)
     _the_library_and_the_table_agree()
 
 
@@ -213,6 +265,30 @@ def _the_wrong_type_reaches_the_step(tmp: Path):
                        environ_for(host_for([]), tmp / "wrong"))
     checks.failed(result, "raised",
                   "a str given to an int parameter breaks the step it was given to")
+
+
+# 找不着、越界、空的分隔符或 old、负的重复次数：这几个用例给出的东西没有答案。
+# (用例文件, 停法那句话里该有什么, 说明)
+REFUSAL_CASES = [
+    ("substr_out_of_range", "raised", "substr: the end is past the string"),
+    ("char_at_out_of_range", "raised", "char_at: there is no character there"),
+    ("split_empty_separator", "raised", "split: an empty separator cuts nothing"),
+    ("replace_empty_old", "raised", "replace: nothing to replace"),
+    ("repeat_negative", "raised", "repeat: a negative count"),
+]
+
+
+def _what_the_string_operators_refuse(tmp: Path):
+    """`find` 找不到给 nil（是一个值，不是停）；越界、空分隔符、空 old、负次数都停下。"""
+    missing = interpret(str(CASES / "find_not_found.viba"),
+                        environ_for(host_for([]), tmp / "find-missing"))
+    check(is_ok(missing) and value_of(missing) is None,
+          f"find: a needle that is not there answers nil, got {missing!r}")
+
+    for name, want, label in REFUSAL_CASES:
+        result = interpret(str(CASES / f"{name}.viba"),
+                           environ_for(host_for([]), tmp / name))
+        checks.failed(result, want, label)
 
 
 def _the_library_and_the_table_agree():

@@ -1,0 +1,8 @@
+# split —— "a,b,c" 按 "," 切成三段，这里取第二段
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+parts = split << $env args.env << $x "a,b,c" << $separator ","
+
+__impl__ = $__getitem__ << parts << 1

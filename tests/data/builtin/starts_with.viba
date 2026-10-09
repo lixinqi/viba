@@ -1,0 +1,6 @@
+# starts_with —— "viba" 以 "vi" 开头
+__decl__ = bool <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = starts_with << $env args.env << $x "viba" << $prefix "vi"

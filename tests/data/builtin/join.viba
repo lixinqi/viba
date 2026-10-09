@@ -1,0 +1,9 @@
+# join —— ["a", "b", "c"] 用 "-" 接起来得 "a-b-c"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = join
+  << $env args.env
+  << $parts (ListLiteral["a", "b", "c"])
+  << $separator "-"

@@ -1,0 +1,6 @@
+# replace —— "viba" 里的 "i" 全换成 "o" 得 "voba"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = replace << $env args.env << $x "viba" << $old "i" << $new "o"

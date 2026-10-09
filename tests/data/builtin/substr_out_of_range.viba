@@ -1,0 +1,6 @@
+# substr —— 结束位置在 "viba" 外面：实现停下，不是给出截短的那一段
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = substr << $env args.env << $x "viba" << $start 1 << $end 9

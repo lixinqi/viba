@@ -71,10 +71,13 @@ Env = Environment
 # One name on the left: the operators below are members of it, not definitions of
 # their own.
 #
-# The naming says which type an operator is about: nothing for `int`, `_f` for
-# `float`, `_str` for `str`, `_bool` for `bool`; `x_to_y` converts from the type
-# `x` to the type `y`. The block after a signature is what the operator means —
-# the meaning itself is the host's (`viba-interpreter.md`).
+# The names are grouped by the type they work on: nothing for `int`, `_f` for
+# `float`, `_str` for `str`, `_bool` for `bool`, so a reader can tell `lt` from
+# `lt_str` and `lt_f`. A name that already says what it does and works on one type
+# stands on its own (`concat`, `split`, `trim`, `substr`), and which type it is
+# about is in its signature. `x_to_y` converts from the type `x` to the type `y`.
+# The block after a signature is what the operator means — the meaning itself is
+# the host's (`viba-interpreter.md`).
 builtin =
     # Hand back what it receives unchanged: `echo << $x V` answers V given an
     # environment. The work handed out is computed in the environment and at the
@@ -161,6 +164,23 @@ builtin =
   * $le_str (bool <- $env Env <- $x str <- $y str <- { the first string is not after the second })
   * $gt_str (bool <- $env Env <- $x str <- $y str <- { the first string sorts after the second })
   * $ge_str (bool <- $env Env <- $x str <- $y str <- { the first string is not before the second })
+  * $substr (str <- $env Env <- $x str <- $start int <- $end int
+             <- { the characters of x from start up to end, both inside x })
+  * $char_at (str <- $env Env <- $x str <- $at int <- { the character of x at that position })
+  * $find (((int | nil)) <- $env Env <- $x str <- $needle str
+           <- { where needle first appears in x, nil when it does not })
+  * $contains (bool <- $env Env <- $x str <- $needle str <- { x has needle in it somewhere })
+  * $starts_with (bool <- $env Env <- $x str <- $prefix str <- { x begins with prefix })
+  * $ends_with (bool <- $env Env <- $x str <- $suffix str <- { x ends with suffix })
+  * $split (list[str] <- $env Env <- $x str <- $separator str
+            <- { the pieces x is cut into at every separator, the separator not empty })
+  * $join (str <- $env Env <- $parts list[str] <- $separator str
+           <- { the pieces joined end to end, separator between them })
+  * $replace (str <- $env Env <- $x str <- $old str <- $new str
+              <- { x with every old replaced by new, old not empty })
+  * $trim (str <- $env Env <- $x str <- { x without the blank space around it })
+  * $repeat (str <- $env Env <- $x str <- $times int
+             <- { x repeated that many times, times not negative })
 
     # Logic on bool.
   * $and (bool <- $env Env <- $x bool <- $y bool <- { true when both are true })

@@ -1,0 +1,6 @@
+# ends_with —— "viba" 以 "ba" 结尾
+__decl__ = bool <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = ends_with << $env args.env << $x "viba" << $suffix "ba"

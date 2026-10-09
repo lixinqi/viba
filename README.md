@@ -355,6 +355,7 @@ print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
   can reach without an import: `Environment` / `Env`, `builtin.echo`, the two switches
   `builtin.echo_or_never` / `builtin.never_or_echo`, and the builtin
   operators — arithmetic, comparison and logic over `int`, `float`, `str` and `bool`,
+  the string operations among them (`substr`, `find`, `split`, `join`, `replace`, `trim`),
   plus the conversions between those types. The host is asked for an operator under its
   qualified name (`builtin.add`, `builtin.lt_f`, `builtin.int_to_str`); the member's own
   name is the same call (`add << $env args.env << $x 3 << $y 4`), and a module's own
@@ -556,6 +557,7 @@ Color = $red int | $green int | $blue int
 | Document | Subject |
 |----------|---------|
 | [`viba_tutorial.md`](viba_tutorial.md) | Learning the language: from one definition to a module that runs |
+| [`viba-primitives.md`](viba-primitives.md) | The builtin API: the operators, `Environment`, the member operators, containers, and the builtin modules a module reaches without an import |
 | [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, taking values out of an instance |
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__decl__` in, `__impl__` out — the executable view, and the call-by-need evaluation strategy |
 | [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer takes |

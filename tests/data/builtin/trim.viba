@@ -1,0 +1,6 @@
+# trim —— 去掉 "  viba  " 首尾的空白得 "viba"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = trim << $env args.env << $x "  viba  "

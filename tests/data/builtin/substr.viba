@@ -1,0 +1,6 @@
+# substr —— "viba" 的第 1 到第 3 个字符（含头不含尾）是 "ib"
+__decl__ = str <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = substr << $env args.env << $x "viba" << $start 1 << $end 3
