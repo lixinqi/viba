@@ -1,0 +1,33 @@
+# steps/impure_count.viba —— 一步 impure_count：每层先问一次宿主那个不纯的步骤（`tick`），
+# 再往下走一层，答案是走过的层数。
+#
+# 链太长时模块体会被再做一次，`tick` 因此被问好几次；可回放的那一步走 `replayed`
+# （`viba-interpreter.md` 的「幂等与快照」），所以真正算过的只有每个数据路径上的一次 ——
+# 这份文件钉的就是"重做给的是同一个答案"。
+import branch
+
+tick =
+    int
+  <- $env Env
+  <- { answer 1; the host puts it behind a snapshot }
+
+__decl__ =
+    int
+  <- $env Env
+  <- $impure_count Any
+  <- $n int
+
+args = __get_args__ << __decl__
+
+one = tick << $env args.env
+base = sub << $env args.env << $x one << $y 1
+small = lt << $env args.env << $x args.n << $y 1
+below = sub << $env args.env << $x args.n << $y 1
+deeper = args.impure_count << ($sub_env << args.env << "deeper") << $n below
+
+__impl__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x base))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (add << $env args.env << $x one << $y deeper))

@@ -1,0 +1,11 @@
+# main/at_1.viba —— 同一个程序走到基例那一侧：一层就是全部，一个压缩点都用不上，得 1。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import Y
+import steps.count_down as step
+
+__impl__ = Y << step << ($sub_env << args.env << "Y") << $n 1

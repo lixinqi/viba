@@ -213,7 +213,7 @@ def _product_head():
 
     A design may head a product with a word of its own layer, and may head it
     with nothing at all. What goes out either way is the language's own unit:
-    writing the *design's* word would carry that layer's vocabulary into every
+    the design's own word would carry that layer's vocabulary into every
     viba_data this produces, and leaving the head out altogether would leave a block whose
     first line does not say whether the piece is a product or a sum
     (viba-style.md §6). `Object` is the product identity and a builtin name.

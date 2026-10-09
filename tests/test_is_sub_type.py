@@ -699,10 +699,14 @@ def run_module_as_function_cases():
                  "find_by_relative_path takes the path and a root, and answers an environment")
     check_result(judge("args.env.find_by_relative_path << 7 << nil", "Env"), "error",
                  "the relative path has to be a string")
-    check_result(judge("args.env.convert_sub_to_sibling << args.env << args.env", "Env"), True,
-                 "convert_sub_to_sibling takes the sup and the sub, and answers an environment")
-    check_result(judge("args.env.convert_sub_to_sibling << args.env << 7", "Env"), "error",
+    check_result(judge("args.env.compress_env_path << args.env << args.env", "Env"), True,
+                 "compress_env_path takes the sup and the sub, and answers an environment")
+    check_result(judge("args.env.compress_env_path << args.env << 7", "Env"), "error",
                  "the sub has to be an environment")
+    check_result(judge("args.env.try_compact << args.env << 32", "Env"), True,
+                 "try_compact takes the environment and the limit, and answers the environment")
+    check_result(judge("args.env.try_compact << args.env << nil", "Env"), "error",
+                 "the limit has to be an int")
     check_result(judge("args.env.uncompress_relative_path", "(str | nil)"), True,
                  "uncompress_relative_path counts as the string or nil it is declared to be")
     check_result(judge("args.env.uncompress_relative_path", "str"), False,

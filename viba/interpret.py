@@ -66,6 +66,7 @@ it again (`get_snapshot`). The snapshots live in the environment's storage
 they are serialized viba data, so what was stored can be taken back and checked.
 """
 
+import contextvars
 import copy
 import hashlib
 import inspect
@@ -215,8 +216,10 @@ class Environment:
     """Storage, compute and the module search path, and the children under it."""
 
     __slots__ = ("storage", "compute", "viba_path", "sub_env", "tmp_env",
-                 "get_root", "get_relative_path", "find_by_relative_path",
-                 "convert_sub_to_sibling", "uncompress_relative_path", "parent")
+                 "get_root", "get_parent", "get_relative_path",
+                 "find_by_relative_path",
+                 "compress_env_path", "try_compact",
+                 "uncompress_relative_path", "parent")
 
     def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute,
                  viba_path=None, parent: Optional["Environment"] = None,
@@ -224,15 +227,16 @@ class Environment:
         self.storage = storage
         self.compute = compute
         # The environment this one was made from, when it was made by `sub_env`
-        # or `tmp_env`: the chain it belongs to, which is what `get_root`,
-        # `get_relative_path` and `find_by_relative_path` walk (viba-interpreter.md).
+        # or `tmp_env`: the chain it belongs to, which is what `get_parent`,
+        # `get_root`, `get_relative_path` and `find_by_relative_path` walk
+        # (viba-interpreter.md).
         self.parent = parent
         # Where modules are looked up, like PYTHONPATH: a string of directories,
         # or one path. A module runs under the environment it was handed, so its
         # own imports are looked up where that environment says — which is how a
         # sub-environment keeps the parent's search path along with its compute.
         self.viba_path = viba_path
-        # The path a compressed one stands for: `convert_sub_to_sibling` puts
+        # The path a compressed one stands for: `compress_env_path` puts
         # the path it compressed here, and every other environment answers `nil`
         # (the member is a value, not a function: `args.env.uncompress_relative_path`).
         self.uncompress_relative_path = uncompress_relative_path
@@ -245,13 +249,18 @@ class Environment:
         self.sub_env = sub_env
         self.tmp_env = tmp_env
         self.get_root = get_root
+        self.get_parent = get_parent
         self.get_relative_path = get_relative_path
         self.find_by_relative_path = (
             lambda relative_path, root:
             find_by_relative_path(
                 _the_relative_path(relative_path),
                 _an_environment_or_nil(root, "find_by_relative_path") or self))
-        self.convert_sub_to_sibling = convert_sub_to_sibling
+        self.compress_env_path = compress_env_path
+        # `try_compact` compacts the run it is called in, so the member is a plain
+        # function of the environment and the limit, and the run is taken from
+        # `_CURRENT_RUN` (the section on the work list below).
+        self.try_compact = try_compact
 
 
 def sub_env(environ: "Environment", name) -> "Environment":
@@ -309,6 +318,50 @@ def get_root(current) -> Optional["Environment"]:
     return current
 
 
+def get_parent(environ) -> Optional["Environment"]:
+    """The environment this one was made from, or None (`nil`) for a chain's root.
+
+    The chain is the one `sub_env` and `tmp_env` make: one environment each time a
+    call is handed one of its own. Compressing a data path
+    (`compress_env_path`) does not take a link out of it, so this is
+    also the chain of calls the interpreter is inside (viba-interpreter.md).
+    """
+    return _an_environment(environ, "get_parent").parent
+
+
+def env_chain_length(environ) -> int:
+    """How many environments the chain from this one up to its root has.
+
+    One for the environment itself, and one more for each `get_parent` step. The
+    interpreter holds its own stack to this length: past
+    `$env_chain_length_limit` it turns the calls running now into its work list
+    (`try_compact`).
+    """
+    current = _an_environment(environ, "env_chain_length")
+    length = 0
+    while current is not None:
+        length += 1
+        current = current.parent
+    return length
+
+
+def _env_chain_limit(limit) -> int:
+    """The chain length limit `try_compact` was given, as an int.
+
+    It is viba data in the source, so a `VObject` arrives here, and the leaf it
+    carries has to be a whole number. `true` is no int (`_address_of` takes the
+    same two apart), `nil` is none, and a piece with no leaf is none.
+    """
+    source = limit.data if isinstance(limit, VObject) else limit
+    if (isinstance(source, viba_ast.Constant)
+            and isinstance(source.value, int) and not isinstance(source.value, bool)):
+        return source.value
+    if isinstance(source, int) and not isinstance(source, bool):
+        return source
+    said = _one_line(source) if isinstance(source, viba_ast.AST) else repr(source)
+    raise RuntimeError(f"try_compact takes the chain length limit as an int, not {said}")
+
+
 def get_relative_path(current, root) -> str:
     """`current`'s storage path seen from `root` down: `""` for the root itself.
 
@@ -362,7 +415,7 @@ def find_by_relative_path(relative_path, root) -> "Environment":
     return found
 
 
-def convert_sub_to_sibling(sup, sub) -> "Environment":
+def compress_env_path(sup, sub) -> "Environment":
     """The storage path `sub` stands for, compressed into a sibling of `sup`.
 
     `sup`'s storage path has to be a prefix of `sub`'s, at a name boundary: `sub`
@@ -374,25 +427,207 @@ def convert_sub_to_sibling(sup, sub) -> "Environment":
     into the answer's `uncompress_relative_path`, which is how a tool takes the
     original back.
 
+    Only the data path is compressed. The chain of environments (`get_parent`) is
+    the one `sub_env` makes, so the answer stands where `sub` stands: its parent is
+    `sub`, and nothing on the way up to the chain root is taken out. The storage is
+    the sup's own `sub(name)` — that is what puts the answer *beside* the sup —
+    while the parent is `sub`: the two are deliberately apart, because one says
+    where the files go and the other says which call this one was made inside.
+
     The same `sup` and `sub` answer the same path and the same environment; a
     `sup` that is the chain's root has nowhere to put a sibling, which is a stop.
     """
-    sup = _an_environment(sup, "convert_sub_to_sibling")
-    sub = _an_environment(sub, "convert_sub_to_sibling")
+    sup = _an_environment(sup, "compress_env_path")
+    sub = _an_environment(sub, "compress_env_path")
     above, under = _storage_path(sup), _storage_path(sub)
     if not under.startswith(f"{above}_") and not under.startswith(f"{above}/"):
         raise RuntimeError(f"{under or '<no path>'} does not begin with "
-                           f"{above or '<no path>'}: convert_sub_to_sibling "
+                           f"{above or '<no path>'}: compress_env_path "
                            f"compresses a path under the sup it is taken from")
-    parent = sup.parent
-    if parent is None:
+    beside = sup.parent
+    if beside is None:
         raise RuntimeError(f"{above or '<no path>'} is the root: there is no "
                            f"directory beside it to put the path in")
     digest = hashlib.sha1(under.encode()).hexdigest()
-    made = sub_env(parent, f"{above.rsplit('/', 1)[-1]}_{digest}")
+    made = sub_env(beside, f"{above.rsplit('/', 1)[-1]}_{digest}")
+    made.parent = sub
     made.uncompress_relative_path = under
     return made
 
+
+# ----------------------------------------------------------------------
+# The work list: the calls running now, as calls that can be made again
+# ----------------------------------------------------------------------
+
+
+class _Compact(BaseException):
+    """Stop here: the calls running now have to be made from the work list.
+
+    `try_compact` raises this where the chain of environments got too long. It is
+    no failure of the program and no failure of a step, so it is no `Exception`:
+    a host function and a member of the environment turn every `Exception` into a
+    stop of their own (`_Pending._call_host`, `_HostFunction._call`), and this one
+    has to reach the run's own call, which is where the work list is worked off
+    (`_driven`). What it carries is `cur_stack`: the calls running now, outermost
+    first, each with the data path it runs at (`resumable_stack`).
+    """
+
+    __slots__ = ("tasks", "environ")
+
+    def __init__(self, tasks: list, environ: "Environment"):
+        super().__init__("the chain of environments got too long")
+        self.tasks = tasks                 # `_ResumableCall`s, outermost first
+        self.environ = environ             # where the chain got too long
+
+
+class _ResumableCall:
+    """One module call of a run, in the form that can make it again.
+
+    What the work list holds is the pair `(current_env_path, call)`: the data path
+    the call runs at, and the call itself. The call is kept live — the arguments
+    it received, the module, the bindings — rather than serialized, because the
+    work list never outlives the run that made it (`viba/resumable.viba`).
+    """
+
+    __slots__ = ("runner", "module", "environ", "name", "file", "args", "members",
+                 "bindings", "passes_environ", "give_environ", "at")
+
+    def __init__(self, runner: "_Runner", module, environ: "Environment", name: str,
+                 file, args, members, bindings, passes_environ: bool,
+                 give_environ: bool, at: int):
+        self.runner = runner
+        self.module = module
+        self.environ = environ
+        self.name = name
+        self.file = file
+        self.args = args                   # the product this call received
+        self.members = members             # the members it received, environment among them
+        self.bindings = bindings
+        self.passes_environ = passes_environ
+        self.give_environ = give_environ
+        self.at = at
+
+    @property
+    def current_env_path(self) -> str:
+        """The data path this call runs at."""
+        return _storage_path(self.environ)
+
+    def restored(self, root: "Environment") -> "Environment":
+        """The environment this call runs at, taken back from that data path.
+
+        What comes back stands for the same path with the same storage, and its
+        chain is only as long as the path is deep — a pressed path is a few names
+        (`compress_env_path`), so a call taken off the work list
+        starts with a short chain again and the recursion inside it goes on until
+        the chain is too long once more. That is what makes room: the same work,
+        the same data paths, on a stack that is short.
+
+        `root` is the chain root the run started from. An environment that is not
+        under it — a step of the host handed a chain of its own — is taken back
+        from its own root instead.
+        """
+        try:
+            relative = get_relative_path(self.environ, root)
+        except RuntimeError:
+            root = get_root(self.environ)
+            relative = get_relative_path(self.environ, root)
+        return find_by_relative_path(relative, root)
+
+    def run(self, environ: "Environment") -> "Result":
+        """Make the call at `environ`, at the Python depth the caller is at.
+
+        `environ` is the environment the call's data path stands for, taken back
+        from the chain root (`restored`); it is put where the call received its
+        environment, so `args.env` is that environment and not the deep one. The
+        chain is short now, and what the call answers stays where it was: the same
+        storage paths, so every call already answered is found and skipped
+        (`_Runner.done`).
+
+        `driving` says a work list is working this call off: it does not start a
+        work list of its own, it hands its own chain back the same way (`_driven`).
+        """
+        members = [(tag, _Host(environ) if _is_environ_value(value) else value)
+                   for tag, value in self.members]
+        return _run_module(self.runner, self.module, environ, self.name,
+                           self.file, args=self.args, members=members,
+                           bindings=self.bindings,
+                           passes_environ=self.passes_environ,
+                           give_environ=self.give_environ, at=self.at,
+                           driving=True)
+
+
+def resumable_stack(runner: "_Runner", environ: "Environment") -> list:
+    """The calls running now, outermost first, as `_ResumableCall`s.
+
+    The chain of environments is the stack the interpreter is inside (`get_parent`),
+    so every level of it a module call runs at gives one task: the data path there
+    (`current_env_path`) and the call running at it. A call running at an
+    environment that is not on this chain — a caller may hand a call an environment
+    of its own — keeps the place it was entered in, and the run's own call comes
+    first either way.
+    """
+    at_env = {id(record.environ): record for record in runner.running_calls}
+    on_the_chain = []
+    current = environ
+    while current is not None:
+        record = at_env.pop(id(current), None)
+        if record is not None:
+            on_the_chain.append(record)
+        current = current.parent
+    on_the_chain.reverse()
+    elsewhere = [record for record in runner.running_calls
+                 if id(record.environ) in at_env]
+    return elsewhere + on_the_chain
+
+
+# The run the interpreter is in. `try_compact` is a member of the environment
+# (`viba/builtin.viba`) and what it compacts is the work list of the run it is
+# called in, so the run is taken from here: one at a time, and a run started
+# inside a host function of another one (`interpret` in a step) has its own.
+_CURRENT_RUN = contextvars.ContextVar("viba_run", default=None)
+
+
+def try_compact(environ, env_chain_length_limit):
+    """Compact the run where the chain of environments is longer than the limit,
+    and answer the environment it was given.
+
+    The chain is `get_parent`'s (`env_chain_length`), and it is the stack the
+    interpreter is inside: one link per call a module call was handed one of its
+    own. Past the limit, the calls running now are not made on this stack any
+    more — `_Compact` carries them out (`cur_stack`) and the run's own call makes
+    them from the work list instead, one at a time, so the Python stack stops
+    growing with the recursion. A call that is already answered is not made again:
+    its answer is kept under the data path it runs at (`_Runner.done`), and that is
+    what makes replaying a call cheap.
+
+    What it answers is the environment it was given, so a file can name it and use
+    that name where the environment would have gone:
+
+        env = $try_compact << args.env << 32
+
+    That is also how the call is put in order: the name is computed when the piece
+    that uses it is, so the compaction point comes before whatever runs at `env`
+    (`viba/y_helper.viba` does exactly that, once per layer of a `Y` recursion).
+    Below the limit nothing else happens, and a call that stays inside the limit is
+    answered with or without a run. A host that calls this member past the limit
+    outside a run gets a `RuntimeError` naming that, which is the environment api's
+    own refusal.
+    """
+    current = _an_environment(environ, "try_compact")
+    limit = _env_chain_limit(env_chain_length_limit)
+    runner = _CURRENT_RUN.get()
+    # A chain that was long once stays long: the interpreter counts how deep the
+    # chain may get *from where it last compacted*, so a data path with no
+    # compression in it still gets `limit` more links before the work list takes
+    # over again. A path that was pressed starts short, and then this is the limit
+    # itself.
+    floor = runner.compacted_chain_length if runner is not None else 0
+    if env_chain_length(current) <= max(limit, floor):
+        return current
+    if runner is None:
+        raise RuntimeError(
+            "try_compact compacts the run it is called in, and no run is here")
+    raise _Compact(resumable_stack(runner, current), current)
 
 
 # ----------------------------------------------------------------------
@@ -1480,6 +1715,21 @@ class _Runner:
         self.running: list = []        # (path, module name, arguments) calls that are running
         self.done: dict = {}           # path -> (module name, answer) calls that were answered
         self.computing: list = []      # (module, definition) being computed, innermost last
+        # The calls running now, as calls that can be made again: one per entry of
+        # `running`, in the same order (outermost first). This is the stack the
+        # interpreter turns into its work list when it gets too deep.
+        self.running_calls: list = []  # `_ResumableCall`s, outermost first
+        # The work list: calls taken off the system stack, to be made one at a
+        # time (`_driven`). `held_paths` is what data path each of them waits at,
+        # so a call waiting there is still "running" for the cycle checks and the
+        # same call is never queued twice.
+        self.global_resumable_stack: list = []
+        self.held_paths: dict = {}     # data path -> the `_ResumableCall` waiting there
+        # The chain length the interpreter last compacted at: a chain no longer
+        # than this one is no reason to compact again, which is what keeps a chain
+        # that cannot be pressed shorter (a data path with no compression in it)
+        # from handing the same calls back forever.
+        self.compacted_chain_length: int = 0
 
     def run_file(self, file: str, environ: Environment) -> Result:
         path = Path(file)
@@ -1783,7 +2033,7 @@ def _stack(runner: _Runner) -> Stack:
 def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                name: str, file: Optional[str], args=None, members=None,
                bindings=(), passes_environ=False, at: int = 0,
-               give_environ=False) -> Result:
+               give_environ=False, driving=False) -> Result:
 
     """The module as a function: the environment in, `__impl__` out.
 
@@ -1808,6 +2058,13 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
     The storage path a module runs under is where the host's steps are handed an
     environment, so two activations under one path cannot be told apart. No two module calls may share one — the caller gives each call
     a sub-environment of its own.
+
+    A call that is too deep is not made on the caller's stack. The chain of
+    environments is the stack the interpreter is inside, and a module that asks
+    (`try_compact`) stops the run where that chain gets too long: the calls
+    running now are taken off the stack into the run's work list and made again
+    from there, one at a time (`_driven`). `driving` says a call is being made
+    that way, so it does not start a work list of its own.
     """
 
     def stopped(result):
@@ -1816,45 +2073,11 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
         if isinstance(result, VibaProgramErr) and not result.stack:
             result.stack = _stack(runner)
         return result
-    if file is None:
-        file = runner.path_of.get(name)     # a module called through an import
-    ret = _definition(module, RET_NAME)
-    if ret is None:
-        return stopped(VibaProgramErr(
-            f"module {name!r} has no {RET_NAME}: it is design, not a program"))
-    params, problem = _module_params(module)
-    if problem is not None:
-        return stopped(VibaProgramErr(f"module {name!r}: {problem}"))
-    if members is None:
-        members = [(ENVIRON_TAG, _Host(environ))]
-    if args is None:
-        args = _VibaData(viba_data(None))
-    path = _storage_path(environ)
-    signature = _call_signature(members)
-    for seen, running_name, running_signature, _file, _at in runner.running:
-        if seen == path:
-            return stopped(VibaProgramErr(
-                f"the storage path {path!r} is already running a call, so {name!r} "
-                f"cannot run there too: give each module call a sub-environment of "
-                f"its own (args.env.sub_env << args.env << ...)"))
-        if running_name == name and running_signature == signature:
-            return stopped(VibaProgramErr(
-                f"module {name!r} is already running with the same arguments: "
-                f"a module call cycle"))
-    if path in runner.done:
-        answered_as, answered = runner.done[path]
-        if answered_as == name:
-            # One storage path, one module: the same sub-computation asked a second time, so
-            # hand back the answer it gave.
-            return Ok(answered)
-        return stopped(VibaProgramErr(
-            f"module {name!r} was handed the storage path {path!r}, which "
-            f"another module call already used: give each module call a "
-            f"sub-environment of its own (args.env.sub_env << args.env << ...)"))
-    runner.running.append((path, name, signature, file, at))
-    activation = _Activation(runner, module, environ, name, file, args,
-                             members=members, bindings=bindings)
-    try:
+
+    def the_value() -> Result:
+        """What the module's body answers, environment given and finished."""
+        activation = _Activation(runner, module, environ, name, file, args,
+                                 members=members, bindings=bindings)
         # The body's own chain is left unfinished: a call it answers may still be
         # waiting for the environment, which is given to it below.
         value = stopped(activation.evaluate(ret.body, (), finish=False))
@@ -1905,13 +2128,152 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
             else:
                 waiting = "a container is asked about a piece, and none was given"
             value = stopped(VibaProgramErr(f"{name}.{RET_NAME}: {waiting}"))
+        if _stopped(value):
+            return value
+        answer = _argument_value(value.ok_value)
+        runner.done[path] = (name, answer)
+        return Ok(answer)
+
+    if file is None:
+        file = runner.path_of.get(name)     # a module called through an import
+    ret = _definition(module, RET_NAME)
+    if ret is None:
+        return stopped(VibaProgramErr(
+            f"module {name!r} has no {RET_NAME}: it is design, not a program"))
+    params, problem = _module_params(module)
+    if problem is not None:
+        return stopped(VibaProgramErr(f"module {name!r}: {problem}"))
+    if members is None:
+        members = [(ENVIRON_TAG, _Host(environ))]
+    if args is None:
+        args = _VibaData(viba_data(None))
+    path = _storage_path(environ)
+    signature = _call_signature(members)
+    for seen, running_name, running_signature, _file, _at in runner.running:
+        if seen == path:
+            return stopped(VibaProgramErr(
+                f"the storage path {path!r} is already running a call, so {name!r} "
+                f"cannot run there too: give each module call a sub-environment of "
+                f"its own (args.env.sub_env << args.env << ...)"))
+        if running_name == name and running_signature == signature:
+            return stopped(VibaProgramErr(
+                f"module {name!r} is already running with the same arguments: "
+                f"a module call cycle"))
+    if path in runner.held_paths:
+        # The call at this path is not running: it is waiting on the work list,
+        # which is where a call that got too deep was put. Running here too would
+        # be two calls at one path, which is the mistake the check above reports.
+        return stopped(VibaProgramErr(
+            f"the storage path {path!r} is already running a call, so {name!r} "
+            f"cannot run there too: give each module call a sub-environment of "
+            f"its own (args.env.sub_env << args.env << ...)"))
+    if path in runner.done:
+        answered_as, answered = runner.done[path]
+        if answered_as == name:
+            # One storage path, one module: the same sub-computation asked a second time, so
+            # hand back the answer it gave.
+            return Ok(answered)
+        return stopped(VibaProgramErr(
+            f"module {name!r} was handed the storage path {path!r}, which "
+            f"another module call already used: give each module call a "
+            f"sub-environment of its own (args.env.sub_env << args.env << ...)"))
+
+    def call_here() -> Result:
+        """The call itself: it is running for as long as its body is."""
+        call = _ResumableCall(runner, module, environ, name, file, args, members,
+                              bindings, passes_environ, give_environ, at)
+        runner.running.append((path, name, signature, file, at))
+        runner.running_calls.append(call)
+        try:
+            return the_value()
+        finally:
+            runner.running.pop()
+            runner.running_calls.pop()
+
+    if driving or runner.running:
+        # A call inside another one, or a call the work list is making: the stack
+        # it is in is the one it was entered with, so it keeps its own entry there.
+        return call_here()
+    # The run's own call. It is no call inside another one, so it holds no entry
+    # of its own here: the work list is worked off first and this call is made
+    # again at the end of it (`_driven`), which is what puts it on the stack.
+    call = _ResumableCall(runner, module, environ, name, file, args, members,
+                          bindings, passes_environ, give_environ, at)
+    token = _CURRENT_RUN.set(runner)
+    try:
+        return _driven(runner, call)
     finally:
-        runner.running.pop()
-    if _stopped(value):
-        return value
-    answer = _argument_value(value.ok_value)
-    runner.done[path] = (name, answer)
-    return Ok(answer)
+        _CURRENT_RUN.reset(token)
+
+
+def _hold(runner: _Runner, tasks) -> None:
+    """Put a chain of calls back on the work list, outermost first, once each.
+
+    A call waiting there is not running, so the path check does not see it, and
+    `held_paths` is what keeps both "one call per storage path" and the work list
+    itself from growing with every replay.
+    """
+    for task in tasks:
+        path = task.current_env_path
+        if path in runner.held_paths:
+            continue
+        runner.global_resumable_stack.append(task)
+        runner.held_paths[path] = task
+
+
+def _driven(runner: _Runner, own: _ResumableCall) -> Result:
+    """Work the run's work list off first, then make the run's own call again.
+
+    The work list is `runner.global_resumable_stack`: calls that were taken off
+    the system stack when the chain of environments got too long (`try_compact`).
+    The interpreter always takes the innermost call off it and makes it at this
+    Python depth — that is what keeps the system stack from growing with the
+    recursion. A call that gets too deep again hands its own chain back
+    (`_Compact`), and what was answered in the meantime is not made again: a
+    call's answer is kept under the data path it ran at (`_Runner.done`), so a
+    replay of a module body finds every call below it already answered.
+
+    When the list is empty, the run's own call is made again the same way — every
+    call below it is answered by then — and what it answers is what the run
+    answers. Its chain heads the chain a compaction hands back, so it is taken
+    out of that chain and kept as the call this loop ends on.
+    """
+    stack = runner.global_resumable_stack
+    root = get_root(own.environ)
+    replaying = False
+    while True:
+        while stack:
+            task = stack.pop()
+            runner.held_paths.pop(task.current_env_path, None)
+            environ = task.restored(root)
+            # This call starts from a chain as deep as its data path is, and that
+            # is what the limit is measured from for as long as it runs
+            # (`try_compact`): the whole limit is room to grow in again.
+            runner.compacted_chain_length = env_chain_length(environ)
+            try:
+                result = task.run(environ)
+            except _Compact as compact:
+                _hold(runner, compact.tasks)
+                continue
+            if _stopped(result):
+                return result
+        environ = own.restored(root)
+        if replaying:
+            # Making the run's own call again: it starts from a short chain too,
+            # and gets the whole limit to grow in before the list takes over.
+            runner.compacted_chain_length = env_chain_length(environ)
+        try:
+            return own.run(environ)
+        except _Compact as compact:
+            replaying = True
+            own_path = own.current_env_path
+            rest = []
+            for task in compact.tasks:
+                if task.current_env_path == own_path:
+                    own = task          # this call again, as this chain has it
+                else:
+                    rest.append(task)
+            _hold(runner, rest)
 
 
 def _call_signature(members) -> tuple:

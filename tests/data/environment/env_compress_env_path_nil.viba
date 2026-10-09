@@ -5,4 +5,4 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-__impl__ = $convert_sub_to_sibling << args.env << nil
+__impl__ = $compress_env_path << args.env << nil

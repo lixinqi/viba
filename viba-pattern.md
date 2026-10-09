@@ -271,7 +271,7 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 目录放进 `viba_path`（`viba-interpreter.md`）。Y 与 y_helper 都是**普通模块**，都没有 `pattern`，
 都带 `$env Env`：给环境就是执行，所以每一层的数据路径由调用方给出 —— 主文件给
 `args.env.sub_env << args.env << "Y"`，`Y.viba` 给 helper 的是 `"y_helper"`，步文件往下调时给
-`"low"` 那样的名字。步自己那一层只是名字的出处：`y_helper` 用 `convert_sub_to_sibling` 把它的
+`"low"` 那样的名字。步自己那一层只是名字的出处：`y_helper` 用 `compress_env_path` 把它的
 数据路径压成 workspace 旁边的一个名字（`{workspace 的路径}_{sha1(那一层数据路径)}`），于是往下多少层，
 数据路径都只有一个哈希那么长；`caller_workspace_relative_path` 每层原样往下传，压掉的原数据路径记在
 压出来那一层的 `uncompress_relative_path` 上（`viba-interpreter.md`）。

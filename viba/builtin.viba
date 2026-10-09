@@ -13,32 +13,45 @@
 # from: `args.env.sub_env << args.env << "child"` is the same call as
 # `$sub_env << args.env << "child"` (viba-interpreter.md).
 #
-# The members below walk the chain a child belongs to: `$get_root` is the
+# The members below walk the chain a child belongs to: `$get_parent` is the
+# environment this one was made from (`nil` for a chain's root), `$get_root` is the
 # environment at the top of it (`nil` in, `nil` out), and `$get_relative_path` is
 # a storage path seen from a root (`"b"` for `root/a/b` seen from `root/a`).
 # `$find_by_relative_path` is the way back: a relative path and the root to take
 # it from, and with no root it searches from the environment it came from,
 # which is what `args.env.find_by_relative_path << "a/b"` means.
-# `$convert_sub_to_sibling` is what keeps a recursion's paths short: given a
-# directory and a path that begins with its own at a name boundary (a directory
-# below it, or one already pressed from it), it answers the path that one stands
-# for, compressed into a single name beside the given directory —
+# `$compress_env_path` is what keeps a recursion's data paths short:
+# given a directory and a path that begins with its own at a name boundary (a
+# directory below it, or one already pressed from it), it answers the path that one
+# stands for, compressed into a single name beside the given directory —
 # `<that path>_<40 hex digits>` — and gives the path it compressed into the
-# answer's `uncompress_relative_path` (`nil` for every other environment).
+# answer's `uncompress_relative_path` (`nil` for every other environment). Only the
+# data path is compressed: the chain `$get_parent` walks is not, so an environment
+# made this way stands where the path it stands for stands.
+#
+# `$try_compact` is where a module asks the interpreter to keep its own stack from
+# growing: past `$env_chain_length_limit` links in the chain of environments, the
+# calls running now are turned into a work list and made again from there, one at a
+# time (viba-interpreter.md, "栈太长时：把系统栈变成工作清单"). It answers the
+# environment it was given, so a file names it (`env = $try_compact << args.env <<
+# 32`) and uses that name where the environment would have gone — which is also
+# what puts the call in order, before whatever runs at that environment.
 Environment =
     Object
   * $viba_path str
   * $sub_env (Env <- $env Env <- $sub_env_name str)
   * $tmp_env (Env <- $env Env)
+  * $get_parent ((Env | nil) <- $env Env)
   * $get_root ((Env | nil) <- $current (Env | nil))
   * $get_relative_path (str <- $current Env <- $root (Env | nil))
   * $find_by_relative_path (Env <- $relative_path str <- $root (Env | nil))
-  * $convert_sub_to_sibling (Env <- $sup Env <- $sub Env)
+  * $compress_env_path (Env <- $sup Env <- $sub Env)
+  * $try_compact (Env <- $env Env <- $env_chain_length_limit int)
   * $uncompress_relative_path (str | nil)
 
 Env = Environment
 
-# The builtin module: the operators every module can reach without writing an
+# The builtin module: the operators every module can reach without an
 # import. Each operator is one member of `builtin`, given as a function of the
 # environment and its arguments, and the host implements it under the member's
 # name — `builtin.add` is what `get_func` is asked for.

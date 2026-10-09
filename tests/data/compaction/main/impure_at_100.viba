@@ -1,0 +1,12 @@
+# main/impure_at_100.viba —— 用 Y 跑 steps/impure_count 往下 100 层：每一步都问一次那个不纯的
+# 步骤，而它真正算过的只有每个数据路径一次（其余几次由快照回答），答案是 100。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import Y
+import steps.impure_count as step
+
+__impl__ = Y << step << ($sub_env << args.env << "Y") << $n 100

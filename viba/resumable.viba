@@ -1,0 +1,21 @@
+# The work list: the interpreter's own stack, as calls that can be made again.
+#
+# The chain of environments (`$get_parent`) is the stack a run is inside — one link
+# per module call that was handed an environment of its own. Past
+# `$env_chain_length_limit` links, `$try_compact` stops making calls on that stack:
+# the calls running now become this list, and the run's own call makes them from
+# here, one at a time, outermost last, so the interpreter's Python stack stops
+# growing with the recursion (viba-interpreter.md, "栈太长时：把系统栈变成工作清单").
+#
+# What the two definitions below give is the design of a task. In
+# `viba/interpret.py` the call is kept live — the module, the arguments it
+# received, the bindings of its file (`_ResumableCall`) — rather than serialized:
+# a work list never outlives the run that made it, and the environment of a task
+# is taken back from its data path whenever the task is made.
+ResumableVibaTaskStack =
+    list[ResumableVibaTask]
+
+ResumableVibaTask =
+    Object
+  * $current_env_path str      # the data path the call runs at
+  * $call (Any <- Env)         # the call: a function or a closure, its arguments in it

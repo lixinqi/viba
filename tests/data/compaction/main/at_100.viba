@@ -1,0 +1,14 @@
+# main/at_100.viba —— 用内建目录里的 Y 跑 steps/count_down 往下 100 层：得 100。
+#
+# 100 层是 `y_helper` 给出那个上限（32）的好几倍：第 32 个环之后解释器就不再往自己的栈上压了，
+# 剩下的调用由工作清单一层一层地做，所以这一份文件在 Python 默认的递归上限下也跑得出来。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import Y
+import steps.count_down as step
+
+__impl__ = Y << step << ($sub_env << args.env << "Y") << $n 100

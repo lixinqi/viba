@@ -1,0 +1,39 @@
+# steps/count_down.viba —— 一步 count_down：一层算 1，往下再走一层，直到 n 小于 1。
+#
+# `$count_down` 是 Y 交回来的那一份"下一层怎么算"，这一层只算自己这一步；往下那一层要一次自己的
+# 子环境，名字在这个文件里给出，这次调用的数据路径因此是可复现的 —— 压数据路径的是
+# `$compress_env_path`（`y_helper` 里用它把一层的数据路径压成 workspace 旁边的一个名字），所以
+# 一层一层往下走，数据路径不会越来越长，而环境的父子链会（那是解释器自己的栈，
+# `viba-interpreter.md` 的「栈太长时：把系统栈变成工作清单」）。
+#
+# 每层的那 1 由 `note` 给（宿主给出，并记下自己被叫过）；定义按需求值，这一层的答案用它，所以
+# 每算一次模块体就正好问一次。链太长时模块体会被再做一次，而已经答过的调用不会再做，所以问的
+# 次数是一个有界的倍数，不会随重做层层放大。
+import branch
+
+note =
+    int
+  <- $env Env
+  <- $what str
+  <- { note that this layer ran, and answer 1; the host records the call }
+
+__decl__ =
+    int
+  <- $env Env
+  <- $count_down Any
+  <- $n int
+
+args = __get_args__ << __decl__
+
+one = note << $env args.env << $what "a layer ran"
+base = sub << $env args.env << $x one << $y 1
+small = lt << $env args.env << $x args.n << $y 1
+below = sub << $env args.env << $x args.n << $y 1
+deeper = args.count_down << ($sub_env << args.env << "deeper") << $n below
+
+__impl__ =
+  Oneof
+  | (branch.echo_or_never << $env args.env << $cond small
+      << $get_v (builtin.echo << $x base))
+  | (branch.never_or_echo << $env args.env << $cond small
+      << $get_v (add << $env args.env << $x one << $y deeper))

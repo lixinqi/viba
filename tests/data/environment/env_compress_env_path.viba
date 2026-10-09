@@ -1,0 +1,11 @@
+# `$compress_env_path << <sup> << <sub>`：把 sub 的数据路径压成 sup 旁边的一个名字；返回的
+# 那一层上的 `uncompress_relative_path` 记着压掉的原来那个数据路径
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+sub = $sub_env << args.env << "child"
+
+__impl__ = $uncompress_relative_path << ($compress_env_path << args.env << sub)

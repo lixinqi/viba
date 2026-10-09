@@ -344,10 +344,12 @@ Environment =
   * $viba_path str
   * $sub_env (Env <- $env Env <- $sub_env_name str)
   * $tmp_env (Env <- $env Env)
+  * $get_parent ((Env | nil) <- $env Env)
   * $get_root ((Env | nil) <- $current (Env | nil))
   * $get_relative_path (str <- $current Env <- $root (Env | nil))
   * $find_by_relative_path (Env <- $relative_path str <- $root (Env | nil))
-  * $convert_sub_to_sibling (Env <- $sup Env <- $sub Env)
+  * $compress_env_path (Env <- $sup Env <- $sub Env)
+  * $try_compact (Env <- $env Env <- $env_chain_length_limit int)
   * $uncompress_relative_path (str | nil)
 ```
 
@@ -358,11 +360,14 @@ tag 本身**不是值**：`method = $sub_env` 编不过，标签只有出现在�
 第一个参数必须给出来——它是取成员的那一个，省略了就成了一次没有成员的调用。第一个参数是别的值
 也一样：`$tag` 命中的是它的成员，不在就报错。
 
-### 链上的成员：根、相对路径、找回来、压数据路径
+### 链上的成员：父级、根、相对路径、找回来、压数据路径
 
 子环境是由 `sub_env`/`tmp_env` 从父级造出来的，它记着那个父级，所以一条链能从任意一层往上走。
 这些成员把这条链取出来（见「调用别的模块」）：
 
+- **`$get_parent << args.env`**：造这一层出来的那一层（`sub_env`/`tmp_env` 给的那一个）。链顶没有
+  父级，交出来就是 `nil`。**这条链就是解释器自己的栈**：一次还在跑的模块调用占一个环，跟着它往上走
+  能走到这次运行最外面那一次调用（见「栈太长时：把系统栈变成工作清单」）。
 - **`$get_root << args.env`**：这一层那条链的根（没有父级的那个环境）。`nil` 进 `nil` 出。
 - **`$get_relative_path << args.env << <root>`**：这一层的数据路径从那个根往下取出来的那一段 ——
   `root/a/b` 从 `root/a` 看是 `"b"`，根看自己是 `""`。`$root` 给 `nil` 就用这条链自己的根；
@@ -378,13 +383,14 @@ tag 本身**不是值**：`method = $sub_env` 编不过，标签只有出现在�
 
   落成 `$find_by_relative_path << args.env << "a/b"` 会把那个环境放到相对路径的位置上：报错，
   话里给出正确的源码形式。
-- **`$convert_sub_to_sibling << <sup> << <sub>`**：把 `sub` 的数据路径压成 `sup` 旁边的一个名字，
+- **`$compress_env_path << <sup> << <sub>`**：把 `sub` 的数据路径压成 `sup` 旁边的一个名字，
   形式是 `{sup 的路径}_{sha1(sub 的路径)}`（后面那 40 位是十六进制）。`sup` 的路径必须是 `sub`
   的路径的前缀，而且落在名字边界上（`<sup>/…` 或者已经压过的 `<sup>_…`）；压出来的数据路径长度只跟
   `sup` 的名字有关，跟 `sub` 有多深无关 —— 递归里每层的数据路径因此不
   会越接越长。它不是 `sub_env`：不往下一层走，而是在 `sup` 所在的那个目录里放一个扁平的名字。
   压掉的那个原数据路径记在返回值的 `uncompress_relative_path` 上；同一个 `sup` 与 `sub` 给同一个
-  数据路径。`sup` 是链根时旁边没有目录可放，当场报错。
+  数据路径。`sup` 是链根时旁边没有目录可放，当场报错。**压的只是数据路径**：走出来那个环境的父级
+  是 `sub`（它站的那一层），不是 `sup` 的父级 —— 链是 `sub_env` 形成的，压缩不从链上拿走一个环。
 - **`$uncompress_relative_path << args.env`**（也落成 `args.env.uncompress_relative_path`）：
   压过数据路径的那一层记着它压掉的原数据路径；别的环境上是 `nil`。它是一个**值成员**，不带参数。
 
@@ -431,13 +437,16 @@ Environment(storage, compute, viba_path=None, parent=None,
 几个普通函数：
 
 ```python
+get_parent(current)                         # 造它出来的那一层；链顶是 None（`nil`）
 get_root(current)                           # 链顶那个环境；None（`nil`）进 None 出
 get_relative_path(current, root)            # 从 root 往下的那一段数据路径
 find_by_relative_path(relative_path, root)  # 从 root 按那一段数据路径走下来
-convert_sub_to_sibling(sup, sub)            # 把 sub 的数据路径压成 sup 旁边 名字_sha1
+compress_env_path(sup, sub)  # 把 sub 的数据路径压成 sup 旁边 名字_sha1
+env_chain_length(current)                   # 这条链有几个环：`$try_compact` 比的就是它
 ```
 
-`uncompress_relative_path` 不是函数，是环境上的一个值：`convert_sub_to_sibling` 把压掉的原数据路径
+
+`uncompress_relative_path` 不是函数，是环境上的一个值：`compress_env_path` 把压掉的原数据路径
 存进去，别的环境上是 `None`（viba 那边取出来就是 `nil`）。
 
 它们同时也是 `Environment` 的成员，所以 viba 那边两种源码形式都行（见「如何调用方法：tag 放在链头」）。
@@ -862,6 +871,57 @@ B = A
   一个调用先给一半（`right.f << $a 1`）是一个值，没进入另一份文件，也不发作；而条件那个参数照旧
   先算，所以条件里的递归调用一定发作。每条用例跑出值、跨文件绕回去、模块调用成环、闭包、
   `never`、和值、积或源码里的名字之一。
+
+## 栈太长时：把系统栈变成工作清单
+
+一次模块调用拿到一层自己的环境（`$sub_env`、`$tmp_env`），环境的父子链（`$get_parent`）就多一个环。
+**这条链就是解释器自己的栈**：一个环对应一次还在跑的模块调用，所以它随着递归一层层变长。
+
+Y 的每一层都往下调一层，一个够深的递归因此会把解释器自己的 Python 栈压爆：`fib_acc` 跑到两千层时，
+链上一万多个环（一层大约六个），解释器自己的栈跟着长同样多，`RecursionError` 先来。所以 `y_helper`
+在自己的模块体之前给出一个**压缩点**：
+
+```viba
+# viba/y_helper.viba
+env = $try_compact << args.env << 32
+```
+
+- **`$try_compact << <环境> << <上限>`** 是 `Environment` 的成员（[`viba/builtin.viba`](viba/builtin.viba)），
+  答的是给它的那个环境：链上环数不超过上限就什么都不做，超过上限就把**此刻正在跑的调用**交出来，
+  由这次运行最外面那一次调用一个一个地再做（`global_resumable_stack`，这次运行自己的工作清单），
+  做完把这个环境给回来。
+- **答一个环境，是为了把这一步排进顺序**：定义按需求值，用它的那一处算的时候它才算。`y_helper` 下面
+  那几个定义用的就是这个 `env`（`env.find_by_relative_path << …`、`$compress_env_path << … << env`），
+  而它们又是这次调用的环境 —— 要跑这一层，就得先把这个名字算出来，所以压缩点一定排在
+  "这一层跑起来"之前。
+- **每个待做的调用是两样东西**：它跑的那条数据路径（`$current_env_path`）和它本身（`$call`，类型是
+  `Any <- Env`，见 [`viba/resumable.viba`](viba/resumable.viba)）。做它的时候，环境按那条数据路径从
+  链顶取回来：同一条路径、同一份 storage，**链只有这条路径那么深** —— 压过的路径只有几个名字
+  （`$compress_env_path`），所以再做时链又是短的，递归在里头接着长到上限，再压一次。
+- **已经答过的调用不会再做**：一次模块调用的答案按它跑的那条数据路径记着（`_Runner.done`），重做一份
+  模块体时，走到那条已答的调用就停在那儿，把记着的答案交出来。所以重做是有界的：只重走这份模块体
+  自己那几步和它欠的那次调用，不会把下面整棵递归树重走一遍。
+- **到过哪儿就记到哪儿**：解释器记着上一次压缩处的链长（`_Runner.compacted_chain_length`），链不超过
+  它就不再压。数据路径压不短的那些因此也有上限，不会把同一批调用一遍遍交回去。
+- **同时压在系统栈上的调用因此是有限的**：`tests/test_interpreter_compaction.py` 钉着这件事 —— 101 层
+  的 `Y` 递归一共做了一千多次模块调用，同一时刻在栈上的从不超过 26 个，最长的一条链 36 环（上限 32）。
+
+一个模块自己也可以给压缩点（`env = $try_compact << args.env << 0` 那样），上限是那次调用算出来的值
+（可以是一条定义算出来的）。在不是一次运行的地方调用它（宿主自己拿 `environ.try_compact(…)`），
+链没过线就把那个环境答回来，过线了当场报 `no run is here`：压的是这次运行的工作清单，没有运行就
+没有可压的。
+
+**不纯的宿主步骤会被重做**：重做一份模块体时，它自己那几步重走一遍。可回放的那几步走 `replayed`
+（见「幂等与快照」），所以重做给的是同一个答案；没走快照、又不纯的那几步两次跑出来的东西可能不同 ——
+这是它自己该处理的事，不是压缩带进来的新规矩。
+
+**一个没有基例的递归不再由解释器喊停**：以前它会在解释器自己的栈上撞到上限（`RecursionError`，报成
+某一步失败），现在链可以一直长下去，调用也一直做下去。同一个模块带着同一份实参又在跑那种环还是当场报
+（见「一份文件跑不出递归」）。
+
+**按数据路径取回来的那一层不记着压掉的原路径**：`$uncompress_relative_path` 是 `nil`
+（它是 `compress_env_path` 放在那一个环境上的值，取回来的这一层是新造的）。压过的
+路径本身认不出来是哪一条原路径 —— 名字里只有一个 sha1。
 
 ## 把一次调用落成可执行的：`__dyn_call__` 与 `__dyn_method__`
 

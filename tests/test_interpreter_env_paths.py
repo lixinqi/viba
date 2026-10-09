@@ -1,10 +1,11 @@
-"""Environment 上那几个走数据路径的成员：`$get_root`、`$get_relative_path`、
-`$find_by_relative_path`、`$convert_sub_to_sibling`、`$uncompress_relative_path`。
+"""Environment 上那几个走数据路径的成员：`$get_parent`、`$get_root`、`$get_relative_path`、
+`$find_by_relative_path`、`$compress_env_path`、`$uncompress_relative_path`。
 
 两边的规矩都测：宿主那一侧（`viba/interpret.py` 里那几个函数，以及子环境记着的父级），
 和 viba 那一侧（`tests/data/environment/env_*.viba`）。每个成员自己有哪几条规矩、给错时
 报什么，以及它们合起来的用法 —— 根 → 相对路径 → 按那条路径找回来，以及把一个很深的数据路径
-压成 sup 旁边的 `名字_sha1`、原数据路径记在返回值上。
+压成 sup 旁边的 `名字_sha1`、原数据路径记在返回值上（压的只是数据路径，父子链不动）。
+`$try_compact` 的规矩在 `tests/test_interpreter_compaction.py`：它比的是这条链的环数。
 
     python3 tests/test_interpreter_env_paths.py
 """
@@ -20,9 +21,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from interpreter_support import Checks, Host, PlacedHost, is_ok, value_of
 
 from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
-                            convert_sub_to_sibling, find_by_relative_path,
-                            get_relative_path, get_root, interpret,
-                            sub_env, tmp_env)
+                            compress_env_path, env_chain_length,
+                            find_by_relative_path, get_parent, get_relative_path,
+                            get_root, interpret, sub_env, tmp_env)
 from viba.interpret import BUILTIN_DIR
 
 checks = Checks("interpreter_env_paths")
@@ -33,8 +34,9 @@ environment_api = checks.environment_api
 CASES = Path(__file__).resolve().parent / "data" / "environment"
 
 # builtin.viba 里 Environment 的成员：设计层与运行层要同一份
-MEMBERS = ("get_root", "get_relative_path", "find_by_relative_path",
-           "convert_sub_to_sibling", "uncompress_relative_path")
+MEMBERS = ("get_parent", "get_root", "get_relative_path", "find_by_relative_path",
+           "compress_env_path", "try_compact",
+           "uncompress_relative_path")
 
 
 def raised(call, want: str, label: str):
@@ -63,10 +65,11 @@ def chain(environ, *names):
 
 def run(tmp: Path):
     _the_chain(tmp)
+    _get_parent(tmp)
     _get_root(tmp)
     _get_relative_path(tmp)
     _find_by_relative_path(tmp)
-    _convert_sub_to_sibling(tmp)
+    _compress_env_path(tmp)
     _uncompress_relative_path(tmp)
     _combinations(tmp)
     _the_declaration(tmp)
@@ -74,7 +77,7 @@ def run(tmp: Path):
 
 
 def _the_chain(tmp: Path):
-    """子环境记着它是从哪个环境来的：那四个成员走的就是这条链。"""
+    """子环境记着它是从哪个环境来的：那些走链的成员用的就是这条链。"""
     host = Host()
     environ = host.environ(store_root_dir=str(tmp / "chain"))
     _, a, b, c = walk(environ, "a", "b", "c")
@@ -88,6 +91,25 @@ def _the_chain(tmp: Path):
     check(tmp_env(c).parent is c, "tmp_env's child names it too")
     check(Environment(EnvironmentStorage("root"), environ.compute).parent is None,
           "an environment the host made by hand has no parent")
+
+
+def _get_parent(tmp: Path):
+    """`get_parent`：造它出来的那一个；链顶没有父级；给的必须是环境。"""
+    host = Host()
+    environ = host.environ(store_root_dir=str(tmp / "parent"))
+    _, a, b, c = walk(environ, "a", "b", "c")
+
+    check(get_parent(c) is b and get_parent(b) is a and get_parent(a) is environ,
+          "get_parent walks up one environment at a time")
+    check(get_parent(environ) is None, "a chain's root has no parent (nil)")
+    check(c.get_parent(c) is b, "the member hung on an environment takes the same")
+    check(env_chain_length(environ) == 1 and env_chain_length(c) == 4,
+          "the chain counts the environment itself and every step to the root")
+
+    raised(lambda: get_parent(7), "takes an Environment", "a parent asked of a number")
+    raised(lambda: get_parent(None), "takes an Environment", "a parent asked of nil")
+    raised(lambda: c.get_parent(None), "takes an Environment",
+           "the member asked of nil")
 
 
 def _get_root(tmp: Path):
@@ -175,28 +197,31 @@ def _find_by_relative_path(tmp: Path):
            "a number given where the path goes")
 
 
-def _convert_sub_to_sibling(tmp: Path):
-    """`convert_sub_to_sibling`：把 sub 的数据路径压成 sup 旁边一个名字，原数据路径记在返回值上。"""
+def _compress_env_path(tmp: Path):
+    """`compress_env_path`：把 sub 的数据路径压成 sup 旁边一个名字，原数据路径记在返回值上。"""
     host = Host()
     environ = host.environ(store_root_dir=str(tmp / "convert"))
     _, a, b, c = walk(environ, "a", "b", "c")
     child = sub_env(c, "child")
 
-    made = convert_sub_to_sibling(a, child)
+    made = compress_env_path(a, child)
     digest = hashlib.sha1(b"root/a/b/c/child").hexdigest()
     check(made.storage.cur_storage_path == f"root/a_{digest}",
           "the storage path is the sup's path, an underscore, and the sha1 of the sub's path")
-    check(made.parent is environ, "it is made beside the sup: the same parent")
+    check(made.parent is child,
+          "only the data path is pressed: the chain keeps the environment it stands for")
+    check(env_chain_length(made) == env_chain_length(child) + 1,
+          "and so the chain past a pressed path is one link longer, not shorter")
     check(made.uncompress_relative_path == "root/a/b/c/child",
           "the path that was compressed is recorded on the answer")
     check(a.uncompress_relative_path is None,
           "and a plain environment records nothing")
 
-    again = convert_sub_to_sibling(a, child)
+    again = compress_env_path(a, child)
     check(again.storage is made.storage,
           "the same sup and sub answer the same path")
 
-    other = convert_sub_to_sibling(a, sub_env(c, "other"))
+    other = compress_env_path(a, sub_env(c, "other"))
     check(other.storage.cur_storage_path != made.storage.cur_storage_path,
           "a different sub answers a different path")
     check(other.uncompress_relative_path == "root/a/b/c/other",
@@ -204,7 +229,7 @@ def _convert_sub_to_sibling(tmp: Path):
 
     # 深数据路径压成一个名字：长度不再跟着层数长
     deep = chain(a, "x", "y", "z", "w")
-    pressed = convert_sub_to_sibling(a, deep)
+    pressed = compress_env_path(a, deep)
     check(pressed.storage.cur_storage_path ==
           f"root/a_{hashlib.sha1(b'root/a/x/y/z/w').hexdigest()}",
           "however deep the sub is, the compressed path is one hash long")
@@ -213,20 +238,20 @@ def _convert_sub_to_sibling(tmp: Path):
 
     # sup 的路径必须是 sub 的路径的前缀，而且要落在名字边界上
     other_root = Host().environ(store_root_dir=str(tmp / "elsewhere"))
-    raised(lambda: convert_sub_to_sibling(a, chain(other_root, "a")),
+    raised(lambda: compress_env_path(a, chain(other_root, "a")),
            "does not begin with", "a sub from another chain")
-    raised(lambda: convert_sub_to_sibling(a, sub_env(environ, "ab")),
+    raised(lambda: compress_env_path(a, sub_env(environ, "ab")),
            "does not begin with", "a directory whose name merely starts the same")
-    raised(lambda: convert_sub_to_sibling(a, a), "does not begin with",
+    raised(lambda: compress_env_path(a, a), "does not begin with",
            "the sup itself")
-    pressed_again = convert_sub_to_sibling(a, made)
+    pressed_again = compress_env_path(a, made)
     check(pressed_again.uncompress_relative_path == made.storage.cur_storage_path,
           "a path already pressed from the sup is a sub like any other")
     check(pressed_again.storage.cur_storage_path.startswith("root/a_"),
           "and the sup's path is the prefix of what comes out")
-    raised(lambda: convert_sub_to_sibling(environ, b), "is the root",
+    raised(lambda: compress_env_path(environ, b), "is the root",
            "a sup that is the chain's own root")
-    raised(lambda: convert_sub_to_sibling(a, None), "takes an Environment",
+    raised(lambda: compress_env_path(a, None), "takes an Environment",
            "no sub at all")
 
 
@@ -239,7 +264,7 @@ def _uncompress_relative_path(tmp: Path):
     for one, where in ((environ, "the root"), (a, "a child"), (c, "a deeper child")):
         check(one.uncompress_relative_path is None, f"{where} records nothing")
 
-    pressed = convert_sub_to_sibling(a, c)
+    pressed = compress_env_path(a, c)
     check(pressed.uncompress_relative_path == "root/a/b/c",
           "the compressed layer records the path it stands for")
     check(sub_env(pressed, "again").uncompress_relative_path is None,
@@ -252,7 +277,7 @@ def _combinations(tmp: Path):
     environ = host.environ(store_root_dir=str(tmp / "combination"))
     _, a, b, c = walk(environ, "a", "b", "c")
 
-    pressed = convert_sub_to_sibling(a, c)
+    pressed = compress_env_path(a, c)
     for target in (environ, a, b, c, pressed):
         relative = get_relative_path(target, environ)
         check(find_by_relative_path(relative, environ).storage is target.storage,
@@ -269,7 +294,7 @@ def _combinations(tmp: Path):
           "a compressed layer is reachable like any other directory")
 
     # 一层压一层：同一个 sup 下压多少次，数据路径都只有它自己的名字加一个哈希那么长
-    deeper = convert_sub_to_sibling(a, sub_env(pressed, "low"))
+    deeper = compress_env_path(a, sub_env(pressed, "low"))
     check(len(deeper.storage.cur_storage_path) == len(pressed.storage.cur_storage_path),
           "compressing again under the same sup keeps the same path length")
     check(deeper.uncompress_relative_path == f"{pressed.storage.cur_storage_path}/low",
@@ -288,14 +313,19 @@ def _the_declaration(tmp: Path):
         check(callable(getattr(environ, name)), f"{name} is a method of an environment")
     check(environ.uncompress_relative_path is None,
           "uncompress_relative_path is a member that is a value: nil until something is pressed")
-    check("$convert_sub_to_sibling (Env <- $sup Env <- $sub Env)" in declared,
-          "convert_sub_to_sibling takes the sup and then the sub")
+    check("$compress_env_path (Env <- $sup Env <- $sub Env)" in declared,
+          "compress_env_path takes the sup and then the sub")
     check("$uncompress_relative_path (str | nil)" in declared,
           "uncompress_relative_path is a string or nil")
     check("$find_by_relative_path (Env <- $relative_path str" in declared,
           "find_by_relative_path takes the relative path and then the root")
+    check("$get_parent ((Env | nil) <- $env Env)" in declared,
+          "get_parent takes an environment and may answer none")
     check("$get_root ((Env | nil) <- $current (Env | nil))" in declared,
           "get_root takes an environment and may answer none")
+    check("$try_compact (Env <- $env Env <- $env_chain_length_limit int)" in declared,
+          "try_compact takes an environment and the chain length limit, and answers "
+          "the environment")
 
 
 def _given_in_viba(tmp: Path):
@@ -334,6 +364,16 @@ def _given_in_viba(tmp: Path):
                     "is no child of", "Environment.get_relative_path",
                     "a root given as this layer's child")
 
+    # 父级：造这一层出来的那一层；链顶没有父级，交出来就是 nil
+    host.ran_at.clear()
+    result = interpret(str(CASES / "env_parent.viba"), here)
+    check(is_ok(result) and host.ran_at == [("root/a/b", "leaf")],
+          f"$get_parent << args.env hands the layer it was made from over: "
+          f"{result!r}, {host.ran_at}")
+    result = interpret(str(CASES / "env_parent_nil.viba"), top)
+    check(is_ok(result) and value_of(result) is None,
+          f"a chain's root has no parent: nil: {result!r}")
+
     # 按相对路径找回来：宿主那一步跑在哪条数据路径上，就是找回了哪一份环境
     host.ran_at.clear()
     result = interpret(str(CASES / "env_find_by_path.viba"), here)
@@ -351,7 +391,7 @@ def _given_in_viba(tmp: Path):
                     "takes a relative path", "Environment.find_by_relative_path",
                     "a tag at the chain head: the environment lands where the path goes")
 
-    # convert_sub_to_sibling 与 uncompress_relative_path
+    # compress_env_path 与 uncompress_relative_path
     result = interpret(str(CASES / "env_uncompress_relative_path.viba"), here)
     check(is_ok(result) and value_of(result) is None,
           f"a plain layer records nothing: {result!r}")
@@ -359,15 +399,15 @@ def _given_in_viba(tmp: Path):
     check(is_ok(result) and value_of(result) is None,
           f"the tag form takes the same member: {result!r}")
 
-    result = interpret(str(CASES / "env_convert_sub_to_sibling.viba"), here)
+    result = interpret(str(CASES / "env_compress_env_path.viba"), here)
     check(is_ok(result) and value_of(result) == "root/a/b/c/child",
           f"the pressed layer records the path it stands for: {result!r}")
 
-    environment_api(interpret(str(CASES / "env_convert_sub_to_sibling_root.viba"), here),
-                    "is the root", "Environment.convert_sub_to_sibling",
+    environment_api(interpret(str(CASES / "env_compress_env_path_root.viba"), here),
+                    "is the root", "Environment.compress_env_path",
                     "a sup that is the chain's own root")
-    environment_api(interpret(str(CASES / "env_convert_sub_to_sibling_nil.viba"), here),
-                    "takes an Environment", "Environment.convert_sub_to_sibling",
+    environment_api(interpret(str(CASES / "env_compress_env_path_nil.viba"), here),
+                    "takes an Environment", "Environment.compress_env_path",
                     "nil given for the sub")
 
 

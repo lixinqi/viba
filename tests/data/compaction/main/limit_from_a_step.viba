@@ -1,0 +1,23 @@
+# main/limit_from_a_step.viba —— 上限是一次调用算出来的，那一步还顺手记下"这个模块体跑起来了"。
+#
+# `$try_compact` 答的是给它的那个环境，所以可以起个名字（`env`）在别处用；名字按需求值，用它的那
+# 一处算的时候它才算 —— 这一步因此排在 `$env env` 那次调用之前，这就是"顺序化"。
+#
+# 上限给 0：头一次检查就过线，调用链当场变成工作清单，这个模块体要再做一次 —— 所以那一步记下两笔
+# （头一次跑到压缩点就被掀掉，第二次才走完）。第二次做时链已经短到不超过上次压缩处的链长
+# （`_Runner.compacted_chain_length`），所以不会再压一次，答案是 7。
+limit =
+    int
+  <- $env Env
+  <- $what str
+  <- { note that this step ran, and answer the limit 0 }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+env = $try_compact << args.env << (limit << $env args.env << $what "the body ran")
+
+__impl__ = builtin.echo << $env env << $x 7

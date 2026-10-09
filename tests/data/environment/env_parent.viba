@@ -1,0 +1,10 @@
+# `$get_parent << args.env`：造这一层出来的那一层，用 tag 落在链头。
+# 父级是一份环境，不是值，所以把它交给一个宿主实现的步骤，由那一步报出它跑在哪条数据路径上。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import tmp_lib as lib
+__impl__ = lib << ($get_parent << args.env)

@@ -207,7 +207,7 @@ def literal_spelling(value) -> str:
     ValueError rather than being given as something else. Only the four
     builtin literal types themselves are literals; a subclass is not one.
     """
-    # The exact types, not subclasses: writing goes through the value's own
+    # The exact types, not subclasses: the source form comes from the value's own
     # spelling, and a subclass can spell itself as anything at all — including
     # source that breaks out of the literal.
     if type(value) is bool:

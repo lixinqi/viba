@@ -1,0 +1,8 @@
+# 链顶没有父级：`nil` 是值，可以当答案交出来（环境本身不行）。
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = $get_parent << args.env

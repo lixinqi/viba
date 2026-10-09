@@ -102,7 +102,7 @@ That is one half of the strategy; the other half is at the call: arguments are c
 only a function-typed parameter is non-strict — the call in the source there is handed over with its
 environment and evaluated only if the callee asks for it. [`viba-interpreter.md`](viba-interpreter.md)
 states both halves and names the cases that pin them; [`viba-style.md`](viba-style.md) §9 is where
-writing such a parameter belongs.
+such a parameter belongs.
 
 ### Pattern
 
@@ -335,7 +335,7 @@ print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
   (`Env = Environment`). Giving an environment is what runs a call; a call that is
   given none is the closure it stands for.
 - The environment is no answer: only a builtin function may declare `Env` as its
-  result, and writing `Env` (or `Environment`) as the result of a module's
+  result, and giving `Env` (or `Environment`) as the result of a module's
   `__decl__`, of a definition inside a module, or of a chain a product carries as
   a member refuses the file with a `VibaProgramErr` — the environment is the
   call's rule, not a value to hand back. A run answers viba data, so a `__impl__`
@@ -452,6 +452,32 @@ and the package's own vocabulary lives, and `viba/builtin/`, where the
 (the fixed point of a step, with `y_helper.viba` beside it) from anywhere, with
 or without an `import`.
 
+### Deep recursion: the stack becomes a work list
+
+A module call is handed an environment of its own (`sub_env`, `tmp_env`), so the
+parent chain an environment belongs to (`get_parent`) grows one link per call that
+is still running — **that chain is the interpreter's own stack**. `Y` calls one layer
+from the next, so a deep recursion grows it without end, and the interpreter's own
+Python stack would go with it. `y_helper.viba` therefore asks for a compaction point
+before its body:
+
+```viba
+env = $try_compact << args.env << 32
+```
+
+`$try_compact << env << n` answers the environment it was given, and does nothing while
+the chain has `n` links or fewer. Naming it is also what puts it in order: a definition
+is computed when the piece that wants it is, and the definitions below that line use the
+name (`env.find_by_relative_path << …`, `$compress_env_path << … << env`), so the
+compaction point is computed before anything runs at that layer. Past the limit the
+calls running now are handed out and the run's own call makes them one at a time from
+its work list. Each of them is a data path and the call that runs there
+(`viba/resumable.viba`), and the environment is taken back from that path — the same
+storage, on a chain only as deep as the path is. A call that already answered is not
+made again: its answer is kept under the data path it ran at, so a replayed module body
+stops where the recursion is already answered. A caller of the member past the limit
+outside a run is told there is no run instead.
+
 ### Idempotence: answers have to replay
 
 The one thing in an executable function that need not repeat itself is a host
@@ -526,7 +552,7 @@ Color = $red int | $green int | $blue int
 | [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, taking values out of an instance |
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__decl__` in, `__impl__` out — the executable view, and the call-by-need evaluation strategy |
 | [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer takes |
-| [`viba_builder.md`](viba_builder.md) | Writing .viba source from Python expressions |
+| [`viba_builder.md`](viba_builder.md) | Building .viba source from Python expressions |
 | [`viba-style.md`](viba-style.md) | Conventions of a definition: tags, heads, containers, and how to check a definition |
 
 ## Modules
@@ -549,6 +575,7 @@ tools built on those.
 | `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …) |
 | `sub_env_run.viba` | The builtin that runs a call at a named child of an environment — `Y.viba` and `apply.viba` sit beside it |
+| `resumable.viba` | The work list a too-deep chain of environments is turned into: one task per call running now, its data path and the call |
 | `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), each named by the count it takes, and the last step's answer is the answer |
 | `builtin/is_closure/`, `builtin/unclosure/` | The builtin generics over closures, one file per argument count (1..16), each named by the count it takes — whether a call in the source is one, and taking it apart |
 | `builtin/sequential_step/`, `builtin/sequential_arg/` | How `sequential` runs one step (a call with 1..16 tagged arguments) and one argument (a variable reference, or whatever stood there) |
