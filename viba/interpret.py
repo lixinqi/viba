@@ -96,7 +96,8 @@ from viba.type import (BUILTIN_MODULE, CustomModuleType, ENVIRONMENT_API_TAG,
                        BUILTIN_MODULE, NilType, NeverType,
                        builtin_directory_name,
                        custom_module, module_get_type)
-from viba.viba_ast.tagged import (GETATTR_TAG, GETITEM_TAG, IN_TAG, TAGGED_NAME,
+from viba.viba_ast.tagged import (GETATTR_TAG, GETITEM_TAG, IN_TAG, KEYS_TAG,
+                                  LEN_TAG, TAGGED_NAME,
                                   symbol_of, symbol_problem, tag_of,
                                   tagged_node)
 from viba.viba_type_descriptor import (SUM, TUPLE, VibaChainDescriptor,
@@ -2983,6 +2984,53 @@ class _Activation:
             "`$__in__` asks about a list, a set, a tuple or a dict, and this is "
             "none of them")
 
+    def _container_len(self, container):
+        """How many pieces `$__len__` counts: elements for a list, a set or a
+        tuple, keys for a dict (`viba-reflect.md`, `VibaLength`).
+
+        What is counted is the container itself, and a piece that holds none — a
+        leaf, a product, a sum — is a program error. A `dict` is counted by its
+        keys, so a dict of three pairs is three.
+        """
+        if not isinstance(container, _VibaData):
+            return VibaProgramErr(
+                "a container is counted, and this is no viba data")
+        node = container.node
+        unfolded = reflect_access.unfold(node.descriptor)
+        if (reflect_access.container_kind(unfolded) not in ("list", "set", "dict")
+                and unfolded.kind != TUPLE):
+            return VibaProgramErr(
+                "`$__len__` counts a list, a set, a tuple or a dict, and this is "
+                "none of them")
+        counted = reflect_access.length(container.node)
+        if _stopped(counted):
+            return counted          # the reflect side names what a counted piece is
+        return Ok(_VibaData(viba_data(counted.ok_value),
+                            source_module=container.source_module,
+                            bindings=container.bindings))
+
+    def _container_keys(self, container):
+        """The keys `$__keys__` gives, as a list of strings: the dict's own keys,
+        in the order the implementation keeps them (`viba-reflect.md`, `VibaKeys`).
+
+        A piece that is no dict is a program error, and so is a dict whose keys
+        are not literals: this walks the source form, and a key that is not one
+        has nothing to hand over under that name.
+        """
+        if not isinstance(container, _VibaData):
+            return VibaProgramErr(
+                "the keys of a container are taken, and this is no viba data")
+        unfolded = reflect_access.unfold(container.node.descriptor)
+        if reflect_access.container_kind(unfolded) != "dict":
+            return VibaProgramErr(
+                "`$__keys__` gives the keys of a dict, and this is not one")
+        keys = reflect_access.keys(container.node)
+        if _stopped(keys):
+            return keys             # a key that is no literal says so itself
+        node = viba_ast.TypeApp("ListLiteral",
+                                [viba_ast.Constant(key) for key in keys.ok_value])
+        return Ok(_VibaData(viba_data(node)))
+
     def _take_item(self, container, address):
         """The element `$__getitem__` takes: by position, or by key for a dict.
 
@@ -3390,6 +3438,22 @@ class _Activation:
                 # `$__in__ << C << <piece>`: C is the container the piece is looked
                 # for in, and the next argument is the piece itself.
                 current = _InMember(value.ok_value.value)
+                continue
+            if isinstance(current, _Member) and current.tag == LEN_TAG:
+                # `$__len__ << C`: C is the container to count, and the count is
+                # the answer itself — nothing is still to come for it.
+                counted = self._container_len(value.ok_value.value)
+                if _stopped(counted):
+                    return counted
+                current = counted.ok_value
+                continue
+            if isinstance(current, _Member) and current.tag == KEYS_TAG:
+                # `$__keys__ << C`: C is the dict whose keys are asked for, and
+                # they are the answer itself.
+                keys = self._container_keys(value.ok_value.value)
+                if _stopped(keys):
+                    return keys
+                current = keys.ok_value
                 continue
             if isinstance(current, _InMember):
                 answered = self._in_container(current.owner, value.ok_value.value)

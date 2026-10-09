@@ -1,0 +1,4 @@
+# A key a name computed is no literal, so there is no name to hand over.
+k = "a"
+
+__impl__ = $__keys__ << DictLiteral[(k, 1)]

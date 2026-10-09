@@ -1,4 +1,5 @@
-"""容器：`ListLiteral` / `SetLiteral` / `DictLiteral` 算成值，`$__getitem__` 把元素取出来。
+"""容器：`ListLiteral` / `SetLiteral` / `DictLiteral` 算成值，`$__getitem__` 取元素、
+`$__in__` 问在不在、`$__len__` 数一数、`$__keys__` 取字典的键。
 
 三个字面量构造器站在**实例**那一侧（`viba-style.md` 第 8 节）：`ListLiteral[1, 2]` 是
 `list[int]` 的居民，和 `$x 1 * $y 2` 一样是就地给出的可序列化数据，所以一次运行能把它算成
@@ -56,6 +57,8 @@ def run():
     _what_getitem_takes()
     _what_getitem_refuses()
     _what_in_answers()
+    _what_len_counts()
+    _what_keys_gives()
     _the_index_shorthand()
     _a_container_travels()
 
@@ -176,6 +179,37 @@ def _what_in_answers():
         got = _run(name)
         checks.labelled(got, want,
                         f"{name}: expected a program error saying {want!r}")
+
+
+def _what_len_counts():
+    """`$__len__`：list / set / dict / tuple 都数得出，dict 数的是键；别的不是容器。"""
+    for name, want in (("len_list", 3), ("len_set", 2), ("len_dict", 2),
+                       ("len_tuple", 3), ("len_empty_list", 0),
+                       ("len_empty_dict", 0)):
+        got = _run(name)
+        check(is_ok(got) and value_of(got) == want,
+              f"{name}: expected {want}, got {got!r}")
+
+    for name in ("len_not_container", "len_a_str"):
+        got = _run(name)
+        checks.labelled(got, "counts a list, a set, a tuple or a dict",
+                        f"{name}: expected a program error saying that")
+
+
+def _what_keys_gives():
+    """`$__keys__`：dict 的键，顺序按实现给的；拿到的是一份能寻址的列表。"""
+    got = _run("keys_dict")
+    check(is_ok(got) and value_of(got) == "m",
+          f"keys_dict: the second key of two: {got!r}")
+
+    empty = _run("keys_empty")
+    check(is_ok(empty) and value_of(empty) == 0,
+          f"keys_empty: an empty dict hands over no keys to count: {empty!r}")
+
+    for name, want in (("keys_not_dict", "gives the keys of a dict"),
+                       ("keys_not_literal", "not a literal")):
+        got = _run(name)
+        checks.labelled(got, want, f"{name}: expected a program error saying {want!r}")
 
 
 def _the_index_shorthand():

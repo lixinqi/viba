@@ -1,0 +1,2 @@
+# A leaf is no container, so there is nothing to count.
+__impl__ = $__len__ << 7

@@ -31,6 +31,14 @@ GETITEM_TAG = "$__getitem__"
 # `$__in__` — an element for a list, a set or a tuple, a key for a dict.
 IN_TAG = "$__in__"
 
+# The builtin member that counts a container: `$__len__` — its elements for a
+# list, a set or a tuple, its keys for a dict.
+LEN_TAG = "$__len__"
+
+# The builtin member that gives a dict's keys: `$__keys__`, in the order the
+# implementation keeps them in.
+KEYS_TAG = "$__keys__"
+
 
 def symbol_of(text) -> Optional[str]:
     """The symbol a string in the source spells, or None when it spells none.

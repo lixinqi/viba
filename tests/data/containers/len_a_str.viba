@@ -1,0 +1,2 @@
+# A string is no container either: `len_str` is the one that counts it.
+__impl__ = $__len__ << "viba"

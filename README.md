@@ -214,6 +214,8 @@ Config = $mode "fast" * $threads 42 * $ratio 3.14
 Items = $items list[int]
 first = items[0]                     # the shorthand of `$__getitem__ << items << 0`
 there = $__in__ << items << 3
+how_many = $__len__ << items         # elements; a dict is counted by its keys
+keys = $__keys__ << DictLiteral[("k", "v")]   # a dict's keys, as a list[str]
 pair = ListLiteral[1, 2] * DictLiteral[("k", "v")]
 
 # Code block

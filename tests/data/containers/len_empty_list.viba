@@ -1,0 +1,2 @@
+# The empty list has nothing in it.
+__impl__ = $__len__ << ListLiteral[]

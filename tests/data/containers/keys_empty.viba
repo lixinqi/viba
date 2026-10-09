@@ -1,0 +1,2 @@
+# An empty dict hands over no keys, so there are none to count.
+__impl__ = $__len__ << ($__keys__ << DictLiteral[])

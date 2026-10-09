@@ -174,6 +174,13 @@ Nested = $nested list[dict[str, int]]
 - **问在不在用 `$__in__`**：`$__in__ << xs << 3` 问元素在不在（list / set / tuple），
   `$__in__ << table << "k"` 问键在不在（dict）。答的是 `bool`；被问的不是容器、或者给 dict 的不是
   一个字符串键，都是程序错。
+- **数一数用 `$__len__`**：`$__len__ << xs` 给元素个数（list / set / tuple），
+  `$__len__ << table` 给键数（dict）。答的是 `int`；数的不是容器就是程序错，字符串要数用 `len_str`。
+- **取字典的键用 `$__keys__`**：`$__keys__ << table` 给键组成的一份 `list[str]`，顺序由实现定，
+  所以能接着 `$__getitem__` 取、能 `$__len__` 数。不是 dict、或者键不是字面量，都是程序错。
+- **走一遍是自己搭的**：语言里没有循环，枚举一个序列是 `$__len__` 加 `$__getitem__`、
+  取 dict 的值是 `$__keys__` 加 `$__getitem__`，配起来从头走到尾（`Y` 递归，
+  [`viba-interpreter.md`](viba-interpreter.md)）。
 - **可以任意嵌套**：`list[dict[str, int]]`、`dict[str, list[$x int]]`。
 - **这三个名字（连 `ListLiteral` / `SetLiteral` / `DictLiteral`）不能拿来定义**：定义名和泛型形参
   里出现它们，解析器当场拒。它们出现在类型表达式里是「这个容器的居民」，出现在值的位置上是那个容器。

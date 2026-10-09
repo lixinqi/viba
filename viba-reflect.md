@@ -277,7 +277,7 @@ root.by_tag('counter').at_key('value').leaf()
 - `is_list` / `is_set` / `is_dict` 只看**源码里的链头**：描述符的链头是 `list[...]` 才是 `list`；如果这一段是一个名字（`$xs Names`），形态识别不算，要刨到底就顺着 `MemberResolvedDefinition` 一层层问。
 - `len` 对三种容器都成立：`list` / `set` / tuple 给元素个数，`dict` 给键数；不是容器就是 `VibaProgramErr`。
 - `keys` 只对 `dict` 成立，给键，顺序由实现定；不是 `dict` 就是 `VibaProgramErr`。
-- 枚举一个序列是 `len` 加 `at_index` 走一遍（`set` 没有固定顺序，从头到尾的顺序由实现定）；取 `dict` 的值是 `keys` 加 `at_key` 走一遍。
+- 枚举一个序列是 `len` 加 `at_index` 走一遍（`set` 没有固定顺序，从头到尾的顺序由实现定）；取 `dict` 的值是 `keys` 加 `at_key` 走一遍。语言那一侧的同名成员是 `$__len__` 与 `$__keys__`（[`viba-style.md`](viba-style.md) 第 8 节）。
 
 **`VibaProgramErr` 直接抛异常**：第 5.1 节的接口返回 `Result[...]`，链式用法里每一步都判一次 `Ok` 太啰嗦。便捷函数只在 `Ok(v)` 时给出 `v`；一旦拿到的不是 `Ok(.)`（也就是 `VibaProgramErr`），直接抛异常，把 `VibaProgramErr` 的那句话带出去。所以链上不会出现 `Result`——异常会打断整条链，这也是链式用法的代价。要自己处理失败，就用第 5.1 节的接口逐层判。
 
