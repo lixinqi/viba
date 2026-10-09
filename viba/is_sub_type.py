@@ -4,9 +4,11 @@ Consumes Type values only (viba.type); nothing above the type level is
 visible here.
 
 Ok(True/False) is the judgment. VibaProgramErr reports malformed input, never a
-judgment: ellipsis (...) anywhere on either side -> VibaProgramErr (an open type
-has no judgment), and a product that gives the same tag twice ->
-VibaProgramErr.
+judgment: a product that gives the same tag twice -> VibaProgramErr, and so are
+the other malformations named below. `...` is judged like any type: on the sup
+side it is the rest marker, whose residents are a tagged type and a product type
+(and a sum whose branches all are); on the sub side an open type fits an open
+type and `Any`, and nothing else.
 
 Semantics (per design): there are no nominal types — a name is an
 alias of its source form, and judgment is structural throughout.
@@ -145,9 +147,6 @@ def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> R
     name does keep its position (it is the nil of the product, and nil is a
     real slot in a tuple). Nothing named, nothing bypassed.
     """
-    err = _input_error(sub, sup)
-    if err is not None:
-        return VibaProgramErr(err)
     try:
         return Ok(_Checker(terminators, config).check(sub, sup))
     except UnresolvedTypeError as exc:
@@ -158,17 +157,6 @@ def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> R
         return VibaProgramErr(str(exc))
     except InlineCycleError as exc:
         return VibaProgramErr(str(exc))
-
-
-def _input_error(sub: Type, sup: Type):
-    """Ellipsis anywhere is malformed input, not a judgment."""
-    for label, side in (("sub", sub), ("sup", sup)):
-        if not isinstance(side, AstNodeType):
-            continue
-        nodes = viba_ast.walk(side.ast_node)
-        if any(isinstance(n, viba_ast.Ellipsis) for n in nodes):
-            return f"ellipsis is not allowed on the {label} side"
-    return None
 
 
 # The units in the source a config can name: shared, so a substituted unit keeps
@@ -495,6 +483,16 @@ class _Checker:
             # product whose other members are units, and nothing else - the
             # ordinary walk already says so.
             return True
+        # `...` is an open type. On the sup side it is the rest marker — what a
+        # call has left to give — and a tagged type and a product type are its
+        # residents. An open type on the sub side is a resident of an open type
+        # (and of `Any`, just above): a sum or a tagged slot is left to the
+        # ordinary walk, which reaches the open type under it.
+        if isinstance(sn, viba_ast.Ellipsis) and not isinstance(
+                sp, (*_SUM_NODES, viba_ast.Tagged)):
+            return isinstance(sp, viba_ast.Ellipsis)
+        if isinstance(sp, viba_ast.Ellipsis):
+            return self._walk_rest(sn, s_mod)
         if isinstance(sp, (viba_ast.Nil, viba_ast.Never)):
             # Leaf on leaf: a name in the source (a generic parameter too) must be recognized;
             # names are transparent.
@@ -936,6 +934,21 @@ class _Checker:
         if isinstance(sn, _SUM_NODES):
             return self._all_branches(sn, s_mod, sp, p_mod)
         return self._any_branch(sn, s_mod, sp, p_mod)
+
+    def _walk_rest(self, sn, s_mod) -> bool:
+        """`...`, the rest of the arguments, taken as a supertype.
+
+        What a call has left to give is a tagged member, or a product of them, so
+        both are residents of the marker — and the marker itself, and a sum whose
+        branches all are. Anything else is no resident: `...` is not the top, and
+        a plain `int` is not something a call hands over as "the rest".
+        """
+        if isinstance(sn, (viba_ast.Ellipsis, viba_ast.Tagged,
+                           viba_ast.Product, viba_ast.ProductChain)):
+            return True
+        if isinstance(sn, _SUM_NODES):
+            return all(self._walk_rest(branch, s_mod) for branch in _flatten_sum(sn))
+        return False
 
     def _walk_tagged(self, sn, s_mod, sp, p_mod) -> bool:
         if isinstance(sn, _PROD_NODES):

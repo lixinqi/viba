@@ -22,8 +22,8 @@
 021 false
 022 false
 023 false
-024 error  # ellipsis anywhere is a lint Err now
-025 error  # sup is ellipsis -> lint Err
+024 false  # a literal is no resident of the rest marker
+025 false  # a plain type is no resident of the rest marker
 026 false
 027 false  # $arg0 pairs with $arg0: str is no function, so no
 028 false
@@ -71,7 +71,7 @@
 070 true
 071 error  # one product may not have the same tag twice
 072 true  # nil is the unit of product: nil * A == A
-073 error  # mid-sum ellipsis is a lint Err now
+073 true  # a tagged member is a resident of the rest branch
 074 true
 075 true
 076 true
@@ -124,3 +124,7 @@
 123 error  # a three-definition ring, tags all different
 124 true  # the same type with the chain ending is fine
 125 error  # the untagged member need not be first
+126 true  # a tagged type is a resident of the rest marker
+127 true  # a product type is a resident of the rest marker
+128 true  # a sum whose branches all are is one too
+129 true  # an open type is a resident of an open type

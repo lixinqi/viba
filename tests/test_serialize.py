@@ -496,8 +496,6 @@ def run_more_gap_cases():
     _gap("gap: never inside a container", "Box = Object * $a list[never]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral", [viba_ast.Never()]))),
          "nothing resides in never")
-    _gap("gap: a negative int", "Box = Object * $i int\n", "Box",
-         _product(_tagged("$i", viba_ast.Constant(-1))), "no literal for this number")
     _gap("gap: a float with an exponent", "Box = Object * $f float\n", "Box",
          _product(_tagged("$f", viba_ast.Constant(1e30))), "no literal for this number")
     _gap("gap: a float that is not a number", "Box = Object * $f float\n", "Box",
@@ -561,12 +559,12 @@ _STRINGS = [
     "(A, B)", "}", "{", "#", "|", "*", "<-", "=", "a'''b", "'''",
     "ab'\ncd", "ab'\n", "a''\nb", "x" * 200, "中\n文",
 ]
-_INTS = [0, 1, 7, 42, 10 ** 9, 2 ** 63, 10 ** 40, 123456789012345678901234567890]
+_INTS = [0, 1, 7, 42, 10 ** 9, 2 ** 63, 10 ** 40, 123456789012345678901234567890,
+         -1, -7, -(10 ** 20)]
 _FLOATS = [0.0, 0.5, 1.0, 2.0, 0.1, 0.0001, 3.141592653589793, 100.0, 1e15,
-           123456.789, 1e-3]
-# 语言里没有源码形式的：没有负号，也没有指数；nan / inf 更不是数。
-_UNSPELLABLE_NUMBERS = [-1, -(10 ** 20), -0.5, -0.0, 1e30, 1e16, 1e-5,
-                        float("inf"), float("-inf"), float("nan")]
+           123456.789, 1e-3, -0.5, -0.0]
+# 语言里没有源码形式的：指数（nan / inf 更不是数）。负号是字面量的一部分。
+_UNSPELLABLE_NUMBERS = [1e30, 1e16, 1e-5, float("inf"), float("-inf"), float("nan")]
 # 三种引号都占上了的文本（跨行的还带上 '''），没有一个字面量装得下。
 _UNSPELLABLE_STRINGS = ["a'''b\nc", "'''\n'''", "a'''b\"c'd"]
 

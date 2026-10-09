@@ -133,7 +133,7 @@ MALFORMED = {
 # 连词法都过不去的源：先报编译不了，轮不到 tag 与内联
 LEXICAL = {
     "an illegal character": "Box = A @ B\n",
-    "a minus sign": "Box = -1\n",
+    "a minus with no number after it": "Box = -A\n",
     "an unterminated code block": "Box = {never closed\n",
     "a builtin container as a definition": "list = int\n",
     "a builtin literal as a parameter": "W[ListLiteral] = int\n",

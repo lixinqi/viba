@@ -1,0 +1,50 @@
+# if — the branch the condition picks, and only that one.
+#
+# `if << $env … << $cond condition << $t (…) << $f (…)` is if/else. Its two
+# branches are function-typed slots, so the call stands where it is and is not
+# run there: each one goes to the switch that is taken, and that switch runs it
+# in a child environment of its own. The switch that is not taken answers
+# `never`, and the sum drops it (`never | a = a`), so what is left is the branch
+# the condition picked — and only that branch's call was ever run. That is
+# why this is the sum of the two switches and not a call to one of them: the sum
+# is what decides which branch survives.
+#
+# The two switches are builtin operators (`builtin.echo_or_never`,
+# `builtin.never_or_echo`, viba/builtin.viba), so this file needs no import, and
+# neither do the modules that call it.
+#
+# A branch is the call it stands for, still owing its environment: a step of
+# another file (`counters.tick`), a call that has not been given one yet, or a
+# value already worked out, handed out with `builtin.echo`. A branch that gives
+# its environment itself is a call that runs right there, so that side runs
+# whatever the condition says.
+#
+# Several steps — or a value that must not be computed yet — are a `sequential`
+# chain. This language has no `block` and no `lambda: value`; `sequential` does
+# both jobs: its steps are calls that still owe their environment, so the block
+# runs when, and only when, the switch hands it one.
+#
+#     block =
+#         sequential
+#       << $n (counters.add_to << $x 40)
+#       << (builtin.echo << $x ($var "n"))
+#
+# The environment is a parameter: giving it is what runs this call, and every
+# module call gets a sub-environment of its own
+# (`args.env.sub_env << args.env << "if"`), so two if/else at one place answer
+# two different layers. The two switches are given this call's own environment,
+# and the branch they run is a child of it.
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $cond bool
+  <- $t (Any <- $env Env)
+  <- $f (Any <- $env Env)
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    Oneof
+  | (echo_or_never << $env args.env << $cond args.cond << $get_v args.t)
+  | (never_or_echo << $env args.env << $cond args.cond << $get_v args.f)

@@ -1,0 +1,21 @@
+# The same block on the side the condition did not pick: its steps are calls
+# still owing their environment, so not one of them runs.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+block =
+    sequential
+  << $n (counters.add_to << $x 40)
+  << (builtin.echo << $x ($var "n"))
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond false
+  << $t block
+  << $f (builtin.echo << $x 7)

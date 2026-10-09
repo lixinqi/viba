@@ -352,7 +352,8 @@ print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
   turns a value already worked out into that form: it answers `v` for any
   environment.
 - `builtin` ([`viba/builtin.viba`](viba/builtin.viba)) is the one vocabulary every module
-  can reach without an import: `Environment` / `Env`, `builtin.echo`, and the builtin
+  can reach without an import: `Environment` / `Env`, `builtin.echo`, the two switches
+  `builtin.echo_or_never` / `builtin.never_or_echo`, and the builtin
   operators — arithmetic, comparison and logic over `int`, `float`, `str` and `bool`,
   plus the conversions between those types. The host is asked for an operator under its
   qualified name (`builtin.add`, `builtin.lt_f`, `builtin.int_to_str`); the member's own
@@ -361,8 +362,12 @@ print(exec(access.leaf(answer.by_tag("$ok")).ok_value, environ))
 - The modules and generics of the builtin library are taken by name too, after a
   module's own definitions and its imports: `Y << step`, `apply << f << args`,
   `sub_env_run << $sub_env_name "low" << env << f << $a 1`,
+  `if << $env … << $cond c << $t (…) << $f (…)`,
   `is_closure[add << $a 1].value` and `sequential << $x (…) << $y (…)` need no
-  import, and `builtin.<name>` names the same one. `sequential` runs a chain of
+  import, and `builtin.<name>` names the same one. `if` is if/else: the condition picks
+  the branch, and the other branch's call is never computed — the two switches make the
+  sum it is built from ([`viba/if.viba`](viba/if.viba), and the chapter on branches in
+  [`viba-interpreter.md`](viba-interpreter.md)). `sequential` runs a chain of
   steps strictly in the order they stand and answers what the last one
   answers: every step is a call given after a `<<`, every step but the last
   carries a tag (the call runs, and its answer is remembered under that tag), and
@@ -455,33 +460,21 @@ or without an `import`.
 ### Deep recursion: the stack becomes a work list
 
 A module call is handed an environment of its own (`sub_env`, `tmp_env`), so the
-parent chain an environment belongs to (`get_parent`) grows one link per call that
-is still running — **that chain is the interpreter's own stack**. `Y` calls one layer
-from the next, so a deep recursion grows it without end, and the interpreter's own
-Python stack would go with it. `y_helper.viba` therefore asks for a compaction point
-before its body:
+environment chain an environment belongs to (`get_parent`) grows one link per call
+that is still running — that chain is the interpreter's own stack, so a deep
+recursion grows it without end. Past the limit, `y_helper.viba` asks the
+interpreter to turn that stack into a work list:
 
 ```viba
 env = $try_compact << args.env << 32
 ```
 
-`$try_compact << env << n` answers the environment it was given, and does nothing while
-the chain has `n` links or fewer. What it compacts is the chain the interpreter is
-inside, so `env` has to be one of the calls running now: an environment the interpreter
-is not inside (the layer a lookup answered, one an older call was handed) names a chain
-that is not on the system stack at all, and it comes straight back. Naming it is also what puts it in order: a definition
-is computed when the piece that wants it is, and the definitions below that line use the
-name (`env.find_by_relative_path << …`, `$compress_env_path << … << env`), so the
-compaction point is computed before anything runs at that layer. Past the limit the
-calls running now are handed out and the run's own call makes them one at a time from
-its work list. Each of them is a data path and the call that runs there
-(`viba/resumable.viba`), and the environment is taken back from that path — the same
-storage, one link below the root of the chain, because the segments of a path are the
-data path and no call (so a thirty-segment path is one layer, not thirty). A call that
-already answered is not
-made again: its answer is kept under the data path it ran at, so a replayed module body
-stops where the recursion is already answered. A caller of the member past the limit
-outside a run is told there is no run instead.
+`$try_compact << env << n` answers the environment it was given. The limit is the
+number it takes, given by viba (32 here) rather than by the interpreter; what
+compaction changes is only where those calls are made, not what they answer
+([`viba-interpreter.md`](viba-interpreter.md), and
+[`tests/test_interpreter_compaction.py`](tests/test_interpreter_compaction.py) for
+the details and the numbers).
 
 ### Idempotence: answers have to replay
 
@@ -578,7 +571,8 @@ tools built on those.
 | `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
 | `is_complete.py` | Whether a type can be reflected through |
 | `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
-| `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …) |
+| `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …), the two switches `builtin.echo_or_never` / `builtin.never_or_echo` among them |
+| `if.viba` | The builtin if/else: the condition picks the branch, and only that branch's call is computed — the sum of the two switches |
 | `sub_env_run.viba` | The builtin that runs a call at a named child of an environment — `Y.viba` and `apply.viba` sit beside it |
 | `resumable.viba` | The work list a too-deep chain of environments is turned into: one task per call running now, its data path and the call |
 | `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), each named by the count it takes, and the last step's answer is the answer |

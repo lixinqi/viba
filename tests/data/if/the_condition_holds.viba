@@ -1,0 +1,16 @@
+# The condition holds: the first side is the one that runs, and it runs under the
+# switch that took it — a child of the layer this call was given.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond true
+  << $t (counters.tick)
+  << $f (counters.tock)

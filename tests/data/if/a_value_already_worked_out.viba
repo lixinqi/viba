@@ -1,0 +1,16 @@
+# A value already worked out is handed out with `builtin.echo`: that is the
+# function of the environment the switch runs when it takes this side.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond true
+  << $t (builtin.echo << $x 9)
+  << $f (counters.tock)

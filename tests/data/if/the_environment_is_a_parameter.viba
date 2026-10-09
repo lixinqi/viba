@@ -1,0 +1,16 @@
+# An `if` is a module call, and the environment is one of its parameters: the
+# layer it runs at has to be one of its own, not the layer this file runs at.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env args.env
+  << $cond true
+  << $t (counters.tick)
+  << $f (counters.tock)

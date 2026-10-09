@@ -1,0 +1,10 @@
+# 负数实参是一个字面量：它跟着这次调用一起，落进 `args` 那份积里（这里 5 的符号看得见：
+# 少一个负号就是 8，不是 -2）。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import add_module
+__impl__ = add_module << (args.env.tmp_env << args.env) << -5 << 3

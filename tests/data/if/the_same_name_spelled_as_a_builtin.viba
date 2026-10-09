@@ -1,0 +1,16 @@
+# The other spelling of the same name: it is the module of the builtin
+# directory, so `builtin.if` and `if` are the same one.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    builtin.if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond true
+  << $t (counters.tick)
+  << $f (counters.tock)

@@ -303,8 +303,8 @@ def _bad_sources(tmp: Path):
     labelled(interpret(_case("bad_import"), environ), "cannot parse",
              "an imported module that does not compile -> $viba_program_err")
 
-    # 词法上就没有这个词：'-' 不能被悄悄跳过，否则 -5 会跑成 5
-    result = interpret(_case("negative"), environ)
+    # 词法上就没有这个词：`-` 后面不是数字时不能被悄悄跳过（数字前面的 `-` 是字面量的一部分）
+    result = interpret(_case("minus_without_a_number"), environ)
     check(stop_tag(result) == PROGRAM_ERR_TAG and "cannot parse" in message_of(result)
           and "illegal character" in message_of(result),
           f"a character with no token of its own -> $viba_program_err: {result!r}")

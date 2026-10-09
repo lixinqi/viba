@@ -1,0 +1,6 @@
+# The condition as a call of its own, not a literal in the case file.
+true_gate =
+    bool <- $env Env <- { true }
+
+false_gate =
+    bool <- $env Env <- { false }

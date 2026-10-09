@@ -1,0 +1,17 @@
+# The condition is a call of another file: the condition's slot is an ordinary
+# one, so that call runs here, before the branch is chosen.
+import counters
+import gate
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond (gate.true_gate << $env args.env)
+  << $t (counters.tick)
+  << $f (counters.tock)

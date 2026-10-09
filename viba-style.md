@@ -230,12 +230,21 @@ Distance =
   标量 `bool` / `int` / `float` / `str`、容器名 `list` / `set` / `dict`，以及 `builtin` 的成员。
   所以 `Environment` / `Env` 和 `builtin.echo` 都不需要任何 import。
 - **内建库里的模块与泛型，名字也一样可见。** `viba/` 里 `builtin.viba` 旁边那几个模块
-  （`Y.viba`、`apply.viba`、`sub_env_run.viba`、`sequential.viba`），以及 `viba/builtin/` 下的那些泛型
+  （`Y.viba`、`apply.viba`、`sub_env_run.viba`、`sequential.viba`、`if.viba`），以及
+  `viba/builtin/` 下的那些泛型
   （`is_closure/`、`unclosure/`、`sequential_step/`、`sequential_arg/`）对每个模块
   可见，优先级同样最低（自己模块的同名定义、import 优先）：用 `Y << step << …`、
   `apply << f << args`、`sub_env_run << $sub_env_name "low" << env << f << …`、
+  `if << $env … << $cond c << $t (…) << $f (…)`、
   `is_closure[add << $a 1].value`、`sequential << $x (…) << $y (…)` 都不用 import，
   带前缀的 `builtin.sub_env_run` 与 `builtin.is_closure` 叫的是同一个。用 `import` 也照旧。
+- **分支用 `if`。** 条件挑哪一支是运行时的事，所以分支是运行时的一个和，不是提示：`if` 收一个
+  条件与两支（两支都是函数类型的参数），只有条件挑中的那一支被跑过（见
+  [`viba-interpreter.md`](viba-interpreter.md) 的「分支：用积选择，用和汇合」）。一支是别的文件里
+  的一个步骤、一次还没给环境的调用、或者用 `builtin.echo` 包好的值；一支要好几步，就把它包成一条
+  `sequential` 链 —— viba 没有 `block`，也没有 `lambda: value`，`sequential` 起的就是这两件事的
+  作用，链上那几步在开关给它环境的时候才跑。自己拼两个开关的和只在
+  一支要一直活着、或者要把好几支并起来时才有用。
 - **`builtin` 的成员是内建算子，两种源码形式是同一次调用。** `builtin.add << $env args.env << $x 3 << $y 4`
   和 `add << $env args.env << $x 3 << $y 4` 叫的是同一个成员：带前缀的是它的全名，不带前缀的那个
   是它对每个模块可见的短名字。每个成员一张签名，实现跟别的函数一样在宿主手里 —— `get_func` 收到的
@@ -347,4 +356,5 @@ Lookup =
 - [ ] 这个概念是问题域真实的，还是我臆测的？别名有没有装作它能阻止错填？
 - [ ] 有没有死参数（`$env` 除外）？
 - [ ] 可能会用不上的那个实参，那个参数用函数类型了吗？别的实参有没有被顺手也标上？
+- [ ] 有分支的地方用了 `if` 吗（而不是自己拼两个开关的和）？
 - [ ] 函数名、提示、实现说的是不是同一件事？

@@ -1,0 +1,22 @@
+# A block of two steps: the second one is given what the first remembered, and
+# the block is the answer the taken side gives.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+block =
+    sequential
+  << $n (counters.add_to << $x 40)
+  << $m (counters.add_step << $x ($var "n"))
+  << (builtin.echo << $x ($var "m"))
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond true
+  << $t block
+  << $f (builtin.echo << $x 7)

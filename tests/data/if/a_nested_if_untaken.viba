@@ -1,0 +1,16 @@
+# The other way round: the outer condition picks its second side, so the nested
+# if/else never runs at all.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.tmp_env << args.env)
+  << $cond false
+  << $t (if << $cond true << $t (counters.tick) << $f (counters.tock))
+  << $f (counters.tock)

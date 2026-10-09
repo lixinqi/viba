@@ -1,0 +1,12 @@
+# One answer of each kind, in a file of its own, and a step nothing implements.
+answer_int =
+    int <- $env Env <- { 7 }
+
+answer_text =
+    str <- $env Env <- { "kept" }
+
+answer_never =
+    never <- $env Env <- { never }
+
+no_implementation =
+    int <- $env Env <- { nothing implements this }

@@ -156,10 +156,18 @@ def run_design_review():
 def run_py_side_cases():
     """What data files cannot express: judgments made in code, env behavior."""
     check_result(is_sub_type(entry_type("42"), entry_type("int")), True, "42 <: int")
-    sup_ellipsis = is_sub_type(entry_type("42"), entry_type("..."))
-    check_result(sup_ellipsis, "error", "ellipsis on sup side -> VibaProgramErr")
-    sub_ellipsis = is_sub_type(entry_type("..."), entry_type("int"))
-    check_result(sub_ellipsis, "error", "ellipsis on sub side -> VibaProgramErr")
+    # `...` is the rest marker: a tagged type and a product type are its
+    # residents, and a plain type is none.
+    check_result(is_sub_type(entry_type("$n 39"), entry_type("...")), True,
+                 "a tagged type is a resident of ...")
+    check_result(is_sub_type(entry_type("$a 1 * $b 2"), entry_type("...")), True,
+                 "a product type is a resident of ...")
+    check_result(is_sub_type(entry_type("int"), entry_type("...")), False,
+                 "a plain type is no resident of ...")
+    check_result(is_sub_type(entry_type("..."), entry_type("...")), True,
+                 "an open type is a resident of an open type")
+    check_result(is_sub_type(entry_type("..."), entry_type("int")), False,
+                 "an open type is no resident of a plain type")
 
 
 def _err_env(name):

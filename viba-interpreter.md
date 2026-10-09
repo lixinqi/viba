@@ -111,14 +111,17 @@ __impl__ =
 - **`{...}` 只给提示，不给实现**：提示只说这一步要实现什么，逻辑要另外补上，落成函数再交到
   `get_func` 上（见「宿主侧：Environment」）。viba 一个函数都不带。
 - **内建算子就是这样的几个成员**：`viba/builtin.viba` 里 `builtin` 的成员（`$add`、`$lt`、
-  `$concat`……），每个一张签名，实现在宿主手里。`builtin.add << …` 与 `add << …` 是同一次调用，
+  `$concat`、`$echo_or_never`……），每个一张签名，实现在宿主手里。`builtin.add << …` 与
+  `add << …` 是同一次调用，
   宿主拿到的名字都是 `builtin.add`；自己模块里同名定义优先，所以它排在任何别的名字之后
   （[`viba-style.md`](viba-style.md) 第 11 节）。
 - **内建库里的模块与泛型，也照样按名字取**：`viba/` 里 `builtin.viba` 旁边那几个模块（`Y.viba`、
-  `apply.viba`、`sub_env_run.viba`、`sequential.viba`），以及 `viba/builtin/` 下的那几个泛型
+  `apply.viba`、`sub_env_run.viba`、`sequential.viba`、`if.viba`），以及 `viba/builtin/` 下的那几个
+  泛型
   （`is_closure/`、`unclosure/`、`sequential_impl` 用的 `sequential_step/`、`sequential_arg/`）
   都不需要 import，带的那个前缀（`builtin.sub_env_run`、`builtin.is_closure`）
-  叫的是同一个。`sub_env_run` 是其中的一个：给它的环境取那个名字的
+  叫的是同一个。`if` 就是其中的一个：条件挑中的那一支才算、另一支的调用不求值，它由那两个开关
+  组成（见「分支：用积选择，用和汇合」）。`sub_env_run` 给它的环境取那个名字的
   孩子，链上剩下的实参交给那次调用（[`viba/sub_env_run.viba`](viba/sub_env_run.viba)）。
   `is_closure` 与 `unclosure` 是那两个泛型：前者问一份源码里的东西是不是闭包（有实参、没给环境
   的调用），后者把闭包拆成 `f`（那条 api）与 `captured`（收下的那份积）。调用模式一个 `<<` 对一个
@@ -251,7 +254,9 @@ __impl__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
   `Y << step << ($sub_env << args.env << "Y") << $a 7 << $b 0` 里 `Y` 的 `$args ...` 收到的是
   `$a 7 * $b 0`（`args.args` 取回它）。用 `Any` 的参数不打包：它要的是一份已经给出的积，`apply
   << f << ($a 1 * $b 2)` 就是；落成两条 `<<`（`apply << f << $a 1 << $b 2`）是"多给"，当场报错。
-  `...` 那个参数按惯例放在最后，它前面的那些参数照旧按位置或按 tag 给。
+  `...` 那个参数按惯例放在最后，它前面的那些参数照旧按位置或按 tag 给。判定层拿 `...` 当它的**类型**：
+  带 tag 的一个成员（`$a 7`）与一份积（`$a 7 * $b 0`）都是它的居民，别的不是
+  （`viba/is_sub_type.py`）——所以一个还欠着环境的调用，把它那一步当作 `...` 来给，判定层也认。
 - **环境不进门时它随结果往后走**：没有 `$env Env` 的模块，环境只用来跑这次调用；这次调用返回的那次
   调用还欠着环境，它就被缀在那里。`apply << f << args << env` 是现成的例子：`apply` 收下函数与积、跑出
   `apply_impl[...] << args.f << args.args`，环境缀上去；`apply_impl` 那一支再跑出 `f << $a 1 << $b 2`，
@@ -359,17 +364,17 @@ tag 本身**不是值**：`method = $sub_env` 编不过，标签只有出现在�
 第一个参数必须给出来——它是取成员的那一个，省略了就成了一次没有成员的调用。第一个参数是别的值
 也一样：`$tag` 命中的是它的成员，不在就报错。
 
-### 链上的成员：父级、根、相对路径、找回来、压数据路径
+### 环境链上的成员：父级、根、相对路径、找回来、压数据路径
 
-子环境是由 `sub_env`/`tmp_env` 从父级造出来的，它记着那个父级，所以一条链能从任意一层往上走。
-这些成员把这条链取出来（见「调用别的模块」）：
+子环境是由 `sub_env`/`tmp_env` 从父级造出来的，它记着那个父级，所以造出来的这些环境一个接一个往上
+接成一条**环境链**，从任意一层都能往上走。这些成员把这条环境链取出来（见「调用别的模块」）：
 
-- **`$get_parent << args.env`**：造这一层出来的那一层（`sub_env`/`tmp_env` 给的那一个）。链顶没有
-  父级，交出来就是 `nil`。**这条链就是解释器自己的栈**：一次还在跑的模块调用占一个环，跟着它往上走
-  能走到这次运行最外面那一次调用（见「栈太长时：把系统栈变成工作清单」）。
-- **`$get_root << args.env`**：这一层那条链的根（没有父级的那个环境）。`nil` 进 `nil` 出。
+- **`$get_parent << args.env`**：造这一层出来的那一层（`sub_env`/`tmp_env` 给的那一个）。环境链的顶
+  没有父级，交出来就是 `nil`。**这条环境链就是解释器自己的栈**：一次还在跑的模块调用占一个环，跟着
+  它往上走能走到这次运行最外面那一次调用（见「栈太长时：把系统栈变成工作清单」）。
+- **`$get_root << args.env`**：这一层所在那条环境链的根（没有父级的那个环境）。`nil` 进 `nil` 出。
 - **`$get_relative_path << args.env << <root>`**：这一层的数据路径从那个根往下取出来的那一段 ——
-  `root/a/b` 从 `root/a` 看是 `"b"`，根看自己是 `""`。`$root` 给 `nil` 就用这条链自己的根；
+  `root/a/b` 从 `root/a` 看是 `"b"`，根看自己是 `""`。`$root` 给 `nil` 就用这条环境链自己的根；
   给的根不是它的祖先就当场报错。
 - **`$find_by_relative_path`**：反过来，从一份根按相对路径走下来。路径里每一段都是一个目录名
   （`.`、`..` 不是），`""` 就是那份根本身。它的源码形式是点号那一种，`root` 给 `nil` 时从**取到这个
@@ -381,19 +386,19 @@ tag 本身**不是值**：`method = $sub_env` 编不过，标签只有出现在�
   ```
 
   落成 `$find_by_relative_path << args.env << "a/b"` 会把那个环境放到相对路径的位置上：报错，
-  话里给出正确的源码形式。**走出来的是"一层"，不是一条链**：那些段说的是它的数据路径，不是调用，
-  它的父级就是你从哪一层往下找的那一层（`root` 给 `nil` 时就是取到这个成员的那个环境）。三十段的
-  路径给出来也是一层；`get_relative_path` 照样报出那三十段，因为它走的是数据路径。
+  话里给出正确的源码形式。**走出来的是"一层"，不是一条环境链**：那些段说的是它的数据路径，不是
+  调用，它的父级就是你从哪一层往下找的那一层（`root` 给 `nil` 时就是取到这个成员的那个环境）。三十段
+  的路径给出来也是一层；`get_relative_path` 照样报出那三十段，因为它走的是数据路径。
 - **`$compress_env_path << <sup> << <sub>`**：把 `sub` 的数据路径压成 `sup` 旁边的一个名字，
   形式是 `{sup 的路径}_{sha1(sub 的路径)}`（后面那 40 位是十六进制）。`sup` 的路径必须是 `sub`
   的路径的前缀，而且落在名字边界上（`<sup>/…` 或者已经压过的 `<sup>_…`）；压出来的数据路径长度只跟
   `sup` 的名字有关，跟 `sub` 有多深无关 —— 递归里每层的数据路径因此不
   会越接越长。它不是 `sub_env`：不往下一层走，而是在 `sup` 所在的那个目录里放一个扁平的名字。
   压掉的那个原数据路径记在返回值的 `uncompress_relative_path` 上；同一个 `sup` 与 `sub` 给同一个
-  数据路径。`sup` 自己的名字所在的目录里没有地方可放（`sup` 是链根）时，当场报错。**压的只是
-  数据路径**：名字放在 `sup` 自己的名字所在的目录里（`sup.storage.parent`，数据路径自己那条往上
-  的路），而走出来那个环境的父级是 `sub`（它站的那一层）—— 链是 `sub_env` 那样的调用形成的，
-  压缩既不从链上拿走一个环，也不看链。
+  数据路径。`sup` 自己的名字所在的目录里没有地方可放（`sup` 是那条环境链的根）时，当场报错。**压的
+  只是数据路径**：名字放在 `sup` 自己的名字所在的目录里（`sup.storage.parent`，数据路径自己那条往上
+  的路），而走出来那个环境的父级是 `sub`（它站的那一层）—— 环境链是 `sub_env` 那样的调用形成的，
+  压缩既不从环境链上拿走一个环，也不看环境链。
 - **`$uncompress_relative_path << args.env`**（也落成 `args.env.uncompress_relative_path`）：
   压过数据路径的那一层记着它压掉的原数据路径；别的环境上是 `nil`。它是一个**值成员**，不带参数。
 
@@ -437,20 +442,20 @@ Environment(storage, compute, viba_path=None, parent=None,
 ```
 
 两处 `parent` 是两件事。**`Environment` 的 `parent` 是造它出来的那个环境**（`sub_env`/`tmp_env`
-会填上，宿主自己 `Environment(...)` 造出来的就是 `None`，那它自己就是一条链的根）—— 链上那些成员
-取的就是它。**`EnvironmentStorage` 的 `parent` 是它自己的名字坐在哪个目录里**（`sub` 填上），是
-数据路径自己那条往上的路：`compress_env_path` 把一个名字放到 `sup` 旁边时用的是它，不碰链。
+会填上，宿主自己 `Environment(...)` 造出来的就是 `None`，那它自己就是一条环境链的根）—— 环境链上那些
+成员取的就是它。**`EnvironmentStorage` 的 `parent` 是它自己的名字坐在哪个目录里**（`sub` 填上），是
+数据路径自己那条往上的路：`compress_env_path` 把一个名字放到 `sup` 旁边时用的是它，不碰环境链。
 
-链上那些成员在宿主侧就是 `viba.interpret` 里几个普通函数：
+环境链上那些成员在宿主侧就是 `viba.interpret` 里几个普通函数：
 
 ```python
-get_parent(current)                         # 造它出来的那一层；链顶是 None（`nil`）
-get_root(current)                           # 链顶那个环境；None（`nil`）进 None 出
+get_parent(current)                         # 造它出来的那一层；环境链的顶是 None（`nil`）
+get_root(current)                           # 环境链的顶那个环境；None（`nil`）进 None 出
 get_relative_path(current, root)            # 从 root 往下的那一段数据路径
-find_by_relative_path(relative_path, root)  # 从 root 按那一段数据路径走下来（一层，不是一条链）
+find_by_relative_path(relative_path, root)  # 从 root 按那一段数据路径走下来（一层，不是一条环境链）
 compress_env_path(sup, sub)                 # 把 sub 的数据路径压成 sup 旁边 名字_sha1，放在
                                             # sup.storage.parent 里
-env_chain_length(current)                   # 这条链有几个环：`$try_compact` 比的就是它
+env_chain_length(current)                   # 这条环境链有几个环：`$try_compact` 比的就是它
 ```
 
 
@@ -568,9 +573,141 @@ __impl__ = roll << $env args.env << $n 1
 
 ## 分支：用积选择，用和汇合
 
-viba 没有专门的 `if` 语法。分支由积与和组合出来：**积决定某一支是否存在，和把仍然存在的分支汇合起来**。
+这一节分三层：`if` 怎么用、`if` 是怎么搭出来的、这套搭法为什么成立。
 
-解释器只需要归约三个代数恒等式：
+### 怎么用：`if`
+
+`if << $env … << $cond condition << $t (…) << $f (…)` 就是 if/else：条件挑中的那一支跑，另一支
+一次都不跑。`if` 是内建目录里的一份文件（[`viba/if.viba`](viba/if.viba)），按名字取，不用 import；
+`builtin.if` 是同一次调用。
+
+```python
+a = foo()
+if a >= 0:
+    return a
+else:
+    return 0
+```
+
+对应：
+
+```viba
+args = __get_args__ << __decl__
+
+a = foo << $env args.env
+condition = ge << $env args.env << $x a << $y 0
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond condition
+  << $t (builtin.echo << $x a)
+  << $f (builtin.echo << $x 0)
+```
+
+- **一支是"还欠环境的一次调用"**：别的文件里的一个步骤（`counters.tick`）、一次还没有环境的调用，
+  或者用 `builtin.echo` 包好的一个已经算好的值。给了环境就是执行，所以一支**自己不要给环境**：给了，
+  那一支会在条件说话之前就跑掉。
+- **一支要好几步、或者有一个现在还不该算的值，就包成一条 `sequential` 链**：viba 没有 `block`，
+  也没有 `lambda: value`，`sequential` 起的就是这两件事的作用 —— 链上那几步都是还欠环境的调用，整块
+  在开关给它环境的时候才跑，所以走不到的那一支里一步都不跑：
+
+  ```viba
+  block =
+      sequential
+    << $n (counters.add_to << $x 40)
+    << (builtin.echo << $x ($var "n"))
+  ```
+
+  这条链**自己不给环境**（链上不给 `… << args.env` 那一环）：不给，它才是"还没算的一块"
+  （[`tests/data/if/a_side_is_a_block.viba`](tests/data/if/a_side_is_a_block.viba)、
+  [`a_block_of_two_steps.viba`](tests/data/if/a_block_of_two_steps.viba)、
+  [`a_block_in_the_side_that_is_not_taken.viba`](tests/data/if/a_block_in_the_side_that_is_not_taken.viba)）。
+- **`if` 自己是一次模块调用，环境是它的一个参数**：给它的那个层要是它自己的一层
+  （`args.env.sub_env << args.env << "if"`，或者 `args.env.tmp_env << args.env`），它把这一层交给两个
+  开关，开关再给那一支的孩子挂在这一层下面（`…/if/echo_or_never`、`…/if/never_or_echo`）。环境是这次
+  调用链上的一环，给在最后也一样。
+- 条件、值和两支都可以放在别的文件里，用例只给一条链去调它们；一个调用先给一半、剩下的由用例补齐，
+  也是同一个值。
+
+这条路的边角案例在 [`tests/test_interpreter_if.py`](tests/test_interpreter_if.py)：一份用例一个文件
+（[`tests/data/if/`](tests/data/if)），覆盖条件挑中哪一支、走不到的那一支仍然不求值（包括那一支没有
+实现或者会崩，也包括那些用 `sequential` 包成一块的、一步都不跑的一整块）、嵌套的 `if`、取到 `never`
+的答案、环境给成本文件自己那一层会被拒、`builtin.if` 这个拼法，以及那一支跑在哪一层。
+
+### 怎么搭出来的：两个开关组成的一个和
+
+[`viba/if.viba`](viba/if.viba) 通篇就是那两个开关组成的一个和：
+
+```viba
+__decl__ =
+    Any
+  <- $env Env
+  <- $cond bool
+  <- $t (Any <- $env Env)
+  <- $f (Any <- $env Env)
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    Oneof
+  | (echo_or_never << $env args.env << $cond args.cond << $get_v args.t)
+  | (never_or_echo << $env args.env << $cond args.cond << $get_v args.f)
+```
+
+条件成立时第一支给出 `$t` 那一支的值、第二支答 `never`，不成立时反过来，`never | a = a` 把答
+`never` 的那一支剥掉，剩下的就是条件挑中的那一支——也只有那一支的调用被跑过。挑分支的那一步是和的
+归约，所以 `if` 不是"叫其中一个开关"。
+
+那两个开关是内建算子（[`viba/builtin.viba`](viba/builtin.viba) 里 `builtin` 的 `$echo_or_never` 与
+`$never_or_echo`），各一张签名，实现在宿主手里。[`branch.viba`](branch.viba) 与 `branch.py` 有同样
+的一份，讲这件事的时候用那一份：
+
+```viba
+echo_or_never =
+    Any
+  <- $env Env
+  <- $cond bool
+  <- $get_v (Any <- $env Env)
+
+never_or_echo =
+    Any
+  <- $env Env
+  <- $cond bool
+  <- $get_v (Any <- $env Env)
+```
+
+`$get_v` 那个参数的类型是函数类型 `(Any <- $env Env)`（见「环境就是执行」），所以那次实参不在这里算
+—— 宿主叫它的时候才算，在宿主给的那个环境里算。`$get_v` 收到的是一个能带着环境调它自己的东西，所以
+开关叫哪个才算哪个：
+
+```python
+def echo_or_never(env, cond, get_v):
+    if cond.value:
+        return get_v(sub_env(env, "echo_or_never"))
+    return _never()
+```
+
+这两步和其他可执行函数一样由 `EnvironmentCompute` 显式注册。内建的那两个算子问的名字是
+`get_func("builtin", "echo_or_never")`，`branch.py` 的 `get_func` 按名字作答、不看模块名，所以一个
+宿主把它交出去，两种拼法就都认：
+
+```python
+import branch
+
+def get_func(module_path, func_name):
+    return branch.get_func(module_path, func_name)
+```
+
+开关这一层（不带 `if`）的边角案例在
+[`tests/test_interpreter_branch_switch.py`](tests/test_interpreter_branch_switch.py)：一份用例一个
+文件（`tests/data/branch_switch/*.viba`），覆盖开关方向、条件的各种源码形式、每一种值的种类、部分计算、
+别的文件里的开关、副作用次数、走不到那一支里的「没有实现」与失败，以及多个开关并起来的和。
+
+### 为什么成立：积决定存在，和汇合剩下的
+
+viba 没有专门的 `if` **语法**：分支由积与和组合出来，`if` 只是把这两件事摆到一起的那份文件 ——
+**积决定某一支是否存在，和把仍然存在的分支汇合起来**。解释器只需要归约三个代数恒等式：
 
 ```viba
 nil * a = a
@@ -591,83 +728,21 @@ never | a = a
 和里只剩一个非 never 分支时，结果就是该分支；所有分支都是 never 时，结果是 never；
 多个非 never 分支同时存在时，结果保留为和值，不擅自选择其中一支。
 
-`branch.viba` 与 `branch.py` 提供两个开关。它们接收分支值，返回 `Any`；`$get_v` 那个参数的类型是函数类型
-`(Any <- $env Env)`（见「环境就是执行」），所以那次实参不在这里算——宿主叫它的时候才算，
-在宿主给的那个环境里算：
-
-```viba
-echo_or_never =
-    Any
-  <- $env Env
-  <- $cond bool
-  <- $get_v (Any <- $env Env)
-
-never_or_echo =
-    Any
-  <- $env Env
-  <- $cond bool
-  <- $get_v (Any <- $env Env)
-```
-
-`branch.py` 是宿主实现，和其他可执行函数一样由 `EnvironmentCompute` 显式注册：
-
-```python
-import branch
-
-def get_func(module_path, func_name):
-    return branch.get_func(module_path, func_name)
-```
-
-`$get_v` 收到的是一个能带着环境调它自己的东西，所以开关叫哪个才算哪个：
-
-```python
-def echo_or_never(env, cond, get_v):
-    if cond.value:
-        return get_v(sub_env(env, "echo_or_never"))
-    return _never()
-```
+两个开关各做一件事，靠的就是上面头两条：一个在条件成立时按 `nil * v = v` 给出 `get_v`，否则按
+`never * v = never` 给出 never；另一个反过来：
 
 - `echo_or_never`：condition 为真时按单位元 `nil * v = v` 返回 `get_v`，否则按 `never * v = never`
   返回 never——**`get_v` 不会被叫**，那一支源码里的实参根本不求值（惰性求值）；
 - `never_or_echo`：condition 为真时按 `never * v = never` 返回 never，否则按单位元 `nil * v = v`
   返回 `get_v`。
 
-```python
-a = foo()
-if a >= 0:
-    return a
-else:
-    return 0
-```
-
-对应：
-
-```viba
-import branch
-
-a = foo << $env args.env
-condition = ge << $env args.env << $x a << $y 0
-
-__impl__ =
-    Oneof
-  | (branch.echo_or_never << $env args.env << $cond condition << $get_v (builtin.echo << $x a))
-  | (branch.never_or_echo << $env args.env << $cond condition << $get_v (builtin.echo << $x 0))
-```
-
-那个实参**最多求值一次**（memoization，也叫 sharing）：第一次问出结果（值或停下），之后每一次问都拿
-同一个。所以宿主问两遍不会让副作用发生两遍。
+函数型槽里的那个实参**最多求值一次**（memoization，也叫 sharing）：第一次问出结果（值或停下），
+之后每一次问都拿同一个。所以宿主问两遍不会让副作用发生两遍。
 
 只有函数类型的那个参数是惰性的（lazy，non-strict）；别的实参按值求值（call-by-value），函数的 `$env`
 也照旧按值给。想给一个求好的值，用 `builtin.echo` 把它包成"给它一个环境就给出 V"的那个函数。
 
 这跟一份定义什么时候求值是同一条策略，见下面「求值策略：按需求值（call-by-need）」一节。
-
-条件、值和开关本身都可以放在别的文件里，用例只给一条链去调它们；一个调用先给一半、剩下的由用例
-补齐，也是同一个值。`echo_or_never` / `never_or_echo` 本身也是这样一份可以 import 的文件。这条
-路子的边角案例在
-[`tests/test_interpreter_branch_switch.py`](tests/test_interpreter_branch_switch.py)：一份用例一个
-文件（`tests/data/branch_switch/*.viba`），覆盖开关方向、条件的各种源码形式、每一种值的种类、部分计算、
-别的文件里的开关、副作用次数、走不到那一支里的「没有实现」与失败，以及多个开关并起来的和。
 
 ## 类型层的模块
 
@@ -867,11 +942,16 @@ B = A
   `a.x -> b.y -> a.x: the run came back to where it started`；模块调用再进同一条路径报
   `the storage path '...' is already running a call`；同一个模块带着**同一份实参**又在跑报
   `module 'a' is already running with the same arguments`——同样输入的一次计算还在里面进行，
-  它停不下来。这些都是"这次跑不完"，不是设计有错。
+  它停不下来。这些都是"这次跑不完"，不是设计有错。**没有基例的递归也不再由解释器喊停**：环境链
+  可以一直长下去（见「栈太长时：把系统栈变成工作清单」），以前那会撞上 `RecursionError`。
 - **同名、不同实参、各自一条新路径的调用是两次调用**，不是环：函数递归执行要"再一次进到同一个
-  定义"，而固定的实参换一次就是另一层。不动点正是这样展开的：
-  [`tests/data/y_combinator/`](tests/data/y_combinator/) 里的 `Y F 10` 得 55
-  （Z 组合子的 viba 版：欠着实参的调用就是值，把自应用停在半成品上）。
+  定义"，而固定的实参换一次就是另一层。`Y` 就是这样把递归一层层展开的：
+  [`tests/data/y_combinator/main.viba`](tests/data/y_combinator/main.viba) 跑的是
+  `Y << fib_module << ($sub_env << args.env << "Y") << $n 10`，给出 55（fib(10)）。
+  `fib_module` 是那一步：`$n` 小于 2 时给出 `$n`，否则给出 `fib($n - 1) + fib($n - 2)`；`Y` 交给
+  它的"下一层"是同一份 helper 再往下的一层（`y_helper` 往下调时用的还是它自己，只换环境与这一层的
+  实参）。每往下一层 `$n` 换一个值，`fib_module` 往下调时又给它一层自己的名字（`low`、`high`），
+  所以同一条定义被叫了无数次，每一次都在另一条数据路径上，没有一次是"绕回同一个调用"。
 - **两份文件互调的边角**：这条路子本身有一份用例集，
   [`tests/test_interpreter_mutual_recursion.py`](tests/test_interpreter_mutual_recursion.py)：100 条，
   每条是一对互相 import 的文件（`tests/data/mutual_recursion/left_*.viba` 与 `right_*.viba`）。
@@ -882,94 +962,20 @@ B = A
 
 ## 栈太长时：把系统栈变成工作清单
 
-一次模块调用拿到一层自己的环境（`$sub_env`、`$tmp_env`），环境的父子链（`$get_parent`）就多一个环。
-**这条链就是解释器自己的栈**：一个环对应一次还在跑的模块调用，所以它随着递归一层层变长。
-
-Y 的每一层都往下调一层，一个够深的递归因此会把解释器自己的 Python 栈压爆：`fib_acc` 跑到两千层时，
-链上一万多个环（一层五六个），解释器自己的栈跟着长同样多，`RecursionError` 先来。所以 `y_helper`
-在自己的模块体之前给出一个**压缩点**：
+一次模块调用拿到一层自己的环境（`$sub_env`、`$tmp_env`），**环境链**（`$get_parent` 走的那条）就多一个
+环 —— 这条环境链就是解释器自己的栈。太长的时候，[`viba/y_helper.viba`](viba/y_helper.viba) 那句
+`env = $try_compact << args.env << 32` 让解释器把此刻还在跑的调用交出来、由这次运行最外面那一次一个
+一个地再做：系统栈变成手工栈（工作清单，[`viba/resumable.viba`](viba/resumable.viba)）。阈值是
+`$try_compact` 收的那个数（机制在解释器，政策在 viba），它答的还是给它的那个环境 —— 压缩只换
+"这些调用在哪里做"，不换求值语义，靠的仍是「幂等与
+快照」那条前提：一次调用的答案只由它跑的那条数据路径决定。
 
 ```viba
 # viba/y_helper.viba
 env = $try_compact << args.env << 32
 ```
 
-- **`$try_compact << <环境> << <上限>`** 是 `Environment` 的成员（[`viba/builtin.viba`](viba/builtin.viba)），
-  答的是给它的那个环境：链上环数不超过上限就什么都不做，超过上限就把**此刻正在跑的调用**交出来，
-  由这次运行最外面那一次调用一个一个地再做（`global_resumable_stack`，这次运行自己的工作清单），
-  做完把这个环境给回来。
-- **压的是此刻正在跑的那条链**，所以给它的环境必须是此刻正在跑的某一次调用的环境（同一份，
-  不是同一条路径上另外一份）。给一个解释器不在其中的环境 —— 一次查找走出来的那一层、早先某次
-  调用手里留着的那一份、没有调用跑过的子环境 —— 名字说的链不在系统栈上，压不出东西来，环境原样
-  答回来（`tests/data/compaction/main/elsewhere.viba`）。
-- **答一个环境，是为了把这一步排进顺序**：定义按需求值，用它的那一处算的时候它才算。`y_helper` 下面
-  那几个定义用的就是这个 `env`（`env.find_by_relative_path << …`、`$compress_env_path << … << env`），
-  而它们又是这次调用的环境 —— 要跑这一层，就得先把这个名字算出来，所以压缩点一定排在
-  "这一层跑起来"之前。
-- **每个待做的调用是两样东西**：它跑的那条数据路径（`$current_env_path`）和它本身（`$call`，类型是
-  `Any <- Env`，见 [`viba/resumable.viba`](viba/resumable.viba)）。做它的时候，环境按那条数据路径从
-  链顶取回来（`$find_by_relative_path`）：同一条路径、同一份 storage，而它是**一层** —— 路径里那些
-  段是数据路径，不是调用，所以取回来的这一层挂在链顶下面，链短了，递归在里头接着长到上限，再压
-  一次。
-- **已经答过的调用不会再做**：一次模块调用的答案按它跑的那条数据路径记着（`_Runner.done`），重做一份
-  模块体时，走到那条已答的调用就停在那儿，把记着的答案交出来。所以一次重做的代价是有界的：只重走
-  这份模块体自己那几步和它欠的那次调用，不会把下面整棵递归树重走一遍（会被掀掉几次，见「重做的
-  次数不是零，也不总是一个小常数」）。
-- **每一段从哪儿起算，就从哪儿量**：解释器记着这一段的起点链长
-  （`_Runner.compacted_chain_length`：运行自己那一次调用是它拿到环境的地方，重做的那几次是取回来
-  那一层的链长），链不超过它就不再压。所以数据路径压不短的那些也有上限：重做一遍只多长一条链，
-  不会把同一批调用一遍遍交回去。
-- **同时压在系统栈上的调用因此是有限的**：`tests/test_interpreter_compaction.py` 钉着这件事 —— 101 层
-  的 `Y` 递归一共做了 1201 次模块调用，同一时刻在栈上的从不超过 28 个，最长的一条链 37 环（上限 32）。
-
-**机制在解释器，政策在 viba。** 阈值不是解释器定的：`$try_compact` 收的那一个数就是政策，眼下由
-[`viba/y_helper.viba`](viba/y_helper.viba) 给 32，解释器自己一个阈值都没有 —— 没有模块调用它，就
-没有压缩这件事。它答的还是给它的那个环境，所以它下面那些定义照旧拿这个环境用：压缩只换"这些调用
-在哪里做"，不换求值语义。
-
-**它依赖的是一条比"幂等"更窄的前提：一次调用的答案只由它跑的那条数据路径决定。** 压过的数据路径是
-输入的函数，所以重做一份模块体时，它下面那些调用都能在 `_Runner.done` 里找到答案，走到那儿就停住 ——
-"多做一遍"的代价是这份模块体自己那几步，不是它下面整棵子树。这条前提（见「幂等与快照」）本来就要，
-压缩没有再加一条；它不成立的那两处因此只是多一个后果：`tmp_env` 每次给一条新路径，重做时命中不了
-已答的调用，它下面那棵子树就一遍遍地重算；没走 `replayed` 的不纯步骤会被多问几次。
-
-**重做的次数不是零，也不总是一个小常数**：一次调用下面有多少个压缩点，它就可能被掀掉多少次。一条
-只有一个递归调用的链上量到的是两遍左右 —— 101 层那条链：1201 次模块调用、`note` 198 笔、答案 100；
-分叉多、压得多的那种模块体会被做得更多，而每次多做的代价仍然只是它自己那几步。
-
-一个模块自己也可以给压缩点（`env = $try_compact << args.env << 0` 那样），上限是那次调用算出来的值
-（可以是一条定义算出来的）。在不是一次运行的地方调用它（宿主自己拿 `environ.try_compact(…)`），
-链没过线就把那个环境答回来，过线了当场报 `no run is here`：压的是这次运行的工作清单，没有运行就
-没有可压的。
-
-**不纯的宿主步骤会被重做**：重做一份模块体时，它自己那几步重走一遍。可回放的那几步走 `replayed`
-（见「幂等与快照」），所以重做给的是同一个答案；没走快照、又不纯的那几步两次跑出来的东西可能不同 ——
-这是它自己该处理的事，不是压缩带进来的新规矩。
-
-**一个没有基例的递归不再由解释器喊停**：以前它会在解释器自己的栈上撞到上限（`RecursionError`，报成
-某一步失败），现在链可以一直长下去，调用也一直做下去。同一个模块带着同一份实参又在跑那种环还是当场报
-（见「一份文件跑不出递归」）。
-
-**按数据路径取回来的那一层不记着压掉的原路径**：`$uncompress_relative_path` 是 `nil`
-（它是 `compress_env_path` 放在那一个环境上的值，取回来的这一层是新造的）。压过的
-路径本身认不出来是哪一条原路径 —— 名字里只有一个 sha1。
-
-**重做的那一层看到的链是取回来的那一条**：它的 `get_parent` 是链顶（它是链顶下面一层），不是被
-掀掉那条长链上的一段。链就是此刻的系统栈，这一点压缩前后都按事实说：那一段调用已经不在栈上，
-它在工作清单里。
-
-**为什么不是全手工栈，也不是 continuation。** 两条路都能把栈深解掉，只是各要付一笔这里没付的代价。
-
-- **全手工栈**：要动的是解释器自己的每一个求值边界 —— 每一处 `<<`、每一次给实参、每一次取成员，都得
-  能停在半路，把"接下来做什么"留成数据，整层求值因此是一台状态机；而这份代价每次调用都要付，不管
-  递归深不深。现在只有过线之后的那些调用付。
-- **continuation（无栈）**：要动的是宿主那一侧 —— 一步要么交回"接着做什么"，要么只能由外面再进来
-  一次，于是 `get_func` 交回的那个可调用对象不再只是"收实参、答一个值"，宿主那一侧的函数跟着变；每
-  一步也多一份 continuation 的成本。
-
-**这个设计选的是第三条路**：结果本来就要能回放（见「幂等与快照」），于是系统栈照旧用，只在链太长
-的时候把它变成工作清单 —— 没过上限的运行照旧只有系统栈，过了上限的那些才付"多做几遍模块体"这份
-代价。
+细节与量到的数在 [`tests/test_interpreter_compaction.py`](tests/test_interpreter_compaction.py)。
 
 ## 把一次调用落成可执行的：`__dyn_call__` 与 `__dyn_method__`
 

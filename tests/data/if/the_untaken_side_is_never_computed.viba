@@ -1,0 +1,16 @@
+# The side the condition did not pick is never computed: that step is never
+# asked of the host, so one that would break does not break.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond false
+  << $t (counters.explode)
+  << $f (counters.tick)

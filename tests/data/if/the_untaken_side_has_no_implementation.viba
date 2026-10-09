@@ -1,0 +1,17 @@
+# The same, one step further: the side that is not taken may have no
+# implementation at all, and the run never finds out.
+import counters
+import kinds
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond false
+  << $t (kinds.no_implementation)
+  << $f (counters.tick)

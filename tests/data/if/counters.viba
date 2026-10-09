@@ -1,0 +1,23 @@
+# Every call here records itself in the host, so a case can say which side ran.
+tick =
+    int <- $env Env <- { count once and answer 41 }
+
+tock =
+    int <- $env Env <- { count too and answer 7 }
+
+add_to =
+    int
+  <- $env Env
+  <- $x int
+  <- { one more than x }
+
+# The same, for a step given what an earlier step of a block remembered: a
+# variable's own type is the design's business, so this slot takes `Any`.
+add_step =
+    int
+  <- $env Env
+  <- $x Any
+  <- { one more than x }
+
+explode =
+    int <- $env Env <- { break if it is ever called }

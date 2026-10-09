@@ -1,0 +1,17 @@
+# A side that is itself an `if`: given without its environment, so the outer
+# switch is what runs it, under the child the outer switch made — and the inner
+# if/else then picks a child of that.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.tmp_env << args.env)
+  << $cond true
+  << $t (if << $cond true << $t (counters.tick) << $f (counters.tock))
+  << $f (counters.tock)

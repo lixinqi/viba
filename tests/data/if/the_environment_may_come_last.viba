@@ -1,0 +1,16 @@
+# The environment is one link of the chain like any other, so it may come last:
+# giving it is what runs the call, wherever in the chain it stands.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $cond true
+  << $t (counters.tick)
+  << $f (counters.tock)
+  << (args.env.sub_env << args.env << "if")

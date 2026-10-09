@@ -1,0 +1,16 @@
+# A side that is a call still owing its environment and one argument: the switch
+# gives it the environment, and what this file gave rides along.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond true
+  << $t (counters.add_to << $x 40)
+  << $f (counters.tock)

@@ -1,0 +1,17 @@
+# The side the condition picked has no implementation: that is where the run
+# stops, and it names the step.
+import counters
+import kinds
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond true
+  << $t (kinds.no_implementation)
+  << $f (counters.tock)

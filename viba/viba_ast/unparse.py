@@ -190,10 +190,10 @@ def _unparse_constant(const_node: Constant) -> str:
     return literal_spelling(const_node.value)
 
 
-# The lexer's own spelling of a number: `\d+` for an int, and a plain decimal
-# for a float. No sign, no exponent — a viba literal is a non-negative number.
-_INT_SPELLING = re.compile(r"^\d+$")
-_FLOAT_SPELLING = re.compile(r"^(\d+\.\d*|\.\d+)$")
+# The lexer's own spelling of a number: `\d+` for an int and a plain decimal for
+# a float, either of them with the sign in front when it is negative. No exponent.
+_INT_SPELLING = re.compile(r"^-?\d+$")
+_FLOAT_SPELLING = re.compile(r"^-?(\d+\.\d*|\.\d+)$")
 
 
 def literal_spelling(value) -> str:
@@ -202,10 +202,11 @@ def literal_spelling(value) -> str:
     A string gets a delimiter that does not occur in it — double quotes,
     single quotes, or triple quotes when it spans lines — so the text survives
     the round trip untranslated (viba takes no escapes back). A number must be
-    spelled the way the lexer takes numbers: viba has no negative literal and
-    Python gives large and small floats with an exponent, so those raise
-    ValueError rather than being given as something else. Only the four
-    builtin literal types themselves are literals; a subclass is not one.
+    spelled the way the lexer takes numbers: an int or a plain decimal, with a
+    `-` in front when it is negative, and no exponent — Python gives large and
+    small floats with one, so those raise ValueError rather than being given as
+    something else. Only the four builtin literal types themselves are literals;
+    a subclass is not one.
     """
     # The exact types, not subclasses: the source form comes from the value's own
     # spelling, and a subclass can spell itself as anything at all — including

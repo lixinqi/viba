@@ -1,0 +1,22 @@
+# A side that is a block: `sequential` holds steps that still owe their
+# environment, so nothing of it runs while that side is not taken — and the
+# switch that takes it hands the block the environment its steps run at.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+block =
+    sequential
+  << $n (counters.add_to << $x 40)
+  << (builtin.echo << $x ($var "n"))
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond true
+  << $t block
+  << $f (builtin.echo << $x 7)

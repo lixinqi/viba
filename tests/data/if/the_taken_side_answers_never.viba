@@ -1,0 +1,17 @@
+# The side that is taken answers never: the sum has nothing left in it, so the
+# whole if/else is never — the other side still was not computed.
+import counters
+import kinds
+
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond true
+  << $t (kinds.answer_never)
+  << $f (counters.tock)

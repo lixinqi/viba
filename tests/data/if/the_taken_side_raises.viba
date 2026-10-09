@@ -1,0 +1,16 @@
+# The side the condition picked breaks while it runs: the stop is that step's,
+# and the side that was not picked is still not computed.
+import counters
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond true
+  << $t (counters.explode)
+  << $f (counters.tock)

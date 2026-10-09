@@ -40,6 +40,11 @@ check = checks.check
 CASES = Path(__file__).resolve().parent / "data" / "builtin"
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
+# 表里没有的那几个成员：`echo` 把实参原样交回去，两个开关的 `$get_v` 是一个函数型的槽
+# （那一支的调用，由开关决定算不算）。它们的用例在别处（`tests/data/echo/`、
+# `tests/data/if/`），这张表按值算不了它们。
+NOT_OPERATORS = {"echo", "echo_or_never", "never_or_echo"}
+
 # 每个算子：怎么算它，用例该给出什么。次序与 `viba/builtin.viba` 里的次序一致。
 OPERATORS = {
     "add": (lambda x, y: x + y, 7),
@@ -213,9 +218,10 @@ def _the_wrong_type_reaches_the_step(tmp: Path):
 def _the_library_and_the_table_agree():
     """`viba/builtin.viba` 里 `builtin` 的成员，与上面这张表一一对应。"""
     declared = _declared_operators()
-    check(set(declared) == set(OPERATORS) | {"echo"},
-          f"the library's members are the operators in the table, plus echo: "
-          f"{sorted(set(declared) - set(OPERATORS) - {'echo'})} extra, "
+    check(set(declared) == set(OPERATORS) | NOT_OPERATORS,
+          f"the library's members are the operators in the table, plus "
+          f"{sorted(NOT_OPERATORS - {'echo'})}: "
+          f"{sorted(set(declared) - set(OPERATORS) - NOT_OPERATORS)} extra, "
           f"{sorted(set(OPERATORS) - set(declared))} missing")
 
 

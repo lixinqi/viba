@@ -132,14 +132,19 @@ def t_PATTERN(t):
     return t
 
 
+# A `-` in front of a number is part of the literal: a negative number is a
+# literal like any other, so a value a host step worked out spells back out and
+# a module call can be given one. There is no unary minus in the language, so a
+# `-` followed by no digit stays an illegal character (t_error), and the float
+# rule comes first because PLY takes the first rule that matches here.
 def t_FLOAT(t):
-    r"(\d+\.\d*|\.\d+)"
+    r"-?(\d+\.\d*|\.\d+)"
     t.value = float(t.value)
     return t
 
 
 def t_INT(t):
-    r"\d+"
+    r"-?\d+"
     t.value = int(t.value)
     return t
 
@@ -222,7 +227,8 @@ def t_newline(t):
 def t_error(t):
     """Raise on an illegal character, like `p_error` does on a bad token: a
     character the grammar has no word for means this source does not compile.
-    Skipping it would parse `-5` as `5`, and the caller would never know."""
+    Skipping it would turn `A @ B` into `A B`, and the caller would never
+    know."""
     raise SyntaxError(
         f"Viba parse error: illegal character {t.value[0]!r} at line {t.lexer.lineno}")
 
@@ -710,6 +716,10 @@ if __name__ == "__main__":
         # 6-10: Literals & Constants
         ("ConfigInt = 42", "Integer literal"),
         ("ConfigFloat = 3.1415", "Float literal"),
+        ("ConfigNegativeInt = -42", "Negative integer literal"),
+        ("ConfigNegativeFloat = -3.1415", "Negative float literal"),
+        ("ConfigNegativeBare = -.5", "Negative float with no whole part"),
+        ("GivenNegative = Add << $x 0 << $y -1", "A negative literal as an argument"),
         ("ConfigBool = true * false", "Boolean literals in product"),
         ('ConfigStr = "viba_v1" * 1.0', "Mixed string and float"),
         ("ComplexLiteral = 0.5 * nil | never", "Mixed literals and identities"),
@@ -891,7 +901,7 @@ if __name__ == "__main__":
         ("X = (A * B", "An unclosed parenthesis"),
         ("X = A |", "A sum with no right side"),
         ("X =", "A definition with no body"),
-        ("X = -5", "A minus sign: there is no unary minus"),
+        ("X = -A", "A minus sign with no number after it: there is no unary minus"),
         ("X = A @ B", "An illegal character"),
         ("X = {never closed", "A code block that never closes"),
         ("import", "An import with no module name"),
@@ -941,7 +951,7 @@ if __name__ == "__main__":
     # line 1, whatever the file parsed before it ended on.
     parse_source("A = int\nB = int\nC = int\n")
     try:
-        parse_source("X = -5")
+        parse_source("X = -A")
         print(f"{'a fresh source counts from line 1':<50} | DID NOT RAISE")
     except SyntaxError as e:
         if "line 1" in str(e):

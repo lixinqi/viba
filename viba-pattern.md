@@ -275,8 +275,9 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 数据路径压成 workspace 旁边的一个名字（`{workspace 的路径}_{sha1(那一层数据路径)}`），于是往下多少层，
 数据路径都只有一个哈希那么长；`caller_workspace_relative_path` 每层原样往下传，压掉的原数据路径记在
 压出来那一层的 `uncompress_relative_path` 上（`viba-interpreter.md`）。
-`Y << f` 就是那一步的不动点（`y_helper << $f f << $y_helper y_helper`），
-`y_helper` 是自应用那一步 —— 它给这一步的是"上一步拿到的自己"，也就是下一次 `y_helper` 调用。
+`Y << f` 就是这一步拿到的"往下那一层怎么算"：`Y` 的 `__impl__` 是一次 `y_helper` 调用，给出 `$f`
+（这一步）与 `$y_helper`（`y_helper` 自己）；`y_helper` 往下调时把这两件原样再交一遍
+（`args.y_helper << $f args.f << $y_helper args.y_helper << …`），每一层换的只是环境与这一层的实参。
 这一层的实参接着 `<<` 给在后面（`Y << F << ($sub_env << args.env << "Y") << $n 3 << $m 4`），
 `Y` 那个带 `$args ...` 的参数把它们收成一份积；`apply` 与 `apply_impl` 的 `$args` 是 `Any`，
 要的是一份现成的积，`apply` 按积里有几个成员选 `apply_impl` 那一支，所以这几个模块都不必按参数

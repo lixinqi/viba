@@ -1,4 +1,11 @@
-# main.viba —— 要跑的是 Y F 10，该得 55
+# main.viba —— 跑的是 `Y << fib_module` 在 n = 10 上的那一层，该得 55（fib(10)）
+#
+# `fib_module` 是"一步 fib"：n 小于 2 就给 n，否则给 fib(n - 1) + fib(n - 2)。它要三件东西：
+# 环境、`$fib`（"往下那一层怎么算"）、`$n`。`Y << F` 还欠着环境与 `$n`：把这一层的名字 `Y` 补上
+# （`args.env.sub_env << args.env << "Y"`），再给 `$n 10`，它就跑起来；`Y` 交给 `fib_module` 的
+# `$fib` 是同一份 helper 再往下的一层（`y_helper` 往下调时用的还是它自己），递归由此接上。
+# 一层一层往下时，每层的数据路径由这一层自己给的名字定（`fib_module` 用的是 `low`、`high`），
+# 所以每层都是同一条定义在另一条路径上的一次新调用。
 __decl__ =
     int
   <- $env Env
@@ -8,7 +15,4 @@ args = __get_args__ << __decl__
 import fib_module as F
 import Y
 
-# `Y << F` 就是那个半成品（还欠环境与 `$n`）：环境给一层子环境（`args.env.sub_env << args.env
-# << "Y"`），这一次的实参接着给，不动点就起来了。
-# 递归靠"一条数据路径上只该有一次调用"，而选中的 pattern 文件跑在自己的子环境里。
 __impl__ = Y << F << ($sub_env << args.env << "Y") << $n 10

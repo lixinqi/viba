@@ -1,0 +1,16 @@
+# The same two sides, with the other one picked: the answer is a str, and the
+# side that would have answered 7 is never computed.
+import kinds
+
+__decl__ =
+    Any
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "if")
+  << $cond false
+  << $t (kinds.answer_int)
+  << $f (kinds.answer_text)

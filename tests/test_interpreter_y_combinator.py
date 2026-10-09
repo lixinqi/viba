@@ -1,4 +1,4 @@
-"""简版 Y 组合子（int -> int）：现有的解释器撑不撑得住。
+"""Y 组合子（这里用的是内建的 `Y`）：一步交给它，它把"往下那一层怎么算"交给这一步自己。
 
 Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在内建词汇那一份旁边，是搜索
 路径的最后一站，所以任何模块给出 `import Y` 就拿到 `Y`（`viba-interpreter.md`）。用例在
@@ -16,10 +16,12 @@ Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在�
     main_three_args.viba   Y F 3 4 5，给出 12
     helper_by_hand.viba    不用 Y，直接把 helper 用起来，给出 55
 
-`main_*` 与 `helper_by_hand` 是**真正要跑通的**：文件就是函数（`__decl__` 进、`__impl__` 出），
-递归靠"欠着实参的调用就是值"（Y 的 eta 展开）和"一条数据路径上只该有一次调用"。
-`Y << F` 给的是那一步的不动点：`Y` 是入口（`y_helper << $f f << $y_helper y_helper` 这一件），
-`y_helper` 是自应用那一步 —— 上一步拿到的自己，就是下一次 `y_helper` 调用。Y 与 y_helper 都给出
+`main_*` 与 `helper_by_hand` 是**真正要跑通的**：文件就是函数（`__decl__` 进、`__impl__` 出）。
+递归靠两条：一次还欠着实参（环境、`$n`）的调用本身是一个值，实参给全了它才跑；一条数据路径上只该
+有一次调用。`Y << F` 就是这一步拿到的"往下那一层怎么算"：`Y` 的 `__impl__` 是一次 `y_helper` 调用，
+给出 `$f`（这一步）与 `$y_helper`（`y_helper` 自己）；`y_helper` 往下调时把这两件原样再交一遍
+（`args.y_helper << $f args.f << $y_helper args.y_helper << …`），每一层换的只是环境与这一层的实参。
+Y 与 y_helper 都给出
 `$env Env`：给环境就是执行，所以每一层的数据路径由调用方给出 —— `main_*.viba` 给出
 `args.env.sub_env << args.env << "Y"`（`main_in_a_sub_env.viba` 故意换个名字），`Y.viba` 往下给出
 `"y_helper"`，步文件往下调时给出 `"low"` 那样的名字；步自己那一层只是名字的出处，`y_helper` 用

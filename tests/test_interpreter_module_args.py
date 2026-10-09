@@ -58,6 +58,7 @@ def environ_for(calls, store):
 CASES_TO_RUN = [
     ("calls_positionally", "value", 25, None),
     ("calls_by_tag", "value", 25, None),
+    ("negative_argument", "value", -2, None),
     ("too_few", "error", "$b missing", None),
     ("too_many", "error", "takes no more arguments", None),
     ("unknown_tag", "error", "takes no $c argument", None),
@@ -87,7 +88,7 @@ CASES_TO_RUN = [
 
 
 def run(tmp: Path):
-    check(len(CASES_TO_RUN) == 26, f"twenty-six cases: {len(CASES_TO_RUN)}")
+    check(len(CASES_TO_RUN) == 27, f"twenty-seven cases: {len(CASES_TO_RUN)}")
     for index, (name, kind, want, calls_wanted) in enumerate(CASES_TO_RUN):
         program = CASES / f"{name}.viba"
         check(program.is_file(), f"the case is a file: {program.name}")
