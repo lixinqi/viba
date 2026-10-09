@@ -1,0 +1,16 @@
+# main/elsewhere.viba —— 给 `$try_compact` 一个解释器不在其中的环境：这次压缩什么都不做。
+#
+# `find_by_relative_path` 走出来的是一层环境：路径里那些段是数据路径，不是调用，所以这条 33 段的
+# 路径给出的是"从这一层再往下一层"，不是 33 个环。解释器此刻也不在它上面（它在 `args.env` 那
+# 一层里），而压缩压的是此刻正在跑的那条链 —— 不在那条链上的环境没有东西可压，环境原样答回来。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+elsewhere = args.env.find_by_relative_path << "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a" << nil
+
+compacted = $try_compact << elsewhere << 0
+
+__impl__ = builtin.echo << $env compacted << $x 7

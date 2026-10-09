@@ -16,8 +16,9 @@
 用例在 `tests/data/compaction/`：
 
     main/at_1.viba               两层，链最长 12，一个压缩点都用不上（对照）
-    main/at_100.viba             101 层，链最长 36，链被压缩 16 次，答案是 100
+    main/at_100.viba             101 层，链最长 37，链被压缩 14 次，答案是 100
     main/limit_from_a_step.viba  上限是一条定义算出来的，且给 0：模块体做两次
+    main/elsewhere.viba          给的环境不在跑的那条链上：什么都不压
     main/impure_at_100.viba      101 层，每层都问一次宿主那个不纯的步骤
 
 `steps/count_down.viba` 是那个递归步骤：一层算 1（由 `note` 给）加下一层，所以每算一次模块体就
@@ -161,6 +162,7 @@ def run(tmp: Path):
     _a_shallow_recursion(tmp)
     _a_deep_recursion(tmp)
     _the_compaction_point(tmp)
+    _an_environment_the_run_is_not_in(tmp)
     _an_impure_step_replays(tmp)
 
 
@@ -266,6 +268,23 @@ def _the_compaction_point(tmp: Path):
     check(len(runs) == 2,
           f"limit_from_a_step: the body starts once, is taken off the stack, and is "
           f"made again, got {len(runs)} starts")
+
+
+def _an_environment_the_run_is_not_in(tmp: Path):
+    """给 `$try_compact` 一个解释器不在其中的环境：环境答回来，一个压缩点都不发生。"""
+    notes: list = []
+    counting = Counting()
+    counting.install()
+    try:
+        result = interpret(str(CASES / "main" / "elsewhere.viba"),
+                           environ_for(tmp / "elsewhere", notes))
+    finally:
+        counting.remove()
+    check(is_ok(result) and value_of(result) == 7,
+          f"elsewhere: the environment comes back and the run goes on, got {result!r}")
+    check(counting.compactions == 0,
+          f"elsewhere: a chain the interpreter is not inside is no reason to compact, "
+          f"got {counting.compactions}")
 
 
 def _an_impure_step_replays(tmp: Path):

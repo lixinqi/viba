@@ -141,19 +141,28 @@ SNAPSHOT_SUFFIX = ".viba"
 class EnvironmentStorage:
     """Where a module's files, sub-modules and snapshots live."""
 
-    __slots__ = ("cur_storage_path", "sub_storage", "store_root_dir")
+    __slots__ = ("cur_storage_path", "sub_storage", "store_root_dir", "parent")
 
     def __init__(self, cur_storage_path: str, sub_storage: Optional[dict] = None,
-                 store_root_dir: Optional[str] = None):
+                 store_root_dir: Optional[str] = None,
+                 parent: Optional["EnvironmentStorage"] = None):
         self.cur_storage_path = cur_storage_path
         self.sub_storage = dict(sub_storage or {})
         self.store_root_dir = store_root_dir or DEFAULT_STORE_ROOT
+        # The storage this one was made from: the directory its own name sits in.
+        # `sub` fills it, and a storage the host made by hand has none. This is
+        # the data path's own way up, and it is the one a press uses to put the
+        # name it makes beside the path it presses — the chain of environments
+        # (`get_parent`) is the chain of calls, and a press is no call
+        # (viba-interpreter.md, "链上的成员").
+        self.parent = parent
 
     def sub(self, name: str) -> "EnvironmentStorage":
         """The child storage for `name`: `<cur>/<name>`, made on demand."""
         if name not in self.sub_storage:
             path = f"{self.cur_storage_path}/{name}" if self.cur_storage_path else name
-            self.sub_storage[name] = EnvironmentStorage(path, None, self.store_root_dir)
+            self.sub_storage[name] = EnvironmentStorage(path, None,
+                                                       self.store_root_dir, parent=self)
         return self.sub_storage[name]
 
     def tmp(self) -> "EnvironmentStorage":
@@ -404,15 +413,25 @@ def find_by_relative_path(relative_path, root) -> "Environment":
     A root is required here: a relative path has to be taken from somewhere, and
     the member hung on an environment passes itself in where the design gave
     `nil` for it.
+
+    What comes back is **one** environment: the segments name the data path it
+    stands for, and they are no calls. The chain of environments is the chain of
+    calls (`sub_env`, `tmp_env`, `compress_env_path`) alone, so
+    `get_parent` of the answer is the environment the path was walked from,
+    however many segments the path has — a path of thirty segments gives one
+    link, and `get_relative_path` still names all thirty, because that one goes
+    by the data path (viba-interpreter.md, "链上的成员").
     """
     text = _the_relative_path(relative_path)
     base = _an_environment(root, "find_by_relative_path")
-    found = base
+    storage = base.storage
     for part in [one for one in text.split("/") if one]:
         if part in (".", ".."):
             raise RuntimeError(f"{text!r} is no relative path: it has a {part!r} segment")
-        found = sub_env(found, part)
-    return found
+        storage = storage.sub(part)
+    if storage is base.storage:
+        return base                    # the empty path is that environment itself
+    return Environment(storage, base.compute, base.viba_path, parent=base)
 
 
 def compress_env_path(sup, sub) -> "Environment":
@@ -427,15 +446,16 @@ def compress_env_path(sup, sub) -> "Environment":
     into the answer's `uncompress_relative_path`, which is how a tool takes the
     original back.
 
-    Only the data path is compressed. The chain of environments (`get_parent`) is
-    the one `sub_env` makes, so the answer stands where `sub` stands: its parent is
-    `sub`, and nothing on the way up to the chain root is taken out. The storage is
-    the sup's own `sub(name)` — that is what puts the answer *beside* the sup —
-    while the parent is `sub`: the two are deliberately apart, because one says
-    where the files go and the other says which call this one was made inside.
+    Only the data path is compressed, and the press goes by the data path: the
+    answer's storage hangs in the directory `sup`'s own name sits in
+    (`sup.storage.parent`, the path's own way up), and its chain of environments
+    is not shortened — its parent is `sub`, the layer it stands for. A press is
+    no call, so it takes no link out of the chain of calls (`get_parent`), and it
+    looks at no link either.
 
     The same `sup` and `sub` answer the same path and the same environment; a
-    `sup` that is the chain's root has nowhere to put a sibling, which is a stop.
+    `sup` whose own name sits in no directory (a chain's root) has nowhere to put
+    a sibling, which is a stop.
     """
     sup = _an_environment(sup, "compress_env_path")
     sub = _an_environment(sub, "compress_env_path")
@@ -444,13 +464,13 @@ def compress_env_path(sup, sub) -> "Environment":
         raise RuntimeError(f"{under or '<no path>'} does not begin with "
                            f"{above or '<no path>'}: compress_env_path "
                            f"compresses a path under the sup it is taken from")
-    beside = sup.parent
+    beside = sup.storage.parent
     if beside is None:
         raise RuntimeError(f"{above or '<no path>'} is the root: there is no "
                            f"directory beside it to put the path in")
     digest = hashlib.sha1(under.encode()).hexdigest()
-    made = sub_env(beside, f"{above.rsplit('/', 1)[-1]}_{digest}")
-    made.parent = sub
+    made = Environment(beside.sub(f"{above.rsplit('/', 1)[-1]}_{digest}"),
+                       sup.compute, sup.viba_path, parent=sub)
     made.uncompress_relative_path = under
     return made
 
@@ -600,6 +620,13 @@ def try_compact(environ, env_chain_length_limit):
     its answer is kept under the data path it runs at (`_Runner.done`), and that is
     what makes replaying a call cheap.
 
+    What it compacts is the chain the interpreter is inside, so the environment it
+    is given has to be one of the calls running now: an environment the
+    interpreter is not inside (a lookup's answer, one an older call was handed, a
+    child that no call was made at) names a chain that is not on the system stack
+    at all, and asking about it compacts nothing — the environment comes straight
+    back.
+
     What it answers is the environment it was given, so a file can name it and use
     that name where the environment would have gone:
 
@@ -616,18 +643,35 @@ def try_compact(environ, env_chain_length_limit):
     current = _an_environment(environ, "try_compact")
     limit = _env_chain_limit(env_chain_length_limit)
     runner = _CURRENT_RUN.get()
-    # A chain that was long once stays long: the interpreter counts how deep the
-    # chain may get *from where it last compacted*, so a data path with no
-    # compression in it still gets `limit` more links before the work list takes
-    # over again. A path that was pressed starts short, and then this is the limit
-    # itself.
+    # `compacted_chain_length` is the chain length the window the interpreter is
+    # in started from (`_driven` sets it when a call that a compaction put back is
+    # made again). A chain that was long once stays long, so the calls put back
+    # get `limit` links to grow in again from where the replay starts, and a data
+    # path that cannot be pressed shorter does not hand the same calls back
+    # forever.
     floor = runner.compacted_chain_length if runner is not None else 0
     if env_chain_length(current) <= max(limit, floor):
         return current
     if runner is None:
         raise RuntimeError(
             "try_compact compacts the run it is called in, and no run is here")
+    if not _is_running_there(runner, current):
+        # The chain is long, but the interpreter is not inside it: what is on the
+        # system stack is another chain, and a compaction would hand back the very
+        # calls that are running — the same call, made again, would ask again.
+        return current
     raise _Compact(resumable_stack(runner, current), current)
+
+
+def _is_running_there(runner: "_Runner", environ: "Environment") -> bool:
+    """Whether a call running now is running at this environment.
+
+    The chain of environments is the chain of calls, so this is what says the
+    interpreter is inside the chain `environ` belongs to. Identity, not the data
+    path: an environment taken back from a path stands for the same path and is
+    another place on the stack.
+    """
+    return any(record.environ is environ for record in runner.running_calls)
 
 
 # ----------------------------------------------------------------------
@@ -2240,32 +2284,31 @@ def _driven(runner: _Runner, own: _ResumableCall) -> Result:
     """
     stack = runner.global_resumable_stack
     root = get_root(own.environ)
-    replaying = False
+    # The run's own call is made where the run was handed an environment: nothing
+    # was taken off the stack yet, so there is nothing to take back. A call that a
+    # compaction put back starts from the environment its data path stands for
+    # (`restored`), which is short again.
+    # The run's own call starts where it was handed an environment, with the limit
+    # as the only rule (`compacted_chain_length` is 0 there). Every replay starts
+    # from the short chain its data path stands for, and that is the chain
+    # `try_compact` measures from (`runner.compacted_chain_length`).
+    own_environ = own.environ
     while True:
         while stack:
             task = stack.pop()
             runner.held_paths.pop(task.current_env_path, None)
-            environ = task.restored(root)
-            # This call starts from a chain as deep as its data path is, and that
-            # is what the limit is measured from for as long as it runs
-            # (`try_compact`): the whole limit is room to grow in again.
-            runner.compacted_chain_length = env_chain_length(environ)
+            task_environ = task.restored(root)
+            runner.compacted_chain_length = env_chain_length(task_environ)
             try:
-                result = task.run(environ)
+                result = task.run(task_environ)
             except _Compact as compact:
                 _hold(runner, compact.tasks)
                 continue
             if _stopped(result):
                 return result
-        environ = own.restored(root)
-        if replaying:
-            # Making the run's own call again: it starts from a short chain too,
-            # and gets the whole limit to grow in before the list takes over.
-            runner.compacted_chain_length = env_chain_length(environ)
         try:
-            return own.run(environ)
+            return own.run(own_environ)
         except _Compact as compact:
-            replaying = True
             own_path = own.current_env_path
             rest = []
             for task in compact.tasks:
@@ -2274,6 +2317,8 @@ def _driven(runner: _Runner, own: _ResumableCall) -> Result:
                 else:
                     rest.append(task)
             _hold(runner, rest)
+            own_environ = own.restored(root)
+            runner.compacted_chain_length = env_chain_length(own_environ)
 
 
 def _call_signature(members) -> tuple:

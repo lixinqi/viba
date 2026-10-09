@@ -91,6 +91,10 @@ def _the_chain(tmp: Path):
     check(tmp_env(c).parent is c, "tmp_env's child names it too")
     check(Environment(EnvironmentStorage("root"), environ.compute).parent is None,
           "an environment the host made by hand has no parent")
+    # 数据路径自己那条往上的路：storage 记着它的名字坐在哪个目录里
+    check(environ.storage.parent is None, "the storage a host made by hand has no directory above it")
+    check(a.storage.parent is environ.storage and c.storage.parent is b.storage,
+          "a child storage knows the directory its own name sits in")
 
 
 def _get_parent(tmp: Path):
@@ -175,8 +179,16 @@ def _find_by_relative_path(tmp: Path):
           "every segment walks one child down")
     check(find_by_relative_path("a//b/", environ).storage is b.storage,
           "empty segments are skipped")
-    check(find_by_relative_path("a/b", environ).parent.storage is a.storage,
-          "what was found knows the parent it was reached through")
+    # 段是数据路径，不是调用：一段也好三十段也好，走出来的都是**一层**，
+    # 它的父级是"从哪个环境走下来的"，不是路径上的上一段
+    found = find_by_relative_path("a/b", environ)
+    check(found.parent is environ and env_chain_length(found) == 2,
+          "what was found stands one link below the environment it was walked from")
+    deep = find_by_relative_path("/".join(["a"] * 30), environ)
+    check(deep.parent is environ and env_chain_length(deep) == 2,
+          "however many segments the path has, the walk makes one link, not thirty")
+    check(deep.storage.cur_storage_path == "/".join(["root"] + ["a"] * 30),
+          "and the path is still the whole path")
     check(get_root(find_by_relative_path("a/b", environ)) is environ,
           "so the chain it belongs to is the root's")
 

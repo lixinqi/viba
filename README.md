@@ -466,14 +466,19 @@ env = $try_compact << args.env << 32
 ```
 
 `$try_compact << env << n` answers the environment it was given, and does nothing while
-the chain has `n` links or fewer. Naming it is also what puts it in order: a definition
+the chain has `n` links or fewer. What it compacts is the chain the interpreter is
+inside, so `env` has to be one of the calls running now: an environment the interpreter
+is not inside (the layer a lookup answered, one an older call was handed) names a chain
+that is not on the system stack at all, and it comes straight back. Naming it is also what puts it in order: a definition
 is computed when the piece that wants it is, and the definitions below that line use the
 name (`env.find_by_relative_path << …`, `$compress_env_path << … << env`), so the
 compaction point is computed before anything runs at that layer. Past the limit the
 calls running now are handed out and the run's own call makes them one at a time from
 its work list. Each of them is a data path and the call that runs there
 (`viba/resumable.viba`), and the environment is taken back from that path — the same
-storage, on a chain only as deep as the path is. A call that already answered is not
+storage, one link below the root of the chain, because the segments of a path are the
+data path and no call (so a thirty-segment path is one layer, not thirty). A call that
+already answered is not
 made again: its answer is kept under the data path it ran at, so a replayed module body
 stops where the recursion is already answered. A caller of the member past the limit
 outside a run is told there is no run instead.

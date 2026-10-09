@@ -19,7 +19,8 @@
 # a storage path seen from a root (`"b"` for `root/a/b` seen from `root/a`).
 # `$find_by_relative_path` is the way back: a relative path and the root to take
 # it from, and with no root it searches from the environment it came from,
-# which is what `args.env.find_by_relative_path << "a/b"` means.
+# which is what `args.env.find_by_relative_path << "a/b"` means. What comes back
+# is one environment, not a chain: the segments name the data path, and no call.
 # `$compress_env_path` is what keeps a recursion's data paths short:
 # given a directory and a path that begins with its own at a name boundary (a
 # directory below it, or one already pressed from it), it answers the path that one
