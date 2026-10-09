@@ -20,18 +20,20 @@ args = __get_args__ << __decl__
 # value1] * vars1`): a member that is a product contributes its own members, so what
 # a step is handed is the flat product, newest first.
 
-# Each step runs at a storage path of its own (`step0`, `step1`, ... and the last one
-# at `last` beside them): a storage path answers one call, and two steps of one
-# sequential would otherwise share it.
+# Each step runs at a storage path of its own: `step0`, `step1`, ... for the ones
+# that carry a tag, and `last` for the one given without a tag. The name says which
+# call it is, too — the tag it carries and the function it names (`step0/a/add`,
+# `last/echo`) — so a data path can be read back against the code. A storage path
+# answers one call, and two steps of one sequential would otherwise share it.
 
 value0 = sequential_step[Step0]
-  << $env ($sub_env << args.env << "step0")
+  << $env ($sub_env << args.env << ("step0" * step0_name * Step0))
   << $vars nil
 vars1 = tagged[step0_name, value0]
 
 # The last argument carries no tag: its answer is this chain's answer.
 last = sequential_step[Last]
-  << $env ($sub_env << args.env << "last")
+  << $env ($sub_env << args.env << ("last" * Last))
   << $vars vars1
 
 __impl__ = last

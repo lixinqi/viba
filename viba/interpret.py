@@ -279,11 +279,82 @@ def sub_env(environ: "Environment", name) -> "Environment":
     `name` is what the viba side gave: a viba data node lands as the leaf it
     carries, so `args.env.sub_env << args.env << "add_demo"` names the module. The
     same name is the same child, handed back again.
+
+    A name may also be given as the pieces the source has it in, so that a data
+    path can be read back against the code (`_the_storage_name`):
+    `$sub_env << args.env << ("step0" * step0_name * Step0)` is the child named
+    `step0/a/add` — where the step stands, the tag it carries and the function
+    the call in it names.
+    """
+    return Environment(environ.storage.sub(_the_storage_name(name)),
+                       environ.compute, environ.viba_path, parent=environ)
+
+
+def _the_storage_name(name) -> str:
+    """The name a child environment is made under, as the design gives it.
+
+    A name is a string, or the pieces the source has it in joined by `/`, so
+    that a data path can be read back against the code:
+
+        $sub_env << args.env << ("step0" * step0_name * Step0)
+        # `step0/a/add` — where the step stands, the tag it carries, and the
+        # function the call in it names.
+
+    A piece is a string (the name itself), a name (the name it spells), or a
+    call (the function that call names). A piece that names no such thing
+    contributes nothing: a leaf, a variable reference, `void`.
+
+    One leaf, given as the name itself, is that leaf — a host value with no
+    source behind it lands there too (`sub_env(environ, 7)` is the child `7`).
+    A name that comes to nothing at all is no name to put on a storage, and says so.
     """
     if isinstance(name, VObject):
-        name = name.value
-    return Environment(environ.storage.sub(str(name)), environ.compute,
-                       environ.viba_path, parent=environ)
+        name = name.data
+    if not isinstance(name, viba_ast.AST):
+        return str(name)
+    if isinstance(name, viba_ast.Constant):
+        value = name.value
+        return value if isinstance(value, str) else viba_ast.unparse_type(name)
+    text = _a_name_piece(name)
+    if not text:
+        raise RuntimeError(
+            f"a storage name is a string or pieces of the source that name "
+            f"something, and this names nothing: {_one_line(name)}")
+    return text
+
+
+def _a_name_piece(name) -> str:
+    """One piece of a storage name, or `""` for a piece that names nothing."""
+    if isinstance(name, VObject):
+        name = name.data
+    if isinstance(name, str):
+        return name
+    if isinstance(name, viba_ast.Constant):
+        value = name.value
+        return value if isinstance(value, str) else ""
+    if isinstance(name, viba_ast.TypeRef):
+        return name.name
+    if isinstance(name, viba_ast.Member):
+        return _a_tag_text(name.tag)
+    if isinstance(name, viba_ast.MemberTaken):
+        return viba_ast.source_path(name) or ""
+    if isinstance(name, viba_ast.Partial):
+        # A call names the function it is of: the chain head, whatever the
+        # arguments are.
+        head = name.function
+        while isinstance(head, viba_ast.Partial):
+            head = head.function
+        return _a_name_piece(head)
+    if isinstance(name, (viba_ast.Product, viba_ast.ProductChain)):
+        return "/".join(one for one
+                        in (_a_name_piece(piece) for piece in product_elements(name))
+                        if one)
+    return ""
+
+
+def _a_tag_text(tag: str) -> str:
+    """A tag the source spells (`$a`) as its name (`a`)."""
+    return tag[1:] if tag.startswith("$") else tag
 
 
 def tmp_env(environ: "Environment") -> "Environment":
@@ -2351,6 +2422,12 @@ def _storage_path(environ: Environment) -> str:
     """The path the host is handed for this environment."""
     storage = getattr(environ, "storage", None)
     return getattr(storage, "cur_storage_path", "") if storage else ""
+
+
+def _ends_with_name(environ: Environment, name: str) -> bool:
+    """Whether this environment's data path already ends in that name."""
+    path = _storage_path(environ)
+    return path == name or path.endswith("/" + name)
 
 
 def _module_params(module: ModuleType):
@@ -4461,6 +4538,23 @@ class _Pending:
         params, _problem = self.params()
         return any(is_env for _tag, _source, is_env, _slot in (params or []))
 
+    def _the_env_name(self, parent) -> str:
+        """The name of the sub-environment this call runs in.
+
+        The module's name in the source, or — when a pattern file was chosen —
+        that file's whole name (`sequential_step.300`), so that a data path can be
+        read back against the code: every layer says which module (and which of its
+        files) runs there.
+
+        The layer above may already carry that name — a generic module call is
+        named by the file it chose (`sequential_impl.200`) — and then the file's
+        number alone says the rest of it: repeating a name the path already ends
+        with would say nothing more.
+        """
+        if self.pattern_env and _ends_with_name(parent, self.source):
+            return self.pattern_env
+        return self.source
+
     # ---- what this call is ----
 
     @property
@@ -4626,10 +4720,10 @@ class _Pending:
                     f"its {ENVIRON_TAG} parameter asks for {ENV_TYPE}")
             if self.declares_environ():
                 # The module declares `$env Env`: that parameter is where the environment
-                # goes. A chosen pattern file runs in its own sub-environment: its name is
-                # the file's own decision order, so the path is still serialized and
-                # can be replayed — the caller need not give a sub-environment of its own.
-                self.environ = (sub_env(value.obj, self.pattern_env)
+                # goes. A chosen pattern file runs in its own sub-environment
+                # (`_the_env_name`), so the path is still serialized and can be
+                # replayed — the caller need not give a sub-environment of its own.
+                self.environ = (sub_env(value.obj, self._the_env_name(value.obj))
                                 if self.pattern_env else value.obj)
                 return Ok(self)
             # No `$env Env` parameter: the environment is no member of this call — the body
@@ -4637,7 +4731,7 @@ class _Pending:
             # named by the module. What the body answers is a call that still wants the
             # environment, so the environment is appended to it (`_finish`): that is how
             # `apply << f << args << env` becomes `f << 1 << 2 << env`.
-            self.environ = sub_env(value.obj, self.pattern_env or self.source)
+            self.environ = sub_env(value.obj, self._the_env_name(value.obj))
             self.appends_environ = True
             return Ok(self)
         if not slots:

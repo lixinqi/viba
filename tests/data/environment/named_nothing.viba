@@ -1,0 +1,14 @@
+# A name given as pieces has to name something. Two leaves name nothing at all —
+# there is no string, no name and no call among them — and `Environment.sub_env`
+# refuses the name instead of making a child with an empty one
+# (viba-interpreter.md, "`sub_env` 的数据路径名字").
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import tmp_lib as lib
+__impl__ =
+    lib
+  << (args.env.sub_env << args.env << (1 * 2))

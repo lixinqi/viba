@@ -20,178 +20,180 @@ args = __get_args__ << __decl__
 # value1] * vars1`): a member that is a product contributes its own members, so what
 # a step is handed is the flat product, newest first.
 
-# Each step runs at a storage path of its own (`step0`, `step1`, ... and the last one
-# at `last` beside them): a storage path answers one call, and two steps of one
-# sequential would otherwise share it.
+# Each step runs at a storage path of its own: `step0`, `step1`, ... for the ones
+# that carry a tag, and `last` for the one given without a tag. The name says which
+# call it is, too — the tag it carries and the function it names (`step0/a/add`,
+# `last/echo`) — so a data path can be read back against the code. A storage path
+# answers one call, and two steps of one sequential would otherwise share it.
 
 value0 = sequential_step[Step0]
-  << $env ($sub_env << args.env << "step0")
+  << $env ($sub_env << args.env << ("step0" * step0_name * Step0))
   << $vars nil
 vars1 = tagged[step0_name, value0]
 
 value1 = sequential_step[Step1]
-  << $env ($sub_env << args.env << "step1")
+  << $env ($sub_env << args.env << ("step1" * step1_name * Step1))
   << $vars vars1
 vars2 = tagged[step1_name, value1] * vars1
 
 value2 = sequential_step[Step2]
-  << $env ($sub_env << args.env << "step2")
+  << $env ($sub_env << args.env << ("step2" * step2_name * Step2))
   << $vars vars2
 vars3 = tagged[step2_name, value2] * vars2
 
 value3 = sequential_step[Step3]
-  << $env ($sub_env << args.env << "step3")
+  << $env ($sub_env << args.env << ("step3" * step3_name * Step3))
   << $vars vars3
 vars4 = tagged[step3_name, value3] * vars3
 
 value4 = sequential_step[Step4]
-  << $env ($sub_env << args.env << "step4")
+  << $env ($sub_env << args.env << ("step4" * step4_name * Step4))
   << $vars vars4
 vars5 = tagged[step4_name, value4] * vars4
 
 value5 = sequential_step[Step5]
-  << $env ($sub_env << args.env << "step5")
+  << $env ($sub_env << args.env << ("step5" * step5_name * Step5))
   << $vars vars5
 vars6 = tagged[step5_name, value5] * vars5
 
 value6 = sequential_step[Step6]
-  << $env ($sub_env << args.env << "step6")
+  << $env ($sub_env << args.env << ("step6" * step6_name * Step6))
   << $vars vars6
 vars7 = tagged[step6_name, value6] * vars6
 
 value7 = sequential_step[Step7]
-  << $env ($sub_env << args.env << "step7")
+  << $env ($sub_env << args.env << ("step7" * step7_name * Step7))
   << $vars vars7
 vars8 = tagged[step7_name, value7] * vars7
 
 value8 = sequential_step[Step8]
-  << $env ($sub_env << args.env << "step8")
+  << $env ($sub_env << args.env << ("step8" * step8_name * Step8))
   << $vars vars8
 vars9 = tagged[step8_name, value8] * vars8
 
 value9 = sequential_step[Step9]
-  << $env ($sub_env << args.env << "step9")
+  << $env ($sub_env << args.env << ("step9" * step9_name * Step9))
   << $vars vars9
 vars10 = tagged[step9_name, value9] * vars9
 
 value10 = sequential_step[Step10]
-  << $env ($sub_env << args.env << "step10")
+  << $env ($sub_env << args.env << ("step10" * step10_name * Step10))
   << $vars vars10
 vars11 = tagged[step10_name, value10] * vars10
 
 value11 = sequential_step[Step11]
-  << $env ($sub_env << args.env << "step11")
+  << $env ($sub_env << args.env << ("step11" * step11_name * Step11))
   << $vars vars11
 vars12 = tagged[step11_name, value11] * vars11
 
 value12 = sequential_step[Step12]
-  << $env ($sub_env << args.env << "step12")
+  << $env ($sub_env << args.env << ("step12" * step12_name * Step12))
   << $vars vars12
 vars13 = tagged[step12_name, value12] * vars12
 
 value13 = sequential_step[Step13]
-  << $env ($sub_env << args.env << "step13")
+  << $env ($sub_env << args.env << ("step13" * step13_name * Step13))
   << $vars vars13
 vars14 = tagged[step13_name, value13] * vars13
 
 value14 = sequential_step[Step14]
-  << $env ($sub_env << args.env << "step14")
+  << $env ($sub_env << args.env << ("step14" * step14_name * Step14))
   << $vars vars14
 vars15 = tagged[step14_name, value14] * vars14
 
 value15 = sequential_step[Step15]
-  << $env ($sub_env << args.env << "step15")
+  << $env ($sub_env << args.env << ("step15" * step15_name * Step15))
   << $vars vars15
 vars16 = tagged[step15_name, value15] * vars15
 
 value16 = sequential_step[Step16]
-  << $env ($sub_env << args.env << "step16")
+  << $env ($sub_env << args.env << ("step16" * step16_name * Step16))
   << $vars vars16
 vars17 = tagged[step16_name, value16] * vars16
 
 value17 = sequential_step[Step17]
-  << $env ($sub_env << args.env << "step17")
+  << $env ($sub_env << args.env << ("step17" * step17_name * Step17))
   << $vars vars17
 vars18 = tagged[step17_name, value17] * vars17
 
 value18 = sequential_step[Step18]
-  << $env ($sub_env << args.env << "step18")
+  << $env ($sub_env << args.env << ("step18" * step18_name * Step18))
   << $vars vars18
 vars19 = tagged[step18_name, value18] * vars18
 
 value19 = sequential_step[Step19]
-  << $env ($sub_env << args.env << "step19")
+  << $env ($sub_env << args.env << ("step19" * step19_name * Step19))
   << $vars vars19
 vars20 = tagged[step19_name, value19] * vars19
 
 value20 = sequential_step[Step20]
-  << $env ($sub_env << args.env << "step20")
+  << $env ($sub_env << args.env << ("step20" * step20_name * Step20))
   << $vars vars20
 vars21 = tagged[step20_name, value20] * vars20
 
 value21 = sequential_step[Step21]
-  << $env ($sub_env << args.env << "step21")
+  << $env ($sub_env << args.env << ("step21" * step21_name * Step21))
   << $vars vars21
 vars22 = tagged[step21_name, value21] * vars21
 
 value22 = sequential_step[Step22]
-  << $env ($sub_env << args.env << "step22")
+  << $env ($sub_env << args.env << ("step22" * step22_name * Step22))
   << $vars vars22
 vars23 = tagged[step22_name, value22] * vars22
 
 value23 = sequential_step[Step23]
-  << $env ($sub_env << args.env << "step23")
+  << $env ($sub_env << args.env << ("step23" * step23_name * Step23))
   << $vars vars23
 vars24 = tagged[step23_name, value23] * vars23
 
 value24 = sequential_step[Step24]
-  << $env ($sub_env << args.env << "step24")
+  << $env ($sub_env << args.env << ("step24" * step24_name * Step24))
   << $vars vars24
 vars25 = tagged[step24_name, value24] * vars24
 
 value25 = sequential_step[Step25]
-  << $env ($sub_env << args.env << "step25")
+  << $env ($sub_env << args.env << ("step25" * step25_name * Step25))
   << $vars vars25
 vars26 = tagged[step25_name, value25] * vars25
 
 value26 = sequential_step[Step26]
-  << $env ($sub_env << args.env << "step26")
+  << $env ($sub_env << args.env << ("step26" * step26_name * Step26))
   << $vars vars26
 vars27 = tagged[step26_name, value26] * vars26
 
 value27 = sequential_step[Step27]
-  << $env ($sub_env << args.env << "step27")
+  << $env ($sub_env << args.env << ("step27" * step27_name * Step27))
   << $vars vars27
 vars28 = tagged[step27_name, value27] * vars27
 
 value28 = sequential_step[Step28]
-  << $env ($sub_env << args.env << "step28")
+  << $env ($sub_env << args.env << ("step28" * step28_name * Step28))
   << $vars vars28
 vars29 = tagged[step28_name, value28] * vars28
 
 value29 = sequential_step[Step29]
-  << $env ($sub_env << args.env << "step29")
+  << $env ($sub_env << args.env << ("step29" * step29_name * Step29))
   << $vars vars29
 vars30 = tagged[step29_name, value29] * vars29
 
 value30 = sequential_step[Step30]
-  << $env ($sub_env << args.env << "step30")
+  << $env ($sub_env << args.env << ("step30" * step30_name * Step30))
   << $vars vars30
 vars31 = tagged[step30_name, value30] * vars30
 
 value31 = sequential_step[Step31]
-  << $env ($sub_env << args.env << "step31")
+  << $env ($sub_env << args.env << ("step31" * step31_name * Step31))
   << $vars vars31
 vars32 = tagged[step31_name, value31] * vars31
 
 value32 = sequential_step[Step32]
-  << $env ($sub_env << args.env << "step32")
+  << $env ($sub_env << args.env << ("step32" * step32_name * Step32))
   << $vars vars32
 vars33 = tagged[step32_name, value32] * vars32
 
 # The last argument carries no tag: its answer is this chain's answer.
 last = sequential_step[Last]
-  << $env ($sub_env << args.env << "last")
+  << $env ($sub_env << args.env << ("last" * Last))
   << $vars vars33
 
 __impl__ = last

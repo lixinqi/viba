@@ -13,11 +13,12 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-# One step, nothing remembered before it: it runs at `last`, and its answer is the
-# answer. What the step itself is — a call, and how many arguments that call has —
-# is what the `pattern` line pins.
+# One step, nothing remembered before it: it runs at `last` — named with the function
+# the step names (`last/mul`), so a data path can be read back against the code — and
+# its answer is the answer. What the step itself is — a call, and how many arguments
+# that call has — is what the `pattern` line pins.
 last = sequential_step[args.steps]
-  << $env ($sub_env << args.env << "last")
+  << $env ($sub_env << args.env << ("last" * F))
   << $vars nil
 
 __impl__ = last

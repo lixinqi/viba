@@ -125,8 +125,9 @@ type = A
 前者给出 `value`（`true` / `false`，16 段以上落到最后那份兜底），后者给出 `f`（链头那条 api）与
 `captured`（收下的那些实参合成的一份积）。内建的 `sequential` 也是这么分的：它的
 [`sequential_step/`](viba/builtin/sequential_step/1_200.viba) 认一步那次调用（带 1..16 个 tag 实参
-各一份），[`sequential_arg/`](viba/builtin/sequential_arg/100.viba)
-认一个实参（一次变量引用，或者照源码的任何一份），
+各一份），
+[`tree_apply_closure_only_without_env/`](viba/builtin/tree_apply_closure_only_without_env/2_300.viba)
+认一个实参（一次变量引用一份、一次调用按实参个数各一份、别的再一份），
 [`viba/sequential_impl/`](viba/sequential_impl/2_200.viba) 按步骤数各一份（2..64；一步没有 tag 钉住
 个数，按源码里的调用实参个数各一份）
 （[`viba-interpreter.md`](viba-interpreter.md)）。这几份目录里的文件名前面都带着份数

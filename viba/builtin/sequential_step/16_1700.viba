@@ -2,8 +2,10 @@
 # arguments. Every argument is answered first — a `$var "x"` inside
 # one becomes the value that name holds — and the call then runs at a child of
 # this environment (`run` beside it), so the step and the call it makes never
-# share one storage path. Each argument is answered at a child named by its own
-# number, since two answers are two calls.
+# share one storage path. Each argument is answered at a child of its own,
+# named by where it stands, the tag it carries and the function it names
+# (`arg0/a/mul`): two answers are two calls, and a data path can be read back
+# against the code.
 pattern F << tagged[arg0_name, Arg0] << tagged[arg1_name, Arg1] << tagged[arg2_name, Arg2] << tagged[arg3_name, Arg3] << tagged[arg4_name, Arg4] << tagged[arg5_name, Arg5] << tagged[arg6_name, Arg6] << tagged[arg7_name, Arg7] << tagged[arg8_name, Arg8] << tagged[arg9_name, Arg9] << tagged[arg10_name, Arg10] << tagged[arg11_name, Arg11] << tagged[arg12_name, Arg12] << tagged[arg13_name, Arg13] << tagged[arg14_name, Arg14] << tagged[arg15_name, Arg15]
 
 __decl__ =
@@ -13,22 +15,22 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-answered0 = tree_apply_closure_only_without_env[Arg0] << $env ($sub_env << args.env << "arg0") << $vars args.vars << $of Arg0
-answered1 = tree_apply_closure_only_without_env[Arg1] << $env ($sub_env << args.env << "arg1") << $vars args.vars << $of Arg1
-answered2 = tree_apply_closure_only_without_env[Arg2] << $env ($sub_env << args.env << "arg2") << $vars args.vars << $of Arg2
-answered3 = tree_apply_closure_only_without_env[Arg3] << $env ($sub_env << args.env << "arg3") << $vars args.vars << $of Arg3
-answered4 = tree_apply_closure_only_without_env[Arg4] << $env ($sub_env << args.env << "arg4") << $vars args.vars << $of Arg4
-answered5 = tree_apply_closure_only_without_env[Arg5] << $env ($sub_env << args.env << "arg5") << $vars args.vars << $of Arg5
-answered6 = tree_apply_closure_only_without_env[Arg6] << $env ($sub_env << args.env << "arg6") << $vars args.vars << $of Arg6
-answered7 = tree_apply_closure_only_without_env[Arg7] << $env ($sub_env << args.env << "arg7") << $vars args.vars << $of Arg7
-answered8 = tree_apply_closure_only_without_env[Arg8] << $env ($sub_env << args.env << "arg8") << $vars args.vars << $of Arg8
-answered9 = tree_apply_closure_only_without_env[Arg9] << $env ($sub_env << args.env << "arg9") << $vars args.vars << $of Arg9
-answered10 = tree_apply_closure_only_without_env[Arg10] << $env ($sub_env << args.env << "arg10") << $vars args.vars << $of Arg10
-answered11 = tree_apply_closure_only_without_env[Arg11] << $env ($sub_env << args.env << "arg11") << $vars args.vars << $of Arg11
-answered12 = tree_apply_closure_only_without_env[Arg12] << $env ($sub_env << args.env << "arg12") << $vars args.vars << $of Arg12
-answered13 = tree_apply_closure_only_without_env[Arg13] << $env ($sub_env << args.env << "arg13") << $vars args.vars << $of Arg13
-answered14 = tree_apply_closure_only_without_env[Arg14] << $env ($sub_env << args.env << "arg14") << $vars args.vars << $of Arg14
-answered15 = tree_apply_closure_only_without_env[Arg15] << $env ($sub_env << args.env << "arg15") << $vars args.vars << $of Arg15
+answered0 = tree_apply_closure_only_without_env[Arg0] << $env ($sub_env << args.env << ("arg0" * arg0_name * Arg0)) << $vars args.vars << $of Arg0
+answered1 = tree_apply_closure_only_without_env[Arg1] << $env ($sub_env << args.env << ("arg1" * arg1_name * Arg1)) << $vars args.vars << $of Arg1
+answered2 = tree_apply_closure_only_without_env[Arg2] << $env ($sub_env << args.env << ("arg2" * arg2_name * Arg2)) << $vars args.vars << $of Arg2
+answered3 = tree_apply_closure_only_without_env[Arg3] << $env ($sub_env << args.env << ("arg3" * arg3_name * Arg3)) << $vars args.vars << $of Arg3
+answered4 = tree_apply_closure_only_without_env[Arg4] << $env ($sub_env << args.env << ("arg4" * arg4_name * Arg4)) << $vars args.vars << $of Arg4
+answered5 = tree_apply_closure_only_without_env[Arg5] << $env ($sub_env << args.env << ("arg5" * arg5_name * Arg5)) << $vars args.vars << $of Arg5
+answered6 = tree_apply_closure_only_without_env[Arg6] << $env ($sub_env << args.env << ("arg6" * arg6_name * Arg6)) << $vars args.vars << $of Arg6
+answered7 = tree_apply_closure_only_without_env[Arg7] << $env ($sub_env << args.env << ("arg7" * arg7_name * Arg7)) << $vars args.vars << $of Arg7
+answered8 = tree_apply_closure_only_without_env[Arg8] << $env ($sub_env << args.env << ("arg8" * arg8_name * Arg8)) << $vars args.vars << $of Arg8
+answered9 = tree_apply_closure_only_without_env[Arg9] << $env ($sub_env << args.env << ("arg9" * arg9_name * Arg9)) << $vars args.vars << $of Arg9
+answered10 = tree_apply_closure_only_without_env[Arg10] << $env ($sub_env << args.env << ("arg10" * arg10_name * Arg10)) << $vars args.vars << $of Arg10
+answered11 = tree_apply_closure_only_without_env[Arg11] << $env ($sub_env << args.env << ("arg11" * arg11_name * Arg11)) << $vars args.vars << $of Arg11
+answered12 = tree_apply_closure_only_without_env[Arg12] << $env ($sub_env << args.env << ("arg12" * arg12_name * Arg12)) << $vars args.vars << $of Arg12
+answered13 = tree_apply_closure_only_without_env[Arg13] << $env ($sub_env << args.env << ("arg13" * arg13_name * Arg13)) << $vars args.vars << $of Arg13
+answered14 = tree_apply_closure_only_without_env[Arg14] << $env ($sub_env << args.env << ("arg14" * arg14_name * Arg14)) << $vars args.vars << $of Arg14
+answered15 = tree_apply_closure_only_without_env[Arg15] << $env ($sub_env << args.env << ("arg15" * arg15_name * Arg15)) << $vars args.vars << $of Arg15
 
 __impl__ =
     apply

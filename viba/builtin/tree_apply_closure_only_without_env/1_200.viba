@@ -2,8 +2,10 @@
 # argument. Each argument is answered as its own tree first — a `$var "x"`
 # becomes the value that name holds, and a call inside it is run in turn — and the
 # call then runs at a child of this environment (`run` beside it), so a call and
-# the calls it makes never share one storage path. Each argument is answered at a
-# child named by its own number, since two answers are two calls.
+# the calls it makes never share one storage path. Each argument is answered at
+# a child of its own, named by where it stands, the tag it carries and the
+# function it names (`arg0/a/mul`): two answers are two calls, and a data path
+# can be read back against the code.
 #
 # `$of` is this argument itself, given along so that this same file used one level
 # deeper is a different call.
@@ -17,7 +19,7 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-answered0 = tree_apply_closure_only_without_env[Arg0] << $env ($sub_env << args.env << "arg0") << $vars args.vars << $of Arg0
+answered0 = tree_apply_closure_only_without_env[Arg0] << $env ($sub_env << args.env << ("arg0" * arg0_name * Arg0)) << $vars args.vars << $of Arg0
 
 __impl__ =
     apply

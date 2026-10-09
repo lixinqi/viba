@@ -1,0 +1,21 @@
+# A child named with the pieces the source has it in: the module names the child
+# `step0/a/add` — where the step stands, the tag it carries, and the function the
+# call in it names (viba-interpreter.md, "`sub_env` 的数据路径名字"). The step the
+# host implements reports the data path it ran under (`PlacedHost.ran_at`).
+add =
+    int
+  <- $env Env
+  <- $a Any
+  <- $b Any
+  <- { the sum }
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+import tmp_lib as lib
+__impl__ =
+    lib
+  << (args.env.sub_env << args.env << ("step0" * "a" * (add << $a 1 << $b 2)))

@@ -13,6 +13,12 @@
 # from: `args.env.sub_env << args.env << "child"` is the same call as
 # `$sub_env << args.env << "child"` (viba-interpreter.md).
 #
+# The name `$sub_env` is given may also be the pieces the source has it in, so
+# that a data path can be read back against the code: a product of the strings,
+# names and calls it stands for, joined by `/`. `("step0" * step0_name * Step0)`
+# is the child `step0/a/add` — where the step stands, the tag it carries and the
+# function the call in it names (viba-interpreter.md, the section on `sub_env` names).
+#
 # The members below walk the environment chain a child belongs to: `$get_parent` is the
 # environment this one was made from (`nil` for the root of that chain), `$get_root` is the
 # environment at the top of it (`nil` in, `nil` out), and `$get_relative_path` is

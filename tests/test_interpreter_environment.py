@@ -181,6 +181,19 @@ def _given_in_viba_source(tmp: Path):
     check(ran_at == [("root/child", "leaf")],
           f"environ.sub_env in viba source names the child it should: {ran_at}")
 
+    # 名字也可以按源码里的几份给：站在哪一位、带哪个 tag、调的是哪个函数，拼出来是
+    # `step0/a/add`；几份都是叶子时什么都写不出来，那个 api 当场拒绝
+    host.calls.clear()
+    ran_at.clear()
+    result = interpret(str(CASES / "named_child.viba"), environ)
+    check(is_ok(result) and value_of(result) == 7,
+          f"a host step run under a child named in pieces: {result!r}")
+    check(ran_at == [("root/step0/a/add", "leaf")],
+          f"the pieces name the child, so the path reads back against the code: {ran_at}")
+    environment_api(interpret(str(CASES / "named_nothing.viba"), environ), "names nothing",
+                    "Environment.sub_env",
+                    "a name of pieces that name nothing")
+
     # 答案就是环境：环境是这次调用的规则，不是值，运行以 $viba_program_err 停下
     labelled(interpret(str(CASES / "sub.viba"), environ), "answered the environment",
              "environ.sub_env in viba source, answered -> VibaProgramErr")

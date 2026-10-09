@@ -449,7 +449,16 @@ already used: give each module call a sub-environment of its own (args.env.sub_e
 `args.env.sub_env << args.env << "name"` hands back the same child whenever that name is asked
 for, so calling one module twice means choosing two names; `args.env.tmp_env
 << args.env` (also spelled `$tmp_env << args.env`) is for the calls that need
-no name, and hands out a fresh child every time. Where an `import` is looked for is the environment's business: next to the
+no name, and hands out a fresh child every time. The name may also be given as the
+pieces the source has it in — a product of the strings, names and calls it stands
+for, joined by `/` — so a data path can be read back against the code:
+`("step0" * step0_name * Step0)` is the child `step0/a/add`, the step's place, the
+tag it carries and the function its call names. The builtin `sequential` names its
+steps and their arguments that way
+([`viba-interpreter.md`](viba-interpreter.md), the section on `sub_env` names).
+Where the interpreter names a child itself, it uses the module's name in the source,
+or the whole name of the pattern file it chose (`sequential_step.300`).
+Where an `import` is looked for is the environment's business: next to the
 file it came from, then along `Environment`'s `viba_path` (directories, like
 `PYTHONPATH`), and last in the builtin library (`viba/`, where `builtin.viba`
 and the package's own vocabulary lives, and `viba/builtin/`, where the
@@ -575,9 +584,9 @@ tools built on those.
 | `if.viba` | The builtin if/else: the condition picks the branch, and only that branch's call is computed — the sum of the two switches |
 | `sub_env_run.viba` | The builtin that runs a call at a named child of an environment — `Y.viba` and `apply.viba` sit beside it |
 | `resumable.viba` | The work list a too-deep chain of environments is turned into: one task per call running now, its data path and the call |
-| `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), each named by the count it takes, and the last step's answer is the answer |
+| `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), each named by the count it takes. Every step runs at a child of its own, named by where it stands, the tag it carries and the function it calls (`step0/a/add`, `last/echo`), and the last step's answer is the answer |
 | `builtin/is_closure/`, `builtin/unclosure/` | The builtin generics over closures, one file per argument count (1..16), each named by the count it takes — whether a call in the source is one, and taking it apart |
-| `builtin/sequential_step/`, `builtin/sequential_arg/` | How `sequential` runs one step (a call with 1..16 tagged arguments) and one argument (a variable reference, or whatever stood there) |
+| `builtin/sequential_step/` | How `sequential` runs one step: a call with 1..16 tagged arguments, one file per count, and every argument is answered at a child of its own, named the same way (`arg0/a/mul`) |
 | `builtin/tree_apply_closure_only_without_env/` | How one argument of a call is answered as its own tree: a `$var "x"` becomes the value that name holds, a call is answered the same way one level down and then run at a child of this environment, and every other value stands as it is — one file per argument count (1..16), named by the count it takes |
 
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY
