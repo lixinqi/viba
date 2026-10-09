@@ -550,7 +550,11 @@ def descriptor_of_values(node, source_module, members) -> VibaTypeDescriptor:
         descriptor = member.node.descriptor
         piece = pieces[index] if index < len(pieces) else None
         if isinstance(piece, ast_nodes.Tagged):
-            descriptor = descriptor_of_tagged(piece.tag, descriptor, piece, source_module)
+            # The member's own piece came from wherever the member did: the tag sits
+            # over that module, so a name inside the member means there what it meant
+            # where the member was made — not in the module that piled the members up.
+            own = getattr(member, "source_module", None) or source_module
+            descriptor = descriptor_of_tagged(piece.tag, descriptor, piece, own)
         elements.append(descriptor)
     return VibaTypeDescriptor(PRODUCT, VibaChainDescriptor(
         empty_pool(), resolvable, elements))

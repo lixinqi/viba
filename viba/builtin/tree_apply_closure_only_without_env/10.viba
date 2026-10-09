@@ -1,0 +1,20 @@
+# tree_apply_closure_only_without_env: one argument of a call, as its own tree.
+#
+# Every argument is one of three things: a `$var "x"` (the value an earlier step
+# remembered), a call (its own arguments are answered the same way, then it runs),
+# or any other value (it stands as it is). This file answers the first; the call
+# goes to the counted files beside it, and everything else to `1900.viba`.
+#
+# `$of` is the argument itself, given along: the same pattern file is used again
+# one level deeper, and two calls that differ only in that member are two calls.
+pattern $var X
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $vars Any
+  <- $of Any
+
+args = __get_args__ << __decl__
+
+__impl__ = $__getattr__ << args.vars << X

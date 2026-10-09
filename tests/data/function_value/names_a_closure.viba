@@ -1,0 +1,20 @@
+# function_value —— 一个闭包（一次已经给了实参的调用）也是同一个函数
+twice =
+    int
+  <- $env Env
+  <- $x int
+  <- { 两倍 }
+
+about =
+    str
+  <- $env Env
+  <- $f Any
+  <- { 说出拿到的是什么 }
+
+__decl__ =
+    str
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = about << $f (twice << $x 5) << args.env

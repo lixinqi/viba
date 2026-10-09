@@ -13,8 +13,8 @@ __decl__ =
 
 args = __get_args__ << __decl__
 
-answered0 = sequential_arg[Arg0] << $env ($sub_env << args.env << "arg0") << $vars args.vars
-answered1 = sequential_arg[Arg1] << $env ($sub_env << args.env << "arg1") << $vars args.vars
+answered0 = tree_apply_closure_only_without_env[Arg0] << $env ($sub_env << args.env << "arg0") << $vars args.vars << $of Arg0
+answered1 = tree_apply_closure_only_without_env[Arg1] << $env ($sub_env << args.env << "arg1") << $vars args.vars << $of Arg1
 
 __impl__ =
     apply

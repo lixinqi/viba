@@ -79,7 +79,7 @@ from typing import Optional, Union
 from viba import serialize, viba_ast
 from viba.partial import (file_environment_result_problem, parameters_of,
                           product_elements, names_the_environment)
-from viba.reflect import (LITERAL_CTORS, VObject, VibaReflectError,
+from viba.reflect import (LITERAL_CTORS, VObject, VibaFunction, VibaReflectError,
                           access as reflect_access, by_tag)
 from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
@@ -828,15 +828,16 @@ def _sum_branches(node):
 # ----------------------------------------------------------------------
 
 
-def _source_module_of(node):
-    """The module where a node's names in the source resolve, taken from its descriptor.
+def _descriptor_module(descriptor):
+    """The module a descriptor's names resolve in, or None when it holds none.
 
     A name means what it means in the module that gave it (`F` is one file's
     import and nothing in another), so every piece carries that module. It sits
     on the descriptor's resolvable type: a descriptor is built *from* one, so it
     holds the module rather than showing it as an attribute of its own.
     """
-    descriptor = getattr(node, "descriptor", None)
+    if descriptor is None:
+        return None
     source_module = getattr(descriptor, "container_module", None)
     if source_module is None:
         resolvable = getattr(descriptor, "resolvable_type", None)
@@ -844,26 +845,35 @@ def _source_module_of(node):
     return source_module
 
 
+def _source_module_of(node):
+    """The module where a node's names in the source resolve, taken from its descriptor."""
+    return _descriptor_module(getattr(node, "descriptor", None))
+
+
 class _VibaData:
     """A piece of viba data with its design: a `VObject`.
 
     It also carries **the module that gave it**, **the names a decision bound**
-    for the file it appears in (`bindings`), and, for a call stored as a
-    value, **the values that call was given**. All three are what lets a piece
-    travel: a name resolves in the module it appears in, a name a decision
-    bound still stands for the argument part it was bound to, and a call's
+    for the file it appears in (`bindings`), **the values that call was given**
+    for a call stored as a value (`given`), and **the members it was built
+    from** for a product built out of values (`members`). All four are what lets
+    a piece travel: a name resolves in the module it appears in, a name a
+    decision bound still stands for the argument part it was bound to, a call's
     arguments are the values it received rather than their text taken again
-    somewhere else.
+    somewhere else, and a product's members are the very values they were built
+    from — each with its own module — rather than their text taken again in the
+    module that piled them up.
     """
 
-    __slots__ = ("node", "source_module", "given", "bindings")
+    __slots__ = ("node", "source_module", "given", "bindings", "members")
 
     def __init__(self, node: VObject, source_module=None, given=None,
-                 bindings=None):
+                 bindings=None, members=None):
         self.node = node
         self.source_module = source_module if source_module is not None else _source_module_of(node)
         self.given = given                 # [(tag, _VibaData | None)], a kept call's arguments
         self.bindings = bindings           # {name: _VibaData}: the decision that owns this text
+        self.members = members             # [(tag, _VibaData)]: a product's members as values
 
 
 class _Host:
@@ -1033,7 +1043,10 @@ def _kept_as_its_own_tag(tag, value):
         return value
     node = viba_ast.Tagged(tag, value.node.data)
     descriptor = descriptor_of_tagged(tag, value.node.descriptor, node, value.source_module)
-    return _VibaData(VObject(reflect_access, descriptor, node),
+    # A piece that stands for a function keeps standing for it when it is tagged:
+    # `$x twice` is that function under a tag, not a different thing.
+    return _VibaData(VObject(reflect_access, descriptor, node,
+                             function=value.node.function),
                      source_module=value.source_module, given=value.given,
                      bindings=value.bindings)
 
@@ -1050,10 +1063,15 @@ def _takes_the_rest(source) -> bool:
 def _the_members(value):
     """Every member of a piece as (the tag it appears under, the member itself).
 
-    A product's members are the factors it is spelled as; a piece that is no product
-    is its own one member, and a member of a one-member product (`$a 1`) keeps the tag
-    that spells it.
+    A product built out of values answers the very values it was built from, each
+    with its own module and its own arguments. A product that is only text has its
+    members taken from that text: the factors it is spelled as, each under the
+    module its own descriptor records — a piece that is no product is its own one
+    member, and a member of a one-member product (`$a 1`) keeps the tag that
+    spells it.
     """
+    if value.members is not None:
+        return list(value.members)
     data = value.node.data
     if isinstance(data, (viba_ast.Product, viba_ast.ProductChain)):
         factors = product_elements(data)
@@ -1061,6 +1079,7 @@ def _the_members(value):
     else:
         factors, elements = [data], [value.node.descriptor]
     members = []
+    whole = len(factors) == 1
     for index, factor in enumerate(factors):
         descriptor = elements[index] if index < len(elements) else value.node.descriptor
         tag = None
@@ -1071,10 +1090,40 @@ def _the_members(value):
                           else descriptor_of(AstNodeType(inner, value.source_module)))
         else:
             inner = factor
-        members.append((tag, _VibaData(VObject(reflect_access, descriptor, inner),
-                                       source_module=value.source_module,
-                                       bindings=value.bindings)))
+        # A one-member piece is the member itself: it keeps what it was given and
+        # the function it stands for. A member of a longer product is its own piece,
+        # and what it carries is what it was built with.
+        members.append((tag, _VibaData(
+            VObject(reflect_access, descriptor, inner,
+                    function=value.node.function if whole else None),
+            source_module=value.source_module or _descriptor_module(descriptor),
+            given=value.given if whole else None,
+            bindings=value.bindings)))
     return members
+
+
+def _member_under_tag(value, tag):
+    """The member `value` carries under this tag as a value, or None.
+
+    The member is handed back as it was built: what a piece was given stays with
+    it, so a member taken out of a product needs no text taken again in the module
+    doing the taking.
+    """
+    for member_tag, member in _the_members(value):
+        if member_tag == tag:
+            return member
+    return None
+
+
+def _member_modules(value):
+    """The module each member of a product built out of values was spelled in, or None.
+
+    A product that is only text has no such per-member modules: every member means
+    what it means in the module the product's text appears in, and None says so.
+    """
+    if not isinstance(value, _VibaData) or value.members is None:
+        return None
+    return [member.source_module for _tag, member in value.members]
 
 
 def _one_more_member(product, tag, value, source_module):
@@ -1096,7 +1145,8 @@ def _one_more_member(product, tag, value, source_module):
     chain = viba_ast.ProductChain(nodes)
     return _VibaData(VObject(reflect_access,
                               descriptor_of_values(chain, source_module, kept), chain),
-                     source_module=source_module, bindings=product.bindings), None
+                     source_module=source_module, bindings=product.bindings,
+                     members=members), None
 
 
 def _is_get_args_call(node) -> bool:
@@ -2504,7 +2554,12 @@ class _Activation:
         if len(kept) == 1:
             return Ok(kept[0])
         chain = viba_ast.ProductChain([factor.node.data for factor in kept])
-        return Ok(_VibaData(VObject(reflect_access, self._descriptor(chain), chain)))
+        pairs = [pair for factor in kept for pair in _the_members(factor)]
+        members = [member for _tag, member in pairs]
+        return Ok(_VibaData(VObject(reflect_access,
+                                    descriptor_of_values(chain, self.module, members),
+                                    chain),
+                            members=pairs))
 
     def _inlined_members(self, piece):
         """The members this piece contributes to the product it is a factor of.
@@ -2645,9 +2700,9 @@ class _Activation:
                     f"parameter: its body cannot use args.env")
         for factor in _viba_data_factors(value.ok_value.node):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == wanted:
-                inner = factor.type          # the member's value, not its tag
-                return Ok(_VibaData(VObject(
-                    reflect_access, descriptor_of(AstNodeType(inner, self.module)), inner)))
+                member = _member_under_tag(value.ok_value, wanted)
+                if member is not None:
+                    return Ok(member)
         return VibaProgramErr(f"{head!r} has no member tagged {wanted!r}")
 
     def _imported_name(self, name: str):
@@ -2732,8 +2787,8 @@ class _Activation:
         pulled out still holds in its own module, so this taking is done in an activation
         carrying those bindings (viba-pattern.md).
         """
-        source, modules = self._application_piece(node.owner, scope)
-        decision = reduce_application(source, self.module, modules)
+        source, modules, parts = self._application_piece(node.owner, scope)
+        decision = reduce_application(source, self.module, modules, parts)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
@@ -2756,8 +2811,8 @@ class _Activation:
     def _application_member_target(self, node, scope=()):
         """`g[T].type` at a chain head: a definition of the chosen file, and that chain is
         this step's call."""
-        source, modules = self._application_piece(node.owner, scope)
-        decision = reduce_application(source, self.module, modules)
+        source, modules, parts = self._application_piece(node.owner, scope)
+        decision = reduce_application(source, self.module, modules, parts)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
@@ -2790,8 +2845,13 @@ class _Activation:
         if isinstance(body, (viba_ast.Exponent, viba_ast.ExponentChain)):
             node = (source if isinstance(source, viba_ast.AST)
                     else viba_ast.TypeRef(source or name))
+            # This value *is* the function: `owner_module` is the module that
+            # defines it, whichever file the caller spelled the name in. What
+            # carries that is the value itself (a `VibaFunction`), not the text.
             return Ok(_VibaData(VObject(
-                reflect_access, descriptor_of(AstNodeType(node, source_module)), node)))
+                reflect_access, descriptor_of(AstNodeType(node, source_module)), node,
+                function=VibaFunction(definition.name, owner_module)),
+                source_module=source_module))
         return self._defined(name, definition)
 
     def declares_environ(self) -> bool:
@@ -2905,14 +2965,9 @@ class _Activation:
                     return Ok(given)
             for factor in _viba_data_factors(value.node):
                 if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
-                    inner = factor.type       # the member's value, not its tag
-                    # The member stays a piece of the product it was taken out of: the
-                    # module the product appears in still says what that member's
-                    # names mean (`_getting`), so a name taken out of a product travels.
-                    return Ok(_VibaData(
-                        VObject(reflect_access,
-                                 descriptor_of(AstNodeType(inner, self.module)), inner),
-                        source_module=value.source_module, bindings=value.bindings))
+                    member = _member_under_tag(value, tag)
+                    if member is not None:
+                        return Ok(member)
             return VibaProgramErr(f"no member tagged {tag!r} to take from it")
         return VibaProgramErr(f"{type(value).__name__} has no member tagged {tag!r}")
 
@@ -2959,7 +3014,7 @@ class _Activation:
             for name, bound in chosen.bindings.items()}
 
     def _argument_pieces(self, node, scope):
-        """(nodes, modules): how a decision takes this application's arguments.
+        """(nodes, modules, parts): how a decision takes this application's arguments.
 
         A name this call bound stands for the argument part that stood at the
         call site (`_generic_bindings`): the part is taken as *that* node, in the
@@ -2968,10 +3023,16 @@ class _Activation:
         (viba-pattern.md). Every other argument is taken here, where it is
         appears, as the source has it.
 
-        Returns (None, None) when no argument is such a name: the application is
-        then taken exactly as it stands.
+        `parts` names, for each argument, the module each of its members was
+        spelled in — a product built out of values keeps its members as values,
+        each with its own module, so a decision over that product takes a member
+        in the module that member came from rather than in the one that piled the
+        members up. None where an argument is no such product.
+
+        Returns (None, None, None) when no argument is such a name: the
+        application is then taken exactly as it stands.
         """
-        nodes, modules = [], []
+        nodes, modules, parts = [], [], []
         bound = False
         for argument in node.args:
             value = self._bound_value(argument, scope)
@@ -2980,11 +3041,13 @@ class _Activation:
             if value is None:
                 nodes.append(argument)
                 modules.append(self.module)
+                parts.append(None)
                 continue
             bound = True
             nodes.append(value.node.data)
             modules.append(_module_in_source(value) or self.module)
-        return (nodes, modules) if bound else (None, None)
+            parts.append(_member_modules(value))
+        return (nodes, modules, parts) if bound else (None, None, None)
 
     def _product_member_given(self, argument):
         """`args.args`: the part this call was handed for that member, or None.
@@ -3019,15 +3082,15 @@ class _Activation:
         return found if isinstance(found, _VibaData) else None
 
     def _application_piece(self, node, scope):
-        """(the node the decision is made over, the module of each argument).
+        """(the node the decision is made over, the module of each argument, its members' modules).
 
         `node` is the application in the source; a bound argument is put in as the
         part it stands for, so the decision sees what the call site gave.
         """
-        nodes, modules = self._argument_pieces(node, scope)
+        nodes, modules, parts = self._argument_pieces(node, scope)
         if nodes is None:
-            return node, None
-        return viba_ast.TypeApp(node.constructor, nodes), modules
+            return node, None, None
+        return viba_ast.TypeApp(node.constructor, nodes), modules, parts
 
     def _generic_application(self, node, scope=()):
         """`gen[A, B]`: the chosen file's `__decl__`, taken where it is.
@@ -3059,8 +3122,8 @@ class _Activation:
             # constructor in a *type* expression is the other form of the same
             # text: there it is the resident of `list[a | b | c]` (viba/type.viba).
             return Ok(_VibaData(VObject(reflect_access, self._descriptor(node), node)))
-        source, modules = self._application_piece(node, scope)
-        decision = reduce_application(source, self.module, modules)
+        source, modules, parts = self._application_piece(node, scope)
+        decision = reduce_application(source, self.module, modules, parts)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
@@ -3461,9 +3524,16 @@ class _Activation:
         if not any(isinstance(factor, viba_ast.Tagged) for factor in factors):
             return value, None
         pieces = []
+        members = []
+        pairs = []
         for factor in factors:
             if not isinstance(factor, viba_ast.Tagged):
                 pieces.append(factor)
+                own = _VibaData(
+                    VObject(reflect_access,
+                            descriptor_of(AstNodeType(factor, self.module)), factor))
+                members.append(own)
+                pairs.append((None, own))
                 continue
             member = self.evaluate(factor.type)
             if _stopped(member):
@@ -3474,9 +3544,14 @@ class _Activation:
                     f"the {factor.tag} member of an argument is not viba data, "
                     f"so it cannot be part of {DEF_NAME}")
             pieces.append(viba_ast.Tagged(factor.tag, answered.node.data))
+            members.append(answered)
+            pairs.append((factor.tag, answered))
         chain = (pieces[0] if len(pieces) == 1
                  else viba_ast.ProductChain(pieces))
-        return (_VibaData(VObject(reflect_access, self._descriptor(chain), chain)),
+        return (_VibaData(VObject(reflect_access,
+                                  descriptor_of_values(chain, self.module, members),
+                                  chain),
+                          members=pairs),
                 None)
 
     def _in_module(self, module, bindings=None):
@@ -3503,6 +3578,20 @@ class _Activation:
         head, passed = _stored_arguments(value)
         source_module = _module_in_source(value)
         if whole or (source_module is not None and source_module is not self.module):
+            # A closure that says which function it is (`VibaFunction`) runs the
+            # function its own module defines: the value carries the name and the
+            # module, so nothing here has to read that name in the module the text
+            # was spelled in. A call whose text is all there is keeps the text path.
+            function = value.node.function
+            if function is not None:
+                defining = self._in_module(function.module,
+                                           _bindings_in_source(value))
+                if defining is not None:
+                    target = defining._call_target(
+                        viba_ast.TypeRef(function.name), scope)
+                    if target is not None and not _stopped(target):
+                        return self._give_all(target.ok_value, passed, scope,
+                                              finish=finish)
             other = (self._in_module(source_module, _bindings_in_source(value))
                      if source_module is not None else None)
             if other is not None and isinstance(
@@ -3739,7 +3828,8 @@ class _Activation:
         member = self._member_function(name)
         if member is not None:
             chain, declared_in, own = member
-            return self._func_pending(name_node, name, declared_in, chain, own)
+            return self._func_pending(name_node, name, declared_in, chain, own,
+                                      source_module=self.module)
         bound = self._imported_name(name)
         if bound is None:
             # A bare name that is a member of the builtin concept is that
@@ -3782,8 +3872,8 @@ class _Activation:
         None when the decision picks no function chain: the application is then
         a type, not a call.
         """
-        source, modules = self._application_piece(node, scope)
-        decision = reduce_application(source, self.module, modules)
+        source, modules, parts = self._application_piece(node, scope)
+        decision = reduce_application(source, self.module, modules, parts)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
@@ -3852,7 +3942,8 @@ class _Activation:
         # A builtin member is declared in the built-in vocabulary, not in the
         # module that gave the name: that is the module it is asked from, and the
         # two spellings of the member are one call (`get_func("builtin", "add")`).
-        return self._func_pending(name_node, name, BUILTIN_MODULE, chain, name)
+        return self._func_pending(name_node, name, BUILTIN_MODULE, chain, name,
+                                  source_module=self.module)
 
     def _builtin_module_call(self, name_node, name):
         """The call a builtin directory module's name stands for, or None.
@@ -4635,7 +4726,8 @@ class _Pending:
             tag = tags[index]
             kept.append((tag, value if isinstance(value, _VibaData) else None))
             node = viba_ast.Partial(node, viba_ast.Tagged(tag, piece) if tag else piece)
-        return Ok(_VibaData(VObject(reflect_access, self.descriptor(node), node),
+        return Ok(_VibaData(VObject(reflect_access, self.descriptor(node), node,
+                                    function=VibaFunction(self.name, self.module)),
                             source_module=self.source_module, given=kept,
                             bindings=self.source_bindings))
 

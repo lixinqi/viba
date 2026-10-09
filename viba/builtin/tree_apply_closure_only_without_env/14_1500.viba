@@ -1,15 +1,19 @@
-# sequential_step: a step given as a call with 16 tagged
-# arguments. Every argument is answered first — a `$var "x"` inside
-# one becomes the value that name holds — and the call then runs at a child of
-# this environment (`run` beside it), so the step and the call it makes never
-# share one storage path. Each argument is answered at a child named by its own
-# number, since two answers are two calls.
-pattern F << tagged[arg0_name, Arg0] << tagged[arg1_name, Arg1] << tagged[arg2_name, Arg2] << tagged[arg3_name, Arg3] << tagged[arg4_name, Arg4] << tagged[arg5_name, Arg5] << tagged[arg6_name, Arg6] << tagged[arg7_name, Arg7] << tagged[arg8_name, Arg8] << tagged[arg9_name, Arg9] << tagged[arg10_name, Arg10] << tagged[arg11_name, Arg11] << tagged[arg12_name, Arg12] << tagged[arg13_name, Arg13] << tagged[arg14_name, Arg14] << tagged[arg15_name, Arg15]
+# tree_apply_closure_only_without_env: a call that was given 14 tagged
+# arguments. Each argument is answered as its own tree first — a `$var "x"`
+# becomes the value that name holds, and a call inside it is run in turn — and the
+# call then runs at a child of this environment (`run` beside it), so a call and
+# the calls it makes never share one storage path. Each argument is answered at a
+# child named by its own number, since two answers are two calls.
+#
+# `$of` is this argument itself, given along so that this same file used one level
+# deeper is a different call.
+pattern F << tagged[arg0_name, Arg0] << tagged[arg1_name, Arg1] << tagged[arg2_name, Arg2] << tagged[arg3_name, Arg3] << tagged[arg4_name, Arg4] << tagged[arg5_name, Arg5] << tagged[arg6_name, Arg6] << tagged[arg7_name, Arg7] << tagged[arg8_name, Arg8] << tagged[arg9_name, Arg9] << tagged[arg10_name, Arg10] << tagged[arg11_name, Arg11] << tagged[arg12_name, Arg12] << tagged[arg13_name, Arg13]
 
 __decl__ =
     Any
   <- $env Env
   <- $vars Any
+  <- $of Any
 
 args = __get_args__ << __decl__
 
@@ -27,11 +31,9 @@ answered10 = tree_apply_closure_only_without_env[Arg10] << $env ($sub_env << arg
 answered11 = tree_apply_closure_only_without_env[Arg11] << $env ($sub_env << args.env << "arg11") << $vars args.vars << $of Arg11
 answered12 = tree_apply_closure_only_without_env[Arg12] << $env ($sub_env << args.env << "arg12") << $vars args.vars << $of Arg12
 answered13 = tree_apply_closure_only_without_env[Arg13] << $env ($sub_env << args.env << "arg13") << $vars args.vars << $of Arg13
-answered14 = tree_apply_closure_only_without_env[Arg14] << $env ($sub_env << args.env << "arg14") << $vars args.vars << $of Arg14
-answered15 = tree_apply_closure_only_without_env[Arg15] << $env ($sub_env << args.env << "arg15") << $vars args.vars << $of Arg15
 
 __impl__ =
     apply
   << $f F
-  << $args (tagged[arg0_name, answered0] * tagged[arg1_name, answered1] * tagged[arg2_name, answered2] * tagged[arg3_name, answered3] * tagged[arg4_name, answered4] * tagged[arg5_name, answered5] * tagged[arg6_name, answered6] * tagged[arg7_name, answered7] * tagged[arg8_name, answered8] * tagged[arg9_name, answered9] * tagged[arg10_name, answered10] * tagged[arg11_name, answered11] * tagged[arg12_name, answered12] * tagged[arg13_name, answered13] * tagged[arg14_name, answered14] * tagged[arg15_name, answered15])
+  << $args (tagged[arg0_name, answered0] * tagged[arg1_name, answered1] * tagged[arg2_name, answered2] * tagged[arg3_name, answered3] * tagged[arg4_name, answered4] * tagged[arg5_name, answered5] * tagged[arg6_name, answered6] * tagged[arg7_name, answered7] * tagged[arg8_name, answered8] * tagged[arg9_name, answered9] * tagged[arg10_name, answered10] * tagged[arg11_name, answered11] * tagged[arg12_name, answered12] * tagged[arg13_name, answered13])
   << $env ($sub_env << args.env << "run")

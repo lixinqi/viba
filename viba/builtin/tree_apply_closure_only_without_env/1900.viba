@@ -1,0 +1,13 @@
+# tree_apply_closure_only_without_env: an argument that is no `$var` and no call —
+# a literal, a product, a value another module gave — stands as it is.
+pattern A
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $vars Any
+  <- $of Any
+
+args = __get_args__ << __decl__
+
+__impl__ = A

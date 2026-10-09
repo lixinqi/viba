@@ -1,0 +1,16 @@
+# function_value —— 函数值交到另一份文件手里，它仍然是这份文件里定义的那个函数
+import reader
+
+twice =
+    int
+  <- $env Env
+  <- $x int
+  <- { 两倍 }
+
+__decl__ =
+    str
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = reader << $f twice << ($sub_env << args.env << "reader")

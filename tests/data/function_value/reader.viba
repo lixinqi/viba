@@ -1,0 +1,21 @@
+# function_value —— 函数值走过的另一份文件：它是 `crosses` 定义的，这一点不随文件改变
+about =
+    str
+  <- $env Env
+  <- $f Any
+  <- { 说出拿到的是什么 }
+
+twice =
+    int
+  <- $env Env
+  <- $x int
+  <- { 两倍 }
+
+__decl__ =
+    str
+  <- $env Env
+  <- $f Any
+
+args = __get_args__ << __decl__
+
+__impl__ = about << $f args.f << args.env

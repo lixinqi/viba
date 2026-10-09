@@ -1,0 +1,26 @@
+# tree_apply_closure_only_without_env: a call that was given 1 tagged
+# argument. Each argument is answered as its own tree first — a `$var "x"`
+# becomes the value that name holds, and a call inside it is run in turn — and the
+# call then runs at a child of this environment (`run` beside it), so a call and
+# the calls it makes never share one storage path. Each argument is answered at a
+# child named by its own number, since two answers are two calls.
+#
+# `$of` is this argument itself, given along so that this same file used one level
+# deeper is a different call.
+pattern F << tagged[arg0_name, Arg0]
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $vars Any
+  <- $of Any
+
+args = __get_args__ << __decl__
+
+answered0 = tree_apply_closure_only_without_env[Arg0] << $env ($sub_env << args.env << "arg0") << $vars args.vars << $of Arg0
+
+__impl__ =
+    apply
+  << $f F
+  << $args (tagged[arg0_name, answered0])
+  << $env ($sub_env << args.env << "run")

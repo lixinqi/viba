@@ -1,0 +1,23 @@
+# function_value —— 把一个函数当成值交给宿主，看宿主拿到的是什么
+#
+# `about` 是宿主实现的一步：它的 `$f Any` 收下 `twice` 这个值，宿主拿到的就是这份 viba 数据
+# 本身（`VObject`），它上面带着"我是哪个函数、定义在哪个模块里"。
+twice =
+    int
+  <- $env Env
+  <- $x int
+  <- { 两倍 }
+
+about =
+    str
+  <- $env Env
+  <- $f Any
+  <- { 说出拿到的是什么 }
+
+__decl__ =
+    str
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = about << $f twice << args.env

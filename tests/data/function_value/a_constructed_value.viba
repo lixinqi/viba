@@ -1,0 +1,14 @@
+# function_value —— 构造出来的值没有"定义在哪个模块"这回事：`1 * 2` 是算出来的
+about =
+    str
+  <- $env Env
+  <- $f Any
+  <- { 说出拿到的是什么 }
+
+__decl__ =
+    str
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = about << $f (1 * 2) << args.env

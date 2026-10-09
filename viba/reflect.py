@@ -223,18 +223,70 @@ class VibaData:
 # ----------------------------------------------------------------------
 
 
+class VibaFunction:
+    """A function or a closure as a value: its name, and the module that defines it.
+
+    A function value is not built, it is *defined*: the piece that stands for it is
+    a name in some file, and a module that takes that value has to run the function
+    the file defines, not a name of its own that happens to be spelled the same.
+    So the value carries where it is defined:
+
+    * ``name`` — the name the module defines it under;
+    * ``module`` — the module itself, and ``module_name`` the name it was loaded as
+      (``demo.show``);
+    * ``relative_path`` — the path that module is known by (``/demo/show``);
+    * ``absolute_path`` — the file that module was taken from, when it has one.
+
+    Only a function or a closure carries this. A constructed piece — a product, a
+    leaf, a container — is built rather than defined, so it has no module of its
+    own; the pieces it is built from each carry their own.
+    """
+
+    __slots__ = ("name", "module")
+
+    def __init__(self, name: str, module):
+        self.name = name
+        self.module = module
+
+    @property
+    def module_name(self) -> str:
+        """The name the module was loaded as, or "" when it records none."""
+        return getattr(self.module, "name", "")
+
+    @property
+    def relative_path(self) -> str:
+        """The path the module is known by (`/demo/show`), or "" when it records none."""
+        return getattr(self.module, "module_path", "")
+
+    @property
+    def absolute_path(self) -> str:
+        """The file the module was taken from, or "" for a module with no file."""
+        return getattr(self.module, "file_path", "") or ""
+
+    def __repr__(self):
+        return f"VibaFunction({self.module_name}.{self.name})"
+
+    def __eq__(self, other):
+        return (isinstance(other, VibaFunction) and self.name == other.name
+                and self.module is other.module)
+
+    def __hash__(self):
+        return hash((self.name, id(self.module)))
+
+
 class VObject:
     """One object: a piece of the design's descriptor plus a piece of the viba data.
 
     ``path`` is the VibaPath walked from the root (the protocol's `VObject` has
     no such field; this layer keeps it so an address can be stored, printed and
-    compared).
+    compared). ``function`` is the function or closure this object *is*, for a
+    value that stands for one, and None for every other value.
     """
 
-    __slots__ = ("_access", "descriptor", "data", "path", "data_module")
+    __slots__ = ("_access", "descriptor", "data", "path", "data_module", "function")
 
     def __init__(self, access: "VibaAccess", descriptor: VibaTypeDescriptor, data,
-                 path: Sequence[VibaStep] = (), data_module=None):
+                 path: Sequence[VibaStep] = (), data_module=None, function=None):
         self._access = access
         self.descriptor = descriptor
         self.data = data
@@ -242,6 +294,10 @@ class VObject:
         # The module the viba data's source is in: a name on the data side is
         # resolved there, not where the design piece came from.
         self.data_module = data_module
+        # The function or closure this object is, for a value that stands for one:
+        # a function is defined somewhere, so it says where, and every other value
+        # is built and says None.
+        self.function = function
 
     def __repr__(self):
         where = ".".join(repr(step) for step in self.path) or "root"

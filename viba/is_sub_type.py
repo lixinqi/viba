@@ -182,6 +182,7 @@ class _Checker:
         self._unfolding: set = set()
         self._unfolded: dict = {}
         self._decisions: dict = {}        # (id(node), id(module)) -> the decision
+        self._partial_memo: dict = {}     # (node, module, side, env) -> what it reduced to
 
     # ------------------------------------------------------------------
     # Type-level dispatch
@@ -1125,18 +1126,33 @@ class _Checker:
 
         `__get_args__ << __decl__` is taken before any of that: it is the
         arguments a call was handed, taken as one product (get_args_product).
+
+        The answer is remembered under the piece and the module it was reduced
+        in, with that side's env bindings (a name may resolve through the env
+        `get`, so a reduction under other bindings is another reduction). One
+        judgment asks the same piece again and again — every link it gives, and
+        every argument it judges, comes back through here — and a piece that is
+        a deeply nested call would otherwise be reduced once per link, over and
+        over. The memos `_walk` keeps are the same idea one layer down.
         """
         if not isinstance(node, viba_ast.Partial):
             return node, module
+        key = (node, module, side, self._env_ids(side))
+        found = self._partial_memo.get(key)
+        if found is not None:
+            return found
         product = self._get_args_call(node, module, side)
         if product is not None:
+            self._partial_memo[key] = product
             return product
-        return reduce_partial(
+        out = reduce_partial(
             node, module,
             lambda name, container_module: self._partial_target(
                 name, container_module, side),
             lambda given, given_module, other, other_module: self._walk(
                 given, given_module, other, other_module))
+        self._partial_memo[key] = out
+        return out
 
     def _get_args_call(self, node, module, side: str):
         """(product, module) for `__get_args__ << <chain>`, or None.

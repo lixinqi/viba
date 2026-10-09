@@ -525,7 +525,8 @@ def _named_symbol(name: str, module: ModuleType):
     return None
 
 
-def reduce_application(node, module: ModuleType, argument_modules=None) -> Result:
+def reduce_application(node, module: ModuleType, argument_modules=None,
+                       argument_parts=None) -> Result:
     """The chosen body for a generic application, or Ok(None) when it is none.
 
     `node` is the `G[A, B]` in the source and `module` the module that gave it,
@@ -540,6 +541,12 @@ def reduce_application(node, module: ModuleType, argument_modules=None) -> Resul
     at the call site, and that part was spelled there, so an argument that is
     such a name is taken in its own module (`decide`). Without it every argument
     is taken in `module`.
+
+    `argument_parts` names, for each argument, the module each of its members was
+    spelled in, where the argument is a product built out of values: a member then
+    means what it meant where it was made, not what it means in the module that
+    piled the members up. Without it every member of an argument is taken in the
+    argument's own module.
     """
     if not isinstance(node, viba_ast.TypeApp):
         return Ok(None)
@@ -549,11 +556,13 @@ def reduce_application(node, module: ModuleType, argument_modules=None) -> Resul
     if generic.ok_value is None:
         return Ok(None)
     return decide(generic.ok_value, node.args, module,
-                  argument_modules=argument_modules)
+                  argument_modules=argument_modules,
+                  argument_parts=argument_parts)
 
 
 def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
-           argument_module: ModuleType, argument_modules=None) -> Result:
+           argument_module: ModuleType, argument_modules=None,
+           argument_parts=None) -> Result:
     """The first file whose patterns fit, or why none does.
 
     A generic application is a call made at design time: the chosen file's
@@ -595,9 +604,13 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
             continue
         bindings: Dict[str, AstNodeType] = {}
         fits = True
-        for pattern, argument, source_module in zip(patterns, arguments, where):
+        members = (list(argument_parts) if argument_parts
+                   else [None] * len(arguments))
+        for pattern, argument, source_module, member_modules in zip(
+                patterns, arguments, where, members):
             got = structural_pattern_match(pattern, module, argument,
-                                           source_module, bindings)
+                                           source_module, bindings,
+                                           parts=member_modules)
             if isinstance(got, VibaProgramErr):
                 return got
             if got.ok_value is None:
@@ -783,7 +796,8 @@ class _BadPattern(Exception):
 
 def structural_pattern_match(pattern, pattern_module: ModuleType, argument,
                              argument_module: ModuleType,
-                             bindings: Optional[Dict[str, AstNodeType]] = None) -> Result:
+                             bindings: Optional[Dict[str, AstNodeType]] = None,
+                             parts=None) -> Result:
     """Bind this pattern's parameters to what the argument has in their place.
 
     Ok(bindings) when the argument fits the pattern: the dict holds every name
@@ -813,7 +827,8 @@ def structural_pattern_match(pattern, pattern_module: ModuleType, argument,
     """
     bindings = {} if bindings is None else bindings
     try:
-        matched = _match(pattern, pattern_module, argument, argument_module, bindings)
+        matched = _match(pattern, pattern_module, argument, argument_module,
+                         bindings, parts)
     except _BadPattern as exc:
         return VibaProgramErr(str(exc))
     except PartialError as exc:
@@ -822,14 +837,20 @@ def structural_pattern_match(pattern, pattern_module: ModuleType, argument,
 
 
 def _match(pattern, pattern_module: ModuleType, argument,
-           argument_module: ModuleType, bindings: Dict[str, AstNodeType]):
-    """The bindings this part fits with, or None when it does not fit."""
+           argument_module: ModuleType, bindings: Dict[str, AstNodeType],
+           parts=None):
+    """The bindings this part fits with, or None when it does not fit.
+
+    `parts` names, for an argument that is a product, the module each of its
+    members was spelled in: the first split of that product hands each member its
+    own module, and deeper levels take the module they inherit.
+    """
     if isinstance(pattern, viba_ast.Ellipsis):
         raise _BadPattern(
             "ellipsis is not allowed in a `pattern` line: a pattern is one type")
     if isinstance(pattern, viba_ast.TypeApp) and pattern.constructor == TAGGED_NAME:
         return _match_tagged(pattern, pattern_module, argument, argument_module,
-                             bindings)
+                             bindings, parts)
     if isinstance(pattern, viba_ast.Partial):
         return _match_call(pattern, pattern_module, argument, argument_module,
                            bindings)
@@ -854,7 +875,7 @@ def _match(pattern, pattern_module: ModuleType, argument,
     if isinstance(pattern, _PROD_NODES):
         return _match_parts(product_elements(pattern), pattern_module,
                             product_elements(node) if isinstance(node, _PROD_NODES) else [node],
-                            module, bindings)
+                            module, bindings, parts)
     if isinstance(pattern, _EXP_NODES):
         return _match_parts(exponent_elements(pattern), pattern_module,
                             exponent_elements(node) if isinstance(node, _EXP_NODES) else [node],
@@ -921,7 +942,7 @@ def _application_parts(node):
 
 
 def _match_tagged(pattern, pattern_module: ModuleType, argument, argument_module,
-                  bindings: Dict[str, AstNodeType]):
+                  bindings: Dict[str, AstNodeType], parts=None):
     """`tagged[S, T]`: the argument has to be the tag S spells.
 
     `S` is either a symbol in the source — the tag it has to be — or a
@@ -933,6 +954,10 @@ def _match_tagged(pattern, pattern_module: ModuleType, argument, argument_module
 
     One argument in the source claims the member `$S`, two the tagged type `$S T`
     (viba-pattern.md).
+
+    `parts` names, for an argument that is a product, the module each of its
+    members was spelled in. A product of one member is that member, so the value
+    under the tag means what it meant where that member was made.
     """
     problem = tagged_problem(pattern.args)
     if problem is not None:
@@ -956,16 +981,25 @@ def _match_tagged(pattern, pattern_module: ModuleType, argument, argument_module
         return bindings
     if not isinstance(node, viba_ast.Tagged):
         return None
+    if parts and len(parts) == 1 and parts[0]:
+        module = parts[0]
     return _match(pattern.args[1], pattern_module, node.type, module, bindings)
 
 
 def _match_parts(patterns, pattern_module: ModuleType, arguments, argument_module,
-                 bindings: Dict[str, AstNodeType]):
-    """Parts against parts, in order: every pair has to fit, sharing bindings."""
+                 bindings: Dict[str, AstNodeType], parts=None):
+    """Parts against parts, in order: every pair has to fit, sharing bindings.
+
+    `parts` names, for each part, the module it was spelled in, where that is
+    known — a member of a product built out of values keeps the module it was made
+    in. A part without one is taken in the module the whole argument was spelled in.
+    """
     if len(patterns) != len(arguments):
         return None
-    for pattern, argument in zip(patterns, arguments):
-        found = _match(pattern, pattern_module, argument, argument_module, bindings)
+    for index, (pattern, argument) in enumerate(zip(patterns, arguments)):
+        own = (parts[index] if parts and index < len(parts) and parts[index]
+               else argument_module)
+        found = _match(pattern, pattern_module, argument, own, bindings)
         if found is None:
             return None
         bindings = found

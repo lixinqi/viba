@@ -1,15 +1,19 @@
-# sequential_step: a step given as a call with 5 tagged
-# arguments. Every argument is answered first — a `$var "x"` inside
-# one becomes the value that name holds — and the call then runs at a child of
-# this environment (`run` beside it), so the step and the call it makes never
-# share one storage path. Each argument is answered at a child named by its own
-# number, since two answers are two calls.
+# tree_apply_closure_only_without_env: a call that was given 5 tagged
+# arguments. Each argument is answered as its own tree first — a `$var "x"`
+# becomes the value that name holds, and a call inside it is run in turn — and the
+# call then runs at a child of this environment (`run` beside it), so a call and
+# the calls it makes never share one storage path. Each argument is answered at a
+# child named by its own number, since two answers are two calls.
+#
+# `$of` is this argument itself, given along so that this same file used one level
+# deeper is a different call.
 pattern F << tagged[arg0_name, Arg0] << tagged[arg1_name, Arg1] << tagged[arg2_name, Arg2] << tagged[arg3_name, Arg3] << tagged[arg4_name, Arg4]
 
 __decl__ =
     Any
   <- $env Env
   <- $vars Any
+  <- $of Any
 
 args = __get_args__ << __decl__
 

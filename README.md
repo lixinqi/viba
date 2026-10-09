@@ -578,6 +578,7 @@ tools built on those.
 | `sequential.viba`, `sequential_impl/` | The builtin that runs a chain of steps in order — one file per step count (2..64, and one per argument count of the call for a single step), each named by the count it takes, and the last step's answer is the answer |
 | `builtin/is_closure/`, `builtin/unclosure/` | The builtin generics over closures, one file per argument count (1..16), each named by the count it takes — whether a call in the source is one, and taking it apart |
 | `builtin/sequential_step/`, `builtin/sequential_arg/` | How `sequential` runs one step (a call with 1..16 tagged arguments) and one argument (a variable reference, or whatever stood there) |
+| `builtin/tree_apply_closure_only_without_env/` | How one argument of a call is answered as its own tree: a `$var "x"` becomes the value that name holds, a call is answered the same way one level down and then run at a child of this environment, and every other value stands as it is — one file per argument count (1..16), named by the count it takes |
 
 Two modules are implementation, not something a caller reaches for: `parser.py` (the PLY
 grammar behind `viba_ast.parse`, with a self-test at the bottom that also checks this file
