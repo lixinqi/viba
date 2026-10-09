@@ -281,11 +281,15 @@ def _crossing_the_host_boundary(tmp: Path):
     checks.failed(interpret(_case("fed"), environ), "raised",
                   "a host handing a viba function something with no leaf")
 
-    # 那个参数声明的是 int：把函数递进去是程序错，判定层当场拦下，走不到宿主
-    checks.labelled(interpret(_case("handed"), environ), "does not fit $x int",
-                    "a viba function handed where an int is declared: a program error")
+    # 那个参数声明的是 int：值层不拦，函数照样交到宿主手里 —— 和声明 Any 时一样，拿到的是
+    # 它代表的那次调用（声明是设计那一层的事，值层不拿它核实参）
+    result = interpret(_case("handed"), environ)
+    check(is_ok(result)
+          and isinstance(result.by_tag(OK_TAG).data, viba_ast.TypeRef),
+          f"a viba function handed where an int is declared comes back as data too: "
+          f"{result!r}")
 
-    # 那个参数声明的是 Any：函数装得下，宿主拿到它再交回来，才轮到"没有叶子"
+    # 那个参数声明的是 Any：同一件事
     result = interpret(_case("handed_any"), environ)
     check(is_ok(result)
           and isinstance(result.by_tag(OK_TAG).data, viba_ast.TypeRef),

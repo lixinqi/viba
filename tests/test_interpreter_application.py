@@ -1,6 +1,7 @@
 """`<<`：给参数这一件事——给几个、给谁、什么时候算。
 
-给出的实参按源码里的顺序算；说明块不是实参；给多了、给错了、给的不是函数都是 VibaProgramErr。
+给出的实参按源码里的顺序算；说明块不是实参；给多了、给的不是函数都是 VibaProgramErr。给实参这一步
+不核类型：`$a int` 那里给 `"x"` 也照给，撞上的是那一步的实现。
 每条用例是一份可以打开的文件（`tests/data/application/*.viba`），被调的那个函数在
 `arithmetic.viba` 里，宿主的实现按名字认它，所以这里只列每份文件该跑出什么。
 
@@ -93,24 +94,30 @@ def _order_and_slots(tmp: Path):
           f"the call itself never happens: {host.calls}")
 
 
-# (文件, 该跑出什么)：want 为 None 表示跑出一个值。
+# (文件, 该跑出什么)：给实参这一步不核类型，所以装不下的那些照给 —— 那一步的实现拿它去做原来
+# 那件事，撞上了就在那里报（`$underlying_viba_op_err`，话里是 raised）。
 SLOT_CASES = [
-    ("slot_0", "does not fit $a int", "a string in an int slot"),
-    ("slot_1", "does not fit $b int", "and in the second slot"),
-    ("slot_2", "does not fit $a int", "a bool is no int"),
-    ("slot_3", "does not fit $a int", "the environment in an int slot"),
-    ("slot_4", "does not fit $a int", "nil in an int slot"),
-    ("slot_5", "does not fit $p", "a product whose member does not fit"),
-    ("slot_6", None, "a literal that does fit goes through"),
-    ("slot_7", None, "and so does a product that fits"),
+    ("slot_0", "raised", "a string in an int slot reaches the step and breaks it there"),
+    ("slot_1", "raised", "and in the second slot"),
+    ("slot_3", "raised", "the environment in an int slot"),
+    ("slot_4", "raised", "nil in an int slot"),
+]
+
+# (文件, 该跑出什么值)：装不下、但照用得下去的几种
+SLOT_VALUES = [
+    ("slot_2", 2, "a bool in an int slot adds as one (true + 1)"),
+    ("slot_5", "s", "a product whose member does not fit is handed over as it is"),
+    ("slot_6", 7, "a literal that fits"),
+    ("slot_7", 1, "and so does a product that fits"),
 ]
 
 
 def _argument_types(tmp: Path):
-    """实参要装得下那个参数：装不下是**程序错**，宿主还没看见这个实参。
+    """给一个实参不核类型：设计说 `$a int`，给一个字符串也照给。
 
-    值层现在也用得上判定的那套 <:：字面量、可序列化数据、环境都有在源码里给出的类型。
-    判不出类型的（宿主自己的值、判定层 settle 不了的）照旧放过去，交给实现那一步的人。
+    判定层那套 <: 判的是**设计** —— 把一个函数链判成某个类型、给一份设计取实参 —— 不是这一次
+    调用给的这一个值。所以装不下的实参也交到那一步的实现手里：它拿它做整数运算就在那里撞上
+    （`$underlying_viba_op_err`），照用得下去的（`true + 1`）就照答。
     """
     def get_func(path, func_name):
         if func_name == "x_of":
@@ -119,14 +126,17 @@ def _argument_types(tmp: Path):
 
     environ = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
     for name, want, label in SLOT_CASES:
-        labelled(interpret(str(CASES / f"{name}.viba"), environ), want, label)
+        checks.failed(interpret(str(CASES / f"{name}.viba"), environ), want, label)
+    for name, want, label in SLOT_VALUES:
+        result = interpret(str(CASES / f"{name}.viba"), environ)
+        check(is_ok(result) and value_of(result) == want, f"{label}, got {result!r}")
 
 
 def _lazy_argument_types(tmp: Path):
-    """函数类型的那个实参不先算：宿主叫它的时候才核，叫了才错，不叫就不错。"""
+    """函数类型的那个实参不先算：宿主叫它的时候才算，算了也不核类型。"""
     def get_func(path, func_name):
         if func_name == "watch":
-            return lambda env, x: x(env)      # 叫了那个实参：这时才算、才核
+            return lambda env, x: x(env)      # 叫了那个实参：这时才算
         if func_name == "ignore":
             return lambda env, x: 7           # 不叫它：那个实参一次都不算
         if path == "builtin" and func_name == "echo":
@@ -134,11 +144,13 @@ def _lazy_argument_types(tmp: Path):
         return Host().get_func(path, func_name)
 
     host = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
-    labelled(interpret(str(CASES / "lazy_asked.viba"), host), "does not fit int",
-             "a function-typed slot is checked when the host asks")
+    result = interpret(str(CASES / "lazy_asked.viba"), host)
+    check(is_ok(result) and value_of(result) == "x",
+          f"what the call in a function-typed slot answers is handed over as it is: "
+          f"{result!r}")
     result = interpret(str(CASES / "lazy_ignored.viba"), host)
     check(is_ok(result) and value_of(result) == 7,
-          f"and an argument nobody asks for is never checked: {result!r}")
+          f"and an argument nobody asks for is never computed: {result!r}")
 
 
 def _long_chain(tmp: Path):

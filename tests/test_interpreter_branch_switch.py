@@ -143,7 +143,8 @@ def environ_for(store, calls):
 # 最后一列是要看住的副作用调用；None 表示不看。
 CASES_TO_RUN = [
     ("a_half_given_switch_completed_here", "value", 7, []),
-    ("a_slot_that_does_not_fit", "error", 'does not fit', []),
+    # 条件装不进 `$cond bool`：值层不拦，开关自己拿它当条件（7 算真），照样跳那一支
+    ("a_condition_that_does_not_fit_the_declaration", "value", 7, []),
     ("a_switch_file_called_for_its_answer", "value", 9, []),
     ("a_value_not_implemented_beside_a_live_condition", "not_implemented", None, []),
     ("an_untaken_side_not_implemented_and_counts", "value", 1, ['tick']),

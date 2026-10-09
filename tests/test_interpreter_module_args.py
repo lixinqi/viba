@@ -18,7 +18,7 @@ from interpreter_support import message_of, stop_tag, Checks, is_ok, value_of
 
 from viba.interpret import Environment, EnvironmentCompute, EnvironmentStorage, interpret
 from viba.reflect import access as reflect_access
-from viba.type import PROGRAM_ERR_TAG
+from viba.type import FAILURE_TAG, PROGRAM_ERR_TAG
 
 checks = Checks("interpreter_module_args")
 check = checks.check
@@ -80,8 +80,9 @@ CASES_TO_RUN = [
     ("no_env_args_env_called", "error", "declares no $env Env parameter", None),
     ("two_envs_called", "error", "exactly one", None),
     ("env_not_env_called", "error", "must be Env", None),
-    ("wrong_type_positionally", "error", 'does not fit $a int', None),
-    ("wrong_type_by_tag", "error", 'does not fit $b int', None),
+    # 值层不核类型：装不下的实参照给，那一步的实现拿它去乘，崩在那里
+    ("wrong_type_positionally", "fail", "raised: mul", None),
+    ("wrong_type_by_tag", "fail", "raised: mul", None),
 ]
 
 
@@ -101,6 +102,10 @@ def run(tmp: Path):
         elif kind == "error":
             check(stop_tag(result) == PROGRAM_ERR_TAG and want in message_of(result),
                   f"{name}: expected a $viba_program_err saying {want!r}, got {result!r}")
+        elif kind == "fail":
+            check(stop_tag(result) == FAILURE_TAG and want in message_of(result),
+                  f"{name}: expected a $underlying_viba_op_err saying {want!r}, "
+                  f"got {result!r}")
         if calls_wanted is not None:
             check(calls == calls_wanted,
                   f"{name}: expected the calls {calls_wanted}, got {calls}")

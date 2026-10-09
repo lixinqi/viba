@@ -36,7 +36,6 @@ from viba.type import BUILTIN_CONCEPT
 
 checks = Checks("interpreter_builtin")
 check = checks.check
-labelled = checks.labelled
 
 CASES = Path(__file__).resolve().parent / "data" / "builtin"
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
@@ -149,7 +148,7 @@ def run(tmp: Path):
     _the_two_spellings_are_one_call(tmp)
     _a_module_may_shadow_a_builtin(tmp)
     _it_runs_where_it_is_given(tmp)
-    _the_wrong_type_is_refused(tmp)
+    _the_wrong_type_reaches_the_step(tmp)
     _the_library_and_the_table_agree()
 
 
@@ -203,12 +202,12 @@ def _it_runs_where_it_is_given(tmp: Path):
           f"{ran_at}")
 
 
-def _the_wrong_type_is_refused(tmp: Path):
-    """参数类型不对：拒绝，而不是把字符串交给宿主。"""
+def _the_wrong_type_reaches_the_step(tmp: Path):
+    """参数类型不对：值层不拦，那个字符串交到这一步的实现手里，崩在那里。"""
     result = interpret(str(CASES / "the_wrong_type.viba"),
                        environ_for(host_for([]), tmp / "wrong"))
-    labelled(result, "does not fit",
-             "a str given to an int parameter is refused")
+    checks.failed(result, "raised",
+                  "a str given to an int parameter breaks the step it was given to")
 
 
 def _the_library_and_the_table_agree():

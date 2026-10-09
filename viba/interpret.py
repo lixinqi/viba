@@ -85,6 +85,7 @@ from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
                           reduce_application, tagged_type_of)
 from viba.type import (BUILTIN_MODULE, CustomModuleType, ENVIRONMENT_API_TAG,
+                       PartialError,
                        ERR_TAG, FAILURE_TAG, NOT_IMPLEMENTED_TAG, OK_TAG,
                        PROGRAM_ERR_TAG,
                        REASON_GET_FUNC_RAISED,
@@ -767,78 +768,6 @@ def _one_line(node) -> str:
     return " ".join(viba_ast.unparse_type(node).split())
 
 
-def _slot_type(element):
-    """The declared type an argument slot in the source asks for."""
-    return element.type if isinstance(element, viba_ast.Tagged) else element
-
-
-def _value_as_type(value):
-    """The type this value already is, or None when it has none of its own.
-
-    Viba data is the design it was made of and a viba function is its chain, so
-    the judgment can take them; the environment is `Environment`. A half-given
-    call is the function type it still owes. A host value with no viba type — a
-    host function, a host object — has none, and nothing is judged for it.
-    """
-    if isinstance(value, _VibaData):
-        return value.node.data
-    if isinstance(value, _Pending):
-        return _pending_type(value)
-    if isinstance(value, _Host) and isinstance(value.obj, Environment):
-        return viba_ast.TypeRef(ENVIRON_TYPE)
-    return None
-
-
-def _pending_type(value):
-    """The function type a half-given call still is, or None.
-
-    Its arguments are the design's, so the environment does not show up here: a
-    call that still owes the environment is the same function as one that has it
-    — giving it is what runs the call, not an argument of it.
-    """
-    if value.head is None:
-        return None
-    keep = [index for index, element in enumerate(value.elements)
-            if not _is_the_environment_element(element)]
-    rest = [value.elements[index] for index in keep if index not in value.given]
-    if not rest:
-        return value.head
-    return viba_ast.ExponentChain([value.head] + rest)
-
-
-def _is_the_environment_element(element) -> bool:
-    """Whether this slot in the source is the environment — the call's rule, not an
-    argument the design takes."""
-    if isinstance(element, viba_ast.Tagged):
-        return element.tag == ENVIRON_TAG
-    return False
-
-
-def _fits_slot(value, element, module, owner: str):
-    """Why this argument does not fit the slot it was given to, or None.
-
-    The design says what a slot is (`$a int`), and a value given as text
-    already has a type, so the judgment that takes the design can refuse the
-    argument before any host sees it: a string in an int slot is a program
-    error, not a step whose implementation broke. Only what can be taken both
-    ways is judged — a value whose type the judgment cannot settle is left to
-    whoever implements the step, the way it always was.
-    """
-    given = _value_as_type(value)
-    if given is None:
-        return None
-    source = _slot_type(element)
-    from viba.is_sub_type import is_sub_type
-    # A name is taken in the module it appears in — it follows the value, not the side that
-    # receives it.
-    judged = is_sub_type(AstNodeType(given, _module_in_source(value) or module),
-                         AstNodeType(source, module))
-    if not isinstance(judged, Ok) or judged.ok_value is True:
-        return None
-    return (f"{owner}: {_one_line(given)} does not fit {_one_line(element)}: "
-            f"{_one_line(given)} <: {_one_line(source)} does not hold")
-
-
 def _builtin_unit(node):
     """The builtin unit type `node` spells, if it names one."""
     if isinstance(node, viba_ast.Nil):
@@ -1046,7 +975,7 @@ class _Getter:
     happen twice.
     """
 
-    __slots__ = ("activation", "node", "scope", "answer", "slot", "module", "owner",
+    __slots__ = ("activation", "node", "scope", "answer",
                  "file", "source_module", "name", "origin")
 
     def __init__(self, activation, node, scope=()):
@@ -1054,33 +983,15 @@ class _Getter:
         self.node = node
         self.scope = scope                  # the block the argument appears in
         self.answer = None                  # the Result, once it is worked out
-        self.slot = None                    # what the call asked for, once it is taken
-        self.module = None
-        self.owner = ""
         self.file = activation.file         # the module that gave the argument
         self.source_module = activation.module       # where the module it came from has its names
         self.origin = activation            # the activation that gave it: its args are there
         self.name = activation.name
 
-    def watch(self, element, module, owner: str):
-        """The call that took this argument says which slot it fills.
-
-        A getter is handed over before the value exists, so the type the slot
-        asks for can only be checked when the host asks for it. `_Pending.give`
-        knows the slot; this is where it tells the getter.
-        """
-        self.slot = element
-        self.module = module
-        self.owner = owner
-
     def __call__(self):
         if self.answer is None:
-            answer = self.activation.evaluate(self.node, self.scope)
-            if isinstance(answer, Ok) and self.slot is not None:
-                problem = _fits_slot(answer.ok_value, self.slot, self.module, self.owner)
-                if problem is not None:
-                    answer = VibaProgramErr(problem)
-            self.answer = answer
+            self.answer = _taking_a_design(
+                lambda: self.activation.evaluate(self.node, self.scope))
         if not isinstance(self.answer, Ok):
             raise _Raised(self.answer)
         return _argument_value(self.answer.ok_value)
@@ -1268,6 +1179,22 @@ def _as_given_value(value):
     if isinstance(value, (Ok, VibaProgramErr)):
         return value.ok_value if isinstance(value, Ok) else value
     return value
+
+
+def _taking_a_design(take):
+    """Take a design, with a refusal of it as the program error it is.
+
+    The judgment layer refuses a design it cannot make sense of by raising a
+    `PartialError` (`viba/partial.py`): an argument that does not fit the slot a
+    declaration puts it at, a definition that is no function type, a symbol that
+    is not one. A run takes designs too — the bindings a decision pulled out, a
+    piece's descriptor — and a refusal there is this program's business, so it
+    comes back as a `VibaProgramErr` and not as an exception out of the run.
+    """
+    try:
+        return take()
+    except PartialError as refused:
+        return VibaProgramErr(str(refused))
 
 
 def _stopped(result) -> bool:
@@ -2124,7 +2051,8 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                                  members=members, bindings=bindings)
         # The body's own chain is left unfinished: a call it answers may still be
         # waiting for the environment, which is given to it below.
-        value = stopped(activation.evaluate(ret.body, (), finish=False))
+        value = stopped(_taking_a_design(
+            lambda: activation.evaluate(ret.body, (), finish=False)))
         if not _stopped(value) and isinstance(value.ok_value, (_Pending, _DynCall)):
             current = value.ok_value
             if isinstance(current, _DynCall):
@@ -4104,12 +4032,11 @@ class _HostArgument:
     computed once — an argument is one argument.
     """
 
-    def __init__(self, node, scope, pending, slot, module, owner, file=None,
+    def __init__(self, node, scope, pending, module, owner, file=None,
                  source_module=None, name="", origin=None):
         self.node = node
         self.scope = scope              # the block the argument appears in
         self.pending = pending
-        self.slot = slot                # the declared type inside the function
         self.module = module
         self.owner = owner
         self.file = file                # the module the argument appears in
@@ -4134,14 +4061,15 @@ class _HostArgument:
         self.closure = None
         activation = self.pending.activation
         if activation is not None:
-            answer = activation.evaluate(self.node, self.scope)
+            answer = _taking_a_design(
+                lambda: activation.evaluate(self.node, self.scope))
             if isinstance(answer, Ok) and _is_a_source_call(answer.ok_value):
                 self.closure = answer.ok_value.node
         return self.closure
 
     def __call__(self, environ, *arguments):
         if self.answer is None:
-            self.answer = self._compute(environ, arguments)
+            self.answer = _taking_a_design(lambda: self._compute(environ, arguments))
         if not isinstance(self.answer, Ok):
             raise _Raised(self.answer)  # a stop is reported as it is, not turned into a value
         value = self.answer.ok_value
@@ -4186,19 +4114,8 @@ class _HostArgument:
                 answer = caller.evaluate(self.node, self.scope)
                 if not isinstance(answer, Ok):
                     return answer
-                problem = _fits_slot(answer.ok_value, self.slot, self.module, self.owner)
-                if problem is not None:
-                    return VibaProgramErr(problem)
                 return answer
-        answer = caller._apply_without_environ(self.node, self.scope, given, arguments)
-        if not isinstance(answer, Ok):
-            return answer
-        if self.slot is None:
-            return answer
-        problem = _fits_slot(answer.ok_value, self.slot, self.module, self.owner)
-        if problem is not None:
-            return VibaProgramErr(problem)
-        return answer
+        return caller._apply_without_environ(self.node, self.scope, given, arguments)
 
 
 def _function_slot(pending, index):
@@ -4224,7 +4141,7 @@ def _handed_to_host(pending, index, value):
     if isinstance(value, _HostArgument):
         return value
     if _function_slot(pending, index) is not None and _is_a_source_call(value):
-        return _HostArgument(value.node.data, pending, _function_slot(pending, index),
+        return _HostArgument(value.node.data, pending,
                              pending.module, pending.source,
                              source_module=pending.activation.module if pending.activation else None,
                              name=pending.activation.name if pending.activation else "",
@@ -4596,14 +4513,11 @@ class _Pending:
             # A function-typed slot takes the call in the source: not computed here, but when the
             # host calls it, in the environment the host gave (`_HostArgument`).
             self.given[index] = _HostArgument(
-                value.node, value.scope, self, wanted, self.module, self.source,
+                value.node, value.scope, self, self.module, self.source,
                 value.file, source_module=value.source_module, name=value.name,
                 origin=getattr(value, "origin", None))
             self.given_tags[index] = tag
             return Ok(self)
-        problem = _fits_slot(value, element, self.module, self.source)
-        if problem is not None:
-            return VibaProgramErr(problem)
         self.given[index] = value
         self.given_tags[index] = tag
         return Ok(self)
@@ -4678,12 +4592,6 @@ class _Pending:
                     f"module {self.module_name!r} takes no more arguments: its "
                     f"{DEF_NAME} parameters are all given")
             index = free[0]
-        slot_tag, declared = slots[index]
-        problem = _fits_slot(value,
-                             viba_ast.Tagged(slot_tag, declared) if slot_tag else declared,
-                             self.module, f"module {self.module_name!r}")
-        if problem is not None:
-            return VibaProgramErr(problem)
         self.given[index] = _kept_as_its_own_tag(own_tag, value)
         return Ok(self)
 
