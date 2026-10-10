@@ -44,17 +44,23 @@ KEYS_TAG = "$keys"
 # of them is the call below, and no other layer has to know which tag it is.
 INTERPRETER_MEMBER_TAGS = (GET_ATTR_TAG, GET_ITEM_TAG, IN_TAG, LEN_TAG, KEYS_TAG)
 
-# The call each of the five stands for: the environment first, the way every
-# function that runs takes it (`viba/builtin.viba`), then the member's own
-# arguments. That is what a chain headed by one of them is taken as — a call,
-# with the environment among its parameters, so it is a closure until one is
-# given (`viba-interpreter.md`).
+# The parameter the five take first, spelled once: the environment, the way every
+# call that runs takes it (`viba/builtin.viba`). It is required — a chain headed by
+# one of the five is a call, so until it is given one that chain is a closure, the
+# way every call without one is (`viba-interpreter.md`).
+INTERPRETER_ENV_SLOT = "$env Env"
+
+# The call each of the five stands for: that environment, then the member's own
+# arguments. No answer of the five is computed from the environment it was given —
+# each answers from its own arguments — which is why the `nil` the
+# interpreter's own chains spell there (`xs[1]`) runs one where it stands
+# (`viba-interpreter.md`).
 INTERPRETER_MEMBER_CHAINS = {
-    GET_ATTR_TAG: "Any <- $env Env <- $value Any <- $name str",
-    GET_ITEM_TAG: "Any <- $env Env <- $container Any <- $address Any",
-    IN_TAG: "bool <- $env Env <- $container Any <- $piece Any",
-    LEN_TAG: "int <- $env Env <- $container Any",
-    KEYS_TAG: "list[str] <- $env Env <- $table Any",
+    GET_ATTR_TAG: f"Any <- {INTERPRETER_ENV_SLOT} <- $value Any <- $name str",
+    GET_ITEM_TAG: f"Any <- {INTERPRETER_ENV_SLOT} <- $container Any <- $address Any",
+    IN_TAG: f"bool <- {INTERPRETER_ENV_SLOT} <- $container Any <- $piece Any",
+    LEN_TAG: f"int <- {INTERPRETER_ENV_SLOT} <- $container Any",
+    KEYS_TAG: f"list[str] <- {INTERPRETER_ENV_SLOT} <- $table Any",
 }
 
 _CHAINS = {}

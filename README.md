@@ -161,8 +161,9 @@ and a pattern line may claim the symbol itself — `pattern tagged[name, T]` tak
 for `$a int`, so a design builds a tag out of what another one carried. The member a name
 gives as a value is taken with `$get_attr` (`$get_attr << $env nil << args << "name"`
 is `args.name`; the five builtin members take the environment first, the way every
-call does, and `nil` says no environment is needed). The whole rule, the pattern forms and the errors:
-[`viba-pattern.md`](viba-pattern.md).
+call does, and no answer of theirs is computed from it, so the `nil` the
+interpreter's own chains spell there runs them where they stand). The whole rule,
+the pattern forms and the errors: [`viba-pattern.md`](viba-pattern.md).
 
 ### Strings
 

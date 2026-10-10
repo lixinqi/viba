@@ -167,10 +167,11 @@ Nested = $nested list[dict[str, int]]
   （`$at_index int` / `$at_key str`）。`$get_item << $env nil << xs << 1` 是 `xs[1]`，
   `$get_item << $env nil << table << "k"` 是 `table["k"]`；地址还没给时它是一条闭包，给了才走这一步取它。
   按名字取成员是另一个：`$get_attr`（见 [`viba-interpreter.md`](viba-interpreter.md)）。
-- **环境排在第一位**：`$get_item`、`$in`、`$len`、`$keys`、`$get_attr` 这五个名字是解释器自己答的
-  内建成员，签名跟别的调用一样以 `$env Env` 开头。它们答的是数据、用不着环境，所以 `$env nil` 就是
-  "现在跑"；不给环境时链留着不动，那是一条**闭包**——正因如此它们能当 `sequential` 的一步
-  （环境由跑链的那一方给，[`viba-interpreter.md`](viba-interpreter.md)）。
+- **环境排在第一位，而且总是要**：`$get_item`、`$in`、`$len`、`$keys`、`$get_attr` 这五个名字是解释器
+  自己答的内建成员，签名跟别的调用一样以 `$env Env` 开头。没给环境时链留着不动，那是一条**闭包**——
+  正因如此它们能当 `sequential` 的一步（环境由跑链的那一方给，
+  [`viba-interpreter.md`](viba-interpreter.md)）。实现里不用这份环境：答案只从成员自己的实参算出来，
+  所以解释器自己拼链时那一位给的是 `nil`（方括号简式 `xs[1]` 就是这样），给 `nil` 跟给真环境答的一样。
 - **方括号是它的简式**：`xs[1]` 就是 `$get_item << $env nil << xs << 1`，`table["k"]` 就是
   `$get_item << $env nil << table << "k"`，容器可以是一条名字路径（`box.xs[1]`）。方括号只跟在名字后面，
   一层：`xs[0][1]` 要落成 `$get_item << $env nil << xs[0] << 1`。放在**值**的位置上它是这一步的取用；

@@ -244,11 +244,12 @@ def _a_chain_is_a_piece():
 def _a_member_call_owes_an_environment():
     """这五个成员也收环境：没给环境时它是一条闭包，给了才算。
 
-    环境是每个跑起来的调用的第一条参数。这五个成员自己不用它（它们答的是数据），所以
-    `$env nil` 就是"现在跑"——`$len << $env nil << xs` 照样答得出个数。给在哪儿都认：
-    按 `$env` 这个 tag 给，或者那一份本身就是环境（`args.env`）；末尾给（`apply` 与
-    `sequential` 就是那样把环境接上的）也认。没给环境时链留着不动：那是一份还欠着环境的调用，
-    也就是 `sequential` 那样场景里能当一步的东西。
+    环境是每个跑起来的调用的第一条参数，而且总是要：不给就留着不动。这五个自己不用它（答案只从
+    它们自己的实参算出来），所以 `$env nil` 就是"现在跑"——`$len << $env nil << xs` 照样答得出个数；
+    解释器自己拼出来的链（方括号简式）就是这么拼的。给在哪儿都认：按 `$env` 这个 tag 给，或者那一份
+    本身就是环境（`args.env`）；末尾给（`apply` 与 `sequential` 就是那样把环境接上的）也认。没给环境
+    时链留着不动：那是一份还欠着环境的调用，也就是 `sequential` 那样场景里能当一步的东西。不是环境的
+    值给在那一位上不是"不用环境"，是错的。
     """
     closure = _run("a_member_call_is_a_closure")
     check(is_ok(closure) and _data(closure) == "$len << ListLiteral[10, 20]",
@@ -261,6 +262,10 @@ def _a_member_call_owes_an_environment():
     own = _run("a_member_call_in_an_environment")
     check(is_ok(own) and value_of(own) == 20,
           f"the environment may be the run's own: {own!r}")
+
+    wrong = _run("a_member_call_wrong_env")
+    checks.labelled(wrong, "was not given an Environment",
+                    "a member call's environment must be an environment")
 
 
 def _the_index_shorthand():

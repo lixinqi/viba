@@ -402,7 +402,8 @@ Point =
 那个 list / set / dict（空的用 `ListLiteral[]`、`DictLiteral[]`），是什么源码形式就取回什么；元素按
 地址取，`$get_item << $env nil << xs << 0` 就是 `xs[0]`（用方括号就行），`$get_item << $env nil <<
 table << "k"` 就是 `table["k"]`；问在不在用 `$in`（`$in << $env nil << xs << 0`）。这五个内建成员
-跟别的调用一样把环境排在第一：它们自己不用环境，`$env nil` 就是"现在跑"，不给环境时留着的是一条闭包。
+跟别的调用一样把环境排在第一、而且总是要：不给环境时留着的是一条闭包，实现里不用这份环境，所以
+解释器自己拼链时那一位给的 `$env nil`（简式就是这样）也照样当场跑。
 （[`viba-style.md`](viba-style.md) 第 8 节、[`viba-interpreter.md`](viba-interpreter.md)）。
 
 ## 12. 泛型：一个目录，某个文件给出结果

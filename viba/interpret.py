@@ -2513,9 +2513,10 @@ class _Activation:
         the addresses: `xs[1]` is `$get_item << $env nil << xs << 1` and
         `table["k"]` is `$get_item << $env nil << table << "k"` (viba-style.md, the
         containers section), so what it stands for is that chain, built here and
-        taken the way any chain is. The environment is `nil` because the member
-        itself asks for none: a bracket takes an element, and that is data — giving
-        `nil` is what says "run it here" (viba-interpreter.md).
+        taken the way any chain is. The environment is `nil` because this chain is
+        built here: the member takes that parameter the way every call does, and
+        no answer of the five is computed from it, so `nil` runs this chain where
+        it stands (viba-interpreter.md).
 
         The name is taken first: a name this run can take nothing into — a name
         nothing defines, a type's name spelled where a value goes — is no taking of
@@ -4059,10 +4060,12 @@ class _Activation:
         answers itself stands for.
 
         The call is the member's own signature (`interpreter_member_chain`): the
-        environment first, then what that member takes. A chain that has no
-        environment yet is a closure, the way every call without one is — that is
-        what lets such a chain be a step of `sequential`, and it is why `$env nil`
-        runs one when there is no environment to give (viba-interpreter.md).
+        environment first, then what that member takes. The environment is required,
+        the way it is of every call that runs: a chain that has not been given one is
+        a closure, the way every call without one is — that is what lets such a chain
+        be a step of `sequential`. Nothing the five answer is read off that
+        environment, so the `nil` the interpreter's own chains spell there (`xs[1]`)
+        runs one where it stands (viba-interpreter.md).
         """
         chain = interpreter_member_chain(head.tag)
         pending = _Pending.func(self, head, _one_line(node), BUILTIN_MODULE,
@@ -4720,13 +4723,18 @@ class _Pending:
         if problem is not None:
             return VibaProgramErr(problem)
         if index == self.environ_slot():
-            if not _is_environ_value(value) and self.member_tag is None:
+            # The environment every call runs in: a value that is one, or — for the
+            # members the interpreter answers itself, whose answers are computed from
+            # their own arguments — the `nil` the interpreter's own chains spell there (`xs[1]`,
+            # viba-interpreter.md). The parameter is required all the same: any other
+            # value is no environment.
+            if not _is_environ_value(value) and not (self.member_tag is not None
+                                                    and _is_nil(value)):
                 return VibaProgramErr(f"{self.source} was not given an {ENVIRON_TYPE}")
             self.given[index] = value
             self.given_tags[index] = tag
-            # The environment itself, or the nil a member call may be given in its
-            # place (`viba-interpreter.md`): either way this call has one, and
-            # that is what `takes_environ` and `ready` ask about.
+            # Either way this call has one, and that is what `takes_environ` and
+            # `ready` ask about.
             self.environ = value.obj if _is_environ_value(value) else value
             return Ok(self)
         wanted = _function_slot(self, index)
@@ -4837,10 +4845,12 @@ class _Pending:
         """The work of one of the five: the members the interpreter answers.
 
         What each takes is the signature's own slots (`interpreter_member_chain`),
-        and the environment is among them — the work itself does not use it, so a
-        member chain given `$env nil` answers the same as one given an
-        environment. The environment counts for `$get_attr`: it is what the member
-        taken is called in (`viba-interpreter.md`).
+        the environment among them — required, the way every call's is. Nothing here
+        is computed from that environment: the answer comes from the member's own
+        arguments alone, so a chain given `nil` answers what one given an environment
+        answers. It is still the environment of the call, and `$get_attr` and
+        `$get_item` give it to what they took, as the environment that call runs in
+        (`_give_the_rest`).
         """
         activation = self.activation
         tag = self.member_tag

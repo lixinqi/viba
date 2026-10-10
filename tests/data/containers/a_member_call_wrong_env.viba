@@ -1,0 +1,7 @@
+# A member call's environment is the parameter every call has, and it is required:
+# a value that is no environment is refused. What the five answer comes from their
+# own arguments alone — `nil` is what the interpreter's own chains spell there (`xs[1]`,
+# a_member_call_is_a_closure.viba), so those run where they stand.
+xs = ListLiteral[10, 20]
+
+__impl__ = $len << $env 7 << xs
