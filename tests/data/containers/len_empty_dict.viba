@@ -1,2 +1,2 @@
 # The empty dict has no keys.
-__impl__ = $len << DictLiteral[]
+__impl__ = $len << $env nil << DictLiteral[]

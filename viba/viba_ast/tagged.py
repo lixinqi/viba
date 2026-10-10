@@ -39,6 +39,49 @@ LEN_TAG = "$len"
 # implementation keeps them in.
 KEYS_TAG = "$keys"
 
+# The five members above, as the one group they are: the members the interpreter
+# answers itself (`viba/partial.py`, `viba/interpret.py`). A chain headed by one
+# of them is the call below, and no other layer has to know which tag it is.
+INTERPRETER_MEMBER_TAGS = (GET_ATTR_TAG, GET_ITEM_TAG, IN_TAG, LEN_TAG, KEYS_TAG)
+
+# The call each of the five stands for: the environment first, the way every
+# function that runs takes it (`viba/builtin.viba`), then the member's own
+# arguments. That is what a chain headed by one of them is taken as — a call,
+# with the environment among its parameters, so it is a closure until one is
+# given (`viba-interpreter.md`).
+INTERPRETER_MEMBER_CHAINS = {
+    GET_ATTR_TAG: "Any <- $env Env <- $value Any <- $name str",
+    GET_ITEM_TAG: "Any <- $env Env <- $container Any <- $address Any",
+    IN_TAG: "bool <- $env Env <- $container Any <- $piece Any",
+    LEN_TAG: "int <- $env Env <- $container Any",
+    KEYS_TAG: "list[str] <- $env Env <- $table Any",
+}
+
+_CHAINS = {}
+
+
+def interpreter_member_chain(tag: str):
+    """The call a chain headed by this member stands for, as source; None for any
+    other tag.
+
+    The chain is taken once and handed out as it is: no layer changes it, so one
+    chain is one signature. It is written as a definition of the built-in
+    vocabulary, so its names (`Env`, `Any`, `int`, `list[str]`) mean what they
+    mean there (`viba/builtin.viba`).
+    """
+    source = INTERPRETER_MEMBER_CHAINS.get(tag)
+    if source is None:
+        return None
+    chain = _CHAINS.get(tag)
+    if chain is None:
+        from viba.viba_ast import parse
+        # A function chain in the source is what a module's `__decl__` is, so
+        # that is how it is parsed (`viba/interpret.py`).
+        program = parse(f"__decl__ =\n  {source}\n")
+        chain = program.body[0].body
+        _CHAINS[tag] = chain
+    return chain
+
 
 def symbol_of(text) -> Optional[str]:
     """The symbol a string in the source spells, or None when it spells none.

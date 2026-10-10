@@ -1,0 +1,7 @@
+# A member chain as a piece of source: a literal keeps the pieces it spells, so
+# what stands here is the chain `$len << xs` and not the number it answers. The
+# design layer describes each piece as what that member answers — `int`, `bool`,
+# `Any` — which is what lets the file be taken at all.
+xs = ListLiteral[10, 20]
+
+__impl__ = ListLiteral[$len << xs, $in << xs << 20, $get_item << xs << 1]

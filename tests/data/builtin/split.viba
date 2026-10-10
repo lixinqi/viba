@@ -5,4 +5,4 @@ args = __get_args__ << __decl__
 
 parts = split << $env args.env << $x "a,b,c" << $separator ","
 
-__impl__ = $get_item << parts << 1
+__impl__ = $get_item << $env nil << parts << 1

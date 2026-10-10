@@ -31,6 +31,8 @@
     builtin_prefix.viba           `builtin.sequential` 叫的是同一个模块，给出 3
     the_environment_first.viba    环境给在第一位也认，给出 3
     a_module_in_a_step.viba       步骤是一次模块调用（helper 跑在步骤自己的那一层上），给出 7
+    a_member_in_a_step.viba       步骤是内建成员那五个之一（`$len`、`$get_item`、`$in`）：跟别的调用一样
+                                  欠着环境，给环境的是跑链的那一方，给出 true
     a_missing_variable.viba       取一个没人给过的名字
     seventeen_steps.viba          17 步一条链（超过 16 也接），给出 17
     sixty_four_steps.viba         64 步（计数文件的上界），给出 64
@@ -67,7 +69,8 @@ ANSWERS = [("one_step", 3), ("two_steps", 9), ("three_steps", 8),
            ("a_var_step", 3), ("a_far_variable", 6), ("order", 0),
            ("seventeen_steps", 17), ("sixty_four_steps", 64),
            ("the_chain_is_a_closure", 3), ("builtin_prefix", 3),
-           ("the_environment_first", 3), ("a_module_in_a_step", 7)]
+           ("the_environment_first", 3), ("a_module_in_a_step", 7),
+           ("a_member_in_a_step", True)]
 
 # 严格次序怎么看：`order.viba` 的三步互不依赖，宿主被问的次序仍是源码里的次序。
 ORDER = ["first", "second", "third"]

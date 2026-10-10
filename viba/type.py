@@ -344,6 +344,27 @@ class ModuleType(Type):
 BUILTIN_CONCEPT = "builtin"
 
 
+def takes_a_product(spelled) -> bool:
+    """Whether a slot spelled like this holds a product: `Any`, `Object`, `...`,
+    or a product chain.
+
+    A product of one member is spelled as the member itself, so a piece that
+    carries a tag of its own may land on such a slot (`$x 1` where the parameter
+    is `Any`), and it keeps its tag there (`$kept_as_its_own_tag`,
+    `viba/interpret.py`). Both layers ask this: the runtime picks the slot to put
+    an argument in (`_Pending.slot_for`), the design says whether the argument
+    fits it (`viba/partial.py`, `_matches`).
+    """
+    if isinstance(spelled, (viba_ast.Any, viba_ast.Nil, viba_ast.Never,
+                            viba_ast.Ellipsis)):
+        return True
+    if isinstance(spelled, (viba_ast.Product, viba_ast.ProductChain)):
+        return True
+    if isinstance(spelled, viba_ast.TypeRef):
+        return spelled.name in ("Any", "Object", "nil")
+    return False
+
+
 def builtin_directory_name(name: str) -> Optional[str]:
     """The bare name a name in the source stands for in the builtin directory, or None.
 

@@ -84,7 +84,7 @@ from viba.reflect import (LITERAL_CTORS, VObject, VibaFunction, VibaReflectError
 from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
                           reduce_application, tagged_type_of)
-from viba.type import (BUILTIN_MODULE, CustomModuleType, ENVIRONMENT_API_TAG,
+from viba.type import (
                        PartialError,
                        ERR_TAG, FAILURE_TAG, NOT_IMPLEMENTED_TAG, OK_TAG,
                        PROGRAM_ERR_TAG,
@@ -93,11 +93,13 @@ from viba.type import (BUILTIN_MODULE, CustomModuleType, ENVIRONMENT_API_TAG,
                        EnvironmentApiInvalidArgumentErr, Frame, InterpretError,
                        Stack, VibaProgramErr, UnderlyingOpErr, ModuleType, Ok, Result,
                        BUILTIN_CONCEPT_DIR, BUILTIN_DIR,
-                       BUILTIN_MODULE, NilType, NeverType,
-                       builtin_directory_name,
+                       BUILTIN_MODULE, CustomModuleType, ENVIRONMENT_API_TAG,
+                       NilType, NeverType,
+                       builtin_directory_name, takes_a_product as _takes_a_product,
                        custom_module, module_get_type)
-from viba.viba_ast.tagged import (GET_ATTR_TAG, GET_ITEM_TAG, IN_TAG, KEYS_TAG,
-                                  LEN_TAG, TAGGED_NAME,
+from viba.viba_ast.tagged import (GET_ATTR_TAG, GET_ITEM_TAG, IN_TAG,
+                                  INTERPRETER_MEMBER_TAGS, KEYS_TAG, LEN_TAG,
+                                  TAGGED_NAME, interpreter_member_chain,
                                   symbol_of, symbol_problem, tag_of,
                                   tagged_node)
 from viba.viba_type_descriptor import (SUM, TUPLE, VibaChainDescriptor,
@@ -972,54 +974,6 @@ class _Member:
         self.tag = tag
 
 
-class _GetAttrMember:
-    """`$get_attr << X` while the name is still to come.
-
-    `$get_attr` is the builtin member that takes a member by a name given as a
-    value, so what it tags is known when the chain gives that name: the next
-    argument is the name and `X` is the value the member is taken out of
-    (viba-interpreter.md). It is gone as soon as the name is in.
-    """
-
-    __slots__ = ("owner", "argument")
-
-    def __init__(self, owner, argument):
-        self.owner = owner          # the value the member is taken out of
-        self.argument = argument    # the argument as the source has it, to give it on
-
-
-class _GetItemMember:
-    """`$get_item << C` while the address is still to come.
-
-    `$get_item` is the builtin member that takes an element by an address given
-    as a value — an index for a list, a key for a dict — so what it takes is known
-    when the chain gives that address: the next argument is the address and `C` is
-    the container the element is taken out of (viba-interpreter.md). It is gone as
-    soon as the address is in.
-    """
-
-    __slots__ = ("owner",)
-
-    def __init__(self, owner):
-        self.owner = owner          # the container the element is taken out of
-
-
-class _InMember:
-    """`$in << C` while the piece to look for is still to come.
-
-    `$in` is the builtin member that asks whether a piece is in a container —
-    an element of a list, a set or a tuple, a key of a dict — so the answer is
-    known when the chain gives that piece: the next argument is what to look for
-    and `C` is the container (viba-interpreter.md). It is gone as soon as the
-    piece is in.
-    """
-
-    __slots__ = ("owner",)
-
-    def __init__(self, owner):
-        self.owner = owner          # the container the piece is looked for in
-
-
 class _Given:
     """An argument on its way to a call: its tag and its value."""
 
@@ -1086,20 +1040,6 @@ def _in_scope(scope, name):
         if name in frame:
             return frame[name]
     return None
-
-
-def _takes_a_product(source) -> bool:
-    """Whether a slot spelled like this holds a product: `Any`, `Object`, `...`,
-    or a product chain. A one-member product is spelled as the member itself, so
-    a piece that carries a tag of its own may land here."""
-    if isinstance(source, (viba_ast.Any, viba_ast.Nil, viba_ast.Never,
-                            viba_ast.Ellipsis)):
-        return True
-    if isinstance(source, (viba_ast.Product, viba_ast.ProductChain)):
-        return True
-    if isinstance(source, viba_ast.TypeRef):
-        return source.name in ("Any", "Object", "nil")
-    return False
 
 
 def _kept_as_its_own_tag(tag, value):
@@ -2208,20 +2148,6 @@ def _run_module(runner: _Runner, module: ModuleType, environ: Environment,
                                                           (_VibaData, _Host))):
                 value = stopped(VibaProgramErr(
                     f"{name}.{RET_NAME} is a function still waiting for arguments"))
-        if not _stopped(value) and isinstance(value.ok_value,
-                                              (_GetAttrMember, _GetItemMember,
-                                               _InMember)):
-            # A member taken that never got its name, or an element taken that never
-            # got its address, is no value: the piece says which member or element
-            # it wants, and nothing said which one.
-            if isinstance(value.ok_value, _GetAttrMember):
-                waiting = "a member is taken by a name, and none was given"
-            elif isinstance(value.ok_value, _GetItemMember):
-                waiting = ("an element is taken by an address — an int or a str — "
-                           "and none was given")
-            else:
-                waiting = "a container is asked about a piece, and none was given"
-            value = stopped(VibaProgramErr(f"{name}.{RET_NAME}: {waiting}"))
         if _stopped(value):
             return value
         answer = _argument_value(value.ok_value)
@@ -2584,9 +2510,12 @@ class _Activation:
         """`list_obj[i]` / `dict_obj[key]`: the chain the shorthand stands for.
 
         A name no generic answers to is a value, and one bracket's arguments are
-        the addresses: `xs[1]` is `$get_item << xs << 1` and `table["k"]` is
-        `$get_item << table << "k"` (viba-style.md, the containers section), so
-        what it stands for is that chain, built here and taken the way any chain is.
+        the addresses: `xs[1]` is `$get_item << $env nil << xs << 1` and
+        `table["k"]` is `$get_item << $env nil << table << "k"` (viba-style.md, the
+        containers section), so what it stands for is that chain, built here and
+        taken the way any chain is. The environment is `nil` because the member
+        itself asks for none: a bracket takes an element, and that is data — giving
+        `nil` is what says "run it here" (viba-interpreter.md).
 
         The name is taken first: a name this run can take nothing into — a name
         nothing defines, a type's name spelled where a value goes — is no taking of
@@ -2596,7 +2525,8 @@ class _Activation:
         if _stopped(container):
             return container
         chain = viba_ast.Partial(viba_ast.Member(GET_ITEM_TAG),
-                                 viba_ast.TypeRef(node.constructor))
+                                 viba_ast.Tagged(ENVIRON_TAG, viba_ast.Nil()))
+        chain = viba_ast.Partial(chain, viba_ast.TypeRef(node.constructor))
         for argument in node.args:
             chain = viba_ast.Partial(chain, argument)
         return self._apply_chain(chain, scope)
@@ -3372,6 +3302,49 @@ class _Activation:
             target.ok_value.member_of = member
         return self._give_all(target.ok_value, source, scope, finish=finish)
 
+    def _give_the_rest(self, member, answered, further, scope, finish=True):
+        """Give what a chain spells after a member to what that member answered.
+
+        `member` is the member call that just ran, `answered` what it answered, and
+        `further` the pieces the chain still spells. The member taken (`$get_attr`)
+        is called as a method of the value it came from, so that value comes first
+        among its arguments; an element taken (`$get_item`) is called with what
+        follows and nothing else.
+
+        The call runs in the environment this member call was given: a call runs in
+        one, and this chain has only that one. It is given as one more argument, the
+        way a call kept as data carries its own (`_Given`), so a chain that spells
+        its environment last works all the same.
+        """
+        node = answered.node.data
+        for later in further:
+            node = viba_ast.Partial(node, later)
+        source_module = _module_in_source(answered)
+        elsewhere = (self._in_module(source_module, _bindings_in_source(answered))
+                     if source_module is not None and source_module is not self.module
+                     else None)
+        holder = self if elsewhere is None else elsewhere
+        target, arguments = holder._target_and_arguments(node, scope)
+        if arguments is None:
+            return target
+        if _stopped(target):
+            return target
+        target = target.ok_value
+        source = list(arguments)
+        if member.member_tag == GET_ATTR_TAG:
+            named = _member_tag_of(member._member_given("$name"))
+            if _stopped(named):
+                return named
+            owner = member._member_given("$value")
+            if isinstance(target, _Pending):
+                target.member_of = (named.ok_value[1:], owner)
+            source = [_Given(None, owner)] + source
+        environ = member.environ
+        if isinstance(environ, Environment):
+            environ = _Host(environ)        # what travels inside a run
+        return self._give_all(target, source + [_Given(ENVIRON_TAG, environ)],
+                              scope, finish=finish)
+
     def _give_all(self, current, source, scope, finish=True):
         """Give a list of arguments in the source to what the chain calls, in order.
 
@@ -3386,6 +3359,23 @@ class _Activation:
         environment itself.
         """
         for index, argument in enumerate(source):
+            if (isinstance(current, _Pending) and current.member_tag is not None
+                    and current.ready()):
+                # One of the five the interpreter answers has its environment and
+                # its own arguments: it answers, and what the chain spells after it
+                # is given to what it answered — the member taken, called as a
+                # method of the value it came from (`$get_attr`), or the element
+                # (`$get_item`) — in the environment this member call was given.
+                member = current
+                run = member.fire()
+                if _stopped(run):
+                    return run
+                current = run.ok_value
+                further = list(source[index:])
+                if further and _is_a_source_call(current):
+                    return self._give_the_rest(member, current, further, scope,
+                                               finish=finish)
+                continue
             if _is_a_source_call(current):
                 # A value that is a call serialized — a member taken out of the
                 # design, a closure kept as a value — takes the rest of the chain
@@ -3424,111 +3414,6 @@ class _Activation:
                 return value
             if value.ok_value is None:
                 continue                        # documentation is no argument
-            if isinstance(current, _Member) and current.tag == GET_ATTR_TAG:
-                # `$get_attr << X << <name>`: X is the value the member is
-                # taken out of, and the name that tags it is the next argument.
-                current = _GetAttrMember(value.ok_value.value, argument)
-                continue
-            if isinstance(current, _Member) and current.tag == GET_ITEM_TAG:
-                # `$get_item << C << <index or key>`: C is the container the
-                # element is taken out of, and the address is the next argument.
-                current = _GetItemMember(value.ok_value.value)
-                continue
-            if isinstance(current, _Member) and current.tag == IN_TAG:
-                # `$in << C << <piece>`: C is the container the piece is looked
-                # for in, and the next argument is the piece itself.
-                current = _InMember(value.ok_value.value)
-                continue
-            if isinstance(current, _Member) and current.tag == LEN_TAG:
-                # `$len << C`: C is the container to count, and the count is
-                # the answer itself — nothing is still to come for it.
-                counted = self._container_len(value.ok_value.value)
-                if _stopped(counted):
-                    return counted
-                current = counted.ok_value
-                continue
-            if isinstance(current, _Member) and current.tag == KEYS_TAG:
-                # `$keys << C`: C is the dict whose keys are asked for, and
-                # they are the answer itself.
-                keys = self._container_keys(value.ok_value.value)
-                if _stopped(keys):
-                    return keys
-                current = keys.ok_value
-                continue
-            if isinstance(current, _InMember):
-                answered = self._in_container(current.owner, value.ok_value.value)
-                if _stopped(answered):
-                    return answered
-                current = answered.ok_value
-                continue
-            if isinstance(current, _GetItemMember):
-                taken = self._take_item(current.owner, value.ok_value.value)
-                if _stopped(taken):
-                    return taken
-                current = taken.ok_value
-                # The element is what the chain goes on with: arguments spelled
-                # after the address are given to it (`$get_item << xs << 0 << $x 1`
-                # is `xs[0] << $x 1`).
-                further = list(source[index + 1:])
-                if further and _is_a_source_call(current):
-                    node = current.node.data
-                    for later in further:
-                        node = viba_ast.Partial(node, later)
-                    source_module = _module_in_source(current)
-                    other = (self._in_module(source_module, _bindings_in_source(current))
-                             if source_module is not None else None)
-                    if other is None or source_module is self.module:
-                        return self._apply_chain(node, scope)
-                    # The element appears in that module, so its names mean what
-                    # they mean there; the arguments after it appear here.
-                    target, arguments = other._target_and_arguments(node, scope)
-                    if arguments is None or _stopped(target):
-                        return target
-                    return self._give_all(target.ok_value, arguments, scope)
-                if isinstance(current, _HostFunction) and current.filled():
-                    run = current.run()
-                    if _stopped(run):
-                        return run
-                    current = run.ok_value
-                continue
-            if isinstance(current, _GetAttrMember):
-                named = _member_tag_of(value.ok_value.value)
-                if _stopped(named):
-                    return named
-                # The member that name picks. The chain goes on from there: with
-                # arguments spelled after the name (`$get_attr << box << name
-                # << $x 1`) the member is called as a method of X, which means X
-                # comes first (`box.f << box << $x 1`); taken on its own — passed
-                # on as an argument, say — it is the value or the call it names.
-                further = list(source[index + 1:])
-                rest = ([current.argument] if further else []) + further
-                owner = current.owner
-                as_member = (named.ok_value[1:], owner)
-                taken = self._take_member(_Member(named.ok_value), owner)
-                if _stopped(taken):
-                    return taken
-                current = taken.ok_value
-                if _is_a_source_call(current):
-                    node = current.node.data
-                    for later in rest:
-                        node = viba_ast.Partial(node, later)
-                    source_module = _module_in_source(current)
-                    other = (self._in_module(source_module, _bindings_in_source(current))
-                             if source_module is not None else None)
-                    if other is None or source_module is self.module:
-                        return self._apply_chain(node, scope, member=as_member)
-                    # The member appears in that module, so its names mean what they
-                    # mean there; the arguments after it appear here, and are taken here.
-                    target, arguments = other._target_and_arguments(node, scope)
-                    if arguments is None or _stopped(target):
-                        return target
-                    return self._give_all(target.ok_value, arguments, scope)
-                if isinstance(current, _HostFunction) and current.filled():
-                    run = current.run()
-                    if _stopped(run):
-                        return run
-                    current = run.ok_value
-                continue
             if isinstance(current, _Member):
                 owner = value.ok_value.value
                 as_member = (current.tag[1:], owner)
@@ -3882,6 +3767,8 @@ class _Activation:
         head, arguments = _call_parts(node)
         while True:
             if isinstance(head, viba_ast.Member):
+                if head.tag in INTERPRETER_MEMBER_TAGS:
+                    return self._member_pending(head, node), arguments
                 return Ok(_Member(head.tag)), arguments
             if isinstance(head, (viba_ast.TypeRef, viba_ast.TypeApp,
                                  viba_ast.MemberTaken)):
@@ -3920,6 +3807,8 @@ class _Activation:
             if isinstance(got, _VibaData) and isinstance(got.node.data, viba_ast.Member):
                 # `tagged[S] << X` with a symbol that is a value: the member
                 # the symbol names, taken from the value the chain gives first.
+                if got.node.data.tag in INTERPRETER_MEMBER_TAGS:
+                    return self._member_pending(got.node.data, node), arguments
                 return Ok(_Member(got.node.data.tag)), arguments
             if isinstance(got, _VibaData) and isinstance(
                     got.node.data, (viba_ast.TypeRef, viba_ast.TypeApp,
@@ -4164,6 +4053,24 @@ class _Activation:
         return Ok(_Pending.func(self, name_node, source, owner_module, slots,
                                 name=name, source_module=source_module,
                                 source_bindings=self.bindings or None))
+
+    def _member_pending(self, head, node):
+        """The call a chain headed by one of the five members the interpreter
+        answers itself stands for.
+
+        The call is the member's own signature (`interpreter_member_chain`): the
+        environment first, then what that member takes. A chain that has no
+        environment yet is a closure, the way every call without one is — that is
+        what lets such a chain be a step of `sequential`, and it is why `$env nil`
+        runs one when there is no environment to give (viba-interpreter.md).
+        """
+        chain = interpreter_member_chain(head.tag)
+        pending = _Pending.func(self, head, _one_line(node), BUILTIN_MODULE,
+                                _slots_of(chain), name=head.tag,
+                                source_module=self.module,
+                                source_bindings=self.bindings or None)
+        pending.member_tag = head.tag
+        return Ok(pending)
 
     def _member_target(self, module, module_name, rest, name_node, source,
                        source_module=None):
@@ -4537,6 +4444,7 @@ class _Pending:
         self.source_bindings = source_bindings   # the decision that owns the module this call appears in
         self.appends_environ = False         # the environment goes on the call the body answers
         self.member_of = None                # (member, value) when a value's member is what runs
+        self.member_tag = None               # the member the interpreter answers itself (`$len`)
 
     @classmethod
     def func(cls, activation, head, source, owner_module, elements, name="",
@@ -4697,12 +4605,44 @@ class _Pending:
         """Why this call cannot run, or None when it can."""
         if self.kind == "module":
             return self._module_missing()
+        if self.member_tag is not None:
+            wanted = self._member_missing()
+            if wanted is not None:
+                return f"{self.source}: {wanted}"
         left = [_slot_name(index, self.slots[index])
                 for index in range(len(self.elements)) if index not in self.given]
         if not left:
             return None
         return (f"{self.source}: was given {len(self.given)} of its "
                 f"{len(self.elements)} arguments: {', '.join(left)} missing")
+
+    def _member_missing(self):
+        """What one of the five still wants, in the words that member itself uses.
+
+        The environment is no part of this: it is the call's rule, not an input of
+        the work, so a member chain that has it is complete as far as the member
+        is concerned — what is left is the member's own arguments, and the one it
+        takes first is what these say. Nothing given yet is no such message: that
+        is a call short of its arguments like any other.
+        """
+        tag = self.member_tag
+        if tag == GET_ATTR_TAG:
+            if self._member_given("$value") is None:
+                return None
+            if self._member_given("$name") is None:
+                return "a member is taken by a name, and none was given"
+            return None
+        if tag in (GET_ITEM_TAG, IN_TAG, LEN_TAG):
+            if self._member_given("$container") is None:
+                return None
+        elif self._member_given("$table") is None:
+            return None
+        if tag == GET_ITEM_TAG and self._member_given("$address") is None:
+            return ("an element is taken by an address — an int or a str — "
+                    "and none was given")
+        if tag == IN_TAG and self._member_given("$piece") is None:
+            return "a container is asked about a piece, and none was given"
+        return None
 
     def _module_missing(self):
         slots, problem = self.arg_slots()
@@ -4745,17 +4685,49 @@ class _Pending:
         self.given[index] = product
         return Ok(self)
 
+    def _member_slot_for(self, tag):
+        """(index, problem) for an argument of a member the interpreter answers.
+
+        The environment is the member's own first parameter and no argument lands
+        on it: an argument the source tags with the name of one of the member's
+        other parameters goes to that one, and any other — no tag at all
+        (`$len << xs`), or the tag of the piece itself, which is how a step of
+        `sequential` remembers where its answer goes (`$x 2`) — goes to the first
+        of the member's own parameters that is free. The environment is given under
+        `$env`, or as an environment (`_give_func` below).
+        """
+        slots = self.slots
+        environ = self.environ_slot()
+        own = [one for one in range(len(slots))
+               if one != environ and one not in self.given]
+        if not own:
+            return None, f"{self.source} takes no more arguments"
+        if tag is not None and tag in slots:
+            index = slots.index(tag)
+            if index == environ:
+                return index, None
+            if index in self.given:
+                return None, f"{self.source} was given {tag} twice"
+            return index, None
+        return own[0], None
+
     def _give_func(self, tag, value):
-        index, problem = self.slot_for(tag)
+        if (self.member_tag is not None and not _is_environ_value(value)
+                and tag != ENVIRON_TAG):
+            index, problem = self._member_slot_for(tag)
+        else:
+            index, problem = self.slot_for(tag)
         if problem is not None:
             return VibaProgramErr(problem)
-        element = self.elements[index]
         if index == self.environ_slot():
-            if not _is_environ_value(value):
+            if not _is_environ_value(value) and self.member_tag is None:
                 return VibaProgramErr(f"{self.source} was not given an {ENVIRON_TYPE}")
             self.given[index] = value
             self.given_tags[index] = tag
-            self.environ = value.obj
+            # The environment itself, or the nil a member call may be given in its
+            # place (`viba-interpreter.md`): either way this call has one, and
+            # that is what `takes_environ` and `ready` ask about.
+            self.environ = value.obj if _is_environ_value(value) else value
             return Ok(self)
         wanted = _function_slot(self, index)
         if wanted is not None and isinstance(value, _Getter):
@@ -4848,9 +4820,76 @@ class _Pending:
 
     def fire(self):
         """Run it: the environment is in and every argument is given."""
+        if self.member_tag is not None:
+            return self._answer_member()
         if self.kind == "module":
             return self._run_module_call()
         return self._call_host()
+
+    # ---- the members the interpreter answers itself ----
+
+    def _member_given(self, tag: str):
+        """The value given for that slot of a member's own signature."""
+        index = self.slot_tags().index(tag)
+        return self.given.get(index)
+
+    def _answer_member(self):
+        """The work of one of the five: the members the interpreter answers.
+
+        What each takes is the signature's own slots (`interpreter_member_chain`),
+        and the environment is among them — the work itself does not use it, so a
+        member chain given `$env nil` answers the same as one given an
+        environment. The environment counts for `$get_attr`: it is what the member
+        taken is called in (`viba-interpreter.md`).
+        """
+        activation = self.activation
+        tag = self.member_tag
+        if tag == LEN_TAG:
+            return activation._container_len(self._member_given("$container"))
+        if tag == KEYS_TAG:
+            return activation._container_keys(self._member_given("$table"))
+        if tag == IN_TAG:
+            return activation._in_container(self._member_given("$container"),
+                                            self._member_given("$piece"))
+        if tag == GET_ITEM_TAG:
+            return activation._take_item(self._member_given("$container"),
+                                         self._member_given("$address"))
+        return self._take_the_named_member()
+
+    def _take_the_named_member(self):
+        """`$get_attr`: the member the name spells, taken from the value given first.
+
+        With nothing spelled after the name, that member is the answer — a value,
+        or the call it stands for, handed on as it is. With arguments after the
+        name, the member is called as a method of the value it came from: the
+        value is its first argument, and the rest follow (`apply_chain` gives
+        them, in the environment this member call was given).
+        """
+        activation = self.activation
+        owner = self._member_given("$value")
+        named = _member_tag_of(self._member_given("$name"))
+        if _stopped(named):
+            return named
+        taken = activation._take_member(_Member(named.ok_value), owner)
+        if _stopped(taken):
+            return taken
+        return taken
+
+    def _member_call_data(self):
+        """This call as the source has it: the member at the head, and its own
+        arguments — the environment left out, the way every closure leaves it out.
+        """
+        node = viba_ast.Member(self.member_tag)
+        environ_slot = self.environ_slot()
+        for index in sorted(self.given):
+            if index == environ_slot:
+                continue
+            piece = _travelling_piece(self.given[index], self.activation)
+            if piece is None:
+                continue                # a host value: it does not travel
+            tag = self.given_tags.get(index)
+            node = viba_ast.Partial(node, viba_ast.Tagged(tag, piece) if tag else piece)
+        return VObject(reflect_access, self.descriptor(node), node)
 
     def as_viba_data(self):
         """Without an environment this pending call is viba data — a closure.
@@ -4860,6 +4899,10 @@ class _Pending:
         closure serializable, and it is the same thing every function and module
         answers with.
         """
+        if self.member_tag is not None:
+            # A member the interpreter answers is spelled as its own chain: the
+            # member at the head, and the arguments it was given after it.
+            return Ok(_VibaData(self.call_viba_data()))
         node = self.head
         tags = self.slot_tags()
         kept = []
@@ -4896,6 +4939,13 @@ class _Pending:
         the type it would have once executed: the node is the call as it stands,
         and the spelling of a value comes from its own piece.
         """
+        if self.member_tag is not None:
+            # A chain headed by one of the interpreter's own members is the call
+            # that member's signature spells, so that is the type it is described
+            # by — the way a closure named by a function is described by that
+            # function's own type and not by what it would answer.
+            return descriptor_of(AstNodeType(interpreter_member_chain(self.member_tag),
+                                             BUILTIN_MODULE))
         if isinstance(node, viba_ast.Partial):
             return descriptor_of(AstNodeType(self.head, self.source_module))
         return descriptor_of(AstNodeType(node, self.source_module))
@@ -4943,6 +4993,10 @@ class _Pending:
         taken back. The side that takes values can make the same call again from
         this result alone.
         """
+        if self.member_tag is not None:
+            # The five the interpreter answers have no name a host could be asked
+            # for: the member itself is the head, and the arguments follow it.
+            return self._member_call_data()
         dynamic = (viba_ast.TypeRef(DYN_METHOD_NAME) if self.member_of is not None
                    else viba_ast.TypeRef(DYN_CALL_NAME))
         node = dynamic

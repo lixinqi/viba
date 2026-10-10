@@ -1,4 +1,4 @@
 # Its values are not what it holds: `"1"` is the value, not the key.
 table = DictLiteral[("k", 1)]
 
-__impl__ = $in << table << "1"
+__impl__ = $in << $env nil << table << "1"

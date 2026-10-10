@@ -1,0 +1,5 @@
+# A member that is a value, not a function of the value it was taken from:
+# nothing is given `box`, so this piece is described as the member's own type.
+box = Object * $y 3
+
+__impl__ = ListLiteral[$y << box, 7]

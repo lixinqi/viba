@@ -1,2 +1,2 @@
 # A tuple is counted by position, so it counts too.
-__impl__ = $len << (10, 20, 30)
+__impl__ = $len << $env nil << (10, 20, 30)

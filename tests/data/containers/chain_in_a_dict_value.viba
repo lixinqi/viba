@@ -1,0 +1,5 @@
+# The same as a dict's value, and `$keys` is described as the `list[str]` it
+# answers: the piece stays the chain it is.
+table = DictLiteral[("k", 1), ("m", 2)]
+
+__impl__ = DictLiteral[("keys", $keys << table)]

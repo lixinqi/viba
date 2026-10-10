@@ -1,4 +1,4 @@
 # The question never got a piece to look for.
 xs = ListLiteral[10]
 
-__impl__ = $in << xs
+__impl__ = $in << $env nil << xs

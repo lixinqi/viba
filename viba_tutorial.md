@@ -400,8 +400,9 @@ Point =
 
 容器也一样：`ListLiteral[1, 2]` / `SetLiteral["a"]` / `DictLiteral[("k", 1)]` 放在值的位置上就是
 那个 list / set / dict（空的用 `ListLiteral[]`、`DictLiteral[]`），是什么源码形式就取回什么；元素按
-地址取，`$get_item << xs << 0` 就是 `xs[0]`（用方括号就行），`$get_item << table << "k"`
-就是 `table["k"]`；问在不在用 `$in`（`$in << xs << 0`）。
+地址取，`$get_item << $env nil << xs << 0` 就是 `xs[0]`（用方括号就行），`$get_item << $env nil <<
+table << "k"` 就是 `table["k"]`；问在不在用 `$in`（`$in << $env nil << xs << 0`）。这五个内建成员
+跟别的调用一样把环境排在第一：它们自己不用环境，`$env nil` 就是"现在跑"，不给环境时留着的是一条闭包。
 （[`viba-style.md`](viba-style.md) 第 8 节、[`viba-interpreter.md`](viba-interpreter.md)）。
 
 ## 12. 泛型：一个目录，某个文件给出结果

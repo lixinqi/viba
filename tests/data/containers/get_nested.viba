@@ -1,4 +1,4 @@
 # An address into an element: `xs[1][0]`.
 xs = ListLiteral[ListLiteral[1, 2], ListLiteral[3]]
 
-__impl__ = $get_item << ($get_item << xs << 1) << 0
+__impl__ = $get_item << $env nil << ($get_item << $env nil << xs << 1) << 0

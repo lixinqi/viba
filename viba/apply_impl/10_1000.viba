@@ -17,13 +17,13 @@ args = __get_args__ << __decl__
 
 __impl__ =
     args.f
-  << ($get_attr << args.args << arg0_name)
-  << ($get_attr << args.args << arg1_name)
-  << ($get_attr << args.args << arg2_name)
-  << ($get_attr << args.args << arg3_name)
-  << ($get_attr << args.args << arg4_name)
-  << ($get_attr << args.args << arg5_name)
-  << ($get_attr << args.args << arg6_name)
-  << ($get_attr << args.args << arg7_name)
-  << ($get_attr << args.args << arg8_name)
-  << ($get_attr << args.args << arg9_name)
+  << ($get_attr << $env nil << args.args << arg0_name)
+  << ($get_attr << $env nil << args.args << arg1_name)
+  << ($get_attr << $env nil << args.args << arg2_name)
+  << ($get_attr << $env nil << args.args << arg3_name)
+  << ($get_attr << $env nil << args.args << arg4_name)
+  << ($get_attr << $env nil << args.args << arg5_name)
+  << ($get_attr << $env nil << args.args << arg6_name)
+  << ($get_attr << $env nil << args.args << arg7_name)
+  << ($get_attr << $env nil << args.args << arg8_name)
+  << ($get_attr << $env nil << args.args << arg9_name)

@@ -1,4 +1,4 @@
 # The element is in the list.
 xs = ListLiteral[10, 20]
 
-__impl__ = $in << xs << 20
+__impl__ = $in << $env nil << xs << 20

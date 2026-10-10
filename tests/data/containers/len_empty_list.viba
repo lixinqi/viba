@@ -1,2 +1,2 @@
 # The empty list has nothing in it.
-__impl__ = $len << ListLiteral[]
+__impl__ = $len << $env nil << ListLiteral[]

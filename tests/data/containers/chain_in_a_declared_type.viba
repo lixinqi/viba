@@ -1,0 +1,9 @@
+# A member chain in `__decl__`: the file is taken at all only if the design layer
+# reduces the chain, so a run proves it did.
+__decl__ = ListLiteral[$len << xs, 3] <- $env Env
+
+args = __get_args__ << __decl__
+
+xs = ListLiteral[1, 2]
+
+__impl__ = ListLiteral[1, 2]

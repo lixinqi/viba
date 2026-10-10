@@ -1,6 +1,7 @@
-# The address given later: the take is a value until then.
+# The address given later: the take is a closure — a call still owing its
+# environment — until the address and an environment are both in.
 xs = ListLiteral[10, 20]
 
 pick = $get_item << xs
 
-__impl__ = pick << 1
+__impl__ = pick << $env nil << 1

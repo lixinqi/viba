@@ -1,2 +1,2 @@
 # How many elements the list has.
-__impl__ = $len << ListLiteral[10, 20, 30]
+__impl__ = $len << $env nil << ListLiteral[10, 20, 30]

@@ -132,7 +132,7 @@ add << $x 3 << $y 4                      # 没给环境：这条链是一个闭�
   `$underlying_viba_op_err`（第 9 节）。
 - **找不到是 `nil`，不是 -1，也不是停**：`find` 的答案类型是 `int | nil`。
 - **`$in` 不认 `str`**（第 4.3 节）：问一段字符串在不在用 `contains`。
-- **`split` 的答案是一个容器**：`parts = split << …` 之后按位置取段（`$get_item << parts << 1`
+- **`split` 的答案是一个容器**：`parts = split << …` 之后按位置取段（`$get_item << $env nil << parts << 1`
   是第二段），也能直接交给 `join`。宿主给出这个答案时，交的是一个 `VObject` 或者一块
   `ListLiteral` 的语法树，不是一个 Python 列表（宿主能答的只有 `VObject`、语法树、标量、`None`）。
 
@@ -272,14 +272,47 @@ env = $try_compact << args.env << 32
 这五个名字写在链头就是这五个意思，所以它们谁都不适合当积的成员名：`$len << box` 数的是 `box`，
 不是取 `box` 的 `$len` 那一份。要用这个意思取成员，走 `$get_attr`（第 4.1 节）。
 
+**签名跟别的调用一样，环境排在第一位**（`$env Env`），后面才是这个成员自己的参数：
+
+```viba
+$get_attr : Any <- $env Env <- $value Any <- $name str
+$get_item : Any <- $env Env <- $container Any <- $address Any
+$in       : bool <- $env Env <- $container Any <- $piece Any
+$len      : int <- $env Env <- $container Any
+$keys     : list[str] <- $env Env <- $table Any
+```
+
+这五份签名写在一处（`viba/viba_ast/tagged.py` 的 `interpreter_member_chain`），运行与判定两层
+取的是同一份。**没给环境时这条链是闭包**——跟 `add << $a 1` 一样是欠着实参的调用，所以这五个
+成员能当 `sequential` 的一步（环境由跑链的那一方给，第 6.4 节）。它们答的是数据、用不着环境，
+所以没有环境可给时就给 `$env nil`：
+
+```viba
+$len << $env nil << xs       # 现在数：2
+$len << xs << args.env       # 环境给在末尾也认
+$len << xs                   # 这条链是闭包，还没跑
+```
+
+成员自己的实参按位置给，也可以按它们自己的名字给（`$container`、`$address`、`$piece`、
+`$table`、`$value`、`$name`）；带着别的 tag 的实参落在这个成员第一个空着的参数上（步骤的
+实参就是这样，`viba-interpreter.md` 那一节）。
+
+判定层取这五条链时把环境去掉（环境是调用的规矩而不是实参），给出**这个成员答什么**：`$get_item`
+是 `Any`、`$in` 是 `bool`、`$len` 是 `int`、`$keys` 是 `list[str]`，`$get_attr` 说得出就是那个
+成员的类型、说不出就是 `Any`。所以它们也能写在 `__decl__` 里、写成一个字面量的一份
+（`viba-interpreter.md`，`$get_item` 那一节）。
+
 ### 4.1 `$get_attr`
 
 按名字取一个成员，名字当数据给出。第一个实参是被取成员的那份值，第二个是名字（一个字符串），
 后面跟着的实参交给取出来的成员。
 
 ```viba
-$get_attr << box << "f" << args.env << $x 1
-# 就是 box.f << box << args.env << $x 1
+$get_attr << $env nil << box << "f"
+# 取出来的就是 box.f 这个成员本身
+
+$get_attr << $env args.env << box << "f" << $x 1
+# 就是 box.f << box << args.env << $x 1：拿到的环境给出来的那次成员调用跑
 ```
 
 取出来的是一次调用时，它当成员被调用：**被取的那个值本身排在实参最前面**，所以上面那条的
@@ -294,14 +327,15 @@ $get_attr << box << "f" << args.env << $x 1
 按位置或按键取一个元素。第一个实参是容器，第二个是位置或键。
 
 ```viba
-$get_item << xs << 1          # 列表、集合、元组的第 1 个元素
-$get_item << table << "k"     # 字典里键 "k" 的值
+$get_item << $env nil << xs << 1          # 列表、集合、元组的第 1 个元素
+$get_item << $env nil << table << "k"     # 字典里键 "k" 的值
 ```
 
 位置给 `int`（`true` 不算 `int`），键给 `str`，两种各对应一条取元素的步子。答案就是那个元素，
-所以后面可以接着给实参（`$get_item << xs << 0 << $x 1` 是 `xs[0] << $x 1`）。
+所以后面可以接着给实参（`$get_item << $env args.env << xs << 0 << $x 1` 是 `xs[0] << $x 1`，
+跑在这个成员拿到的环境里）。
 `xs[1]` 与 `table["k"]` 是它的简式；方括号只跟在名字后面，一层，`xs[0][1]` 要落成
-`$get_item << xs[0] << 1`。
+`$get_item << $env nil << xs[0] << 1`。简式自己把 `nil` 补上，所以方括号在哪儿都是当场取那个元素。
 
 拒绝的情形都报 `$viba_program_err`：没有那个位置（越界）、没有那个键、给字典一个位置、
 给列表或元组一个键、给的位置或键不是 `int` / `str`、根本没给位置或键、被取的那份值不是容器。
@@ -312,8 +346,8 @@ $get_item << table << "k"     # 字典里键 "k" 的值
 问一个东西在不在容器里，答案 `bool`。第一个实参是容器，第二个是要找的那个东西。
 
 ```viba
-$in << xs << 3               # 3 在不在这个列表 / 集合 / 元组里
-$in << table << "k"          # 键 "k" 在不在这个字典里
+$in << $env nil << xs << 3               # 3 在不在这个列表 / 集合 / 元组里
+$in << $env nil << table << "k"          # 键 "k" 在不在这个字典里
 ```
 
 列表、集合、元组按元素本身比；字典只比键，不比值，而且给的必须是一个字符串键。
@@ -324,13 +358,13 @@ $in << table << "k"          # 键 "k" 在不在这个字典里
 数一个容器有多少份：`list` / `set` / tuple 数元素，`dict` 数键。答案是一个 `int`。
 
 ```viba
-$len << xs                   # 这个列表有几个元素
-$len << table                # 这个字典有几个键
-$len << (10, 20, 30)         # 元组按位置数，所以也数得出：3
+$len << $env nil << xs                   # 这个列表有几个元素
+$len << $env nil << table                # 这个字典有几个键
+$len << $env nil << (10, 20, 30)         # 元组按位置数，所以也数得出：3
 ```
 
-跟 `$get_item`、`$in` 一样**不收环境**：这是数据那一步。数不出个数的都报程序错：
-一个叶子、一个带 tag 的积（`Object * $a 1 * $b 2`）、一段字符串 —— 字符串用 `len_str`（第 2.4 节）。
+数不出个数的都报程序错：一个叶子、一个带 tag 的积（`Object * $a 1 * $b 2`）、一段字符串 ——
+字符串用 `len_str`（第 2.4 节）。
 
 容器有了个数，走一遍才有可能：`$len` 给几段，`$get_item` 给第几段，两者配起来。
 语言里没有循环，走一遍要自己用 `Y` 递归（第 6.5 节）。
@@ -340,9 +374,9 @@ $len << (10, 20, 30)         # 元组按位置数，所以也数得出：3
 取一个字典的键，答案是一份 `list[str]`，顺序由实现定。
 
 ```viba
-$keys << table                                      # 键组成的列表
-$get_item << ($keys << table) << 0                  # 第一个键
-$len << ($keys << table)                            # 有几个键
+$keys << $env nil << table                                      # 键组成的列表
+$get_item << $env nil << ($keys << $env nil << table) << 0       # 第一个键
+$len << $env nil << ($keys << $env nil << table)                 # 有几个键
 ```
 
 答案是一份能接着用的列表：能取（`$get_item`）、能数（`$len`）、能交给 `join`
@@ -376,6 +410,13 @@ ListLiteral[]                # 空列表
 
 字面量是 `list[...]` 之类的居民，所以能当实参交给宿主、能序列化回源码。
 元组不是这三个之一，它是按位置排的积，源码形式是 `(10, 20)`：括号里按位置摆，不带 tag。
+
+**字面量的成员是源码本身，不是算出来的值**：`ListLiteral[n, 3]` 里那一份是名字 `n`（不是它指的
+值），`ListLiteral[$len << xs, 3]` 里那一份是那条链。跟积的成员一样，放在值的位置上就原样留着 ——
+所以这样的字面量能交给宿主，能按位置取，也能序列化回源码（链那一份序列化不出来，第 10 节）。
+要把**算出来的值**交出去，就把它给一次调用：一次调用的实参会算出来
+（`int_to_str << $x ($len << $env nil << xs)` 是 `"2"`；`$len << xs` 自己是一条闭包，
+交出去的是那份闭包，不是个数），而成员留在原地。
 
 **取元素**用 `$get_item`（第 4.2 节），简式是 `xs[1]` / `table["k"]`。
 **问在不在**用 `$in`（第 4.3 节）。**数一数**用 `$len`（第 4.4 节），
@@ -461,8 +502,9 @@ sequential
 一次调用的实参里可以给出变量引用（`$a ($var "x")`），这一步跑之前，那些名字由前面记住的值答出来，
 所以它们落在的槽位要收得下这个源码形式（给成 `$a Any` 那样）。
 
-这条链本身是闭包：环境最后给，给了才跑。步骤可以是本文件里的定义、`import` 进来的模块，
-或者内建算子。链头是内建**模块**（`sub_env_run`、`apply`、`Y`）时，判定那一侧还看不出这一段，
+这条链本身是闭包：环境最后给，给了才跑。步骤可以是本文件里的定义、`import` 进来的模块、
+内建算子，或者第 4 节那五个内建成员（`$len << $x xs` 也是一条欠着环境的闭包，环境照样由跑链的
+那一方给）。链头是内建**模块**（`sub_env_run`、`apply`、`Y`）时，判定那一侧还看不出这一段，
 要这一步现在就能用，就把它包进本文件里的一个模块再当步骤
 （[`viba-interpreter.md`](viba-interpreter.md)，「一个可执行的模块」）。
 
@@ -623,5 +665,8 @@ args = __get_args__ << __decl__
   一个积里有没有某个成员、一个容器空不空、一份数据是不是 `nil`。
 - **参数都是定长的。** `min` / `max` 只收两个，`concat` 只接两段，没有可变参数；
   三个数取最小要套两层。
+- **链头是 `$tag` 的那一声调用序列化不出来**：`serialize` 对它报
+  `a chain headed by a member has no form in the source here`（`viba/serialize.py`），
+  所以含这种成员的字面量交得给宿主，存不下来。这一条不限这五个成员，任何 `$tag << X` 链都一样。
 - **换类型的失败是实现的停法，不是程序错。** `str_to_int` 拿到一个不是数的字符串报的是
   `$underlying_viba_op_err`（第 2.6 节），语言里没有给出 `Result` 的版本。

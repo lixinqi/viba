@@ -59,6 +59,8 @@ def run():
     _what_in_answers()
     _what_len_counts()
     _what_keys_gives()
+    _a_chain_is_a_piece()
+    _a_member_call_owes_an_environment()
     _the_index_shorthand()
     _a_container_travels()
 
@@ -210,6 +212,55 @@ def _what_keys_gives():
                        ("keys_not_literal", "not a literal")):
         got = _run(name)
         checks.labelled(got, want, f"{name}: expected a program error saying {want!r}")
+
+
+def _a_chain_is_a_piece():
+    """成员链当成积或字面量的一份给出时，留着的是那段源码，而设计层描述得出它。
+
+    字面量里的成员是**源码里怎么写的就怎么留着**（跟积的成员一样），所以
+    `ListLiteral[$len << xs, 3]` 里那一份是 `$len << xs` 这条链本身，不是 2。
+    这样的文件以前整个取不动（报 "…. is no value to take the member '$len' from"）：
+    设计层把 `$len` 当成 `xs` 的成员去找。现在它按这个成员自己答的类型描述那条链 ——
+    `$len` 是 `int`、`$in` 是 `bool`、`$keys` 是 `list[str]`、`$get_item` 是 `Any`。
+    """
+    got = _run("chain_in_a_literal")
+    check(is_ok(got)
+          and _data(got) == "ListLiteral[$len << xs, $in << xs << 20, $get_item << xs << 1]",
+          f"a list whose pieces are member chains: {got!r}")
+
+    table = _run("chain_in_a_dict_value")
+    check(is_ok(table) and _data(table) == 'DictLiteral[("keys", $keys << table)]',
+          f"a dict value that is a member chain: {table!r}")
+
+    field = _run("a_value_member_in_a_literal")
+    check(is_ok(field) and _data(field) == "ListLiteral[$y << box, 7]",
+          f"a member that is a value, as a piece: {field!r}")
+
+    declared = _run("chain_in_a_declared_type")
+    check(is_ok(declared) and _data(declared) == "ListLiteral[1, 2]",
+          f"`__decl__` carrying a member chain: {declared!r}")
+
+
+def _a_member_call_owes_an_environment():
+    """这五个成员也收环境：没给环境时它是一条闭包，给了才算。
+
+    环境是每个跑起来的调用的第一条参数。这五个成员自己不用它（它们答的是数据），所以
+    `$env nil` 就是"现在跑"——`$len << $env nil << xs` 照样答得出个数。给在哪儿都认：
+    按 `$env` 这个 tag 给，或者那一份本身就是环境（`args.env`）；末尾给（`apply` 与
+    `sequential` 就是那样把环境接上的）也认。没给环境时链留着不动：那是一份还欠着环境的调用，
+    也就是 `sequential` 那样场景里能当一步的东西。
+    """
+    closure = _run("a_member_call_is_a_closure")
+    check(is_ok(closure) and _data(closure) == "$len << ListLiteral[10, 20]",
+          f"a member call with no environment is a closure: {closure!r}")
+
+    last = _run("a_member_call_env_last")
+    check(is_ok(last) and value_of(last) == 2,
+          f"the environment may be given last: {last!r}")
+
+    own = _run("a_member_call_in_an_environment")
+    check(is_ok(own) and value_of(own) == 20,
+          f"the environment may be the run's own: {own!r}")
 
 
 def _the_index_shorthand():

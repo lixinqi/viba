@@ -1,4 +1,4 @@
 # A dict key is a string; this is no key.
 table = DictLiteral[("k", 1)]
 
-__impl__ = $in << table << 0
+__impl__ = $in << $env nil << table << 0

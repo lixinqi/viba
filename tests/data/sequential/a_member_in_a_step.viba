@@ -1,0 +1,18 @@
+# a_member_in_a_step —— 内建成员那五个（`$len`、`$get_item`、`$in`、`$keys`、`$get_attr`）
+# 跟别的函数一样是"还欠着环境的调用"，所以它们也能当一步：这一步的环境由跑链的那一方给，
+# 给环境之前它是一条闭包。这一步的实参是 `$len` 自己的实参——容器（tag 由步骤语法给，
+# 记下这一步的结果放在哪个名字下）。
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+xs = ListLiteral[10, 20, 30]
+
+__impl__ =
+    sequential
+  << $n ($len << $x xs)
+  << $at ($get_item << $y xs << $z 1)
+  << ($in << $w xs << $v ($var "at"))
+  << args.env

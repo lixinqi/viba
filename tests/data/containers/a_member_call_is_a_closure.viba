@@ -1,0 +1,6 @@
+# A member call with no environment is a closure: a call that still owes one, so
+# it is kept as the chain it is spelled as (and it is what a step of `sequential`
+# is handed).
+xs = ListLiteral[10, 20]
+
+__impl__ = $len << xs

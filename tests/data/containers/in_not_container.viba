@@ -1,2 +1,2 @@
 # There is no container to ask.
-__impl__ = $in << 7 << 1
+__impl__ = $in << $env nil << 7 << 1

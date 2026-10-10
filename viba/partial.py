@@ -28,8 +28,10 @@ from typing import Callable, Optional, Tuple
 
 from viba import viba_ast
 from viba.type import (BUILTIN_MODULE, DuplicateTagError, InlineCycleError, Ok,
-                       PartialError, UnresolvedTypeError)
-from viba.viba_ast.tagged import (GET_ATTR_TAG, TAGGED_NAME, literal_symbol,
+                       PartialError, UnresolvedTypeError, takes_a_product)
+from viba.viba_ast.tagged import (GET_ATTR_TAG, GET_ITEM_TAG,
+                                  INTERPRETER_MEMBER_TAGS, TAGGED_NAME,
+                                  interpreter_member_chain, literal_symbol,
                                   symbol_of, symbol_problem, tag_of,
                                   tagged_node, tagged_problem)
 
@@ -66,6 +68,7 @@ ENVIRONMENT_TYPE = "Environment"
 # up, so it cannot say more (viba-interpreter.md, `__dyn_call__` / `__dyn_method__`).
 DYN_CALL_NAME = "__dyn_call__"
 DYN_METHOD_NAME = "__dyn_method__"
+
 
 def module_as_function(module, name):
     """(body, source_module) for a bare import name taken as a function, or None.
@@ -321,9 +324,23 @@ def _give(base, module, argument, argument_module, resolve, judge):
     if isinstance(base, _NamedMember):
         return _named_member(base, argument, argument_module, resolve)
     if isinstance(base, viba_ast.Member) and base.tag == GET_ATTR_TAG:
+        if is_the_environment(argument, argument_module, judge):
+            # `$get_attr << $env … << X << <name>`: the environment is the call's
+            # rule rather than an argument, so it is dropped here and the value and
+            # the name follow — the environment the member is called in is the
+            # member's own slot, which its own type gives (`_named_member`).
+            return base, module
         # `$get_attr << X << <name>`: X is the value the member is taken out
         # of, and the name that tags it is the next argument.
         return _NamedMember(argument, argument_module), module
+    if isinstance(base, viba_ast.Member) and base.tag in INTERPRETER_MEMBER_TAGS:
+        chain = _member_design_chain(base.tag)
+        if is_the_environment(argument, argument_module, judge):
+            # The environment is no argument of a member the interpreter answers
+            # either: giving it is what runs the member, and what the member takes
+            # is still to come.
+            return chain, BUILTIN_MODULE
+        return _give(chain, BUILTIN_MODULE, argument, argument_module, resolve, judge)
     if isinstance(base, viba_ast.Member):
         # The member for `$tag` is taken from the **first argument**, so the environment here is a
         # value, not "execute".
@@ -346,6 +363,11 @@ def _give(base, module, argument, argument_module, resolve, judge):
             f"only a function has arguments to give, not {_source_form(base)}")
     elements = _elements(base)
     for index, declared in enumerate(elements[1:], start=1):
+        if _takes_the_rest(declared):
+            # A slot spelled `...` takes whatever the call has left: the signature
+            # says the rest goes to what this call answers, which the design cannot
+            # follow any further, so the answer is the result type itself.
+            return elements[0], module
         if _matches(declared, argument, module, argument_module, judge):
             rest = elements[:index] + elements[index + 1:]
             if all(_is_documentation(element) for element in rest[1:]):
@@ -357,6 +379,44 @@ def _give(base, module, argument, argument_module, resolve, judge):
     raise PartialError(f"the function has no such argument: {_source_form(argument)}")
 
 
+def _member_design_chain(tag: str):
+    """The design's own call for a member the interpreter answers.
+
+    It is the member's signature (`viba/viba_ast/tagged.py`) with the environment
+    left out: the environment is the call's rule rather than an argument, and the
+    design drops it from every call this way (`module_as_function`). What is left
+    is what that member answers — `int` for `$len`, `bool` for `$in`, `list[str]`
+    for `$keys`, `Any` for what a container holds — and the parameters it takes,
+    each under its own name (`$container`, `$address`, `$piece`, `$table`), so a
+    source that gives them by name still fits, and an argument spelled with the
+    tag of the piece itself goes to the first of them that is free (`_matches`,
+    `takes_a_product`).
+
+    `$get_item` keeps one slot for the rest (`$args ...`): what a chain spells
+    after the address is given to the element it took, and the design cannot
+    follow that any further (`_takes_the_rest`).
+    """
+    signature = _elements(interpreter_member_chain(tag))
+    kept = [element for element in signature[1:]
+            if not (isinstance(element, viba_ast.Tagged)
+                    and element.tag == ENVIRON_TAG)]
+    if tag == GET_ITEM_TAG:
+        kept.append(viba_ast.Tagged("$args", viba_ast.Ellipsis()))
+    return viba_ast.ExponentChain([signature[0]] + kept)
+
+
+def _takes_the_rest(declared) -> bool:
+    """Whether this slot is spelled `...`: the rest of the arguments go there.
+
+    A parameter of a chain may be `$args ...` (`__decl__ = Any <- $f Any <- $args
+    ...`, `viba/builtin.viba`): it holds the product of everything left. A design
+    that reaches one has nothing left to say about the piece it lands on — the
+    result is what the call answers.
+    """
+    return isinstance(declared, viba_ast.Tagged) and isinstance(declared.type,
+                                                                viba_ast.Ellipsis)
+
+
 def _member_of(tag, owner, owner_module, resolve, judge):
     """(type, source_module) of the `$tag` member of the value a chain gave first,
     given that value.
@@ -365,6 +425,9 @@ def _member_of(tag, owner, owner_module, resolve, judge):
     from, and it is also what the member is given first — a member of an
     environment is a plain function of the environment. So the member's own type
     is reduced with X as its first argument, exactly as `X.tag << X` would be.
+    A member that is no function has nothing to give that value to, so a member
+    that is a value is answered as it stands: `$y << box` is the piece `$y` holds
+    (`$uncompress_relative_path << args.env` is the string or the nil it holds).
     The value is taken the way any design piece is taken: a name runs to its body
     (`Env` is `Environment`), and a product is its factors, one of which the
     tag addresses. There being no such member is a design mistake, like giving a
@@ -378,6 +441,10 @@ def _member_of(tag, owner, owner_module, resolve, judge):
         for factor in product_elements(owner):
             if isinstance(factor, viba_ast.Tagged) and factor.tag == tag:
                 base, source_module = _unfold(factor.type, owner_module, resolve)
+                if not isinstance(base, _EXP_NODES):
+                    # The member is a value, not a function of the value it was
+                    # taken from: there is no argument to give it.
+                    return base, source_module
                 return _give(base, source_module, given_owner, given_owner_module,
                              resolve, judge)
         raise PartialError(
@@ -532,14 +599,20 @@ def _matches(declared, given, module, given_module, judge) -> bool:
 
     A tag when both carry one (that is how a field is addressed) — and then the
     given type has to fit the declared one, so `(A <- $b B) << $b C` is legal
-    only when `C <: B`. An argument with no tag in the source takes the next free
-    slot, the way a call gives one, if it fits there: that is how a module's
-    `__decl__` parameters are given one by one. Without a tag on either side there is no
-    address to name: the two are the same piece, or they are not.
+    only when `C <: B`. A slot that holds a product is the exception: a piece
+    tagged with something that names no slot is a product of one member, and that
+    is where it goes (`$len << $x xs` in a step of `sequential`), keeping its own
+    tag at the call — the same slot the runtime picks (`_Pending.slot_for`,
+    `viba/type.py`, `takes_a_product`). An argument with no tag in the source
+    takes the next free slot, the way a call gives one, if it fits there: that is
+    how a module's `__decl__` parameters are given one by one. Without a tag on
+    either side there is no address to name: the two are the same piece, or they
+    are not.
     """
     if isinstance(declared, viba_ast.Tagged) and isinstance(given, viba_ast.Tagged):
         if declared.tag != given.tag:
-            return False
+            return (takes_a_product(declared.type)
+                    and judge(given.type, given_module, declared.type, module))
         if judge(given.type, given_module, declared.type, module):
             return True
         raise PartialError(

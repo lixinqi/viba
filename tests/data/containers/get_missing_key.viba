@@ -1,4 +1,4 @@
 # No such key.
 table = DictLiteral[("k", 1)]
 
-__impl__ = $get_item << table << "nope"
+__impl__ = $get_item << $env nil << table << "nope"

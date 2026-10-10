@@ -1,0 +1,5 @@
+# The environment is recognized wherever it is given: at the end here, where
+# `apply` and `sequential` put it.
+xs = ListLiteral[10, 20]
+
+__impl__ = $len << xs << $env nil

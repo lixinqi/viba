@@ -1,6 +1,6 @@
-# The piece to look for given later.
+# The piece to look for given later: the same, one environment short.
 xs = ListLiteral[10]
 
 pick = $in << xs
 
-__impl__ = pick << 10
+__impl__ = pick << $env nil << 10

@@ -1,4 +1,4 @@
 # A dict is asked about a key.
 table = DictLiteral[("k", 1)]
 
-__impl__ = $in << table << "k"
+__impl__ = $in << $env nil << table << "k"

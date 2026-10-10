@@ -30,7 +30,8 @@ from viba.partial import (environment_result_problem, get_args_product,
                           module_as_function, reduce_partial)
 from viba.pattern import (GENERIC_FILE, declared_of, file_pattern_problem,
                           generic_of_entries, order_of)
-from viba.viba_ast.tagged import TAGGED_NAME, symbol_of, tag_of
+from viba.viba_ast.tagged import (INTERPRETER_MEMBER_TAGS, TAGGED_NAME,
+                                  interpreter_member_chain, symbol_of, tag_of)
 
 # The builtin name that takes a call's arguments back as a product.
 GET_ARGS_NAME = "__get_args__"
@@ -757,6 +758,14 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
             return VibaTypeDescriptor(MEMBER_TAKEN, VibaMemberTakenDescriptor(
                 pool, resolvable, _build_type(pool, module, node.owner), node.name))
         return VibaTypeDescriptor(TYPE_REF, VibaTypeRefDescriptor(pool, resolvable, path))
+    if (isinstance(node, ast_nodes.Member)
+            and node.tag in INTERPRETER_MEMBER_TAGS):
+        # A member the interpreter answers, standing as a piece of its own — the
+        # head of a call a decision bound (`pattern F << A0` over `$len << $x xs`):
+        # that piece is the call the member's signature spells
+        # (`viba/viba_ast/tagged.py`). Any other member tag is a member of a value
+        # that is not here, and no design says what it is.
+        return _build_type(pool, BUILTIN_MODULE, interpreter_member_chain(node.tag))
     if isinstance(node, ast_nodes.Constant):
         return VibaTypeDescriptor(LITERAL, VibaLiteralDescriptor(
             pool, resolvable, node.value))

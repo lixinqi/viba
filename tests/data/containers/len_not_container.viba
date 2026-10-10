@@ -1,2 +1,2 @@
 # A leaf is no container, so there is nothing to count.
-__impl__ = $len << 7
+__impl__ = $len << $env nil << 7

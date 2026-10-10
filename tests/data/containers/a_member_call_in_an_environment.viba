@@ -1,0 +1,10 @@
+# The environment may also be the run's own (`args.env`), given by value.
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+xs = ListLiteral[10, 20, 30]
+
+__impl__ = $get_item << xs << 1 << args.env

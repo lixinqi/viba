@@ -206,12 +206,11 @@ __decl__ =
 
 __impl__ =
     args.f
-  << args.env
-  << ($get_attr << args.args << arg0_name)
+  << ($get_attr << $env nil << args.args << arg0_name)
 ```
 
 `pattern tagged[arg0_name, Arg0]` 每一位收下积里一个成员的 tag（`arg0_name` 是符号 `"x"`），
-`$get_attr << args.args << arg0_name` 再按那个名字把成员取回来 —— 成员原来带什么 tag，取回来
+`$get_attr << $env nil << args.args << arg0_name` 再按那个名字把成员取回来 —— 成员原来带什么 tag，取回来
 还是那个 tag，于是它落进函数对应的那个参数。积里有几个成员就选哪一份文件，1 到 16 各一份
 （[`viba/apply_impl/`](viba/apply_impl)），所以调用方不用给实参个数。
 
@@ -236,7 +235,10 @@ __impl__ = wrapper << add2 << $b 1 << args.env     # 3
 那一位。
 
 给实参要讲出它落在哪个 tag 上（`$a 2`）：不带 tag 的实参按位置落到函数自己的参数上，环境不占位置
-（`viba-interpreter.md` 的「模块的参数」一节）。
+（`viba-interpreter.md` 的「模块的参数」一节）。带 tag、但那个 tag 不是参数名的实参落进第一个收得下积的
+参数（`Any`、`Object`，或者一个积），并带着自己的 tag 进去——一个成员构成的积就是按那个成员本身拼的
+（`$x 1`），所以 `sequential` 的一步把实参交给内建算子时（`$n ($len << $x xs)`），`$x` 留在实参上，
+`xs` 落进 `$len` 自己的 `$container`。
 
 一个文件里也可以有自己的定义，成员取到自己定义的名字就在这个文件里取：
 

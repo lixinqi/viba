@@ -118,7 +118,7 @@ __impl__ =
 - **内建库里的模块与泛型，也照样按名字取**：`viba/` 里 `builtin.viba` 旁边那几个模块（`Y.viba`、
   `apply.viba`、`sub_env_run.viba`、`sequential.viba`、`if.viba`），以及 `viba/builtin/` 下的那几个
   泛型
-  （`is_closure/`、`unclosure/`、`sequential_impl` 用的 `sequential_step/`、`sequential_arg/`）
+  （`is_closure/`、`unclosure/`、`sequential_impl` 用的 `sequential_step/`）
   都不需要 import，带的那个前缀（`builtin.sub_env_run`、`builtin.is_closure`）
   叫的是同一个。`if` 就是其中的一个：条件挑中的那一支才算、另一支的调用不求值，它由那两个开关
   组成（见「分支：用积选择，用和汇合」）。`sub_env_run` 给它的环境取那个名字的
@@ -867,15 +867,48 @@ Flag = is_base_type[bool]              # 决断选中 100.viba；它的 __decl__
 后面四节各讲一个。它们写在链头就是这五个意思，所以这五个 tag 当不了积的成员名：`$len << box`
 数的是 `box`，不是取 `box` 的 `$len` 那一份。
 
+## 这五个成员也是调用：环境排在第一位
+
+这五个由解释器自己答，签名却跟别的调用一样：**环境第一**（`$env Env`），后面才是这个成员自己的
+参数。签名写在一处（`viba/viba_ast/tagged.py` 的 `interpreter_member_chain`），运行与判定两层
+取的是同一份：
+
 ```viba
-__impl__ = $get_attr << args << "name"          # 就是 args.name
-__impl__ = $get_attr << box << name << args.env << 1   # name 是算出来的 str
+$get_attr : Any <- $env Env <- $value Any <- $name str
+$get_item : Any <- $env Env <- $container Any <- $address Any
+$in       : bool <- $env Env <- $container Any <- $piece Any
+$len      : int <- $env Env <- $container Any
+$keys     : list[str] <- $env Env <- $table Any
+```
+
+环境跟别处一样，按 `$env` 这个 tag 给，或者那一份本身就是环境（`args.env`）；给在链上哪一位都认，
+`apply` 与 `sequential` 就是把环境缀在调用末尾的。**没给环境时这条链是闭包**——一份还欠着环境的
+调用，跟 `add << $a 1` 一样。这正是这五个能当 `sequential` 的一步的原因：步骤由跑链的那一方给
+环境，给环境之前它们只是欠着实参的调用（`tests/data/sequential/a_member_in_a_step.viba`）。
+它们答的是数据、自己用不着环境，所以**没有环境可给时给 `$env nil`**，那一位写 `nil` 就是
+"现在跑"：`$len << $env nil << xs` 跟 `$len << xs << args.env` 答的是同一个数。
+
+成员自己的实参按位置给（`$len << $env nil << xs`），也可以按它们自己的名字给（`$container`、
+`$address`、`$piece`、`$table`、`$value`、`$name`）。一个带着**别的 tag** 的实参仍然落在这个成员
+自己第一个空着的参数上——步骤的实参就是这样：`$n ($len << $x xs)` 里 `$x` 是这一步记名字用的
+tag，`xs` 落进 `$container`，`$n` 才是这一步结果记的名字。
+
+判定层取这样一条链时把环境去掉——环境是调用的规矩而不是实参，每一条调用都是这么取的
+（[`viba/partial.py`](viba/partial.py)）——然后给出**这个成员答什么**：`$len` 是 `int`、`$in` 是
+`bool`、`$keys` 是 `list[str]`、`$get_item` 与 `$get_attr` 说得出就是那个成员的类型、说不出就是
+`Any`。这些链因此也能写在需要类型的地方：`__decl__` 里、一个字面量的一份里，都取得到。
+
+```viba
+__impl__ = $get_attr << $env nil << args << "name"          # 就是 args.name
+__impl__ = $get_attr << box << name << args.env << 1        # name 是算出来的 str
 ```
 
 它取一个值的成员：积里那条 tag 的那一份，环境上就是那个宿主属性。名字后面**还接着实参**时，成员是
-被当方法调的，X 就照 `$tag << X` 那样当它的第一个实参给出去（`$get_attr << box << name << args.env
-<< $x 1` 就是 `box.f << box << args.env << $x 1`）；名字后面**没有实参**时，取出来的就是那个成员
-本身 —— 一份值（`$get_attr << args << "n"` 就是 `args.n`），或者它代表的那次调用，原样交出去。
+被当方法调的，X 就照 `$tag << X` 那样当它的第一个实参给出去，给出来的那次调用跑在这个成员拿到的
+环境里（`$get_attr << $env args.env << box << name << $x 1` 就是 `box.f << box << args.env << $x 1`）；
+名字后面**没有实参**时，取出来的就是那个成员本身 —— 一份值（`$get_attr << $env nil << args << "n"`
+就是 `args.n`），或者它代表的那次调用，原样交出去。给的要是 `nil` 而取出来的成员是一次调用，
+那次调用就缺环境：它是一条闭包，跑不起来。
 名字不是字符串、或者这个值没有那个成员，都是程序错。
 
 判定层取同一条链时，名字是源码里的字符串（或解析得出字符串的名字）就给出**那个成员的类型**；
@@ -887,40 +920,42 @@ __impl__ = $get_attr << box << name << args.env << 1   # name 是算出来的 st
 地址步子（`$at_index int`、`$at_key str`，[`viba-reflect.md`](viba-reflect.md)）。
 
 ```viba
-__impl__ = $get_item << xs << 1                       # xs[1]，xs 是 list
-__impl__ = $get_item << table << "k"                  # table["k"]，table 是 dict
-__impl__ = $get_item << ($get_item << xs << 1) << 0   # xs[1][0]
+__impl__ = $get_item << $env nil << xs << 1                       # xs[1]，xs 是 list
+__impl__ = $get_item << $env nil << table << "k"                  # table["k"]，table 是 dict
+__impl__ = $get_item << $env nil << ($get_item << $env nil << xs << 1) << 0   # xs[1][0]
 ```
 
-名字后面的方括号是这条链的**简式**：`xs[1]` 就是 `$get_item << xs << 1`，
-`table["k"]` 就是 `$get_item << table << "k"`（容器也可以是一条名字路径：`box.xs[1]`）。
+名字后面的方括号是这条链的**简式**：`xs[1]` 就是 `$get_item << $env nil << xs << 1`，
+`table["k"]` 就是 `$get_item << $env nil << table << "k"`（容器也可以是一条名字路径：`box.xs[1]`）。
+简式自己把 `nil` 补上——方括号写的是"就在这儿取这个元素"，所以它是一个值，不是闭包。
 一个名字没有哪个泛型回答它时，`A[b]` 就是这一步取用；`A` 指不着任何东西时，报的就是那个名字
 （`no definition named ...`）。方括号只跟在名字后面、只一层：`xs[0][1]` 要落成
-`$get_item << xs[0] << 1`。放在**值**的位置上它才是这一步取用；放在积的成员里时它跟别的成员一样
+`$get_item << $env nil << xs[0] << 1`。放在**值**的位置上它才是这一步取用；放在积的成员里时它跟别的成员一样
 是源码里的数据，不在这里取。
 
-它先拿容器、再拿地址：地址还没给时它是一个值（`pick = $get_item << xs`，再 `pick << 1` 才是取）；
-地址后面**还接着实参**时，取出来的那个元素被接着当调用给（`$get_item << xs << 0 << $x 1` 就是
-`xs[0] << $x 1`）。它自己**不收环境**：取元素是数据那一步，环境只在取出来的元素是一次调用、你还要它跑
-的时候才放在链上（`$get_item << xs << 0 << $env args.env << $x 41`）。这里跟 `$get_attr` 有一处
-不同：成员被当方法调时，X 会额外当它的第一个实参给出去；元素不是容器的成员方法，所以取出来的那次调用
-**不会**多收到容器这一个实参。地址不是 int 也不是 str、那个位置没有元素、那个键不在、拿到的不是容器
-（或者给了 dict 一个位置、给了 list 一个键），都是程序错。按名字取成员是另一个内建成员：
-`$get_attr`（上一节）。
+它先拿容器、再拿地址：地址还没给时它是一条闭包（`pick = $get_item << xs`，再
+`pick << $env nil << 1` 才是取）；地址后面**还接着实参**时，取出来的那个元素被接着当调用给，跑在
+这个成员拿到的环境里（`$get_item << $env args.env << xs << 0 << $x 1` 就是 `xs[0] << $x 1`）。
+这里跟 `$get_attr` 有一处不同：成员被当方法调时，X 会额外当它的第一个实参给出去；元素不是容器的
+成员方法，所以取出来的那次调用**不会**多收到容器这一个实参。地址不是 int 也不是 str、那个位置没有
+元素、那个键不在、拿到的不是容器（或者给了 dict 一个位置、给了 list 一个键），都是程序错。
+按名字取成员是另一个内建成员：`$get_attr`（上一节）。
 
 ## 问在不在：`$in`
 
 容器里有没有某一份，也是内建成员：`$in` 先拿容器、再拿要找的那一份，答一个 `bool`。
 
 ```viba
-__impl__ = $in << xs << 3                 # 3 在不在这个 list 里
-__impl__ = $in << table << "k"            # "k" 在不在这个 dict 的键里
+__impl__ = $in << $env nil << xs << 3                 # 3 在不在这个 list 里
+__impl__ = $in << $env nil << table << "k"            # "k" 在不在这个 dict 的键里
 ```
 
+判定层取它给 `bool`。
+
 list / set / tuple 装的是元素，所以问的是有没有落成一个样子的元素；dict 装的是键，所以问的是那个
-字符串在不在键里（值不在其中）。跟 `$get_item` 一样，它**不收环境**：这是数据那一步。要找的那一份
-还没给时它是一个值（`pick = $in << xs`，再 `pick << 3` 才是问）；被问的不是容器、给 dict 的不是
-一个字符串、自己没拿到要找的那一份，都是程序错。
+字符串在不在键里（值不在其中）。要找的那一份还没给时它是一条闭包（`pick = $in << xs`，再
+`pick << $env nil << 3` 才是问）；被问的不是容器、给 dict 的不是一个字符串、自己没拿到要找的那一份，
+都是程序错。
 
 ## 数一数：`$len`
 
@@ -928,25 +963,26 @@ list / set / tuple 装的是元素，所以问的是有没有落成一个样子�
 dict 答键数。
 
 ```viba
-__impl__ = $len << xs                     # 这个 list 有几个元素
-__impl__ = $len << table                  # 这个 dict 有几个键
+__impl__ = $len << $env nil << xs                     # 这个 list 有几个元素
+__impl__ = $len << $env nil << table                  # 这个 dict 有几个键
 ```
 
-跟 `$get_item`、`$in` 一样**不收环境**：这是数据那一步。数不出个数的都是程序错：一个叶子、
-一个带 tag 的积（`Object * $a 1 * $b 2`）、一段字符串 —— 字符串是 `len_str`。
+判定层取它给 `int`。数不出个数的都是程序错：一个叶子、一个带 tag 的积
+（`Object * $a 1 * $b 2`）、一段字符串 —— 字符串是 `len_str`。
 
 容器有了个数，走一遍才有可能：`$len` 给几段，`$get_item` 给第几段，两者配起来。语言里
-没有循环，走一遍要自己用 `Y` 递归。
+没有循环，走一遍要自己用 `Y` 递归。`Y` 的下一层是一个调用，所以这两步都能当它的实参——
+`$len << $x xs` 是一条闭包，环境由 `Y` 那一层给。
 
 ## 取字典的键：`$keys`
 
 ```viba
-__impl__ = $keys << table                           # 键组成的一份 list[str]
-__impl__ = $get_item << ($keys << table) << 0       # 第一个键
+__impl__ = $keys << $env nil << table                              # 键组成的一份 list[str]
+__impl__ = $get_item << $env nil << ($keys << $env nil << table) << 0   # 第一个键
 ```
 
 给出的是一份 `list[str]`，顺序由实现定，所以能接着取（`$get_item`）、能数（`$len`）、
-能交给宿主。不是 dict 是程序错；键不是字面量的 dict 也是程序错 —— 这一支走的是源码形式，
+能交给宿主；判定层取它就是这个 `list[str]`。不是 dict 是程序错；键不是字面量的 dict 也是程序错 —— 这一支走的是源码形式，
 一个算出来的键没有名字可交出去。
 
 枚举一个序列是 `$len` 加 `$get_item` 走一遍；取 dict 的值是 `$keys` 加 `$get_item`
