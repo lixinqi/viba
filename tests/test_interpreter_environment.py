@@ -76,6 +76,8 @@ def _the_env_slot(tmp: Path):
     labelled(interpret(str(CASES / "wrong_env.viba"), environ),
              "was not given an Environment",
              "an environment argument that is not an Environment -> VibaProgramErr")
+    labelled(interpret(str(CASES / "env_twice.viba"), environ), "was given $env twice",
+             "the environment given twice, once by value -> VibaProgramErr")
 
     # 环境那个参数在源码里必须是 $env：不带 tag 的 Environment 位不算数
     labelled(interpret(str(CASES / "positional_env.viba"), environ), "takes no $env Env",

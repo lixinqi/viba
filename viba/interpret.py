@@ -4564,7 +4564,14 @@ class _Pending:
 
     def slot_for(self, tag):
         """(index, problem) for an argument in the source: by its tag, or the next free
-        slot when it carries none."""
+        slot when it carries none.
+
+        A tag is a parameter's own name, so a tag that names a slot has exactly one
+        slot to go to: given twice, the second is not another parameter but the same
+        one again, and one of the two arguments would be lost (`viba-style.md` §9).
+        A tag that names no slot is the tag of the piece itself (`$x 1`), and those
+        go to the next free slot that takes a product, one after another.
+        """
         slots = self.slots
         if len(self.given) == len(slots):
             return None, f"{self.source} takes no more arguments"
@@ -4580,7 +4587,10 @@ class _Pending:
                 if free:
                     return free[0], None
                 return None, f"{self.source} takes no {tag} argument"
-            return slots.index(tag), None
+            index = slots.index(tag)
+            if index in self.given:
+                return None, f"{self.source} was given {tag} twice"
+            return index, None
         free = [one for one in range(len(slots)) if one not in self.given]
         if not free:
             return None, f"{self.source} takes no more arguments"
@@ -4715,6 +4725,13 @@ class _Pending:
         return own[0], None
 
     def _give_func(self, tag, value):
+        if self.environ is not None and (tag == ENVIRON_TAG
+                                         or (tag is None and _is_environ_value(value))):
+            # The environment is the call's rule, and a call runs in one: given twice
+            # it is the same rule twice. A value that is an environment fills that
+            # parameter when it carries no tag (an argument tagged `$a` is `$a`, even
+            # when what it holds is an environment), so that is where this is said.
+            return VibaProgramErr(f"{self.source} was given {ENVIRON_TAG} twice")
         if (self.member_tag is not None and not _is_environ_value(value)
                 and tag != ENVIRON_TAG):
             index, problem = self._member_slot_for(tag)

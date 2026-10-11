@@ -1,0 +1,13 @@
+# 环境给两次：一个调用只跑在一个环境里，第二次给（不管按 `$env` 还是按值）都是同一个规矩又给
+# 一次，报 `$viba_program_err`。`$a` 那种重复 tag 是错的，这一位也一样。
+__decl__ = int <- $env Env
+
+args = __get_args__ << __decl__
+
+add =
+	int
+	<- $env Env
+	<- $a int
+	<- $b int
+	<- { add two integer }
+__impl__ = add << $env args.env << $a 1 << args.env << $b 2

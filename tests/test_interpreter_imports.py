@@ -351,8 +351,8 @@ def _compiled_once(tmp: Path):
           f"each file is parsed once, however many importers it has: {len(parsed)}")
 
     result = interpret(_case("twice_tag"), environ)
-    check(is_ok(result) and value_of(result) == 5,
-          f"a tag given twice: the later value stands: {result!r}")
+    labelled(result, "was given $a twice",
+             "a tag given twice names the same parameter twice")
 
 
 if __name__ == "__main__":

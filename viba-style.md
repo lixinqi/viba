@@ -202,6 +202,12 @@ Distance =
 ```
 
 - 链的第一个元素是**结果**，然后是实参，按给的顺序排；每个实参带 tag。
+- **一个 tag 只给一次**：tag 是一个参数的名字，同一个名字给两次就是同一个参数又给了一次，报
+  `$viba_program_err`（`was given $a twice`），不是"后来那份算数"。`<<` 上这条更要紧：它是一次次
+  应用，`(a << $name b)` 答出来的很可能是**另一个**函数，所以 `a << $name b << $name c` 里两个
+  `$name` 分属两次调用是合法的 —— 别把一条 `<<` 链摊成"一个函数 + 一张实参表"来按 tag 配。
+  `|`、`*`、`<-` 是同一层的连接，一次连续出现就是一条链，可以摊平；`<<` 每一次都是一个界
+  （[`viba/viba_ast/chain.py`](viba/viba_ast/chain.py)、[`viba/viba_ast/unparse.py`](viba/viba_ast/unparse.py)）。
 - **一行放不下就折行**：每个实参占一行，续行以 `<-` / `<<` 起头。可打开的例子：
   [`tests/data/interpreter/add_demo.viba`](tests/data/interpreter/add_demo.viba)、
   [`tests/data/closure/closure_with_module_call_argument.viba`](tests/data/closure/closure_with_module_call_argument.viba)。

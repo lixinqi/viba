@@ -9,6 +9,11 @@ chain, and a branch of that branch goes one level deeper). Grouping is therefore
 kept: `A * (B * C)` is ``ProductChain([A, ProductChain([B, C])])``, a different
 thing from `A * B * C`. Tuples, tags and type applications are walked element by
 element. convert_from_chain_style rebuilds the left-nested binary form.
+
+`<<` is no such chain: every `<<` is one application, and what one of them answers may
+be another function with tags of its own, so a run of them keeps a boundary at each
+step. `Partial` is therefore rebuilt as the source has it (the `Partial` case below),
+and a `<<` on the right keeps the parentheses it needs (`unparse.py`).
 """
 
 from typing import List

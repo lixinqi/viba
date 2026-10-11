@@ -187,6 +187,9 @@ loosest, then sum, product, exponent — and application and tagging bind tighte
 
 All binary operators are left-associative. `T << X` is not a constructor: it reduces a
 function on the spot, and giving it every argument leaves you with the result itself.
+Each `<<` is one application, and what one answers may be another function with tags of
+its own, so a chain of them is never folded into one call with a flat argument list: the
+same tag given twice to one call is a program error (`viba-style.md` §9).
 
 ### Examples
 
