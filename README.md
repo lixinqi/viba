@@ -564,6 +564,7 @@ Color = $red int | $green int | $blue int
 | [`viba-primitives.md`](viba-primitives.md) | The builtin API: the operators, `Environment`, the member operators, containers, and the builtin modules a module reaches without an import |
 | [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, taking values out of an instance |
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__decl__` in, `__impl__` out — the executable view, and the call-by-need evaluation strategy |
+| [`viba-interpreter-design.md`](viba-interpreter-design.md) | The interpreter itself, as viba: a run, the host's three pieces, a call, an activation, the five members the interpreter answers, and the entry points |
 | [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer takes |
 | [`viba_builder.md`](viba_builder.md) | Building .viba source from Python expressions |
 | [`viba-style.md`](viba-style.md) | Conventions of a definition: tags, heads, containers, and how to check a definition |

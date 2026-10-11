@@ -992,13 +992,16 @@ if __name__ == "__main__":
         except Exception as e:                      # a stale GRAMMAR_ORDER, no block
             print(f"{'the README spells this grammar':<50} | {type(e).__name__}: {e}")
 
-    # The manual, the style guide, the tutorial and the pattern chapter are taken
-    # as sources too: a sample that does not compile is teaching a mistake. The
-    # docs of the layers above live in another repository.
+    # The manual, the style guide, the tutorial, the pattern chapter and the
+    # interpreter's own design are taken as sources too: a sample that does not
+    # compile is teaching a mistake. The docs of the layers above live in another
+    # repository.
     try:
         blocks = 0
+        design = os.path.join(root, "viba-interpreter-design.md")
         chapters = ((readme, "README.md"), (style, "viba-style.md"),
-                    (tutorial, "viba_tutorial.md"), (pattern, "viba-pattern.md"))
+                    (tutorial, "viba_tutorial.md"), (pattern, "viba-pattern.md"),
+                    (design, "viba-interpreter-design.md"))
         for path, _name in chapters:
             with open(path, encoding="utf-8") as handle:
                 text = handle.read()
