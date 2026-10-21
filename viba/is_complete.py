@@ -11,6 +11,13 @@ Walking:
 - Sum, product and exponent chains behave the same way: the members are the
   elements of the main chain (a unit head does not count), each element is
   walked; tuples are walked element-wise; a tagged piece walks what it tags.
+- A sum is read one way or the other: every option carries a tag (`$a T`) or
+  none does. The units (`Object` / `nil` / `Oneof` / `never`) are no options:
+  they carry no content, so they take no tag and are left out of the count. A
+  sum that tags some options and leaves others untagged says nothing about how
+  one branch is read and the next, so it makes the design incomplete
+  (viba-reflect.md: a tagged sum is addressed by tag, an untagged one by the
+  kind of the value).
 - Names and generic applications resolve through imports and the descriptor
   pool to a definition, whose body is walked next; definitions from the
   builtin library (builtin.viba) count too. A name that does not resolve makes
@@ -240,12 +247,98 @@ class _Checker:
             return all(self._walk(e, module_name, bindings) for e in node.elements)
         if isinstance(node, viba_ast.Partial):
             return self._call(node, module_name, bindings)
+        if isinstance(node, (viba_ast.Sum, viba_ast.SumChain)):
+            return self._sum(node, module_name, bindings)
         elements = _chain_elements(node)
         if elements is None:
             return False
         if elements and _is_unit_head(elements[0]):
             elements = elements[1:]  # a unit chain head is not a member
         return all(self._walk(e, module_name, bindings) for e in elements)
+
+    def _sum(self, node, module_name: str, bindings: dict) -> bool:
+        """A sum chain: every option carries a tag or none does, and each one is
+        walked.
+
+        The units (`Object` / `nil` / `Oneof` / `never`) are no options: they
+        carry no content, so they take no tag and are left out of the count. What
+        is left either all carries a tag (`$a T`) or none does — a sum is read by
+        its tags or by the kind of the value, never both ways at once
+        (viba-reflect.md), so one of each says nothing about how the next option
+        is read and makes the design incomplete.
+        """
+        elements = _chain_elements(node) or []
+        options = [e for e in elements if not _is_unit_head(e)]
+        carries = [self._carries_tag(e, module_name, bindings) for e in options]
+        if True in carries and False in carries:
+            return False
+        return all(self._walk(e, module_name, bindings) for e in elements)
+
+    def _carries_tag(self, node, module_name: str, bindings: dict):
+        """Does this sum option carry a tag? None when this walk cannot tell yet.
+
+        Names are transparent here as everywhere: an option that is a name
+        carries the tag its body carries, and an application carries the tag of
+        the body it stands for. A `tagged[...]` in the source is a tag whatever
+        symbol it spells. A generic parameter with no argument stands for nothing
+        yet, so it decides nothing here either — the argument an application
+        brings decides it.
+        """
+        form, known = self._stands_for(node, module_name, bindings)
+        if isinstance(form, viba_ast.Tagged):
+            return True
+        if (isinstance(form, viba_ast.TypeApp)
+                and form.constructor == TAGGED_NAME):
+            return True
+        return False if known else None
+
+    def _stands_for(self, node, module_name: str, bindings: dict):
+        """(the form this option stands for, whether that form is what it is).
+
+        Names and applications are taken apart one layer at a time, the way the
+        walk takes them. What stops the unfolding is either a form with nothing
+        more to look through — a leaf name, a container, a tuple, a call — or one
+        this walk cannot decide yet: a name that does not resolve, an application
+        no decision and no generic takes, a generic parameter with no argument.
+        The first is the form itself, the second is not: the walk reports it where
+        it lands.
+        """
+        seen = set()
+        while True:
+            if id(node) in seen:
+                return node, False  # it comes back to itself: nothing more to see
+            seen.add(id(node))
+            if isinstance(node, viba_ast.TypeRef):
+                if _is_named_form(node.name) or node.name in self.stops:
+                    return node, True
+                bound = bindings.get(node.name)
+                if bound is not None:
+                    node, module_name, bindings = bound
+                    continue
+                if node.name in bindings:
+                    return node, False      # a parameter with no argument yet
+                found = self._resolve(node.name, module_name)
+                if found is None:
+                    return node, False
+                definition, module_name = found
+                node = getattr(definition, "body", definition)
+                if isinstance(node, viba_ast.TypeDefinition):
+                    node = node.body
+                continue
+            if isinstance(node, viba_ast.TypeApp):
+                if _is_named_form(node.constructor) or node.constructor in self.stops:
+                    return node, True
+                decided = self._decision(node, module_name, bindings)
+                if isinstance(decided, tuple):
+                    node, module_name, bindings = decided
+                    continue
+                generic = self._generic_body(node, module_name, bindings)
+                if generic is None:
+                    return node, False
+                definition, module_name, bindings = generic
+                node = getattr(definition, "body", definition)
+                continue
+            return node, True
 
     def _call(self, node, module_name: str, bindings: dict) -> bool:
         """A call in the source: the head has to be something to call, its
@@ -364,7 +457,7 @@ class _Checker:
             return self._walk(*bound)
         if name in self.stops:
             return True
-        if name in LEAF_NAMES or name in CONTAINER_NAMES or name in UNIT_NAMES:
+        if _is_named_form(name):
             return True
         found = self._resolve(name, module_name)
         if found is None:
@@ -383,30 +476,59 @@ class _Checker:
         decided = self._decide(node, module_name, bindings)
         if decided is not None:
             return decided
+        generic = self._generic_body(node, module_name, bindings)
+        if generic is None:
+            return False
+        definition, target_module, inner = generic
+        return self._definition(definition, target_module, inner)
+
+    def _generic_body(self, node, module_name: str, bindings: dict):
+        """(definition, module, bindings) for a plain generic application, or None.
+
+        A plain generic is one that takes its parameters as they stand, with no
+        pattern file deciding: the arguments go to the definition's own
+        parameters, in order, and stand where the source has them. None when the
+        constructor resolves to no generic, or the arity does not match it.
+        """
         caller_module = module_name  # the arguments stand at the call site
-        found = self._resolve(constructor, caller_module)
+        found = self._resolve(node.constructor, caller_module)
         if found is None:
-            return False
+            return None
         definition, target_module = found
-        params = list(getattr(definition, "generic_params", None) or [])
         if not isinstance(definition, viba_ast.GenericDefinition):
-            return False
+            return None
+        params = list(getattr(definition, "generic_params", None) or [])
         if len(params) != len(node.args):
-            return False  # the arity does not match this definition
+            return None  # the arity does not match this definition
         inner = dict(bindings)
         for param, arg in zip(params, node.args):
             inner[param] = (arg, caller_module, bindings)
-        return self._definition(definition, target_module, inner)
+        return definition, target_module, inner
 
     def _decide(self, node, module_name: str, bindings: dict):
         """Take a generic application: None when the constructor names none.
 
+        The decision is what `_decision` gives; this walks its body. A decision
+        that fails is an application with nothing to walk, so the design is
+        incomplete.
+        """
+        decided = self._decision(node, module_name, bindings)
+        if isinstance(decided, VibaProgramErr):
+            return False
+        if decided is None:
+            return None
+        body, body_module, inner = decided
+        return self._walk(body, body_module, inner)
+
+    def _decision(self, node, module_name: str, bindings: dict):
+        """The body a generic application stands for: (body, module, bindings).
+
         The decision is made where the source has the application, over the
         arguments in the source, and what comes back is the chosen file's
-        `__decl__` — walked with this file's parameter names standing for the
-        argument parts the patterns extracted (viba-pattern.md). A decision that
-        fails is an application with nothing to walk, so the design is
-        incomplete.
+        `__decl__` — held with this file's parameter names standing for the
+        argument parts the patterns extracted (viba-pattern.md). None when the
+        constructor names no generic of its module, and the VibaProgramErr a
+        decision that failed.
 
         An argument the source has as a name this walk bound is an argument part
         that stood at the call site, so it is taken in the module the source has
@@ -418,7 +540,7 @@ class _Checker:
         decision = reduce_application(
             node, module, self._argument_modules(node, module_name, bindings))
         if isinstance(decision, VibaProgramErr):
-            return False
+            return decision
         if not (isinstance(decision, Ok) and decision.ok_value is not None):
             return None
         chosen = decision.ok_value
@@ -427,7 +549,7 @@ class _Checker:
             # The argument part stands here, at the call site, so its own
             # names resolve in this module.
             inner[name] = (bound.ast_node, module_name, bindings)
-        return self._walk(chosen.body, chosen.entry.name, inner)
+        return chosen.body, chosen.entry.name, inner
 
     def _argument_modules(self, node, module_name: str, bindings: dict):
         """The module the source has each argument of an application in.
@@ -503,6 +625,12 @@ def _is_unit_head(node) -> bool:
     if isinstance(node, (viba_ast.Nil, viba_ast.Never)):
         return True
     return isinstance(node, viba_ast.TypeRef) and node.name in UNIT_NAMES
+
+
+def _is_named_form(name: str) -> bool:
+    """Is this name a form of its own — a leaf, a container, a unit — rather
+    than something a definition stands behind?"""
+    return name in LEAF_NAMES or name in CONTAINER_NAMES or name in UNIT_NAMES
 
 
 def _unbound_symbol(node, bindings: dict) -> bool:

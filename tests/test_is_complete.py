@@ -169,6 +169,42 @@ def corners():
     check("a symbol that names no string",
           is_complete("Name = int\nM = tagged[Name, int]\n", [], [], set()), False)
 
+    # A sum is read one way or the other: every option carries a tag or none
+    # does. The units are no options, so they take no tag.
+    check("a sum with no tags", is_complete("X = int | str\n", [], [], set()), True)
+    check("a sum whose options all carry a tag",
+          is_complete("X = $a int | $b str\n", [], [], set()), True)
+    check("a sum that tags some options and not others",
+          is_complete("X = $a int | str\n", [], [], set()), False)
+    check("a tagged sum with the unit as its head",
+          is_complete("X = Oneof | $a int | $b str\n", [], [], set()), True)
+    check("a tagged sum in block form",
+          is_complete("Result =\n  Oneof\n  | $ok int\n  | $missing str\n",
+                      [], [], set()), True)
+    check("the same block form with one untagged option",
+          is_complete("Result =\n  Oneof\n  | $ok int\n  | str\n", [], [], set()),
+          False)
+    check("an untagged sum behind a member",
+          is_complete("X = $xs (int | str)\n", [], [], set()), True)
+    check("a mixed sum behind a member",
+          is_complete("X = $xs ($a int | str)\n", [], [], set()), False)
+    check("nil is no option of the count",
+          is_complete("List = $head int * $tail List | nil\n", [], [], set()), True)
+    check("a tagged option and nil",
+          is_complete("A2 = $x A2 | nil\nX = A2\n", [], [], set()), True)
+    check("a sum that is a name apart, all tagged",
+          is_complete("A = $x int\nX = A | $b str\n", [], [], set()), True)
+    check("a sum that is a name apart, mixed in truth",
+          is_complete("A = int\nX = A | $b str\n", [], [], set()), False)
+    check("a sum option applied to a tagged body",
+          is_complete("Box[T] = $v T\nX = $a int | Box[str]\n", [], [], set()), True)
+    check("a parameter with no argument as an option",
+          is_complete("M[T] = $a int | T\n", [], [], set()), True)
+    check("and the same parameter bound to a tagged option",
+          is_complete("M[T] = $a int | T\nX = M[$b str]\n", [], [], set()), True)
+    check("and the same parameter bound to an untagged one",
+          is_complete("M[T] = $a int | T\nX = M[int]\n", [], [], set()), False)
+
     # A dependency that does not compile is skipped; the name it would have
     # defined then does not resolve.
     entry = "import util\nX = util.M\n"
