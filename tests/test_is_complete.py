@@ -100,9 +100,137 @@ def main():
           is_complete("\ufeffX = int", [], [], set()), False)
 
     corners()
+    sums()
 
     print(f"is_complete: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0
+
+
+def sums():
+    """和的可选项摊开：嵌套的、隔着定义的、隔着泛型的、隔着导入的。"""
+    same = set()
+    # Depth: a name or a tag that repeats anywhere in the flattened options.
+    check("deep, all names of their own",
+          is_complete("X = int | (str | (bool | float))\n", [], [], same), True)
+    check("deep, a name repeats at the bottom",
+          is_complete("X = int | (str | (bool | int))\n", [], [], same), False)
+    check("deep, a tag repeats at the bottom",
+          is_complete("X = $a int | ($b str | ($c bool | $a float))\n", [], [], same),
+          False)
+    check("deep, every tag of its own",
+          is_complete("X = $a int | ($b str | ($c bool | $d float))\n", [], [], same),
+          True)
+    check("deep, a name repeats through two sums",
+          is_complete("X = int | ((str | int) | bool)\n", [], [], same), False)
+
+    # Through definitions, one and two jumps away.
+    check("through two definitions",
+          is_complete("A = int | str\nB = $a bool | A\nX = B\n", [], [], same), True)
+    check("a name repeats through two definitions",
+          is_complete("A = int | str\nB = $a bool | A\nX = B | int\n", [], [], same),
+          False)
+    check("a tag repeats through two definitions",
+          is_complete("A = $a int | str\nB = $b bool | A\nX = B | $a float\n",
+                      [], [], same), False)
+    check("a tag repeats through a name",
+          is_complete("A = $a str\nX = $a int | (A | $b bool)\n", [], [], same), False)
+
+    # Through generic applications: a parameter stands for its argument, and the
+    # names inside are the ones that were written there.
+    check("through a generic with a parameter",
+          is_complete("Inner[T] = list[T] | dict[str, T]\nX = $a bool | Inner[int]\n",
+                      [], [], same), True)
+    check("a name repeats through a generic",
+          is_complete("Inner[T] = list[T] | list[str]\nX = $a bool | Inner[int]\n",
+                      [], [], same), False)
+    check("a name repeats between a generic and the sum it sits in",
+          is_complete("Inner[T] = list[T] | dict[str, T]\nX = list[bool] | Inner[int]\n",
+                      [], [], same), False)
+
+    # Units are no options, wherever they stand.
+    check("units in a nested sum",
+          is_complete("X = int | (nil | str)\n", [], [], same), True)
+    check("a tag repeats across a unit",
+          is_complete("X = $a int | (nil | $a str)\n", [], [], same), False)
+    check("a nested sum of units only",
+          is_complete("X = int | (Oneof | never)\n", [], [], same), True)
+    check("a name that stands for a unit",
+          is_complete("A = nil\nX = int | (A | $a str)\n", [], [], same), True)
+
+    # Two nested sums side by side are collected together.
+    check("two nested sums, every name of its own",
+          is_complete("X = (int | $a str) | ($b bool | $c float)\n", [], [], same),
+          True)
+    check("two nested sums, one name in both",
+          is_complete("X = (int | str) | (int | bool)\n", [], [], same), False)
+    check("two nested sums, one tag in both",
+          is_complete("X = $a int | (str | $a bool)\n", [], [], same), False)
+
+    # A sum that comes back to itself adds no option (the walk is coinductive),
+    # so what it already carried is not counted twice.
+    check("a sum that comes back to itself",
+          is_complete("A = $a int | A\n", [], [], same), True)
+
+    # A sum inside a product is that product's business, not an option of the sum
+    # around it.
+    check("a sum inside a product option",
+          is_complete("X = int | ($a (int | int) * $b str)\n", [], [], same), False)
+    check("a tagged sum inside a product option",
+          is_complete("X = $z int | ($a ($b int | $c str) * $d bool)\n", [], [], same),
+          True)
+    check("a product with a sum inside, as a name",
+          is_complete("A = (int | str) * $x int\nX = $a bool | A\n", [], [], same), True)
+
+    # Through an import: the options are read in the module the sum is written in.
+    util = "Sum = list[int] | dict[str, bool]\n"
+    check("a name repeats across an import",
+          is_complete("import util\nX = list[bool] | util.Sum\n",
+                      [("util.viba", util)], [], same), False)
+    check("every name of its own across an import",
+          is_complete("import util\nX = $a bool | util.Sum\n",
+                      [("util.viba", util)], [], same), True)
+    check("a tag repeats across an import",
+          is_complete("import util\nX = $a bool | util.Two\n",
+                      [("util.viba", "Two = $a int | str\n")], [], same), False)
+
+    # Through a member taken on an application: the definition the decision
+    # chose is what the option stands for.
+    with tempfile.TemporaryDirectory() as directory:
+        generic = Path(directory) / "answer_is_a_sum"
+        generic.mkdir()
+        (generic / "__generic__.viba").write_text("")
+        (generic / "100.viba").write_text(
+            "pattern T\n\nanswer = Oneof | list[T] | dict[str, bool]\n")
+        check("a name repeats across a member of an application",
+              is_complete("import answer_is_a_sum as g\nX = list[int] | g[bool].answer\n",
+                          [], [directory], same), False)
+        check("every name of its own across that member",
+              is_complete("import answer_is_a_sum as g\nX = $a int | g[bool].answer\n",
+                          [], [directory], same), True)
+        check("the member on its own",
+              is_complete("import answer_is_a_sum as g\nX = g[bool].answer\n",
+                          [], [directory], same), True)
+
+    # ... and a decision whose `__decl__` is a sum: the body it chose is the
+    # option, flattened like a sum written in place.
+    with tempfile.TemporaryDirectory() as directory:
+        generic = Path(directory) / "decl_is_a_sum"
+        generic.mkdir()
+        (generic / "__generic__.viba").write_text("")
+        (generic / "100.viba").write_text(
+            "pattern T\n\n__decl__ = Oneof | $a T | list[bool]\n")
+        check("a tag repeats across a decision",
+              is_complete("import decl_is_a_sum as g\nX = $a int | g[int]\n",
+                          [], [directory], same), False)
+        check("every tag of its own across that decision",
+              is_complete("import decl_is_a_sum as g\nX = $b int | g[int]\n",
+                          [], [directory], same), True)
+        check("a name repeats across that decision",
+              is_complete("import decl_is_a_sum as g\nX = list[int] | g[int]\n",
+                          [], [directory], same), False)
+        check("the decision on its own",
+              is_complete("import decl_is_a_sum as g\nX = g[int]\n",
+                          [], [directory], same), True)
 
 
 def corners():
@@ -169,13 +297,14 @@ def corners():
     check("a symbol that names no string",
           is_complete("Name = int\nM = tagged[Name, int]\n", [], [], set()), False)
 
-    # A sum is read one way or the other: every option carries a tag or none
-    # does. The units are no options, so they take no tag.
+    # A sum's options are told apart by the kind of the value or by a tag: an
+    # untagged option is allowed where its name is its own, a shared name needs
+    # a tag on each of them, and a nested sum is decided with the sum it sits in.
     check("a sum with no tags", is_complete("X = int | str\n", [], [], set()), True)
     check("a sum whose options all carry a tag",
           is_complete("X = $a int | $b str\n", [], [], set()), True)
-    check("a sum that tags some options and not others",
-          is_complete("X = $a int | str\n", [], [], set()), False)
+    check("a sum that tags one option and not the next",
+          is_complete("X = $a int | str\n", [], [], set()), True)
     check("a tagged sum with the unit as its head",
           is_complete("X = Oneof | $a int | $b str\n", [], [], set()), True)
     check("a tagged sum in block form",
@@ -183,27 +312,62 @@ def corners():
                       [], [], set()), True)
     check("the same block form with one untagged option",
           is_complete("Result =\n  Oneof\n  | $ok int\n  | str\n", [], [], set()),
-          False)
+          True)
     check("an untagged sum behind a member",
           is_complete("X = $xs (int | str)\n", [], [], set()), True)
-    check("a mixed sum behind a member",
-          is_complete("X = $xs ($a int | str)\n", [], [], set()), False)
+    check("one tagged option behind a member",
+          is_complete("X = $xs ($a int | str)\n", [], [], set()), True)
+    check("two options of one name, neither tagged",
+          is_complete("X = int | int\n", [], [], set()), False)
+    check("two options of one name, both tagged",
+          is_complete("X = $a int | $b int\n", [], [], set()), True)
+    check("two containers of one name, neither tagged",
+          is_complete("X = list[str] | list[int]\n", [], [], set()), False)
+    check("two containers of one name, both tagged",
+          is_complete("X = $a list[str] | $b list[int]\n", [], [], set()), True)
+    check("two containers of different names",
+          is_complete("X = list[int] | dict[str, int]\n", [], [], set()), True)
+    check("two literals are told apart by their value",
+          is_complete('X = "a" | "b"\n', [], [], set()), True)
+    check("two truth values too",
+          is_complete("X = true | false\n", [], [], set()), True)
+    check("two literals of different kinds",
+          is_complete('X = "a" | 7\n', [], [], set()), True)
+    check("the same literal twice",
+          is_complete("X = 7 | 7\n", [], [], set()), False)
+    check("the same name reached through a definition",
+          is_complete("A = int\nX = A | int\n", [], [], set()), False)
+    check("one of two of a name tagged",
+          is_complete("X = $a int | int\n", [], [], set()), False)
+    check("the same tag in two options",
+          is_complete("X = $a int | $a str\n", [], [], set()), False)
+    check("a generic parameter as an option on its own",
+          is_complete("M[T] = T | int\n", [], [], set()), False)
+    check("the same parameter with a tag",
+          is_complete("M[T] = $a T | $b int\n", [], [], set()), True)
+    check("a parameter under a container",
+          is_complete("M[T] = list[T] | int\n", [], [], set()), True)
+    check("a nested sum is decided with the sum it sits in",
+          is_complete("X = $a int | ($b str | $c bool)\n", [], [], set()), True)
+    check("a tag repeated across the nesting",
+          is_complete("X = $a int | ($b str | $a bool)\n", [], [], set()), False)
+    check("a name repeated across the nesting",
+          is_complete("X = $a int | ($b str | int)\n", [], [], set()), False)
+    check("a nested sum with no tags at all",
+          is_complete("X = int | (str | bool)\n", [], [], set()), True)
+    check("a repeated name inside a sum reached through a name",
+          is_complete("A = list[int] | list[str]\nX = $a bool | A\n", [], [], set()),
+          False)
+    check("a tagged nested sum is one option",
+          is_complete("X = $a ($b int | $c str)\n", [], [], set()), True)
+    check("two products, no name between them",
+          is_complete("X = (int * $a int) | (str * $b int)\n", [], [], set()), True)
     check("nil is no option of the count",
           is_complete("List = $head int * $tail List | nil\n", [], [], set()), True)
     check("a tagged option and nil",
           is_complete("A2 = $x A2 | nil\nX = A2\n", [], [], set()), True)
-    check("a sum that is a name apart, all tagged",
-          is_complete("A = $x int\nX = A | $b str\n", [], [], set()), True)
-    check("a sum that is a name apart, mixed in truth",
-          is_complete("A = int\nX = A | $b str\n", [], [], set()), False)
-    check("a sum option applied to a tagged body",
-          is_complete("Box[T] = $v T\nX = $a int | Box[str]\n", [], [], set()), True)
-    check("a parameter with no argument as an option",
-          is_complete("M[T] = $a int | T\n", [], [], set()), True)
-    check("and the same parameter bound to a tagged option",
-          is_complete("M[T] = $a int | T\nX = M[$b str]\n", [], [], set()), True)
-    check("and the same parameter bound to an untagged one",
-          is_complete("M[T] = $a int | T\nX = M[int]\n", [], [], set()), False)
+    check("a tagged option and never",
+          is_complete("X = $a int | never\n", [], [], set()), True)
 
     # A dependency that does not compile is skipped; the name it would have
     # defined then does not resolve.

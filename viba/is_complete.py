@@ -11,13 +11,17 @@ Walking:
 - Sum, product and exponent chains behave the same way: the members are the
   elements of the main chain (a unit head does not count), each element is
   walked; tuples are walked element-wise; a tagged piece walks what it tags.
-- A sum is read one way or the other: every option carries a tag (`$a T`) or
-  none does. The units (`Object` / `nil` / `Oneof` / `never`) are no options:
-  they carry no content, so they take no tag and are left out of the count. A
-  sum that tags some options and leaves others untagged says nothing about how
-  one branch is read and the next, so it makes the design incomplete
-  (viba-reflect.md: a tagged sum is addressed by tag, an untagged one by the
-  kind of the value).
+- A sum's options are told apart by the kind of the value or by a tag.
+  Untagged options are allowed where their names differ; a name two options
+  share needs a tag on each of them (`list[str]` and `list[int]` are both
+  `list`, two `int`s are both `int`), and so does an option whose form this walk
+  cannot name yet (a generic parameter used as an option on its own). A literal
+  is named by its kind and its value, so `"a"` and `"b"` are two options that
+  need no tag while two `7`s are one. One tag in two options is a mistake. An
+  option that is itself a sum is decided together with the sum it stands in: the
+  flattened options must hold no repeated name and no repeated tag. The units
+  (`Object` / `nil` / `Oneof` / `never`) are no options — they carry no content,
+  so they take no tag.
 - Names and generic applications resolve through imports and the descriptor
   pool to a definition, whose body is walked next; definitions from the
   builtin library (builtin.viba) count too. A name that does not resolve makes
@@ -257,69 +261,82 @@ class _Checker:
         return all(self._walk(e, module_name, bindings) for e in elements)
 
     def _sum(self, node, module_name: str, bindings: dict) -> bool:
-        """A sum chain: every option carries a tag or none does, and each one is
-        walked.
+        """A sum chain: its options are told apart by the kind of the value or by
+        a tag, and each element is walked.
 
         The units (`Object` / `nil` / `Oneof` / `never`) are no options: they
-        carry no content, so they take no tag and are left out of the count. What
-        is left either all carries a tag (`$a T`) or none does — a sum is read by
-        its tags or by the kind of the value, never both ways at once
-        (viba-reflect.md), so one of each says nothing about how the next option
-        is read and makes the design incomplete.
+        carry no content, so they take no tag and are left out of the decision. An
+        option may go untagged where the kind of the value already says which one
+        it is; a name that two options share says nothing, so each of them needs
+        a tag, and so does an option whose form this walk cannot name yet (see
+        `_told_apart`).
         """
-        elements = _chain_elements(node) or []
-        options = [e for e in elements if not _is_unit_head(e)]
-        carries = [self._carries_tag(e, module_name, bindings) for e in options]
-        if True in carries and False in carries:
+        if not _told_apart(self._options(node, module_name, bindings)):
             return False
-        return all(self._walk(e, module_name, bindings) for e in elements)
+        return all(self._walk(e, module_name, bindings)
+                   for e in _chain_elements(node) or [])
 
-    def _carries_tag(self, node, module_name: str, bindings: dict):
-        """Does this sum option carry a tag? None when this walk cannot tell yet.
+    def _options(self, node, module_name: str, bindings: dict, seen=None) -> list:
+        """The options of this sum, and of the sums among them, in source order.
 
-        Names are transparent here as everywhere: an option that is a name
-        carries the tag its body carries, and an application carries the tag of
-        the body it stands for. A `tagged[...]` in the source is a tag whatever
-        symbol it spells. A generic parameter with no argument stands for nothing
-        yet, so it decides nothing here either — the argument an application
-        brings decides it.
+        An option that is itself a sum is taken together with the one it stands
+        in: a name or a tag has to be told apart from every other option of the
+        whole flattened chain, not only from the ones beside it. The units carry
+        no content, so they are no options and drop out (`A = nil` among them).
+
+        Each option is `(the form it stands for, its tag — SOME_TAG when it
+        carries one whose symbol is not known yet — the name it shares with
+        another option or None, whether its form is known)`.
         """
-        form, known = self._stands_for(node, module_name, bindings)
-        if isinstance(form, viba_ast.Tagged):
-            return True
-        if (isinstance(form, viba_ast.TypeApp)
-                and form.constructor == TAGGED_NAME):
-            return True
-        return False if known else None
+        seen = set() if seen is None else seen
+        if id(node) in seen:
+            return []  # a sum that comes back to itself: nothing more to collect
+        seen.add(id(node))
+        options = []
+        for element in _chain_elements(node) or []:
+            form, known, form_module, form_bindings = self._stands_for(
+                element, module_name, bindings)
+            if _is_unit_head(form):
+                continue
+            if isinstance(form, (viba_ast.Sum, viba_ast.SumChain)):
+                options.extend(self._options(form, form_module, form_bindings, seen))
+                continue
+            options.append((form, _option_tag(form), _option_name(form), known))
+        return options
 
-    def _stands_for(self, node, module_name: str, bindings: dict):
-        """(the form this option stands for, whether that form is what it is).
+    def _stands_for(self, node, module_name: str, bindings: dict) -> tuple:
+        """The form a name, an application, or a member taken on one stands for,
+        and whether it is that.
 
-        Names and applications are taken apart one layer at a time, the way the
-        walk takes them. What stops the unfolding is either a form with nothing
-        more to look through — a leaf name, a container, a tuple, a call — or one
-        this walk cannot decide yet: a name that does not resolve, an application
-        no decision and no generic takes, a generic parameter with no argument.
-        The first is the form itself, the second is not: the walk reports it where
-        it lands.
+        `(form, known, module, bindings)`: names, applications and members taken
+        on an application are taken apart one layer at a time, the way the walk
+        takes them, and what comes back is the form they end at, together with
+        the module and the bindings it stands in (an option that unfolds into a
+        sum is collected in the module that sum is written in).
+
+        What stops the unfolding is either a form with nothing more to look
+        through — a leaf name, a container, a tuple, a call — or one this walk
+        cannot decide yet: a name that does not resolve, an application no
+        decision and no generic takes, a generic parameter with no argument. The
+        first is the form itself (`known`), the second only as far as it goes.
         """
         seen = set()
         while True:
             if id(node) in seen:
-                return node, False  # it comes back to itself: nothing more to see
+                return node, False, module_name, bindings  # it comes back to itself
             seen.add(id(node))
             if isinstance(node, viba_ast.TypeRef):
                 if _is_named_form(node.name) or node.name in self.stops:
-                    return node, True
+                    return node, True, module_name, bindings
                 bound = bindings.get(node.name)
                 if bound is not None:
                     node, module_name, bindings = bound
                     continue
                 if node.name in bindings:
-                    return node, False      # a parameter with no argument yet
+                    return node, False, module_name, bindings  # no argument yet
                 found = self._resolve(node.name, module_name)
                 if found is None:
-                    return node, False
+                    return node, False, module_name, bindings
                 definition, module_name = found
                 node = getattr(definition, "body", definition)
                 if isinstance(node, viba_ast.TypeDefinition):
@@ -327,18 +344,25 @@ class _Checker:
                 continue
             if isinstance(node, viba_ast.TypeApp):
                 if _is_named_form(node.constructor) or node.constructor in self.stops:
-                    return node, True
+                    return node, True, module_name, bindings
                 decided = self._decision(node, module_name, bindings)
                 if isinstance(decided, tuple):
                     node, module_name, bindings = decided
                     continue
                 generic = self._generic_body(node, module_name, bindings)
                 if generic is None:
-                    return node, False
+                    return node, False, module_name, bindings
                 definition, module_name, bindings = generic
                 node = getattr(definition, "body", definition)
                 continue
-            return node, True
+            if isinstance(node, viba_ast.MemberTaken):
+                found = self._member_definition(node, module_name, bindings)
+                if found is None:
+                    return node, False, module_name, bindings
+                definition, module_name, bindings = found
+                node = getattr(definition, "body", definition)
+                continue
+            return node, True, module_name, bindings
 
     def _call(self, node, module_name: str, bindings: dict) -> bool:
         """A call in the source: the head has to be something to call, its
@@ -369,30 +393,44 @@ class _Checker:
         path; this one handles the kind whose left side is an application (module
         semantics, viba-pattern.md).
         """
+        found = self._member_definition(node, module_name, bindings)
+        if found is None:
+            return False
+        definition, definition_module, inner = found
+        return self._definition(definition, definition_module, inner)
+
+    def _member_definition(self, node, module_name: str, bindings: dict):
+        """(definition, module, bindings) for a member taken on an application.
+
+        The decision comes first: the chosen file's own definitions are what the
+        application answers, so the member is looked up there, with this file's
+        parameter names standing for the argument parts the patterns extracted.
+        None when the decision fails or the chosen file has no such definition.
+        """
         owner = node.owner
         if not isinstance(owner, viba_ast.TypeApp):
-            return False
+            return None
         module = self._module(module_name)
         if module is None:
-            return False
+            return None
         decision = reduce_application(
             owner, module, self._argument_modules(owner, module_name, bindings))
         if isinstance(decision, VibaProgramErr):
-            return False
+            return None
         if not (isinstance(decision, Ok) and decision.ok_value is not None):
-            return False
+            return None
         chosen = decision.ok_value
         inner = dict(bindings)
         for name, bound in chosen.bindings.items():
             inner[name] = (bound.ast_node, module_name, bindings)
-        body = getattr(chosen.entry.module.module, "body", ())
+        body = getattr(getattr(chosen.entry.module, "module", None), "body", ())
         definition = next(
             (stmt for stmt in body
              if isinstance(stmt, (viba_ast.TypeDefinition, viba_ast.GenericDefinition))
              and stmt.name == node.name), None)
         if definition is None:
-            return False
-        return self._definition(definition, chosen.entry.name, inner)
+            return None
+        return definition, chosen.entry.name, inner
 
     def _tagged(self, node, module_name: str, bindings: dict):
         """Walk the tag a `tagged[...]` in the source spells; None when it is no
@@ -631,6 +669,73 @@ def _is_named_form(name: str) -> bool:
     """Is this name a form of its own — a leaf, a container, a unit — rather
     than something a definition stands behind?"""
     return name in LEAF_NAMES or name in CONTAINER_NAMES or name in UNIT_NAMES
+
+
+SOME_TAG = object()  # a tag whose symbol this walk cannot take yet
+
+
+def _option_tag(form):
+    """The tag a sum option carries: its tag, SOME_TAG when it carries one whose
+    symbol is not known yet, or None when it carries none."""
+    if isinstance(form, viba_ast.Tagged):
+        return form.tag
+    if (isinstance(form, viba_ast.TypeApp)
+            and form.constructor == TAGGED_NAME):
+        return SOME_TAG
+    return None
+
+
+def _option_name(form) -> Optional[tuple]:
+    """The name this option shares with another option, or None.
+
+    A name in the source is its own name; a container and a generic application
+    are named by their constructor (`list[str]` and `list[int]` are both
+    `list`); a literal is named by its kind and its value, so `"a"` and `"b"`
+    share nothing while two `7`s do. A form with no name of its own — a tuple, a
+    product, a call, a code block — answers None: two of those are not told
+    apart by a name, so no option has to carry a tag for them.
+    """
+    inner = form.type if isinstance(form, viba_ast.Tagged) else form
+    if isinstance(inner, viba_ast.Constant):
+        value = inner.value
+        if isinstance(value, bool):
+            return ("literal", "bool", value)
+        if isinstance(value, int):
+            return ("literal", "int", value)
+        if isinstance(value, float):
+            return ("literal", "float", value)
+        if isinstance(value, str):
+            return ("literal", "str", value)
+        return None
+    if isinstance(inner, viba_ast.TypeRef):
+        return ("type", inner.name)
+    if isinstance(inner, viba_ast.TypeApp):
+        return ("type", inner.constructor)
+    return None
+
+
+def _told_apart(options: List[tuple]) -> bool:
+    """Can a value's place among these sum options be read off its kind or tag?
+
+    An option is `(form, tag, name, known)` from `_Checker._options`. A name that
+    two options share says nothing about which of them a value belongs to, so
+    each of them needs a tag — `list[str]` and `list[int]` are one name, and so
+    are two `int`s. An option whose form this walk cannot name yet needs a tag
+    for the same reason: a generic parameter with no argument could be anything.
+    One tag in two options is a mistake of its own: nothing would say which of
+    them the tag means.
+    """
+    tags = [tag for _form, tag, _name, _known in options if isinstance(tag, str)]
+    if len(set(tags)) != len(tags):
+        return False
+    names = [name for _form, _tag, name, _known in options if name is not None]
+    repeated = {name for name in names if names.count(name) > 1}
+    for _form, tag, name, known in options:
+        if tag is not None:
+            continue
+        if not known or (name is not None and name in repeated):
+            return False
+    return True
 
 
 def _unbound_symbol(node, bindings: dict) -> bool:
