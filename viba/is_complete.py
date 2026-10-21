@@ -16,7 +16,9 @@ Walking:
   builtin library (builtin.viba) count too. A name that does not resolve makes
   the design incomplete. A generic parameter is walked through the actual
   argument an application binds it to; unbound, it is a placeholder and does
-  not affect completeness.
+  not affect completeness. A `tagged[...]` whose symbol is such a parameter is
+  a placeholder the same way — which tag the type carries arrives with the
+  argument — so only what the tag marks is walked (`tagged[s, T]` walks `T`).
 - A generic application is decided where the source has it: the file whose
   patterns fit the arguments in the source is the one walked, with its own
   parameter names standing for the argument parts the patterns extracted
@@ -52,6 +54,7 @@ from viba import viba_ast
 from viba.partial import product_elements
 from viba.pattern import reduce_application, tagged_type_of
 from viba.type import BUILTIN_DIR, BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
+from viba.viba_ast.tagged import TAGGED_NAME
 from viba.viba_type_descriptor import (
     empty_pool,
     file_find_import_by_local_name,
@@ -307,6 +310,12 @@ class _Checker:
         tag out of what a `pattern` line extracted (viba-pattern.md). A symbol
         that cannot be taken here leaves the application to the walk it would
         have had.
+
+        A symbol that is a generic parameter this walk has not bound is a
+        placeholder, like the parameter itself: which tag the type carries is
+        decided by the argument an application brings, so nothing about the tag
+        can make the design incomplete here. What the tag marks is walked
+        (`tagged[s, T]` marks `T`).
         """
         module = self._module(module_name)
         if module is None:
@@ -316,9 +325,14 @@ class _Checker:
             lambda name, _module: self._symbol_text(name, module_name, bindings))
         if isinstance(got, VibaProgramErr):
             return False
-        if got.ok_value is None:
-            return None
-        return self._walk(got.ok_value, module_name, bindings)
+        if got.ok_value is not None:
+            return self._walk(got.ok_value, module_name, bindings)
+        if _unbound_symbol(node, bindings):
+            # The tag is a placeholder, so only what it marks is walked: nothing
+            # is left for a one-argument `tagged[s]`, which is the member `$s`.
+            return (self._walk(node.args[1], module_name, bindings)
+                    if len(node.args) == 2 else True)
+        return None
 
     def _symbol_text(self, name: str, module_name: str, bindings: dict):
         """The string a name in the source stands for in this walk, or None."""
@@ -489,6 +503,31 @@ def _is_unit_head(node) -> bool:
     if isinstance(node, (viba_ast.Nil, viba_ast.Never)):
         return True
     return isinstance(node, viba_ast.TypeRef) and node.name in UNIT_NAMES
+
+
+def _unbound_symbol(node, bindings: dict) -> bool:
+    """Is the symbol of this `tagged[...]` a generic parameter with no argument?
+
+    A parameter this walk has not bound stands for nothing yet (`_definition`
+    leaves it as None), and a parameter bound to another such parameter is the
+    same: the argument that would give both a value has not arrived. A bound
+    argument that is not a name at all is not followed — it is no placeholder,
+    and what it makes of the tag is the walk's business elsewhere.
+    """
+    if not (isinstance(node, viba_ast.TypeApp)
+            and node.constructor == TAGGED_NAME):
+        return False
+    symbol = node.args[0]
+    seen = set()
+    while isinstance(symbol, viba_ast.TypeRef) and symbol.name in bindings:
+        if id(bindings) in seen:
+            return False                # the same bindings again: nothing new
+        seen.add(id(bindings))
+        bound = bindings[symbol.name]
+        if bound is None:
+            return True
+        symbol, bindings = bound[0], bound[2]
+    return False
 
 
 def _bindings_key(bindings: dict) -> tuple:

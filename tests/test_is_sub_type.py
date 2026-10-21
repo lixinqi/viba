@@ -648,7 +648,7 @@ def run_cross_module_inline_cases():
 
 
 def run_module_as_function_cases():
-    """模块当函数（类型层）：import 绑定的名字判成 `__decl__` 去掉环境那一格，
+    """模块当函数（类型层）：import 绑定的名字判成 `__decl__` 去掉环境那个参数，
     `module.Name` 照旧是那个模块里的定义，没有 `__impl__` 的模块不是程序。"""
     names = ("program", "design_only", "caller", "env_answer",
              "env_answer_function")
@@ -727,7 +727,7 @@ def run_module_as_function_cases():
 
 
 def run_module_args_cases():
-    """`__decl__`（类型层）：模块的签名就是 `__decl__` 去掉环境那一格。
+    """`__decl__`（类型层）：模块的签名就是 `__decl__` 去掉环境那个参数。
 
     每个参数按 tag 给、或者按位置给（值层就是这么给的），`__decl__` 不是函数链就是不合法输入。
     给了一半在**类型**上是一种类型（剩下的那个函数）；值层里给一半是程序错
@@ -1090,6 +1090,37 @@ def run_code_block_cases():
     check_result(judge("{return 1}", "never"), False, "and never fits nothing")
 
 
+def run_tagged_symbol_cases():
+    """`tagged[s, T]` 的符号可以是一份实参：判定要按它给的字符串认 tag。
+
+    符号在源码里写的是字符串时，解析已经把它折成 tag；写的是一个名字时，这个名字的意思是
+    它解析出来的那个字符串 —— 一个普通定义里存的字符串，或者泛型形参在应用处拿到的字符串
+    实参（`ArrangedMesh["peers"]` 的 `$size` 就是 `$peers int`）。这一层要跟反射那一层认得一样，
+    否则同一个设计取得出来、却判不进去。
+    """
+    def judge(design: str, sup: str):
+        module = custom_module(design)
+        return is_sub_type(AstNodeType(viba_ast.parse(design).body[-1].body, module),
+                           entry_type(sup, module))
+
+    mesh = 'ArrangedMesh[tag_name] = Object * $size tagged[tag_name, int]\n'
+    check_result(judge(mesh + 'X = ArrangedMesh["peers"]\n',
+                       'Object * $size tagged["peers", int]'), True,
+                 "a generic parameter standing for the symbol")
+    check_result(judge(mesh + 'X = ArrangedMesh["peers"]\n',
+                       'Object * $size tagged["others", int]'), False,
+                 "and the tag it names is the one the argument gave")
+    check_result(judge(mesh + 'X = ArrangedMesh[int]\n',
+                       'Object * $size tagged["peers", int]'), False,
+                 "an argument that spells no symbol stays no tag")
+    check_result(judge('S = "peers"\n' + mesh + 'X = ArrangedMesh[S]\n',
+                       'Object * $size tagged["peers", int]'), True,
+                 "a plain definition holding the string")
+    check_result(judge('S = "peers"\n' + mesh + 'X = ArrangedMesh[S]\n',
+                       'Object * $size tagged["others", int]'), False,
+                 "and that string is the tag it names")
+
+
 def run_canonical_chain_cases():
     """主链压成链、支链留成分组：规范化只并一路 $left / $result。
 
@@ -1247,6 +1278,7 @@ run_any_cases()
 run_type_object_cases()
 run_module_args_cases()
 run_member_head_cases()
+run_tagged_symbol_cases()
 run_suite_reflexivity()
 print(f"\npassed {PASS}, failed {FAIL}")
 sys.exit(1 if FAIL else 0)

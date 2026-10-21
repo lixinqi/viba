@@ -146,6 +146,29 @@ def corners():
     check("too few arguments",
           is_complete("W[T, U] = T * U\nA = W[int]\n", [], [], set()), False)
 
+    # A tag whose symbol is a generic parameter is a placeholder the same way:
+    # which tag the type carries arrives with the argument, so the tag decides
+    # nothing here and what it marks is what gets walked.
+    mesh = ("ArrangedMesh[tag_name] =\n"
+            "    Object\n"
+            "    # Number of participants on this mesh.\n"
+            "  * $size tagged[tag_name, int]\n")
+    check("a tag standing for an unbound parameter",
+          is_complete(mesh, [], [], set()), True)
+    check("the same tag, applied to a string",
+          is_complete(mesh + 'X = ArrangedMesh["peers"]\n', [], [], set()), True)
+    check("the same tag, applied to a code block",
+          is_complete(mesh + "X = ArrangedMesh[{peers}]\n", [], [], set()), False)
+    check("a placeholder tag passed through another generic",
+          is_complete(mesh + "Group[tag_name] = Object * $g ArrangedMesh[tag_name]\n",
+                      [], [], set()), True)
+    check("what a placeholder tag marks is still walked",
+          is_complete("M[s] = tagged[s, Missing]\n", [], [], set()), False)
+    check("a member tag with an unbound symbol",
+          is_complete("M[s] = tagged[s]\n", [], [], set()), True)
+    check("a symbol that names no string",
+          is_complete("Name = int\nM = tagged[Name, int]\n", [], [], set()), False)
+
     # A dependency that does not compile is skipped; the name it would have
     # defined then does not resolve.
     entry = "import util\nX = util.M\n"

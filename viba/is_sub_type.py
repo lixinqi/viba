@@ -298,12 +298,25 @@ class _Checker:
         return None
 
     def _symbol_resolver(self, side: str):
-        """`resolve(name, module)` -> the string that name stands for, or None."""
+        """`resolve(name, module)` -> the string that name stands for, or None.
+
+        A name means a string here in three ways: it is one in the source (the
+        definition holds the string), it is a plain definition holding one
+        (definitions are transparent here, `_unwrap_definition`), or it is a
+        generic parameter an application bound to a string argument — an
+        unfolding keeps that argument as the literal the name means
+        (`_meaning`), so the literal is read directly.
+        """
         def resolve(name, module):
             resolved = self._resolve_name(name, module, side)
             if isinstance(resolved, VibaProgramErr):
                 return None
-            source_form = getattr(resolved.ok_value, "ast_node", None)
+            meaning = resolved.ok_value
+            if isinstance(meaning, StrLiteralType):
+                return meaning.value
+            source_form = getattr(meaning, "ast_node", None)
+            if isinstance(source_form, viba_ast.TypeDefinition):
+                source_form = source_form.body
             if (isinstance(source_form, viba_ast.Constant)
                     and isinstance(source_form.value, str)):
                 return source_form.value
