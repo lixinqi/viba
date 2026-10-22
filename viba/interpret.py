@@ -2510,8 +2510,8 @@ class _Activation:
         """`list_obj[i]` / `dict_obj[key]`: the chain the shorthand stands for.
 
         A name no generic answers to is a value, and one bracket's arguments are
-        the addresses: `xs[1]` is `$get_item << $env nil << xs << 1` and
-        `table["k"]` is `$get_item << $env nil << table << "k"` (viba-style.md, the
+        the addresses: `xs[1]` is `$get_item << xs << $env nil << 1` and
+        `table["k"]` is `$get_item << table << $env nil << "k"` (viba-style.md, the
         containers section), so what it stands for is that chain, built here and
         taken the way any chain is. The environment is `nil` because this chain is
         built here: the member takes that parameter the way every call does, and

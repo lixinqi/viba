@@ -206,11 +206,11 @@ __decl__ =
 
 __impl__ =
     args.f
-  << ($get_attr << $env nil << args.args << arg0_name)
+  << ($get_attr << args.args << $env nil << arg0_name)
 ```
 
 `pattern tagged[arg0_name, Arg0]` 每一位收下积里一个成员的 tag（`arg0_name` 是符号 `"x"`），
-`$get_attr << $env nil << args.args << arg0_name` 再按那个名字把成员取回来 —— 成员原来带什么 tag，取回来
+`$get_attr << args.args << $env nil << arg0_name` 再按那个名字把成员取回来 —— 成员原来带什么 tag，取回来
 还是那个 tag，于是它落进函数对应的那个参数。环境那一位给的是 `nil`：这个文件不声明 `$env Env`，
 它自己没有环境可给（环境是留给它答出去的那次调用的，由调用方补，见下一节），而 `$get_attr` 只从
 自己的实参算答案，给 `nil` 跟给真环境一样。积里有几个成员就选哪一份文件，1 到 16 各一份

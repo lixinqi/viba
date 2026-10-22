@@ -132,7 +132,7 @@ add << $x 3 << $y 4                      # 没给环境：这条链是一个闭�
   `$underlying_viba_op_err`（第 9 节）。
 - **找不到是 `nil`，不是 -1，也不是停**：`find` 的答案类型是 `int | nil`。
 - **`$in` 不认 `str`**（第 4.3 节）：问一段字符串在不在用 `contains`。
-- **`split` 的答案是一个容器**：`parts = split << …` 之后按位置取段（`$get_item << $env nil << parts << 1`
+- **`split` 的答案是一个容器**：`parts = split << …` 之后按位置取段（`$get_item << parts << $env nil << 1`
   是第二段），也能直接交给 `join`。宿主给出这个答案时，交的是一个 `VObject` 或者一块
   `ListLiteral` 的语法树，不是一个 Python 列表（宿主能答的只有 `VObject`、语法树、标量、`None`）。
 
@@ -289,8 +289,8 @@ $keys     : list[str] <- $env Env <- $table Any
 `xs[1]` 就是这样）：那就是"现在跑"。
 
 ```viba
-$len << $env nil << xs       # 解释器自己拼链时就是这一份：现在数，2
-$len << $env args.env << xs  # 给真环境，同一个答案
+$len << xs << $env nil       # 解释器自己拼链时就是这一份：现在数，2
+$len << xs << $env args.env  # 给真环境，同一个答案
 $len << xs << args.env       # 环境给在末尾也认
 $len << xs                   # 这条链是闭包，还没跑
 ```
@@ -310,10 +310,10 @@ $len << xs                   # 这条链是闭包，还没跑
 后面跟着的实参交给取出来的成员。
 
 ```viba
-$get_attr << $env nil << box << "f"
+$get_attr << box << $env nil << "f"
 # 取出来的就是 box.f 这个成员本身
 
-$get_attr << $env args.env << box << "f" << $x 1
+$get_attr << box << $env args.env << "f" << $x 1
 # 就是 box.f << box << args.env << $x 1：拿到的环境给出来的那次成员调用跑
 ```
 
@@ -329,15 +329,15 @@ $get_attr << $env args.env << box << "f" << $x 1
 按位置或按键取一个元素。第一个实参是容器，第二个是位置或键。
 
 ```viba
-$get_item << $env nil << xs << 1          # 列表、集合、元组的第 1 个元素
-$get_item << $env nil << table << "k"     # 字典里键 "k" 的值
+$get_item << xs << $env nil << 1          # 列表、集合、元组的第 1 个元素
+$get_item << table << $env nil << "k"     # 字典里键 "k" 的值
 ```
 
 位置给 `int`（`true` 不算 `int`），键给 `str`，两种各对应一条取元素的步子。答案就是那个元素，
-所以后面可以接着给实参（`$get_item << $env args.env << xs << 0 << $x 1` 是 `xs[0] << $x 1`，
+所以后面可以接着给实参（`$get_item << xs << $env args.env << 0 << $x 1` 是 `xs[0] << $x 1`，
 跑在这个成员拿到的环境里）。
 `xs[1]` 与 `table["k"]` 是它的简式；方括号只跟在名字后面，一层，`xs[0][1]` 要落成
-`$get_item << $env nil << xs[0] << 1`。简式自己把 `nil` 补上，所以方括号在哪儿都是当场取那个元素。
+`$get_item << xs[0] << $env nil << 1`。简式自己把 `nil` 补上，所以方括号在哪儿都是当场取那个元素。
 
 拒绝的情形都报 `$viba_program_err`：没有那个位置（越界）、没有那个键、给字典一个位置、
 给列表或元组一个键、给的位置或键不是 `int` / `str`、根本没给位置或键、被取的那份值不是容器。
@@ -348,8 +348,8 @@ $get_item << $env nil << table << "k"     # 字典里键 "k" 的值
 问一个东西在不在容器里，答案 `bool`。第一个实参是容器，第二个是要找的那个东西。
 
 ```viba
-$in << $env nil << xs << 3               # 3 在不在这个列表 / 集合 / 元组里
-$in << $env nil << table << "k"          # 键 "k" 在不在这个字典里
+$in << xs << $env nil << 3               # 3 在不在这个列表 / 集合 / 元组里
+$in << table << $env nil << "k"          # 键 "k" 在不在这个字典里
 ```
 
 列表、集合、元组按元素本身比；字典只比键，不比值，而且给的必须是一个字符串键。
@@ -360,9 +360,9 @@ $in << $env nil << table << "k"          # 键 "k" 在不在这个字典里
 数一个容器有多少份：`list` / `set` / tuple 数元素，`dict` 数键。答案是一个 `int`。
 
 ```viba
-$len << $env nil << xs                   # 这个列表有几个元素
-$len << $env nil << table                # 这个字典有几个键
-$len << $env nil << (10, 20, 30)         # 元组按位置数，所以也数得出：3
+$len << xs << $env nil                   # 这个列表有几个元素
+$len << table << $env nil                # 这个字典有几个键
+$len << (10, 20, 30) << $env nil         # 元组按位置数，所以也数得出：3
 ```
 
 数不出个数的都报程序错：一个叶子、一个带 tag 的积（`Object * $a 1 * $b 2`）、一段字符串 ——
@@ -376,9 +376,9 @@ $len << $env nil << (10, 20, 30)         # 元组按位置数，所以也数得�
 取一个字典的键，答案是一份 `list[str]`，顺序由实现定。
 
 ```viba
-$keys << $env nil << table                                      # 键组成的列表
-$get_item << $env nil << ($keys << $env nil << table) << 0       # 第一个键
-$len << $env nil << ($keys << $env nil << table)                 # 有几个键
+$keys << table << $env nil                                   # 键组成的列表
+$get_item << ($keys << table << $env nil) << $env nil << 0   # 第一个键
+$len << ($keys << table << $env nil) << $env nil             # 有几个键
 ```
 
 答案是一份能接着用的列表：能取（`$get_item`）、能数（`$len`）、能交给 `join`
@@ -417,7 +417,7 @@ ListLiteral[]                # 空列表
 值），`ListLiteral[$len << xs, 3]` 里那一份是那条链。跟积的成员一样，放在值的位置上就原样留着 ——
 所以这样的字面量能交给宿主，能按位置取，也能序列化回源码（链那一份序列化不出来，第 10 节）。
 要把**算出来的值**交出去，就把它给一次调用：一次调用的实参会算出来
-（`int_to_str << $x ($len << $env nil << xs)` 是 `"2"`；`$len << xs` 自己是一条闭包，
+（`int_to_str << $x ($len << xs << $env nil)` 是 `"2"`；`$len << xs` 自己是一条闭包，
 交出去的是那份闭包，不是个数），而成员留在原地。
 
 **取元素**用 `$get_item`（第 4.2 节），简式是 `xs[1]` / `table["k"]`。
