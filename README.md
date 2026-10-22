@@ -466,7 +466,11 @@ print(exec(access.leaf(result.by_tag("$ok")).ok_value, environ))
 ```viba
 import add_demo as demo
 
-__impl__ = demo << (args.env.sub_env << args.env << "add_demo")
+__decl__ = Any <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = demo << ($sub_env << args.env << "add_demo")
 ```
 
 A module is called with the environment it should run under, and then with its
@@ -478,27 +482,27 @@ an environment is what runs a call, and the environment is also the storage path
 runs at, so a caller already running in that environment hands out a layer of its own.
 `Y.viba` and `y_helper.viba` both give `$env Env`: the caller gives Y's layer, Y gives
 `y_helper`'s, and a step gives a layer for each layer it starts. The name given to
-`args.env.sub_env` is the storage path the step is handed as part of its environment, and
-that path is where the call's result is recorded. Three things can happen at one storage
-path: a call already running there is a cycle (`the storage path '...' is already running
-a call`, with the fix spelled out); a call that already returned there **by the same
-module** is that same sub-computation asked twice, and its result is handed back; a call
-that already returned there **by another module** is two calls squeezed into one storage
-path, and the host could not tell them apart:
+`$sub_env` is the storage path the step is handed as part of its environment, and that
+path is where the call's result is recorded. Three things can happen at one storage
+path: a call already running there is a cycle
+(`the storage path '...' is already running a call`, with the fix spelled out); a call that
+already returned there **by the same module** is that same sub-computation asked twice, and
+its result is handed back; a call that already returned there **by another module** is two
+calls squeezed into one storage path, and the host could not tell them apart:
 
 ```
 VibaProgramErr("module 'add_demo' was handed the storage path 'root', which another module call
 already used: give each module call a sub-environment of its own (args.env.sub_env << args.env << ...)")
 ```
 
-`args.env.sub_env << args.env << "name"` hands back the same child whenever that name is asked
-for, so calling one module twice means choosing two names; `args.env.tmp_env
-<< args.env` (also spelled `$tmp_env << args.env`) is for the calls that need
-no name, and hands out a fresh child every time. The name may also be given as the
-pieces the source has it in — a product of the strings, names and calls it stands
-for, joined by `/` — so a data path can be read back against the code:
-`("step0" * step0_name * Step0)` is the child `step0/a/add`, the step's place, the
-tag it carries and the function its call names. The builtin `sequential` names its
+`$sub_env << args.env << "name"` hands back the same child whenever that name is asked
+for, so calling one module twice means choosing two names; the dotted spelling
+`args.env.sub_env << args.env << "name"` is the same call. `$tmp_env << args.env` (also
+spelled `args.env.tmp_env << args.env`) is for the calls that need no name, and hands out
+a fresh child every time. The name may also be given as the pieces the source has it in —
+a product of the strings, names and calls it stands for, joined by `/` — so a data path
+can be read back against the code: `("step0" * step0_name * Step0)` is the child
+`step0/a/add`, the step's place, the tag it carries and the function its call names. The builtin `sequential` names its
 steps and their arguments that way
 ([`viba-interpreter.md`](viba-interpreter.md), the section on `sub_env` names).
 Where the interpreter names a child itself, it uses the module's name in the source,
