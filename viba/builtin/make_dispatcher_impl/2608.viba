@@ -1,0 +1,242 @@
+# 26 handlers, 8 parameters: the call.
+#
+# Each handler is given twice: the first pattern takes its type apart
+# (the parameter types, and the names the parameters go by), the second
+# is the handler itself, which is what the call runs. The index of the
+# first handler whose parameter product takes the arguments comes from
+# `get_first_impl_case_index`; no handler takes them, the answer is
+# `dispatch_error`.
+import get_first_impl_case_index
+import dispatch_error
+
+pattern (Ret <- $env Env <- tagged[name0, A0_0] <- tagged[name1, A0_1] <- tagged[name2, A0_2] <- tagged[name3, A0_3] <- tagged[name4, A0_4] <- tagged[name5, A0_5] <- tagged[name6, A0_6] <- tagged[name7, A0_7])
+pattern f0
+pattern (Ret <- $env Env <- tagged[name0, A1_0] <- tagged[name1, A1_1] <- tagged[name2, A1_2] <- tagged[name3, A1_3] <- tagged[name4, A1_4] <- tagged[name5, A1_5] <- tagged[name6, A1_6] <- tagged[name7, A1_7])
+pattern f1
+pattern (Ret <- $env Env <- tagged[name0, A2_0] <- tagged[name1, A2_1] <- tagged[name2, A2_2] <- tagged[name3, A2_3] <- tagged[name4, A2_4] <- tagged[name5, A2_5] <- tagged[name6, A2_6] <- tagged[name7, A2_7])
+pattern f2
+pattern (Ret <- $env Env <- tagged[name0, A3_0] <- tagged[name1, A3_1] <- tagged[name2, A3_2] <- tagged[name3, A3_3] <- tagged[name4, A3_4] <- tagged[name5, A3_5] <- tagged[name6, A3_6] <- tagged[name7, A3_7])
+pattern f3
+pattern (Ret <- $env Env <- tagged[name0, A4_0] <- tagged[name1, A4_1] <- tagged[name2, A4_2] <- tagged[name3, A4_3] <- tagged[name4, A4_4] <- tagged[name5, A4_5] <- tagged[name6, A4_6] <- tagged[name7, A4_7])
+pattern f4
+pattern (Ret <- $env Env <- tagged[name0, A5_0] <- tagged[name1, A5_1] <- tagged[name2, A5_2] <- tagged[name3, A5_3] <- tagged[name4, A5_4] <- tagged[name5, A5_5] <- tagged[name6, A5_6] <- tagged[name7, A5_7])
+pattern f5
+pattern (Ret <- $env Env <- tagged[name0, A6_0] <- tagged[name1, A6_1] <- tagged[name2, A6_2] <- tagged[name3, A6_3] <- tagged[name4, A6_4] <- tagged[name5, A6_5] <- tagged[name6, A6_6] <- tagged[name7, A6_7])
+pattern f6
+pattern (Ret <- $env Env <- tagged[name0, A7_0] <- tagged[name1, A7_1] <- tagged[name2, A7_2] <- tagged[name3, A7_3] <- tagged[name4, A7_4] <- tagged[name5, A7_5] <- tagged[name6, A7_6] <- tagged[name7, A7_7])
+pattern f7
+pattern (Ret <- $env Env <- tagged[name0, A8_0] <- tagged[name1, A8_1] <- tagged[name2, A8_2] <- tagged[name3, A8_3] <- tagged[name4, A8_4] <- tagged[name5, A8_5] <- tagged[name6, A8_6] <- tagged[name7, A8_7])
+pattern f8
+pattern (Ret <- $env Env <- tagged[name0, A9_0] <- tagged[name1, A9_1] <- tagged[name2, A9_2] <- tagged[name3, A9_3] <- tagged[name4, A9_4] <- tagged[name5, A9_5] <- tagged[name6, A9_6] <- tagged[name7, A9_7])
+pattern f9
+pattern (Ret <- $env Env <- tagged[name0, A10_0] <- tagged[name1, A10_1] <- tagged[name2, A10_2] <- tagged[name3, A10_3] <- tagged[name4, A10_4] <- tagged[name5, A10_5] <- tagged[name6, A10_6] <- tagged[name7, A10_7])
+pattern f10
+pattern (Ret <- $env Env <- tagged[name0, A11_0] <- tagged[name1, A11_1] <- tagged[name2, A11_2] <- tagged[name3, A11_3] <- tagged[name4, A11_4] <- tagged[name5, A11_5] <- tagged[name6, A11_6] <- tagged[name7, A11_7])
+pattern f11
+pattern (Ret <- $env Env <- tagged[name0, A12_0] <- tagged[name1, A12_1] <- tagged[name2, A12_2] <- tagged[name3, A12_3] <- tagged[name4, A12_4] <- tagged[name5, A12_5] <- tagged[name6, A12_6] <- tagged[name7, A12_7])
+pattern f12
+pattern (Ret <- $env Env <- tagged[name0, A13_0] <- tagged[name1, A13_1] <- tagged[name2, A13_2] <- tagged[name3, A13_3] <- tagged[name4, A13_4] <- tagged[name5, A13_5] <- tagged[name6, A13_6] <- tagged[name7, A13_7])
+pattern f13
+pattern (Ret <- $env Env <- tagged[name0, A14_0] <- tagged[name1, A14_1] <- tagged[name2, A14_2] <- tagged[name3, A14_3] <- tagged[name4, A14_4] <- tagged[name5, A14_5] <- tagged[name6, A14_6] <- tagged[name7, A14_7])
+pattern f14
+pattern (Ret <- $env Env <- tagged[name0, A15_0] <- tagged[name1, A15_1] <- tagged[name2, A15_2] <- tagged[name3, A15_3] <- tagged[name4, A15_4] <- tagged[name5, A15_5] <- tagged[name6, A15_6] <- tagged[name7, A15_7])
+pattern f15
+pattern (Ret <- $env Env <- tagged[name0, A16_0] <- tagged[name1, A16_1] <- tagged[name2, A16_2] <- tagged[name3, A16_3] <- tagged[name4, A16_4] <- tagged[name5, A16_5] <- tagged[name6, A16_6] <- tagged[name7, A16_7])
+pattern f16
+pattern (Ret <- $env Env <- tagged[name0, A17_0] <- tagged[name1, A17_1] <- tagged[name2, A17_2] <- tagged[name3, A17_3] <- tagged[name4, A17_4] <- tagged[name5, A17_5] <- tagged[name6, A17_6] <- tagged[name7, A17_7])
+pattern f17
+pattern (Ret <- $env Env <- tagged[name0, A18_0] <- tagged[name1, A18_1] <- tagged[name2, A18_2] <- tagged[name3, A18_3] <- tagged[name4, A18_4] <- tagged[name5, A18_5] <- tagged[name6, A18_6] <- tagged[name7, A18_7])
+pattern f18
+pattern (Ret <- $env Env <- tagged[name0, A19_0] <- tagged[name1, A19_1] <- tagged[name2, A19_2] <- tagged[name3, A19_3] <- tagged[name4, A19_4] <- tagged[name5, A19_5] <- tagged[name6, A19_6] <- tagged[name7, A19_7])
+pattern f19
+pattern (Ret <- $env Env <- tagged[name0, A20_0] <- tagged[name1, A20_1] <- tagged[name2, A20_2] <- tagged[name3, A20_3] <- tagged[name4, A20_4] <- tagged[name5, A20_5] <- tagged[name6, A20_6] <- tagged[name7, A20_7])
+pattern f20
+pattern (Ret <- $env Env <- tagged[name0, A21_0] <- tagged[name1, A21_1] <- tagged[name2, A21_2] <- tagged[name3, A21_3] <- tagged[name4, A21_4] <- tagged[name5, A21_5] <- tagged[name6, A21_6] <- tagged[name7, A21_7])
+pattern f21
+pattern (Ret <- $env Env <- tagged[name0, A22_0] <- tagged[name1, A22_1] <- tagged[name2, A22_2] <- tagged[name3, A22_3] <- tagged[name4, A22_4] <- tagged[name5, A22_5] <- tagged[name6, A22_6] <- tagged[name7, A22_7])
+pattern f22
+pattern (Ret <- $env Env <- tagged[name0, A23_0] <- tagged[name1, A23_1] <- tagged[name2, A23_2] <- tagged[name3, A23_3] <- tagged[name4, A23_4] <- tagged[name5, A23_5] <- tagged[name6, A23_6] <- tagged[name7, A23_7])
+pattern f23
+pattern (Ret <- $env Env <- tagged[name0, A24_0] <- tagged[name1, A24_1] <- tagged[name2, A24_2] <- tagged[name3, A24_3] <- tagged[name4, A24_4] <- tagged[name5, A24_5] <- tagged[name6, A24_6] <- tagged[name7, A24_7])
+pattern f24
+pattern (Ret <- $env Env <- tagged[name0, A25_0] <- tagged[name1, A25_1] <- tagged[name2, A25_2] <- tagged[name3, A25_3] <- tagged[name4, A25_4] <- tagged[name5, A25_5] <- tagged[name6, A25_6] <- tagged[name7, A25_7])
+pattern f25
+
+__decl__ =
+    Either[Ret, DispatchError]
+  <- $env Env
+  <- $args Any
+
+args = __get_args__ << __decl__
+
+value0 = $get_attr << args.args << $env args.env << name0
+value1 = $get_attr << args.args << $env args.env << name1
+value2 = $get_attr << args.args << $env args.env << name2
+value3 = $get_attr << args.args << $env args.env << name3
+value4 = $get_attr << args.args << $env args.env << name4
+value5 = $get_attr << args.args << $env args.env << name5
+value6 = $get_attr << args.args << $env args.env << name6
+value7 = $get_attr << args.args << $env args.env << name7
+
+type = Either[Ret, DispatchError] <- (A0_0 | A1_0 | A2_0 | A3_0 | A4_0 | A5_0 | A6_0 | A7_0 | A8_0 | A9_0 | A10_0 | A11_0 | A12_0 | A13_0 | A14_0 | A15_0 | A16_0 | A17_0 | A18_0 | A19_0 | A20_0 | A21_0 | A22_0 | A23_0 | A24_0 | A25_0) <- (A0_1 | A1_1 | A2_1 | A3_1 | A4_1 | A5_1 | A6_1 | A7_1 | A8_1 | A9_1 | A10_1 | A11_1 | A12_1 | A13_1 | A14_1 | A15_1 | A16_1 | A17_1 | A18_1 | A19_1 | A20_1 | A21_1 | A22_1 | A23_1 | A24_1 | A25_1) <- (A0_2 | A1_2 | A2_2 | A3_2 | A4_2 | A5_2 | A6_2 | A7_2 | A8_2 | A9_2 | A10_2 | A11_2 | A12_2 | A13_2 | A14_2 | A15_2 | A16_2 | A17_2 | A18_2 | A19_2 | A20_2 | A21_2 | A22_2 | A23_2 | A24_2 | A25_2) <- (A0_3 | A1_3 | A2_3 | A3_3 | A4_3 | A5_3 | A6_3 | A7_3 | A8_3 | A9_3 | A10_3 | A11_3 | A12_3 | A13_3 | A14_3 | A15_3 | A16_3 | A17_3 | A18_3 | A19_3 | A20_3 | A21_3 | A22_3 | A23_3 | A24_3 | A25_3) <- (A0_4 | A1_4 | A2_4 | A3_4 | A4_4 | A5_4 | A6_4 | A7_4 | A8_4 | A9_4 | A10_4 | A11_4 | A12_4 | A13_4 | A14_4 | A15_4 | A16_4 | A17_4 | A18_4 | A19_4 | A20_4 | A21_4 | A22_4 | A23_4 | A24_4 | A25_4) <- (A0_5 | A1_5 | A2_5 | A3_5 | A4_5 | A5_5 | A6_5 | A7_5 | A8_5 | A9_5 | A10_5 | A11_5 | A12_5 | A13_5 | A14_5 | A15_5 | A16_5 | A17_5 | A18_5 | A19_5 | A20_5 | A21_5 | A22_5 | A23_5 | A24_5 | A25_5) <- (A0_6 | A1_6 | A2_6 | A3_6 | A4_6 | A5_6 | A6_6 | A7_6 | A8_6 | A9_6 | A10_6 | A11_6 | A12_6 | A13_6 | A14_6 | A15_6 | A16_6 | A17_6 | A18_6 | A19_6 | A20_6 | A21_6 | A22_6 | A23_6 | A24_6 | A25_6) <- (A0_7 | A1_7 | A2_7 | A3_7 | A4_7 | A5_7 | A6_7 | A7_7 | A8_7 | A9_7 | A10_7 | A11_7 | A12_7 | A13_7 | A14_7 | A15_7 | A16_7 | A17_7 | A18_7 | A19_7 | A20_7 | A21_7 | A22_7 | A23_7 | A24_7 | A25_7)
+ret = Ret
+arg0 = A0_0 | A1_0 | A2_0 | A3_0 | A4_0 | A5_0 | A6_0 | A7_0 | A8_0 | A9_0 | A10_0 | A11_0 | A12_0 | A13_0 | A14_0 | A15_0 | A16_0 | A17_0 | A18_0 | A19_0 | A20_0 | A21_0 | A22_0 | A23_0 | A24_0 | A25_0
+arg1 = A0_1 | A1_1 | A2_1 | A3_1 | A4_1 | A5_1 | A6_1 | A7_1 | A8_1 | A9_1 | A10_1 | A11_1 | A12_1 | A13_1 | A14_1 | A15_1 | A16_1 | A17_1 | A18_1 | A19_1 | A20_1 | A21_1 | A22_1 | A23_1 | A24_1 | A25_1
+arg2 = A0_2 | A1_2 | A2_2 | A3_2 | A4_2 | A5_2 | A6_2 | A7_2 | A8_2 | A9_2 | A10_2 | A11_2 | A12_2 | A13_2 | A14_2 | A15_2 | A16_2 | A17_2 | A18_2 | A19_2 | A20_2 | A21_2 | A22_2 | A23_2 | A24_2 | A25_2
+arg3 = A0_3 | A1_3 | A2_3 | A3_3 | A4_3 | A5_3 | A6_3 | A7_3 | A8_3 | A9_3 | A10_3 | A11_3 | A12_3 | A13_3 | A14_3 | A15_3 | A16_3 | A17_3 | A18_3 | A19_3 | A20_3 | A21_3 | A22_3 | A23_3 | A24_3 | A25_3
+arg4 = A0_4 | A1_4 | A2_4 | A3_4 | A4_4 | A5_4 | A6_4 | A7_4 | A8_4 | A9_4 | A10_4 | A11_4 | A12_4 | A13_4 | A14_4 | A15_4 | A16_4 | A17_4 | A18_4 | A19_4 | A20_4 | A21_4 | A22_4 | A23_4 | A24_4 | A25_4
+arg5 = A0_5 | A1_5 | A2_5 | A3_5 | A4_5 | A5_5 | A6_5 | A7_5 | A8_5 | A9_5 | A10_5 | A11_5 | A12_5 | A13_5 | A14_5 | A15_5 | A16_5 | A17_5 | A18_5 | A19_5 | A20_5 | A21_5 | A22_5 | A23_5 | A24_5 | A25_5
+arg6 = A0_6 | A1_6 | A2_6 | A3_6 | A4_6 | A5_6 | A6_6 | A7_6 | A8_6 | A9_6 | A10_6 | A11_6 | A12_6 | A13_6 | A14_6 | A15_6 | A16_6 | A17_6 | A18_6 | A19_6 | A20_6 | A21_6 | A22_6 | A23_6 | A24_6 | A25_6
+arg7 = A0_7 | A1_7 | A2_7 | A3_7 | A4_7 | A5_7 | A6_7 | A7_7 | A8_7 | A9_7 | A10_7 | A11_7 | A12_7 | A13_7 | A14_7 | A15_7 | A16_7 | A17_7 | A18_7 | A19_7 | A20_7 | A21_7 | A22_7 | A23_7 | A24_7 | A25_7
+arg_name0 = name0
+arg_name1 = name1
+arg_name2 = name2
+arg_name3 = name3
+arg_name4 = name4
+arg_name5 = name5
+arg_name6 = name6
+arg_name7 = name7
+
+func_arg_types = ListLiteral[
+    (A0_0 * A0_1 * A0_2 * A0_3 * A0_4 * A0_5 * A0_6 * A0_7),
+    (A1_0 * A1_1 * A1_2 * A1_3 * A1_4 * A1_5 * A1_6 * A1_7),
+    (A2_0 * A2_1 * A2_2 * A2_3 * A2_4 * A2_5 * A2_6 * A2_7),
+    (A3_0 * A3_1 * A3_2 * A3_3 * A3_4 * A3_5 * A3_6 * A3_7),
+    (A4_0 * A4_1 * A4_2 * A4_3 * A4_4 * A4_5 * A4_6 * A4_7),
+    (A5_0 * A5_1 * A5_2 * A5_3 * A5_4 * A5_5 * A5_6 * A5_7),
+    (A6_0 * A6_1 * A6_2 * A6_3 * A6_4 * A6_5 * A6_6 * A6_7),
+    (A7_0 * A7_1 * A7_2 * A7_3 * A7_4 * A7_5 * A7_6 * A7_7),
+    (A8_0 * A8_1 * A8_2 * A8_3 * A8_4 * A8_5 * A8_6 * A8_7),
+    (A9_0 * A9_1 * A9_2 * A9_3 * A9_4 * A9_5 * A9_6 * A9_7),
+    (A10_0 * A10_1 * A10_2 * A10_3 * A10_4 * A10_5 * A10_6 * A10_7),
+    (A11_0 * A11_1 * A11_2 * A11_3 * A11_4 * A11_5 * A11_6 * A11_7),
+    (A12_0 * A12_1 * A12_2 * A12_3 * A12_4 * A12_5 * A12_6 * A12_7),
+    (A13_0 * A13_1 * A13_2 * A13_3 * A13_4 * A13_5 * A13_6 * A13_7),
+    (A14_0 * A14_1 * A14_2 * A14_3 * A14_4 * A14_5 * A14_6 * A14_7),
+    (A15_0 * A15_1 * A15_2 * A15_3 * A15_4 * A15_5 * A15_6 * A15_7),
+    (A16_0 * A16_1 * A16_2 * A16_3 * A16_4 * A16_5 * A16_6 * A16_7),
+    (A17_0 * A17_1 * A17_2 * A17_3 * A17_4 * A17_5 * A17_6 * A17_7),
+    (A18_0 * A18_1 * A18_2 * A18_3 * A18_4 * A18_5 * A18_6 * A18_7),
+    (A19_0 * A19_1 * A19_2 * A19_3 * A19_4 * A19_5 * A19_6 * A19_7),
+    (A20_0 * A20_1 * A20_2 * A20_3 * A20_4 * A20_5 * A20_6 * A20_7),
+    (A21_0 * A21_1 * A21_2 * A21_3 * A21_4 * A21_5 * A21_6 * A21_7),
+    (A22_0 * A22_1 * A22_2 * A22_3 * A22_4 * A22_5 * A22_6 * A22_7),
+    (A23_0 * A23_1 * A23_2 * A23_3 * A23_4 * A23_5 * A23_6 * A23_7),
+    (A24_0 * A24_1 * A24_2 * A24_3 * A24_4 * A24_5 * A24_6 * A24_7),
+    (A25_0 * A25_1 * A25_2 * A25_3 * A25_4 * A25_5 * A25_6 * A25_7)
+]
+
+index =
+    get_first_impl_case_index
+  << (args.env.sub_env << args.env << "index")
+  << $args args.args
+  << $func_arg_types func_arg_types
+
+takes0 = __is_sub_type_value__ << index << 0
+takes1 = __is_sub_type_value__ << index << 1
+takes2 = __is_sub_type_value__ << index << 2
+takes3 = __is_sub_type_value__ << index << 3
+takes4 = __is_sub_type_value__ << index << 4
+takes5 = __is_sub_type_value__ << index << 5
+takes6 = __is_sub_type_value__ << index << 6
+takes7 = __is_sub_type_value__ << index << 7
+takes8 = __is_sub_type_value__ << index << 8
+takes9 = __is_sub_type_value__ << index << 9
+takes10 = __is_sub_type_value__ << index << 10
+takes11 = __is_sub_type_value__ << index << 11
+takes12 = __is_sub_type_value__ << index << 12
+takes13 = __is_sub_type_value__ << index << 13
+takes14 = __is_sub_type_value__ << index << 14
+takes15 = __is_sub_type_value__ << index << 15
+takes16 = __is_sub_type_value__ << index << 16
+takes17 = __is_sub_type_value__ << index << 17
+takes18 = __is_sub_type_value__ << index << 18
+takes19 = __is_sub_type_value__ << index << 19
+takes20 = __is_sub_type_value__ << index << 20
+takes21 = __is_sub_type_value__ << index << 21
+takes22 = __is_sub_type_value__ << index << 22
+takes23 = __is_sub_type_value__ << index << 23
+takes24 = __is_sub_type_value__ << index << 24
+takes25 = __is_sub_type_value__ << index << 25
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "select")
+  << $cond takes0
+  << $t (f0 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+  << $f (if
+    << $cond takes1
+    << $t (f1 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+    << $f (if
+      << $cond takes2
+      << $t (f2 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+      << $f (if
+        << $cond takes3
+        << $t (f3 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+        << $f (if
+          << $cond takes4
+          << $t (f4 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+          << $f (if
+            << $cond takes5
+            << $t (f5 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+            << $f (if
+              << $cond takes6
+              << $t (f6 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+              << $f (if
+                << $cond takes7
+                << $t (f7 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                << $f (if
+                  << $cond takes8
+                  << $t (f8 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                  << $f (if
+                    << $cond takes9
+                    << $t (f9 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                    << $f (if
+                      << $cond takes10
+                      << $t (f10 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                      << $f (if
+                        << $cond takes11
+                        << $t (f11 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                        << $f (if
+                          << $cond takes12
+                          << $t (f12 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                          << $f (if
+                            << $cond takes13
+                            << $t (f13 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                            << $f (if
+                              << $cond takes14
+                              << $t (f14 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                              << $f (if
+                                << $cond takes15
+                                << $t (f15 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                << $f (if
+                                  << $cond takes16
+                                  << $t (f16 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                  << $f (if
+                                    << $cond takes17
+                                    << $t (f17 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                    << $f (if
+                                      << $cond takes18
+                                      << $t (f18 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                      << $f (if
+                                        << $cond takes19
+                                        << $t (f19 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                        << $f (if
+                                          << $cond takes20
+                                          << $t (f20 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                          << $f (if
+                                            << $cond takes21
+                                            << $t (f21 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                            << $f (if
+                                              << $cond takes22
+                                              << $t (f22 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                              << $f (if
+                                                << $cond takes23
+                                                << $t (f23 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                                << $f (if
+                                                  << $cond takes24
+                                                  << $t (f24 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                                  << $f (if
+                                                    << $cond takes25
+                                                    << $t (f25 << value0 << value1 << value2 << value3 << value4 << value5 << value6 << value7)
+                                                    << $f dispatch_error)))))))))))))))))))))))))

@@ -39,19 +39,25 @@ LEN_TAG = "$len"
 # implementation keeps them in.
 KEYS_TAG = "$keys"
 
-# The five members above, as the one group they are: the members the interpreter
+# The interpreter member that picks the first case: `$first_case_index`, the
+# arguments and the list of the cases' parameter product types. It answers the
+# case's index, or a `DispatchError` when no case takes the arguments.
+FIRST_CASE_INDEX_TAG = "$first_case_index"
+
+# The members above, as the one group they are: the members the interpreter
 # answers itself (`viba/partial.py`, `viba/interpret.py`). A chain headed by one
 # of them is the call below, and no other layer has to know which tag it is.
-INTERPRETER_MEMBER_TAGS = (GET_ATTR_TAG, GET_ITEM_TAG, IN_TAG, LEN_TAG, KEYS_TAG)
+INTERPRETER_MEMBER_TAGS = (GET_ATTR_TAG, GET_ITEM_TAG, IN_TAG, LEN_TAG, KEYS_TAG,
+                           FIRST_CASE_INDEX_TAG)
 
-# The parameter the five take first, spelled once: the environment, the way every
+# The parameter the six take first, spelled once: the environment, the way every
 # call that runs takes it (`viba/builtin.viba`). It is required — a chain headed by
-# one of the five is a call, so until it is given one that chain is a closure, the
+# one of the six is a call, so until it is given one that chain is a closure, the
 # way every call without one is (`viba-interpreter.md`).
 INTERPRETER_ENV_SLOT = "$env Env"
 
-# The call each of the five stands for: that environment, then the member's own
-# arguments. No answer of the five is computed from the environment it was given —
+# The call each of the six stands for: that environment, then the member's own
+# arguments. No answer of the six is computed from the environment it was given —
 # each answers from its own arguments — which is why the `nil` the
 # interpreter's own chains spell there (`xs[1]`) runs one where it stands
 # (`viba-interpreter.md`).
@@ -61,6 +67,8 @@ INTERPRETER_MEMBER_CHAINS = {
     IN_TAG: f"bool <- {INTERPRETER_ENV_SLOT} <- $container Any <- $piece Any",
     LEN_TAG: f"int <- {INTERPRETER_ENV_SLOT} <- $container Any",
     KEYS_TAG: f"list[str] <- {INTERPRETER_ENV_SLOT} <- $table Any",
+    FIRST_CASE_INDEX_TAG: (f"(int | DispatchError) <- {INTERPRETER_ENV_SLOT} "
+                           f"<- $args Any <- $func_arg_types list[Any]"),
 }
 
 _CHAINS = {}

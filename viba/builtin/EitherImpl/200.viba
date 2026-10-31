@@ -1,0 +1,5 @@
+# EitherImpl[A, B] is A | B: two different branches, and the sum keeps both.
+pattern A
+pattern B
+
+type = A | B

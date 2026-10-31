@@ -1,0 +1,5 @@
+# Either[A, B] is A | B: two different branches, and the sum keeps both.
+pattern A
+pattern B
+
+__decl__ = EitherImpl[A, B].type

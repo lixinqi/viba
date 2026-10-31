@@ -1,0 +1,11 @@
+# The predicate form: `__is_sub_type__[T]` is a call that answers whether the
+# value it is given is a `T`. The type is the decision's parameter, so it stands
+# for the argument the call site spelled; the value is an ordinary argument, so
+# a name given to it is the value that name holds.
+pattern S
+
+__decl__ = bool <- $env Env <- $value Any
+
+args = __get_args__ << __decl__
+
+__impl__ = __is_sub_type_value__ << args.value << S

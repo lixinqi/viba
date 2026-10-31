@@ -23,9 +23,12 @@ Walking:
   (`Object` / `nil` / `Oneof` / `never`) are no options — they carry no content,
   so they take no tag.
 - Names and generic applications resolve through imports and the descriptor
-  pool to a definition, whose body is walked next; definitions from the
-  builtin library (builtin.viba) count too. A name that does not resolve makes
-  the design incomplete. A generic parameter is walked through the actual
+  pool to a definition, whose body is walked next. The builtin vocabulary the
+  language itself gives (builtin.viba's definitions: the scalars, the
+  containers, the operators) counts too, but no file under the builtin
+  directory is read or scanned — a module living there is reached only where
+  the caller hands it over. A name that does not resolve makes the design
+  incomplete. A generic parameter is walked through the actual
   argument an application binds it to; unbound, it is a placeholder and does
   not affect completeness. A `tagged[...]` whose symbol is such a parameter is
   a placeholder the same way — which tag the type carries arrives with the
@@ -49,7 +52,8 @@ Parameters:
   (`pkg/mod.viba` is module `pkg.mod`) — so library paths must match the names
   the sources import.
 - `viba_paths`: directories to scan recursively for `*.viba`, added to the
-  library; a module name is relative to its directory.
+  library; a module name is relative to its directory. Nothing else is
+  scanned — in particular not the builtin directory.
 - `terminators`: a set of type names (the name of a TypeRef, the constructor
   of a generic application), empty by default. Empty is the strictest: only
   leaves and units end a walk.
@@ -64,7 +68,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from viba import viba_ast
 from viba.partial import product_elements
 from viba.pattern import reduce_application, tagged_type_of
-from viba.type import BUILTIN_DIR, BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
+from viba.type import BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
 from viba.viba_ast.tagged import TAGGED_NAME
 from viba.viba_type_descriptor import (
     empty_pool,
@@ -119,15 +123,18 @@ def _add_file(pool, file_name: str, module_name: str, source: str):
 
 
 def _dependencies(library, viba_paths) -> List[Tuple[str, str, str]]:
-    """(file_name, module_name, source): library first, scanned files after."""
+    """(file_name, module_name, source): the library first, then the caller's paths."""
     found: Dict[str, Tuple[str, str]] = {}
     for file_path, file_content in library or ():
         module_name = _module_name(file_path)
         if module_name and module_name not in found:
             found[module_name] = (str(file_path), file_content)
-    # The builtin directory is the last stop here too (viba-interpreter.md), so a
-    # design that gives `import Y` reaches the package's own generics.
-    for directory in [*(viba_paths or ()), str(BUILTIN_DIR)]:
+    # The builtin directory is not scanned: this walk reads no code of it. What
+    # the language itself gives — `builtin.viba`'s vocabulary, the scalars, the
+    # containers — is answered by `BUILTIN_MODULE` where a name is resolved
+    # (`viba-interpreter.md`); a module under the builtin directory is reached
+    # only where the caller hands it over in `library` or `viba_paths`.
+    for directory in viba_paths or ():
         root = Path(directory)
         if not root.is_dir():
             continue

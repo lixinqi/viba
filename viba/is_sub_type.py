@@ -475,10 +475,10 @@ class _Checker:
         # `g[T].value` / `g[T].type`: this takes a member of the file the decision chose (module
         # semantics); what it stands for is that definition itself. A member taken on a name chain is
         # a name already when the AstNodeType is built, so it never reaches here (viba-style.md).
-        sub_member = self._member_meaning(sn, s_mod)
+        sub_member = self._member_meaning(sn, s_mod, "sub")
         if sub_member is not None:
             return self._unfold_member(sub_member, "sub", sp, p_mod)
-        sup_member = self._member_meaning(sp, p_mod)
+        sup_member = self._member_meaning(sp, p_mod, "sup")
         if sup_member is not None:
             return self._unfold_member(sup_member, "sup", sn, s_mod)
         # A generic application is decided before anything else takes it: what
@@ -743,19 +743,26 @@ class _Checker:
         return isinstance(target, AstNodeType) and isinstance(
             target.ast_node, viba_ast.GenericDefinition)
 
-    def _member_meaning(self, node, module):
+    def _member_meaning(self, node, module, side):
         """`g[T].name` -> the chosen file's definition `name`, or None.
 
         None when the node takes no member: a name chain counts as the name it
         spells before it gets here, and an owner that is no decided application
         is taken the way it always was.
+
+        An argument that is a name this walk bound (`env_get`) stands for the part
+        that stood at the call site, so the decision is made over that part, in the
+        module the source has it in. Without that, a member taken on an application
+        spelled inside a chosen file (`g[f, f]`, `f` a `pattern` parameter) would
+        decide over the parameter name, which is no type of its own.
         """
         if not isinstance(node, viba_ast.MemberTaken):
             return None
         owner = node.owner
         if not isinstance(owner, viba_ast.TypeApp):
             return None
-        decision = self._decision(owner, module)
+        owner, modules = self._bound_arguments(owner, module, side)
+        decision = self._decision(owner, module, modules)
         if isinstance(decision, VibaProgramErr):
             raise UnresolvedTypeError(decision.msg)
         if not (isinstance(decision, Ok) and decision.ok_value is not None):
@@ -785,12 +792,45 @@ class _Checker:
             raise UnresolvedTypeError(decision.msg)
         return isinstance(decision, Ok) and decision.ok_value is not None
 
-    def _decision(self, node, module):
-        """The decision this application makes, worked out once per node."""
-        key = (id(node), id(module))
+    def _decision(self, node, module, modules=None):
+        """The decision this application makes, worked out once per node.
+
+        `modules` names the module each argument was spelled in, where the walk
+        put a bound part in its place; without it every argument is taken in
+        `module`.
+        """
+        key = (id(node), id(module),
+               tuple(id(one) for one in modules) if modules else None)
         if key not in self._decisions:
-            self._decisions[key] = reduce_application(node, module)
+            self._decisions[key] = reduce_application(node, module, modules)
         return self._decisions[key]
+
+    def _bound_arguments(self, owner, module, side):
+        """(the application with the names this walk bound put in, the modules).
+
+        Only names a decision bound are put in: a bound part is a type the call
+        site spelled, so the decision over the application that uses it is made
+        over that type, in the module the source has it in.
+        """
+        arguments, modules = [], []
+        for argument in owner.args:
+            bound = (self._walk_binding(argument.name, side)
+                     if isinstance(argument, viba_ast.TypeRef) else None)
+            if isinstance(bound, AstNodeType):
+                arguments.append(bound.ast_node)
+                modules.append(bound.container_module)
+                continue
+            arguments.append(argument)
+            modules.append(module)
+        return viba_ast.TypeApp(owner.constructor, arguments), modules
+
+    def _walk_binding(self, name, side):
+        """The part this walk bound that name to, or None."""
+        for env in reversed(self._env_stacks[side]):
+            got = env(name)
+            if isinstance(got, Ok):
+                return got.ok_value
+        return None
 
     def _unfold_typeapp(self, node, module, side, other, other_mod) -> bool:
         app_key = self._app_key(node, module, side)

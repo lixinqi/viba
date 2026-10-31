@@ -97,7 +97,8 @@ from viba.type import (
                        NilType, NeverType,
                        builtin_directory_name, takes_a_product as _takes_a_product,
                        custom_module, module_get_type)
-from viba.viba_ast.tagged import (GET_ATTR_TAG, GET_ITEM_TAG, IN_TAG,
+from viba.viba_ast.tagged import (FIRST_CASE_INDEX_TAG, GET_ATTR_TAG,
+                                  GET_ITEM_TAG, IN_TAG,
                                   INTERPRETER_MEMBER_TAGS, KEYS_TAG, LEN_TAG,
                                   TAGGED_NAME, interpreter_member_chain,
                                   symbol_of, symbol_problem, tag_of,
@@ -115,6 +116,7 @@ TMP_PREFIX = "tmp_"
 RET_NAME = "__impl__"
 DEF_NAME = "__decl__"
 GET_ARGS_NAME = "__get_args__"
+IS_SUB_TYPE_VALUE_NAME = "__is_sub_type_value__"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
 
@@ -2515,7 +2517,7 @@ class _Activation:
         containers section), so what it stands for is that chain, built here and
         taken the way any chain is. The environment is `nil` because this chain is
         built here: the member takes that parameter the way every call does, and
-        no answer of the five is computed from it, so `nil` runs this chain where
+        no answer of the six is computed from it, so `nil` runs this chain where
         it stands (viba-interpreter.md).
 
         The name is taken first: a name this run can take nothing into — a name
@@ -2632,6 +2634,10 @@ class _Activation:
             # The deduction layer takes the same name and gets the product type of that call's
             # parameters (viba-interpreter.md).
             return Ok(_GetArgs(self))
+        if name == IS_SUB_TYPE_VALUE_NAME:
+            # The judgment, with the sub type first and the sup type second: no
+            # environment is part of this call, the way `__get_args__` has none.
+            return Ok(_IsSubType())
         if name == DEF_NAME:
             # Taken as a type `__decl__` is the module's own function chain; taken as
             # a value it is that same chain in the source, which is what `__get_args__`
@@ -2813,9 +2819,13 @@ class _Activation:
         other = _Activation(self.runner, chosen.module, self.environ,
                             chosen.entry.name, chosen.entry.path,
                             bindings=self._generic_bindings(chosen))
+        # The name the member is spelled under is the one the caller gave: the
+        # arguments a decision bound are put in, so `g[f, f].value` names the
+        # parts the call site handed over, not the parameter names.
+        source = viba_ast.MemberTaken(source, node.name)
         return other._value_of_definition(
             node.name, definition, chosen.module, source_module=self.module,
-            source=node)
+            source=source)
 
     def _application_member_target(self, node, scope=()):
         """`g[T].type` at a chain head: a definition of the chosen file, and that chain is
@@ -2914,6 +2924,52 @@ class _Activation:
         return VibaProgramErr(
             "`$in` asks about a list, a set, a tuple or a dict, and this is "
             "none of them")
+
+    def _first_case_index(self, arguments, func_arg_types):
+        """`$first_case_index`: the first case whose parameter product type
+        takes the arguments, or a `DispatchError`. The argument product is the
+        module call's own, environment included; the environment is no argument
+        of a case, so it is left out of the product the judgment sees."""
+        from viba.is_sub_type import is_sub_type
+        if not isinstance(arguments, _VibaData) or not isinstance(func_arg_types, _VibaData):
+            return VibaProgramErr(
+                "$first_case_index takes the arguments and a list of case types")
+
+        def descriptor_of_member(member):
+            descriptor = getattr(member, "descriptor", None)
+            if descriptor is None:
+                descriptor = getattr(getattr(member, "node", None), "descriptor", None)
+            return getattr(descriptor, "resolvable_type", None)
+
+        member_types = [one for tag, member in _the_members(arguments)
+                        if tag != ENVIRON_TAG
+                        for one in [descriptor_of_member(member)] if one is not None]
+        if not member_types:
+            return VibaProgramErr("$first_case_index got no argument to judge")
+        if len(member_types) == 1:
+            args_type = member_types[0]
+        else:
+            args_type = AstNodeType(
+                viba_ast.ProductChain([one.ast_node for one in member_types]),
+                arguments.source_module)
+
+        for index, item in enumerate(func_arg_types.node):
+            case_type = getattr(getattr(item, "descriptor", None),
+                                "resolvable_type", None)
+            if case_type is None:
+                # A case type that is a unit (`Any`, `nil`, `never`) carries no
+                # descriptor of its own; the piece as the source has it is the
+                # type, so that is what the judgment sees.
+                case_type = AstNodeType(
+                    item.data,
+                    func_arg_types.source_module or arguments.source_module)
+            judged = is_sub_type(args_type, case_type)
+            if isinstance(judged, VibaProgramErr):
+                return judged
+            if judged.ok_value:
+                return Ok(_VibaData(viba_data(index)))
+        return Ok(_VibaData(_tagged_viba_data(
+            "$dispatch_error_message", viba_data("no handler matches"))))
 
     def _container_len(self, container):
         """How many pieces `$len` counts: elements for a list, a set or a
@@ -3177,6 +3233,10 @@ class _Activation:
             # constructor spells (`ListLiteral[1, 2]` is a list). Naming that
             # constructor in a *type* expression is the other form of the same
             # text: there it is the resident of `list[a | b | c]` (viba/type.viba).
+            # A name a decision bound stands for the argument part it was bound to,
+            # so it is put in before the pieces are taken: `ListLiteral[A * B]` in a
+            # chosen file is the list of that argument's types, not of its names.
+            node = _substituted(node, scope)
             return Ok(_VibaData(VObject(reflect_access, self._descriptor(node), node)))
         source, modules, parts = self._application_piece(node, scope)
         decision = reduce_application(source, self.module, modules, parts)
@@ -3362,7 +3422,7 @@ class _Activation:
         for index, argument in enumerate(source):
             if (isinstance(current, _Pending) and current.member_tag is not None
                     and current.ready()):
-                # One of the five the interpreter answers has its environment and
+                # One of the six the interpreter answers has its environment and
                 # its own arguments: it answers, and what the chain spells after it
                 # is given to what it answered — the member taken, called as a
                 # method of the value it came from (`$get_attr`), or the element
@@ -3465,6 +3525,12 @@ class _Activation:
         if isinstance(current, _GetArgs):
             return VibaProgramErr(
                 f"{GET_ARGS_NAME} asks for the module's {DEF_NAME}, and none was given")
+        if isinstance(current, _IsSubType):
+            if current.filled():
+                return current.run()
+            return VibaProgramErr(
+                f"{IS_SUB_TYPE_VALUE_NAME} takes two arguments, and "
+                f"{len(current.given)} were given")
         return Ok(current)
 
     def _travelling_data(self, value):
@@ -4056,14 +4122,14 @@ class _Activation:
                                 source_bindings=self.bindings or None))
 
     def _member_pending(self, head, node):
-        """The call a chain headed by one of the five members the interpreter
+        """The call a chain headed by one of the six members the interpreter
         answers itself stands for.
 
         The call is the member's own signature (`interpreter_member_chain`): the
         environment first, then what that member takes. The environment is required,
         the way it is of every call that runs: a chain that has not been given one is
         a closure, the way every call without one is — that is what lets such a chain
-        be a step of `sequential`. Nothing the five answer is read off that
+        be a step of `sequential`. Nothing the six answer is read off that
         environment, so the `nil` the interpreter's own chains spell there (`xs[1]`)
         runs one where it stands (viba-interpreter.md).
         """
@@ -4365,6 +4431,8 @@ def _host_give(function, item):
         return function.give(item)
     if isinstance(function, _GetArgs):
         return function.give(item)
+    if isinstance(function, _IsSubType):
+        return function.give(item)
     if isinstance(function, _VibaData):
         return VibaProgramErr(f"{function.node!r} is not a function: it is a value")
     if isinstance(function, _Host):
@@ -4630,7 +4698,7 @@ class _Pending:
                 f"{len(self.elements)} arguments: {', '.join(left)} missing")
 
     def _member_missing(self):
-        """What one of the five still wants, in the words that member itself uses.
+        """What one of the six still wants, in the words that member itself uses.
 
         The environment is no part of this: it is the call's rule, not an input of
         the work, so a member chain that has it is complete as far as the member
@@ -4644,6 +4712,12 @@ class _Pending:
                 return None
             if self._member_given("$name") is None:
                 return "a member is taken by a name, and none was given"
+            return None
+        if tag == FIRST_CASE_INDEX_TAG:
+            if self._member_given("$args") is None:
+                return "a case index asks for the arguments, and none were given"
+            if self._member_given("$func_arg_types") is None:
+                return "a case index asks for the list of argument types, and none was given"
             return None
         if tag in (GET_ITEM_TAG, IN_TAG, LEN_TAG):
             if self._member_given("$container") is None:
@@ -4859,7 +4933,7 @@ class _Pending:
         return self.given.get(index)
 
     def _answer_member(self):
-        """The work of one of the five: the members the interpreter answers.
+        """The work of one of the six: the members the interpreter answers.
 
         What each takes is the signature's own slots (`interpreter_member_chain`),
         the environment among them — required, the way every call's is. Nothing here
@@ -4881,6 +4955,9 @@ class _Pending:
         if tag == GET_ITEM_TAG:
             return activation._take_item(self._member_given("$container"),
                                          self._member_given("$address"))
+        if tag == FIRST_CASE_INDEX_TAG:
+            return activation._first_case_index(self._member_given("$args"),
+                                                self._member_given("$func_arg_types"))
         return self._take_the_named_member()
 
     def _take_the_named_member(self):
@@ -5178,6 +5255,64 @@ class _GetArgs:
                 f"{GET_ARGS_NAME} is the arguments of a module call, and no module "
                 f"call is running here")
         return Ok(self.activation.args)
+
+
+class _IsSubType:
+    """`__is_sub_type_value__ << sub << sup`: the judgment, with no environment.
+
+    The two arguments are types, or a value (the judgment takes its runtime
+    type) and a type. It answers a bool; a value that is no type is a program
+    error, the way the judgment itself says it.
+    """
+
+    __slots__ = ("given",)
+
+    def __init__(self, given=None):
+        self.given = list(given or [])
+
+    def filled(self) -> bool:
+        return len(self.given) >= 2
+
+    def run(self):
+        return self._answer(self.given)
+
+    def give(self, item):
+        values = self.given + [item.value]
+        if len(values) < 2:
+            return Ok(_IsSubType(values))
+        return self._answer(values)
+
+    def _answer(self, values):
+        from viba.is_sub_type import is_sub_type
+
+        def type_of(value):
+            """The type a value stands for: what its descriptor resolves to.
+
+            The judgment compares two source types structurally, so both sides are
+            taken the same way: a leaf keeps the piece it is (`_walk` reads a
+            constant as its literal type and `nil` as the unit), and a piece no
+            descriptor covers is the type its module has it in.
+            """
+            node = getattr(value, "node", None)
+            resolvable = getattr(getattr(node, "descriptor", None),
+                                 "resolvable_type", None)
+            if resolvable is not None:
+                return resolvable
+            data = getattr(node, "data", None)
+            if data is None:
+                return None
+            return AstNodeType(data, getattr(value, "source_module", None)
+                               or _NO_MODULE)
+
+        sub_type = type_of(values[0])
+        sup_type = type_of(values[1])
+        if sub_type is None or sup_type is None:
+            return VibaProgramErr(
+                f"{IS_SUB_TYPE_VALUE_NAME} takes two types: this argument is not one")
+        judged = is_sub_type(sub_type, sup_type)
+        if isinstance(judged, VibaProgramErr):
+            return judged
+        return Ok(_VibaData(viba_data(judged.ok_value)))
 
 
 class _HostFunction:

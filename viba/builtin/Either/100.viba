@@ -1,0 +1,9 @@
+# Either[A, A] is A, and Either[A, B] is A | B: the sum of the two branches, with
+# the sum's own idempotence (`never | a = a`) making the same-type case collapse.
+#
+# A caller spells the type itself, `Either[int, str]`; the implementation is
+# `EitherImpl[A, B].type`, which this generic answers.
+pattern A
+pattern A
+
+__decl__ = EitherImpl[A, A].type

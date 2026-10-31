@@ -1,0 +1,19 @@
+# get_first_impl_case_index — the first case whose parameter product type takes
+# the arguments. The cases come as a list the caller assembles (a `ListLiteral` of
+# their parameter products); the answer is the case's index, or a `DispatchError`
+# (`$dispatch_error_message "no handler matches"`) when no case takes the arguments. The
+# environment is no argument of a case, so the `$env` member of `args` is left out
+# of the product the judgment sees.
+__decl__ =
+    (int | DispatchError)
+  <- $env Env
+  <- $args Any
+  <- $func_arg_types list[Any]
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    $first_case_index
+  << $env args.env
+  << $args args.args
+  << $func_arg_types args.func_arg_types

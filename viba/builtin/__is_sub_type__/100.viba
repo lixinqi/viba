@@ -1,0 +1,6 @@
+# The public judgment: `__is_sub_type__[A, B].value` is `A <: B`. The impl
+# layer is the one that turns the interpreter's value form into a generic value.
+pattern A
+pattern B
+
+value = __is_sub_type_impl__[A, B].value

@@ -58,6 +58,14 @@ Environment =
 
 Env = Environment
 
+# The error branch of a dispatcher type: what a dispatcher answers when the
+# arguments' types match none of the handlers it was built from. The message
+# says so in one sentence; what was given and what each handler takes stay in
+# the source.
+DispatchError =
+    Object
+  * $dispatch_error_message str
+
 # The builtin module: the operators every module can reach without an
 # import. Each operator is one member of `builtin`, given as a function of the
 # environment and its arguments, and the host implements it under the member's

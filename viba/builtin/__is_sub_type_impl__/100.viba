@@ -1,0 +1,6 @@
+# The impl layer: the interpreter's `__is_sub_type_value__` form, exposed as a
+# generic value. The public `__is_sub_type__` wraps this.
+pattern A
+pattern B
+
+value = __is_sub_type_value__ << A << B

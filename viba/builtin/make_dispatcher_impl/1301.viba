@@ -1,0 +1,130 @@
+# 13 handlers, 1 parameter: the call.
+#
+# Each handler is given twice: the first pattern takes its type apart
+# (the parameter types, and the names the parameters go by), the second
+# is the handler itself, which is what the call runs. The index of the
+# first handler whose parameter product takes the arguments comes from
+# `get_first_impl_case_index`; no handler takes them, the answer is
+# `dispatch_error`.
+import get_first_impl_case_index
+import dispatch_error
+
+pattern (Ret <- $env Env <- tagged[name0, A0_0])
+pattern f0
+pattern (Ret <- $env Env <- tagged[name0, A1_0])
+pattern f1
+pattern (Ret <- $env Env <- tagged[name0, A2_0])
+pattern f2
+pattern (Ret <- $env Env <- tagged[name0, A3_0])
+pattern f3
+pattern (Ret <- $env Env <- tagged[name0, A4_0])
+pattern f4
+pattern (Ret <- $env Env <- tagged[name0, A5_0])
+pattern f5
+pattern (Ret <- $env Env <- tagged[name0, A6_0])
+pattern f6
+pattern (Ret <- $env Env <- tagged[name0, A7_0])
+pattern f7
+pattern (Ret <- $env Env <- tagged[name0, A8_0])
+pattern f8
+pattern (Ret <- $env Env <- tagged[name0, A9_0])
+pattern f9
+pattern (Ret <- $env Env <- tagged[name0, A10_0])
+pattern f10
+pattern (Ret <- $env Env <- tagged[name0, A11_0])
+pattern f11
+pattern (Ret <- $env Env <- tagged[name0, A12_0])
+pattern f12
+
+__decl__ =
+    Either[Ret, DispatchError]
+  <- $env Env
+  <- $args Any
+
+args = __get_args__ << __decl__
+
+value0 = $get_attr << args.args << $env args.env << name0
+
+type = Either[Ret, DispatchError] <- (A0_0 | A1_0 | A2_0 | A3_0 | A4_0 | A5_0 | A6_0 | A7_0 | A8_0 | A9_0 | A10_0 | A11_0 | A12_0)
+ret = Ret
+arg0 = A0_0 | A1_0 | A2_0 | A3_0 | A4_0 | A5_0 | A6_0 | A7_0 | A8_0 | A9_0 | A10_0 | A11_0 | A12_0
+arg_name0 = name0
+
+func_arg_types = ListLiteral[
+    (A0_0),
+    (A1_0),
+    (A2_0),
+    (A3_0),
+    (A4_0),
+    (A5_0),
+    (A6_0),
+    (A7_0),
+    (A8_0),
+    (A9_0),
+    (A10_0),
+    (A11_0),
+    (A12_0)
+]
+
+index =
+    get_first_impl_case_index
+  << (args.env.sub_env << args.env << "index")
+  << $args args.args
+  << $func_arg_types func_arg_types
+
+takes0 = __is_sub_type_value__ << index << 0
+takes1 = __is_sub_type_value__ << index << 1
+takes2 = __is_sub_type_value__ << index << 2
+takes3 = __is_sub_type_value__ << index << 3
+takes4 = __is_sub_type_value__ << index << 4
+takes5 = __is_sub_type_value__ << index << 5
+takes6 = __is_sub_type_value__ << index << 6
+takes7 = __is_sub_type_value__ << index << 7
+takes8 = __is_sub_type_value__ << index << 8
+takes9 = __is_sub_type_value__ << index << 9
+takes10 = __is_sub_type_value__ << index << 10
+takes11 = __is_sub_type_value__ << index << 11
+takes12 = __is_sub_type_value__ << index << 12
+
+__impl__ =
+    if
+  << $env (args.env.sub_env << args.env << "select")
+  << $cond takes0
+  << $t (f0 << value0)
+  << $f (if
+    << $cond takes1
+    << $t (f1 << value0)
+    << $f (if
+      << $cond takes2
+      << $t (f2 << value0)
+      << $f (if
+        << $cond takes3
+        << $t (f3 << value0)
+        << $f (if
+          << $cond takes4
+          << $t (f4 << value0)
+          << $f (if
+            << $cond takes5
+            << $t (f5 << value0)
+            << $f (if
+              << $cond takes6
+              << $t (f6 << value0)
+              << $f (if
+                << $cond takes7
+                << $t (f7 << value0)
+                << $f (if
+                  << $cond takes8
+                  << $t (f8 << value0)
+                  << $f (if
+                    << $cond takes9
+                    << $t (f9 << value0)
+                    << $f (if
+                      << $cond takes10
+                      << $t (f10 << value0)
+                      << $f (if
+                        << $cond takes11
+                        << $t (f11 << value0)
+                        << $f (if
+                          << $cond takes12
+                          << $t (f12 << value0)
+                          << $f dispatch_error))))))))))))

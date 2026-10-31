@@ -1,0 +1,32 @@
+# 6 handlers, 2 parameters: the dispatcher.
+#
+# `make_dispatcher[f0, f1]` is a function: the type is the one the
+# implementation spells (the handlers' result, their parameter names
+# position by position, and the sum of what they take there), and a call
+# runs the first handler whose parameter product takes the arguments —
+# `DispatchError` when none does.
+#
+# The handlers are given once here and twice to the implementation: once
+# for the pattern that takes their type apart, once to call.
+import make_dispatcher_impl
+
+pattern f0
+pattern f1
+pattern f2
+pattern f3
+pattern f4
+pattern f5
+
+type = make_dispatcher_impl[f0, f0, f1, f1, f2, f2, f3, f3, f4, f4, f5, f5].type
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $args ...
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    make_dispatcher_impl[f0, f0, f1, f1, f2, f2, f3, f3, f4, f4, f5, f5]
+  << (args.env.sub_env << args.env << "impl")
+  << $args args.args

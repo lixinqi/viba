@@ -1,0 +1,11 @@
+# __generic__.viba
+#
+# make_dispatcher: the type is here; the call is not. `make_dispatcher[f0, f1].type`
+# is the dispatcher type: a function whose parameters are the unions of the
+# handlers' parameter types, and whose result is `Either[Ret, DispatchError]`.
+# The handlers are given once each, and a handler with another parameter count,
+# another parameter name, or another result makes the decision fail.
+#
+# What this generic does not do yet: turn that type into a runnable dispatcher
+# (choosing a handler for a particular call, and answering `DispatchError` when
+# none fits). The numbered files below are the type only.

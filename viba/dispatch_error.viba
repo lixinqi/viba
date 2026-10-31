@@ -1,0 +1,12 @@
+# The answer a dispatcher gives when no handler takes the call: a
+# `DispatchError` whose message says so.
+#
+# The value is the tagged member the type declares (`DispatchError = Object *
+# $dispatch_error_message str`, viba/builtin.viba), so
+# `$dispatch_error_message "no handler matches"` is that one-member object.
+
+__decl__ =
+    DispatchError
+  <- $env Env
+
+__impl__ = $dispatch_error_message "no handler matches"

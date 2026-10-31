@@ -1,0 +1,12 @@
+# EitherImpl[A, A] is A: both branches hold the same type, so the sum carries no
+# distinction and collapses to that type. This is the same idempotence the sum
+# already has (`never | a = a`), written as a type-level rule so that a caller
+# can name the result.
+#
+# This is the implementation `Either` wraps: a caller that wants the type itself
+# spells `Either[A, B]`, and `EitherImpl[A, B].type` is the same type taken as a
+# member of the chosen file.
+pattern A
+pattern A
+
+type = A
