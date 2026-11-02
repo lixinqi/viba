@@ -577,6 +577,8 @@ python tests/corpus/generate_corpus.py --check   # 130-file corpus round-trip
 | [`viba-interpreter-design.md`](viba-interpreter-design.md) | The interpreter itself, as viba: a run, the host's three pieces, a call, an activation, the five members the interpreter handles itself, and the entry points |
 | [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer takes |
 | [`viba_builder.md`](viba_builder.md) | Building .viba source from Python expressions |
+| [`viba-make-dispatcher.md`](viba-make-dispatcher.md) | `make_dispatcher`: several handlers, one function, and the type they make together |
+| [`viba-extract-sub-repo.md`](viba-extract-sub-repo.md) | `extract_sub_repo`: pulling one sub-repo out of a repo — the definition closure, the primitives left behind, and the idempotence law |
 | [`viba-style.md`](viba-style.md) | Conventions of a definition: tags, heads, containers, and how to check a definition |
 
 ## Modules
@@ -596,6 +598,7 @@ tools built on those.
 | `builder.py` | Builds .viba source from Python expressions — see `viba_builder.md` |
 | `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
 | `is_complete.py` | Whether a type can be reflected through |
+| `extract_sub_repo.py` | Pulls a sub-repo out of a repo — see `viba-extract-sub-repo.md` |
 | `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …), the two switches `builtin.echo_or_never` / `builtin.never_or_echo` among them |
 | `if.viba` | The builtin if/else: the condition picks the branch, and only that branch's call is computed — the sum of the two switches |

@@ -1,0 +1,62 @@
+# extract_sub_repo — the design: one repo in, its sub-repo out.
+#
+# This is the declaration `viba.extract_sub_repo` is held to, given as a viba
+# type so the operation reads with the rest of the design-side signatures
+# (viba-extract-sub-repo.md is the document; the Python layer is the one place
+# that takes files apart).
+#
+# A repo is a directory: `Repo` is its path. `TypeName` is a full name the way
+# a module spells one — `xxx.yyy.zzz`, where `xxx.yyy` is the module an import
+# would find and `zzz` is a definition in it.
+#
+# The answer is the new sub-repo's path together with the import path it needs:
+# the definitions that were not extracted (the primitives) stay where they are,
+# and the sub-repo reaches them through that path.
+#
+# The units are `never_eqv` / `nil_eqv`: the names that stand for `never` (the
+# sum's unit) and `nil` (the product's unit) while the source is read — the two
+# lists are `VibaReflectConfig`'s parameters (`viba-reflect.md`). Nil means the
+# language's own set (`reflect.language_config`), which is the one a design
+# written in this repo needs.
+
+Repo =
+    str * Assert[{ this is a file path }]
+
+TypeName =
+    str * Assert[{ xxx.yyy.zzz：xxx.yyy 在 $viba_path 下 import 得到，zzz 是它里面的定义 }]
+
+ExtractSubRepo =
+    Result[$repo Repo * $viba_path list[str]]
+  <- $repo Repo
+  <- $viba_path list[str]
+  <- $extract_source_viba_path list[str]
+  <- $type_names list[TypeName]
+  <- $never_eqv (list[str] | nil)
+  <- $nil_eqv (list[str] | nil)
+  <- Hint[{
+      从 $type_names 出发，把 $repo 里、$extract_source_viba_path 下的那些定义抽成一个能自己编译的子 repo：
+      路径、模块名、定义名不变，一个文件只带留下的定义实际用到的 import。
+      其余定义是原语：不复制，留着 import，它所在的根进答案的 $viba_path。
+      $never_eqv、$nil_eqv 是单位元的名字，读源码时不算定义；给 nil 就用语言默认那份。
+    }]
+  <- Assert[{
+      幂等：抽出来的子 repo 再抽一遍，两个目录的内容完全一样。
+      对任何 $repo、$viba_path、$extract_source_viba_path、$type_names、$never_eqv、$nil_eqv：
+      first = ExtractSubRepo
+        << $repo repo
+        << $viba_path viba_path
+        << $extract_source_viba_path extract_source_viba_path
+        << $type_names type_names
+        << $never_eqv never_eqv
+        << $nil_eqv nil_eqv
+      second = ExtractSubRepo
+        << $repo first.ok.repo
+        << $viba_path first.ok.viba_path
+        << $extract_source_viba_path first.ok.viba_path
+        << $type_names type_names
+        << $never_eqv never_eqv
+        << $nil_eqv nil_eqv
+      assert content_of(first) === content_of(second)
+      content_of(x) 是 x.ok.repo 这个目录的内容：同样的相对路径，同样的文件原文。
+      两边都得答 $ok；first 答 $ok 而 second 答 $err 也违反这条。
+    }]

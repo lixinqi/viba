@@ -1,0 +1,6 @@
+import pkg.a.mid as mid
+import pkg.a.b.leaf as leaf
+
+Top = Object * $mid mid.Mid * $leaf leaf.Leaf
+
+TopUnused = str

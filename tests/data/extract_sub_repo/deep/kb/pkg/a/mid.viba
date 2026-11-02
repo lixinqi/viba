@@ -1,0 +1,5 @@
+import pkg.a.b.leaf as leaf
+
+Mid = Object * $leaf leaf.Leaf
+
+MidUnused = int

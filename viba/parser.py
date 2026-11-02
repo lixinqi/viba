@@ -999,9 +999,11 @@ if __name__ == "__main__":
     try:
         blocks = 0
         design = os.path.join(root, "viba-interpreter-design.md")
+        sub_repo = os.path.join(root, "viba-extract-sub-repo.md")
         chapters = ((readme, "README.md"), (style, "viba-style.md"),
                     (tutorial, "viba_tutorial.md"), (pattern, "viba-pattern.md"),
-                    (design, "viba-interpreter-design.md"))
+                    (design, "viba-interpreter-design.md"),
+                    (sub_repo, "viba-extract-sub-repo.md"))
         for path, _name in chapters:
             with open(path, encoding="utf-8") as handle:
                 text = handle.read()

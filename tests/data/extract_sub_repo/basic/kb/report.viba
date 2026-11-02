@@ -1,0 +1,8 @@
+# A report: the items it lists and the meta it carries.
+import item as it
+import meta as mt
+import notes as nt
+
+Report = Object * $items list[it.Item] * $meta mt.Meta
+
+Unrelated = int

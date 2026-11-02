@@ -1,0 +1,3 @@
+Item = Object * $id int * $name str
+
+Extra = bool

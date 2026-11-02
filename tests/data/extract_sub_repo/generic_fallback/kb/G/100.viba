@@ -1,0 +1,3 @@
+pattern int
+
+__decl__ = int

@@ -244,7 +244,7 @@ def run_package_sources():
     描述符（viba/viba_type_descriptor.viba）、内建词汇（viba/builtin.viba）。"""
     root = Path(__file__).resolve().parent.parent / "viba"
     paths = [root / "type.viba", root / "viba_type_descriptor.viba",
-             root / "builtin.viba"]
+             root / "builtin.viba", root / "extract_sub_repo.viba"]
     wrong = []
     for path in paths:
         got = file_design(path)

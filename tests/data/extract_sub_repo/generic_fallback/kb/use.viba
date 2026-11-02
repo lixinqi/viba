@@ -1,0 +1,3 @@
+import G
+
+Only[A] = G[A]

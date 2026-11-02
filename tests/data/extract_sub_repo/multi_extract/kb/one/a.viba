@@ -1,0 +1,5 @@
+import one.inner.extra as ex
+import two.sub.b as b
+import three.deep.c as c
+
+A = Object * $ex ex.Extra * $b b.B * $c c.C

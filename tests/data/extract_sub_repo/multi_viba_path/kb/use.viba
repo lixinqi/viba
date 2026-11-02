@@ -1,0 +1,5 @@
+import one as o1
+import two as o2
+import three as o3
+
+Use = Object * $c o3.Three * $b o2.Two * $a o1.One
