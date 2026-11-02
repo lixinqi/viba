@@ -557,6 +557,30 @@ child is new on every call, so what hangs under it never replays.
 The whole chapter — the typed view of a module, the error list —
 is [`viba-interpreter.md`](viba-interpreter.md).
 
+### Extracting a sub-repo
+
+A knowledge repo keeps growing, and one task needs one part of it. `extract_sub_repo`
+writes that part out as a repo of its own: the definitions the given type names
+reach, each file at its own path, together with the `viba_path` that still finds what
+was left behind.
+
+```python
+from viba.extract_sub_repo import extract_sub_repo
+
+answer = extract_sub_repo("kb", ["kb", "base"], ["kb"], ["report.Report"])
+answer.ok_value.repo         # "kb-sub"
+answer.ok_value.viba_path    # ["kb-sub", "base"]
+```
+
+The definitions under `extract_source_viba_path` (`kb` here) are the ones copied; what
+they reach outside it (`base` here) is a primitive — not copied, its import kept, its
+root on the answer's `viba_path`. A module name comes from the path relative to the
+repo, so no full name moves (`kb/report.viba` is module `report`, before and after),
+and the same type names resolve in the sub-repo. Extracting the sub-repo again gives
+the same content.
+
+[`viba-extract-sub-repo.md`](viba-extract-sub-repo.md) is the whole document.
+
 ## Installation
 
 ```bash
