@@ -48,11 +48,11 @@ if 'items' in root:                    # 先问有没有，再迭代
 root.try_get_missing()                 # Ok(None)：实现那边没有这一段
 ```
 
-每一步回来的还是同一个节点类型，所以能一直点；点不出来就抛异常，问有没有的那一类永不抛。`set` 没有下标，对它做 `at_index` 是 `VibaProgramErr`。
+每一步回来的还是同一个节点类型，所以能一直点；点不出来就抛异常，问有没有的那一类永不抛。`set` 没有下标，对它做 `at_index` 是 `Err`。
 
 不想一步步点，就给便利函数一条路径：
 
-- 一条路径走到底，直接取值（走不通给 `VibaProgramErr`）；
+- 一条路径走到底，直接取值（走不通给 `Err`）；
 - 列出一个定义的所有字段，取到的收进表；
 - 只问一句"这份实例是不是对着这版类型做的"，不建起点。
 
@@ -96,9 +96,9 @@ VibaPath = list[VibaStep]
 - **泛型应用**：构造子指向一个泛型定义时，把实参代进形参，落到实例化的体上。实例那边用的是同一个名字或同一个应用时，也按同一条规矩展开——类型里的成员与实例里的那一段因此一一对得上。
 - **和 / 积 / 指数**：三种链结构相同，成员就是 `$elements`；链头是单位元就不算成员。
   类型里有 `<<`（部分计算）的，先给掉再展开：取到的数据路径是给完之后的。指数的 `$elements[0]` 是结果，其余是参数，例如：`never <- $not_operand A` 的成员就是被禁止的那个操作数，`by_tag not_operand` / `get_not_operand()` 取到的就是它。
-- **积的无标签成员是内联位**：一个不带标签的成员展开后是积（或一整条带标签的链）时，它的成员就摊在这里，摊进来的 tag 直接当这一层的成员——`A = $x int * $y int` 时，`B = A * $z int` 的成员就是 `$x` / `$y` / `$z`，没有多出来的一跳；摊完还是一样的规矩，可以一直摊下去。展开后是单位元（`Object` / `nil`，或落在它们上的名字）时它根本不是成员；其它不带标签的成员照旧按位置对位。同一个积里同一个 tag 出现两次是错的，判定与 `serialize` 都给 `VibaProgramErr`。
-- **内联要摊到底**：链绕回一个正在摊的定义时展不下去——`A = A * $x int` 是把 A 说成它自己，绕别名（`B = A`）或两个定义互指都算。这种类型是错的，判定与 `serialize` 都给 `VibaProgramErr`；数据路径层自己不抛（第 5.1 节那些访问函数不能抛），照原样把那一个成员交出来，要不要拒绝由查的人问 `VibaAccess.inline_cycle`（返回绕回的那个定义名，摊得开则返回 `nil`）。
-- **在这之前先查一遍**：上面两条（重标签、内联成环）是类型自己的事，跟实例无关，所以有一份一元检查（`viba/check_tag_and_inline.py`，函数同名）：它从每个定义出发走一遍，碰到的每个积都查，不受"这次拿它跟谁比"影响。判定与 `serialize` 里那两条 `VibaProgramErr` 是兜底，不是发现它的地方。
+- **积的无标签成员是内联位**：一个不带标签的成员展开后是积（或一整条带标签的链）时，它的成员就摊在这里，摊进来的 tag 直接当这一层的成员——`A = $x int * $y int` 时，`B = A * $z int` 的成员就是 `$x` / `$y` / `$z`，没有多出来的一跳；摊完还是一样的规矩，可以一直摊下去。展开后是单位元（`Object` / `nil`，或落在它们上的名字）时它根本不是成员；其它不带标签的成员照旧按位置对位。同一个积里同一个 tag 出现两次是错的，判定与 `serialize` 都给 `Err`。
+- **内联要摊到底**：链绕回一个正在摊的定义时展不下去——`A = A * $x int` 是把 A 说成它自己，绕别名（`B = A`）或两个定义互指都算。这种类型是错的，判定与 `serialize` 都给 `Err`；数据路径层自己不抛（第 5.1 节那些访问函数不能抛），照原样把那一个成员交出来，要不要拒绝由查的人问 `VibaAccess.inline_cycle`（返回绕回的那个定义名，摊得开则返回 `nil`）。
+- **在这之前先查一遍**：上面两条（重标签、内联成环）是类型自己的事，跟实例无关，所以有一份一元检查（`viba/check_tag_and_inline.py`，函数同名）：它从每个定义出发走一遍，碰到的每个积都查，不受"这次拿它跟谁比"影响。判定与 `serialize` 里那两条 `Err` 是兜底，不是发现它的地方。
 
   ```viba
   CheckTagAndInline =
@@ -196,8 +196,8 @@ VibaKeys[Data] =
 | `VibaHas` | 这一步有没有。给出 `false`：类型里没这个数据路径，或者实现那边没有这一段——后者是没覆盖类型 |
 | `VibaGet` | 往里走一步，得到一个新的节点，因此可以继续往下走 |
 | `VibaLeaf` | 走到叶子，取值 |
-| `VibaLength` | 容器的元素个数：`list` / `set` / tuple 的长度，`dict` 的键数。不是容器就是 `VibaProgramErr` |
-| `VibaKeys` | `dict` 的键，按实现给的顺序。不是 `dict` 就是 `VibaProgramErr` |
+| `VibaLength` | 容器的元素个数：`list` / `set` / tuple 的长度，`dict` 的键数。不是容器就是 `Err` |
+| `VibaKeys` | `dict` 的键，按实现给的顺序。不是 `dict` 就是 `Err` |
 
 `Data` 是形参，实现方把它绑到自己那份数据表示上。数据全程不透明，只有 `VibaLeaf` 会把它翻成类型侧的五种字面量。
 
@@ -275,11 +275,11 @@ root.by_tag('counter').at_key('value').leaf()
 **容器**：`list` / `set` / `dict` 是内建的三种容器，各有形态识别与取值。
 
 - `is_list` / `is_set` / `is_dict` 只看**源码里的链头**：描述符的链头是 `list[...]` 才是 `list`；如果这一段是一个名字（`$xs Names`），形态识别不算，要刨到底就顺着 `MemberResolvedDefinition` 一层层问。
-- `len` 对三种容器都成立：`list` / `set` / tuple 给元素个数，`dict` 给键数；不是容器就是 `VibaProgramErr`。
-- `keys` 只对 `dict` 成立，给键，顺序由实现定；不是 `dict` 就是 `VibaProgramErr`。
+- `len` 对三种容器都成立：`list` / `set` / tuple 给元素个数，`dict` 给键数；不是容器就是 `Err`。
+- `keys` 只对 `dict` 成立，给键，顺序由实现定；不是 `dict` 就是 `Err`。
 - 枚举一个序列是 `len` 加 `at_index` 走一遍（`set` 没有固定顺序，从头到尾的顺序由实现定）；取 `dict` 的值是 `keys` 加 `at_key` 走一遍。语言那一侧的成员是 `$len` 与 `$keys`（[`viba-style.md`](viba-style.md) 第 8 节）。
 
-**`VibaProgramErr` 直接抛异常**：第 5.1 节的接口返回 `Result[...]`，链式用法里每一步都判一次 `Ok` 太啰嗦。便捷函数只在 `Ok(v)` 时给出 `v`；一旦拿到的不是 `Ok(.)`（也就是 `VibaProgramErr`），直接抛异常，把 `VibaProgramErr` 的那句话带出去。所以链上不会出现 `Result`——异常会打断整条链，这也是链式用法的代价。要自己处理失败，就用第 5.1 节的接口逐层判。
+**`Err` 直接抛异常**：第 5.1 节的接口返回 `Result[...]`，链式用法里每一步都判一次 `Ok` 太啰嗦。便捷函数只在 `Ok(v)` 时给出 `v`；一旦拿到的不是 `Ok(.)`（也就是 `Err`），直接抛异常，把 `Err` 的那句话带出去。所以链上不会出现 `Result`——异常会打断整条链，这也是链式用法的代价。要自己处理失败，就用第 5.1 节的接口逐层判。
 
 会抛的只有"取值"那一类：`by_tag` / `by_field_index` / `at_index` / `at_key` / `leaf` / `len` / `keys`。**问"有没有"和"试着取"的那一类不抛**，见下一段「落到 Python 对象上」。
 
@@ -301,13 +301,13 @@ root.by_tag('counter').at_key('value').leaf()
 | 试着取 | `node.try_get_{name}()` / `node.try_get_field_{i}()`：返回 `Result`，**不抛** |
 | 看得到合成出来的名字 | `node.__dir__`：把 `get_{...}` / `has_{...}` 列出来，`dir()` 和补全才看得见 |
 
-**取值失败抛 `VibaReflectError`**：上面会抛的那一类，抛出来的异常都叫 `VibaReflectError`，`VibaProgramErr` 的那句话原样在异常信息里；catch 它就能接住反射一路上所有取不出来的情况。
+**取值失败抛 `VibaReflectError`**：上面会抛的那一类，抛出来的异常都叫 `VibaReflectError`，`Err` 的那句话原样在异常信息里；catch 它就能接住反射一路上所有取不出来的情况。
 
-问"有没有"的一类**永远不抛**：类型里有、数据里没有就是 `False`（这就是"实现没做到"），实现自己坏了也是 `False`——对问话的人来说两者一样是"这里没有可用的东西"。要区分这两种，用 `try_get_{name}()`：它返回 `Result`，`Ok(node)` 是取到了，`Ok(nil)` 是没有，`VibaProgramErr` 才是问不出来。它对应规格里的 `Result[VObject[Data] | nil]`。
+问"有没有"的一类**永远不抛**：类型里有、数据里没有就是 `False`（这就是"实现没做到"），实现自己坏了也是 `False`——对问话的人来说两者一样是"这里没有可用的东西"。要区分这两种，用 `try_get_{name}()`：它返回 `Result`，`Ok(node)` 是取到了，`Ok(nil)` 是没有，`Err` 才是问不出来。它对应规格里的 `Result[VObject[Data] | nil]`。
 
 名字由 `__getattr__` 兜底合成（Python 没有 `__hasattr__` 这种协议；`hasattr(x, n)` 就是 `getattr(x, n)` 加上吃掉 `AttributeError`），`__contains__` 与 `__dir__` 是真的魔术方法。
 
-`set` 在 Python 里可以迭代，但没有下标，`node[i]` 对它是 `VibaProgramErr`（抛异常）。
+`set` 在 Python 里可以迭代，但没有下标，`node[i]` 对它是 `Err`（抛异常）。
 
 ```python
 root.get_len().value
@@ -343,7 +343,7 @@ print(root.try_get_missing())     # Ok(None)：这份数据里没有这一段
 
 ## 8. 描述侧查询
 
-查询清单在 `viba/viba_type_descriptor.viba`。它们有一个共同点：签名里没有 `Data`，全是拿描述符换描述符；查不到或类型不符一律 `VibaProgramErr`，不返回空值。按用途分三组：
+查询清单在 `viba/viba_type_descriptor.viba`。它们有一个共同点：签名里没有 `Data`，全是拿描述符换描述符；查不到或类型不符一律 `Err`，不返回空值。按用途分三组：
 
 - **编译与索引**：`ParseVibaFile`、`PoolAddFile`、`PoolFindFile`、`PoolFindDefinition`、`PoolFindMember`、`FileFindImportByLocalName`。
 - **定义上**：`DefinitionMembers`、`DefinitionFindMemberByTag`、`DefinitionFindMemberByIndex`、`DefinitionFile`。
@@ -363,7 +363,7 @@ print(root.try_get_missing())     # Ok(None)：这份数据里没有这一段
 - 走不通时，`VibaHas` 给出 `false`。这是"实现未覆盖类型"的事实记录。
 - 实现中的数据可以多于类型。超出类型的部分不在本协议范围内：数据路径只能来自描述符，没有走到它的路径。
 
-`VibaProgramErr` 只表示实现侧取不到（句柄失效、远端超时等），不表示缺席。
+`Err` 只表示实现侧取不到（句柄失效、远端超时等），不表示缺席。
 
 **约定**：
 

@@ -59,6 +59,18 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Set
 
 from viba import viba_ast
+from viba.design_walk import (
+    bindings_key,
+    call_parts,
+    chain_elements,
+    is_definition,
+    is_under,
+    longest_import,
+    module_label,
+    split_type_name,
+    under_builtin,
+    with_params,
+)
 from viba.interpret import _Runner
 from viba.pattern import GENERIC_FILE, GenericModuleType, PatternFile, decide, generic_named
 from viba.type import (
@@ -69,7 +81,7 @@ from viba.type import (
     ModuleType,
     Ok,
     Result,
-    VibaProgramErr,
+    Err,
     module_get_type,
 )
 from viba.viba_ast.tagged import TAGGED_NAME
@@ -117,13 +129,13 @@ def extract_sub_repo(repo, viba_path=(), extract_source_viba_path=(),
     (`xxx.yyy.zzz`). `never_eqv` / `nil_eqv` are the unit names, or None for the
     language's own (`reflect.language_config`).
 
-    VibaProgramErr says why no sub-repo was written, one sentence, the first
+    Err says why no sub-repo was written, one sentence, the first
     thing that does not hold.
     """
     problem = _argument_problem(repo, viba_path, extract_source_viba_path,
                                 type_names, never_eqv, nil_eqv)
     if problem is not None:
-        return VibaProgramErr(problem)
+        return Err(problem)
     slicer = _Slicer(
         str(repo),
         [str(one) for one in viba_path or ()],
@@ -135,7 +147,7 @@ def extract_sub_repo(repo, viba_path=(), extract_source_viba_path=(),
     try:
         return slicer.slice()
     except _SliceErr as exc:
-        return VibaProgramErr(str(exc))
+        return Err(str(exc))
 
 
 def _argument_problem(repo, viba_path, extract_source_viba_path, type_names,
@@ -212,13 +224,13 @@ class _Slicer:
         return self._write()
 
     def _start(self, name: str) -> None:
-        module_name, definition_name = _split_type_name(name)
+        module_name, definition_name = split_type_name(name)
         if not module_name:
             raise _SliceErr(
                 f"{name!r} is no type name: it is a module and a definition, "
                 f"like 'pkg.mod.Name'")
         loaded = self.loader.imported(module_name, None)
-        if isinstance(loaded, VibaProgramErr):
+        if isinstance(loaded, Err):
             raise _SliceErr(
                 f"cannot load the module {module_name!r} of {name!r}: {loaded.msg}")
         module = loaded.ok_value
@@ -228,12 +240,12 @@ class _Slicer:
                 f"not a bare name")
         if not self._is_source_file(module.file_path):
             raise _SliceErr(
-                f"{name!r} is not in the extraction source: {_where(module)}")
+                f"{name!r} is not in the extraction source: {module_label(module)}")
         found = module_get_type(module, definition_name)
-        if isinstance(found, VibaProgramErr):
+        if isinstance(found, Err):
             raise _SliceErr(f"no type {name!r}: {found.msg}")
         target = found.ok_value
-        if not isinstance(target, AstNodeType) or not _is_definition(target.ast_node):
+        if not isinstance(target, AstNodeType) or not is_definition(target.ast_node):
             raise _SliceErr(f"{name!r} is no definition")
         self._keep(target.ast_node, target.container_module, {})
 
@@ -244,12 +256,12 @@ class _Slicer:
         if not isinstance(module, CustomModuleType):
             return                              # the builtin vocabulary: the interpreter's
         file_path = module.file_path
-        if not file_path or _under_builtin(file_path):
+        if not file_path or under_builtin(file_path):
             return
         if not self._is_source_file(file_path):
             self._add_root(module.root)
             return
-        key = (file_path, definition.name, _bindings_key(bindings))
+        key = (file_path, definition.name, bindings_key(bindings))
         if key in self.visited:
             return
         self.visited.add(key)
@@ -257,10 +269,10 @@ class _Slicer:
             # The file is kept whole, so every definition in it is walked; this one
             # also stands in the bindings the decision gave it.
             self._keep_whole(module)
-            self._walk(definition.body, module, _with_params(definition, bindings))
+            self._walk(definition.body, module, with_params(definition, bindings))
             return
         self._kept_file(module).names.add(definition.name)
-        self._walk(definition.body, module, _with_params(definition, bindings))
+        self._walk(definition.body, module, with_params(definition, bindings))
 
     def _keep_whole(self, module: CustomModuleType) -> None:
         """Keep the whole file, and walk every definition it has.
@@ -277,13 +289,13 @@ class _Slicer:
         self.whole_walked.add(file_path)
         self.whole[file_path] = module
         for statement in module.module.body:
-            if not _is_definition(statement):
+            if not is_definition(statement):
                 continue
-            key = (file_path, statement.name, _bindings_key({}))
+            key = (file_path, statement.name, bindings_key({}))
             if key in self.visited:
                 continue
             self.visited.add(key)
-            self._walk(statement.body, module, _with_params(statement, {}), loose=True)
+            self._walk(statement.body, module, with_params(statement, {}), loose=True)
 
     def _keep_generic(self, generic: GenericModuleType, arguments: int,
                       choice) -> None:
@@ -299,7 +311,7 @@ class _Slicer:
             return
         for entry in generic.entries:
             got = entry.take()
-            if isinstance(got, VibaProgramErr):
+            if isinstance(got, Err):
                 raise _SliceErr(f"cannot take {entry.path}: {got.msg}")
             _module, patterns = got.ok_value
             if len(patterns) == arguments:
@@ -307,7 +319,7 @@ class _Slicer:
 
     def _keep_pattern(self, entry: PatternFile) -> None:
         got = entry.take()
-        if isinstance(got, VibaProgramErr):
+        if isinstance(got, Err):
             raise _SliceErr(f"cannot take {entry.path}: {got.msg}")
         module, _patterns = got.ok_value
         if not isinstance(module, CustomModuleType):
@@ -362,7 +374,7 @@ class _Slicer:
         if isinstance(node, viba_ast.Partial):
             self._call(node, module, bindings, loose)
             return
-        elements = _chain_elements(node)
+        elements = chain_elements(node)
         if elements is not None:
             for element in elements:
                 self._walk(element, module, bindings, loose)
@@ -380,15 +392,15 @@ class _Slicer:
         if name in UNIT_NAMES:
             return
         found = module_get_type(module, name)
-        if isinstance(found, VibaProgramErr):
+        if isinstance(found, Err):
             if loose:
                 return                          # a pattern parameter of this file
             raise _SliceErr(
-                f"cannot resolve {name!r} in {_where(module)}: {found.msg}")
+                f"cannot resolve {name!r} in {module_label(module)}: {found.msg}")
         target = found.ok_value
         if not isinstance(target, AstNodeType):
             return                              # a builtin scalar, container or form
-        if not _is_definition(target.ast_node):
+        if not is_definition(target.ast_node):
             return
         self._note_import(module, name)
         self._keep(target.ast_node, target.container_module, {})
@@ -402,7 +414,7 @@ class _Slicer:
             return
         if self._is_generic_file(file_path):
             return                              # whole file: every import stays
-        local = _longest_import(module.imports, name)
+        local = longest_import(module.imports, name)
         if local is not None:
             self._kept_file(module).imports.add(local)
 
@@ -421,16 +433,16 @@ class _Slicer:
             return
         self._note_import(module, constructor)
         generic = generic_named(module, constructor)
-        if isinstance(generic, VibaProgramErr):
+        if isinstance(generic, Err):
             raise _SliceErr(
-                f"cannot take {constructor!r} in {_where(module)}: {generic.msg}")
+                f"cannot take {constructor!r} in {module_label(module)}: {generic.msg}")
         if generic.ok_value is None:
             self._name(constructor, module, bindings, loose)
             return
         generic = generic.ok_value
         got = decide(generic, node.args, module,
                      argument_modules=self._argument_modules(node, bindings))
-        choice = None if isinstance(got, VibaProgramErr) else got.ok_value
+        choice = None if isinstance(got, Err) else got.ok_value
         self._keep_generic(generic, len(node.args), choice)
         if choice is None or choice.body is None:
             return
@@ -466,9 +478,9 @@ class _Slicer:
             return
         self._note_import(module, owner.constructor)
         generic = generic_named(module, owner.constructor)
-        if isinstance(generic, VibaProgramErr):
+        if isinstance(generic, Err):
             raise _SliceErr(
-                f"cannot take {owner.constructor!r} in {_where(module)}: {generic.msg}")
+                f"cannot take {owner.constructor!r} in {module_label(module)}: {generic.msg}")
         if generic.ok_value is None:
             # Not a generic directory: the application is taken as it always is,
             # and the member is a member of what it answers.
@@ -479,7 +491,7 @@ class _Slicer:
             self._walk(argument, module, bindings, loose)
         got = decide(generic, owner.args, module,
                      argument_modules=self._argument_modules(owner, bindings))
-        choice = None if isinstance(got, VibaProgramErr) else got.ok_value
+        choice = None if isinstance(got, Err) else got.ok_value
         self._keep_generic(generic, len(owner.args), choice)
         if choice is None:
             return
@@ -496,13 +508,13 @@ class _Slicer:
         if not isinstance(module, CustomModuleType):
             return
         for statement in module.module.body:
-            if _is_definition(statement) and statement.name == name:
+            if is_definition(statement) and statement.name == name:
                 self._keep(statement, module, bindings)
                 return
-        raise _SliceErr(f"no definition {name!r} in {_where(module)}")
+        raise _SliceErr(f"no definition {name!r} in {module_label(module)}")
 
     def _call(self, node, module: ModuleType, bindings: dict, loose: bool) -> None:
-        head, arguments = _call_parts(node)
+        head, arguments = call_parts(node)
         self._walk(head, module, bindings, loose)
         for argument in arguments:
             if isinstance(argument, viba_ast.CodeBlock):
@@ -518,9 +530,9 @@ class _Slicer:
         if not file_path:
             return False
         path = Path(file_path).resolve()
-        if not _under(path, self.repo_root):
+        if not is_under(path, self.repo_root):
             return False
-        return any(_under(path, root) for root in self.extract_roots)
+        return any(is_under(path, root) for root in self.extract_roots)
 
     @staticmethod
     def _is_generic_file(file_path) -> bool:
@@ -587,95 +599,6 @@ class _Slicer:
         os.replace(temporary, target)
 
 
-# ----------------------------------------------------------------------
-# Reading the source
-# ----------------------------------------------------------------------
-
-
-def _split_type_name(name: str) -> "tuple[str, str]":
-    """`pkg.mod.Name` -> (`pkg.mod`, `Name`); the name before the last dot is the module."""
-    module_name, dot, definition = name.rpartition(".")
-    if not dot or not module_name or not definition:
-        return "", name
-    return module_name, definition
-
-
-def _is_definition(node) -> bool:
-    return isinstance(node, (viba_ast.TypeDefinition, viba_ast.GenericDefinition))
-
-
-def _with_params(definition, bindings: dict) -> dict:
-    inner = dict(bindings)
-    for param in getattr(definition, "generic_params", None) or ():
-        inner.setdefault(param, None)
-    return inner
-
-
-def _bindings_key(bindings: dict) -> tuple:
-    """What tells one walk of a definition from another: the arguments it stands in."""
-    return tuple(sorted(
-        (name, "placeholder" if bound is None
-         else (bound[1].file_path or "", viba_ast.dump(bound[0])))
-        for name, bound in bindings.items()))
-
-
-def _longest_import(imports: dict, name: str) -> "Optional[str]":
-    for local in sorted(imports, key=len, reverse=True):
-        if name == local or name.startswith(local + "."):
-            return local
-    return None
-
-
-def _call_parts(node):
-    """A call taken apart: (the head, the arguments in the order the source has them)."""
-    arguments = []
-    while isinstance(node, viba_ast.Partial):
-        arguments.append(node.argument)
-        node = node.function
-    return node, list(reversed(arguments))
-
-
-def _chain_elements(node):
-    """Sum / product / exponent as the elements of the main chain, in source order."""
-    if isinstance(node, (viba_ast.SumChain, viba_ast.ProductChain,
-                         viba_ast.ExponentChain)):
-        return list(node.elements)
-    if isinstance(node, (viba_ast.Sum, viba_ast.Product)):
-        elements, current = [], node
-        while isinstance(current, type(node)):
-            elements.append(current.right)
-            current = current.left
-        elements.append(current)
-        elements.reverse()
-        return elements
-    if isinstance(node, viba_ast.Exponent):
-        elements, current = [], node
-        while isinstance(current, viba_ast.Exponent):
-            elements.append(current.argument)
-            current = current.result
-        elements.append(current)
-        elements.reverse()
-        return elements
-    return None
-
-
-def _under(path: Path, root: Path) -> bool:
-    try:
-        path.relative_to(root)
-        return True
-    except ValueError:
-        return False
-
-
-def _under_builtin(file_path) -> bool:
-    path = Path(file_path).resolve()
-    return _under(path, BUILTIN_DIR)
-
-
-def _where(module) -> str:
-    return getattr(module, "file_path", None) or getattr(module, "name", "") or "?"
-
-
 def _generic_root(loader, generic: GenericModuleType) -> "Optional[str]":
     """The search root the generic was found under: its module name taken as a path."""
     directory = os.path.normpath(str(generic.directory))
@@ -699,7 +622,7 @@ def _spell_definitions(entry: _KeptFile) -> str:
              if isinstance(statement, viba_ast.Import)
              and (statement.alias or statement.module) in entry.imports]
     nodes += [statement for statement in body
-              if _is_definition(statement) and statement.name in entry.names]
+              if is_definition(statement) and statement.name in entry.names]
     return _spell_nodes(nodes)
 
 

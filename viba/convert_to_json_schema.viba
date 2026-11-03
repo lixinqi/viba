@@ -1,0 +1,38 @@
+# convert_to_json_schema — the design: the JSON Schema a design's types answer to.
+#
+# This is the declaration `viba.convert_to_json_schema` is held to, given as a
+# viba type so the conversion reads with the rest of the design-side signatures
+# (viba-convert-to-json-schema.md is the document; the Python layer is the one
+# that takes the design apart).
+#
+# The entry is `CheckJsonSerdeable`'s — a module, or a group of type names —
+# and the judgment runs first: a design that cannot go to JSON and come back has
+# no schema worth writing, and its error is the answer. What comes out is one
+# JSON Schema document (2020-12): every definition the entry reaches is a
+# `$defs` entry under its whole name, `$ref`s point at them, and the root is the
+# first entry.
+#
+# `JsonStr` is the schema as JSON text.
+
+ConvertToJsonSchema =
+    Result[JsonStr]
+  <- $viba_path list[str]
+  <- $entry ($module_name ImportableTypeName | $type_names list[ImportableTypeName])
+  <- $strict ((bool | nil) * { 默认为 False，表示允许给定 module_name 内部可以包含 <- 和 <<，函数内部会选择性忽略他们 })
+  <- Hint[{
+      $entry 给一个模块名：文档的 $defs 里是这个模块的每个定义；给一组 type 名：是这几个定义。
+      先跑 check_json_serdeable：它答错就把它的错答回去。
+      出来的是一份 JSON Schema（2020-12）：每个走到的定义按全名收进 $defs，引用它们的用 $ref，
+      $ref 的根是第一个（模块的话是它的第一个定义）。
+      积是对象（不带 tag 的成员摊平，按位置的不行）；和是 oneOf；带 tag 的一项是一个对象，键是 tag 去掉 $；
+      list / set 是数组（set 加 uniqueItems）；dict 是对象（键是字符串）；元组是定长数组；标量按 JSON 的种类。
+      带实参的定义按 `名字@摘要` 收，换个实参就是另一份。
+      $strict 给 True：函数（`<-`）和调用（`<<`）不跳过，按判定拒掉；给 nil 或 False（默认）：
+      这两种定义跳过，模块里的数据类型照常写。
+    }]
+
+JsonStr =
+    str * Assert[{ json content }]
+
+ImportableTypeName =
+    str * Assert[{ 形如 xxx.yyy 等可被 import 的字符串 }]

@@ -190,7 +190,7 @@ def run_cross_module_cases():
 
 
 def run_config_case():
-    """换个词汇问同一件事：单位元是调用方点的名，源码里对的仍然 Ok，源码里错的仍然 VibaProgramErr——
+    """换个词汇问同一件事：单位元是调用方点的名，源码里对的仍然 Ok，源码里错的仍然 Err——
     单位没有 tag，也不参与内联，所以 tag 的结果不由它决定。"""
     source = ("Base = $x Box[int]\n"
               "Bad = Unit * Base * $x Box[str]\n"
@@ -244,7 +244,9 @@ def run_package_sources():
     描述符（viba/viba_type_descriptor.viba）、内建词汇（viba/builtin.viba）。"""
     root = Path(__file__).resolve().parent.parent / "viba"
     paths = [root / "type.viba", root / "viba_type_descriptor.viba",
-             root / "builtin.viba", root / "extract_sub_repo.viba"]
+             root / "builtin.viba", root / "extract_sub_repo.viba",
+             root / "check_json_serdeable.viba",
+             root / "convert_to_json_schema.viba"]
     wrong = []
     for path in paths:
         got = file_design(path)

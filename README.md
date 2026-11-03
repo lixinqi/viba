@@ -603,6 +603,8 @@ python tests/corpus/generate_corpus.py --check   # 130-file corpus round-trip
 | [`viba_builder.md`](viba_builder.md) | Building .viba source from Python expressions |
 | [`viba-make-dispatcher.md`](viba-make-dispatcher.md) | `make_dispatcher`: several handlers, one function, and the type they make together |
 | [`viba-extract-sub-repo.md`](viba-extract-sub-repo.md) | `extract_sub_repo`: pulling one sub-repo out of a repo — the definition closure, the primitives left behind, and the idempotence law |
+| [`viba-check-json-serdeable.md`](viba-check-json-serdeable.md) | `check_json_serdeable`: whether a type goes to JSON and comes back — the sum options a JSON value can tell apart |
+| [`viba-convert-to-json-schema.md`](viba-convert-to-json-schema.md) | `convert_to_json_schema`: the JSON Schema a type answers to — the document, `$defs`, and how each form is written |
 | [`viba-style.md`](viba-style.md) | Conventions of a definition: tags, heads, containers, and how to check a definition |
 
 ## Modules
@@ -622,7 +624,10 @@ tools built on those.
 | `builder.py` | Builds .viba source from Python expressions — see `viba_builder.md` |
 | `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
 | `is_complete.py` | Whether a type can be reflected through |
+| `design_walk.py` | The small readings of a design's source the walks share: chains, calls, type names, bindings |
 | `extract_sub_repo.py` | Pulls a sub-repo out of a repo — see `viba-extract-sub-repo.md` |
+| `check_json_serdeable.py` | Whether a type goes to JSON and comes back — see `viba-check-json-serdeable.md` |
+| `convert_to_json_schema.py` | The JSON Schema a type answers to — see `viba-convert-to-json-schema.md` |
 | `interpret.py` | Runs a module: `__decl__` in, `__impl__` out — see `viba-interpreter.md` |
 | `builtin.viba` | Builtin vocabulary visible from every module — `Environment` / `Env`, `builtin.echo`, and the builtin operators (`builtin.add`, `builtin.lt_f`, …), the two switches `builtin.echo_or_never` / `builtin.never_or_echo` among them |
 | `if.viba` | The builtin if/else: the condition picks the branch, and only that branch's call is computed — the sum of the two switches |

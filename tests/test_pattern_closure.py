@@ -48,7 +48,7 @@ from viba.interpret import interpret
 from viba.is_sub_type import is_sub_type
 from viba.pattern import (GENERIC_FILE, load_generic, structural_pattern_match)
 from viba.type import (BUILTIN_CONCEPT_DIR, BUILTIN_DIR, AstNodeType, Ok,
-                       VibaProgramErr, custom_module)
+                       Err, custom_module)
 from viba.viba_type_descriptor import (empty_pool, parse_viba_file,
                                        pool_add_file)
 
@@ -224,7 +224,7 @@ def _environment():
         try:
             return Ok(os.listdir(directory))
         except OSError as exc:
-            return VibaProgramErr(str(exc))
+            return Err(str(exc))
 
     def module_of(path, name, text):
         module = custom_module(text, environment)
@@ -241,14 +241,14 @@ def _environment():
             directory = root.joinpath(*name.split("."))
             if (directory / GENERIC_FILE).is_file():
                 got = load_generic(str(directory), name, source_of, listing, module_of)
-                if isinstance(error_of(got), VibaProgramErr):
+                if isinstance(error_of(got), Err):
                     return got
                 cache[name] = got.ok_value
                 return Ok(got.ok_value)
             path = directory.with_suffix(".viba")
             if path.is_file():
                 return module_of(str(path), name, path.read_text())
-        return VibaProgramErr(f"no module {name!r}")
+        return Err(f"no module {name!r}")
 
     return environment
 
@@ -279,8 +279,8 @@ def _failed_decisions():
     module = _module()
     for text, want, label in ERROR_CASES:
         got = _judge(module, text, "Any")
-        check(isinstance(error_of(got), VibaProgramErr) and want in message_of(got),
-              f"{label}: expected VibaProgramErr({want!r}), got {got!r}")
+        check(isinstance(error_of(got), Err) and want in message_of(got),
+              f"{label}: expected Err({want!r}), got {got!r}")
 
 
 def _the_matcher_takes_a_call():
@@ -349,7 +349,7 @@ def _the_pool_takes_the_names():
                 check(False, f"the pool compiles {module_name}: {parsed!r}")
                 return
             added = pool_add_file(pool, parsed.ok_value)
-            if isinstance(error_of(added), VibaProgramErr):
+            if isinstance(error_of(added), Err):
                 check(False, f"the pool takes {module_name}: {added!r}")
                 return
             pool = added.ok_value
@@ -407,7 +407,7 @@ def _the_length_bound():
           f"a call longer than the 16 files cover falls to the last one: {got!r}")
     module = _module_of(ADD + f"\n__x__ = unclosure[{_a_call_with(17)}].captured\n")
     got = _judge(module, "__x__", "Any")
-    check(isinstance(error_of(got), VibaProgramErr) and "no pattern of 'unclosure'" in message_of(got),
+    check(isinstance(error_of(got), Err) and "no pattern of 'unclosure'" in message_of(got),
           f"…and `unclosure` has no file for it: {got!r}")
 
 
@@ -443,7 +443,7 @@ def _unclosure_needs_a_closure():
     """`unclosure` 只认闭包：光一个名字没有模式接它，跑到程序这一层也这么说。"""
     module = _module()
     got = _judge(module, "unclosure[add]", "int <- $env Env <- $a int <- $b int")
-    check(isinstance(error_of(got), VibaProgramErr) and "no pattern of 'unclosure'" in message_of(got),
+    check(isinstance(error_of(got), Err) and "no pattern of 'unclosure'" in message_of(got),
           f"unclosure of a bare name is no decision: {got!r}")
     labelled(interpret(str(CASES / "unclosure_of_a_bare_name.viba"),
                        Host().environ(viba_path=str(CASES))),

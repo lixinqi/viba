@@ -12,7 +12,7 @@ values — so this knows nothing about a design beyond what the source has, and 
 about how Data is bound. What comes out is canonical viba source (it goes through
 viba.builder), and `builder.check` parses it back before it is handed over.
 
-A piece the design has no spelling for gives VibaProgramErr rather than a wrong spelling:
+A piece the design has no spelling for gives Err rather than a wrong spelling:
 that is a viba data the design cannot carry, and the caller decides what to do
 about it.
 
@@ -34,7 +34,7 @@ from __future__ import annotations
 from viba import builder
 from viba import viba_ast
 from viba.reflect import LITERAL_KINDS, VibaAccess, VObject, at_index, at_key
-from viba.type import VibaProgramErr, Ok, Result
+from viba.type import Err, Ok, Result
 from viba.viba_type_descriptor import (
     ANY,
     CODE_BLOCK,
@@ -74,9 +74,9 @@ def serialize(name: str, node: VObject) -> Result:
         setattr(vb, name, expression)
         builder.check(vb)               # parse the source back
     except SerializeGap as gap:
-        return VibaProgramErr(str(gap))
+        return Err(str(gap))
     except (TypeError, ValueError) as error:
-        return VibaProgramErr(str(error))
+        return Err(str(error))
     return Ok(str(vb))
 
 
@@ -274,7 +274,7 @@ def _emit_product(access: VibaAccess, node: VObject):
 def _emit_tuple(access: VibaAccess, node: VObject):
     """Tuple: a product by position, given as the tuple it is."""
     length = access.length(node)
-    if isinstance(length, VibaProgramErr):
+    if isinstance(length, Err):
         raise SerializeGap(length.msg)
     return tuple(_emit(access, _child(access, node, at_index(index)))
                  for index in range(length.ok_value))
@@ -350,7 +350,7 @@ def _emit_container(access: VibaAccess, node: VObject, container: str, unfolded)
     """
     if container == "dict":
         keys = access.keys(node)
-        if isinstance(keys, VibaProgramErr):
+        if isinstance(keys, Err):
             raise SerializeGap(keys.msg)
         if _is_literal(unfolded):
             # The design is the literal itself, so there is no key type to ask:
@@ -372,7 +372,7 @@ def _emit_container(access: VibaAccess, node: VObject, container: str, unfolded)
                       for key in keys.ok_value)
         return _NAMES.DictLiteral[pairs]
     length = access.length(node)
-    if isinstance(length, VibaProgramErr):
+    if isinstance(length, Err):
         raise SerializeGap(length.msg)
     payloads = tuple(_emit(access, _child(access, node, at_index(index)))
                      for index in range(length.ok_value))

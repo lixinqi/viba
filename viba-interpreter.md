@@ -808,7 +808,7 @@ square_sum << args.env << 3 <: int <- $b int   # 给了一半：剩下的是函�
 
 - 只认 **import 绑定的那个名字**（`import a.b as c` 的 `c`，`import a.b` 的 `a.b`）。`module.Name`
   仍然是那个模块里的定义，按最长的前缀解析。
-- 没有 `__impl__` 的模块不是程序：`demo << args.env` 在类型层也是 `VibaProgramErr`。
+- 没有 `__impl__` 的模块不是程序：`demo << args.env` 在类型层也是 `Err`。
 - 不带 tag 的实参跳过环境那个参数，和值层同一套规矩；环境那个参数给的就是环境本身，用 `args.env`
   或按 `$env` 这个 tag 给都认。
 - 实参按 tag 给（`<< $a 3`）或按位置给（`<< 3`）都认；位置那一支要求给的实参装得下那个参数

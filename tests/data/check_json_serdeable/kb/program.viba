@@ -1,0 +1,8 @@
+Report = Object * $n int
+
+__decl__ =
+    int
+  <- $env Env
+  <- $n int
+
+__impl__ = count << $env args.env << $n args.n

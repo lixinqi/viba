@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from viba import builder, serialize, viba_ast
 from viba.interpret import RESULT_MODULE_NAME, RESULT_TYPE_NAME
 from viba.is_sub_type import is_sub_type
-from viba.type import AstNodeType, VibaProgramErr, Ok, custom_module
+from viba.type import AstNodeType, Err, Ok, custom_module
 from viba.viba_type_descriptor import (empty_pool, parse_viba_file,
                                         pool_add_file, pool_find_definition)
 from viba.reflect import VibaData
@@ -323,7 +323,7 @@ def _corner(label, source, name, body, expect=None, resident=True, strict=True):
 
 
 def _gap(label, source, name, body, needle):
-    """序列化不出来：VibaProgramErr，且说的是那件事。"""
+    """序列化不出来：Err，且说的是那件事。"""
     from viba.reflect import access
     pool, definition = _design(source, name)
     rooted = access.root(definition, VibaData(body))
@@ -331,8 +331,8 @@ def _gap(label, source, name, body, needle):
     if not isinstance(rooted, Ok):
         return
     serialized = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(serialized, VibaProgramErr) and needle in serialized.msg,
-          f"{label}: a VibaProgramErr saying {needle!r} ({serialized})")
+    check(isinstance(serialized, Err) and needle in serialized.msg,
+          f"{label}: a Err saying {needle!r} ({serialized})")
 
 
 def run_member_corner_cases():
@@ -515,7 +515,7 @@ def run_never_and_key_cases():
     node = access.root(definition, VibaData(viba_ast.ProductChain([
         viba_ast.TypeRef("Object"), viba_ast.Tagged("$a", viba_ast.Never())]))).ok_value
     serialized = serialize.serialize("entry", node)
-    check(isinstance(serialized, VibaProgramErr), f"never slot: a VibaProgramErr ({serialized})")
+    check(isinstance(serialized, Err), f"never slot: a Err ({serialized})")
 
     pool2, definition2 = _design("Guard = Object * $t dict[int, str]\n", "Guard")
     node2 = access.root(definition2, VibaData(viba_ast.ProductChain([
@@ -523,11 +523,11 @@ def run_never_and_key_cases():
         viba_ast.Tagged("$t", viba_ast.TypeApp("DictLiteral", [
             viba_ast.Tuple([viba_ast.Constant(7), viba_ast.Constant("x")])]))]))).ok_value
     serialized2 = serialize.serialize("entry", node2)
-    check(isinstance(serialized2, VibaProgramErr), f"int-keyed dict: a VibaProgramErr ({serialized2})")
+    check(isinstance(serialized2, Err), f"int-keyed dict: a Err ({serialized2})")
 
 
 def run_gap_cases():
-    """序列化不出来给 VibaProgramErr，不硬凑。"""
+    """序列化不出来给 Err，不硬凑。"""
     source = """Box = Object * $a int * $b int
 """
     pool, definition = _design(source, "Box")
@@ -536,14 +536,14 @@ def run_gap_cases():
                                     viba_ast.Tagged("$a", viba_ast.Constant(1))])
     node = access.root(definition, VibaData(sparse)).ok_value
     serialized = serialize.serialize("entry", node)
-    check(isinstance(serialized, VibaProgramErr) and "no value here" in serialized.msg,
-          f"gap: a tagged slot with no value and no nil is a VibaProgramErr ({serialized})")
+    check(isinstance(serialized, Err) and "no value here" in serialized.msg,
+          f"gap: a tagged slot with no value and no nil is a Err ({serialized})")
 
     # 可序列化数据本身是空的：设计里的那个数据路径上什么都没有，就判成 gap，不硬编
     pool2, definition2 = _design("not[A] = never <- $not_operand A\n", "not")
     node2 = access.root(definition2, VibaData(viba_ast.Never())).ok_value
     serialized2 = serialize.serialize("entry", node2)
-    check(isinstance(serialized2, VibaProgramErr), f"gap: an exponent is a VibaProgramErr ({serialized2})")
+    check(isinstance(serialized2, Err), f"gap: an exponent is a Err ({serialized2})")
 
 
 # ---------------------------------------------------------------------------
@@ -589,7 +589,7 @@ def run_leaf_matrix():
 
 
 def run_number_and_string_gaps():
-    """序列化不出来的数字与文本：VibaProgramErr，不是"换成别的源码形式"。"""
+    """序列化不出来的数字与文本：Err，不是"换成别的源码形式"。"""
     for value in _UNSPELLABLE_NUMBERS:
         _gap(f"gap number {value}", "Box = Object * $f float\n", "Box",
              _product(_tagged("$f", viba_ast.Constant(value))),
@@ -757,7 +757,7 @@ def run_container_fills():
 
 
 def run_never_positions():
-    """never 出现在哪里都是 VibaProgramErr：容器里、元组里、别名背后。"""
+    """never 出现在哪里都是 Err：容器里、元组里、别名背后。"""
     _gap("gap never in list", "Box = Object * $a list[never]\n", "Box",
          _product(_tagged("$a", viba_ast.TypeApp("ListLiteral",
                                                  [viba_ast.Never()]))),
@@ -960,7 +960,7 @@ def run_name_alias_members():
 
 
 def run_name_gaps():
-    """名字背后的 never：可序列化数据里放什么都是 VibaProgramErr。"""
+    """名字背后的 never：可序列化数据里放什么都是 Err。"""
     for label, viba_data in (("a value", viba_ast.Constant(1)),
                             ("never", viba_ast.Never())):
         _gap(f"gap never behind a name, viba_data {label}",
@@ -983,7 +983,7 @@ class _HostileString(str):
 
 
 def run_subclass_leaf_cases():
-    """叶子就是那四个内建类型本身，子类不是：序列化不出来给的是 VibaProgramErr，不会被带出去。"""
+    """叶子就是那四个内建类型本身，子类不是：序列化不出来给的是 Err，不会被带出去。"""
     _gap("gap a str subclass that formats elsewhere", "Box = Object * $s str\n",
          "Box", _product(_tagged("$s", viba_ast.Constant(_HostileString("plain")))),
          "no literal for")
@@ -1060,8 +1060,8 @@ def _gap_in(label, pool, full_name, body, needle):
     if not isinstance(rooted, Ok):
         return
     serialized = serialize.serialize("entry", rooted.ok_value)
-    check(isinstance(serialized, VibaProgramErr) and needle in serialized.msg,
-          f"{label}: a VibaProgramErr saying {needle!r} ({serialized})")
+    check(isinstance(serialized, Err) and needle in serialized.msg,
+          f"{label}: a Err saying {needle!r} ({serialized})")
 
 
 _DEFS = ("defs.viba", "defs",
@@ -1210,8 +1210,8 @@ def run_definition_name_cases():
     for name in ("", "a.b", "a-b", "nil", "never", "void", "None", "true",
                  "false", "import", "as", "list", "set", "dict", "ListLiteral"):
         serialized = serialize.serialize(name, node)
-        check(isinstance(serialized, VibaProgramErr),
-              f"definition name {name!r}: a VibaProgramErr ({serialized})")
+        check(isinstance(serialized, Err),
+              f"definition name {name!r}: a Err ({serialized})")
 
 
 def run_alias_of_definition_cases():

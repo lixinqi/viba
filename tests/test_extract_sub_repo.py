@@ -30,7 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba.extract_sub_repo import SubRepo, extract_sub_repo
-from viba.type import Ok, VibaProgramErr
+from viba.type import Ok, Err
 
 DATA = Path(__file__).resolve().parent / "data" / "extract_sub_repo"
 
@@ -205,12 +205,12 @@ def run_walks() -> None:
     check("units: Assert is a unit by default", sorted(units["files"]), ["doc.viba"])
     strict = slice_case("units", ["doc.Doc"], nil_eqv=[])
     check_true("units: an empty nil_eqv leaves Assert unresolved",
-               isinstance(strict["answer"], VibaProgramErr))
+               isinstance(strict["answer"], Err))
     own = slice_case("units", ["doc.Doc"], nil_eqv=["Assert", "Hint"])
     check("units: a list given is the list used", sorted(own["files"]), ["doc.viba"])
 
 
-def run_shapes() -> None:
+def run_deep_and_multi() -> None:
     """Deep directories, several files, several roots on each side."""
     deep = slice_case("deep", ["top.Top"])
     check("deep: every file at its own path", sorted(deep["files"]),
@@ -299,39 +299,39 @@ def run_idempotence() -> None:
 
 def run_errors() -> None:
     answer = extract_sub_repo("/no/such/repo", [], [], ["a.B"])
-    check_true("error: no such repo", isinstance(answer, VibaProgramErr))
+    check_true("error: no such repo", isinstance(answer, Err))
 
     short = slice_case("errors", ["Fine"])
     check_true("error: a name without a module", isinstance(short["answer"],
-                                                            VibaProgramErr))
+                                                            Err))
 
     outside = slice_case("basic", ["meta.Meta"], viba=("kb", "base"))
     check_true("error: a name outside the extraction source",
-               isinstance(outside["answer"], VibaProgramErr))
+               isinstance(outside["answer"], Err))
 
     broken = slice_case("errors", ["broken.Broken"])
     check_true("error: a name that does not resolve",
-               isinstance(broken["answer"], VibaProgramErr))
-    if isinstance(broken["answer"], VibaProgramErr):
+               isinstance(broken["answer"], Err))
+    if isinstance(broken["answer"], Err):
         check_true("error: the message names the name",
                    "Missing" in broken["answer"].msg)
 
     wrong_repo = extract_sub_repo(3, [], [], ["a.B"])
-    check_true("error: the repo is a path", isinstance(wrong_repo, VibaProgramErr))
+    check_true("error: the repo is a path", isinstance(wrong_repo, Err))
     wrong_names = extract_sub_repo(str(DATA / "errors" / "kb"), [], [], "a.B")
     check_true("error: the type names are a list",
-               isinstance(wrong_names, VibaProgramErr))
+               isinstance(wrong_names, Err))
     wrong_unit = extract_sub_repo(str(DATA / "errors" / "kb"), [], [], [],
                                   never_eqv=[1])
     check_true("error: the unit names are strings",
-               isinstance(wrong_unit, VibaProgramErr))
+               isinstance(wrong_unit, Err))
 
 
 def main() -> int:
     run_basic()
     run_generics()
     run_walks()
-    run_shapes()
+    run_deep_and_multi()
     run_idempotence()
     run_errors()
     print(f"extract_sub_repo: {PASS} passed, {FAIL} failed")

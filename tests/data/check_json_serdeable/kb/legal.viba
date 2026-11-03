@@ -1,0 +1,9 @@
+A = $a int | $b int
+
+B = int | str
+
+C = $a list[int] | $b dict[str, int] | nil
+
+D = $a int | ($b str | $c bool)
+
+E = "a" | "b"

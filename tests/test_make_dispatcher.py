@@ -293,7 +293,7 @@ def _environ(directory: Path):
                        EnvironmentCompute(get_func), viba_path=str(directory))
 
 
-def _file_shapes():
+def _numbered_files():
     """每份文件：pattern 行数对得上 handler 数，type 的参数位对得上参数个数。"""
     for count in range(1, 33):
         for params in range(1, 9):
@@ -368,7 +368,7 @@ def run(directory: Path):
         result = interpret(str(directory / name), environ)
         check(is_ok(result) and _answer_type(result) == NO_HANDLER,
               f"{name} 一个 handler 都收不下：{result!r}")
-    _file_shapes()
+    _numbered_files()
 
 
 if __name__ == "__main__":

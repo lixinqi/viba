@@ -1,0 +1,5 @@
+import legal
+
+Use = legal.A | $x str
+
+Repeated = legal.B | int

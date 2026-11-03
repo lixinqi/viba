@@ -42,7 +42,7 @@ from viba.type import (
     BUILTIN_CONCEPT,
     BUILTIN_MODULE,
     CustomModuleType,
-    VibaProgramErr,
+    Err,
     ModuleType,
     Ok,
     Result,
@@ -318,7 +318,7 @@ def empty_pool() -> VibaPool:
 
 
 def _environment(pool: VibaPool) -> Callable[[str], Result]:
-    """A module name for a module: looked up in the pool by $module_name, else a VibaProgramErr.
+    """A module name for a module: looked up in the pool by $module_name, else a Err.
 
     A generic is not a file but a directory: the `name.number` files in the pool plus its
     `__generic__.viba` marker make one GenericModuleType (viba-pattern.md). The
@@ -335,9 +335,9 @@ def _environment(pool: VibaPool) -> Callable[[str], Result]:
                 generic = _generic_in_pool(pool, f"{BUILTIN_CONCEPT}.{module_name}")
                 if generic is not None:
                     return generic
-            return VibaProgramErr(f"no module named {module_name!r} in pool")
+            return Err(f"no module named {module_name!r} in pool")
         if len(matches) > 1:
-            return VibaProgramErr(f"module {module_name!r} is served by {len(matches)} files")
+            return Err(f"module {module_name!r} is served by {len(matches)} files")
         return Ok(CustomModuleType(matches[0]._tree, pool.module_environment,
                                    _import_locals(matches[0])))
     return environment
@@ -365,7 +365,7 @@ def _generic_in_pool(pool: VibaPool, module_name: str):
         given = file.module_name[len(prefix):]
         order = order_of(given)
         if order is None:
-            return VibaProgramErr(
+            return Err(
                 f"{file.file_name}: a file of the generic {module_name!r} is "
                 f"named by its order, a number")
         parts.append((order, file.file_name, file.module_name,
@@ -400,16 +400,16 @@ def parse_viba_file(pool: VibaPool, source: str, file_name: str, module_name: st
     text = _normalize_source(source)
     try:
         tree = viba_ast.canonical(viba_ast.parse(text))
-    except Exception as exc:  # syntax error: the parser raises, turn it into VibaProgramErr
-        return VibaProgramErr(f"cannot parse: {exc!r}")
+    except Exception as exc:  # syntax error: the parser raises, turn it into Err
+        return Err(f"cannot parse: {exc!r}")
     problem = file_pattern_problem(tree, module_name.split(".")[-1])
     if problem is not None:
-        return VibaProgramErr(problem)
+        return Err(problem)
     file_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
     try:
         return Ok(_build_file(pool, tree, file_name, module_name, file_hash))
     except PartialError as exc:  # a design mistake, like a duplicate tag
-        return VibaProgramErr(str(exc))
+        return Err(str(exc))
 
 
 def _build_file(pool: VibaPool, tree, file_name: str, module_name: str, file_hash: str) -> VibaFileDescriptor:
@@ -788,9 +788,9 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
 def pool_add_file(pool: VibaPool, file: VibaFileDescriptor) -> Result:
     """A pool with one more file; the descriptors in it are rebound to the new pool."""
     if file.pool is not pool:
-        return VibaProgramErr("the file was not built into this pool")
+        return Err("the file was not built into this pool")
     if file.file_name in pool.file_name2file:
-        return VibaProgramErr(f"duplicate file {file.file_name!r}")
+        return Err(f"duplicate file {file.file_name!r}")
     new_pool = VibaPool(
         files=[],
         file_name2file={},
@@ -804,38 +804,38 @@ def pool_add_file(pool: VibaPool, file: VibaFileDescriptor) -> Result:
     for old in stored:
         fresh = _build_file(new_pool, old._tree, old.file_name, old.module_name, old.file_hash)
         if fresh.file_name in new_pool.file_name2file:
-            return VibaProgramErr(f"duplicate file {fresh.file_name!r}")
+            return Err(f"duplicate file {fresh.file_name!r}")
         new_pool.files.append(fresh)
         new_pool.file_name2file[fresh.file_name] = fresh
         rebuilt.append(fresh)
     for fresh in rebuilt:
         for definition in fresh.definitions:
             if definition.full_name in new_pool.full_name2definition:
-                return VibaProgramErr(f"duplicate definition {definition.full_name!r}")
+                return Err(f"duplicate definition {definition.full_name!r}")
             new_pool.full_name2definition[definition.full_name] = definition
             for member in definition.members:
                 if member.tag is None:
                     continue
                 full = f"{definition.full_name}.{member.tag}"
                 if full in new_pool.full_name2member:
-                    return VibaProgramErr(f"duplicate member {full!r}")
+                    return Err(f"duplicate member {full!r}")
                 new_pool.full_name2member[full] = member
     return Ok(new_pool)
 
 
 def pool_find_file(pool: VibaPool, file_name: str) -> Result:
     found = pool.file_name2file.get(file_name)
-    return Ok(found) if found is not None else VibaProgramErr(f"no file named {file_name!r}")
+    return Ok(found) if found is not None else Err(f"no file named {file_name!r}")
 
 
 def pool_find_definition(pool: VibaPool, full_name: str) -> Result:
     found = pool.full_name2definition.get(full_name)
-    return Ok(found) if found is not None else VibaProgramErr(f"no definition named {full_name!r}")
+    return Ok(found) if found is not None else Err(f"no definition named {full_name!r}")
 
 
 def pool_find_member(pool: VibaPool, full_name: str) -> Result:
     found = pool.full_name2member.get(full_name)
-    return Ok(found) if found is not None else VibaProgramErr(f"no member named {full_name!r}")
+    return Ok(found) if found is not None else Err(f"no member named {full_name!r}")
 
 
 # ----------------------------------------------------------------------
@@ -847,7 +847,7 @@ def file_find_import_by_local_name(file: VibaFileDescriptor, local_name: str) ->
     for import_ in file.imports:
         if import_.local_name == local_name:
             return Ok(import_)
-    return VibaProgramErr(f"file {file.file_name!r} has no import named {local_name!r}")
+    return Err(f"file {file.file_name!r} has no import named {local_name!r}")
 
 
 # ----------------------------------------------------------------------
@@ -863,13 +863,13 @@ def definition_find_member_by_tag(definition: VibaDefinitionDescriptor, tag: str
     for member in definition.members:
         if member.tag == tag:
             return Ok(member)
-    return VibaProgramErr(f"definition {definition.full_name!r} has no member tagged {tag!r}")
+    return Err(f"definition {definition.full_name!r} has no member tagged {tag!r}")
 
 
 def definition_find_member_by_index(definition: VibaDefinitionDescriptor, member_index: int) -> Result:
     if 0 <= member_index < len(definition.members):
         return Ok(definition.members[member_index])
-    return VibaProgramErr(f"definition {definition.full_name!r} has no member at {member_index}")
+    return Err(f"definition {definition.full_name!r} has no member at {member_index}")
 
 
 def definition_file(definition: VibaDefinitionDescriptor) -> Result:
@@ -884,7 +884,7 @@ def definition_file(definition: VibaDefinitionDescriptor) -> Result:
 def member_type_name(member: VibaMemberDescriptor) -> Result:
     if member.member_type.kind == TYPE_REF:
         return Ok(member.member_type.payload.type_name)
-    return VibaProgramErr(f"member {member.tag!r} is not a name in the source")
+    return Err(f"member {member.tag!r} is not a name in the source")
 
 
 def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
@@ -892,14 +892,14 @@ def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
     `as` it is an alias, without `as` the module's full name, longest match first), then hand
     it to ModuleGetType."""
     name = member_type_name(member)
-    if isinstance(name, VibaProgramErr):
+    if isinstance(name, Err):
         return name
     pool = member.pool
     containing = pool_find_definition(pool, member.containing_full_name)
-    if isinstance(containing, VibaProgramErr):
+    if isinstance(containing, Err):
         return containing
     file = pool_find_file(pool, containing.ok_value.file_name)
-    if isinstance(file, VibaProgramErr):
+    if isinstance(file, Err):
         return file
     type_name = name.ok_value
     parts = type_name.split(".")
@@ -913,20 +913,20 @@ def member_resolved_definition(member: VibaMemberDescriptor) -> Result:
             break
     if module_name is None:
         if len(parts) > 1:
-            return VibaProgramErr(f"{parts[0]!r} is neither an import nor a module of this file")
+            return Err(f"{parts[0]!r} is neither an import nor a module of this file")
         module_name = file.ok_value.module_name
         target_name = type_name
     module = pool.module_environment(module_name)
-    if isinstance(module, VibaProgramErr):
+    if isinstance(module, Err):
         return module
     resolved = module_get_type(module.ok_value, target_name)
-    if isinstance(resolved, VibaProgramErr):
+    if isinstance(resolved, Err):
         return resolved
     node = getattr(resolved.ok_value, "ast_node", None)
     if not isinstance(node, (ast_nodes.TypeDefinition, ast_nodes.GenericDefinition)):
-        return VibaProgramErr(f"{type_name!r} is not a definition")
+        return Err(f"{type_name!r} is not a definition")
     if node.name != target_name:
-        return VibaProgramErr(f"{type_name!r} does not name a definition of {module_name!r}")
+        return Err(f"{type_name!r} does not name a definition of {module_name!r}")
     return pool_find_definition(pool, f"{module_name}.{node.name}")
 
 

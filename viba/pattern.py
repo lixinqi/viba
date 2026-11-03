@@ -59,7 +59,7 @@ from viba.viba_ast.tagged import (TAGGED_NAME, literal_symbol, symbol_of,
                                   tagged_problem)
 from viba.type import (AstNodeType, BUILTIN_CONCEPT_DIR, BuiltinGenericType,
                        CustomModuleType, ModuleType, Ok, PartialError, Result,
-                       VibaProgramErr, builtin_directory_name, module_get_type)
+                       Err, builtin_directory_name, module_get_type)
 
 GENERIC_FILE = "__generic__.viba"
 
@@ -142,7 +142,7 @@ class PatternFile:
             return self._problem
         if not self._taken:
             got = self._load()
-            if isinstance(got, VibaProgramErr):
+            if isinstance(got, Err):
                 self._problem = got
                 return got
             self.module, patterns = got.ok_value
@@ -152,7 +152,7 @@ class PatternFile:
             self._checked = True
             problem = _declared_problem(self)
             if problem is not None:
-                self._problem = VibaProgramErr(problem)
+                self._problem = Err(problem)
         if self._problem is not None:
             return self._problem
         return Ok((self.module, self.patterns))
@@ -209,7 +209,7 @@ class Choice:
     def env_get(self, name: str) -> Result:
         bound = self.bindings.get(name)
         if bound is None:
-            return VibaProgramErr(f"unbound parameter {name!r}")
+            return Err(f"unbound parameter {name!r}")
         return Ok(bound)
 
     def __repr__(self):
@@ -255,7 +255,7 @@ def load_generic(directory: str, name: str,
     `directory` holds the files and `name` is what the generic is called.
     `source_of(path)` answers a file's text, or None when that path has no file;
     `listing(directory)` answers the names directly inside it, or a
-    VibaProgramErr when the directory cannot be listed; `module_of(path, name,
+    Err when the directory cannot be listed; `module_of(path, name,
     source)` compiles one file the way its layer compiles files.
 
     The marker `__generic__.viba` must be there and must compile; its content is
@@ -271,17 +271,17 @@ def load_generic(directory: str, name: str,
     marker = os.path.join(directory, GENERIC_FILE)
     marker_source = source_of(marker)
     if marker_source is None:
-        return VibaProgramErr(f"{directory} is no generic: it has no {GENERIC_FILE}")
+        return Err(f"{directory} is no generic: it has no {GENERIC_FILE}")
     try:
         marker_tree = viba_ast.parse(marker_source)
     except SyntaxError as exc:
-        return VibaProgramErr(f"cannot parse {marker}: {exc}")
+        return Err(f"cannot parse {marker}: {exc}")
     problem = file_pattern_problem(marker_tree, GENERIC_FILE)
     if problem is not None:
-        return VibaProgramErr(f"{marker}: {problem}")
+        return Err(f"{marker}: {problem}")
 
     listed = listing(directory)
-    if isinstance(listed, VibaProgramErr):
+    if isinstance(listed, Err):
         return listed
     names = listed.ok_value
 
@@ -292,7 +292,7 @@ def load_generic(directory: str, name: str,
         order = order_of(file_name)
         path = os.path.join(directory, file_name)
         if order is None:
-            return VibaProgramErr(
+            return Err(
                 f"{path}: a file of the generic {name!r} is named by its order, "
                 f"a number — {file_name!r} is none")
         parts.append((order, path, f"{name}.{order}", declared_of(file_name)))
@@ -321,14 +321,14 @@ def _file_loader(path: str, module_name: str, source_of,
     def load() -> Result:
         source = source_of(path)
         if source is None:
-            return VibaProgramErr(f"cannot load {path}")
+            return Err(f"cannot load {path}")
         got = module_of(path, module_name, source)
-        if isinstance(got, VibaProgramErr):
+        if isinstance(got, Err):
             return got
         module = got.ok_value
         body = getattr(getattr(module, "module", None), "body", None)
         if body is None:
-            return VibaProgramErr(f"{path} is not a module of definitions")
+            return Err(f"{path} is not a module of definitions")
         return Ok((module, patterns_of(body)))
     return load
 
@@ -349,7 +349,7 @@ def generic_of_entries(name: str, directory: str,
     for order, path, module_name, declared, module in parts:
         body = getattr(getattr(module, "module", None), "body", None)
         if body is None:
-            return VibaProgramErr(f"{path} is not a module of definitions")
+            return Err(f"{path} is not a module of definitions")
         entries.append(PatternFile.ready(order, path, module_name, declared,
                                          module, patterns_of(body)))
     entries.sort(key=lambda entry: entry.order)
@@ -402,7 +402,7 @@ def generic_named(module: ModuleType, name: str) -> Result:
 
     Ok(the generic) when it is one, Ok(None) when the name is no import of this
     module, is a definition of its own, or names something that is no generic,
-    and VibaProgramErr when the binding is there and the module behind it cannot
+    and Err when the binding is there and the module behind it cannot
     be loaded — the caller reports that where it happened rather than taking the
     name as something else. The generics under the builtin library's `builtin/`
     directory (`is_closure`, `unclosure`) are reached from every module, the way
@@ -424,7 +424,7 @@ def generic_named(module: ModuleType, name: str) -> Result:
         if name.startswith(prefix + "."):
             rest = name[len(prefix) + 1:]
             handed = module.module_environment(imports[prefix])
-            if isinstance(handed, VibaProgramErr):
+            if isinstance(handed, Err):
                 return handed
             if isinstance(handed.ok_value, GenericModuleType):
                 return Ok(None)                 # a member of a generic is not one
@@ -468,7 +468,7 @@ def _builtin_generic_name(name: str):
 def _generic_of(module: ModuleType, module_name: str) -> Result:
     """Ok(the module) when it is a generic, Ok(None) when it is something else."""
     handed = module.module_environment(module_name)
-    if isinstance(handed, VibaProgramErr):
+    if isinstance(handed, Err):
         return handed
     if isinstance(handed.ok_value, GenericModuleType):
         return Ok(handed.ok_value)
@@ -492,19 +492,19 @@ def tagged_type_of(node, module: ModuleType, resolve=None) -> Result:
 
     Ok(None) when this is no tagged application at all, or when its symbol is a
     name this layer cannot take: the caller then takes the application its own
-    way, and reports it where it lands. VibaProgramErr when the application is
+    way, and reports it where it lands. Err when the application is
     no tag: the wrong number of arguments, or a string that spells no symbol.
     """
     if not (isinstance(node, viba_ast.TypeApp) and node.constructor == TAGGED_NAME):
         return Ok(None)
     problem = tagged_problem(node.args)
     if problem is not None:
-        return VibaProgramErr(problem)
+        return Err(problem)
     symbol = literal_symbol(node.args[0])
     if symbol is None:
         name = node.args[0]
         if not isinstance(name, viba_ast.TypeRef):
-            return VibaProgramErr(
+            return Err(
                 f"{TAGGED_NAME} asks for a symbol spelled as a string, not "
                 f"{viba_ast.unparse_type(name)}")
         text = (resolve(name.name, module) if resolve is not None
@@ -513,7 +513,7 @@ def tagged_type_of(node, module: ModuleType, resolve=None) -> Result:
             return Ok(None)
         symbol = symbol_of(text)
         if symbol is None:
-            return VibaProgramErr(symbol_problem(text))
+            return Err(symbol_problem(text))
     return Ok(tagged_node(symbol, node.args))
 
 
@@ -533,7 +533,7 @@ def reduce_application(node, module: ModuleType, argument_modules=None,
     so the constructor resolves where it was spelled. Ok(None) says the
     constructor is no generic of this module (an ordinary type application, a
     builtin container among them), which the caller takes the way it always
-    did; a VibaProgramErr is a decision that failed, or a binding that cannot
+    did; a Err is a decision that failed, or a binding that cannot
     be loaded, and says so.
 
     `argument_modules` names, for each argument in the source, the module it was
@@ -551,7 +551,7 @@ def reduce_application(node, module: ModuleType, argument_modules=None,
     if not isinstance(node, viba_ast.TypeApp):
         return Ok(None)
     generic = generic_named(module, node.constructor)
-    if isinstance(generic, VibaProgramErr):
+    if isinstance(generic, Err):
         return generic
     if generic.ok_value is None:
         return Ok(None)
@@ -597,7 +597,7 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
                 and entry.declared not in offered):
             continue
         got = entry.take()
-        if isinstance(got, VibaProgramErr):
+        if isinstance(got, Err):
             return got
         module, patterns = got.ok_value
         if len(patterns) != len(arguments):
@@ -611,7 +611,7 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
             got = structural_pattern_match(pattern, module, argument,
                                            source_module, bindings,
                                            parts=member_modules)
-            if isinstance(got, VibaProgramErr):
+            if isinstance(got, Err):
                 return got
             if got.ok_value is None:
                 fits = False
@@ -630,17 +630,17 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
     arities = set()
     for entry in generic.entries:
         got = entry.take()
-        if isinstance(got, VibaProgramErr):
+        if isinstance(got, Err):
             return got
         arities.add(len(entry.patterns))
     arities = sorted(arities)
 
     spelled = ", ".join(viba_ast.unparse_type(argument) for argument in arguments)
     if arities and len(arguments) not in arities:
-        return VibaProgramErr(
+        return Err(
             f"generic {generic.name!r} takes {_counted(arities)} parameters, "
             f"not {len(arguments)}: [{spelled}]")
-    return VibaProgramErr(
+    return Err(
         f"no pattern of {generic.name!r} matches [{spelled}]: "
         f"the decision failed")
 
@@ -803,7 +803,7 @@ def structural_pattern_match(pattern, pattern_module: ModuleType, argument,
     Ok(bindings) when the argument fits the pattern: the dict holds every name
     the pattern extracted, each as the `AstNodeType` that stood in the argument
     (spelled where the argument was spelled). Ok(None) when it does not fit —
-    the next file is then tried. VibaProgramErr when the pattern cannot be
+    the next file is then tried. Err when the pattern cannot be
     taken at all.
 
     A name the pattern's module never defines is a parameter. Everywhere else
@@ -830,9 +830,9 @@ def structural_pattern_match(pattern, pattern_module: ModuleType, argument,
         matched = _match(pattern, pattern_module, argument, argument_module,
                          bindings, parts)
     except _BadPattern as exc:
-        return VibaProgramErr(str(exc))
+        return Err(str(exc))
     except PartialError as exc:
-        return VibaProgramErr(str(exc))
+        return Err(str(exc))
     return Ok(matched)
 
 
@@ -1078,7 +1078,7 @@ def _is_parameter(node, module: ModuleType) -> bool:
     """
     if not isinstance(node, viba_ast.TypeRef):
         return False
-    return isinstance(module_get_type(module, node.name), VibaProgramErr)
+    return isinstance(module_get_type(module, node.name), Err)
 
 
 def _has_parameter(node, module: ModuleType) -> bool:
@@ -1099,7 +1099,7 @@ def _argument_as_type(node, module: ModuleType):
     """
     node, module = _unfold(node, module)
     tagged = tagged_type_of(node, module)
-    if isinstance(tagged, VibaProgramErr):
+    if isinstance(tagged, Err):
         raise _BadPattern(tagged.msg)
     if tagged.ok_value is not None:
         node = tagged.ok_value
@@ -1226,6 +1226,6 @@ def _judge(sub: AstNodeType, sup: AstNodeType) -> bool:
     """
     from viba.is_sub_type import is_sub_type
     judged = is_sub_type(sub, sup)
-    if isinstance(judged, VibaProgramErr):
+    if isinstance(judged, Err):
         return False
     return judged.ok_value is True

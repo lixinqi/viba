@@ -17,7 +17,7 @@ from viba import viba_ast
 
 
 # ----------------------------------------------------------------------
-# Result (cf. Result[T] = Oneof | $ok T | $viba_program_err str)
+# Result (cf. Result[T] = Oneof | $ok T | $err Err, where Err carries one sentence)
 # ----------------------------------------------------------------------
 
 class Ok:
@@ -66,7 +66,30 @@ class Frame:
 Stack = List[Frame]
 
 
-class InterpretError:
+class Err:
+    """The error branch of `Result`: one sentence saying what does not hold.
+
+        Err =
+            Object
+          * $msg str
+
+    `Result[T]` is `Ok | Err`. The four kinds a run stops with
+    (`InterpretError`) are these too: a run's failure says which kind it is, and
+    a design-side check that finds a design wrong answers a plain `Err` — the
+    sentence is all it has to say.
+    """
+
+    def __init__(self, msg: str = ""):
+        self.msg = msg
+
+    def __repr__(self):
+        return f"Err({self.msg!r})"
+
+
+Result = Union[Ok, Err]
+
+
+class InterpretError(Err):
     """`$err InterpretError`: the run stopped, and this says why.
 
         InterpretError =
@@ -99,7 +122,7 @@ class VibaProgramErr(InterpretError):
     """
 
     def __init__(self, msg: str, stack: Optional[Stack] = None):
-        self.msg = msg
+        super().__init__(msg)
         self.stack: Stack = list(stack or [])
 
     def __repr__(self):
@@ -144,7 +167,6 @@ class EnvironmentApiInvalidArgumentErr(InterpretError, Exception):
         return f"EnvironmentApiInvalidArgumentErr({self.msg!r}, {self.api_name!r})"
 
 
-Result = Union[Ok, VibaProgramErr]
 
 
 class UnderlyingOpErr(InterpretError):
@@ -447,7 +469,7 @@ class BuiltinModuleType(ModuleType):
         piece = self.operator(type_name)
         if piece is not None:
             return Ok(AstNodeType(piece, BUILTIN_MODULE))
-        return VibaProgramErr(f"no built-in type named {type_name!r}")
+        return Err(f"no built-in type named {type_name!r}")
 
     def operator(self, name: str):
         """The source form of the builtin operator `name`, or None.
@@ -514,7 +536,7 @@ class CustomModuleType(ModuleType):
     """A user module: parsed definitions + a lazy environment.
 
     $module_environment answers `module_name -> Result[ModuleType]`
-    for cross-module references; returning VibaProgramErr ends resolution.
+    for cross-module references; returning Err ends resolution.
 
     $imports maps a file's import local name to the module it names, so a
     name in the source that carries an import prefix (`d.Report` under
@@ -538,7 +560,7 @@ class CustomModuleType(ModuleType):
     ):
         self.module = module
         if module_environment is None:
-            module_environment = lambda name: VibaProgramErr(f"module {name!r} not found")
+            module_environment = lambda name: Err(f"module {name!r} not found")
         self.module_environment = module_environment
         self.imports = dict(imports or {})
         self.name = name                 # the name it was loaded as ("" when it has none)
@@ -595,11 +617,11 @@ class CustomModuleType(ModuleType):
             if prefix not in self.imports:
                 continue
             imported = self.module_environment(self.imports[prefix])
-            if isinstance(imported, VibaProgramErr):
-                return VibaProgramErr(f"{prefix!r} names {self.imports[prefix]!r}: {imported.msg}")
+            if isinstance(imported, Err):
+                return Err(f"{prefix!r} names {self.imports[prefix]!r}: {imported.msg}")
             rest = ".".join(parts[cut:])
             if not isinstance(imported.ok_value, CustomModuleType):
-                return VibaProgramErr(
+                return Err(
                     f"{self.imports[prefix]!r} is a generic: it answers an "
                     f"application ({rest}[T, ...]), not the bare name {type_name!r}")
             return imported.ok_value.lookup_local(rest)
@@ -608,15 +630,15 @@ class CustomModuleType(ModuleType):
         if len(parts) == 1 and parts[0] in self.imports:
             module_name = self.imports[parts[0]]
             imported = self.module_environment(module_name)
-            if isinstance(imported, VibaProgramErr):
-                return VibaProgramErr(f"{parts[0]!r} names {module_name!r}: {imported.msg}")
+            if isinstance(imported, Err):
+                return Err(f"{parts[0]!r} names {module_name!r}: {imported.msg}")
             if not isinstance(imported.ok_value, CustomModuleType):
-                return VibaProgramErr(
+                return Err(
                     f"{module_name!r} is a generic: it answers an application "
                     f"({parts[0]}[T, ...]), not the bare name {type_name!r}")
-            return VibaProgramErr(
+            return Err(
                 f"{type_name!r} names the module {module_name!r}: a module is no type")
-        return VibaProgramErr(f"no type named {type_name!r} in module")
+        return Err(f"no type named {type_name!r} in module")
 
 
 def _is_definition(node) -> bool:
@@ -694,7 +716,7 @@ def module_get_type(module: ModuleType, type_name: str, _seen=None) -> Result:
         return module.lookup(type_name)
     if isinstance(module, CustomModuleType):
         return _lookup_custom(module, type_name, set() if _seen is None else _seen)
-    return VibaProgramErr(
+    return Err(
         f"no type named {type_name!r}: {module!r} is a generic, and a generic "
         f"is applied with [T, ...]")
 
@@ -712,8 +734,8 @@ def _lookup_custom(module: CustomModuleType, type_name: str, seen) -> Result:
     builtin = BUILTIN_MODULE.lookup(type_name)
     if isinstance(builtin, Ok):
         return builtin
-    note = via_env.msg if isinstance(via_env, VibaProgramErr) else "it names a module already met"
-    return VibaProgramErr(f"type {type_name!r} unresolved: {local.msg}; {note}")
+    note = via_env.msg if isinstance(via_env, Err) else "it names a module already met"
+    return Err(f"type {type_name!r} unresolved: {local.msg}; {note}")
 
 
 # ----------------------------------------------------------------------

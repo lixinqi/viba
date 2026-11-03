@@ -19,12 +19,6 @@
 # language's own set (`reflect.language_config`), which is the one a design
 # written in this repo needs.
 
-Repo =
-    str * Assert[{ this is a file path }]
-
-TypeName =
-    str * Assert[{ xxx.yyy.zzz：xxx.yyy 在 $viba_path 下 import 得到，zzz 是它里面的定义 }]
-
 ExtractSubRepo =
     Result[$repo Repo * $viba_path list[str]]
   <- $repo Repo
@@ -36,7 +30,7 @@ ExtractSubRepo =
   <- Hint[{
       从 $type_names 出发，把 $repo 里、$extract_source_viba_path 下的那些定义抽成一个能自己编译的子 repo：
       路径、模块名、定义名不变，一个文件只带留下的定义实际用到的 import。
-      其余定义是原语：不复制，留着 import，它所在的根进答案的 $viba_path。
+      其余定义是原语：不复制，留着 import，它所在的根进返回值的 $viba_path。
       $never_eqv、$nil_eqv 是单位元的名字，读源码时不算定义；给 nil 就用语言默认那份。
     }]
   <- Assert[{
@@ -60,3 +54,9 @@ ExtractSubRepo =
       content_of(x) 是 x.ok.repo 这个目录的内容：同样的相对路径，同样的文件原文。
       两边都得答 $ok；first 答 $ok 而 second 答 $err 也违反这条。
     }]
+
+Repo =
+    str * Assert[{ this is a file path }]
+
+TypeName =
+    str * Assert[{ xxx.yyy.zzz：xxx.yyy 在 $viba_path 下 import 得到，zzz 是它里面的定义 }]

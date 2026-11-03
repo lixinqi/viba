@@ -65,7 +65,7 @@ from viba.is_sub_type import is_sub_type
 from viba.reflect import VibaData, access, by_tag
 from viba.pattern import (GENERIC_FILE, load_generic, patterns_of,
                           structural_pattern_match)
-from viba.type import (AstNodeType, Ok, PROGRAM_ERR_TAG, VibaProgramErr,
+from viba.type import (AstNodeType, Ok, PROGRAM_ERR_TAG, Err,
                        custom_module)
 from viba.viba_type_descriptor import (empty_pool, parse_viba_file,
                                        pool_add_file, pool_find_definition)
@@ -201,7 +201,7 @@ def _environment(roots=None):
         try:
             return Ok(os.listdir(directory))
         except OSError as exc:
-            return VibaProgramErr(str(exc))
+            return Err(str(exc))
 
     def module_of(path, name, text):
         module = custom_module(text, environment)
@@ -216,14 +216,14 @@ def _environment(roots=None):
             directory = root.joinpath(*name.split("."))
             if (directory / GENERIC_FILE).is_file():
                 got = load_generic(str(directory), name, source_of, listing, module_of)
-                if isinstance(error_of(got), VibaProgramErr):
+                if isinstance(error_of(got), Err):
                     return got
                 cache[name] = got.ok_value
                 return Ok(got.ok_value)
             path = directory.with_suffix(".viba")
             if path.is_file():
                 return module_of(str(path), name, path.read_text())
-        return VibaProgramErr(f"no module {name!r}")
+        return Err(f"no module {name!r}")
 
     return environment
 
@@ -296,7 +296,7 @@ JUDGMENT_CASES = [
     ("import demo.element_type_of as g\nX = g[list[int]].type\n", "int", "X", True,
      "the extraction counts the same from the other side"),
     ("import demo.element_type_of as g\nX = g[bool].type\n", "X", "never", "error",
-     "a decision that fails is a VibaProgramErr"),
+     "a decision that fails is a Err"),
 ]
 
 
@@ -304,7 +304,7 @@ def _the_judgment_answers():
     for source, sub, sup, want, label in JUDGMENT_CASES:
         got = _judge(source, sub, sup)
         if want == "error":
-            check(isinstance(error_of(got), VibaProgramErr) and "no pattern" in message_of(got),
+            check(isinstance(error_of(got), Err) and "no pattern" in message_of(got),
                   f"{label}: {got!r}")
             continue
         check(got is want, f"{label}: {sub} <: {sup} -> {got!r}, wanted {want}")
@@ -375,7 +375,7 @@ def _the_pattern_matcher():
           f"an argument whose source is a call counts as the type it stands "
           f"for: {got!r}")
     got = _match(patterns[0], module, "add << $b 1 << $b 2")
-    check(isinstance(error_of(got), VibaProgramErr) and "no such argument" in message_of(got),
+    check(isinstance(error_of(got), Err) and "no such argument" in message_of(got),
           f"a call that cannot be given is a mistake in the argument, not a "
           f"mismatch: {got!r}")
 
@@ -395,7 +395,7 @@ def _the_pattern_matcher():
 
     module, patterns = _pattern_case("pattern ...\n")
     got = _match(patterns[0], module, "int")
-    check(isinstance(error_of(got), VibaProgramErr) and "ellipsis" in message_of(got),
+    check(isinstance(error_of(got), Err) and "ellipsis" in message_of(got),
           f"ellipsis is no pattern: {got!r}")
 
 
@@ -412,7 +412,7 @@ def _the_arity_is_the_file():
           "two lines are the generic of two")
     got = _judge("import demo.num_variadic_args as g\nX = g[bool, str, int, float].value\n",
                  "X", "0")
-    check(isinstance(error_of(got), VibaProgramErr)
+    check(isinstance(error_of(got), Err)
           and "takes 0, 1, 2 or 3 parameters, not 4" in message_of(got),
           f"an arity no file declares names the counts: {got!r}")
 
@@ -567,7 +567,7 @@ def _the_decision_fails_loudly():
 def _a_generic_is_no_module():
     """泛型不是模块：它有应用，没有定义。"""
     got = _judge("import demo.is_base_type as g\nX = g\n", "X", "int")
-    check(isinstance(error_of(got), VibaProgramErr) and "generic" in message_of(got),
+    check(isinstance(error_of(got), Err) and "generic" in message_of(got),
           f"a bare generic name is not a type: {got!r}")
 
     labelled(interpret(_case("a_generic_is_no_program"), _environ()),
@@ -694,7 +694,7 @@ def _the_pool_holds_a_generic():
         parsed = parse_viba_file(pool, source, path, module)
         check(isinstance(parsed, Ok), f"the pool compiles {module}: {parsed!r}")
         added = pool_add_file(pool, parsed.ok_value)
-        if isinstance(error_of(added), VibaProgramErr):
+        if isinstance(error_of(added), Err):
             check(False, f"the pool takes {module}: {added!r}")
             return
         pool = added.ok_value
@@ -726,7 +726,7 @@ def _the_reflection_takes_it():
                     "Named = $value n[$a int].value\n", "design"))
     for path, source, module in sources:
         parsed = parse_viba_file(pool, source, path, module)
-        if isinstance(error_of(parsed), VibaProgramErr):
+        if isinstance(error_of(parsed), Err):
             check(False, f"the pool compiles {module}: {parsed!r}")
             return
         pool = pool_add_file(pool, parsed.ok_value).ok_value

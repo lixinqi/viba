@@ -1,0 +1,13 @@
+Point = Object * $x float * $y float
+
+Inline = Point * $label str
+
+Pair = (int, str)
+
+Maybe = int | nil
+
+Node = Object * $value int * $next (Node | nil)
+
+Tagged = $a int
+
+Tags = $a int | $b str

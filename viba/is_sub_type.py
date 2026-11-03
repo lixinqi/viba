@@ -3,8 +3,8 @@
 Consumes Type values only (viba.type); nothing above the type level is
 visible here.
 
-Ok(True/False) is the judgment. VibaProgramErr reports malformed input, never a
-judgment: a product that gives the same tag twice -> VibaProgramErr, and so are
+Ok(True/False) is the judgment. Err reports malformed input, never a
+judgment: a product that gives the same tag twice -> Err, and so are
 the other malformations named below. `...` is judged like any type: on the sup
 side it is the rest marker, whose residents are a tagged type and a product type
 (and a sum whose branches all are); on the sub side an open type fits an open
@@ -41,7 +41,7 @@ alias of its source form, and judgment is structural throughout.
   untagged member is one positional member, paired with the other
   side's positionals in order. Tags hold the members together, so the
   same tag twice in one product (inlined, or as the source has it) is
-  malformed input: VibaProgramErr. So is a chain that never reaches a body
+  malformed input: Err. So is a chain that never reaches a body
   because it comes back to a definition it is already expanding — `A = A *
   $x int` spells A as itself, and an alias or a generic can close the
   same loop.
@@ -50,9 +50,9 @@ alias of its source form, and judgment is structural throughout.
   the side's AstNodeType stack are consulted, innermost first (this
   is how free names — e.g. generic parameters — get their meanings).
   A TypeRef the judgment actually reaches and cannot resolve by
-  either channel is malformed: the check aborts with VibaProgramErr
+  either channel is malformed: the check aborts with Err
   (UnresolvedTypeError caught at the boundary). Unfolding a definition
-  body can reach such a name; that is then a VibaProgramErr, not a False.
+  body can reach such a name; that is then a Err, not a False.
 - Functions (exponent chains) compare as functions: the result
   covariantly, the arguments contravariantly, position by position
   from $arg0. Only functions compare with functions (never, the
@@ -96,7 +96,7 @@ from viba.type import (
     BUILTIN_MODULE,
     BuiltinGenericType,
     DuplicateTagError,
-    VibaProgramErr,
+    Err,
     FloatLiteralType,
     FloatType,
     InlineCycleError,
@@ -130,7 +130,7 @@ GET_ARGS_NAME = "__get_args__"
 
 
 def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> Result:
-    """Ok(True/False) is the judgment; VibaProgramErr reports malformed input.
+    """Ok(True/False) is the judgment; Err reports malformed input.
 
     `terminators` names the types in the source a never-headed chain accepts
     where `never` itself would do. The core is told, not told about: which
@@ -150,13 +150,13 @@ def is_sub_type(sub: Type, sup: Type, terminators=frozenset(), config=None) -> R
     try:
         return Ok(_Checker(terminators, config).check(sub, sup))
     except UnresolvedTypeError as exc:
-        return VibaProgramErr(str(exc))
+        return Err(str(exc))
     except PartialError as exc:
-        return VibaProgramErr(str(exc))
+        return Err(str(exc))
     except DuplicateTagError as exc:
-        return VibaProgramErr(str(exc))
+        return Err(str(exc))
     except InlineCycleError as exc:
-        return VibaProgramErr(str(exc))
+        return Err(str(exc))
 
 
 # The units in the source a config can name: shared, so a substituted unit keeps
@@ -288,7 +288,7 @@ class _Checker:
         """
         for node, module, side in ((sn, s_mod, "sub"), (sp, p_mod, "sup")):
             got = tagged_type_of(node, module, self._symbol_resolver(side))
-            if isinstance(got, VibaProgramErr):
+            if isinstance(got, Err):
                 raise UnresolvedTypeError(got.msg)
             if got.ok_value is None:
                 continue
@@ -309,7 +309,7 @@ class _Checker:
         """
         def resolve(name, module):
             resolved = self._resolve_name(name, module, side)
-            if isinstance(resolved, VibaProgramErr):
+            if isinstance(resolved, Err):
                 return None
             meaning = resolved.ok_value
             if isinstance(meaning, StrLiteralType):
@@ -342,7 +342,7 @@ class _Checker:
 
     def _lift_ref(self, node, module: ModuleType, side: str):
         resolved = self._resolve_name(node.name, module, side)
-        if isinstance(resolved, VibaProgramErr):
+        if isinstance(resolved, Err):
             # Why it is unresolved is more useful than "unresolved": a generic name, a module
             # name — each is spelled out in its own message.
             raise UnresolvedTypeError(resolved.msg)
@@ -452,7 +452,7 @@ class _Checker:
                 return node, module
             seen.add(node.name)
             resolved = self._resolve_name(node.name, module, side)
-            if isinstance(resolved, VibaProgramErr):
+            if isinstance(resolved, Err):
                 return node, module
             target = resolved.ok_value
             if not isinstance(target, AstNodeType):
@@ -580,7 +580,7 @@ class _Checker:
         if not isinstance(node, viba_ast.TypeApp):
             return None
         resolved = self._resolve_name(node.constructor, module, "sup")
-        if isinstance(resolved, VibaProgramErr):
+        if isinstance(resolved, Err):
             return None
         target = resolved.ok_value
         if not (isinstance(target, AstNodeType)
@@ -737,7 +737,7 @@ class _Checker:
         """True only when the constructor is a GenericDefinition:
         builtin generics and literal containers have no body to lift."""
         resolved = self._resolve_name(node.constructor, module, side)
-        if isinstance(resolved, VibaProgramErr):
+        if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable constructor {node.constructor!r}")
         target = resolved.ok_value
         return isinstance(target, AstNodeType) and isinstance(
@@ -763,7 +763,7 @@ class _Checker:
             return None
         owner, modules = self._bound_arguments(owner, module, side)
         decision = self._decision(owner, module, modules)
-        if isinstance(decision, VibaProgramErr):
+        if isinstance(decision, Err):
             raise UnresolvedTypeError(decision.msg)
         if not (isinstance(decision, Ok) and decision.ok_value is not None):
             return None
@@ -788,7 +788,7 @@ class _Checker:
         there is no type to compare with, and the message names the arguments
         the decision was made over."""
         decision = self._decision(node, module)
-        if isinstance(decision, VibaProgramErr):
+        if isinstance(decision, Err):
             raise UnresolvedTypeError(decision.msg)
         return isinstance(decision, Ok) and decision.ok_value is not None
 
@@ -865,7 +865,7 @@ class _Checker:
         if app_key in self._unfolded:
             return self._unfolded[app_key]
         decision = self._decision(node, module)
-        if isinstance(decision, VibaProgramErr):
+        if isinstance(decision, Err):
             raise UnresolvedTypeError(decision.msg)
         if isinstance(decision, Ok) and decision.ok_value is not None:
             chosen = decision.ok_value
@@ -890,7 +890,7 @@ class _Checker:
 
     def _constructor_target(self, node, module, side):
         resolved = self._resolve_name(node.constructor, module, side)
-        if isinstance(resolved, VibaProgramErr):
+        if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable constructor {node.constructor!r}")
         return resolved.ok_value
 
@@ -899,7 +899,7 @@ class _Checker:
         for name, arg in zip(params, args):
             meanings[name] = self._meaning(arg, module, side)
         def env_get(name):
-            return meanings.get(name, VibaProgramErr(f"unbound parameter {name!r}"))
+            return meanings.get(name, Err(f"unbound parameter {name!r}"))
         return env_get
 
     def _meaning(self, arg, module, side) -> Result:
@@ -1139,7 +1139,7 @@ class _Checker:
         the definition's identity (the cycle key), and the env that binds the
         actuals to the parameters. None when there is no such body."""
         resolved = self._resolve_name(node.constructor, module, side)
-        if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
+        if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
             return None
         definition = resolved.ok_value.ast_node
         if not isinstance(definition, viba_ast.GenericDefinition):
@@ -1159,7 +1159,7 @@ class _Checker:
         if not isinstance(node, viba_ast.TypeRef):
             return None
         resolved = self._resolve_name(node.name, module, side)
-        if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
+        if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
             return None
         if not isinstance(resolved.ok_value.ast_node, viba_ast.TypeDefinition):
             return None
@@ -1240,7 +1240,7 @@ class _Checker:
         for.
         """
         resolved = self._resolve_name(name, module, side)
-        if isinstance(resolved, VibaProgramErr) or not isinstance(resolved.ok_value, AstNodeType):
+        if isinstance(resolved, Err) or not isinstance(resolved.ok_value, AstNodeType):
             return module_as_function(module, name)
         node = resolved.ok_value.ast_node
         if isinstance(node, viba_ast.GenericDefinition):
@@ -1473,7 +1473,7 @@ class _Checker:
 
     def _resolve_constructor(self, name: str, module: ModuleType, side: str):
         resolved = self._resolve_name(name, module, side)
-        if isinstance(resolved, VibaProgramErr):
+        if isinstance(resolved, Err):
             raise UnresolvedTypeError(f"unresolvable constructor {name!r}")
         return resolved.ok_value
 

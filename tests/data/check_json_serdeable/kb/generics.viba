@@ -1,0 +1,9 @@
+Box[T] = $some T
+
+Filled = Box[int]
+
+Open = Box[Any]
+
+Choice = Either[int, str]
+
+Numeric = Either[int, float]

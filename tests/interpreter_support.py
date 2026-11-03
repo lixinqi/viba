@@ -20,8 +20,7 @@ from viba.interpret import (Environment, EnvironmentCompute, EnvironmentStorage,
                               interpret, not_implemented)
 from viba.reflect import VObject, access as reflect_access, by_tag
 from viba.type import (ENVIRONMENT_API_TAG, ERR_TAG, FAILURE_TAG,
-                       NOT_IMPLEMENTED_TAG, OK_TAG, PROGRAM_ERR_TAG, Ok,
-                       VibaProgramErr)
+                       NOT_IMPLEMENTED_TAG, OK_TAG, PROGRAM_ERR_TAG, Err, Ok)
 
 CASES = Path(__file__).resolve().parent / "data" / "interpreter"
 
@@ -108,7 +107,7 @@ def error_of(result):
     error with this. `interpret` and `exec` answer viba data instead: a suite that
     ran one takes it with `stop_tag`, `stop_text` and `stop_node`.
     """
-    if isinstance(result, VibaProgramErr):
+    if isinstance(result, Err):
         return result
     return getattr(result, "error", None)
 

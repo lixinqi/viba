@@ -85,6 +85,7 @@ from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
                           reduce_application, tagged_type_of)
 from viba.type import (
+    Err,
                        PartialError,
                        ERR_TAG, FAILURE_TAG, NOT_IMPLEMENTED_TAG, OK_TAG,
                        PROGRAM_ERR_TAG,
@@ -785,7 +786,7 @@ def put_snapshot(environ: Environment, value, name: str = SNAPSHOT_NAME) -> None
     """Store `value` as this call's snapshot: serialized viba data, so it can
     be taken back and played again."""
     source = serialize.serialize(SNAPSHOT_NAME, viba_data(value))
-    if isinstance(source, VibaProgramErr):
+    if isinstance(source, Err):
         raise RuntimeError(f"cannot snapshot this value: {source.msg}")
     _storage(environ).put_text(snapshot_path(environ, name), source.ok_value)
 
@@ -1240,7 +1241,7 @@ def _given_value(value):
 def _as_given_value(value):
     """A value a step answered: a `Result` that was carried through as a value,
     or the value itself. Nothing else can reach a host."""
-    if isinstance(value, (Ok, VibaProgramErr)):
+    if isinstance(value, (Ok, Err)):
         return value.ok_value if isinstance(value, Ok) else value
     return value
 
@@ -1480,7 +1481,17 @@ def _declared_branch(tag: str) -> VibaTypeDescriptor:
 
 
 def _error_viba_data(error) -> VObject:
-    """One `InterpretError` as viba data: the tag it answers under, and its members."""
+    """One `InterpretError` as viba data: the tag it answers under, and its members.
+
+    An `Err` that is no `InterpretError` — a design check that refused the design
+    — is answered as `$viba_program_err`: the program is what is wrong, and there
+    is no stack to name.
+    """
+    if isinstance(error, Err) and not isinstance(error, InterpretError):
+        return _tagged_viba_data(PROGRAM_ERR_TAG, _members_viba_data([
+            (_MEMBER_TAGS["msg"], viba_data(error.msg)),
+            (_MEMBER_TAGS["stack"], _stack_viba_data([])),
+        ]))
     if isinstance(error, VibaProgramErr):
         return _tagged_viba_data(PROGRAM_ERR_TAG, _members_viba_data([
             (_MEMBER_TAGS["msg"], viba_data(error.msg)),
@@ -2964,7 +2975,7 @@ class _Activation:
                     item.data,
                     func_arg_types.source_module or arguments.source_module)
             judged = is_sub_type(args_type, case_type)
-            if isinstance(judged, VibaProgramErr):
+            if isinstance(judged, Err):
                 return judged
             if judged.ok_value:
                 return Ok(_VibaData(viba_data(index)))
@@ -5310,7 +5321,7 @@ class _IsSubType:
             return VibaProgramErr(
                 f"{IS_SUB_TYPE_VALUE_NAME} takes two types: this argument is not one")
         judged = is_sub_type(sub_type, sup_type)
-        if isinstance(judged, VibaProgramErr):
+        if isinstance(judged, Err):
             return judged
         return Ok(_VibaData(viba_data(judged.ok_value)))
 

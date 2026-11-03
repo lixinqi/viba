@@ -1,0 +1,15 @@
+A = B | C
+
+B = int
+
+C = int
+
+N = int | float
+
+L = 7 | int
+
+Same = "x" | "x"
+
+Objects = Object * $x int | Object * $y int
+
+IntKeys = dict[int, str]

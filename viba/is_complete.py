@@ -68,7 +68,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from viba import viba_ast
 from viba.partial import product_elements
 from viba.pattern import reduce_application, tagged_type_of
-from viba.type import BUILTIN_MODULE, AstNodeType, VibaProgramErr, Ok
+from viba.type import BUILTIN_MODULE, AstNodeType, Err, Ok
 from viba.viba_ast.tagged import TAGGED_NAME
 from viba.viba_type_descriptor import (
     empty_pool,
@@ -114,10 +114,10 @@ def _add_file(pool, file_name: str, module_name: str, source: str):
     """Compile one file into the pool; None when it does not compile or the
     module name is taken."""
     parsed = parse_viba_file(pool, source, file_name, module_name)
-    if isinstance(parsed, VibaProgramErr):
+    if isinstance(parsed, Err):
         return None
     added = pool_add_file(pool, parsed.ok_value)
-    if isinstance(added, VibaProgramErr):
+    if isinstance(added, Err):
         return None
     return added.ok_value
 
@@ -191,7 +191,7 @@ class _Checker:
         if module_name == BUILTIN_MODULE_NAME:
             return {}  # builtin definitions go through BUILTIN_MODULE.lookup
         module = self.pool.module_environment(module_name)
-        if isinstance(module, VibaProgramErr):
+        if isinstance(module, Err):
             return {}
         return {node.name: node for node in module.ok_value.module.body
                 if _is_definition(node)}
@@ -213,7 +213,7 @@ class _Checker:
                 break
             local = ".".join(parts[:cut])
             imported = file_find_import_by_local_name(file, local)
-            if isinstance(imported, VibaProgramErr):
+            if isinstance(imported, Err):
                 continue
             target = imported.ok_value.module_name
             rest = parts[cut:]
@@ -422,7 +422,7 @@ class _Checker:
             return None
         decision = reduce_application(
             owner, module, self._argument_modules(owner, module_name, bindings))
-        if isinstance(decision, VibaProgramErr):
+        if isinstance(decision, Err):
             return None
         if not (isinstance(decision, Ok) and decision.ok_value is not None):
             return None
@@ -461,7 +461,7 @@ class _Checker:
         got = tagged_type_of(
             node, module,
             lambda name, _module: self._symbol_text(name, module_name, bindings))
-        if isinstance(got, VibaProgramErr):
+        if isinstance(got, Err):
             return False
         if got.ok_value is not None:
             return self._walk(got.ok_value, module_name, bindings)
@@ -558,7 +558,7 @@ class _Checker:
         incomplete.
         """
         decided = self._decision(node, module_name, bindings)
-        if isinstance(decided, VibaProgramErr):
+        if isinstance(decided, Err):
             return False
         if decided is None:
             return None
@@ -572,7 +572,7 @@ class _Checker:
         arguments in the source, and what comes back is the chosen file's
         `__decl__` — held with this file's parameter names standing for the
         argument parts the patterns extracted (viba-pattern.md). None when the
-        constructor names no generic of its module, and the VibaProgramErr a
+        constructor names no generic of its module, and the Err a
         decision that failed.
 
         An argument the source has as a name this walk bound is an argument part
@@ -584,7 +584,7 @@ class _Checker:
             return None
         decision = reduce_application(
             node, module, self._argument_modules(node, module_name, bindings))
-        if isinstance(decision, VibaProgramErr):
+        if isinstance(decision, Err):
             return decision
         if not (isinstance(decision, Ok) and decision.ok_value is not None):
             return None

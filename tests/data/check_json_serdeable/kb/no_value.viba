@@ -1,0 +1,7 @@
+X = Any
+
+F = int <- $a int
+
+E = int | ...
+
+CB = { no JSON value }
