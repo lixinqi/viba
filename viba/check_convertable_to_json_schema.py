@@ -59,6 +59,7 @@ from viba.design_walk import (
 )
 from viba.interpret import _Runner
 from viba.pattern import GenericModuleType, decide, generic_named
+from viba.reflect import language_config
 from viba.type import (
     AstNodeType,
     CustomModuleType,
@@ -74,8 +75,8 @@ __all__ = ["check_convertable_to_json_schema", "entry_definitions", "argument_pr
 
 # The language's units (reflect.language_config): a name standing for `nil` or
 # `never`, so a unit rather than a definition of its own.
-NIL_EQV = ("Object", "Assert", "Appendix", "Hint")
-NEVER_EQV = ("Oneof",)
+NIL_EQV = tuple(sorted(language_config.nil_eqv))
+NEVER_EQV = tuple(sorted(language_config.never_eqv))
 
 # The names a value of the two units reads as: null, or nothing at all.
 NULL_NAMES = ("nil", "Object", "void", "None")

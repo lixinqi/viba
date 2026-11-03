@@ -100,6 +100,26 @@ def run_sums() -> None:
           [{"type": "integer"}, {"type": "null"}])
 
 
+def run_units() -> None:
+    """The language's units: a documentation slot is no member, no option either."""
+    doc = schema("units.X")
+    check("a tagged member that is one value", definition(doc, "units.X"),
+          {"type": "object", "properties": {"a": {"type": "string"}},
+           "required": ["a"], "additionalProperties": False})
+    doc = schema("units.Y")
+    check("a Hint slot is no member", definition(doc, "units.Y"),
+          {"type": "object", "properties": {"a": {"type": "string"}},
+           "required": ["a"], "additionalProperties": False})
+    doc = schema("units.Z")
+    check("a block sum keeps its options",
+          len(definition(doc, "units.Z").get("oneOf", [])), 2)
+    check("never is no option",
+          False in definition(doc, "units.Z").get("oneOf", []), False)
+    doc = schema("units.Maybe")
+    check("nil is an option", definition(doc, "units.Maybe").get("oneOf"),
+          [{"type": "integer"}, {"type": "null"}])
+
+
 def run_products() -> None:
     point = definition(schema("objects.Point"), "objects.Point")
     check("a product is an object", point.get("type"), "object")
@@ -236,6 +256,7 @@ def run_strict() -> None:
 
 def main() -> int:
     run_sums()
+    run_units()
     run_products()
     run_references()
     run_entries()

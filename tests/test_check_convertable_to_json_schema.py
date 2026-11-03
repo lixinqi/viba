@@ -144,6 +144,13 @@ def run_strict() -> None:
           True)
 
 
+def run_units() -> None:
+    """The units a design writes: documentation slots, and a block sum's head."""
+    for name in ("units.X", "units.Y", "units.Z", "units.Maybe"):
+        check(f"{name} is accepted",
+              isinstance(judge(("type_names", [name])), Ok), True)
+
+
 def run_arguments() -> None:
     refused("entry is not a tuple", 'entry is ("module_name", name) or ("type_names", [names])',
             entry="legal")
@@ -172,6 +179,7 @@ def main() -> int:
     run_generics()
     run_entries()
     run_strict()
+    run_units()
     run_arguments()
     print(f"check_convertable_to_json_schema: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

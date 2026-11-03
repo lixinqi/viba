@@ -64,6 +64,7 @@ from viba.design_walk import (
 )
 from viba.interpret import _Runner
 from viba.pattern import decide, generic_named
+from viba.reflect import language_config
 from viba.type import (
     AstNodeType,
     CustomModuleType,
@@ -78,8 +79,15 @@ __all__ = ["convert_to_json_schema"]
 
 DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
-NULL_NAMES = ("nil", "Object", "void", "None")
-NEVER_NAMES = ("never", "Oneof")
+# The language's units (reflect.language_config), the two names a value of them
+# reads as: null, or nothing at all.
+NIL_EQV = tuple(sorted(language_config.nil_eqv))
+NEVER_EQV = tuple(sorted(language_config.never_eqv))
+NULL_NAMES = ("nil", "Object", "void", "None") + tuple(
+    name for name in NIL_EQV if name != "Object")
+NEVER_NAMES = ("never", "Oneof") + tuple(
+    name for name in NEVER_EQV if name != "Oneof")
+UNIT_NAMES = frozenset(NULL_NAMES) | frozenset(NEVER_NAMES)
 SCALAR_TYPES = {"int": "integer", "float": "number", "str": "string",
                 "bool": "boolean"}
 ARRAY_CONSTRUCTORS = ("list", "set", "ListLiteral", "SetLiteral")
@@ -222,9 +230,20 @@ class _Builder:
         raise _SchemaErr(f"{_spell(node)} has no JSON Schema")
 
     def _sum_options(self, elements, module, bindings: dict) -> List[dict]:
-        """One schema per option, a sum that stands in a sum taken together with it."""
+        """One schema per option, a sum that stands in a sum taken together with it.
+
+        The sum's unit is no option: `never` (the zero) and the `Oneof` a block
+        writes as its head say nothing a value could be. `nil` is an option —
+        the empty product is a value, and JSON writes it as null.
+        """
         options: List[dict] = []
         for element in elements:
+            if self._is_no_value(element):
+                continue
+            form, _form_module, _form_bindings = self._stands_for(
+                element, module, bindings)
+            if self._is_no_value(form):
+                continue
             if isinstance(element, (viba_ast.Sum, viba_ast.SumChain)):
                 options.extend(self._sum_options(
                     chain_elements(element) or [], module, bindings))
@@ -346,9 +365,29 @@ class _Builder:
         return self._schema(choice.body, choice.module, inner)
 
     def _product(self, elements, module, bindings: dict) -> dict:
+        """The product's schema: its tagged members, or the one member it keeps.
+
+        A unit is no member. A product left with nothing is the unit `Object`
+        (JSON null); one left with a single member that is no tag is that
+        member — `A * Object` is `A` — so `(str * Hint[{ ... }])` is `str`.
+        """
+        kept = []
+        for element in elements:
+            if isinstance(element, viba_ast.Tagged):
+                kept.append(element)
+                continue
+            form, _form_module, _form_bindings = self._stands_for(
+                element, module, bindings)
+            if self._is_unit(form):
+                continue
+            kept.append(element)
+        if not kept:
+            return {"type": "null"}
+        if len(kept) == 1 and not isinstance(kept[0], viba_ast.Tagged):
+            return self._schema(kept[0], module, bindings)
         properties: Dict[str, dict] = {}
         required: List[str] = []
-        self._members(elements, module, bindings, properties, required)
+        self._members(kept, module, bindings, properties, required)
         return {"type": "object",
                 "properties": properties,
                 "required": required,
@@ -364,13 +403,13 @@ class _Builder:
                 continue
             form, form_module, form_bindings = self._stands_for(
                 element, module, bindings)
-            if self._is_unit(form) or _is_unit_name(form):
+            if self._is_unit(form):
                 continue                    # a unit is no member
             inner = chain_elements(form)
             if inner is not None and isinstance(form, (viba_ast.Product,
                                                        viba_ast.ProductChain)):
                 head, rest = inner[0], inner[1:]
-                if _is_unit_name(head) or self._is_unit(head):
+                if self._is_unit(head):
                     inner = rest
                 self._members(inner, form_module, form_bindings,
                               properties, required)
@@ -432,7 +471,24 @@ class _Builder:
             return node, module, bindings
 
     def _is_unit(self, form) -> bool:
-        return isinstance(form, (viba_ast.Nil, viba_ast.Never))
+        """A unit: `nil`/`Object` under any of its names, or `never`/`Oneof`."""
+        if isinstance(form, (viba_ast.Nil, viba_ast.Never)):
+            return True
+        if isinstance(form, viba_ast.TypeRef):
+            return form.name in UNIT_NAMES
+        if isinstance(form, viba_ast.TypeApp):
+            return form.constructor in UNIT_NAMES
+        return False
+
+    def _is_no_value(self, form) -> bool:
+        """The sum's unit: `never` itself, or a name standing for it."""
+        if isinstance(form, viba_ast.Never):
+            return True
+        if isinstance(form, viba_ast.TypeRef):
+            return form.name in NEVER_NAMES
+        if isinstance(form, viba_ast.TypeApp):
+            return form.constructor in NEVER_NAMES
+        return False
 
     def _symbol(self, node, bindings: dict):
         if isinstance(node, viba_ast.Constant) and isinstance(node.value, str):
@@ -453,10 +509,6 @@ class _Builder:
                     where = bound[1]
             kept.append(where)
         return kept if any(where is not None for where in kept) else None
-
-
-def _is_unit_name(node) -> bool:
-    return isinstance(node, viba_ast.TypeRef) and node.name in NULL_NAMES + NEVER_NAMES
 
 
 def _tag_name(tag: str) -> str:

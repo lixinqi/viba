@@ -106,7 +106,8 @@ convert_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
 | `dict[str, T]` | `{"type": "object", "additionalProperties": …}` |
 | 积 `Object * $a A * $b B` | 对象：`properties` / `required` / `additionalProperties: false` |
 | 积里的内联位 | 摊进当前对象；按位置的成员没有键，答错 |
-| 和 | `{"oneOf": […]}`，一支一项；嵌套的和摊平 |
+| 积里的单位元成员（`Object`、`nil`、`Hint[{...}]`、`Assert[{...}]`） | 不算成员；一个不剩就是 `{"type": "null"}`，只剩一个不带 tag 的成员时就是那一个的 schema |
+| 和 | `{"oneOf": […]}`，一支一项；嵌套的和摊平；`Oneof` 头和 `never` 不算一项 |
 | 带 tag 的一项 `$a A` | `{"type": "object", "properties": {"a": …}, "required": ["a"], "additionalProperties": false}` |
 | 元组 `(A, B)` | `{"type": "array", "prefixItems": […], "items": false, "minItems": 2}` |
 | 名字 | `{"$ref": "#/$defs/<全名>"}` |
@@ -124,6 +125,6 @@ convert_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
 
 - **按位置的积成员**：没有 tag 就没有键，答错。
 - **非字符串的 dict 键**：JSON 对象的键只能是字符串；`dict[int, T]` 答错（判定也查这一条）。
-- **说明文字**：代码块里的说明（`Hint[{...}]`、`Comments[{...}]`）不进 schema，不写 `title` /
-  `description`。
+- **说明文字**：代码块里的说明（`Hint[{...}]`、`Assert[{...}]`）是单位元，不进 schema，也不写
+  `title` / `description`。
 - **方言**：只写 2020-12；要别的方言得自己转。

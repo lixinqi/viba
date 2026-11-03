@@ -1,0 +1,10 @@
+X = Object * $a (str * Hint[{ 说明 }])
+
+Y = Object * $a str * Hint[{ 说明 }]
+
+Z =
+  Oneof
+  | $a int
+  | $b str
+
+Maybe = int | nil
