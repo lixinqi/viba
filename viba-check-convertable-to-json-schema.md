@@ -91,6 +91,8 @@ check_convertable_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
   选项一起算；名字走到的是别的种类，就按那个种类算。
 - **产品那一侧**：一个积一个 tag、内联链要摊到底——这是 `check_tag_and_inline`，本判定先拿同一份设计
   跑一遍；它不过，就直接答它的错。
+- **积读成什么**：积读成对象；单位元成员（`Object`、`nil`、`Hint[{...}]`）不算成员——一个不剩读成
+  null，只剩一个不带 tag 的成员时读成那一个（`"S0" * Hint[{...}]` 就是一个字符串常量）。
 
 ## 4. 读不成 JSON 值的
 

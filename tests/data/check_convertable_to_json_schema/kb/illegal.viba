@@ -13,3 +13,5 @@ Same = "x" | "x"
 Objects = Object * $x int | Object * $y int
 
 IntKeys = dict[int, str]
+
+Tupled = (int, str) | list[int]

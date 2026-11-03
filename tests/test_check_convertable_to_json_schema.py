@@ -4,6 +4,7 @@ Every case is one module of data/check_convertable_to_json_schema/kb:
 
     legal.viba      sums that read back: tags, kinds, nested sums, literals
     illegal.viba    sums that do not: two ints, int|float, 7|int, "x"|"x",
+                    a tuple against a list (both arrays),
                     two products
     no_value.viba   no JSON value at all: Any, a function, ..., a code block
     products.viba   one tag twice once the inline slot is spread
@@ -74,6 +75,7 @@ def run_refused() -> None:
     refused("illegal.L", "7 and int")
     refused("illegal.Same", '"x" and "x"')
     refused("illegal.Objects", "read as an object")
+    refused("illegal.Tupled", "read as an array")
     refused("use.Repeated", "int and int")
     refused("illegal.IntKeys", "a JSON object's keys are strings")
 
@@ -146,7 +148,7 @@ def run_strict() -> None:
 
 def run_units() -> None:
     """The units a design writes: documentation slots, and a block sum's head."""
-    for name in ("units.X", "units.Y", "units.Z", "units.Maybe"):
+    for name in ("units.X", "units.Y", "units.Z", "units.Maybe", "units.Level"):
         check(f"{name} is accepted",
               isinstance(judge(("type_names", [name])), Ok), True)
 

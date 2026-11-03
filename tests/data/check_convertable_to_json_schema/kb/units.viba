@@ -8,3 +8,8 @@ Z =
   | $b str
 
 Maybe = int | nil
+
+Level =
+  Oneof
+  | "S0" * Hint[{ 单机，最小参数配置 }]
+  | "S1" * Hint[{ 单机多卡或双机 }]

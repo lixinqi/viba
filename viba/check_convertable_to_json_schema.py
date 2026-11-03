@@ -558,9 +558,10 @@ class _Checker:
             return ("null", None)
         if isinstance(form, viba_ast.Never):
             return None                     # a value of never is no value
-        if isinstance(form, (viba_ast.Product, viba_ast.ProductChain,
-                             viba_ast.Tuple)):
-            return ("object", None)
+        if isinstance(form, (viba_ast.Product, viba_ast.ProductChain)):
+            return self._read_product(chain_elements(form) or [], module, bindings)
+        if isinstance(form, viba_ast.Tuple):
+            return ("array", None)
         if isinstance(form, viba_ast.TypeRef):
             name = form.name
             if name in bindings:
@@ -588,6 +589,45 @@ class _Checker:
                 return ("tag", symbol) if symbol is not None else None
             return None
         return None
+
+    def _read_product(self, elements, module, bindings: dict):
+        """What a JSON value of a product is: the member it keeps, or an object.
+
+        A unit is no member (`Hint[{ ... }]` included — it is an application, and
+        the language config names it). A product that keeps none is `Object`,
+        read as null; one that keeps a single member without a tag is that
+        member — `"S0" * Hint[{ ... }]` is the string `"S0"`.
+        """
+        kept = []
+        for element in elements:
+            if isinstance(element, viba_ast.Tagged):
+                kept.append(element)
+                continue
+            if self._is_unit(element):
+                continue                # `Hint[{ ... }]` is no member, and no type
+            form, _form_module, _form_bindings = self._stands_for(
+                element, module, bindings)
+            if self._is_unit(form):
+                continue
+            kept.append(element)
+        if not kept:
+            return ("null", None)
+        if len(kept) == 1 and not isinstance(kept[0], viba_ast.Tagged):
+            return self._read_as(kept[0], module, bindings)
+        return ("object", None)
+
+    def _is_unit(self, form) -> bool:
+        """A unit: `nil`/`Object` under any of its names, or `never`/`Oneof`."""
+        if isinstance(form, (viba_ast.Nil, viba_ast.Never)):
+            return True
+        if isinstance(form, viba_ast.TypeRef):
+            name = form.name
+        elif isinstance(form, viba_ast.TypeApp):
+            name = form.constructor
+        else:
+            return False
+        return (name in self.nil_eqv or name in self.never_eqv
+                or name in NULL_NAMES or name in NO_VALUE_NAMES)
 
     def _read_resolved(self, name: str, module):
         found = module_get_type(module, name)

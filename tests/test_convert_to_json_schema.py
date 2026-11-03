@@ -118,6 +118,10 @@ def run_units() -> None:
     doc = schema("units.Maybe")
     check("nil is an option", definition(doc, "units.Maybe").get("oneOf"),
           [{"type": "integer"}, {"type": "null"}])
+    doc = schema("units.Level")
+    check("a documented constant is that constant",
+          definition(doc, "units.Level").get("oneOf"),
+          [{"const": "S0"}, {"const": "S1"}])
 
 
 def run_products() -> None:
