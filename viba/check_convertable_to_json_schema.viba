@@ -1,8 +1,8 @@
-# check_json_serdeable — the design: can this type round-trip through JSON?
+# check_convertable_to_json_schema — the design: can this type be written as a JSON Schema?
 #
-# This is the declaration `viba.check_json_serdeable` is held to, given as
+# This is the declaration `viba.check_convertable_to_json_schema` is held to, given as
 # a viba type so the judgment reads with the rest of the design-side signatures
-# (viba-check-json-serdeable.md is the document; the Python layer is the
+# (viba-check-convertable-to-json-schema.md is the document; the Python layer is the
 # one that takes the design apart).
 #
 # `ImportableTypeName` is a dotted name an import would find: the module of a
@@ -16,7 +16,7 @@
 # so it is refused. The product side (one tag per product, inline chains that
 # end) is check_tag_and_inline's, run over the same design first.
 
-CheckJsonSerdeable =
+CheckConvertableToJsonSchema =
     Result[void]
   <- $viba_path list[str]
   <- $entry ($module_name ImportableTypeName | $type_names list[ImportableTypeName])

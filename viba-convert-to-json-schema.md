@@ -1,7 +1,7 @@
 # convert_to_json_schema：把类型写成 JSON Schema
 
 类型要交给只认 JSON 的工具时——校验器、模型的 tool schema、审计脚本——先得有一份 JSON Schema。这个
-函数把类型走一遍，写出这份 schema 文档；入口和 [`check_json_serdeable`](viba-check-json-serdeable.md)
+函数把类型走一遍，写出这份 schema 文档；入口和 [`check_convertable_to_json_schema`](viba-check-convertable-to-json-schema.md)
 一样，判定先跑：互转不了的类型没有 schema 可写，返回值就是判定的那条错。
 
 ```viba
@@ -42,7 +42,7 @@ ConvertToJsonSchema =
   <- $strict ((bool | nil) * { 默认为 False，表示允许给定 module_name 内部可以包含 <- 和 <<，函数内部会选择性忽略他们 })
   <- Hint[{
       $entry 给一个模块名：文档的 $defs 里是这个模块的每个定义；给一组 type 名：是这几个定义。
-      先跑 check_json_serdeable：它答错就把它的错答回去。
+      先跑 check_convertable_to_json_schema：它答错就把它的错答回去。
       出来的是一份 JSON Schema（2020-12）：每个走到的定义按全名收进 $defs，引用它们的用 $ref，
       $ref 的根是第一个（模块的话是它的第一个定义）。
       积是对象（不带 tag 的成员摊平，按位置的不行）；和是 oneOf；带 tag 的一项是一个对象，键是 tag 去掉 $；
@@ -61,7 +61,7 @@ ImportableTypeName =
 
 ## 2. 怎么调用
 
-入口和 `check_json_serdeable` 是同两支：给模块名，或给一组 type 名。Python 里：
+入口和 `check_convertable_to_json_schema` 是同两支：给模块名，或给一组 type 名。Python 里：
 
 ```python
 convert_to_json_schema(["kb"], ("module_name", "objects"))
@@ -115,7 +115,7 @@ convert_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
 
 ## 5. 错误
 
-- 判定不过（[`viba-check-json-serdeable.md`](viba-check-json-serdeable.md) 第 4、6 节那些）——返回值就是
+- 判定不过（[`viba-check-convertable-to-json-schema.md`](viba-check-convertable-to-json-schema.md) 第 4、6 节那些）——返回值就是
   判定的那条错；
 - 入口本身不成立：模块找不到、type 名解析不到、`$entry` 不是那两支、`strict` 不是 bool 或 nil；
 - 没有可写的类型：模块里全是函数和调用（`$strict` 没开），或者给的名字都是函数。

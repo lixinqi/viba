@@ -1,6 +1,6 @@
-"""Tests for check_json_serdeable: can this type round-trip through JSON?
+"""Tests for check_convertable_to_json_schema: can this type be written as a JSON Schema?
 
-Every case is one module of data/check_json_serdeable/kb:
+Every case is one module of data/check_convertable_to_json_schema/kb:
 
     legal.viba      sums that read back: tags, kinds, nested sums, literals
     illegal.viba    sums that do not: two ints, int|float, 7|int, "x"|"x",
@@ -12,7 +12,7 @@ Every case is one module of data/check_json_serdeable/kb:
     generics.viba   a generic applied, a parameter left open, Either
     empty.viba      a module with no definitions
 
-    python3 tests/test_check_json_serdeable.py
+    python3 tests/test_check_convertable_to_json_schema.py
 """
 
 import sys
@@ -20,10 +20,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.check_json_serdeable import check_json_serdeable
+from viba.check_convertable_to_json_schema import check_convertable_to_json_schema
 from viba.type import Ok, Err
 
-DATA = Path(__file__).resolve().parent / "data" / "check_json_serdeable" / "kb"
+DATA = Path(__file__).resolve().parent / "data" / "check_convertable_to_json_schema" / "kb"
 
 PASS = 0
 FAIL = 0
@@ -39,7 +39,7 @@ def check(name: str, got, want) -> None:
 
 
 def judge(entry, strict=None):
-    return check_json_serdeable([str(DATA)], entry, strict=strict)
+    return check_convertable_to_json_schema([str(DATA)], entry, strict=strict)
 
 
 def types(*names):
@@ -154,11 +154,11 @@ def run_arguments() -> None:
             entry=("module_name", 1))
     refused("type_names is a list", "type_names is a list of names, not one name",
             entry=("type_names", "legal.A"))
-    got = check_json_serdeable(str(DATA), ("module_name", "legal"))
+    got = check_convertable_to_json_schema(str(DATA), ("module_name", "legal"))
     check("viba_path is a list",
           isinstance(got, Err)
           and "viba_path is a list of directories, not one directory" in got.msg, True)
-    got = check_json_serdeable([1], ("module_name", "legal"))
+    got = check_convertable_to_json_schema([1], ("module_name", "legal"))
     check("viba_path holds directories",
           isinstance(got, Err)
           and "viba_path holds a directory, not int" in got.msg, True)
@@ -173,7 +173,7 @@ def main() -> int:
     run_entries()
     run_strict()
     run_arguments()
-    print(f"check_json_serdeable: {PASS} passed, {FAIL} failed")
+    print(f"check_convertable_to_json_schema: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0
 
 

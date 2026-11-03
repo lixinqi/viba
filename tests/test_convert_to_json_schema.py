@@ -1,6 +1,6 @@
 """Tests for convert_to_json_schema: the JSON Schema a type answers to.
 
-The cases are the modules of data/check_json_serdeable — the same types the
+The cases are the modules of data/check_convertable_to_json_schema — the same types the
 judgment is tested on, because a type with no schema and a type that cannot go
 to JSON are the same types.
 
@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from viba.convert_to_json_schema import convert_to_json_schema
 from viba.type import Ok, Err
 
-DATA = Path(__file__).resolve().parent / "data" / "check_json_serdeable" / "kb"
+DATA = Path(__file__).resolve().parent / "data" / "check_convertable_to_json_schema" / "kb"
 
 PASS = 0
 FAIL = 0

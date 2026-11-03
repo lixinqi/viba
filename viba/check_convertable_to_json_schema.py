@@ -1,8 +1,8 @@
-"""viba.check_json_serdeable — can this design round-trip through JSON?
+"""viba.check_convertable_to_json_schema — can this design be written as a JSON Schema?
 
-    from viba.check_json_serdeable import check_json_serdeable
+    from viba.check_convertable_to_json_schema import check_convertable_to_json_schema
 
-    check_json_serdeable(["kb"], ("type_names", ["report.Report"]))
+    check_convertable_to_json_schema(["kb"], ("type_names", ["report.Report"]))
     # Ok(None), or Err(the first sum that cannot be read back)
 
 A viba value is written as JSON-looking data: a product is an object, a list is
@@ -70,7 +70,7 @@ from viba.type import (
 from viba.viba_ast.tagged import TAGGED_NAME
 from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
 
-__all__ = ["check_json_serdeable", "entry_definitions", "argument_problem", "CheckErr"]
+__all__ = ["check_convertable_to_json_schema", "entry_definitions", "argument_problem", "CheckErr"]
 
 # The language's units (reflect.language_config): a name standing for `nil` or
 # `never`, so a unit rather than a definition of its own.
@@ -90,7 +90,7 @@ class CheckErr(Exception):
     """The first thing that keeps this design from being read back from JSON."""
 
 
-def check_json_serdeable(viba_path, entry, strict=None) -> Result:
+def check_convertable_to_json_schema(viba_path, entry, strict=None) -> Result:
     """Result[None]: Ok(None) when every sum the entry reaches reads unambiguously.
 
     `viba_path` is the search path an import is resolved on, in order.

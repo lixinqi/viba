@@ -5,7 +5,7 @@
 # (viba-convert-to-json-schema.md is the document; the Python layer is the one
 # that takes the design apart).
 #
-# The entry is `CheckJsonSerdeable`'s — a module, or a group of type names —
+# The entry is `CheckConvertableToJsonSchema`'s — a module, or a group of type names —
 # and the judgment runs first: a design that cannot go to JSON and come back has
 # no schema worth writing, and its error is the answer. What comes out is one
 # JSON Schema document (2020-12): every definition the entry reaches is a
@@ -21,7 +21,7 @@ ConvertToJsonSchema =
   <- $strict ((bool | nil) * { 默认为 False，表示允许给定 module_name 内部可以包含 <- 和 <<，函数内部会选择性忽略他们 })
   <- Hint[{
       $entry 给一个模块名：文档的 $defs 里是这个模块的每个定义；给一组 type 名：是这几个定义。
-      先跑 check_json_serdeable：它答错就把它的错答回去。
+      先跑 check_convertable_to_json_schema：它答错就把它的错答回去。
       出来的是一份 JSON Schema（2020-12）：每个走到的定义按全名收进 $defs，引用它们的用 $ref，
       $ref 的根是第一个（模块的话是它的第一个定义）。
       积是对象（不带 tag 的成员摊平，按位置的不行）；和是 oneOf；带 tag 的一项是一个对象，键是 tag 去掉 $；

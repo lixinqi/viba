@@ -1,22 +1,22 @@
-# check_json_serdeable：这份类型能和 JSON 互转吗
+# check_convertable_to_json_schema：这份类型能写成 JSON Schema 吗
 
-知识库里的类型，常常要和 JSON 互转：写进 JSON 文档交给别的进程，或者直接交给只认 JSON 的工具；
-再从 JSON 读回来。写出去要求每个值都有 JSON 表示；读回来要求每一种 JSON 值只落到一支——JSON 只有
-六种东西（null、布尔、数字、字符串、数组、对象），一个和的两个选项如果在这六种里分不开，读的人就不知道
-该往哪一支走。这个判定把两个方向一起查，所以叫 serdeable。
+知识库里的类型要写成 JSON Schema，交给只认 JSON 的工具（校验器、模型的 tool schema、审计脚本）。
+schema 要写得准，前提是每一种 JSON 值只落到类型的一支：JSON 只有六种东西（null、布尔、数字、字符串、
+数组、对象），一个和的两个选项如果在这六种里分不开，schema 也就有歧义。这个判定查的就是这件事——这份
+设计能不能写成一份没有歧义的 JSON Schema。
 
 ```viba
-Good = $a int | $b int     # 互转都行：两支各带一个 tag
+Good = $a int | $b int     # 能写成 schema：两支各带一个 tag
 
 B = int
 C = int
-Bad = B | C                # 回不来：两支都是数字
+Bad = B | C                # 写不准：两支都是数字
 ```
 
 ## 1. 类型
 
 ```viba
-CheckJsonSerdeable =
+CheckConvertableToJsonSchema =
     Result[void]
   <- $viba_path list[str]
   <- $entry ($module_name ImportableTypeName | $type_names list[ImportableTypeName])
@@ -42,24 +42,24 @@ ImportableTypeName =
 `模块.定义`，模块按 `$viba_path` 找——和 `import` 找到它的是同一张表。
 
 ```viba
-ByModule = check_json_serdeable
+ByModule = check_convertable_to_json_schema
   << $viba_path ListLiteral["kb"]
   << $entry ($module_name "report")
 ```
 
 ```viba
-ByTypes = check_json_serdeable
+ByTypes = check_convertable_to_json_schema
   << $viba_path ListLiteral["kb"]
   << $entry ($type_names ListLiteral["report.Report"])
 ```
 
-上面是按签名写；Python 里是这样（[`viba/check_json_serdeable.py`](viba/check_json_serdeable.py)）：
+上面是按签名写；Python 里是这样（[`viba/check_convertable_to_json_schema.py`](viba/check_convertable_to_json_schema.py)）：
 
 ```python
-from viba.check_json_serdeable import check_json_serdeable
+from viba.check_convertable_to_json_schema import check_convertable_to_json_schema
 
-check_json_serdeable(["kb"], ("module_name", "report"))
-check_json_serdeable(["kb"], ("type_names", ["report.Report"]))
+check_convertable_to_json_schema(["kb"], ("module_name", "report"))
+check_convertable_to_json_schema(["kb"], ("type_names", ["report.Report"]))
 ```
 
 答 `Ok(None)`（互转都行）、或者一个 `Err(...)`（一句话，说的是第一处不成立的地方）。
@@ -70,7 +70,7 @@ check_json_serdeable(["kb"], ("type_names", ["report.Report"]))
 - `True`：不跳过，按规则拒掉（`a function is no JSON value`）。
 
 ```python
-check_json_serdeable(["kb"], ("module_name", "demo"), strict=True)
+check_convertable_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
 ```
 
 点名给的类型不受这个开关影响：给一个函数类型，两种模式都答错。

@@ -1,7 +1,7 @@
 """viba.design_walk — the small readings of a design's source that its walks share.
 
 Two layers that walk a design and resolve its names — `extract_sub_repo` and
-`check_json_serdeable` — need the same few readings: the elements of a chain,
+`check_convertable_to_json_schema` — need the same few readings: the elements of a chain,
 the head and arguments of a call, a type name taken apart, and what tells one
 walk of a definition from another. They are collected here so both walks read a
 design the same way.

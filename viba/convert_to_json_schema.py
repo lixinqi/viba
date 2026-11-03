@@ -5,7 +5,7 @@
     answer = convert_to_json_schema(["kb"], ("type_names", ["report.Report"]))
     answer.ok_value        # the schema, as JSON text
 
-The entry is the same one `check_json_serdeable` takes: a module name, or a
+The entry is the same one `check_convertable_to_json_schema` takes: a module name, or a
 group of type names. The judgment runs first — a design that cannot go to JSON
 and come back has no schema worth writing — and its error is the answer.
 
@@ -53,8 +53,8 @@ import json
 from typing import Dict, List, Optional
 
 from viba import viba_ast
-from viba.check_json_serdeable import (CheckErr, argument_problem,
-                                        check_json_serdeable, entry_definitions)
+from viba.check_convertable_to_json_schema import (CheckErr, argument_problem,
+                                        check_convertable_to_json_schema, entry_definitions)
 from viba.design_walk import (
     chain_elements,
     is_definition,
@@ -93,7 +93,7 @@ class _SchemaErr(Exception):
 def convert_to_json_schema(viba_path, entry, strict=None) -> Result:
     """Result[str]: the JSON Schema the entry answers to, or why there is none.
 
-    `viba_path` and `entry` are `check_json_serdeable`'s: the search path an
+    `viba_path` and `entry` are `check_convertable_to_json_schema`'s: the search path an
     import is resolved on, and (`module_name`, name) or (`type_names`, names).
     The judgment runs first — over what is converted — and its error is the
     answer when the design cannot be read back from JSON.
@@ -115,7 +115,7 @@ def convert_to_json_schema(viba_path, entry, strict=None) -> Result:
     builder = _Builder(_Runner(":".join(viba_path) if viba_path else None))
     try:
         definitions = entry_definitions(builder.loader, tag, value, bool(strict))
-        checked = check_json_serdeable(viba_path, entry, strict=strict)
+        checked = check_convertable_to_json_schema(viba_path, entry, strict=strict)
         if isinstance(checked, Err):
             return checked
         entries = [(builder.full_name(module, definition), definition, module)
