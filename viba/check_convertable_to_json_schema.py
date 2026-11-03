@@ -23,9 +23,8 @@ A literal and a type of the same kind read as the same thing too (`7` and
 `int`): the value 7 could be either. Two literals of one kind are told apart by
 their values, so `"a" | "b"` is fine.
 
-The rest of the type has to be a JSON value at all: a function, `Any`, `...`,
-a call and a bare code block are none, and a generic parameter with no argument
-is none yet. A name that does not resolve is a mistake, and so is a generic
+The rest of the type has to be a JSON value at all: a function, `Any`, `...`
+and a call are none, and a generic parameter with no argument is none yet. A name that does not resolve is a mistake, and so is a generic
 application the source cannot decide.
 
 The product side — one tag per product, inline chains that end — is
@@ -37,7 +36,9 @@ own loader, so names resolve where a run would resolve them. Nothing is run.
 
 The unit names are the language's own (`reflect.language_config`): a name that
 stands for `nil` or `never` is a unit, and a unit carries no JSON value of its
-own beyond `null` (and `never` carries none at all).
+own beyond `null` (and `never` carries none at all). A hint is one too: `{ ... }`
+and `Hint[{ ... }]` are the same unit, so a product passes it over and a sum
+reads a null under it.
 """
 
 from __future__ import annotations
@@ -267,7 +268,7 @@ class _Checker:
             raise CheckErr(
                 f"{_spell(node)} is no JSON value")
         if isinstance(node, viba_ast.CodeBlock):
-            raise CheckErr("a code block is no JSON value")
+            return                          # a hint is a unit: no value of its own
         if isinstance(node, viba_ast.Member):
             raise CheckErr(f"{_spell(node)} is no JSON value")
         if isinstance(node, viba_ast.TypeRef):
@@ -510,6 +511,11 @@ class _Checker:
                 if (node.constructor in ARRAY_CONSTRUCTORS
                         or node.constructor in OBJECT_CONSTRUCTORS):
                     return node, module, bindings
+                if (node.constructor in self.nil_eqv
+                        or node.constructor in self.never_eqv
+                        or node.constructor in NULL_NAMES
+                        or node.constructor in NO_VALUE_NAMES):
+                    return node, module, bindings    # a unit: no type to resolve
                 generic = generic_named(module, node.constructor)
                 if isinstance(generic, Err):
                     raise CheckErr(
@@ -554,8 +560,8 @@ class _Checker:
             return ("tag", form.tag)
         if isinstance(form, viba_ast.Constant):
             return (_literal_kind(form.value), form.value)
-        if isinstance(form, viba_ast.Nil):
-            return ("null", None)
+        if isinstance(form, (viba_ast.Nil, viba_ast.CodeBlock)):
+            return ("null", None)           # a hint is a unit, read as null
         if isinstance(form, viba_ast.Never):
             return None                     # a value of never is no value
         if isinstance(form, (viba_ast.Product, viba_ast.ProductChain)):
@@ -584,6 +590,10 @@ class _Checker:
                 return ("array", None)
             if constructor in OBJECT_CONSTRUCTORS:
                 return ("object", None)
+            if constructor in self.nil_eqv or constructor in NULL_NAMES:
+                return ("null", None)       # a unit, and a hint is one
+            if constructor in self.never_eqv or constructor in NO_VALUE_NAMES:
+                return None
             if constructor == TAGGED_NAME:
                 symbol = self._symbol(form.args[0], module, bindings)
                 return ("tag", symbol) if symbol is not None else None
@@ -618,7 +628,7 @@ class _Checker:
 
     def _is_unit(self, form) -> bool:
         """A unit: `nil`/`Object` under any of its names, or `never`/`Oneof`."""
-        if isinstance(form, (viba_ast.Nil, viba_ast.Never)):
+        if isinstance(form, (viba_ast.Nil, viba_ast.Never, viba_ast.CodeBlock)):
             return True
         if isinstance(form, viba_ast.TypeRef):
             name = form.name

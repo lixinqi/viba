@@ -122,6 +122,24 @@ def run_units() -> None:
     check("a documented constant is that constant",
           definition(doc, "units.Level").get("oneOf"),
           [{"const": "S0"}, {"const": "S1"}])
+    doc = schema("units.Docs")
+    check("a bare hint is no member", definition(doc, "units.Docs"),
+          {"type": "object",
+           "properties": {"runs": {"type": "array", "items": {"type": "string"}}},
+           "required": ["runs"], "additionalProperties": False})
+    check("Hint writes the same schema",
+          definition(schema("units.Hinted"), "units.Hinted"),
+          definition(doc, "units.Docs"))
+    doc = schema("units.Comment")
+    check("a hint alone is the unit", definition(doc, "units.Comment"),
+          {"type": "null"})
+    for name in ("units.Asserted", "units.Appendixed"):
+        check(f"{name} keeps its member", definition(schema(name), name),
+              {"type": "object", "properties": {"a": {"type": "integer"}},
+               "required": ["a"], "additionalProperties": False})
+    doc = schema("units.UnitOption")
+    check("a unit option is null", definition(doc, "units.UnitOption").get("oneOf"),
+          [{"type": "integer"}, {"type": "null"}])
 
 
 def run_products() -> None:

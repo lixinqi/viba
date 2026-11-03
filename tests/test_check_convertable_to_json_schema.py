@@ -6,7 +6,7 @@ Every case is one module of data/check_convertable_to_json_schema/kb:
     illegal.viba    sums that do not: two ints, int|float, 7|int, "x"|"x",
                     a tuple against a list (both arrays),
                     two products
-    no_value.viba   no JSON value at all: Any, a function, ..., a code block
+    no_value.viba   no JSON value at all: Any, a function, ...
     products.viba   one tag twice once the inline slot is spread
     cycle.viba      an inline chain that comes back to itself
     use.viba        a sum that flattens through an import
@@ -85,7 +85,6 @@ def run_no_value() -> None:
     refused("no_value.X", "Any is no JSON value")
     refused("no_value.F", "a function is no JSON value")
     refused("no_value.E", "... is no JSON value")
-    refused("no_value.CB", "a code block is no JSON value")
     refused("generics.Open", "Any is no JSON value")
     refused("generics.Box", "the generic parameter 'T' has no argument")
 
@@ -148,7 +147,9 @@ def run_strict() -> None:
 
 def run_units() -> None:
     """The units a design writes: documentation slots, and a block sum's head."""
-    for name in ("units.X", "units.Y", "units.Z", "units.Maybe", "units.Level"):
+    for name in ("units.X", "units.Y", "units.Z", "units.Maybe", "units.Level",
+                 "units.Docs", "units.Hinted", "units.Comment",
+                 "units.Asserted", "units.Appendixed", "units.UnitOption"):
         check(f"{name} is accepted",
               isinstance(judge(("type_names", [name])), Ok), True)
 

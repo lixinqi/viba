@@ -26,7 +26,8 @@ CheckConvertableToJsonSchema =
       从定义出发把类型走一遍，每个和的选项要能和 JSON 互转：写出去有表示，读回来要么带不同的 tag，
       要么 JSON 凭种类分得开（null、布尔、数字、字符串、数组、对象）。数字不分 int 和 float；
       一个值和同一种类的类型也分不开（7 和 int）。产品那一侧用 check_tag_and_inline，先查。
-      函数、Any、...、调用、裸代码块没有 JSON 表示；泛型参数没有实参就没有表示。
+      函数、Any、...、调用没有 JSON 表示；泛型参数没有实参就没有表示。
+      `{...}` 和 `Hint[{...}]`、`Assert[{...}]`、`Appendix[{...}]` 一样是单位元：不算成员、不算选项，单独出现读成 null。
       $strict 给 True：函数（`<-`）和调用（`<<`）不跳过，按规则拒掉；
       给 nil 或 False（默认）：模块里的这两种定义跳过，剩下的照常判。
       答 Ok(nil)；不成立就答 $err，说的是第一处。
@@ -93,6 +94,8 @@ check_convertable_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
   跑一遍；它不过，就直接答它的错。
 - **积读成什么**：积读成对象；单位元成员（`Object`、`nil`、`Hint[{...}]`）不算成员——一个不剩读成
   null，只剩一个不带 tag 的成员时读成那一个（`"S0" * Hint[{...}]` 就是一个字符串常量）。
+- **提示就是单位元**：`{...}` 和 `Hint[{...}]`、`Assert[{...}]`、`Appendix[{...}]` 是一回事，都不带值；
+  它单独出现时读成 null。
 
 ## 4. 读不成 JSON 值的
 
@@ -101,7 +104,7 @@ check_convertable_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
 - **函数**（`A <- $b B`）：JSON 没有函数。
 - **`Any`**：没有表示，读回来是一份没有约束的值。
 - **`...`**：开着的和，不知道以后还会加哪些选项。
-- **调用**（`f << ...`）和**裸代码块**：没有表示。
+- **调用**（`f << ...`）：没有表示。
 - **没有实参的泛型参数**：还没有表示。
 
 ## 5. 例子
@@ -114,6 +117,7 @@ B = int | str                        # 数字对字符串
 C = $a list[int] | $b dict[str, int] | nil
 D = $a int | ($b str | $c bool)      # 摊平了三个 tag
 E = "a" | "b"                        # 同种类，凭值分开
+F = list[str] * { 说明 }             # 提示是单位元：就是 list[str]
 ```
 
 读不回来的：

@@ -13,3 +13,15 @@ Level =
   Oneof
   | "S0" * Hint[{ 单机，最小参数配置 }]
   | "S1" * Hint[{ 单机多卡或双机 }]
+
+Docs = Object * $runs (list[str] * { 要比对的两侧 })
+
+Hinted = Object * $runs (list[str] * Hint[{ 要比对的两侧 }])
+
+Comment = { 只有一句说明 }
+
+Asserted = Object * $a (int * Assert[{ 说明 }])
+
+Appendixed = Object * $a (int * Appendix[{ 说明 }])
+
+UnitOption = int | Assert[{ 说明 }]
