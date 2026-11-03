@@ -267,7 +267,7 @@ class _Checker:
         if isinstance(node, (viba_ast.Any, viba_ast.Ellipsis)):
             raise CheckErr(
                 f"{_spell(node)} is no JSON value")
-        if isinstance(node, viba_ast.CodeBlock):
+        if isinstance(node, viba_ast.HintBlock):
             return                          # a hint is a unit: no value of its own
         if isinstance(node, viba_ast.Member):
             raise CheckErr(f"{_spell(node)} is no JSON value")
@@ -560,7 +560,7 @@ class _Checker:
             return ("tag", form.tag)
         if isinstance(form, viba_ast.Constant):
             return (_literal_kind(form.value), form.value)
-        if isinstance(form, (viba_ast.Nil, viba_ast.CodeBlock)):
+        if isinstance(form, (viba_ast.Nil, viba_ast.HintBlock)):
             return ("null", None)           # a hint is a unit, read as null
         if isinstance(form, viba_ast.Never):
             return None                     # a value of never is no value
@@ -628,7 +628,7 @@ class _Checker:
 
     def _is_unit(self, form) -> bool:
         """A unit: `nil`/`Object` under any of its names, or `never`/`Oneof`."""
-        if isinstance(form, (viba_ast.Nil, viba_ast.Never, viba_ast.CodeBlock)):
+        if isinstance(form, (viba_ast.Nil, viba_ast.Never, viba_ast.HintBlock)):
             return True
         if isinstance(form, viba_ast.TypeRef):
             name = form.name

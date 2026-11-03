@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT))
 
 from viba.viba_ast import (  # noqa: E402
     Any,
-    CodeBlock,
+    HintBlock,
     Constant,
     GenericDefinition,
     Ellipsis,
@@ -159,7 +159,7 @@ def run_unparse_type_cases():
     same("and on the right too",
          case("A <- (B <- C)"), "A <- (B <- C)")
     same("a tagged leaf", unparse_type(Tagged("$a", Nil())), "$a nil")
-    same("a code block goes back in braces", unparse_type(CodeBlock("x")), "{x}")
+    same("a hint block goes back in braces", unparse_type(HintBlock("x")), "{x}")
     same("a chain inside a binary product keeps its parentheses",
          unparse_type(Product(ProductChain([TypeRef("A"), TypeRef("B")]), TypeRef("C"))),
          "(  A\n  * B) * C")
@@ -180,9 +180,9 @@ def run_unparse_type_cases():
 
 
 def viba_code(text: str):
-    """A CodeBlock whose content is `text` without the braces."""
-    from viba.viba_ast import CodeBlock
-    return CodeBlock(text[1:-1])
+    """A HintBlock whose content is `text` without the braces."""
+    from viba.viba_ast import HintBlock
+    return HintBlock(text[1:-1])
 
     # dump: 带字段名 / 不带 / 缩进 / 没有字段的节点
     node = parse("X = $a int").body[0]

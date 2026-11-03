@@ -26,7 +26,7 @@ from viba.viba_ast.nodes import (
     Never,
     Any,
     Ellipsis,
-    CodeBlock,
+    HintBlock,
     SumChain,
     ProductChain,
     ExponentChain,
@@ -75,7 +75,7 @@ def _unparse_type(node: AST, indent: int, depth: int) -> str:
         Never=lambda n: "never",
         Any=lambda n: "Any",
         Ellipsis=lambda e: "...",
-        CodeBlock=lambda c: _unparse_codeblock(c),
+        HintBlock=lambda c: _unparse_codeblock(c),
         SumChain=lambda s: _unparse_sumchain(s, indent, depth),
         ProductChain=lambda p: _unparse_productchain(p, indent, depth),
         ExponentChain=lambda e: _unparse_exponentchain(e, indent, depth),
@@ -247,8 +247,8 @@ def _quote_string(value: str) -> str:
     raise ValueError("no viba string literal holds this text")
 
 
-def _unparse_codeblock(codeblock_node: CodeBlock) -> str:
-    """Unparse a CodeBlock: content goes back inside braces as-is."""
+def _unparse_codeblock(codeblock_node: HintBlock) -> str:
+    """Unparse a HintBlock: content goes back inside braces as-is."""
     return "{" + codeblock_node.code + "}"
 
 

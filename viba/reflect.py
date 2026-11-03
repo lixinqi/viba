@@ -58,7 +58,7 @@ from viba import viba_ast
 from viba.pattern import reduce_application
 from viba.type import AstNodeType, Err, Ok, Result, module_get_type
 from viba.viba_type_descriptor import (
-    CODE_BLOCK,
+    HINT_BLOCK,
     ELLIPSIS,
     EXPONENT,
     LITERAL,

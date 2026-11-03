@@ -167,7 +167,7 @@ _UNIT_NEVER = viba_ast.Never()
 
 def _has_code_block(node) -> bool:
     """A {...} somewhere under this piece, behind tags and applications too."""
-    return any(isinstance(part, viba_ast.CodeBlock) for part in viba_ast.walk(node))
+    return any(isinstance(part, viba_ast.HintBlock) for part in viba_ast.walk(node))
 
 
 class _Checker:
@@ -362,8 +362,8 @@ class _Checker:
             return result
         if isinstance(sup, AstNodeType) and isinstance(sub, AstNodeType):
             return self._check_ast_pair(sub, sup)
-        if isinstance(sup, AstNodeType) and isinstance(sup.ast_node, viba_ast.CodeBlock):
-            return isinstance(sub, NilType)     # code block: no members, the unit is its resident
+        if isinstance(sup, AstNodeType) and isinstance(sup.ast_node, viba_ast.HintBlock):
+            return isinstance(sub, NilType)     # hint block: no members, the unit is its resident
         return False
 
     def _probe_leaves(self, sub: Type, sup: Type):
@@ -517,8 +517,8 @@ class _Checker:
             if isinstance(sn, viba_ast.TypeApp):
                 # An application on the sub side unfolds too: the resident of X[T] = nil is nil.
                 return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
-            if isinstance(sn, viba_ast.CodeBlock) and isinstance(sp, viba_ast.Nil):
-                return True                     # a code block is a unit, and nil takes it
+            if isinstance(sn, viba_ast.HintBlock) and isinstance(sp, viba_ast.Nil):
+                return True                     # a hint block is a unit, and nil takes it
             return type(sn) is type(sp)
         if self.terminators:
             operand = self._never_head_operand(sp, p_mod)
@@ -974,12 +974,12 @@ class _Checker:
             return self._walk_exponent(sn, s_mod, sp, p_mod)
         if isinstance(sp, viba_ast.TypeApp) and isinstance(sn, viba_ast.TypeApp):
             return self._walk_typeapps(sn, s_mod, sp, p_mod)
-        if isinstance(sp, viba_ast.CodeBlock):
-            # A code block has no members: the unit is its only resident, and a
-            # code block counts as one. Its text is not compared — the protocol
+        if isinstance(sp, viba_ast.HintBlock):
+            # A hint block has no members: the unit is its only resident, and a
+            # hint block counts as one. Its text is not compared — the protocol
             # gives the viba data's code to no side that takes values, so there
             # is nothing to compare against.
-            if isinstance(sn, viba_ast.CodeBlock):
+            if isinstance(sn, viba_ast.HintBlock):
                 return True
             return isinstance(self._lift(sn, s_mod, "sub"), NilType)
         return False
@@ -1312,11 +1312,11 @@ class _Checker:
                 if not (isinstance(arg, viba_ast.Tagged) and arg.tag == ENVIRON_TAG)]
 
     def _carries_documentation(self, node) -> bool:
-        """A code block, or a unit a config names applied to one: where the
+        """A hint block, or a unit a config names applied to one: where the
         layers that give source park documentation. Documentation is not an
         argument. The block may sit behind a tag, as `U[$t {...}]` spells
         it."""
-        if isinstance(node, viba_ast.CodeBlock):
+        if isinstance(node, viba_ast.HintBlock):
             return True
         if not isinstance(node, viba_ast.TypeApp):
             return False
@@ -1360,7 +1360,7 @@ class _Checker:
 
         Only functions compare with functions — never, the bottom, fits
         anywhere and is answered before this. Arguments that carry documentation (a
-        code block, or a unit applied to one) drop out first, whatever
+        hint block, or a unit applied to one) drop out first, whatever
         position the source has them in (_drop_unit_args), so the chain the sup
         asks about is the chain of its real arguments. The sub is brought to
         the sup's arity then, the sup never moving:

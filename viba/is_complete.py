@@ -37,8 +37,8 @@ Walking:
   patterns fit the arguments in the source is the one walked, with its own
   parameter names standing for the argument parts the patterns extracted
   (viba-pattern.md). A decision that fails makes the design incomplete.
-- Code blocks, ellipsis, and anything else that has no members but is not in
-  terminators make the design incomplete. To end a walk at a code block, name
+- Hint blocks, ellipsis, and anything else that has no members but is not in
+  terminators make the design incomplete. To end a walk at a hint block, name
   the type that wraps it in terminators: the walk then stops at that
   application instead of descending into the code.
 - Recursive definitions are coinductive: the same (module, definition,
@@ -241,7 +241,7 @@ class _Checker:
             return True  # these count as a leaf
         if isinstance(node, viba_ast.Ellipsis):
             return "..." in self.stops
-        if isinstance(node, viba_ast.CodeBlock):
+        if isinstance(node, viba_ast.HintBlock):
             return False  # no leaf here; only the wrapping name can end a walk
         if isinstance(node, viba_ast.TypeRef):
             return self._name(node.name, module_name, bindings)
@@ -390,7 +390,7 @@ class _Checker:
                               else argument,
                               module_name, bindings)
                    for argument in arguments
-                   if not isinstance(argument, viba_ast.CodeBlock))
+                   if not isinstance(argument, viba_ast.HintBlock))
 
     def _member(self, node, module_name: str, bindings: dict) -> bool:
         """`g[T].value` / `g[T].type`: go through the definition itself in the file the
@@ -699,7 +699,7 @@ def _option_name(form) -> Optional[tuple]:
     are named by their constructor (`list[str]` and `list[int]` are both
     `list`); a literal is named by its kind and its value, so `"a"` and `"b"`
     share nothing while two `7`s do. A form with no name of its own — a tuple, a
-    product, a call, a code block — answers None: two of those are not told
+    product, a call, a hint block — answers None: two of those are not told
     apart by a name, so no option has to carry a tag for them.
     """
     inner = form.type if isinstance(form, viba_ast.Tagged) else form

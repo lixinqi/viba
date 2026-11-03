@@ -125,6 +125,6 @@ convert_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
 
 - **按位置的积成员**：没有 tag 就没有键，答错。
 - **非字符串的 dict 键**：JSON 对象的键只能是字符串；`dict[int, T]` 答错（判定也查这一条）。
-- **说明文字**：代码块里的说明（`{...}`、`Hint[{...}]`、`Assert[{...}]`）是单位元，不进 schema，也不写
+- **说明文字**：提示块里的说明（`{...}`、`Hint[{...}]`、`Assert[{...}]`）是单位元，不进 schema，也不写
   `title` / `description`。
 - **方言**：只写 2020-12；要别的方言得自己转。

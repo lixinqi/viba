@@ -640,7 +640,7 @@ def test_builder_code_case_001():
     vb = builder.Builder()
     vb.X = builder.code("return 1")
     assert _text(vb) == "X =\n  {return 1}"
-    assert _kind(_one(vb, "X").body) == "CodeBlock"
+    assert _kind(_one(vb, "X").body) == "HintBlock"
 
 
 def test_builder_code_case_002():

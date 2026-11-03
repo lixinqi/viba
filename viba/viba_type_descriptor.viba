@@ -114,7 +114,7 @@ VibaTypeDescriptor =            # protobuf: the FieldDescriptorProto.type column
   | $nil ()                              # the unit: nothing to resolve
   | $never ()                            # zero: the same
   | $ellipsis ()                         # ...: the same
-  | $code_block VibaCodeBlockDescriptor
+  | $code_block VibaHintBlockDescriptor
 
 VibaTypeRefDescriptor =
     Object
@@ -171,7 +171,7 @@ VibaChainDescriptor =
       A <- (B <- C) 是 [A, [B, C]]，与 A * B * C / A <- B <- C 都不同形。
     }]
 
-VibaCodeBlockDescriptor =
+VibaHintBlockDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type

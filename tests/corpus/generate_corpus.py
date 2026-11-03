@@ -250,7 +250,7 @@ def render_definition(gen, theme, depth):
 
 
 def gen_assert_definition(gen):
-    """The project's signature idiom: metric + Assert code block."""
+    """The project's signature idiom: metric + Assert hint block."""
     n = gen.name("Guarded")
     limit = gen.rng.randint(10, 500)
     metric = gen.rng.choice(["int", "float"])

@@ -7,7 +7,7 @@ Composite nodes:
     Module, TypeDefinition, GenericDefinition, Sum, Product, Exponent,
     Tagged, MemberTaken, TypeApp, Tuple
 Atomic nodes:
-    TypeRef, Constant, Nil, Never, Ellipsis, CodeBlock
+    TypeRef, Constant, Nil, Never, Ellipsis, HintBlock
 Canonical (chain-style) nodes, produced by convert_to_chain_style:
     SumChain, ProductChain, ExponentChain
 """
@@ -163,8 +163,8 @@ class Ellipsis(AST):
     _fields = ()
 
 
-class CodeBlock(AST):
-    """{ ... } — opaque code content, kept verbatim."""
+class HintBlock(AST):
+    """{ ... } — a hint block: arbitrary descriptive text, kept verbatim."""
 
     _fields = ("code",)
 

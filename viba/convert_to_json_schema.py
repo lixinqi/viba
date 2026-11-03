@@ -202,7 +202,7 @@ class _Builder:
             return {"type": "null"}
         if isinstance(node, viba_ast.Never):
             return False                    # a value of never is no value
-        if isinstance(node, viba_ast.CodeBlock):
+        if isinstance(node, viba_ast.HintBlock):
             return {"type": "null"}         # a hint is a unit, and a unit is nil
         if isinstance(node, (viba_ast.Any, viba_ast.Ellipsis)):
             raise _SchemaErr(f"{_spell(node)} has no JSON Schema")
@@ -474,7 +474,7 @@ class _Builder:
 
     def _is_unit(self, form) -> bool:
         """A unit: `nil`/`Object` under any of its names, or `never`/`Oneof`."""
-        if isinstance(form, (viba_ast.Nil, viba_ast.Never, viba_ast.CodeBlock)):
+        if isinstance(form, (viba_ast.Nil, viba_ast.Never, viba_ast.HintBlock)):
             return True
         if isinstance(form, viba_ast.TypeRef):
             return form.name in UNIT_NAMES

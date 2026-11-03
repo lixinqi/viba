@@ -37,7 +37,7 @@ from viba.viba_ast.nodes import (
     Never,
     Any,
     Ellipsis,
-    CodeBlock,
+    HintBlock,
     AST,
 )
 from viba.viba_ast.tagged import TAGGED_NAME, fold_tagged_symbols
@@ -74,7 +74,7 @@ tokens = (
     "NEVER",
     "ANY",
     "ELLIPSIS",  # ...
-    "CODE_BLOCK",  # { ... }
+    "HINT_BLOCK",  # { ... }
     "DOT",  # .
 )
 
@@ -191,7 +191,7 @@ def t_DOT(t):
     return t
 
 
-def t_CODE_BLOCK(t):
+def t_HINT_BLOCK(t):
     r'\{'
     depth = 1
     start = t.lexer.lexpos
@@ -199,7 +199,7 @@ def t_CODE_BLOCK(t):
     while depth > 0:
         if start >= len(lexdata):
             raise SyntaxError(
-                f"Viba parse error: unterminated code block at line {t.lexer.lineno}")
+                f"Viba parse error: unterminated hint block at line {t.lexer.lineno}")
         c = lexdata[start]
         if c == '\n':
             t.lexer.lineno += 1
@@ -209,7 +209,7 @@ def t_CODE_BLOCK(t):
             depth -= 1
         start += 1
     # Value is everything between the outer { and }
-    t.value = CodeBlock(lexdata[t.lexer.lexpos : start - 1])
+    t.value = HintBlock(lexdata[t.lexer.lexpos : start - 1])
     t.lexer.lexpos = start
     return t
 
@@ -495,12 +495,12 @@ def p_primary_expr(p):
     | ELLIPSIS
     | LPAREN partial_expr RPAREN
     | LPAREN adt_expr_list RPAREN
-    | CODE_BLOCK"""
+    | HINT_BLOCK"""
     # 1. Handle atomic units (Length 2)
     if len(p) == 2:
         val = p[1]
         if isinstance(val, AST):
-            # Literal (Constant), CODE_BLOCK (CodeBlock): pass through
+            # Literal (Constant), HINT_BLOCK (HintBlock): pass through
             p[0] = val
         elif val == "nil":
             p[0] = Nil()
@@ -856,21 +856,21 @@ if __name__ == "__main__":
         ("MixedTagged = $tag 'val' * $other \"val2\"", "Mixed quotes with tags"),
         ("MixedComplex = ('''A''' | 'B') <- (\"x\" * 'y' * '''z''')", "Complex mixed quotes"),
         # ====== CODE BLOCK TESTS ======
-        ("CodeBlockBasic = {hello}", "Simple code block"),
-        ("CodeBlockWithSpaces = {  some text  }", "Code block with spaces"),
-        ("CodeBlockMultiLine = {line1\nline2\nline3}", "Code block with newlines"),
-        ("CodeBlockNested = {outer {inner} end}", "Nested code block"),
-        ("CodeBlockDeepNested = {a {b {c {d} c} b} a}", "Deeply nested code block"),
-        ("CodeBlockInProduct = {fn} * {config}", "Code blocks in product"),
-        ("CodeBlockInSum = {opt1} | {opt2}", "Code blocks in sum"),
-        ("CodeBlockInExponent = {result} <- {input}", "Code blocks in exponent"),
-        ("CodeBlockTagged = $tag {value}", "Tagged code block"),
-        ("CodeBlockMixed = {code} * nil | never", "Code block with identities"),
-        ("CodeBlockWithTuple = ({a}, {b})", "Code blocks in tuple"),
-        ("CodeBlockGeneric = List[{item}]", "Code block as generic arg"),
+        ("HintBlockBasic = {hello}", "Simple hint block"),
+        ("HintBlockWithSpaces = {  some text  }", "Hint block with spaces"),
+        ("HintBlockMultiLine = {line1\nline2\nline3}", "Hint block with newlines"),
+        ("HintBlockNested = {outer {inner} end}", "Nested hint block"),
+        ("HintBlockDeepNested = {a {b {c {d} c} b} a}", "Deeply nested hint block"),
+        ("HintBlockInProduct = {fn} * {config}", "Hint blocks in product"),
+        ("HintBlockInSum = {opt1} | {opt2}", "Hint blocks in sum"),
+        ("HintBlockInExponent = {result} <- {input}", "Hint blocks in exponent"),
+        ("HintBlockTagged = $tag {value}", "Tagged hint block"),
+        ("HintBlockMixed = {code} * nil | never", "Hint block with identities"),
+        ("HintBlockWithTuple = ({a}, {b})", "Hint blocks in tuple"),
+        ("HintBlockGeneric = List[{item}]", "Hint block as generic arg"),
         ("EmptyApp = ListLiteral[]", "Application of no arguments"),
         ("EmptyAppInSum = ListLiteral[] | nil", "Empty application in a sum"),
-        ("CodeBlockComplex = ({res {OK} | {err}} <- {inp})", "Complex code block expression"),
+        ("HintBlockComplex = ({res {OK} | {err}} <- {inp})", "Complex hint block expression"),
         # ====== IMPORT TESTS ======
         ("import numpy", "Plain import"),
         ("import fx.graph", "Dotted module import"),
@@ -903,7 +903,7 @@ if __name__ == "__main__":
         ("X =", "A definition with no body"),
         ("X = -A", "A minus sign with no number after it: there is no unary minus"),
         ("X = A @ B", "An illegal character"),
-        ("X = {never closed", "A code block that never closes"),
+        ("X = {never closed", "A hint block that never closes"),
         ("import", "An import with no module name"),
         ("X = $x int $y", "Two tags with no operator between them"),
         ("X = A B", "Two names with no operator between them"),

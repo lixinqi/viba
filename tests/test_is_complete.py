@@ -54,11 +54,11 @@ def main():
     demo = ("Note[T] = $text T\n"
             "Report = Object * $len Note[int] * $check Checked[{len under 50}]\n")
     stops = {"Note", "Checked"}
-    check("a design with a code block, no terminators",
+    check("a design with a hint block, no terminators",
           is_complete(demo, [], [], set()), False)
     check("the same design with the caller's terminators",
           is_complete(demo, [], [], stops), True)
-    check("only one of them (the wrapper over the code block is still there)",
+    check("only one of them (the wrapper over the hint block is still there)",
           is_complete(demo, [], [], {"Note"}), False)
 
     # Recursive definitions: coinduction lets them through
@@ -92,7 +92,7 @@ def main():
     check("empty file", is_complete("", [], [], set()), True)
     check("a lexical error is a compile error",
           is_complete("X = A @ B", [], [], set()), False)
-    check("an unterminated code block is a compile error",
+    check("an unterminated hint block is a compile error",
           is_complete("X = {never closed", [], [], set()), False)
     check("a source with CRLF",
           is_complete("X =\r\n  int\r\n", [], [], set()), True)
@@ -249,7 +249,7 @@ def corners():
           is_complete("Block[T] = $text T * $note {what it means}\nX = $b Block[int]\n",
                       [], [], set()), False)
 
-    # A code block ends a walk only when the name wrapped around it is a
+    # A hint block ends a walk only when the name wrapped around it is a
     # terminator, and the terminator is asked about the application.
     check("Hint without the terminator",
           is_complete("X = Hint[$python_code {a}]", [], [], set()), False)
@@ -265,7 +265,7 @@ def corners():
     check("an unbound parameter alone", is_complete("W[T] = T\n", [], [], set()), True)
     check("a parameter bound to a leaf",
           is_complete("W[T] = T\nA = W[int]\n", [], [], set()), True)
-    check("a parameter bound to a code block",
+    check("a parameter bound to a hint block",
           is_complete("W[T] = T\nA = W[{code}]\n", [], [], set()), False)
     check("a parameter bound behind a member",
           is_complete("W[T] = $a T\nA = W[int]\nW2[T] = $b T\n", [], [], set()), True)
@@ -285,7 +285,7 @@ def corners():
           is_complete(mesh, [], [], set()), True)
     check("the same tag, applied to a string",
           is_complete(mesh + 'X = ArrangedMesh["peers"]\n', [], [], set()), True)
-    check("the same tag, applied to a code block",
+    check("the same tag, applied to a hint block",
           is_complete(mesh + "X = ArrangedMesh[{peers}]\n", [], [], set()), False)
     check("a placeholder tag passed through another generic",
           is_complete(mesh + "Group[tag_name] = Object * $g ArrangedMesh[tag_name]\n",

@@ -285,13 +285,13 @@ def run_code_block_cases():
     from viba.reflect import access
     body = viba_ast.ProductChain([
         viba_ast.TypeRef("Object"),
-        viba_ast.Tagged("$code", viba_ast.CodeBlock("return 1")),
+        viba_ast.Tagged("$code", viba_ast.HintBlock("return 1")),
     ])
     node = access.root(definition, VibaData(body)).ok_value
     serialized = serialize.serialize("entry", node)
-    check(isinstance(serialized, Ok), f"code block: gives source ({serialized})")
+    check(isinstance(serialized, Ok), f"hint block: gives source ({serialized})")
     if isinstance(serialized, Ok):
-        check("* $code nil" in serialized.ok_value, "code block: serialized as nil")
+        check("* $code nil" in serialized.ok_value, "hint block: serialized as nil")
 
 
 def _product(*items):
@@ -460,10 +460,10 @@ def run_leaf_corner_cases():
                 viba_ast.Tuple([viba_ast.Constant('q"uote'), viba_ast.Constant(2)]),
                 viba_ast.Tuple([viba_ast.Constant("中文"), viba_ast.Constant(3)])]))),
             expect="""("", 1), ('q"uote', 2), ("中文", 3)""")
-    _corner("code block: nil where its text is not available",
+    _corner("hint block: nil where its text is not available",
             "Box = Object * $g list[{x}]\n", "Box",
             _product(_tagged("$g", viba_ast.TypeApp("ListLiteral", [
-                viba_ast.CodeBlock("x")]))),
+                viba_ast.HintBlock("x")]))),
             expect="ListLiteral[nil]")
 
 
@@ -698,7 +698,7 @@ _INNER_TYPES = [
     ("sum", "S2", viba_ast.SumChain([_tagged("$k", viba_ast.Constant(5))])),
     ("container", "list[int]", viba_ast.TypeApp("ListLiteral",
                                                 [viba_ast.Constant(6)])),
-    ("code block", "{x}", viba_ast.CodeBlock("x")),
+    ("hint block", "{x}", viba_ast.HintBlock("x")),
     ("generic", "W[int]", _product(_tagged("$v", viba_ast.Constant(7)))),
 ]
 # 外面那一层：成员位、容器元素、元组位、和式的两支。
@@ -851,22 +851,22 @@ def run_unit_members():
 
 def run_code_block_positions():
     """代码块的每一处：成员位、容器元素、元组位、和式支、产品头。"""
-    block = viba_ast.CodeBlock("x + 1")
-    _corner("code block as a member", "Box = Object * $c {x}\n", "Box",
+    block = viba_ast.HintBlock("x + 1")
+    _corner("hint block as a member", "Box = Object * $c {x}\n", "Box",
             _product(_tagged("$c", block)), expect="* $c nil")
-    _corner("code block in a set", "Box = Object * $c set[{x}]\n", "Box",
+    _corner("hint block in a set", "Box = Object * $c set[{x}]\n", "Box",
             _product(_tagged("$c", viba_ast.TypeApp("SetLiteral", [block]))),
             expect="SetLiteral[nil]")
-    _corner("code block in a dict value", "Box = Object * $c dict[str, {x}]\n", "Box",
+    _corner("hint block in a dict value", "Box = Object * $c dict[str, {x}]\n", "Box",
             _product(_tagged("$c", viba_ast.TypeApp("DictLiteral", [
                 viba_ast.Tuple([viba_ast.Constant("k"), block])]))),
             expect='("k", nil)')
-    _corner("code block in a tuple", "Box = Object * $c ({x}, int)\n", "Box",
+    _corner("hint block in a tuple", "Box = Object * $c ({x}, int)\n", "Box",
             _product(_tagged("$c", viba_ast.Tuple([block, viba_ast.Constant(1)]))),
             expect="(nil, 1)")
-    _corner("code block as a sum branch", "Box = Object * $c ({x} | int)\n", "Box",
+    _corner("hint block as a sum branch", "Box = Object * $c ({x} | int)\n", "Box",
             _product(_tagged("$c", viba_ast.SumChain([block]))))
-    _corner("code block behind an alias", "K = {x}\nBox = Object * $c list[K]\n",
+    _corner("hint block behind an alias", "K = {x}\nBox = Object * $c list[K]\n",
             "Box",
             _product(_tagged("$c", viba_ast.TypeApp("ListLiteral", [block]))),
             expect="ListLiteral[nil]")
@@ -955,8 +955,8 @@ def run_name_alias_members():
             _product(_tagged("$g", viba_ast.TypeApp("ListLiteral",
                                                      [viba_ast.Constant(1)]))),
             expect="* $g ListLiteral[1]")
-    _corner("an alias to a code block", "K = {x}\nBox = Object * $k K\n", "Box",
-            _product(_tagged("$k", viba_ast.CodeBlock("x"))), expect="* $k nil")
+    _corner("an alias to a hint block", "K = {x}\nBox = Object * $k K\n", "Box",
+            _product(_tagged("$k", viba_ast.HintBlock("x"))), expect="* $k nil")
 
 
 def run_name_gaps():
@@ -1257,7 +1257,7 @@ def run_exponent_arguments():
                                        viba_ast.Constant("s")]), '(1, "s")'),
         ("(Object * $x int)",
          _product(_tagged("$x", viba_ast.Constant(2))), "* $x 2"),
-        ("{x}", viba_ast.CodeBlock("x"), "nil"),
+        ("{x}", viba_ast.HintBlock("x"), "nil"),
         ("nil", viba_ast.Nil(), "nil"),
         ("(int | $a str)", viba_ast.SumChain([_tagged("$a", viba_ast.Constant("v"))]),
          '$a "v"'),

@@ -1054,7 +1054,7 @@ def exponent_elements(node) -> List[viba_ast.AST]:
     """
     elements = _exponent_elements(node)
     if len(elements) > 1 and isinstance(elements[-1],
-                                        (viba_ast.CodeBlock, viba_ast.Partial)):
+                                        (viba_ast.HintBlock, viba_ast.Partial)):
         elements = elements[:-1]
     return elements
 

@@ -2515,8 +2515,8 @@ class _Activation:
             if path is not None:
                 return self._resolve(path, scope)
             return self._application_member(node, scope)
-        if isinstance(node, viba_ast.CodeBlock):
-            return VibaProgramErr("a code block is documentation: it is not a value")
+        if isinstance(node, viba_ast.HintBlock):
+            return VibaProgramErr("a hint block is documentation: it is not a value")
         return VibaProgramErr(f"cannot compute {type(node).__name__}")
 
     def _shorthand_chain(self, node, scope=()):
@@ -4167,7 +4167,7 @@ class _Activation:
 
     def _argument(self, node, scope=()):
         """Result: the `_Given` this argument is, or Ok(None) for documentation."""
-        if isinstance(node, viba_ast.CodeBlock):
+        if isinstance(node, viba_ast.HintBlock):
             return Ok(None)
         tag, inner = _addressed(node)
         if tag is None:
@@ -4204,7 +4204,7 @@ class _Activation:
         What travels is a getter; the host calls it if and when it wants that
         argument, in the environment it hands over.
         """
-        if isinstance(node, viba_ast.CodeBlock):
+        if isinstance(node, viba_ast.HintBlock):
             return Ok(None)
         tag, inner = _addressed(node)
         return Ok(_Given(tag, _Getter(self, inner, scope)))
@@ -4218,10 +4218,10 @@ def _slots_of(chain):
     only a function type. Everything between them is an argument.
     """
     elements = _elements(chain)[1:]
-    if elements and isinstance(elements[-1], (viba_ast.CodeBlock, viba_ast.Partial)):
+    if elements and isinstance(elements[-1], (viba_ast.HintBlock, viba_ast.Partial)):
         elements = elements[:-1]
     return [element for element in elements
-            if not isinstance(element, viba_ast.CodeBlock)]
+            if not isinstance(element, viba_ast.HintBlock)]
 
 
 def _call_parts(node):

@@ -63,7 +63,7 @@ NIL = "nil"
 NEVER = "never"
 ANY = "any"
 ELLIPSIS = "ellipsis"
-CODE_BLOCK = "code_block"
+HINT_BLOCK = "code_block"
 
 PRODUCT_UNIT = ("Object", "nil")  # the unit of a product chain head
 SUM_UNIT = ("Oneof", "never")  # the unit of a sum chain head
@@ -203,7 +203,7 @@ class VibaLiteralDescriptor:
         return f"VibaLiteralDescriptor({self.value!r})"
 
 
-class VibaCodeBlockDescriptor:
+class VibaHintBlockDescriptor:
     """{...} — kept verbatim."""
 
     __slots__ = ("pool", "resolvable_type", "code")
@@ -214,7 +214,7 @@ class VibaCodeBlockDescriptor:
         self.code = code
 
     def __repr__(self):
-        return "VibaCodeBlockDescriptor(...)"
+        return "VibaHintBlockDescriptor(...)"
 
 
 # ----------------------------------------------------------------------
@@ -775,8 +775,8 @@ def _build_type(pool, module, node) -> VibaTypeDescriptor:
         return VibaTypeDescriptor(NEVER)
     if isinstance(node, ast_nodes.Ellipsis):
         return VibaTypeDescriptor(ELLIPSIS)
-    if isinstance(node, ast_nodes.CodeBlock):
-        return VibaTypeDescriptor(CODE_BLOCK, VibaCodeBlockDescriptor(pool, resolvable, node.code))
+    if isinstance(node, ast_nodes.HintBlock):
+        return VibaTypeDescriptor(HINT_BLOCK, VibaHintBlockDescriptor(pool, resolvable, node.code))
     raise TypeError(f"no descriptor for {type(node).__name__}")
 
 
@@ -938,7 +938,7 @@ __all__ = [
     "VibaTypeDescriptor",
     "VibaTypeRefDescriptor", "VibaTypeAppDescriptor", "VibaTupleDescriptor",
     "VibaTaggedDescriptor", "VibaChainDescriptor",
-    "VibaLiteralDescriptor", "VibaCodeBlockDescriptor",
+    "VibaLiteralDescriptor", "VibaHintBlockDescriptor",
     "VibaMemberDescriptor", "VibaDefinitionDescriptor",
     "VibaImportDescriptor", "VibaFileDescriptor", "VibaPool",
     "empty_pool", "descriptor_of",

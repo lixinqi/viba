@@ -137,12 +137,12 @@ def parameters_of(chain):
     environment has none: giving it is what runs the call (viba-interpreter.md).
     """
     elements = _elements(chain)[1:]
-    if elements and isinstance(elements[-1], (viba_ast.CodeBlock, viba_ast.Partial)):
+    if elements and isinstance(elements[-1], (viba_ast.HintBlock, viba_ast.Partial)):
         elements = elements[:-1]             # a body the source puts on the chain
     params = []
     slot = 0
     for element in elements:
-        if isinstance(element, viba_ast.CodeBlock):
+        if isinstance(element, viba_ast.HintBlock):
             continue                        # documentation is no parameter
         if isinstance(element, viba_ast.Tagged):
             tag, source_form = element.tag, element.type
@@ -590,8 +590,8 @@ def _source_form(node) -> str:
 
 
 def _is_documentation(node) -> bool:
-    """A piece that carries a code block: documentation, not an argument."""
-    return any(isinstance(part, viba_ast.CodeBlock) for part in viba_ast.walk(node))
+    """A piece that carries a hint block: documentation, not an argument."""
+    return any(isinstance(part, viba_ast.HintBlock) for part in viba_ast.walk(node))
 
 
 def _matches(declared, given, module, given_module, judge) -> bool:

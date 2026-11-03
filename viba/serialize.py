@@ -37,7 +37,7 @@ from viba.reflect import LITERAL_KINDS, VibaAccess, VObject, at_index, at_key
 from viba.type import Err, Ok, Result
 from viba.viba_type_descriptor import (
     ANY,
-    CODE_BLOCK,
+    HINT_BLOCK,
     EXPONENT,
     NEVER,
     NIL,
@@ -189,7 +189,7 @@ def _emit(access: VibaAccess, node: VObject):
         return _emit_tagged(access, node)
     if unfolded.kind == EXPONENT:
         return _emit_exponent(access, node, unfolded)
-    if unfolded.kind == CODE_BLOCK:
+    if unfolded.kind == HINT_BLOCK:
         return _emit_code_block(unfolded)
     if unfolded.kind == NIL:
         return None

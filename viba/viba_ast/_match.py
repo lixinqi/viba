@@ -33,7 +33,7 @@ def viba_type_match(
     Never: Callable[[Any], Any] = None,
     Any: Callable[[Any], Any] = None,
     Ellipsis: Callable[[Any], Any] = None,
-    CodeBlock: Callable[[Any], Any] = None,
+    HintBlock: Callable[[Any], Any] = None,
     SumChain: Callable[[Any], Any] = None,
     ProductChain: Callable[[Any], Any] = None,
     ExponentChain: Callable[[Any], Any] = None,

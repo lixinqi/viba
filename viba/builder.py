@@ -302,7 +302,7 @@ class _Code(_Expr):
         self.text = text
 
     def to_ast(self):
-        return viba_ast.CodeBlock(self.text)
+        return viba_ast.HintBlock(self.text)
 
 
 class _Name(_Expr):
@@ -377,7 +377,7 @@ def name(path: str) -> _Name:
 
 
 def code(text: str) -> _Code:
-    """`{ text }` — a code block, kept verbatim."""
+    """`{ text }` — a hint block, kept verbatim."""
     return _Code(text)
 
 

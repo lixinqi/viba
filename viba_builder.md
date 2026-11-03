@@ -192,7 +192,7 @@ vb.N = int | None  # int | nil
 
 `vb.nil` / `vb.never` 建出来的就是 `Nil` / `Never` 节点本身，不只是打印成 `nil` / `never`。`vb.true` / `vb.false` 是不行的（Python 里要用 `True` / `False`），当场抛。
 
-## 8. 容器、元组、代码块
+## 8. 容器、元组、提示块
 
 ```python
 vb.Items  = [1, "x"]                 # ListLiteral[1, "x"]

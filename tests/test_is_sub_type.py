@@ -838,7 +838,7 @@ def run_function_chain_cases():
     check_result(judge("int <- str", "(int | nil) <- str"), True,
                  "a wider result is a supertype: int <: int | nil")
     check_result(judge("{x} <- str", "int <- str"), False,
-                 "a code block is no int either")
+                 "a hint block is no int either")
     check_result(judge("never", "int <- str"), True,
                  "the exception is never: the bottom fits a function")
     check_result(judge("never <- str", "int <- str"), True,
@@ -1076,17 +1076,17 @@ P = int
 
 
 def run_code_block_cases():
-    """A code block has no members: the unit is its resident."""
+    """A hint block has no members: the unit is its resident."""
     module = custom_module("Guard = Object * $a {return 1}\n")
 
     def judge(sub, sup):
         return is_sub_type(entry_type(sub, module), entry_type(sup, module))
 
-    check_result(judge("nil", "{return 1}"), True, "the unit resides in a code block")
+    check_result(judge("nil", "{return 1}"), True, "the unit resides in a hint block")
     check_result(judge("{other code}", "{return 1}"), True,
-                 "another code block is a unit too (the text is not reachable)")
+                 "another hint block is a unit too (the text is not reachable)")
     check_result(judge("7", "{return 1}"), False, "a literal does not")
-    check_result(judge("{return 1}", "nil"), True, "a code block fits nil")
+    check_result(judge("{return 1}", "nil"), True, "a hint block fits nil")
     check_result(judge("{return 1}", "never"), False, "and never fits nothing")
 
 

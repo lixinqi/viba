@@ -30,7 +30,7 @@ What it does, in the order the document gives it:
 
 The walk reads the source the way the interpreter's loader does — the same
 `_Runner` that serves a run — so a name resolves where it would resolve when
-the design runs. Nothing is run: no definition is called, and a code block is
+the design runs. Nothing is run: no definition is called, and a hint block is
 documentation.
 
 A pattern file is kept whole: its `pattern` lines, `__decl__`, `__impl__` and
@@ -38,7 +38,7 @@ whatever else it defines go together, because a file missing one of them is no
 decision. Every other file keeps the definitions that were reached and the
 imports those definitions use; it is spelled again from the syntax tree, so the
 `#` lines and the blank lines are not carried over (the members that carry a
-code block are part of a definition and do go with it).
+hint block are part of a definition and do go with it).
 
 The units: `never_eqv` and `nil_eqv` are the names that stand for `never` and
 `nil` while the source is read (VibaReflectConfig's parameters,
@@ -352,7 +352,7 @@ class _Slicer:
         if node is None:
             return
         if isinstance(node, (viba_ast.Constant, viba_ast.Nil, viba_ast.Never,
-                             viba_ast.Any, viba_ast.Ellipsis, viba_ast.CodeBlock,
+                             viba_ast.Any, viba_ast.Ellipsis, viba_ast.HintBlock,
                              viba_ast.Member)):
             return
         if isinstance(node, viba_ast.TypeRef):
@@ -517,7 +517,7 @@ class _Slicer:
         head, arguments = call_parts(node)
         self._walk(head, module, bindings, loose)
         for argument in arguments:
-            if isinstance(argument, viba_ast.CodeBlock):
+            if isinstance(argument, viba_ast.HintBlock):
                 continue                        # documentation is no argument
             if isinstance(argument, viba_ast.Tagged):
                 self._walk(argument.type, module, bindings, loose)

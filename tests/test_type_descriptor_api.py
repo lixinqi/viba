@@ -272,7 +272,7 @@ def _check_reprs():
     assert seen["$maybe"] == "VibaTypeDescriptor(sum, VibaChainDescriptor(2 elements))"
     assert seen["$pair"] == "VibaTypeDescriptor(tuple, VibaTupleDescriptor(2 elements))"
     assert seen["$lit"] == "VibaTypeDescriptor(literal, VibaLiteralDescriptor(42))"
-    assert seen["$code"] == "VibaTypeDescriptor(code_block, VibaCodeBlockDescriptor(...))"
+    assert seen["$code"] == "VibaTypeDescriptor(code_block, VibaHintBlockDescriptor(...))"
     assert seen["$top"] == "VibaTypeDescriptor(any, None)"
     binding = load("import_binding", [("user.viba", "user")])
     imports = pool_find_file(binding, "user.viba").ok_value.imports

@@ -46,9 +46,9 @@ ARGUMENT_CASES = [
     ("note_after", None, "documentation after the arguments"),
     ("note_between", None, "documentation between the arguments"),
     ("bare_name", None, "a bare function name is the closure it stands for"),
-    ("code_block_only", "documentation", "a code block is not a value"),
+    ("hint_only", "documentation", "a hint block is not a value"),
     ("undefined_name", "no definition named", "a name nothing defines"),
-    ("tagged_note", "documentation", "a tagged code block where an argument goes"),
+    ("tagged_note", "documentation", "a tagged hint block where an argument goes"),
     ("number_given_an_argument", "is not a function", "giving an argument to a number"),
 ]
 

@@ -74,7 +74,7 @@ there = $in << items << $env nil << 3
 how_many = $len << items << $env nil                 # elements; a dict is counted by its keys
 keys = $keys << DictLiteral[("k", "v")] << $env nil  # a dict's keys, as a list[str]
 
-# leaves: a literal stays on the value side, and a code block is what the host fills
+# leaves: a literal stays on the value side, and a hint block is what the host fills
 Config = $mode "fast" * $threads 42 * $ratio 3.14
 Validate = UserId <- $raw str <- { reject an empty id, keep the rest }
 ```
@@ -115,7 +115,7 @@ member_expr : member_expr DOT CLASS_NAME | type_app_expr
 type_app_expr : CLASS_NAME name_tail optional_type_args | primary_expr
 optional_type_args : LBRACKET partial_expr adt_arg_list RBRACKET | LBRACKET RBRACKET | (empty)
 adt_arg_list : COMMA partial_expr adt_arg_list | (empty)
-primary_expr : CLASS_NAME | literal | NIL | NEVER | ANY | ELLIPSIS | LPAREN partial_expr RPAREN | LPAREN adt_expr_list RPAREN | CODE_BLOCK
+primary_expr : CLASS_NAME | literal | NIL | NEVER | ANY | ELLIPSIS | LPAREN partial_expr RPAREN | LPAREN adt_expr_list RPAREN | HINT_BLOCK
 adt_expr_list : partial_expr COMMA partial_expr | partial_expr COMMA adt_expr_list | (empty)
 literal : FLOAT | INT | STRING | SINGLE_STRING | TRIPLE_STRING | BOOLEAN
 ```
@@ -133,7 +133,7 @@ The terminals it names:
 | `BOOLEAN` | `true`, `false` |
 | `NIL` | `nil`, `void`, `None` — one unit, three spellings |
 | `NEVER`, `ANY`, `ELLIPSIS` | `never`, `Any`, `...` |
-| `CODE_BLOCK` | `{ ... }` — text the host gets whole; braces nest |
+| `HINT_BLOCK` | `{ ... }` — text the host gets whole; braces nest |
 | `IMPORT`, `AS`, `PATTERN` | `import`, `as`, `pattern` |
 | `ASSIGN` | `=` — a definition |
 | `SUM_OP`, `PROD_OP`, `EXP_OP`, `APPLY_OP` | `\|`, `*`, `<-`, `<<` |
@@ -156,7 +156,7 @@ The terminals it names:
 | Any | `Any` | The top: every type is a subtype of it, and only Any (or a type equal to it, e.g. `Any \| int`) is below it |
 | Ellipsis | `...` | Open/variadic type |
 | Tuple | `(A, B, C)` | Positional product (order matters); not sugar for the tagged `*` |
-| Code block | `{ ... }` | Arbitrary text, supports nesting — a note on a type, or the hint a step's implementation comes from |
+| Hint block | `{ ... }` | Arbitrary text, supports nesting — a note on a type, or the hint a step's implementation comes from |
 | Import | `import a.b [as c]` | Module reference (top level) |
 
 ### Conventions of a definition
