@@ -1,0 +1,5 @@
+import report.point as point
+
+__decl__ = Any <- $env Env
+
+__impl__ = point.Point

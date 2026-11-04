@@ -210,14 +210,17 @@ def _virtual_files(tmp: Path):
              "a name the hook does not serve -> not found")
     # 最后两站是内建目录（`viba/`）与 `builtin.` 那些名字的目录（`viba/builtin/`）：
     # `nope` 两处都没有
-    check(asked == ["/vfs/wants_nope.viba", "/vfs/nope.viba",
-                    "/vfs/nope/__generic__.viba", "/vfs/nope.md",
+    check(asked == ["/vfs/wants_nope.viba", "/vfs.viba.md", "/vfs/nope.viba",
+                    "/vfs/nope.viba.md",
+                    "/vfs/nope/__generic__.viba",
+                    f"{BUILTIN_DIR}.viba.md",
                     str(BUILTIN_DIR / "nope.viba"),
+                    str(BUILTIN_DIR / "nope.viba.md"),
                     str(BUILTIN_DIR / "nope" / "__generic__.viba"),
-                    str(BUILTIN_DIR / "nope.md"),
+                    f"{BUILTIN_CONCEPT_DIR}.viba.md",
                     str(BUILTIN_CONCEPT_DIR / "nope.viba"),
-                    str(BUILTIN_CONCEPT_DIR / "nope" / "__generic__.viba"),
-                    str(BUILTIN_CONCEPT_DIR / "nope.md")],
+                    str(BUILTIN_CONCEPT_DIR / "nope.viba.md"),
+                    str(BUILTIN_CONCEPT_DIR / "nope" / "__generic__.viba")],
           f"the main file, then every place the name could be: {asked}")
 
     # 模块已经加载过就不再问
@@ -247,7 +250,10 @@ def _virtual_files(tmp: Path):
         "a hook that raises something else -> $viba_program_err")
     labelled(interpret(missing, environ, get_file=with_main(lambda path: b"bytes")),
              "not the file's text", "a hook that answers bytes -> $viba_program_err")
-    labelled(interpret(missing, environ, get_file=with_main(lambda path: "X = (")),
+    def junk(path):
+        # the documents are not there; the module file is the one that is broken
+        return None if path.endswith(".viba.md") else "X = ("
+    labelled(interpret(missing, environ, get_file=with_main(junk)),
              "cannot parse",
              "a hook that answers something that does not compile -> $viba_program_err")
 

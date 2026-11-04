@@ -6,8 +6,9 @@
 章名就是文件名，章里第一个围栏代码块就是那个文件的内容。文件的内容不变，名字不变，只是把一组
 散开的文件收进一份能读的文档——说明和代码挨在一起，不用在文件之间跳。
 
-泛型目录（[`viba-pattern.md`](viba-pattern.md)）就是这个写法的一个用法：那里一个目录装的是
-一个标记加若干模式文件。
+**任意目录**都行：仓库里的一个普通目录、一个泛型目录、更深的子目录。文档写在哪里都一样：和目录
+并列，名字是目录名加 `.viba.md`（`report.viba.md` 是 `report/` 的另一种写法）。泛型目录
+（[`viba-pattern.md`](viba-pattern.md)）里的文件叫 `__generic__.viba` 和编号文件，写法没有区别。
 
 ## 2. 一个普通的例子
 
@@ -16,7 +17,7 @@
 - `point.viba`：`Point = Object * $x int * $y int`
 - `note.viba`：`Note = Object * $text str`
 
-写成一份 `report.md`：
+写成一份 `report.viba.md`：
 
 ````markdown
 报表用到的两个类型。
@@ -48,11 +49,29 @@ Note = Object * $text str
 代码块前后的说明文字不进文件：章节正文是给人读的，文件的内容只有那段代码。原来写在文件里的
 注释也可以提到代码块上面，写成这一章的说明——文件的内容就只剩代码。
 
-## 3. 规则
+## 3. 文档优先
 
-- **位置与名字**：文档写在 `<名字>.md`，与目录同名、同位置。查找一个名字时依次问：
-  `<名字>.viba` 文件、`<名字>/__generic__.viba`（目录）、`<名字>.md`（本文档）、带点的单个
-  `<名字>.viba`。
+`report.viba.md` 和 `report/` 同时在时，**文档说了算**：`report/` 里的文件不再读，`report` 下
+一个名字解析到的每个文件都来自文档的章；文档里没有的，就当没有，不退回目录。同一份设计只会看到
+一种写法，不会一半来自文档、一半来自目录。
+
+子目录仍然是目录：它们可以有自己的文档，写在它们里面（`report/notes.viba.md` ↔
+`report/notes/`）。
+
+查找一个名字 `a.b.c` 时按这个顺序问，先命中的算：
+
+1. 父目录的文档 `a/b.viba.md` 里的 `c.viba` 一章；
+2. 文件 `a/b/c.viba`；
+3. 文档 `a/b/c.viba.md`（目录 `a/b/c/` 的另一种写法，泛型就走这里）；
+4. 目录 `a/b/c/__generic__.viba`；
+5. 带点的单个文件 `a.b.c.viba`。
+
+第 1 条命中时就不再问第 2 条：父目录的文档赢过父目录。同理，第 3 条命中时不再问第 4 条。
+
+## 4. 规则
+
+- **名字**：文档是 `<目录>.viba.md`，与目录同名、并列。名字里的 `.viba` 说的是“里面装的是 viba
+  文件”，`.md` 说的是形式——所以它不会和讲这个目录的说明文档（`foo.md`）混起来。
 - **标题**：任何一级标题（`# …` 到 `###### …`）都是文件，层级不看——`#`、`##`、`###` 一样；
   标题文字原样当文件名，连后缀一起（`point.viba`、`100.viba`）。文档没有单独的标题这一说：第一个
   标题也是文件，标题上方的段落不命名任何文件。名字里有 `__` 这种会被 Markdown 当成强调的字符时
@@ -65,30 +84,34 @@ Note = Object * $text str
   与章的顺序无关。
 - **报错**：两个章同名、章名是空的、围栏没有闭合，都当语法错误报，带行号。
 
-## 4. 读法在哪用
+## 5. 读法在哪用
 
 [`viba/markdown.py`](viba/markdown.py) 提供两件事：
 
 - `files_of(source)`：一份文档读出（名字，内容）的一串，是这一页说的全部规则；
-- `module_files(module_name, source)`：同一串，再把名字按目录的命名挂到模块名下——`pkg/report/`
-  里的 `point.viba` 是 `pkg.report.point`。
+- `module_files(module_name, source)`：同一串，再把名字按目录的命名挂到模块名下——
+  `pkg/report.viba.md` 里的 `point.viba` 是 `pkg.report.point`。
 
 读它的有两处：
 
-- 解释器把名字解析到目录时（[`viba/interpret.py`](viba/interpret.py) 的 `_Runner`）：`<名字>.md`
-  在，就按目录读它；
-- 从文件建描述符池的入口：`is_complete` 扫 `viba_paths` 时也扫 `*.md`，判定与转换工具建池时也把
-  文档的章按模块名收进去。
+- 解释器解析名字时（[`viba/interpret.py`](viba/interpret.py) 的 `_Runner`）：按第 3 节那个顺序，
+  `<目录>.viba.md` 在就在它的章里找；
+- 从文件建描述符池的入口：`is_complete` 扫 `viba_paths` 时先扫 `*.viba.md`，目录里被文档替掉的
+  文件跳过；判定与转换工具建池时也把文档的章按模块名收进去。
 
 于是凡是“一个目录、里面一组文件”的地方，都能用一份文档顶替。
 
-## 5. 测试
+## 6. 测试
 
 - [`tests/test_markdown.py`](tests/test_markdown.py)：读法本身——章与文件、第一个代码块、空文件、
-  围栏缩进、同名与未闭合的报错。
+  围栏缩进、同名与未闭合的报错，以及名字写成代码的情况。
+- [`tests/test_markdown_directory.py`](tests/test_markdown_directory.py)：一个普通目录的两种写法同时
+  存在——文档说了算（`Point` 是文档里的两个整数，不是目录里的两个字符串）、文档里没有的名字找不到、
+  `is_complete` 与两个 JSON 工具都认它。
 - [`tests/test_pattern_markdown.py`](tests/test_pattern_markdown.py)：拿泛型做的对比测试。
-  `tests/data/pattern/demo/` 那十二个短泛型各写了一份 `tests/data/pattern_markdown/demo/<名字>.md`，
-  同一批设计跑两遍——目录一次、文档一次——答案必须一样；`is_complete` 两种写法都要判成完整。
-- 判定与转换的用例里有 [`elem.md`](tests/data/check_convertable_to_json_schema/kb/elem.md)：一个用
-  文档写成的泛型，[`uses_elem.viba`](tests/data/check_convertable_to_json_schema/kb/uses_elem.viba)
+  `tests/data/pattern/demo/` 那十二个短泛型各写了一份
+  `tests/data/pattern_markdown/demo/<名字>.viba.md`，同一批设计跑两遍——目录一次、文档一次——
+  答案必须一样；`is_complete` 两种写法都要判成完整。
+- 判定与转换的用例里有 [`elem.viba.md`](tests/data/check_convertable_to_json_schema/kb/elem.viba.md)：
+  一个用文档写成的泛型，[`uses_elem.viba`](tests/data/check_convertable_to_json_schema/kb/uses_elem.viba)
   应用它，判定答 `Ok`，schema 与目录写法逐字相同。

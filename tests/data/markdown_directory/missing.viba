@@ -1,0 +1,5 @@
+import report.missing as missing
+
+__decl__ = Any <- $env Env
+
+__impl__ = missing.NotThere

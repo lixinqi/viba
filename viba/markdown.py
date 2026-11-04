@@ -1,10 +1,10 @@
 """A directory written as one Markdown document.
 
-A directory of files can be given as a single Markdown file: each section names
-one file of the directory, and the first fenced code block under it is that
-file's text. A section with no code block names an empty file, and the
-document's own title — a level-one heading, and the prose under it — names no
-file at all:
+A directory of files can be given as a single Markdown file — `<dir>.viba.md`,
+next to `<dir>/`: each heading names one file of the directory, whatever its
+level, and the first fenced code block under it is that file's text. A section
+with no code block names an empty file, and the prose above the first heading
+names no file at all:
 
     ## point.viba
 
@@ -14,9 +14,9 @@ file at all:
 
 The reading takes no notice of what the files are for: it answers the (name,
 text) pairs a directory listing and the files themselves would. `viba.interpret`
-reads a generic this way when its name is a Markdown file rather than a
-directory (`viba-pattern.md`), and anything else with a directory in its head can
-do the same with `files_of`.
+resolves names this way (`<dir>.viba.md` is read as `<dir>/`, and wins over it
+when both are there), and anything else with a directory in its head can do the
+same with `files_of`.
 """
 
 import re

@@ -138,16 +138,10 @@ def _dependencies(library, viba_paths) -> List[Tuple[str, str, str]]:
         root = Path(directory)
         if not root.is_dir():
             continue
-        for path in sorted(root.rglob("*.viba")):
-            module_name = _module_name(path.relative_to(root))
-            if not module_name or module_name in found:
-                continue
-            try:
-                found[module_name] = (str(path), path.read_text())
-            except OSError:
-                continue
-        for path in sorted(root.rglob("*.md")):
-            module_name = _module_name(path.relative_to(root))
+        documents = sorted(root.rglob("*.viba.md"))
+        for path in documents:
+            relative = path.relative_to(root)
+            module_name = _module_name(Path(str(relative)[: -len(".viba.md")]))
             if not module_name:
                 continue
             try:
@@ -157,8 +151,28 @@ def _dependencies(library, viba_paths) -> List[Tuple[str, str, str]]:
             for file_name, name, source in files:
                 if name not in found:
                     found[name] = (f"{path}#{file_name}", source)
+        for path in sorted(root.rglob("*.viba")):
+            module_name = _module_name(path.relative_to(root))
+            if not module_name or module_name in found:
+                continue
+            if _written_as_document(path):
+                continue                # the document is the directory: it wins
+            try:
+                found[module_name] = (str(path), path.read_text())
+            except OSError:
+                continue
     return [(file_name, module_name, source)
             for module_name, (file_name, source) in found.items()]
+
+
+def _written_as_document(path: Path) -> bool:
+    """True when this file's directory is written as one document.
+
+    `<dir>.viba.md` is the directory: the files inside `<dir>/` are not read
+    (viba-markdown-as-directory.md).
+    """
+    parent = path.parent
+    return Path(f"{parent}.viba.md").is_file()
 
 
 def _module_name(file_path) -> str:

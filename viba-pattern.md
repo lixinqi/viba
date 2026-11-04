@@ -29,7 +29,9 @@ demo/is_base_type/2_250.viba            同一样东西的另一种源码形式�
 ```
 
 `import demo.is_base_type as is_base_type` 找到的是那个**目录**：找模块的地方按顺序试
-`demo/is_base_type.viba`，然后才是 `demo/is_base_type/__generic__.viba`（[`viba-interpreter.md`](viba-interpreter.md)
+`demo/is_base_type.viba`（文件）、`demo/is_base_type.viba.md`（目录的文档）、
+`demo/is_base_type/__generic__.viba`（目录）；文档在时就是那个目录，目录本身不再读
+（[`viba-markdown-as-directory.md`](viba-markdown-as-directory.md)，[`viba-interpreter.md`](viba-interpreter.md)
 第 1 节）。目录里有标记文件，它就是一个泛型；没有，这个目录与 viba 无关。
 
 ## 1. 标记文件 `__generic__.viba`

@@ -1753,6 +1753,7 @@ class _Runner:
         self.get_file = get_file
         self.list_files = list_files
         self.by_path: dict = {}        # normalized path -> module
+        self.documents: dict = {}      # normalized document path -> {name: text}
         self.by_name: dict = {}        # module name -> module
         self.path_of: dict = {}        # module name -> file it was loaded from
         # One storage path is one call: a running path is a cycle; an answered path
@@ -2057,7 +2058,60 @@ class _Runner:
         """The module `name`: loaded, or found next to `near`, or on the path."""
         if name in self.by_name:
             return Ok(self.by_name[name])
-        for root, place in self._places(name, near):
+        for base in self._bases(near):
+            found = self._in_base(base, name)
+            if found is not None:
+                return found
+        where = f"next to {near} and on VIBA_PATH" if near else "on VIBA_PATH"
+        return VibaProgramErr(f"module {name!r} not found ({where})")
+
+    def _bases(self, near: Optional[str]) -> list:
+        """The directories a name is looked for in, in order: the directory of
+        the file that gave the import first, then VIBA_PATH in order, then the
+        builtin directory (`BUILTIN_DIR`) and the directory of the `builtin.`
+        names (`BUILTIN_CONCEPT_DIR`). The same directory twice is asked once."""
+        bases = []
+        if near:
+            bases.append(Path(near).parent)
+        bases.extend([*self.paths, BUILTIN_DIR, BUILTIN_CONCEPT_DIR])
+        out = []
+        for base in bases:
+            if base not in out:
+                out.append(base)
+        return out
+
+    def _in_base(self, base: Path, name: str):
+        """The module `name` under `base`, or None when it is not there.
+
+        A directory may be written as one Markdown document — `<dir>.viba.md`,
+        its sections are the directory's files (`viba/markdown.py`). The
+        document wins over the directory: a file of `<dir>/` is not read when
+        the document is there, and a name inside it comes from its sections.
+        """
+        parts = name.split(".")
+        rel = base.joinpath(*parts)
+        section = f"{parts[-1]}.viba"
+        # The directory holding the module, when it is a document: the module
+        # is one of its sections.
+        parent = rel.parent
+        parent_doc = Path(f"{parent}.viba.md")
+        sections, problem = self._sections(parent_doc)
+        if problem is not None:
+            return VibaProgramErr(problem)
+        if sections is not None:
+            if section not in sections:
+                return None             # the document is the directory: not here
+            return self._module_of_section(parent_doc, section, sections[section],
+                                           name, base)
+        # The module file, its own document (a directory's other form), the
+        # directory itself, and one file named with the dots.
+        places = []
+        for place in (Path(f"{rel}.viba"), Path(f"{rel}.viba.md"),
+                      rel / GENERIC_FILE, base / f"{name}.viba",
+                      base / f"{name}.viba.md"):
+            if place not in places:
+                places.append(place)
+        for place in places:
             cached = self.by_path.get(self._key(place))
             if cached is not None:
                 return self._bind(cached, place, name)
@@ -2065,40 +2119,41 @@ class _Runner:
             if problem is not None:
                 return VibaProgramErr(problem)
             if source is None:
-                continue                    # no file here: the next place
+                continue                # no file here: the next place
             return self._file_of(place, name, source, file_path=str(place),
-                                 root=str(root))
-        where = f"next to {near} and on VIBA_PATH" if near else "on VIBA_PATH"
-        return VibaProgramErr(f"module {name!r} not found ({where})")
+                                 root=str(base))
+        return None
 
-    def _places(self, name: str, near: Optional[str]) -> list:
-        """Where `name` may be, in the order it is looked for: next to the
-        file that gave the import first, then VIBA_PATH in order, then the
-        builtin directory (`BUILTIN_DIR`) and the directory of the `builtin.`
-        names (`BUILTIN_CONCEPT_DIR`). A dotted name is a path, and also one
-        file named with the dots (`pkg.inner.viba`). A generic is the directory
-        of that path (`pkg/inner/__generic__.viba`), looked for after the file
-        of the same name, and a directory may also be one Markdown document
-        (`pkg/inner.md`), looked for after the directory. The same place twice
-        is asked once."""
-        rel = Path(*name.split(".")).with_suffix(".viba")
-        generic = Path(*name.split(".")) / GENERIC_FILE
-        document = rel.with_suffix(".md")
-        places = []
-        if near:
-            base = Path(near).parent
-            places += [(base, base / rel), (base, base / generic),
-                       (base, base / document), (base, base / f"{name}.viba"),
-                       (base, base / f"{name}.md")]
-        for base in [*self.paths, BUILTIN_DIR, BUILTIN_CONCEPT_DIR]:
-            places += [(base, base / rel), (base, base / generic),
-                       (base, base / document), (base, base / f"{name}.viba"),
-                       (base, base / f"{name}.md")]
-        out = []
-        for pair in places:
-            if pair not in out:
-                out.append(pair)
-        return out
+    def _sections(self, document: Path):
+        """(name -> text) of a document, None when there is no such file, and
+        the problem when it is there and cannot be read."""
+        key = self._key(document)
+        cached = self.documents.get(key)
+        if cached is not None:
+            return cached, None
+        source, problem = self._source(document)
+        if problem is not None:
+            return None, problem
+        if source is None:
+            return None, None
+        try:
+            sections = {name: text for name, text in markdown.files_of(source)}
+        except SyntaxError as exc:
+            return None, f"cannot parse {document}: {exc}"
+        self.documents[key] = sections
+        return sections, None
+
+    def _module_of_section(self, document: Path, section: str, text: str,
+                           name: str, base: Path):
+        """One file of a document, taken as the module `name`: a virtual path
+        `<document>/<section>`, so its key is its own and its imports look in
+        the directory the document stands for."""
+        virtual = Path(document) / section
+        cached = self.by_path.get(self._key(virtual))
+        if cached is not None:
+            return self._bind(cached, virtual, name)
+        return self._file_of(virtual, name, text, file_path=str(document),
+                             root=str(base), near=str(base / section))
 
 
 def _stack(runner: _Runner) -> Stack:

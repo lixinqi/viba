@@ -758,10 +758,28 @@ def _design_pool(loader) -> Result:
         if not isinstance(module, CustomModuleType):
             continue
         file_path = module.file_path
-        if not file_path or file_path in files or under_builtin(file_path):
+        if not file_path or under_builtin(file_path):
+            continue
+        if file_path.endswith(".viba.md"):
+            if file_path in files:
+                continue
+            files.add(file_path)
+            prefix = name.rsplit(".", 1)[0] if "." in name else ""
+            try:
+                sections = markdown.module_files(prefix, Path(file_path).read_text(encoding="utf-8"))
+            except (OSError, SyntaxError):
+                continue
+            for file_name, section_name, source in sections:
+                added = _add_source(pool, source, f"{file_path}#{file_name}",
+                                    section_name)
+                if isinstance(added, Err):
+                    continue
+                pool = added.ok_value
+            continue
+        if file_path in files:
             continue
         if not os.path.isfile(file_path):
-            continue                # a section of a document: added with it
+            continue
         added = _add_file(pool, file_path, name)
         if isinstance(added, Err):
             # A file the descriptor pool cannot build holds a program (its

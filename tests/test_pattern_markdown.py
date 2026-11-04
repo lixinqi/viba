@@ -3,7 +3,7 @@
 A directory of viba files can be given as a single Markdown file: each section
 names one file of it, and its first fenced code block is that file's text
 (`viba/markdown.py`). Every short generic of `tests/data/pattern/demo/` is here
-as a document — `tests/data/pattern_markdown/demo/*.md` — and this suite runs
+as a document — `tests/data/pattern_markdown/demo/*.viba.md` — and this suite runs
 the demo's own designs against both: the directory, and the document. The
 answer must not change: the value, the type it extracted, or the stop.
 
