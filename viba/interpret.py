@@ -1989,13 +1989,13 @@ class _Runner:
         return self._bind(generic.ok_value, path, name)
 
     def _generic_of_markdown(self, path: Path, name: str, source: str, root=None):
-        """The generic a Markdown document stands for: the document is its directory.
+        """The directory a Markdown document stands for, taken as a generic.
 
-        A section names one file of the directory and its first fenced code
-        block is that file's text (viba/markdown.py). Everything else is what a
-        generic's directory gets: the marker `__generic__.viba` is a section
-        like any other, each pattern file is parsed by `_file_of`, and the
-        document's own directory is where their imports are looked for first.
+        A document is a directory (viba/markdown.py): its sections are the
+        directory's files, and when the section `__generic__.viba` is among
+        them the directory is a generic, so the files are its patterns. Each
+        pattern is parsed by `_file_of`, and the document's own directory is
+        where their imports are looked for first.
         """
         try:
             files = markdown.files_of(source)
@@ -2120,22 +2120,29 @@ class _Runner:
                 return VibaProgramErr(problem)
             if source is None:
                 continue                # no file here: the next place
+            if place.name.endswith(".viba.md"):
+                sections, problem = self._sections(place, source)
+                if problem is not None:
+                    return VibaProgramErr(problem)
+                if GENERIC_FILE not in sections:
+                    return None         # a directory's document, and no generic
             return self._file_of(place, name, source, file_path=str(place),
                                  root=str(base))
         return None
 
-    def _sections(self, document: Path):
+    def _sections(self, document: Path, source: Optional[str] = None):
         """(name -> text) of a document, None when there is no such file, and
         the problem when it is there and cannot be read."""
         key = self._key(document)
         cached = self.documents.get(key)
         if cached is not None:
             return cached, None
-        source, problem = self._source(document)
-        if problem is not None:
-            return None, problem
         if source is None:
-            return None, None
+            source, problem = self._source(document)
+            if problem is not None:
+                return None, problem
+            if source is None:
+                return None, None
         try:
             sections = {name: text for name, text in markdown.files_of(source)}
         except SyntaxError as exc:

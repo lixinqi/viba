@@ -62,7 +62,7 @@ Note = Object * $text str
 
 1. 父目录的文档 `a/b.viba.md` 里的 `c.viba` 一章；
 2. 文件 `a/b/c.viba`；
-3. 文档 `a/b/c.viba.md`（目录 `a/b/c/` 的另一种写法，泛型就走这里）；
+3. 文档 `a/b/c.viba.md`（目录 `a/b/c/` 的另一种写法）；
 4. 目录 `a/b/c/__generic__.viba`；
 5. 带点的单个文件 `a.b.c.viba`。
 

@@ -41,6 +41,9 @@ def run() -> None:
           f"a directory's document is what its modules are: {_answer('use')!r}")
     check(_answer("missing")[0] == "stop",
           f"a name its document does not hold is not found: {_answer('missing')!r}")
+    own = _answer("own_name")
+    check(own[0] == "stop" and "not found" in own[1],
+          f"a directory's own name is no module: {own!r}")
 
     design = "import report.point as point\nX = point.Point\n"
     check(is_complete(design, viba_paths=[str(CASES)]),
