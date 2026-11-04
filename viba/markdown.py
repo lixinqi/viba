@@ -6,7 +6,7 @@ level, and the first fenced code block under it is that file's text. A section
 with no code block names an empty file, and the prose above the first heading
 names no file at all:
 
-    ## point.viba
+    ## `point.viba`
 
     ```viba
     Point = Object * $x int * $y int

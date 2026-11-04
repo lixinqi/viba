@@ -1,0 +1,5 @@
+y = str
+
+__decl__ = y <- $env Env
+
+__impl__ = 8

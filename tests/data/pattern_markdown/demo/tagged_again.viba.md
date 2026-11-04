@@ -4,7 +4,7 @@
 
 标记：这份文档是一个泛型。内容本来就不看，空着也行。
 
-## 100.viba
+## `100.viba`
 
 最简单的装法：把抓到的符号原样装回去，重新装一个 `tagged[arg_name, T]`。
 
@@ -14,7 +14,7 @@ pattern tagged[arg_name, T]
 type = tagged[arg_name, T]
 ```
 
-## 200.viba
+## `200.viba`
 
 整条链里带着同一个 tag：模式写成一条链，答的也是这条链。
 

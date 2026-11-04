@@ -1006,6 +1006,7 @@ if __name__ == "__main__":
         complete_doc = os.path.join(root, "viba-is-complete.md")
         judgment_doc = os.path.join(root, "viba-is-sub-type.md")
         serialize_doc = os.path.join(root, "viba-serialize.md")
+        repomix_doc = os.path.join(root, "viba-repomix.md")
         directory_doc = os.path.join(root, "viba-markdown-as-directory.md")
         chapters = ((readme, "README.md"), (style, "viba-style.md"),
                     (tutorial, "viba_tutorial.md"), (pattern, "viba-pattern.md"),
@@ -1017,6 +1018,7 @@ if __name__ == "__main__":
                     (complete_doc, "viba-is-complete.md"),
                     (judgment_doc, "viba-is-sub-type.md"),
                     (serialize_doc, "viba-serialize.md"),
+                    (repomix_doc, "viba-repomix.md"),
                     (directory_doc, "viba-markdown-as-directory.md"))
         for path, _name in chapters:
             with open(path, encoding="utf-8") as handle:

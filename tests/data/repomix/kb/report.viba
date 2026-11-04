@@ -1,0 +1,2 @@
+# The point and the note.
+Point = Object * $x int * $y int

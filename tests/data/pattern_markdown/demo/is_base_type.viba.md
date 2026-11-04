@@ -4,7 +4,7 @@
 
 标记：这份文档是一个泛型。内容本来就不看，空着也行。
 
-## 100.viba
+## `100.viba`
 
 叶子：四种标量都收，答 `true`。
 
@@ -16,7 +16,7 @@ value = true
 
 `is_base_type[bool]`、`is_base_type[str]` 都停在这一支。
 
-## 200.viba
+## `200.viba`
 
 除此之外的类型都落到这一支，答 `false`。
 

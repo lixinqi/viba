@@ -605,6 +605,7 @@ python tests/corpus/generate_corpus.py --check   # 130-file corpus round-trip
 | [`viba-check-tag-and-inline.md`](viba-check-tag-and-inline.md) | `check_tag_and_inline`: one tag per product once the inline chains are spread, and every inline chain ends |
 | [`viba-is-complete.md`](viba-is-complete.md) | `is_complete`: does every address a design lists walk down to a leaf — the question reflection asks before any data exists |
 | [`viba-markdown-as-directory.md`](viba-markdown-as-directory.md) | A directory written as one Markdown document: a section is a file, its first code block is the file's text |
+| [`viba-repomix.md`](viba-repomix.md) | `repomix`: a directory of viba code packed into one Markdown document — the code, and the comments around it as prose |
 | [`viba_builder.md`](viba_builder.md) | Building .viba source from Python expressions |
 | [`viba-make-dispatcher.md`](viba-make-dispatcher.md) | `make_dispatcher`: several handlers, one function, and the type they make together |
 | [`viba-extract-sub-repo.md`](viba-extract-sub-repo.md) | `extract_sub_repo`: pulling one sub-repo out of a repo — the definition closure, the primitives left behind, and the idempotence law |
@@ -624,6 +625,7 @@ tools built on those.
 | `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) — see `viba-is-sub-type.md` |
 | `pattern.py` | A generic and its directory of patterns: pattern matching, the decision — see `viba-pattern.md` |
 | `markdown.py` | A directory written as one Markdown document — see `viba-markdown-as-directory.md` |
+| `repomix.py` | A directory of viba code packed into one Markdown document — see `viba-repomix.md` |
 | `viba_type_descriptor.py` | The descriptor side: files, definitions, members, type expressions |
 | `reflect.py` | The reflection protocol: addressing a type, taking values out of an instance |
 | `serialize.py` | Serializes an instance into viba source — see `viba-serialize.md` |

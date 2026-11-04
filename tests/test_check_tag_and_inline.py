@@ -246,7 +246,7 @@ def run_package_sources():
     paths = [root / "type.viba", root / "viba_type_descriptor.viba",
              root / "builtin.viba", root / "extract_sub_repo.viba",
              root / "check_convertable_to_json_schema.viba",
-             root / "convert_to_json_schema.viba"]
+             root / "convert_to_json_schema.viba", root / "repomix.viba"]
     wrong = []
     for path in paths:
         got = file_design(path)
