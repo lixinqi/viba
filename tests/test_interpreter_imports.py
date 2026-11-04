@@ -211,11 +211,13 @@ def _virtual_files(tmp: Path):
     # 最后两站是内建目录（`viba/`）与 `builtin.` 那些名字的目录（`viba/builtin/`）：
     # `nope` 两处都没有
     check(asked == ["/vfs/wants_nope.viba", "/vfs/nope.viba",
-                    "/vfs/nope/__generic__.viba",
+                    "/vfs/nope/__generic__.viba", "/vfs/nope.md",
                     str(BUILTIN_DIR / "nope.viba"),
                     str(BUILTIN_DIR / "nope" / "__generic__.viba"),
+                    str(BUILTIN_DIR / "nope.md"),
                     str(BUILTIN_CONCEPT_DIR / "nope.viba"),
-                    str(BUILTIN_CONCEPT_DIR / "nope" / "__generic__.viba")],
+                    str(BUILTIN_CONCEPT_DIR / "nope" / "__generic__.viba"),
+                    str(BUILTIN_CONCEPT_DIR / "nope.md")],
           f"the main file, then every place the name could be: {asked}")
 
     # 模块已经加载过就不再问

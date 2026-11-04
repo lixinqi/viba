@@ -1,0 +1,5 @@
+import elem
+
+Item = elem[list[int]].type
+
+Pair = elem[dict[str, int]].type

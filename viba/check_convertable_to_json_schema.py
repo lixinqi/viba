@@ -43,10 +43,11 @@ reads a null under it.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from viba import viba_ast
+from viba import markdown, viba_ast
 from viba.check_tag_and_inline import check_tag_and_inline
 from viba.design_walk import (
     is_function,
@@ -726,7 +727,26 @@ def _design_pool(loader) -> Result:
     files = set()
     for name, module in list(loader.by_name.items()):
         if isinstance(module, GenericModuleType):
-            marker = str(Path(module.directory) / "__generic__.viba")
+            directory = str(module.directory)
+            if not os.path.isdir(directory):
+                # A generic written as one Markdown document: its sections are
+                # the files its directory would hold.
+                if directory in files or under_builtin(directory):
+                    continue
+                files.add(directory)
+                try:
+                    sections = markdown.module_files(
+                        name, Path(directory).read_text(encoding="utf-8"))
+                except (OSError, SyntaxError):
+                    continue
+                for file_name, section_name, source in sections:
+                    added = _add_source(pool, source, f"{directory}#{file_name}",
+                                        section_name)
+                    if isinstance(added, Err):
+                        continue
+                    pool = added.ok_value
+                continue
+            marker = str(Path(directory) / "__generic__.viba")
             if marker in files or under_builtin(marker):
                 continue
             added = _add_file(pool, marker, f"{name}.__generic__")
@@ -740,6 +760,8 @@ def _design_pool(loader) -> Result:
         file_path = module.file_path
         if not file_path or file_path in files or under_builtin(file_path):
             continue
+        if not os.path.isfile(file_path):
+            continue                # a section of a document: added with it
         added = _add_file(pool, file_path, name)
         if isinstance(added, Err):
             # A file the descriptor pool cannot build holds a program (its
@@ -752,6 +774,10 @@ def _design_pool(loader) -> Result:
 
 def _add_file(pool, file_path: str, module_name: str) -> Result:
     source = Path(file_path).read_text(encoding="utf-8")
+    return _add_source(pool, source, file_path, module_name)
+
+
+def _add_source(pool, source: str, file_path: str, module_name: str) -> Result:
     parsed = parse_viba_file(pool, source, file_path, module_name)
     if isinstance(parsed, Err):
         return parsed

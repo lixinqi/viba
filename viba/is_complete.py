@@ -65,7 +65,7 @@ Relative module names match the corpora in this repo (`util.viba` is module
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
-from viba import viba_ast
+from viba import markdown, viba_ast
 from viba.partial import product_elements
 from viba.pattern import reduce_application, tagged_type_of
 from viba.type import BUILTIN_MODULE, AstNodeType, Err, Ok
@@ -146,15 +146,28 @@ def _dependencies(library, viba_paths) -> List[Tuple[str, str, str]]:
                 found[module_name] = (str(path), path.read_text())
             except OSError:
                 continue
+        for path in sorted(root.rglob("*.md")):
+            module_name = _module_name(path.relative_to(root))
+            if not module_name:
+                continue
+            try:
+                files = markdown.module_files(module_name, path.read_text())
+            except (OSError, SyntaxError):
+                continue
+            for file_name, name, source in files:
+                if name not in found:
+                    found[name] = (f"{path}#{file_name}", source)
     return [(file_name, module_name, source)
             for module_name, (file_name, source) in found.items()]
 
 
 def _module_name(file_path) -> str:
-    """pkg/mod.viba -> pkg.mod: drop .viba, turn the separators into dots."""
+    """pkg/mod.viba -> pkg.mod: drop the suffix, turn the separators into dots."""
     text = str(file_path).replace("\\", "/").strip("/")
-    if text.endswith(".viba"):
-        text = text[: -len(".viba")]
+    for suffix in (".viba", ".md"):
+        if text.endswith(suffix):
+            text = text[: -len(suffix)]
+            break
     return text.replace("/", ".")
 
 

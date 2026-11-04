@@ -142,6 +142,21 @@ def run_units() -> None:
           [{"type": "integer"}, {"type": "null"}])
 
 
+def run_generics() -> None:
+    """A generic written as one Markdown document answers what its directory would."""
+    doc = schema("uses_elem.Item")
+    check("a list's element is the type it stands for",
+          definition(doc, "uses_elem.Item"),
+          {"$ref": "#/$defs/elem.100.type@3a92772d"})
+    check("every ref in the document resolves", refs_resolve(doc), True)
+    doc = schema("uses_elem.Pair")
+    check("a dict's keys and values are a tuple",
+          doc["$defs"].get("elem.200.type@7a123e56"),
+          {"type": "array", "prefixItems": [{"type": "string"},
+                                            {"type": "integer"}],
+           "items": False, "minItems": 2})
+
+
 def run_products() -> None:
     point = definition(schema("objects.Point"), "objects.Point")
     check("a product is an object", point.get("type"), "object")
@@ -278,6 +293,7 @@ def run_strict() -> None:
 
 def main() -> int:
     run_sums()
+    run_generics()
     run_units()
     run_products()
     run_references()

@@ -76,7 +76,7 @@ import uuid
 from pathlib import Path
 from typing import Optional, Union
 
-from viba import serialize, viba_ast
+from viba import markdown, serialize, viba_ast
 from viba.partial import (file_environment_result_problem, parameters_of,
                           product_elements, names_the_environment)
 from viba.reflect import (LITERAL_CTORS, VObject, VibaFunction, VibaReflectError,
@@ -1858,20 +1858,25 @@ class _Runner:
         resolved — a host's file need not be on this filesystem at all."""
         return os.path.normpath(str(path))
 
-    def _file_of(self, path: Path, name: str, source: str, file_path=None, root=None):
+    def _file_of(self, path: Path, name: str, source: str, file_path=None,
+                 root=None, near=None):
         """Parse one source, remember it under its path, bind it to `name`.
 
         A path whose file is `__generic__.viba` is no module at all: it is the
         marker of a generic, and what is built for it is the whole directory —
-        every pattern file numbered inside it (viba-pattern.md).
+        every pattern file numbered inside it (viba-pattern.md). A Markdown file
+        is the same: the document is a directory, its sections are the files
+        (viba/markdown.py).
 
         `file_path` and `root` are what the module records about where it came
         from: the file it was taken from, and the search root it was found under
-        (viba/type.py, `CustomModuleType.module_path`).
+        (viba/type.py, `CustomModuleType.module_path`). `near` is the file whose
+        directory imports are looked in first; None is the path itself.
         """
         key = self._key(path)
         if key not in self.by_path:
-            built = self._module_of(path, name, source, file_path=file_path, root=root)
+            built = self._module_of(path, name, source, near=near,
+                                    file_path=file_path, root=root)
             if _stopped(built):
                 return built
             self.by_path[key] = built.ok_value
@@ -1891,6 +1896,8 @@ class _Runner:
         """
         if path.name == GENERIC_FILE:
             return self._generic_of(path, name, file_path, root)
+        if path.suffix == ".md":
+            return self._generic_of_markdown(path, name, source, root)
         try:
             tree = viba_ast.parse(source)
         except SyntaxError as exc:
@@ -1980,6 +1987,37 @@ class _Runner:
         self.by_path[self._key(path)] = generic.ok_value
         return self._bind(generic.ok_value, path, name)
 
+    def _generic_of_markdown(self, path: Path, name: str, source: str, root=None):
+        """The generic a Markdown document stands for: the document is its directory.
+
+        A section names one file of the directory and its first fenced code
+        block is that file's text (viba/markdown.py). Everything else is what a
+        generic's directory gets: the marker `__generic__.viba` is a section
+        like any other, each pattern file is parsed by `_file_of`, and the
+        document's own directory is where their imports are looked for first.
+        """
+        try:
+            files = markdown.files_of(source)
+        except SyntaxError as exc:
+            return VibaProgramErr(f"cannot parse {path}: {exc}")
+        by_name = {file_name: text for file_name, text in files}
+
+        def source_of(file_path: str):
+            return by_name.get(os.path.basename(file_path))
+
+        def listing(_directory: str):
+            return Ok(sorted(by_name))
+
+        def module_of(entry_path: str, entry_name: str, text: str):
+            return self._file_of(Path(entry_path), entry_name, text,
+                                 near=str(path), root=str(path.parent))
+
+        generic = load_generic(str(path), name, source_of, listing, module_of)
+        if _stopped(generic):
+            return generic
+        self.by_path[self._key(path)] = generic.ok_value
+        return self._bind(generic.ok_value, path, name)
+
     def _source_text(self, file_path: str):
         """One file's text for the generic loader: None when there is none."""
         source, _problem = self._source(Path(file_path))
@@ -2040,17 +2078,22 @@ class _Runner:
         names (`BUILTIN_CONCEPT_DIR`). A dotted name is a path, and also one
         file named with the dots (`pkg.inner.viba`). A generic is the directory
         of that path (`pkg/inner/__generic__.viba`), looked for after the file
-        of the same name. The same place twice is asked once."""
+        of the same name, and a directory may also be one Markdown document
+        (`pkg/inner.md`), looked for after the directory. The same place twice
+        is asked once."""
         rel = Path(*name.split(".")).with_suffix(".viba")
         generic = Path(*name.split(".")) / GENERIC_FILE
+        document = rel.with_suffix(".md")
         places = []
         if near:
             base = Path(near).parent
             places += [(base, base / rel), (base, base / generic),
-                       (base, base / f"{name}.viba")]
+                       (base, base / document), (base, base / f"{name}.viba"),
+                       (base, base / f"{name}.md")]
         for base in [*self.paths, BUILTIN_DIR, BUILTIN_CONCEPT_DIR]:
             places += [(base, base / rel), (base, base / generic),
-                       (base, base / f"{name}.viba")]
+                       (base, base / document), (base, base / f"{name}.viba"),
+                       (base, base / f"{name}.md")]
         out = []
         for pair in places:
             if pair not in out:

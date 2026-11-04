@@ -11,6 +11,7 @@ Every case is one module of data/check_convertable_to_json_schema/kb:
     cycle.viba      an inline chain that comes back to itself
     use.viba        a sum that flattens through an import
     generics.viba   a generic applied, a parameter left open, Either
+    uses_elem.viba  a generic written as one Markdown document (elem.md)
     empty.viba      a module with no definitions
 
     python3 tests/test_check_convertable_to_json_schema.py
@@ -99,6 +100,9 @@ def run_generics() -> None:
     reads("generics.Filled")
     reads("generics.Choice")
     refused("generics.Numeric", "read as a number")
+    # `elem` is a generic written as one Markdown document (elem.md)
+    reads("uses_elem.Item")
+    reads("uses_elem.Pair")
 
 
 def run_entries() -> None:
