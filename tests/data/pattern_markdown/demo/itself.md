@@ -9,7 +9,6 @@
 `pattern A` 收下整个对象，`type = A` 就是它自己。
 
 ```viba
-# 没有任何限定：哪个实参来都收，`A` 拿的就是源码里的那个对象本身。
 pattern A
 
 type = A

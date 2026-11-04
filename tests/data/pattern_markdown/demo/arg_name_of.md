@@ -6,11 +6,10 @@
 
 ## 100.viba
 
-`tagged` 模式认下 tag，`arg_name` 就是那个 tag 的符号；`value = arg_name` 答它。
+`tagged` 模式认下 tag，`arg_name` 就是这个 tag 拼出来的符号——它在模式里是个参数；
+`value = arg_name` 把它答回去。
 
 ```viba
-# The tag an argument carries, answered as the symbol it spells: a
-# `tagged` pattern names the tag it claims, so the name is a parameter.
 pattern tagged[arg_name, T]
 
 value = arg_name
