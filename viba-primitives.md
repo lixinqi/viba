@@ -668,7 +668,7 @@ args = __get_args__ << __decl__
 - **参数都是定长的。** `min` / `max` 只收两个，`concat` 只接两段，没有可变参数；
   三个数取最小要套两层。
 - **链头是 `$tag` 的那一声调用序列化不出来**：`serialize` 对它报
-  `a chain headed by a member has no form in the source here`（`viba/serialize.py`），
+  `a chain headed by a member has no form in the source here`（[`viba-serialize.md`](viba-serialize.md)），
   所以含这种成员的字面量交得给宿主，存不下来。这一条不限这五个成员，任何 `$tag << X` 链都一样。
 - **换类型的失败是实现的停法，不是程序错。** `str_to_int` 拿到一个不是数的字符串报的是
   `$underlying_viba_op_err`（第 2.6 节），语言里没有给出 `Result` 的版本。

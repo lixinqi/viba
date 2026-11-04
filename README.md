@@ -597,9 +597,13 @@ python tests/corpus/generate_corpus.py --check   # 130-file corpus round-trip
 | [`viba_tutorial.md`](viba_tutorial.md) | Learning the language: from one definition to a module that runs |
 | [`viba-primitives.md`](viba-primitives.md) | The builtin API: the operators, `Environment`, the member operators, containers, and the builtin modules a module reaches without an import |
 | [`viba-reflect.md`](viba-reflect.md) | The reflection protocol: addressing a type, taking values out of an instance |
+| [`viba-is-sub-type.md`](viba-is-sub-type.md) | `is_sub_type`: the subtype judgment — structural, coinductive, with no nominal types |
+| [`viba-serialize.md`](viba-serialize.md) | `serialize`: the mirror of reflection — a piece of a design, written back as viba source |
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__decl__` in, `__impl__` out — the executable view, and the call-by-need evaluation strategy |
 | [`viba-interpreter-design.md`](viba-interpreter-design.md) | The interpreter itself, as viba: a run, the host's three pieces, a call, an activation, the five members the interpreter handles itself, and the entry points |
 | [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer takes |
+| [`viba-check-tag-and-inline.md`](viba-check-tag-and-inline.md) | `check_tag_and_inline`: one tag per product once the inline chains are spread, and every inline chain ends |
+| [`viba-is-complete.md`](viba-is-complete.md) | `is_complete`: does every address a design lists walk down to a leaf — the question reflection asks before any data exists |
 | [`viba-markdown-as-directory.md`](viba-markdown-as-directory.md) | A directory written as one Markdown document: a section is a file, its first code block is the file's text |
 | [`viba_builder.md`](viba_builder.md) | Building .viba source from Python expressions |
 | [`viba-make-dispatcher.md`](viba-make-dispatcher.md) | `make_dispatcher`: several handlers, one function, and the type they make together |
@@ -617,15 +621,15 @@ tools built on those.
 |--------|---------|
 | `viba_ast/` | Node classes, chain canonicalization, unparse, visitors, `dump` |
 | `type.py` | The Type model, the builtin names, `module_get_type` |
-| `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) |
+| `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) — see `viba-is-sub-type.md` |
 | `pattern.py` | A generic and its directory of patterns: pattern matching, the decision — see `viba-pattern.md` |
 | `markdown.py` | A directory written as one Markdown document — see `viba-markdown-as-directory.md` |
 | `viba_type_descriptor.py` | The descriptor side: files, definitions, members, type expressions |
 | `reflect.py` | The reflection protocol: addressing a type, taking values out of an instance |
-| `serialize.py` | Serializes an instance into viba source |
+| `serialize.py` | Serializes an instance into viba source — see `viba-serialize.md` |
 | `builder.py` | Builds .viba source from Python expressions — see `viba_builder.md` |
-| `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end |
-| `is_complete.py` | Whether a type can be reflected through |
+| `check_tag_and_inline.py` | The one-place check: one tag per product, inline chains end — see `viba-check-tag-and-inline.md` |
+| `is_complete.py` | Whether a type can be reflected through — see `viba-is-complete.md` |
 | `design_walk.py` | The small readings of a design's source the walks share: chains, calls, type names, bindings |
 | `extract_sub_repo.py` | Pulls a sub-repo out of a repo — see `viba-extract-sub-repo.md` |
 | `check_convertable_to_json_schema.py` | Whether a type goes to JSON and comes back — see `viba-check-convertable-to-json-schema.md` |

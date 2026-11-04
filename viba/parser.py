@@ -1002,6 +1002,10 @@ if __name__ == "__main__":
         sub_repo = os.path.join(root, "viba-extract-sub-repo.md")
         json_doc = os.path.join(root, "viba-check-convertable-to-json-schema.md")
         schema_doc = os.path.join(root, "viba-convert-to-json-schema.md")
+        tag_doc = os.path.join(root, "viba-check-tag-and-inline.md")
+        complete_doc = os.path.join(root, "viba-is-complete.md")
+        judgment_doc = os.path.join(root, "viba-is-sub-type.md")
+        serialize_doc = os.path.join(root, "viba-serialize.md")
         directory_doc = os.path.join(root, "viba-markdown-as-directory.md")
         chapters = ((readme, "README.md"), (style, "viba-style.md"),
                     (tutorial, "viba_tutorial.md"), (pattern, "viba-pattern.md"),
@@ -1009,6 +1013,10 @@ if __name__ == "__main__":
                     (sub_repo, "viba-extract-sub-repo.md"),
                     (json_doc, "viba-check-convertable-to-json-schema.md"),
                     (schema_doc, "viba-convert-to-json-schema.md"),
+                    (tag_doc, "viba-check-tag-and-inline.md"),
+                    (complete_doc, "viba-is-complete.md"),
+                    (judgment_doc, "viba-is-sub-type.md"),
+                    (serialize_doc, "viba-serialize.md"),
                     (directory_doc, "viba-markdown-as-directory.md"))
         for path, _name in chapters:
             with open(path, encoding="utf-8") as handle:
