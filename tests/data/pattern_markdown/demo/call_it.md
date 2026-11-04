@@ -1,8 +1,6 @@
-# call_it
-
 把列表应用成一条函数类型：`A <- $env Env <- A`。
 
-## __generic__.viba
+## `__generic__.viba`
 
 标记：这份文档是一个泛型。内容本来就不看，空着也行。
 

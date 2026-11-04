@@ -600,7 +600,7 @@ python tests/corpus/generate_corpus.py --check   # 130-file corpus round-trip
 | [`viba-interpreter.md`](viba-interpreter.md) | Running a module: `__decl__` in, `__impl__` out — the executable view, and the call-by-need evaluation strategy |
 | [`viba-interpreter-design.md`](viba-interpreter-design.md) | The interpreter itself, as viba: a run, the host's three pieces, a call, an activation, the five members the interpreter handles itself, and the entry points |
 | [`viba-pattern.md`](viba-pattern.md) | A generic is a directory: `pattern`, the decision order, and what each layer takes |
-| [`viba-markdown-directory.md`](viba-markdown-directory.md) | A directory written as one Markdown document: a section is a file, its first code block is the file's text |
+| [`viba-markdown-as-directory.md`](viba-markdown-as-directory.md) | A directory written as one Markdown document: a section is a file, its first code block is the file's text |
 | [`viba_builder.md`](viba_builder.md) | Building .viba source from Python expressions |
 | [`viba-make-dispatcher.md`](viba-make-dispatcher.md) | `make_dispatcher`: several handlers, one function, and the type they make together |
 | [`viba-extract-sub-repo.md`](viba-extract-sub-repo.md) | `extract_sub_repo`: pulling one sub-repo out of a repo — the definition closure, the primitives left behind, and the idempotence law |
@@ -619,7 +619,7 @@ tools built on those.
 | `type.py` | The Type model, the builtin names, `module_get_type` |
 | `is_sub_type.py` | The subtype judgment (`<<`, units, coinductive cycles, `Any`) |
 | `pattern.py` | A generic and its directory of patterns: pattern matching, the decision — see `viba-pattern.md` |
-| `markdown.py` | A directory written as one Markdown document — see `viba-markdown-directory.md` |
+| `markdown.py` | A directory written as one Markdown document — see `viba-markdown-as-directory.md` |
 | `viba_type_descriptor.py` | The descriptor side: files, definitions, members, type expressions |
 | `reflect.py` | The reflection protocol: addressing a type, taking values out of an instance |
 | `serialize.py` | Serializes an instance into viba source |

@@ -1,8 +1,6 @@
-# wrapped_item
-
 把元素包进一个带 tag 的成员里，答那个成员。
 
-## __generic__.viba
+## `__generic__.viba`
 
 标记：这份文档是一个泛型。内容本来就不看，空着也行。
 

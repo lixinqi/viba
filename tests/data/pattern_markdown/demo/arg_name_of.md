@@ -1,8 +1,6 @@
-# arg_name_of
-
 参数带的 tag 叫什么名字：用 `tagged[arg_name, T]` 把它抓出来。
 
-## __generic__.viba
+## `__generic__.viba`
 
 标记：这份文档是一个泛型。内容本来就不看，空着也行。
 

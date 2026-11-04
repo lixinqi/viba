@@ -6,16 +6,10 @@ file's text. A section with no code block names an empty file, and the
 document's own title — a level-one heading, and the prose under it — names no
 file at all:
 
-    # is_base_type
-
-    ## __generic__.viba
-
-    ## 100.viba
+    ## point.viba
 
     ```viba
-    pattern bool | int | str
-
-    value = true
+    Point = Object * $x int * $y int
     ```
 
 The reading takes no notice of what the files are for: it answers the (name,
@@ -30,26 +24,27 @@ from typing import List, Tuple
 
 __all__ = ["files_of", "module_files"]
 
-# A section: `## name`, up to six levels. A level-one heading is the title, and
-# `##` alone is a section that names nothing.
+# A section: `#` to `######` then the file's name; `##` alone names nothing.
 _HEADING = re.compile(r"^(#{1,6})(?:[ \t]+(.*?))?[ \t]*$")
 
 # A fenced code block: up to three spaces of indent, three or more backticks or
 # tildes, and the rest of the line as its info string.
 _FENCE = re.compile(r"^( {0,3})(`{3,}|~{3,})[ \t]*(.*?)[ \t]*$")
 
-# How far a fence's own indent is taken off the lines inside it.
-_INDENT = re.compile(r"^ {0,3}")
+# A name written as a code span: its backticks are no part of the name.
+_CODE_SPAN = re.compile(r"^(`+)(.*?)\1$")
 
 
 def files_of(source: str) -> List[Tuple[str, str]]:
     """The files a Markdown document names: (name, text), in the order given.
 
-    The name is the heading's text as written — `__generic__.viba`, `100.viba` —
-    so the document reads as the directory it stands for. A level-one heading is
-    the title, not a file. Two sections naming one file are an error: a
-    directory holds a name once. A fenced code block that is never closed is an
-    error too: the file's text would be cut at the end of the document.
+    The name is the heading's text as written — `point.viba`,
+    `__generic__.viba` — so the document reads as the directory it stands for.
+    The heading's level is not looked at: `#`, `##`, `###` and `####` all name a
+    file, and there is no separate title. Two sections naming one file are an
+    error: a directory holds a name once. A fenced code block that is never
+    closed is an error too: the file's text would be cut at the end of the
+    document.
 
     Raises SyntaxError, the way viba's own parser does, with the line it
     happened on.
@@ -63,10 +58,7 @@ def files_of(source: str) -> List[Tuple[str, str]]:
         if fence is None:
             heading = _HEADING.match(line)
             if heading is not None:
-                if len(heading.group(1)) == 1:
-                    current = None
-                    continue
-                name = heading.group(2) or ""
+                name = _heading_name(heading.group(2) or "")
                 if not name:
                     raise SyntaxError(
                         f"line {number}: a section needs a file name")
@@ -120,6 +112,19 @@ def module_files(module_name: str, source: str):
                     f"{module_name}.{file_name[: -len('.viba')]}",
                     text))
     return out
+
+
+def _heading_name(text: str) -> str:
+    """The file name a heading spells: a code span's content, or the text as written.
+
+    A name may be written as code — `## `__generic__.viba`` — because Markdown
+    reads `__x__` as emphasis: the rendered heading has to show the name, and the
+    backticks keep it whole.
+    """
+    span = _CODE_SPAN.match(text)
+    if span is not None:
+        return span.group(2).strip()
+    return text
 
 
 def _unindent(line: str, indent: int) -> str:

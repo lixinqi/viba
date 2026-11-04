@@ -1,8 +1,6 @@
-# tagged_again
-
 把抓到的 tag 原样装回一个类型里。
 
-## __generic__.viba
+## `__generic__.viba`
 
 标记：这份文档是一个泛型。内容本来就不看，空着也行。
 

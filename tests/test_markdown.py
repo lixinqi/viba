@@ -35,9 +35,9 @@ def refused(name: str, source: str) -> None:
 
 
 DOCUMENT = """\
-# report
+报表用到的两个类型。这一整段不是任何文件。
 
-报表用到的两个类型。文档的标题不是文件，这一整段也不是。
+# report
 
 ## point.viba
 
@@ -47,13 +47,13 @@ DOCUMENT = """\
 Point = Object * $x int * $y int
 ```
 
-## note.viba
+### note.viba
 
 ```
 Note = Object * $text str
 ```
 
-## notes.txt
+#### notes.txt
 
 没有代码块的一章是空文件。
 """
@@ -61,16 +61,17 @@ Note = Object * $text str
 
 def run() -> None:
     files = files_of(DOCUMENT)
-    check("one file per section, in the order given",
+    check("one file per heading, in the order given",
           [name for name, _text in files],
-          ["point.viba", "note.viba", "notes.txt"])
-    check("the title names no file", "# report" in [name for name, _ in files],
-          False)
+          ["report", "point.viba", "note.viba", "notes.txt"])
+    check("the level of a heading is not looked at", files[0], ("report", ""))
     check("the first code block is the file's text",
-          files[0][1], "Point = Object * $x int * $y int\n")
+          files[1][1], "Point = Object * $x int * $y int\n")
     check("the info string is no part of the text",
-          files[1][1], "Note = Object * $text str\n")
-    check("a section with no code block is an empty file", files[2][1], "")
+          files[2][1], "Note = Object * $text str\n")
+    check("a section with no code block is an empty file", files[3][1], "")
+    check("prose outside a heading names no file",
+          files_of("just a paragraph\n\nand another\n"), [])
 
     two_blocks = """\
 ## point.viba
@@ -117,15 +118,30 @@ X = int
     check("the label may be anything, or nothing",
           files_of(labelled), [("point.viba", "X = int\n")])
 
-    no_title = """\
+    deep = """\
+###### deep.viba
+
+```viba
+X = int
+```
+"""
+    as_code = """\
+## `__generic__.viba`
+
 ## point.viba
 
 ```viba
 X = int
 ```
 """
-    check("a document may have no title", files_of(no_title),
-          [("point.viba", "X = int\n")])
+    check("a name written as code is the name inside the backticks",
+          files_of(as_code), [("__generic__.viba", ""),
+                             ("point.viba", "X = int\n")])
+    check("a name written as it is needs no backticks",
+          files_of("## __generic__.viba\n"), [("__generic__.viba", "")])
+
+    check("six hashes name a file too", files_of(deep),
+          [("deep.viba", "X = int\n")])
 
     named = module_files("report", DOCUMENT)
     check("a file is named under the module the document stands for",

@@ -1,8 +1,6 @@
-# num_generic_args
-
 一个类型应用带几个实参：按源码里写的数，`dict[A, B]` 是两个，`A` 是零个。
 
-## __generic__.viba
+## `__generic__.viba`
 
 标记：这份文档是一个泛型。内容本来就不看，空着也行。
 
