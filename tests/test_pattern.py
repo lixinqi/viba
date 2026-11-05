@@ -1,6 +1,6 @@
 """Pattern: a generic is a directory, and one of its files answers.
 
-The four worked examples of `viba-pattern.md` live in `tests/data/pattern/demo/`:
+The four worked examples of `viba/core/viba-pattern.md` live in `tests/data/pattern/demo/`:
 
     demo/is_base_type/      100 restricts to bool | int | float | str, 200 extracts
     demo/is_compatable/     four files, an equality among them

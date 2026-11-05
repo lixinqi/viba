@@ -123,7 +123,7 @@ ENVIRON_TYPE = "Environment"
 
 # A call whose name travels as data: the interpreter answers both names, so a
 # call in the source can be taken anywhere without a module knowing it
-# (viba-interpreter.md, the section on `__dyn_call__` and `__dyn_method__`).
+# (viba/exec/viba-interpreter.md, the section on `__dyn_call__` and `__dyn_method__`).
 DYN_CALL_NAME = "__dyn_call__"
 DYN_METHOD_NAME = "__dyn_method__"
 
@@ -161,7 +161,7 @@ class EnvironmentStorage:
         # the data path's own way up, and it is the one a press uses to put the
         # name it makes beside the path it presses — the chain of environments
         # (`get_parent`) is the chain of calls, and a press is no call
-        # (viba-interpreter.md, "链上的成员").
+        # (viba/exec/viba-interpreter.md, "链上的成员").
         self.parent = parent
 
     def sub(self, name: str) -> "EnvironmentStorage":
@@ -245,7 +245,7 @@ class Environment:
         # The environment this one was made from, when it was made by `sub_env`
         # or `tmp_env`: the chain it belongs to, which is what `get_parent`,
         # `get_root`, `get_relative_path` and `find_by_relative_path` walk
-        # (viba-interpreter.md).
+        # (viba/exec/viba-interpreter.md).
         self.parent = parent
         # Where modules are looked up, like PYTHONPATH: a string of directories,
         # or one path. A module runs under the environment it was handed, so its
@@ -259,7 +259,7 @@ class Environment:
         # The members a design hangs off the environment are plain functions of
         # the environment itself: nothing is bound to the one they were taken
         # from, so `args.env.sub_env << args.env << "child"` and
-        # `$sub_env << args.env << "child"` are the same call (viba-interpreter.md).
+        # `$sub_env << args.env << "child"` are the same call (viba/exec/viba-interpreter.md).
         # `find_by_relative_path` is the exception: with `nil` for its root it
         # searches from the environment it was taken off, so each holds its own.
         self.sub_env = sub_env
@@ -411,7 +411,7 @@ def get_parent(environ) -> Optional["Environment"]:
     The chain is the one `sub_env` and `tmp_env` make: one environment each time a
     call is handed one of its own. Compressing a data path
     (`compress_env_path`) does not take a link out of it, so this is
-    also the chain of calls the interpreter is inside (viba-interpreter.md).
+    also the chain of calls the interpreter is inside (viba/exec/viba-interpreter.md).
     """
     return _an_environment(environ, "get_parent").parent
 
@@ -498,7 +498,7 @@ def find_by_relative_path(relative_path, root) -> "Environment":
     `get_parent` of the answer is the environment the path was walked from,
     however many segments the path has — a path of thirty segments gives one
     link, and `get_relative_path` still names all thirty, because that one goes
-    by the data path (viba-interpreter.md, "链上的成员").
+    by the data path (viba/exec/viba-interpreter.md, "链上的成员").
     """
     text = _the_relative_path(relative_path)
     base = _an_environment(root, "find_by_relative_path")
@@ -968,7 +968,7 @@ class _Member:
     The chain gives that value first (`$sub_env << args.env << "c"`), and giving
     it is what takes the member: the first argument is never an argument of the
     member itself. A tag is not a value, so this only ever stands at the head of
-    a chain and is gone as soon as the chain has run (viba-interpreter.md).
+    a chain and is gone as soon as the chain has run (viba/exec/viba-interpreter.md).
     """
 
     __slots__ = ("tag",)
@@ -1052,7 +1052,7 @@ def _kept_as_its_own_tag(tag, value):
     tag names no parameter is still a product of one member: it lands in the slot
     that takes a product, and what the call received comes back as `$tag <value>`
     — otherwise the tag would be left behind at the call site, and a decision over
-    the product (viba-pattern.md) would see the bare member.
+    the product (viba/core/viba-pattern.md) would see the bare member.
     """
     if tag is None or not isinstance(value, _VibaData):
         return value
@@ -1176,7 +1176,7 @@ def _substituted(node, scope):
     """A piece in the source with the names this call bound put in their place.
 
     Viba data is taken as it stands, so a name a decision bound
-    (viba-pattern.md) has to be put in before the piece travels on:
+    (viba/core/viba-pattern.md) has to be put in before the piece travels on:
     what the answer says is the type the decision made, not the parameter name
     the chosen file happened to use. Only names the scope binds are touched —
     everything else stays the file's own text — and a scope that binds nothing
@@ -1310,7 +1310,7 @@ def _completed(answered: UnderlyingOpErr, module_path: str,
 # What a run answers, as viba data
 # ----------------------------------------------------------------------
 
-# The declared result, and the file it appears in (viba-interpreter.md,
+# The declared result, and the file it appears in (viba/exec/viba-interpreter.md,
 # "一次执行会得到什么"): what the failure side stands for comes from there, so `$msg`,
 # `$module_path`, `$call` and the rest are addressable by tag, and a result can be
 # judged against the declaration it is held to (`is_interpret_result`). The value
@@ -1372,7 +1372,7 @@ def not_implemented(msg: str = "", module_path: str = "",
 
     `msg` is the sentence it answers with, empty for the run's own
     (`no implementation`). The node is the same data the result carries, so it
-    can be serialized, kept, and taken back (`viba-interpreter.md`).
+    can be serialized, kept, and taken back (`viba/exec/viba-interpreter.md`).
     """
     return _failure_viba_data(NOT_IMPLEMENTED_TAG, msg, module_path,
                               full_qualified_func_name, call)
@@ -1611,7 +1611,7 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
         $err ($not_implemented_err (...))       # ... or why it stopped
 
     Its signature, as a viba type (`Environment` and `VObject` are the two names
-    it does not define; viba-interpreter.md says what each branch carries):
+    it does not define; viba/exec/viba-interpreter.md says what each branch carries):
 
         interpret =
             InterpretResult
@@ -1635,7 +1635,7 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
 
     Two names a run answers itself are `__dyn_call__` and `__dyn_method__`: a call
     whose name is data, so it can be taken from any module — what `$call` is
-    spelled as, and what a module may give directly (viba-interpreter.md, the
+    spelled as, and what a module may give directly (viba/exec/viba-interpreter.md, the
     section on `__dyn_call__` and `__dyn_method__`).
 
     The module given as text rather than named by a file is `exec`: the same entry,
@@ -1681,7 +1681,7 @@ def exec(viba_code: Union[str, VObject], environ: Environment, get_file=None,
     own: what it imports is looked up on the environment's search path (there is
     no directory beside it), the outermost frame of `$stack` carries no file, and
     a module given as text is compiled as `<viba_code>` — which is what a parse
-    error names (viba-interpreter.md).
+    error names (viba/exec/viba-interpreter.md).
     """
     if not isinstance(viba_code, (str, VObject)):
         return _result_viba_data(VibaProgramErr(
@@ -1865,7 +1865,7 @@ class _Runner:
 
         A path whose file is `__generic__.viba` is no module at all: it is the
         marker of a generic, and what is built for it is the whole directory —
-        every pattern file numbered inside it (viba-pattern.md). A Markdown file
+        every pattern file numbered inside it (viba/core/viba-pattern.md). A Markdown file
         is the same: the document is a directory, its sections are the files
         (viba/markdown.py).
 
@@ -2458,7 +2458,7 @@ def _module_path_of(module) -> str:
     The module knows where it came from — the file it was taken from and the search
     root it was found under — so this is that, taken as one string
     (`CustomModuleType.module_path`); a module that records none of it answers the
-    empty string rather than a guess (viba-interpreter.md).
+    empty string rather than a guess (viba/exec/viba-interpreter.md).
     """
     return getattr(module, "module_path", "")
 
@@ -2574,7 +2574,7 @@ class _Activation:
             args = _VibaData(viba_data(None))
         self.args = args
         # Which part of the arguments this file's parameter names are bound to when a decision
-        # picks it (viba-pattern.md): those names hold in every evaluation here, including the one
+        # picks it (viba/core/viba-pattern.md): those names hold in every evaluation here, including the one
         # inside its own definition — names the file gave elsewhere are still taken here.
         self.bindings = bindings or {}
         self.defined: dict = {}
@@ -2629,12 +2629,12 @@ class _Activation:
 
         A name no generic answers to is a value, and one bracket's arguments are
         the addresses: `xs[1]` is `$get_item << xs << $env nil << 1` and
-        `table["k"]` is `$get_item << table << $env nil << "k"` (viba-style.md, the
+        `table["k"]` is `$get_item << table << $env nil << "k"` (viba/core/viba-style.md, the
         containers section), so what it stands for is that chain, built here and
         taken the way any chain is. The environment is `nil` because this chain is
         built here: the member takes that parameter the way every call does, and
         no answer of the six is computed from it, so `nil` runs this chain where
-        it stands (viba-interpreter.md).
+        it stands (viba/exec/viba-interpreter.md).
 
         The name is taken first: a name this run can take nothing into — a name
         nothing defines, a type's name spelled where a value goes — is no taking of
@@ -2748,7 +2748,7 @@ class _Activation:
         if name == GET_ARGS_NAME:
             # The arguments this call received: give it an environment and it answers them.
             # The deduction layer takes the same name and gets the product type of that call's
-            # parameters (viba-interpreter.md).
+            # parameters (viba/exec/viba-interpreter.md).
             return Ok(_GetArgs(self))
         if name == IS_SUB_TYPE_VALUE_NAME:
             # The judgment, with the sub type first and the sup type second: no
@@ -2852,7 +2852,7 @@ class _Activation:
         A definition that is asked for while it is still being computed is a
         definition that goes round: one file's definitions may not form a cycle,
         so this is a program error — recursion is what two files do, and it is
-        the module call that carries it (viba-interpreter.md).
+        the module call that carries it (viba/exec/viba-interpreter.md).
         """
         if name in self.defined:
             return self.defined[name]
@@ -2916,7 +2916,7 @@ class _Activation:
         A generic application answers the chosen file itself (module semantics), so taking a
         member is taking one of its definitions in that file; a parameter a `pattern` line
         pulled out still holds in its own module, so this taking is done in an activation
-        carrying those bindings (viba-pattern.md).
+        carrying those bindings (viba/core/viba-pattern.md).
         """
         source, modules, parts = self._application_piece(node.owner, scope)
         decision = reduce_application(source, self.module, modules, parts)
@@ -2931,7 +2931,7 @@ class _Activation:
                 f"module {chosen.entry.name!r} has no {node.name!r}")
         # The activation this definition stands for carries the bindings the decision pulled out: a
         # `pattern` name the file gave still means the call site's argument, inside its own
-        # definition (viba-pattern.md).
+        # definition (viba/core/viba-pattern.md).
         other = _Activation(self.runner, chosen.module, self.environ,
                             chosen.entry.name, chosen.entry.path,
                             bindings=self._generic_bindings(chosen))
@@ -3089,7 +3089,7 @@ class _Activation:
 
     def _container_len(self, container):
         """How many pieces `$len` counts: elements for a list, a set or a
-        tuple, keys for a dict (`viba-reflect.md`, `VibaLength`).
+        tuple, keys for a dict (`viba/core/viba-reflect.md`, `VibaLength`).
 
         What is counted is the container itself, and a piece that holds none — a
         leaf, a product, a sum — is a program error. A `dict` is counted by its
@@ -3114,7 +3114,7 @@ class _Activation:
 
     def _container_keys(self, container):
         """The keys `$keys` gives, as a list of strings: the dict's own keys,
-        in the order the implementation keeps them (`viba-reflect.md`, `VibaKeys`).
+        in the order the implementation keeps them (`viba/core/viba-reflect.md`, `VibaKeys`).
 
         A piece that is no dict is a program error, and so is a dict whose keys
         are not literals: this walks the source form, and a key that is not one
@@ -3141,7 +3141,7 @@ class _Activation:
         is the value that says which element — an int for the pieces taken by
         position (a list, a set, a tuple), a str for a dict, which is what the
         protocol's own addressing takes (`$at_index int`, `$at_key str`,
-        viba-reflect.md). Anything else is a program error: the piece that was
+        viba/core/viba-reflect.md). Anything else is a program error: the piece that was
         named is not a container, or the address is of the other kind.
         """
         if not isinstance(container, _VibaData):
@@ -3248,7 +3248,7 @@ class _Activation:
         call site (`_generic_bindings`): the part is taken as *that* node, in the
         module it appears in — a name is only a name, and the file that
         names it need not be the file that gave what it stands for
-        (viba-pattern.md). Every other argument is taken here, where it is
+        (viba/core/viba-pattern.md). Every other argument is taken here, where it is
         appears, as the source has it.
 
         `parts` names, for each argument, the module each of its members was
@@ -3284,7 +3284,7 @@ class _Activation:
         (`args.args`, `args.a`), stands for what the caller gave in that slot:
         the decision over it is made over that part, in the module it was
         put in — which is how `apply_impl[args.args]` sees the product the
-        caller declared (viba-pattern.md). None when the piece in the source is no
+        caller declared (viba/core/viba-pattern.md). None when the piece in the source is no
         such member.
         """
         path = viba_ast.source_path(argument)
@@ -3324,7 +3324,7 @@ class _Activation:
         """`gen[A, B]`: the chosen file's `__decl__`, taken where it is.
 
         The decision is static — over the arguments in the source, in the module that
-        gave them (viba-pattern.md) — and what it picks is a file and a
+        gave them (viba/core/viba-pattern.md) — and what it picks is a file and a
         binding: `__decl__` with this file's parameter names standing for the
         argument parts the patterns extracted. That type is then taken the way
         the same text spelled here would be taken: the bindings are the scope
@@ -3365,7 +3365,7 @@ class _Activation:
                 return applied
             # No generic answers to that name, so `A[b]` is no generic application:
             # it is the shorthand of an element taken, `$get_item << A << b`
-            # (viba-style.md, the containers section).
+            # (viba/core/viba-style.md, the containers section).
             return self._shorthand_chain(node, scope)
         if chosen.body is None:
             # This file gives no `__decl__`: it answers its own module, so a member must be taken
@@ -3391,7 +3391,7 @@ class _Activation:
         is that generic with the parameters substituted in.
 
         The arguments appear in the caller's own file, so after substitution the taking
-        happens here in the caller (a directory generic in viba-pattern.md goes through the
+        happens here in the caller (a directory generic in viba/core/viba-pattern.md goes through the
         decision; this one is a generic defined inside a module)."""
         resolved = module_get_type(self.module, node.constructor)
         if not (isinstance(resolved, Ok)
@@ -3423,7 +3423,7 @@ class _Activation:
 
         `S` is taken here rather than given: a `pattern` line extracted the
         symbol from a tag and a decision handed it over as a string, so this is
-        the one place a tag comes out of computation (viba-pattern.md). The
+        the one place a tag comes out of computation (viba/core/viba-pattern.md). The
         symbol has to be one — letters, digits and `_`, not starting with a
         digit — and the answer is the tag itself, so what the decision built is
         a type in the source like any other.
@@ -3718,7 +3718,7 @@ class _Activation:
         """(the value, the stop) of a product handed to a module call.
 
         What a module receives are values, and not calls it works out later
-        (viba-interpreter.md): a member spelled as a name (`$n below`) is that
+        (viba/exec/viba-interpreter.md): a member spelled as a name (`$n below`) is that
         name's value, worked out here — in the call the product appears in,
         so the names in it mean what they meant there. The tag names the member
         and stays where it appears. Anything else is handed on as it
@@ -4075,7 +4075,7 @@ class _Activation:
         """The call a generic application stands for, or None when it is none.
 
         The decision is made over the arguments in the source, in the module that
-        gave them (viba-pattern.md), and what it picks is a file: the call
+        gave them (viba/core/viba-pattern.md), and what it picks is a file: the call
         is that file's `__decl__` with this file's parameter names spelled out as
         the argument parts they stand for — which is what lets a function-typed
         parameter be recognized as one, so the host is handed the call it stands
@@ -4181,7 +4181,7 @@ class _Activation:
     def _member_function(self, name):
         """`a.b` at a chain head, with `b` a function member of `a`: (its body, its module).
 
-        A dotted name defines a member of the parent concept (viba-style.md), so
+        A dotted name defines a member of the parent concept (viba/core/viba-style.md), so
         `a.b << …` calls that step, and the name stays the whole string in the
         source — the whole name the host gets is that string. The module is the one the member is declared in: the
         built-in vocabulary for a builtin member, and the module the value came from
@@ -4247,7 +4247,7 @@ class _Activation:
         a closure, the way every call without one is — that is what lets such a chain
         be a step of `sequential`. Nothing the six answer is read off that
         environment, so the `nil` the interpreter's own chains spell there (`xs[1]`)
-        runs one where it stands (viba-interpreter.md).
+        runs one where it stands (viba/exec/viba-interpreter.md).
         """
         chain = interpreter_member_chain(head.tag)
         pending = _Pending.func(self, head, _one_line(node), BUILTIN_MODULE,
@@ -4266,7 +4266,7 @@ class _Activation:
         other = _Activation(self.runner, module, self.environ, module_name,
                             self.runner.path_of.get(module_name))
         # The step is asked by its own name in the module that declares it:
-        # `get_func("demo", "print")` for `demo.print` (viba-interpreter.md).
+        # `get_func("demo", "print")` for `demo.print` (viba/exec/viba-interpreter.md).
         return other._pending_of(definition, name_node, rest, module, source,
                                  source_module=source_module)
 
@@ -4527,7 +4527,7 @@ def _is_a_source_call(value) -> bool:
     A closure kept as a value is the chain it was made from (`f << $a 1`), a
     name kept as a value is the call it stands for, and a generic application
     whose decision answers a function chain is that call too
-    (viba-pattern.md), so all three take arguments by being applied to. Viba
+    (viba/core/viba-pattern.md), so all three take arguments by being applied to. Viba
     data that is an answer — a literal, a product — does not.
     """
     return (isinstance(value, _VibaData)
@@ -4752,7 +4752,7 @@ class _Pending:
 
         A tag is a parameter's own name, so a tag that names a slot has exactly one
         slot to go to: given twice, the second is not another parameter but the same
-        one again, and one of the two arguments would be lost (`viba-style.md` §9).
+        one again, and one of the two arguments would be lost (`viba/core/viba-style.md` §9).
         A tag that names no slot is the tag of the piece itself (`$x 1`), and those
         go to the next free slot that takes a product, one after another.
         """
@@ -4933,7 +4933,7 @@ class _Pending:
             # The environment every call runs in: a value that is one, or — for the
             # members the interpreter answers itself, whose answers are computed from
             # their own arguments — the `nil` the interpreter's own chains spell there (`xs[1]`,
-            # viba-interpreter.md). The parameter is required all the same: any other
+            # viba/exec/viba-interpreter.md). The parameter is required all the same: any other
             # value is no environment.
             if not _is_environ_value(value) and not (self.member_tag is not None
                                                     and _is_nil(value)):
@@ -5184,7 +5184,7 @@ class _Pending:
         A step is asked as `get_func(<module>, <name>)` — the module as it was
         imported, and the name the step has in that module — and serialized as data
         it is the one string `<module>.<name>`, which is what `__dyn_call__` carries
-        and splits at the last dot (viba-interpreter.md).
+        and splits at the last dot (viba/exec/viba-interpreter.md).
         """
         module = self.declaring_module_name()
         return f"{module}.{self.name}" if module else self.name
@@ -5439,7 +5439,7 @@ class _HostFunction:
     them refusing what a program handed it is reported as an
     `EnvironmentApiInvalidArgumentErr`: which api, and what it was given. The
     environment itself is not among those arguments — it is the api's own value,
-    and it does not travel (viba-interpreter.md, the section on `__dyn_call__` and `__dyn_method__`).
+    and it does not travel (viba/exec/viba-interpreter.md, the section on `__dyn_call__` and `__dyn_method__`).
     """
 
     def __init__(self, name: str, func, slots: int = 1, given=None, pieces=None):
@@ -5837,7 +5837,7 @@ def _address_of(value):
     """(kind, address) for a value `$get_item` is given, or (None, None).
 
     The address travels as a value: an int is a position, a str is a key, and
-    anything else addresses nothing (`viba-reflect.md`, the two address steps).
+    anything else addresses nothing (`viba/core/viba-reflect.md`, the two address steps).
     `True` is no int here — it is the bool literal it is spelled as.
     """
     if not isinstance(value, _VibaData):

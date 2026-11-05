@@ -2,7 +2,7 @@
 #
 # This is the declaration `viba.convert_to_json_schema` is held to, given as a
 # viba type so the conversion reads with the rest of the design-side signatures
-# (viba-convert-to-json-schema.md is the document; the Python layer is the one
+# (viba/wiki/viba-convert-to-json-schema.md is the document; the Python layer is the one
 # that takes the design apart).
 #
 # The entry is `CheckConvertableToJsonSchema`'s — a module, or a group of type names —

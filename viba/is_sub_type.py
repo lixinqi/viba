@@ -245,7 +245,7 @@ class _Checker:
         `args.env` is `Env`. A definition whose body is a call is the value that
         call answers (`args = __get_args__ << __decl__`), so its product is taken
         from there. The value layer takes the same name as the argument the call
-        was given (viba-interpreter.md): one name, two layers, what it denotes
+        was given (viba/exec/viba-interpreter.md): one name, two layers, what it denotes
         each time. None when the head is no product.
         """
         head, dot, tag = name.rpartition(".")
@@ -468,13 +468,13 @@ class _Checker:
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
         # A `tagged[...]` in the source is the tag it spells, taken before
         # anything else: the symbol may be a name a decision bound
-        # (viba-pattern.md).
+        # (viba/core/viba-pattern.md).
         tagged = self._tagged_side(sn, s_mod, sp, p_mod)
         if tagged is not None:
             return tagged
         # `g[T].value` / `g[T].type`: this takes a member of the file the decision chose (module
         # semantics); what it stands for is that definition itself. A member taken on a name chain is
-        # a name already when the AstNodeType is built, so it never reaches here (viba-style.md).
+        # a name already when the AstNodeType is built, so it never reaches here (viba/core/viba-style.md).
         sub_member = self._member_meaning(sn, s_mod, "sub")
         if sub_member is not None:
             return self._unfold_member(sub_member, "sub", sp, p_mod)
@@ -483,7 +483,7 @@ class _Checker:
             return self._unfold_member(sup_member, "sup", sn, s_mod)
         # A generic application is decided before anything else takes it: what
         # the decision picked takes its place, with the parameter names bound
-        # through env_get (viba-pattern.md). A decision that fails is
+        # through env_get (viba/core/viba-pattern.md). A decision that fails is
         # malformed input, not a judgment.
         if isinstance(sn, viba_ast.TypeApp) and self._decided(sn, s_mod):
             return self._unfold_typeapp(sn, s_mod, "sub", sp, p_mod)
@@ -861,7 +861,7 @@ class _Checker:
         A generic application is its own case: which file answers is a
         decision over the arguments in the source, and what answers is the
         chosen file's `__decl__` taken in that file, its parameter names bound
-        to the argument parts the patterns extracted (viba-pattern.md)."""
+        to the argument parts the patterns extracted (viba/core/viba-pattern.md)."""
         if app_key in self._unfolded:
             return self._unfolded[app_key]
         decision = self._decision(node, module)

@@ -1,7 +1,7 @@
 # sequential_impl, 2 steps: the steps product has 2 members — the first 1
 # carry a tag, and the last one is given without a tag: its answer is the
 # answer of the whole chain. One file per count, the way `apply_impl` gives one
-# file per product size (viba-pattern.md): the tagged prefix is what pins the
+# file per product size (viba/core/viba-pattern.md): the tagged prefix is what pins the
 # count, since a single bare name would answer any product at all.
 pattern tagged[step0_name, Step0] * Last
 

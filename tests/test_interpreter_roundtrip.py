@@ -1,6 +1,6 @@
 """回环：先缺一步 → 拿到 `$call` → 补上实现 → 把这次调用再跑一遍。
 
-每一份用例都走同一条路（`viba-interpreter.md`「`__dyn_call__` 与 `__dyn_method__`」）：
+每一份用例都走同一条路（`viba/exec/viba-interpreter.md`「`__dyn_call__` 与 `__dyn_method__`」）：
 
     1. `interpret` 跑一份程序，宿主那里**没有**这一步的实现 → `$not_implemented_err`；
     2. 从那次停止里拿出 `$call`（`stop_node(result, "$call")`）—— 它是**闭包**：类型

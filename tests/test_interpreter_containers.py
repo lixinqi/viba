@@ -1,7 +1,7 @@
 """容器：`ListLiteral` / `SetLiteral` / `DictLiteral` 算成值，`$get_item` 取元素、
 `$in` 问在不在、`$len` 数一数、`$keys` 取字典的键。
 
-三个字面量构造器站在**实例**那一侧（`viba-style.md` 第 8 节）：`ListLiteral[1, 2]` 是
+三个字面量构造器站在**实例**那一侧（`viba/core/viba-style.md` 第 8 节）：`ListLiteral[1, 2]` 是
 `list[int]` 的居民，和 `$x 1 * $y 2` 一样是就地给出的可序列化数据，所以一次运行能把它算成
 值，值能数、能寻址、能序列化成源码。寻址在语言这一侧是 `$get_item`：位置给 int，键给 str
 （`$get_attr` 是按名字取成员的那一个，这是按地址取元素的那一个）。

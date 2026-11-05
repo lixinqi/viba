@@ -53,14 +53,14 @@ INTERPRETER_MEMBER_TAGS = (GET_ATTR_TAG, GET_ITEM_TAG, IN_TAG, LEN_TAG, KEYS_TAG
 # The parameter the six take first, spelled once: the environment, the way every
 # call that runs takes it (`viba/builtin.viba`). It is required — a chain headed by
 # one of the six is a call, so until it is given one that chain is a closure, the
-# way every call without one is (`viba-interpreter.md`).
+# way every call without one is (`viba/exec/viba-interpreter.md`).
 INTERPRETER_ENV_SLOT = "$env Env"
 
 # The call each of the six stands for: that environment, then the member's own
 # arguments. No answer of the six is computed from the environment it was given —
 # each answers from its own arguments — which is why the `nil` the
 # interpreter's own chains spell there (`xs[1]`) runs one where it stands
-# (`viba-interpreter.md`).
+# (`viba/exec/viba-interpreter.md`).
 INTERPRETER_MEMBER_CHAINS = {
     GET_ATTR_TAG: f"Any <- {INTERPRETER_ENV_SLOT} <- $value Any <- $name str",
     GET_ITEM_TAG: f"Any <- {INTERPRETER_ENV_SLOT} <- $container Any <- $address Any",

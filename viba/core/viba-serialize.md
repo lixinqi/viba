@@ -32,7 +32,7 @@ serialize.serialize("entry", root.ok_value)
 ## 3. 顺着协议走
 
 每一格都经协议的取法问出来——和取值用的是同一套——所以它不懂设计，也不懂数据是怎么绑的。写出来的
-源码经 [`viba.builder`](viba_builder.md) 生，和手工拼源码是同一个出口。
+源码经 [`viba.builder`](../wiki/viba_builder.md) 生，和手工拼源码是同一个出口。
 
 ## 4. 出来的是什么
 
@@ -56,9 +56,9 @@ serialize.serialize("entry", root.ok_value)
 
 - **不是原始源码**：出来的是规范形式，重排版、丢注释，不和输入逐字相同。
 - **不管数据怎么来**：`VObject` 是调用方给的；序列化不查它背后是谁的数据。
-- **不落盘**：要存快照的是解释器的事（[`viba-interpreter.md`](viba-interpreter.md) 第 12 节）。
+- **不落盘**：这一层只把数据写成源码，不负责把源码存成文件或快照。
 
 ## 7. 测试
 
-[`tests/test_serialize.py`](tests/test_serialize.py)：每一层的写法、`Any` 的槽位、按位置与按 tag 的
+[`tests/test_serialize.py`](../../tests/test_serialize.py)：每一层的写法、`Any` 的槽位、按位置与按 tag 的
 成员、容器字面量、以及第 5 节那些 `$err`。

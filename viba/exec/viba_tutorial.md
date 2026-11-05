@@ -25,7 +25,7 @@ Config = $host str * $port int * $debug bool
 的种类分开的叶子。
 
 定义只依赖源码，不依赖谁来实现它。所以一份文件可以先当类型看：看它有哪些成员、每个成员是什么类型、
-一个名字从哪来（[`viba-reflect.md`](viba-reflect.md)）。
+一个名字从哪来（[`viba/core/viba-reflect.md`](../core/viba-reflect.md)）。
 
 ```python
 from viba import viba_ast
@@ -153,7 +153,7 @@ print(answer.by_tag("$ok").value)   # 1000000
 `interpret` 与 `exec` 回答的都是一份 viba 数据（第 9 节）。
 
 宿主收到的东西分两种：**可序列化数据**到手上是实例（`a` 是节点，`a.value` 是那个数），**环境**到手就是
-环境自己。源码里的名字、字面量、调用，宿主看到的都是实例，按 [`viba-reflect.md`](viba-reflect.md) 一步步取。
+环境自己。源码里的名字、字面量、调用，宿主看到的都是实例，按 [`viba/core/viba-reflect.md`](../core/viba-reflect.md) 一步步取。
 
 `interpret` 自己不带任何实现：一次运行能碰到的实现，全部来自 `get_func` 交出来的那一个。
 
@@ -291,7 +291,7 @@ __impl__ =
   宿主拿到的是它代表的那次调用，补上欠的那些实参就得到结果。
 
 条件、值和开关本身都可以在别的文件里，用例只给一条链去调它们。这条路子的边角案例见
-[`tests/test_interpreter_branch_switch.py`](tests/test_interpreter_branch_switch.py)。
+[`tests/test_interpreter_branch_switch.py`](../../tests/test_interpreter_branch_switch.py)。
 
 这一节说的是求值策略落在**实参**上的那一半（那个参数惰性，别的参数按值求值）；落在**定义**上的
 另一半是第 4 节那条：定义是按需求值的绑定。两半合起来见
@@ -326,7 +326,7 @@ tag 本身不是值，`method = $sub_env` 编不过：标签只有在链头、�
 ## 9. 一次执行给出什么
 
 `interpret` 与 `exec` 的结果是一份 viba 数据 —— 声明里那个 `InterpretResult` 的一个节点
-（定义在 [`viba/interpret_result.viba`](viba/interpret_result.viba)）：`$ok` 是 `__impl__` 的值，
+（定义在 [`viba/interpret_result.viba`](../interpret_result.viba)）：`$ok` 是 `__impl__` 的值，
 `$err` 是这次执行停下的方式，按 tag 往下取就行（`viba-interpreter.md`「一次执行会得到什么」）。
 停下的方式有四种：
 
@@ -374,28 +374,7 @@ def roll(env, n):
 
 ## 11. 序列化出去的东西可以再反序列化回来
 
-两个方向都有工具：
-
-- 取一份设计：`viba.reflect` 按类型把实例一步步取出来（问有没有、取一段、走到叶子）。
-- 拼一份源码：`viba.builder` 用 Python 拼出 viba 源码，拼出来的还能再被解析回去。
-
-```python
-from viba import builder
-
-vb = builder.Builder()
-tag = builder.tag
-
-vb.Point = vb.Object * tag.x(vb.float) * tag.y(vb.float)
-print(str(vb))
-```
-
-```viba
-Point =
-    Object
-  * $x float
-  * $y float
-```
-
+取一份设计用 `viba.reflect`：按类型把实例一步步取出来（问有没有、取一段、走到叶子）。反过来，
 一份设计也能被序列化回源码（`viba.serialize`），所以存下来的东西是能看的。
 
 容器也一样：`ListLiteral[1, 2]` / `SetLiteral["a"]` / `DictLiteral[("k", 1)]` 放在值的位置上就是
@@ -405,13 +384,13 @@ Point =
 （`$in << xs << $env nil << 0`）。这五个内建成员的签名跟别的调用一样以环境开头、而且这一条总是要：
 不给环境时留着的是一条闭包，实现里不用这份环境，所以解释器自己拼链时那一位给的 `$env nil`
 （简式就是这样）也照样当场跑。
-（[`viba-style.md`](viba-style.md) 第 8 节、[`viba-interpreter.md`](viba-interpreter.md)）。
+（[`viba/core/viba-style.md`](../core/viba-style.md) 第 8 节、[`viba-interpreter.md`](viba-interpreter.md)）。
 
 ## 12. 泛型：一个目录，某个文件给出结果
 
 给一张"什么类型配什么结果"的表时，用的是**模式**：泛型不是一份带形参的定义，而是一个目录，
 里面每个文件是一个模式：文件名是它的决断顺序（一个数字），数字前面还可以带上它要几份
-（`2_200.viba` 要两份），决断照着份数只取对得上的那几份（[`viba-pattern.md`](viba-pattern.md) 第 4.1 节）。
+（`2_200.viba` 要两份），决断照着份数只取对得上的那几份（[`viba/core/viba-pattern.md`](../core/viba-pattern.md) 第 4.1 节）。
 
 ```
 demo/is_base_type/__generic__.viba      标记：这个目录是一个泛型
@@ -447,18 +426,17 @@ __impl__ = $flag is_base_type[bool] * $n 1
 决断按数字从小到大，第一个命中的赢；一个都没命中是程序错误，不是 `never`。结果是一条函数链时，
 这个应用代表的就是那次调用；方括号里的实参本身也可以是一次调用。tag 也可以在字符串里：
 `tagged["a", T]` 就是 `$a T`，`pattern tagged[name, T]` 还能把实参那个 tag 的名字
-萃取成一个字符串。整个规矩、各种源码形式和报错，见 [`viba-pattern.md`](viba-pattern.md)。
+萃取成一个字符串。整个规矩、各种源码形式和报错，见 [`viba/core/viba-pattern.md`](../core/viba-pattern.md)。
 
 ## 13. 接下来看什么
 
-- [`viba-style.md`](viba-style.md)：给设计时的规矩——tag 怎么起名、提示怎么给、什么时候用和、什么时候
+- [`viba/core/viba-style.md`](../core/viba-style.md)：给设计时的规矩——tag 怎么起名、提示怎么给、什么时候用和、什么时候
   用积。
 - [`viba-interpreter.md`](viba-interpreter.md)：执行这一层——环境、模块、闭包、函数类型的那个实参、一次执行会得到
   什么、幂等与快照。
-- [`viba-pattern.md`](viba-pattern.md)：模式——泛型的目录、`pattern` 的形式、决断顺序。
-- [`viba_builder.md`](viba_builder.md)：用 Python 拼 viba 源码。
-- [`viba-reflect.md`](viba-reflect.md)：按类型取实例（数据路径、步子、访问函数）。
-- `README.md`：文法、运算符、怎么装、怎么跑。
+- [`viba/core/viba-pattern.md`](../core/viba-pattern.md)：模式——泛型的目录、`pattern` 的形式、决断顺序。
+- [`viba/core/viba-reflect.md`](../core/viba-reflect.md)：按类型取实例（数据路径、步子、访问函数）。
+- [`../core/viba-reference.md`](../core/viba-reference.md)：文法与运算符；[`../../README.md`](README.md)：怎么装、怎么跑。
 
 检查自己改的东西：
 

@@ -172,7 +172,7 @@ def host_for(seen=None, extra=None, ran_at=None):
     """宿主：内建算子按 `OPERATORS` 实现，另加 `extra` 里那几样本模块自己的定义。
 
     `seen` 记下 `get_func` 收到的（模块路径，名字）；`ran_at` 记下一步跑在哪个环境里
-    —— 那是环境带的数据路径，`get_func` 不再收到它（`viba-interpreter.md`）。
+    —— 那是环境带的数据路径，`get_func` 不再收到它（`viba/exec/viba-interpreter.md`）。
     """
     def get_func(module_path, func_name):
         if seen is not None:

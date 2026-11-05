@@ -2,7 +2,7 @@
 
 Treat `entry_file_content` as a design (a `.viba` source): is it complete —
 does every address the design can list walk down to a leaf? That is the same
-question as "can this design be reflected through" (see viba-reflect.md).
+question as "can this design be reflected through" (see viba/core/viba-reflect.md).
 
 Walking:
 
@@ -36,7 +36,7 @@ Walking:
 - A generic application is decided where the source has it: the file whose
   patterns fit the arguments in the source is the one walked, with its own
   parameter names standing for the argument parts the patterns extracted
-  (viba-pattern.md). A decision that fails makes the design incomplete.
+  (viba/core/viba-pattern.md). A decision that fails makes the design incomplete.
 - Hint blocks, ellipsis, and anything else that has no members but is not in
   terminators make the design incomplete. To end a walk at a hint block, name
   the type that wraps it in terminators: the walk then stops at that
@@ -132,7 +132,7 @@ def _dependencies(library, viba_paths) -> List[Tuple[str, str, str]]:
     # The builtin directory is not scanned: this walk reads no code of it. What
     # the language itself gives — `builtin.viba`'s vocabulary, the scalars, the
     # containers — is answered by `BUILTIN_MODULE` where a name is resolved
-    # (`viba-interpreter.md`); a module under the builtin directory is reached
+    # (`viba/exec/viba-interpreter.md`); a module under the builtin directory is reached
     # only where the caller hands it over in `library` or `viba_paths`.
     for directory in viba_paths or ():
         root = Path(directory)
@@ -169,7 +169,7 @@ def _written_as_document(path: Path) -> bool:
     """True when this file's directory is written as one document.
 
     `<dir>.viba.md` is the directory: the files inside `<dir>/` are not read
-    (viba-markdown-as-directory.md).
+    (viba/wiki/viba-markdown-as-directory.md).
     """
     parent = path.parent
     return Path(f"{parent}.viba.md").is_file()
@@ -425,7 +425,7 @@ class _Checker:
 
         Taking a member on a name chain (`args.env`, `demo.print`) takes the name
         path; this one handles the kind whose left side is an application (module
-        semantics, viba-pattern.md).
+        semantics, viba/core/viba-pattern.md).
         """
         found = self._member_definition(node, module_name, bindings)
         if found is None:
@@ -472,7 +472,7 @@ class _Checker:
 
         The symbol is a string in the source, or a name this walk bound — a
         decision hands it over as a string, which is how a `__decl__` builds a
-        tag out of what a `pattern` line extracted (viba-pattern.md). A symbol
+        tag out of what a `pattern` line extracted (viba/core/viba-pattern.md). A symbol
         that cannot be taken here leaves the application to the walk it would
         have had.
 
@@ -598,7 +598,7 @@ class _Checker:
         The decision is made where the source has the application, over the
         arguments in the source, and what comes back is the chosen file's
         `__decl__` — held with this file's parameter names standing for the
-        argument parts the patterns extracted (viba-pattern.md). None when the
+        argument parts the patterns extracted (viba/core/viba-pattern.md). None when the
         constructor names no generic of its module, and the Err a
         decision that failed.
 

@@ -20,9 +20,9 @@ Two things about the layer a piece is on:
 
 - A product leads with `Object` whether or not the design headed its chain with a
   unit, so the block a product comes out as always says on its first line which
-  layer it is (viba-style.md §6).
+  layer it is (viba/core/viba-style.md §6).
 - A sum gives the branch the piece is on and nothing else: the value does not
-  carry the other branches, and one branch is no sum (viba-style.md §7).
+  carry the other branches, and one branch is no sum (viba/core/viba-style.md §7).
 - A piece whose type says nothing about it (`Any`, the top type) is serialized
   from its own source form: the type gives no member to walk, so the only thing
   that says what the piece is is the piece itself. A declaration that has `Any`
@@ -216,7 +216,7 @@ def _product_head():
     the design's own word would carry that layer's vocabulary into every
     viba_data this produces, and leaving the head out altogether would leave a block whose
     first line does not say whether the piece is a product or a sum
-    (viba-style.md §6). `Object` is the product identity and a builtin name.
+    (viba/core/viba-style.md §6). `Object` is the product identity and a builtin name.
     """
     return _NAMES.Object
 

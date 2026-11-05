@@ -1,7 +1,7 @@
 # sequential_impl, 22 steps: the steps product has 22 members — the first 21
 # carries a tag, and the last one is given without a tag: its answer is the
 # answer of the whole chain. One file per count, the way `apply_impl` gives one
-# file per product size (viba-pattern.md): the tagged prefix is what pins the
+# file per product size (viba/core/viba-pattern.md): the tagged prefix is what pins the
 # count, since a single bare name would answer any product at all.
 pattern tagged[step0_name, Step0] * tagged[step1_name, Step1] * tagged[step2_name, Step2] * tagged[step3_name, Step3] * tagged[step4_name, Step4] * tagged[step5_name, Step5] * tagged[step6_name, Step6] * tagged[step7_name, Step7] * tagged[step8_name, Step8] * tagged[step9_name, Step9] * tagged[step10_name, Step10] * tagged[step11_name, Step11] * tagged[step12_name, Step12] * tagged[step13_name, Step13] * tagged[step14_name, Step14] * tagged[step15_name, Step15] * tagged[step16_name, Step16] * tagged[step17_name, Step17] * tagged[step18_name, Step18] * tagged[step19_name, Step19] * tagged[step20_name, Step20] * Last
 

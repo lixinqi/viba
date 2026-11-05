@@ -1,6 +1,6 @@
 """viba.reflect — treat a design as a map and take a viba data through it.
 
-This is the access side of ``viba-reflect.md``: the map (the descriptors) comes
+This is the access side of ``viba/core/viba-reflect.md``: the map (the descriptors) comes
 from the descriptor side walking the design, the data (Data) is one viba data's
 type expression, and access walks the map's addresses one step at a time. Names
 follow the rule ``viba_type_descriptor.py`` keeps for
@@ -8,7 +8,7 @@ follow the rule ``viba_type_descriptor.py`` keeps for
 functions land as methods in snake_case, this layer's own helpers take an
 underscore.
 
-    protocol (viba-reflect.md)         Python
+    protocol (viba/core/viba-reflect.md)         Python
     ------------------------------    ------------------------------------
     VibaStep                          VibaStep
     the four VibaStep branches         by_tag / by_field_index / at_index / at_key
@@ -553,7 +553,7 @@ class VibaAccess:
         lands on the body too. A **generic** application is decided
         first: the chosen file's `__decl__` takes its place, its parameter names
         bound to the argument parts the patterns extracted
-        (viba-pattern.md). Sum, product and exponent follow one rule; there
+        (viba/core/viba-pattern.md). Sum, product and exponent follow one rule; there
         are no other exceptions.
 
         A definition already being unfolded stops the walk, since a pool may
@@ -602,7 +602,7 @@ class VibaAccess:
         where the application sits in the source, and what comes back is the
         chosen file's `__decl__`, taken in that file with this file's parameter
         names standing for the argument parts the patterns extracted
-        (viba-pattern.md). A decision that finds no file has no body to land
+        (viba/core/viba-pattern.md). A decision that finds no file has no body to land
         on, so the piece stays the application it is.
         """
         if descriptor.kind != TYPE_APP:
@@ -1398,7 +1398,7 @@ def _scalar_name(value) -> Optional[str]:
     return None
 
 
-# The protocol names (viba-reflect.md sections 4 and 5), and only these.
+# The protocol names (viba/core/viba-reflect.md sections 4 and 5), and only these.
 __all__ = [
     "access", "Config", "language_config",
     "VibaAccess", "VObject", "VibaStep", "VibaPath",

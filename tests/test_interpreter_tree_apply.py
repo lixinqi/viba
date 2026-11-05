@@ -148,7 +148,7 @@ def _a_nested_call_in_a_step(tmp: Path):
     check(calls[0][1] != calls[1][1],
           f"两层不共用一条数据路径：{[path for _n, path in calls]!r}")
     # 数据路径上的名字跟代码对得上：这一步站在 `step0`、带 tag `s`、调的是 `mul`；它实参里那次
-    # 调用站在 `arg0`、带 tag `a`、调的也是 `mul`（`viba-interpreter.md`「`sub_env` 的数据路径名字」）。
+    # 调用站在 `arg0`、带 tag `a`、调的也是 `mul`（`viba/exec/viba-interpreter.md`「`sub_env` 的数据路径名字」）。
     check("/step0/s/mul/" in calls[1][1],
           f"这一步的名字写着它的 tag 和它调的函数：{calls[1][1]!r}")
     check("/arg0/a/mul/" in calls[0][1],

@@ -6,7 +6,7 @@
 抽出来的子 repo 有两条性质：
 
 - **闭**：子 repo 里每个定义提到的名字，要么在子 repo 里解析得到，要么是不抽走的那些定义（下面叫
-  **原语**，靠返回值里的 `$viba_path` 找到），要么是解释器给的内建词汇。
+  **原语**，靠返回值里的 `$viba_path` 找到），要么是内建词汇（`viba/builtin.viba`）。
 - **小**：只有从给定的 type 走得到的定义才留下；同一个文件里别的定义不会跟着走。
 
 抽的粒度是定义：一个文件里只有几个定义被用到，子 repo 里就只带这几个。
@@ -57,7 +57,7 @@ TypeName =
     str * Assert[{ xxx.yyy.zzz：xxx.yyy 在 $viba_path 下 import 得到，zzz 是它里面的定义 }]
 ```
 
-Python 里是这个函数（[`viba/extract_sub_repo.py`](viba/extract_sub_repo.py)）：
+Python 里是这个函数（[`viba/extract_sub_repo.py`](../extract_sub_repo.py)）：
 
 ```python
 from viba.extract_sub_repo import extract_sub_repo
@@ -137,7 +137,7 @@ extracted.ok_value.viba_path   ["kb-sub", "base"]
 （`kb/report.viba` 是模块 `report`，`kb/pkg/a.viba` 是模块 `pkg.a`）。只有 `.viba` 文件参与，repo 里
 别的文件既不读也不复制。
 
-**`$viba_path`**：`import` 的查找顺序，和解释器里的规矩一样：先看给出这个 `import` 的那个文件旁边，
+**`$viba_path`**：`import` 的查找顺序——先看给出这个 `import` 的那个文件旁边，
 再按这张表的顺序，最后是内建词汇。`$type_names` 里的 `xxx.yyy` 只按这张表找，它没有“旁边”。
 
 **`$extract_source_viba_path`**：抽取源在 `$repo` 里的范围，可以给多个目录。文件在 `$repo` 里、
@@ -153,7 +153,7 @@ extracted.ok_value.viba_path   ["kb-sub", "base"]
 **`$nil_eqv`**：`(list[str] | nil)`。算作 `nil`（积的单位元）的名字；给 `nil` 就用语言默认那份
 （`Object`、`Assert`、`Appendix`、`Hint`）。
 
-这两份和 [`viba-reflect.md`](viba-reflect.md) 里 `VibaReflectConfig` 的同名参数是同一份：读源码时，
+这两份和 [`viba-reflect.md`](../core/viba-reflect.md) 里 `VibaReflectConfig` 的同名参数是同一份：读源码时，
 这些名字不是定义，不抽，也不算“解析不到”的错。给了清单就用清单里的那些，不往上加语言默认。
 
 ## 4. 依赖怎么算

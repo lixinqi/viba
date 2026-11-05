@@ -54,7 +54,7 @@ ByTypes = check_convertable_to_json_schema
   << $entry ($type_names ListLiteral["report.Report"])
 ```
 
-上面是按签名写；Python 里是这样（[`viba/check_convertable_to_json_schema.py`](viba/check_convertable_to_json_schema.py)）：
+上面是按签名写；Python 里是这样（[`viba/check_convertable_to_json_schema.py`](../check_convertable_to_json_schema.py)）：
 
 ```python
 from viba.check_convertable_to_json_schema import check_convertable_to_json_schema

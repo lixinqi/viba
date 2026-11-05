@@ -4,7 +4,7 @@
 可以是模块文本，也可以是**已经是 viba 数据的那一份**（一个 `VObject`）—— 后者不用再序列化成源码、再反序列化回来。
 主模块的来源不是文件，所以它**没有文件、也没有名字** —— `import` 只按环境的搜索路径找（它旁边没有目录），
 `$stack` 最外那一帧的 `$file_path` 是空串，编译不过时那条话说的是 `<viba_code>`
-（`viba-interpreter.md`）。
+（`viba/exec/viba-interpreter.md`）。
 
     python3 tests/test_interpreter_exec.py
 """

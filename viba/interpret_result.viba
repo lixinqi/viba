@@ -10,7 +10,7 @@
 # and it is any value the run produced — so it is given `Any`, the one type
 # every answer is below. `$err` carries why the run stopped: one of the four
 # kinds of `InterpretError`, each an object with the members that say which step,
-# which call, and why (viba-interpreter.md, "一次执行会得到什么").
+# which call, and why (viba/exec/viba-interpreter.md, "一次执行会得到什么").
 #
 # `$call` is the call itself, the way a call whose name is data is
 # given (`__dyn_call__ << "demo.add" << $a 1 << $b 2`, the environment left

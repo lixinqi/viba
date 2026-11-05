@@ -5,12 +5,12 @@
 哪些还没形式化。
 
 这一份不是程序：不跑，也不参与 `interpret` 的求值。它是一份**读得进去的设计**，跟
-[`type.viba`](viba/type.viba)、[`viba_type_descriptor.viba`](viba/viba_type_descriptor.viba)、
-[`interpret_result.viba`](viba/interpret_result.viba) 同一个写法，只是把那个写法铺到解释器的本体上。
+[`type.viba`](../type.viba)、[`viba_type_descriptor.viba`](../viba_type_descriptor.viba)、
+[`interpret_result.viba`](../interpret_result.viba) 同一个写法，只是把那个写法铺到解释器的本体上。
 
 怎么核这一份：每一段都能 `parse`；把各段按次序接起来是一个模块，里面每个引用到的名字都能在包里
 解析出来（定义在本模块、`viba/builtin.viba`、或者上面那三个 import 指过去的模块）。它过不了
-`is_complete`——那一位不认 `Any`（[`interpret_result.viba`](viba/interpret_result.viba) 自己也过不了
+`is_complete`——那一位不认 `Any`（[`interpret_result.viba`](../interpret_result.viba) 自己也过不了
 它那一关），而一份"答什么"的设计里 `Any` 是躲不开的。
 
 ## 0. 这一份的模块，与它借用的名字

@@ -1,7 +1,7 @@
 # Builtin library — visible from every module, lowest precedence:
 # a custom module's own definitions and environment win.
 #
-# The environment a running module is handed (viba-interpreter.md). As
+# The environment a running module is handed (viba/exec/viba-interpreter.md). As
 # a type, `Env` is an Environment — that is what a module's `$env` parameter
 # asks for; as computation it is the real environment, and a module takes
 # it as `args.env` (with `args = __get_args__ << __decl__`). `Environment` is
@@ -11,13 +11,13 @@
 # thing under a name nobody chose, fresh every call. Both take the environment
 # as their first argument, so nothing is bound to the environment they came
 # from: `args.env.sub_env << args.env << "child"` is the same call as
-# `$sub_env << args.env << "child"` (viba-interpreter.md).
+# `$sub_env << args.env << "child"` (viba/exec/viba-interpreter.md).
 #
 # The name `$sub_env` is given may also be the pieces the source has it in, so
 # that a data path can be read back against the code: a product of the strings,
 # names and calls it stands for, joined by `/`. `("step0" * step0_name * Step0)`
 # is the child `step0/a/add` — where the step stands, the tag it carries and the
-# function the call in it names (viba-interpreter.md, the section on `sub_env` names).
+# function the call in it names (viba/exec/viba-interpreter.md, the section on `sub_env` names).
 #
 # The members below walk the environment chain a child belongs to: `$get_parent` is the
 # environment this one was made from (`nil` for the root of that chain), `$get_root` is the
@@ -39,7 +39,7 @@
 # `$try_compact` is where a module asks the interpreter to keep its own stack from
 # growing: past `$env_chain_length_limit` links in the chain of environments, the
 # calls running now are turned into a work list and made again from there, one at a
-# time (viba-interpreter.md, "栈太长时：把系统栈变成工作清单"). It answers the
+# time (viba/exec/viba-interpreter.md, "栈太长时：把系统栈变成工作清单"). It answers the
 # environment it was given, so a file names it (`env = $try_compact << args.env <<
 # 32`) and uses that name where the environment would have gone — which is also
 # what puts the call in order, before whatever runs at that environment.
@@ -85,7 +85,7 @@ DispatchError =
 # stands on its own (`concat`, `split`, `trim`, `substr`), and which type it is
 # about is in its signature. `x_to_y` converts from the type `x` to the type `y`.
 # The block after a signature is what the operator means — the meaning itself is
-# the host's (`viba-interpreter.md`).
+# the host's (`viba/exec/viba-interpreter.md`).
 builtin =
     # Hand back what it receives unchanged: `echo << $x V` answers V given an
     # environment. The work handed out is computed in the environment and at the

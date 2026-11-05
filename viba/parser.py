@@ -958,22 +958,19 @@ if __name__ == "__main__":
             error_count += 1
         print(f"{'a fresh source counts from line 1':<50} | {e}")
 
-    # The README's Syntax section is this module's grammar: it spells the
-    # productions out, or it is telling the caller something else. Its samples
-    # are sources too, and a sample that does not compile teaches a mistake.
+    # The reference chapter's syntax section is this module's grammar: it spells
+    # the productions out, or it is telling the caller something else.
     print("-" * 65)
     doc_count = 0
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     readme = os.path.join(root, "README.md")
-    style = os.path.join(root, "viba-style.md")
-    tutorial = os.path.join(root, "viba_tutorial.md")
-    pattern = os.path.join(root, "viba-pattern.md")
+    reference = os.path.join(root, "viba", "core", "viba-reference.md")
     try:
-        with open(readme, encoding="utf-8") as handle:
+        with open(reference, encoding="utf-8") as handle:
             manual = handle.read()
     except OSError as e:
         manual = None
-        print(f"{'the README is readable':<50} | {type(e).__name__}: {e}")
+        print(f"{'the reference is readable':<50} | {type(e).__name__}: {e}")
 
     if manual is not None:
         try:
@@ -981,45 +978,43 @@ if __name__ == "__main__":
             expected = grammar_text()
             if grammar == expected:
                 doc_count += 1
-                print(f"{'the README spells this grammar':<50} | OK "
+                print(f"{'the reference spells this grammar':<50} | OK "
                       f"({len(expected.splitlines())} productions)")
             else:
-                print(f"{'the README spells this grammar':<50} | OUT OF DATE")
+                print(f"{'the reference spells this grammar':<50} | OUT OF DATE")
                 print("--- the grammar in viba/parser.py ---")
                 print(expected)
-                print("--- the grammar in README.md ---")
+                print("--- the grammar in viba/core/viba-reference.md ---")
                 print(grammar)
         except Exception as e:                      # a stale GRAMMAR_ORDER, no block
-            print(f"{'the README spells this grammar':<50} | {type(e).__name__}: {e}")
+            print(f"{'the reference spells this grammar':<50} | {type(e).__name__}: {e}")
 
-    # The manual, the style guide, the tutorial, the pattern chapter and the
-    # interpreter's own design are taken as sources too: a sample that does not
-    # compile is teaching a mistake. The docs of the layers above live in another
-    # repository.
+    # Every chapter — the two indexes under viba/wiki/ and viba/exec/, the
+    # documents beside them, and this README — is taken as a source too: a
+    # sample that does not compile is teaching a mistake. The docs of the layers
+    # above live in another repository.
     try:
         blocks = 0
-        design = os.path.join(root, "viba-interpreter-design.md")
-        sub_repo = os.path.join(root, "viba-extract-sub-repo.md")
-        json_doc = os.path.join(root, "viba-check-convertable-to-json-schema.md")
-        schema_doc = os.path.join(root, "viba-convert-to-json-schema.md")
-        tag_doc = os.path.join(root, "viba-check-tag-and-inline.md")
-        complete_doc = os.path.join(root, "viba-is-complete.md")
-        judgment_doc = os.path.join(root, "viba-is-sub-type.md")
-        serialize_doc = os.path.join(root, "viba-serialize.md")
-        repomix_doc = os.path.join(root, "viba-repomix.md")
-        directory_doc = os.path.join(root, "viba-markdown-as-directory.md")
-        chapters = ((readme, "README.md"), (style, "viba-style.md"),
-                    (tutorial, "viba_tutorial.md"), (pattern, "viba-pattern.md"),
-                    (design, "viba-interpreter-design.md"),
-                    (sub_repo, "viba-extract-sub-repo.md"),
-                    (json_doc, "viba-check-convertable-to-json-schema.md"),
-                    (schema_doc, "viba-convert-to-json-schema.md"),
-                    (tag_doc, "viba-check-tag-and-inline.md"),
-                    (complete_doc, "viba-is-complete.md"),
-                    (judgment_doc, "viba-is-sub-type.md"),
-                    (serialize_doc, "viba-serialize.md"),
-                    (repomix_doc, "viba-repomix.md"),
-                    (directory_doc, "viba-markdown-as-directory.md"))
+        core = os.path.join(root, "viba", "core")
+        wiki = os.path.join(root, "viba", "wiki")
+        run = os.path.join(root, "viba", "exec")
+        chapters = [(readme, "README.md"),
+                    (os.path.join(core, "README.md"), "viba/core/README.md"),
+                    (os.path.join(wiki, "README.md"), "viba/wiki/README.md"),
+                    (os.path.join(run, "README.md"), "viba/exec/README.md")]
+        for directory, name in ((core, "viba-reference.md"), (core, "viba-style.md"),
+                                (core, "viba-pattern.md"), (core, "viba-reflect.md"),
+                                (core, "viba-is-sub-type.md"), (core, "viba-serialize.md"),
+                                (wiki, "viba-extract-sub-repo.md"),
+                                (wiki, "viba-check-convertable-to-json-schema.md"),
+                                (wiki, "viba-convert-to-json-schema.md"),
+                                (wiki, "viba-check-tag-and-inline.md"),
+                                (wiki, "viba-is-complete.md"),
+                                (wiki, "viba-repomix.md"),
+                                (wiki, "viba-markdown-as-directory.md"),
+                                (run, "viba_tutorial.md"), (run, "viba-interpreter-design.md")):
+            chapters.append((os.path.join(directory, name),
+                             os.path.relpath(os.path.join(directory, name), root)))
         for path, _name in chapters:
             with open(path, encoding="utf-8") as handle:
                 text = handle.read()

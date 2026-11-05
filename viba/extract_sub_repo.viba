@@ -2,7 +2,7 @@
 #
 # This is the declaration `viba.extract_sub_repo` is held to, given as a viba
 # type so the operation reads with the rest of the design-side signatures
-# (viba-extract-sub-repo.md is the document; the Python layer is the one place
+# (viba/wiki/viba-extract-sub-repo.md is the document; the Python layer is the one place
 # that takes files apart).
 #
 # A repo is a directory: `Repo` is its path. `TypeName` is a full name the way
@@ -15,7 +15,7 @@
 #
 # The units are `never_eqv` / `nil_eqv`: the names that stand for `never` (the
 # sum's unit) and `nil` (the product's unit) while the source is read — the two
-# lists are `VibaReflectConfig`'s parameters (`viba-reflect.md`). Nil means the
+# lists are `VibaReflectConfig`'s parameters (`viba/core/viba-reflect.md`). Nil means the
 # language's own set (`reflect.language_config`), which is the one a design
 # written in this repo needs.
 

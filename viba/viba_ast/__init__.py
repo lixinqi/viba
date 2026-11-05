@@ -91,7 +91,7 @@ def source_path(node: AST) -> Optional[str]:
 
     `a.b.c` is `MemberTaken(MemberTaken(TypeRef(a), b), c)`, and taken as a name it
     is the string "a.b.c" — the one spelling the layers that resolve a
-    name in the source take (viba-style.md). An owner that is no name — an application, say —
+    name in the source take (viba/core/viba-style.md). An owner that is no name — an application, say —
     spells no name: there the member is taken out of what the owner is.
     """
     if isinstance(node, TypeRef):

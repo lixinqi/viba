@@ -17,7 +17,7 @@
 
 文件名前面带着这个文件取几份（`sequential_impl/2_200.viba`、`sequential_step/2_300.viba`）：
 决断先数一遍这次应用摆出来几份，只取那个份数对得上的文件，所以一条链只取它自己的那几份，
-79 份模式文件不必翻一遍（`viba-pattern.md` 第 4 节）。
+79 份模式文件不必翻一遍（`viba/core/viba-pattern.md` 第 4 节）。
 
 用例在 `tests/data/sequential/`：
 

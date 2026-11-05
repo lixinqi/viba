@@ -1,4 +1,4 @@
-# viba.repomix — a directory of viba code, as one Markdown document (viba-repomix.md)
+# viba.repomix — a directory of viba code, as one Markdown document (viba/wiki/viba-repomix.md)
 #
 # The document is the one viba/markdown.py reads: a section per file, its name
 # the file's path in the directory, its first code block the file's code. A

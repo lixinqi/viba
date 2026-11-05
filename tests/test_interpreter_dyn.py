@@ -6,7 +6,7 @@
 `__dyn_method__ << env << "f" << value << …` 就是 `$f << value << …`。
 
 `UnderlyingOpErr` 的 `$call` 就是这两种源码形式：名字是字符串数据，环境剔掉，只留下闭包
-（`viba-interpreter.md`「`__dyn_call__` 与 `__dyn_method__`」）。
+（`viba/exec/viba-interpreter.md`「`__dyn_call__` 与 `__dyn_method__`」）。
 
     python3 tests/test_interpreter_dyn.py
 """

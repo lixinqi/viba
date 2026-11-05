@@ -9,11 +9,11 @@
 输出是 `__impl__`。
 
 它回答的就是声明里那个 `InterpretResult`，**一份 viba 数据**（一个节点）：`$ok` 那一支带这次执行
-算出来的值，`$err` 那一支带它为什么停下。声明放在 [`viba/interpret_result.viba`](viba/interpret_result.viba)
+算出来的值，`$err` 那一支带它为什么停下。声明放在 [`viba/interpret_result.viba`](../interpret_result.viba)
 里 —— 那份文件就是这个类型的定义，`interpret` 与 `exec` 的回答按它取、按它判
 （`viba/interpret.py` 的 `is_interpret_result` 用 `is_sub_type` 判它，所以"回答到底符不符合这个定义"
 本身是可查的）。它用到的名字里，`Environment` 与 `VObject` 不在定义里（前者在「宿主侧：Environment」，
-后者在 [`viba-reflect.md`](viba-reflect.md)）：
+后者在 [`viba-reflect.md`](../core/viba-reflect.md)）：
 
 它的签名（viba 一型）：
 
@@ -26,7 +26,7 @@ interpret =
 
 Python 侧的入口是 `interpret(viba_main_file, environ)`，回来的是一个 `VObject`：`$ok` 是这次执行算出来的值，
 `$err` 是这次执行是怎么停下的。声明本身（`InterpretResult`、`InterpretError`、四种停法各自的那些字段）
-放在 [`viba/interpret_result.viba`](viba/interpret_result.viba)，取它就是取那份文件。
+放在 [`viba/interpret_result.viba`](../interpret_result.viba)，取它就是取那份文件。
 
 要跑的模块**就在手里**、不从文件取时，用 `exec`：参数形式和 `interpret` 一样（环境、`get_file`、`list_files`），
 只是第一份不是文件路径，而是那份模块本身 —— 它的文本，或者已经落成 viba 数据的那一份。
@@ -55,9 +55,9 @@ exec =
 （dotted 名当路径走；空条目和不存在的目录跳过）。import 的那个文件所在的目录总是
 先找——**被 import 进来、又在自己的文件里 import 的模块，也按它自己的文件找**（链多深都一样）。
 一个名字也可能是一个**泛型目录**（`<name>/__generic__.viba`）：文件先找，目录随后，两者都按这里的
-顺序（见 [`viba-pattern.md`](viba-pattern.md)）。
+顺序（见 [`viba-pattern.md`](../core/viba-pattern.md)）。
 带 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
-点号取的是成员：`a.b` 是在 `a` 上取成员 `b`（[`viba-style.md`](viba-style.md) 第 5 节），
+点号取的是成员：`a.b` 是在 `a` 上取成员 `b`（[`viba-style.md`](../core/viba-style.md) 第 5 节），
 所以 `a.b` 当类型判是那个成员的声明类型，出现在链头就是那一步的调用 —— 这一步问的是它**在哪个模块、
 在那儿叫什么**（下一节的 `get_func`）；定义左边只有一个名字，`a.b = A` 编不过。用别名包一层也一样：
 `b_scale = foo.bar.b_scale` 之后 `b_scale << …` 问的还是 `foo.bar` 那个模块里的 `b_scale` ——
@@ -104,7 +104,7 @@ __impl__ =
 规则：
 
 - **没有 `__impl__` 的文件是类型，不是程序**：跑它给 `VibaProgramErr`。
-- **`Env` 是内建类型名**（[`viba/builtin.viba`](viba/builtin.viba) 里 `Env = Environment`）：`__decl__`
+- **`Env` 是内建类型名**（[`viba/builtin.viba`](../builtin.viba) 里 `Env = Environment`）：`__decl__`
   里 `$env Env` 那个参数要的就是它；模块体里要用环境，用 `args.env`。
 - **函数体里的 `{...}` 是说明**：它不是参数，`<<` 给完实参之后链就落到结果上——
   `(B <- $a A) << $a A` 就是 `B`。
@@ -114,7 +114,7 @@ __impl__ =
   `$concat`、`$echo_or_never`……），每个一张签名，实现在宿主手里。`builtin.add << …` 与
   `add << …` 是同一次调用，
   宿主拿到的名字都是 `builtin.add`；自己模块里同名定义优先，所以它排在任何别的名字之后
-  （[`viba-style.md`](viba-style.md) 第 11 节）。
+  （[`viba-style.md`](../core/viba-style.md) 第 11 节）。
 - **内建库里的模块与泛型，也照样按名字取**：`viba/` 里 `builtin.viba` 旁边那几个模块（`Y.viba`、
   `apply.viba`、`sub_env_run.viba`、`sequential.viba`、`if.viba`），以及 `viba/builtin/` 下的那几个
   泛型
@@ -122,13 +122,13 @@ __impl__ =
   都不需要 import，带的那个前缀（`builtin.sub_env_run`、`builtin.is_closure`）
   叫的是同一个。`if` 就是其中的一个：条件挑中的那一支才算、另一支的调用不求值，它由那两个开关
   组成（见「分支：用积选择，用和汇合」）。`sub_env_run` 给它的环境取那个名字的
-  孩子，链上剩下的实参交给那次调用（[`viba/sub_env_run.viba`](viba/sub_env_run.viba)）。
+  孩子，链上剩下的实参交给那次调用（[`viba/sub_env_run.viba`](../sub_env_run.viba)）。
   `is_closure` 与 `unclosure` 是那两个泛型：前者问一份源码里的东西是不是闭包（有实参、没给环境
   的调用），后者把闭包拆成 `f`（那条 api）与 `captured`（收下的那份积）。调用模式一个 `<<` 对一个
-  实参，所以两份各有 1..16 段的 16 个文件（[`viba-pattern.md`](viba-pattern.md) 第 2 节）；
+  实参，所以两份各有 1..16 段的 16 个文件（[`viba-pattern.md`](../core/viba-pattern.md) 第 2 节）；
   文件名前面带着份数，决断因此只取份数对得上的那一份（同第 4.1 节）。
 - **`sequential` 把一串步骤按源码里的次序跑完**，整个链的结果就是最后那一步的结果
-  （[`viba/sequential.viba`](viba/sequential.viba)）：`sequential << $x (…) << $y (…) << (…)` 是一个
+  （[`viba/sequential.viba`](../sequential.viba)）：`sequential << $x (…) << $y (…) << (…)` 是一个
   闭包，环境最后给。每一步都是一次调用；除最后那一步之外，每一步前面带一个 tag（`$x (…)`）—— 跑那次
   调用，结果记在那个名字下；**最后那个参数不带 tag**，它没有名字，它的结果就是整条链的结果。想返回
   前面某一步的值，就把那个名字取出来交给内建的 `echo`（`echo << $x V` 原样给出 V）：
@@ -138,7 +138,7 @@ __impl__ =
   一个实参的源码形式决定 `tree_apply_closure_only_without_env` 选哪一份（变量引用一份、一次调用按
   实参个数各一份、别的再一份）。这几份目录里的文件名前面带着份数（`2_200.viba`、
   `1_101.viba`），所以一条链只取它自己那几份，79 份模式文件不必翻一遍
-  （[`viba-pattern.md`](viba-pattern.md) 第 4.1 节）。每一步、每个实参的调用都跑在自己的数据路径上
+  （[`viba-pattern.md`](../core/viba-pattern.md) 第 4.1 节）。每一步、每个实参的调用都跑在自己的数据路径上
   （`step0`、`arg0` 那样）：一条数据路径只处理一次调用。这几个名字同时把代码里的位置说清楚 ——
   它站在哪一位、带哪个 tag、调的是哪个函数：`step0/a/add` 是第一步那次 `add` 调用（记在 `$a` 下），
   最后那一步没有 tag，名字是 `last/echo` 那样，实参那边是 `arg0/a/mul`。名字由设计侧给，见
@@ -154,7 +154,7 @@ __impl__ =
   它不是这次调用收到的一员，`args.env` 取不到（用它是程序错），它只用来跑这次调用 —— 这次调用跑在
   自己的子环境里，名字就是模块在源码里的那个名字 —— 再缀在这次调用返回的那次调用末尾（见「环境就是
   执行」）。环境没给，这次调用就还是个闭包，不会拿一个默认环境顶上。
-- **环境不能当结果**：只有内建函数（[`viba/builtin.viba`](viba/builtin.viba) 里 `Environment` 的成员）
+- **环境不能当结果**：只有内建函数（[`viba/builtin.viba`](../builtin.viba) 里 `Environment` 的成员）
   能把 `Env` 声明成返回值。模块自己的 `__decl__`、模块里定义的函数、积成员里的链，结果那个位置是
   `Env` 或 `Environment` 都当场报错——环境是调用的规矩，不是能交出去的值。解释器取文件时拦，
   判定层与描述符层在把一个函数当函数判时拦。
@@ -247,7 +247,7 @@ __impl__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
 - **结果不能是环境**：`__decl__` 的第一个元素是 `Env` 或 `Environment` 当场报错，模块里别的函数
   也一样（只有内建函数给得了一个环境，见上面「环境不能当结果」）。运行时的结果不受影响：
   `__impl__ = args.env` 交回去的仍然是那个环境，只是没人声明它的类型
-  （[`tests/data/environment/the_env.viba`](tests/data/environment/the_env.viba)）。
+  （[`tests/data/environment/the_env.viba`](../../tests/data/environment/the_env.viba)）。
 - **给环境就是执行**：每个参数一个 `<<`，按位置给（`<< 3 << 4`）或按 tag 给（`<< $b 4 << $a 3`）
   都行；按 tag 给时顺序随意。环境按值认：给一个 `Environment`，或者按 `$env` 这个 tag 给，都算给它，
   没有 `$env Env` 的模块也一样认。不带 tag 的实参跳过环境，依次落到其余参数上——所以
@@ -272,7 +272,7 @@ __impl__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
   算好的实参，可以存、可以传、可以当 `__impl__`、可以序列化，也可以**换个环境再执行一次**
   （`sg << (args.env.tmp_env << args.env)`）。"必须给全"只对执行成立，对闭包不成立。
 - **一份要别人给参数的模块，单独跑只会报错**：宿主跑一份主文件时只给环境，没人给 `$f`、`$n` 值，
-  所以 `args.f` 取不到东西（[`tests/data/y_combinator/`](tests/data/y_combinator/) 里那两条记录
+  所以 `args.f` 取不到东西（[`tests/data/y_combinator/`](../../tests/data/y_combinator) 里那两条记录
   就是这个）。
 - **参数是模块取到的可序列化数据**（`args.a` 那种），不是一次"要的时候再来拿"的调用：函数类型的
   参数说的是宿主那一侧的实参，模块的参数给的就是值。**一份积交进来时，积里的成员在这里就算好** ——
@@ -291,7 +291,7 @@ __impl__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
   **数据路径**由一串步子接成（按 tag、按位置、按下标、按键），一段一段走下去就是寻址；`$a` 是它
   的一步，模块路径和 `cur_storage_path/<name>.viba` 也是数据路径。「幂等与快照」里的"快照数据
   路径"、「一次执行会得到什么」里的"这次调用的数据路径"都是这个意思，步子分哪几种见
-  [`viba-reflect.md`](viba-reflect.md) 第 4 节；判定层取同一个名字取到的是成员**声明的类型**
+  [`viba-reflect.md`](../core/viba-reflect.md) 第 4 节；判定层取同一个名字取到的是成员**声明的类型**
   （`args.a` 就是 `int`）。一个名字，两层各取各的。
 - 实参必须是可序列化数据：它是积的一部分，交出去的东西得是能序列化的值。**环境不是它的数据成员**
   ——环境是宿主的对象，`args.env` 取得到，整份积交给宿主时不在里面；要交给宿主的是一个一个成员
@@ -335,8 +335,8 @@ __impl__ = demo.print << args.env << ret
 所以 `$sub_env << args.env << ("step0" * step0_name * Step0)` 拿到的子环境叫 `step0/a/add` 那样：
 它站在哪一位、带哪个 tag、调的是哪个函数；`("last" * F)` 是不带 tag 的那一步，名字就是 `last/echo`。
 这样一条数据路径能和代码对上，观测运行结果时看得出每一层是源码里的哪次调用
-（[`sequential_impl/`](viba/sequential_impl/2_200.viba)、
-[`sequential_step/`](viba/builtin/sequential_step/2_300.viba) 就是这么起名字的）。几份里一份都没占到
+（[`sequential_impl/`](../sequential_impl/2_200.viba)、
+[`sequential_step/`](../builtin/sequential_step/2_300.viba) 就是这么起名字的）。几份里一份都没占到
 东西时，这个积就没有名字：`Environment.sub_env` 当场报错。
 
 解释器自己造的子环境不这样起名字：它的名字是**模块在源码里的那个名字**；选中的模式文件用它的**整名**
@@ -462,7 +462,7 @@ add_demo << (args.env.tmp_env << args.env)
 ## 宿主侧：Environment
 
 `Environment` 由宿主提供。三个名字里**只有 `Environment` 是 viba 里看得见的那一个**
-（[`viba/builtin.viba`](viba/builtin.viba)，短名字是 `Env`）：`__decl__` 里 `$env` 那个参数要的就是
+（[`viba/builtin.viba`](../builtin.viba)，短名字是 `Env`）：`__decl__` 里 `$env` 那个参数要的就是
 它，模块体里取它用 `args.env`。
 
 它的定义（八个成员）见上面「如何调用方法：tag 放在链头」那一节。
@@ -615,7 +615,7 @@ __impl__ = roll << $env args.env << $n 1
 ### 怎么用：`if`
 
 `if << $env … << $cond condition << $t (…) << $f (…)` 就是 if/else：条件挑中的那一支跑，另一支
-一次都不跑。`if` 是内建目录里的一份文件（[`viba/if.viba`](viba/if.viba)），按名字取，不用 import；
+一次都不跑。`if` 是内建目录里的一份文件（[`viba/if.viba`](../if.viba)），按名字取，不用 import；
 `builtin.if` 是同一次调用。
 
 ```python
@@ -657,9 +657,9 @@ __impl__ =
   ```
 
   这条链**自己不给环境**（链上不给 `… << args.env` 那一环）：不给，它才是"还没算的一块"
-  （[`tests/data/if/a_side_is_a_block.viba`](tests/data/if/a_side_is_a_block.viba)、
-  [`a_block_of_two_steps.viba`](tests/data/if/a_block_of_two_steps.viba)、
-  [`a_block_in_the_side_that_is_not_taken.viba`](tests/data/if/a_block_in_the_side_that_is_not_taken.viba)）。
+  （[`tests/data/if/a_side_is_a_block.viba`](../../tests/data/if/a_side_is_a_block.viba)、
+  [`a_block_of_two_steps.viba`](../../tests/data/if/a_block_of_two_steps.viba)、
+  [`a_block_in_the_side_that_is_not_taken.viba`](../../tests/data/if/a_block_in_the_side_that_is_not_taken.viba)）。
 - **`if` 自己是一次模块调用，环境是它的一个参数**：给它的那个层要是它自己的一层
   （`args.env.sub_env << args.env << "if"`，或者 `args.env.tmp_env << args.env`），它把这一层交给两个
   开关，开关再给那一支的孩子挂在这一层下面（`…/if/echo_or_never`、`…/if/never_or_echo`）。环境是这次
@@ -667,14 +667,14 @@ __impl__ =
 - 条件、值和两支都可以放在别的文件里，用例只给一条链去调它们；一个调用先给一半、剩下的由用例补齐，
   也是同一个值。
 
-这条路的边角案例在 [`tests/test_interpreter_if.py`](tests/test_interpreter_if.py)：一份用例一个文件
-（[`tests/data/if/`](tests/data/if)），覆盖条件挑中哪一支、走不到的那一支仍然不求值（包括那一支没有
+这条路的边角案例在 [`tests/test_interpreter_if.py`](../../tests/test_interpreter_if.py)：一份用例一个文件
+（[`tests/data/if/`](../../tests/data/if)），覆盖条件挑中哪一支、走不到的那一支仍然不求值（包括那一支没有
 实现或者会崩，也包括那些用 `sequential` 包成一块的、一步都不跑的一整块）、嵌套的 `if`、取到 `never`
 的答案、环境给成本文件自己那一层会被拒、`builtin.if` 这个拼法，以及那一支跑在哪一层。
 
 ### 怎么搭出来的：两个开关组成的一个和
 
-[`viba/if.viba`](viba/if.viba) 通篇就是那两个开关组成的一个和：
+[`viba/if.viba`](../if.viba) 通篇就是那两个开关组成的一个和：
 
 ```viba
 __decl__ =
@@ -696,8 +696,8 @@ __impl__ =
 `never` 的那一支剥掉，剩下的就是条件挑中的那一支——也只有那一支的调用被跑过。挑分支的那一步是和的
 归约，所以 `if` 不是"叫其中一个开关"。
 
-那两个开关是内建算子（[`viba/builtin.viba`](viba/builtin.viba) 里 `builtin` 的 `$echo_or_never` 与
-`$never_or_echo`），各一张签名，实现在宿主手里。[`branch.viba`](branch.viba) 与 `branch.py` 有同样
+那两个开关是内建算子（[`viba/builtin.viba`](../builtin.viba) 里 `builtin` 的 `$echo_or_never` 与
+`$never_or_echo`），各一张签名，实现在宿主手里。[`branch.viba`](../../branch.viba) 与 `branch.py` 有同样
 的一份，讲这件事的时候用那一份：
 
 ```viba
@@ -737,7 +737,7 @@ def get_func(module_path, func_name):
 ```
 
 开关这一层（不带 `if`）的边角案例在
-[`tests/test_interpreter_branch_switch.py`](tests/test_interpreter_branch_switch.py)：一份用例一个
+[`tests/test_interpreter_branch_switch.py`](../../tests/test_interpreter_branch_switch.py)：一份用例一个
 文件（`tests/data/branch_switch/*.viba`），覆盖开关方向、条件的各种源码形式、每一种值的种类、部分计算、
 别的文件里的开关、副作用次数、走不到那一支里的「没有实现」与失败，以及多个开关并起来的和。
 
@@ -820,7 +820,7 @@ square_sum << args.env << 3 <: int <- $b int   # 给了一半：剩下的是函�
 
 `import demo.is_base_type as is_base_type` 也可能找到的是一个**目录**（目录里有 `__generic__.viba`
 标记）：那是一个泛型，它的每个文件是一个模式：文件名是决断顺序（一个数字），前面还可以带上它取几份
-（[`viba-pattern.md`](viba-pattern.md)）。
+（[`viba-pattern.md`](../core/viba-pattern.md)）。
 它不是一个模块——单独用 `is_base_type` 不是类型，`is_base_type << $x 1` 不是调用。能用的只有应用：
 
 ```viba
@@ -860,7 +860,7 @@ Flag = is_base_type[bool]              # 决断选中 100.viba；它的 __decl__
 ## 成员按名字取：`tagged` 与 `$get_attr`
 
 名字在字符串里时，成员照样取得出来。`tagged["hello"] << X` 就是 `$hello << X` ——
-一参数的 `tagged` 是一个成员，只出现在链头（[`viba-pattern.md`](viba-pattern.md) 第 3 节）。
+一参数的 `tagged` 是一个成员，只出现在链头（[`viba-pattern.md`](../core/viba-pattern.md) 第 3 节）。
 
 名字是**一份可以算出来的值**时（决断萃取出来的符号、从数据里取到的 str），用内建的成员
 `$get_attr`。这里一共有五个这样的内建成员，`$get_attr`、`$get_item`、`$in`、`$len`、`$keys`，
@@ -896,7 +896,7 @@ $keys     : list[str] <- $env Env <- $table Any
 tag，`xs` 落进 `$container`，`$n` 才是这一步结果记的名字。
 
 判定层取这样一条链时把环境去掉——环境是调用的规矩而不是实参，每一条调用都是这么取的
-（[`viba/partial.py`](viba/partial.py)）——然后给出**这个成员答什么**：`$len` 是 `int`、`$in` 是
+（[`viba/partial.py`](../partial.py)）——然后给出**这个成员答什么**：`$len` 是 `int`、`$in` 是
 `bool`、`$keys` 是 `list[str]`、`$get_item` 与 `$get_attr` 说得出就是那个成员的类型、说不出就是
 `Any`。这些链因此也能写在需要类型的地方：`__decl__` 里、一个字面量的一份里，都取得到。
 
@@ -921,7 +921,7 @@ __impl__ = $get_attr << box << name << args.env << 1        # name 是算出来�
 ## 按地址取元素：`$get_item`
 
 容器里的元素按**地址**取，地址也是一份可以算出来的值：位置给 int、键给 str，正是访问协议里那两条
-地址步子（`$at_index int`、`$at_key str`，[`viba-reflect.md`](viba-reflect.md)）。
+地址步子（`$at_index int`、`$at_key str`，[`viba-reflect.md`](../core/viba-reflect.md)）。
 
 ```viba
 __impl__ = $get_item << xs << $env nil << 1                       # xs[1]，xs 是 list
@@ -990,7 +990,7 @@ __impl__ = $get_item << ($keys << table << $env nil) << $env nil << 0   # 第一
 一个算出来的键没有名字可交出去。
 
 枚举一个序列是 `$len` 加 `$get_item` 走一遍；取 dict 的值是 `$keys` 加 `$get_item`
-走一遍（[`viba-reflect.md`](viba-reflect.md) 第 5.4 节）。
+走一遍（[`viba-reflect.md`](../core/viba-reflect.md) 第 5.4 节）。
 
 ## 容器字面量
 
@@ -998,7 +998,7 @@ __impl__ = $get_item << ($keys << table << $env nil) << $env nil << 0   # 第一
 一次运行把它算成一个值，能数、能按地址取（`$get_item`）、能当实参交给宿主、也能原样序列化回去。
 它的成员是源码里的可序列化数据，所以嵌套（`ListLiteral[ListLiteral[1]]`）、混合
 （`ListLiteral[1, "a"]`）、空的（`ListLiteral[]`、`DictLiteral[]`）都照这样给。同一段文本放在**类型表达式**
-里代表的是另一件事：那时它是 `list[a | b | c]` 之类的居民（[`viba/type.viba`](viba/type.viba)）。
+里代表的是另一件事：那时它是 `list[a | b | c]` 之类的居民（[`viba/type.viba`](../type.viba)）。
 
 ## 求值策略：按需求值（call-by-need）
 
@@ -1007,22 +1007,22 @@ viba 是**声明式**（declarative）的，不是命令式执行的：一份文
 在被**用到**的时候才求值，而且求值一次就把结果留下来（memoization，也叫 sharing），那次的结果就是
 它以后的值。这就是**按需求值**（call-by-need），也就是惰性求值（lazy evaluation）。
 
-- **没人用到的绑定不参与求值**：[`tests/data/values/nested.viba`](tests/data/values/nested.viba)
+- **没人用到的绑定不参与求值**：[`tests/data/values/nested.viba`](../../tests/data/values/nested.viba)
   里那份 `unused` 没人用，宿主一次都没被叫。
 - **绑定可以前向引用**（forward reference）：`__impl__ = x` 与 `x = 7` 换个次序还是 7
-  （[`defined_after.viba`](tests/data/values/defined_after.viba)）。源码里的次序不是求值的次序。
+  （[`defined_after.viba`](../../tests/data/values/defined_after.viba)）。源码里的次序不是求值的次序。
 - **`__impl__` 倒着放也行**：它放在所有定义之前，用到的每一步都放在后面，算出来还是同一个结果
-  （[`impl_given_first.viba`](tests/data/values/impl_given_first.viba)）。
+  （[`impl_given_first.viba`](../../tests/data/values/impl_given_first.viba)）。
 - **一个绑定只求值一次**：两处用同一个名字，宿主只被叫一次
-  （[`memo.viba`](tests/data/values/memo.viba)）；同一个名字在一个模块里定义两份是程序错误
-  （[`twice_defined.viba`](tests/data/values/twice_defined.viba)）。
+  （[`memo.viba`](../../tests/data/values/memo.viba)）；同一个名字在一个模块里定义两份是程序错误
+  （[`twice_defined.viba`](../../tests/data/values/twice_defined.viba)）。
 
 这条策略不是省一次求值：递归要"再一次进到同一个定义"，而一份文件里的绑定不许成环（下一节），所以
 往下那一层只能先落成一个名字 —— 名字就是一份文件手里那个**还没求值的计算**（thunk）。定义它的那一层
 不用它，用它的那一层才把它求出来。`tests/data/y_functions/steps/` 那批用例就是这样：往下调一层
 与取余各是一个绑定，基例那一侧不用它们，于是那一侧既不会去算 `a` 除以 0 的余数，也不会再往下调一层
 （从基例那一侧进来的那一份是
-[`main/gcd_zero.viba`](tests/data/y_functions/main/gcd_zero.viba)）。
+[`main/gcd_zero.viba`](../../tests/data/y_functions/main/gcd_zero.viba)）。
 
 一个调用的实参默认**按值求值**（call-by-value）；只有函数类型的那个参数**惰性**（lazy，non-strict）——
 那个参数上的调用连同环境交给宿主，宿主用到它时才算，见上面「分支：用积选择，用和汇合」那一节。
@@ -1055,14 +1055,14 @@ B = A
   可以一直长下去（见「栈太长时：把系统栈变成工作清单」），以前那会撞上 `RecursionError`。
 - **同名、不同实参、各自一条新路径的调用是两次调用**，不是环：函数递归执行要"再一次进到同一个
   定义"，而固定的实参换一次就是另一层。`Y` 就是这样把递归一层层展开的：
-  [`tests/data/y_combinator/main.viba`](tests/data/y_combinator/main.viba) 跑的是
+  [`tests/data/y_combinator/main.viba`](../../tests/data/y_combinator/main.viba) 跑的是
   `Y << fib_module << ($sub_env << args.env << "Y") << $n 10`，给出 55（fib(10)）。
   `fib_module` 是那一步：`$n` 小于 2 时给出 `$n`，否则给出 `fib($n - 1) + fib($n - 2)`；`Y` 交给
   它的"下一层"是同一份 helper 再往下的一层（`y_helper` 往下调时用的还是它自己，只换环境与这一层的
   实参）。每往下一层 `$n` 换一个值，`fib_module` 往下调时又给它一层自己的名字（`low`、`high`），
   所以同一条定义被叫了无数次，每一次都在另一条数据路径上，没有一次是"绕回同一个调用"。
 - **两份文件互调的边角**：这条路子本身有一份用例集，
-  [`tests/test_interpreter_mutual_recursion.py`](tests/test_interpreter_mutual_recursion.py)：100 条，
+  [`tests/test_interpreter_mutual_recursion.py`](../../tests/test_interpreter_mutual_recursion.py)：100 条，
   每条是一对互相 import 的文件（`tests/data/mutual_recursion/left_*.viba` 与 `right_*.viba`）。
   分支与部分计算决定那条路走不走：函数类型那个参数里的递归调用，条件不成立时一次都不发作；
   一个调用先给一半（`right.f << $a 1`）是一个值，没进入另一份文件，也不发作；而条件那个参数照旧
@@ -1072,9 +1072,9 @@ B = A
 ## 栈太长时：把系统栈变成工作清单
 
 一次模块调用拿到一层自己的环境（`$sub_env`、`$tmp_env`），**环境链**（`$get_parent` 走的那条）就多一个
-环 —— 这条环境链就是解释器自己的栈。太长的时候，[`viba/y_helper.viba`](viba/y_helper.viba) 那句
+环 —— 这条环境链就是解释器自己的栈。太长的时候，[`viba/y_helper.viba`](../y_helper.viba) 那句
 `env = $try_compact << args.env << 32` 让解释器把此刻还在跑的调用交出来、由这次运行最外面那一次一个
-一个地再做：系统栈变成手工栈（工作清单，[`viba/resumable.viba`](viba/resumable.viba)）。阈值是
+一个地再做：系统栈变成手工栈（工作清单，[`viba/resumable.viba`](../resumable.viba)）。阈值是
 `$try_compact` 收的那个数（机制在解释器，政策在 viba），它答的还是给它的那个环境 —— 压缩只换
 "这些调用在哪里做"，不换求值语义，靠的仍是「幂等与
 快照」那条前提：一次调用的答案只由它跑的那条数据路径决定。
@@ -1084,7 +1084,7 @@ B = A
 env = $try_compact << args.env << 32
 ```
 
-细节与量到的数在 [`tests/test_interpreter_compaction.py`](tests/test_interpreter_compaction.py)。
+细节与量到的数在 [`tests/test_interpreter_compaction.py`](../../tests/test_interpreter_compaction.py)。
 
 ## 把一次调用落成可执行的：`__dyn_call__` 与 `__dyn_method__`
 
@@ -1134,7 +1134,7 @@ __dyn_method__ =
 ## 一次执行会得到什么
 
 `interpret` 与 `exec` 回答的是**一份 viba 数据**：声明里那个 `InterpretResult` 的一个节点
-（定义在 [`viba/interpret_result.viba`](viba/interpret_result.viba)）。它只有两支：`$ok` 是这次执行算出来的
+（定义在 [`viba/interpret_result.viba`](../interpret_result.viba)）。它只有两支：`$ok` 是这次执行算出来的
 值，`$err` 是它停下的方式。按数据取它就行 —— 两支各有自己的 tag，停下来之后那一支再按 tag 往下取一层：
 
 ```viba
@@ -1166,14 +1166,14 @@ answer.by_tag("$err").by_tag("$not_implemented_err")
 `raised`（实现抛了，它自己没说为什么时就是这个词）、`no leaf`（实现给出了没有叶子的东西）。
 
 `EnvironmentApiInvalidArgumentErr` 的 `$api_name` 是**哪一个 api**，就是它定义里那个名字：
-`Environment.sub_env`（[`viba/builtin.viba`](viba/builtin.viba) 里 `Environment` 的成员就是这几个）；
+`Environment.sub_env`（[`viba/builtin.viba`](../builtin.viba) 里 `Environment` 的成员就是这几个）；
 `$args` 是**给它的实参**，能落成数据的那几份，按源码里的次序，环境不在里面（它是那个 api 自己的值）——
 所以 `sub_env << "kid"` 记的就是 `"kid"`，只收环境的 `tmp_env` 记的是 `nil`。它的 `$msg` 也开头就是原因：
 `raised`（那个 api 收不下，抛了）。
 
 一次执行回答的必须是数据，所以**环境不是答案**：环境是这次调用的规则，不是值，一个模块的 `__impl__` 落成
 `args.env` 时，这次执行停下，报的就是上面第一种（`the run answered the environment`），与文件里的一条链被判定层拦下时
-是同一个道理（[`viba/partial.py`](viba/partial.py)）。
+是同一个道理（[`viba/partial.py`](../partial.py)）。
 
 `$stack` 是这次执行停下的**调用链**，最外一帧在前：一帧就是一次调用点 —— 调用出现在哪个 `.viba` 文件里
 （`$file_path`）、在哪一行（`$lineno`）。最外那一帧是主文件本身，它不是被谁调用的，行号是 0。
@@ -1192,14 +1192,14 @@ answer.by_tag("$err").by_tag("$not_implemented_err")
 `$f` 这一格是调用 `inc`，就按能跑的形式给出（上一节）。同一个规矩也在函数类型的实参上：`$f inc` 落成
 `$f (__dyn_call__ << "inc")`。
 环境不在里面：给出环境就是执行这次调用，它不是这次调用的数据，另一次运行自己造。声明里这一格是
-`Any`：名是数据，判定层取这种链就判成 `Any`（没有名字可展开，[`viba/partial.py`](viba/partial.py) 的
+`Any`：名是数据，判定层取这种链就判成 `Any`（没有名字可展开，[`viba/partial.py`](../partial.py) 的
 `reduce_partial`），所以它就是这个类型。把它当数据交给一次运行、让那次运行给它一个环境
 （`held = hold << $env args.env`，再 `held << args.env`），这次调用就跑起来了；也可以把它用
 `serialize` 序列化成 viba 源代码（`call = __dyn_call__ << "add" << $a 1`）再跑，或者把它**直接当节点**
 交给 `exec`（把停下来那一支里的 `$call` 那一格交给它：它本来就是节点，不用序列化成源码再反序列化）。实参里是函数、
 是闭包也一样，它们本来就是可序列化的 —— 照着它就能把这次调用重新做一遍，不必重跑一次运行，也不必让给出它的
 那个模块在场（上一节）。这三条路都钉在用例里
-（[`tests/test_interpreter_roundtrip.py`](tests/test_interpreter_roundtrip.py)：二十七份，先缺一步、
+（[`tests/test_interpreter_roundtrip.py`](../../tests/test_interpreter_roundtrip.py)：二十七份，先缺一步、
 补上、把 `$call` 跑一遍，含同一个名字在两条数据路径上、以及一轮一轮补下去的那种）。
 
 这四种停法都会一路穿回调用方，而且**带回来的那一步是里面那一次调用、不是外面那一层**：被调用的模块里

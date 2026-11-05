@@ -102,7 +102,7 @@ class VibaMemberTakenDescriptor:
     Which member that is a definition of is known once the application is
     decided, so the descriptor keeps the owner's own descriptor and the name;
     the layer that takes designs apart decides, and takes the member there
-    (viba-pattern.md).
+    (viba/core/viba-pattern.md).
     """
 
     __slots__ = ("pool", "resolvable_type", "owner", "name")
@@ -321,7 +321,7 @@ def _environment(pool: VibaPool) -> Callable[[str], Result]:
     """A module name for a module: looked up in the pool by $module_name, else a Err.
 
     A generic is not a file but a directory: the `name.number` files in the pool plus its
-    `__generic__.viba` marker make one GenericModuleType (viba-pattern.md). The
+    `__generic__.viba` marker make one GenericModuleType (viba/core/viba-pattern.md). The
     bare name of a `builtin.` generic names the same one (`is_closure` is
     `builtin.is_closure`), the way it does wherever else a name is taken.
     """
@@ -349,7 +349,7 @@ def _generic_in_pool(pool: VibaPool, module_name: str):
     Its files are the ones named under it: the marker `name.__generic__`, and
     one `name.number` per pattern — the order is that number, and in front of it
     the count the file name carries, the way a file in a directory is named
-    (viba-pattern.md). `name` itself is no file of the pool — that is what makes
+    (viba/core/viba-pattern.md). `name` itself is no file of the pool — that is what makes
     it a generic rather than a module of definitions.
     """
     prefix = module_name + "."
@@ -654,7 +654,7 @@ def _get_args_call(pool, node, module):
     What a call was handed, taken as a type: the product of the parameters the
     chain declares, the environment among them — which is how a module names the
     environment (`args.env`) and its arguments (`args.a`), and what makes
-    `args = __get_args__ << __decl__` a product here (viba-interpreter.md).
+    `args = __get_args__ << __decl__` a product here (viba/exec/viba-interpreter.md).
     """
     head, arguments = _partial_parts(node)
     if not (isinstance(head, ast_nodes.TypeRef) and head.name == GET_ARGS_NAME):
@@ -681,7 +681,7 @@ def tagged_descriptor(pool, constructor_name: str, args, resolvable):
     The symbol is known here when it is a string in the source — the source folded
     those into the tag already — and when a decision handed it over: a `pattern`
     line extracted the symbol from a tag and `__decl__` builds the tag back with
-    it (viba-pattern.md). The answer is the tagged type `$S T`, spelled as that
+    it (viba/core/viba-pattern.md). The answer is the tagged type `$S T`, spelled as that
     tag, so the descriptor says where the type is addressed and whose module its
     own names resolve in.
     """

@@ -2,7 +2,7 @@
 
 viba 里怎么 import，就怎么传给 `get_func` —— `import foo.bar`（或者 `import foo.bar as foo_bar`）
 之后用 `foo.bar.b_scale << …` 也好、用别名 `b_scale << …` 也好，问的都是
-`get_func("foo.bar", "b_scale")`（`viba-interpreter.md`「`get_func` 与 `func_name`」）。就地声明的
+`get_func("foo.bar", "b_scale")`（`viba/exec/viba-interpreter.md`「`get_func` 与 `func_name`」）。就地声明的
 步骤问的是跑起来的那份模块，和它在那儿的名字。
 
 结果里记的是同一件事的另外两种取法：`$module_path` 是那个模块判成路径（`/foo/bar`），`$full_qualified_func_name` 是

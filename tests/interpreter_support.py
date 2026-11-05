@@ -30,7 +30,7 @@ def module_of(path) -> str:
 
     A module records the name it was loaded as (`CustomModuleType.name`), and a file
     handed to `interpret` is bound under its stem, so that is what a step of it is
-    asked under: `get_func("memo", "leaf")` (viba-interpreter.md, "`get_func` 与
+    asked under: `get_func("memo", "leaf")` (viba/exec/viba-interpreter.md, "`get_func` 与
     `func_name`").
     """
     return Path(str(path)).stem
@@ -314,7 +314,7 @@ class PlacedHost(Host):
 
     `get_func` is handed the module a step is declared in; where a call *runs* is
     what the environment it receives carries, so a step records that here
-    (viba-interpreter.md, "`get_func` 与 `func_name`").
+    (viba/exec/viba-interpreter.md, "`get_func` 与 `func_name`").
     """
 
     def __init__(self, **knobs):

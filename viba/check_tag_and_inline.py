@@ -7,7 +7,7 @@ spread, and every inline chain ends; Err names the first mistake.
     from viba.check_tag_and_inline import check_tag_and_inline
     check_tag_and_inline(pool)       # -> Ok(None), or Err(the first mistake)
 
-A product's untagged members are inline slots (viba-reflect.md section 4): the
+A product's untagged members are inline slots (viba/core/viba-reflect.md section 4): the
 members of the definition that stands there spread into the product that names it.
 Two mistakes in a definition only become visible after that spreading, and both are
 properties of the design alone — no viba_data is involved:

@@ -5,12 +5,12 @@
 
 The text is the one `viba.markdown` reads: a section per file, the section's
 name is the file's path in the directory, and the first fenced code block is the
-file's text ([`viba-markdown-as-directory.md`](../viba-markdown-as-directory.md)).
+file's text ([`viba/wiki/viba-markdown-as-directory.md`](../viba-markdown-as-directory.md)).
 What counts as code:
 
 - a `.viba` file, unless the directory holding it is written as `<dir>.viba.md`:
   the document wins over the directory, so the file is not read
-  (viba-markdown-as-directory.md);
+  (viba/wiki/viba-markdown-as-directory.md);
 - a `.viba.md` document: its sections are packed under the paths its directory
   holds (`g.viba.md`'s `100.viba` is packed as `g/100.viba`).
 

@@ -93,7 +93,7 @@ class Member(AST):
 
     `$tag << X << a` is `X.tag << a`: X is the value the member is taken from,
     and the chain always gives it first. The tag is not a value — there is no
-    node for a bare `$tag` — so a member never stands alone (viba-interpreter.md).
+    node for a bare `$tag` — so a member never stands alone (viba/exec/viba-interpreter.md).
     """
 
     _fields = ("tag",)
@@ -104,10 +104,10 @@ class MemberTaken(AST):
 
     A name is one segment, so `a.b.c` is `MemberTaken(MemberTaken(TypeRef(a), b), c)`:
     each dot is taken where it stands, and the member is the member of what
-    the step before it is (viba-style.md). The owner may also be an application
+    the step before it is (viba/core/viba-style.md). The owner may also be an application
     — `g[T].value` is the member `value` of the module the decision picked —
     which is how a pattern file hands back a definition of its own
-    (viba-pattern.md).
+    (viba/core/viba-pattern.md).
     """
 
     _fields = ("owner", "name")
@@ -181,7 +181,7 @@ class Pattern(AST):
     A file inside a generic's directory gives one of these per parameter, in
     the order they stand: a name the file never defines is a parameter to extract,
     while a known type restricts what that argument may be
-    (viba-pattern.md).
+    (viba/core/viba-pattern.md).
     """
 
     _fields = ("pattern",)

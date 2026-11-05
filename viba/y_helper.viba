@@ -28,7 +28,7 @@ args = __get_args__ << __decl__
 # The compaction point: the chain of environments this call is inside is the
 # interpreter's own stack, and one link per layer of the recursion is what would
 # make it grow without end. Past 32 links the calls running now are made from the
-# interpreter's work list instead, one at a time (viba-interpreter.md, "栈太长时：
+# interpreter's work list instead, one at a time (viba/exec/viba-interpreter.md, "栈太长时：
 # 把系统栈变成工作清单"), so a `Y` recursion goes as deep as it likes. What the call
 # answers is this layer's environment, and the definitions below use that name:
 # they are computed when the piece that wants them is, so the compaction point is

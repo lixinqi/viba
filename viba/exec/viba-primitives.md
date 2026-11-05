@@ -4,9 +4,9 @@
 `Environment` 的成员、按位置或按键取元素的那几个成员、内建的容器、按名字取得的内建模块，
 以及一次运行停下来时给出什么。每一节只讲这一节的名字，别处要用的规矩在那一节点名。
 
-签名本身在 [`viba/builtin.viba`](viba/builtin.viba)；一次调用怎么跑、环境是什么、结果是什么，
+签名本身在 [`viba/builtin.viba`](../builtin.viba)；一次调用怎么跑、环境是什么、结果是什么，
 在 [`viba-interpreter.md`](viba-interpreter.md)；容器的源码形式与用法在
-[`viba-style.md`](viba-style.md) 第 8 节。算子的含义不在本层：本层给签名与实参，
+[`viba-style.md`](../core/viba-style.md) 第 8 节。算子的含义不在本层：本层给签名与实参，
 实现由 `get_func` 那一方给出（[`viba-interpreter.md`](viba-interpreter.md)，
 「宿主侧：Environment」）。
 
@@ -178,7 +178,7 @@ add << $x 3 << $y 4                      # 没给环境：这条链是一个闭�
 
 `echo_or_never` 与 `never_or_echo` 的 `$get_v` 是**函数型的参数**：源码里那个实参不在原地算，
 交给实现，由实现决定算不算、在哪个环境下算。`if` 就是这两个开关的和
-（[`viba/if.viba`](viba/if.viba)，第 6.3 节）。
+（[`viba/if.viba`](../if.viba)，第 6.3 节）。
 
 ## 3. `Environment`
 
@@ -385,12 +385,12 @@ $len << ($keys << table << $env nil) << $env nil             # 有几个键
 （第 2.4 节）接成一段。不是字典报程序错；键不是字面量的字典也报程序错 —— 这一支走的是源码形式，
 一个算出来的键没有名字可以交出去。
 
-取字典的值就是 `$keys` 加 `$get_item` 走一遍（[`viba-reflect.md`](viba-reflect.md) 第 5.4 节）。
+取字典的值就是 `$keys` 加 `$get_item` 走一遍（[`viba-reflect.md`](../core/viba-reflect.md) 第 5.4 节）。
 
 ## 5. 容器
 
 三个容器是内建的，用法就这几件事：源码形式、字面量、取元素、问在不在、数一数、取字典的键
-（[`viba-style.md`](viba-style.md) 第 8 节）。
+（[`viba-style.md`](../core/viba-style.md) 第 8 节）。
 
 **源码形式**：`list[T]` 按位置取，`set[T]` 没有固定顺序（按位置取时，从头到尾的顺序由实现定），
 `dict[K, V]` 按键取；键用 `str`。可以任意嵌套：`list[dict[str, int]]`。
@@ -534,7 +534,7 @@ Y << ($sub_env << args.env << "Y") << f << $a 7 << $b 0
 - `y_helper` 是 `Y` 自己用的下一层（第 6.5 节），`Y` 调用它；程序里不用直接调它。
 - `resumable` 给出工作清单那两条定义（`ResumableVibaTaskStack`、`ResumableVibaTask`），
   `interpret_result` 给出一次运行的结果与四种停法的声明
-  （[`viba/interpret_result.viba`](viba/interpret_result.viba)），
+  （[`viba/interpret_result.viba`](../interpret_result.viba)），
   `type` 给出类型那一套（`Type`、`ModuleType`、`AstNodeType`、`ModuleGetType`、`IsSubType`），
   `viba_type_descriptor` 给出描述符那一套。这四个是定义的名字，取来当类型用。
 
@@ -629,7 +629,7 @@ args = __get_args__ << __decl__
 ## 9. 一次运行停下来时给出什么
 
 一次运行答一支：`$ok` 拿到答案，`$err` 拿到停下来的原因
-（[`viba/interpret_result.viba`](viba/interpret_result.viba)）。停法有四种。
+（[`viba/interpret_result.viba`](../interpret_result.viba)）。停法有四种。
 
 | tag | 什么时候 | 带什么 |
 |---|---|---|
@@ -668,7 +668,7 @@ args = __get_args__ << __decl__
 - **参数都是定长的。** `min` / `max` 只收两个，`concat` 只接两段，没有可变参数；
   三个数取最小要套两层。
 - **链头是 `$tag` 的那一声调用序列化不出来**：`serialize` 对它报
-  `a chain headed by a member has no form in the source here`（[`viba-serialize.md`](viba-serialize.md)），
+  `a chain headed by a member has no form in the source here`（[`viba-serialize.md`](../core/viba-serialize.md)），
   所以含这种成员的字面量交得给宿主，存不下来。这一条不限这五个成员，任何 `$tag << X` 链都一样。
 - **换类型的失败是实现的停法，不是程序错。** `str_to_int` 拿到一个不是数的字符串报的是
   `$underlying_viba_op_err`（第 2.6 节），语言里没有给出 `Result` 的版本。

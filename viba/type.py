@@ -208,7 +208,7 @@ class UnderlyingOpErr(InterpretError):
     the step is declared in, as a path, and the step's whole name there (the module
     and the name it has in it). Where
     the call ran is not in them — that is the data path of the environment the
-    step was handed (viba-interpreter.md). `call` is the call itself in the form that
+    step was handed (viba/exec/viba-interpreter.md). `call` is the call itself in the form that
     can be run again, with the environment left out: `__dyn_call__` and the name
     the host was asked for, or `__dyn_method__` and the member a value carries,
     then the arguments the source has on it, each with the tag it stands under
@@ -223,7 +223,7 @@ class UnderlyingOpErr(InterpretError):
     inside what the arguments themselves stand for. It is viba data, functions and closures
     among the arguments included, so the same call can be made again from this
     result alone, without running anything over; the environment is not part of
-    it, another run makes its own (`viba-interpreter.md`).
+    it, another run makes its own (`viba/exec/viba-interpreter.md`).
 
     A host says the same thing by handing this failure's data back — from
     `get_func`, or from the implementation of a step while it runs
@@ -545,7 +545,7 @@ class CustomModuleType(ModuleType):
     A module records where it came from, as it is: the name it was loaded as, the
     file it was taken from, and the search root it was found under. A step of this
     module is asked from the name it was loaded as — `get_func("foo.bar", "add")`
-    — and `module_path` is that name taken as a path (viba-interpreter.md,
+    — and `module_path` is that name taken as a path (viba/exec/viba-interpreter.md,
     "`get_func` 与 `full_qualified_func_name`").
     """
 
@@ -610,7 +610,7 @@ class CustomModuleType(ModuleType):
 
         A binding that names a generic answers no name at all: a generic is a
         directory of patterns, not a module of definitions, and what it
-        has is an application (`gen[T]`, viba-pattern.md)."""
+        has is an application (`gen[T]`, viba/core/viba-pattern.md)."""
         parts = type_name.split(".")
         for cut in range(len(parts) - 1, 0, -1):
             prefix = ".".join(parts[:cut])
@@ -668,7 +668,7 @@ class AstNodeType(Type):
         # On a name chain a member taken is that name (`a.b.c` counts as `a.b.c`), so the layers that
         # resolve by name (judgment, descriptors) see it; a member taken whose left side is an
         # application (`g[T].value`) is no name, and stays as it is for the layer that knows it
-        # (viba-style.md).
+        # (viba/core/viba-style.md).
         if isinstance(ast_node, viba_ast.MemberTaken):
             path = viba_ast.source_path(ast_node)
             if path is not None:

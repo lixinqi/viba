@@ -97,6 +97,6 @@ tag 底下的类型——所以 `$b str << int | str` 成立。`sup` 是 `never`
 
 ## 11. 测试
 
-[`tests/test_is_sub_type.py`](tests/test_is_sub_type.py)：叶子、和、积（含内联）、元组、函数（含
+[`tests/test_is_sub_type.py`](../../tests/test_is_sub_type.py)：叶子、和、积（含内联）、元组、函数（含
 参数个数对齐）、容器字面量、`Any` 与 `...`、共归纳、两类错误的 `$err`，以及 `tests/data/is_sub_type/`
 下成对的用例文件。

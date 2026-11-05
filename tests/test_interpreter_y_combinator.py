@@ -1,7 +1,7 @@
 """Y 组合子（这里用的是内建的 `Y`）：一步交给它，它把"往下那一层怎么算"交给这一步自己。
 
 Y 与 y_helper 是**内建**的：`viba/Y.viba` 与 `viba/y_helper.viba` 就在内建词汇那一份旁边，是搜索
-路径的最后一站，所以任何模块给出 `import Y` 就拿到 `Y`（`viba-interpreter.md`）。用例在
+路径的最后一站，所以任何模块给出 `import Y` 就拿到 `Y`（`viba/exec/viba-interpreter.md`）。用例在
 `tests/data/y_combinator/`：
 
     parts.viba             宿主实现的几步：lt / sub / add
@@ -25,7 +25,7 @@ Y 与 y_helper 都给出
 `$env Env`：给环境就是执行，所以每一层的数据路径由调用方给出 —— `main_*.viba` 给出
 `args.env.sub_env << args.env << "Y"`（`main_in_a_sub_env.viba` 故意换个名字），`Y.viba` 往下给出
 `"y_helper"`，步文件往下调时给出 `"low"` 那样的名字；步自己那一层只是名字的出处，`y_helper` 用
-`compress_env_path` 把它压成 workspace 旁边一个定长的名字（`viba-interpreter.md`）。这一层的实参接着 `<<` 跟在后面
+`compress_env_path` 把它压成 workspace 旁边一个定长的名字（`viba/exec/viba-interpreter.md`）。这一层的实参接着 `<<` 跟在后面
 （`Y << F << ($sub_env << args.env << "Y") << $n 3 << $m 4`），`Y` 那个给出 `$args ...` 的参数把
 它们收成一份积；**这两个都不是泛型**：不用按参数个数分文件，`apply` 按那份积里有几个成员选
 `apply_impl` 哪一支，`F` 的参数列表有多长，由积里有几个成员说了算。

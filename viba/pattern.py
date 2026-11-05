@@ -28,7 +28,7 @@ file answers is its `__decl__` — a type for the design layer, and, when that
 type is a function chain and the file gives `__impl__`, the call the file runs
 itself where a program runs: a decision is static either way, and a chosen file
 that carries its own `__impl__` answers in its own sub-environment, named by its
-decision order (viba-pattern.md). The parameter names are bound to the argument
+decision order (viba/core/viba-pattern.md). The parameter names are bound to the argument
 parts as the source has them — each in the module that part comes from in the
 source, so a name an enclosing decision bound still stands for what stood at the
 call site. `__decl__ = A` answers the extracted type and
@@ -37,7 +37,7 @@ call site. `__decl__ = A` answers the extracted type and
 A tag may also be spelled as a symbol string, and that is where a name that only
 exists as a string comes from: `tagged["a", T]` is `$a T`, a `pattern` line
 may claim the symbol (`pattern tagged[name, T]` takes `"a"` for `$a int`),
-and a `__decl__` builds the tag back out of it (viba-pattern.md). What a string
+and a `__decl__` builds the tag back out of it (viba/core/viba-pattern.md). What a string
 in the source spells is taken in `viba/viba_ast/tagged.py`; a symbol that is a
 name is taken in `tagged_type_of` below, where the decision's bindings are known.
 
@@ -103,7 +103,7 @@ class PatternFile:
 
     The file is taken when the decision reaches it (`take`): a file whose
     declared count the arguments in the source cannot offer is never parsed
-    (viba-pattern.md).
+    (viba/core/viba-pattern.md).
     """
 
     __slots__ = ("order", "path", "name", "declared", "module", "patterns",
@@ -232,7 +232,7 @@ def file_pattern_problem(tree, file_name: str) -> Optional[str]:
 
     A pattern is one file of a generic, and its name is its decision order —
     a number, which may have the count it takes spelled in front of it
-    (viba-pattern.md). So the name is what tells a pattern file from a module,
+    (viba/core/viba-pattern.md). So the name is what tells a pattern file from a module,
     and a file that spells `pattern` under any other name is refused where it is
     compiled: the marker `__generic__.viba` among them, which is no pattern file
     either.
@@ -646,7 +646,7 @@ def decide(generic: GenericModuleType, arguments: List[viba_ast.AST],
 
 
 # The most totals an application's parts are counted in; past that the walk is not worth
-# it, and no file is passed over (viba-pattern.md).
+# it, and no file is passed over (viba/core/viba-pattern.md).
 _MOST_TOTALS = 8
 
 
@@ -821,7 +821,7 @@ def structural_pattern_match(pattern, pattern_module: ModuleType, argument,
     An argument that spells a call (`add << $a 2`) counts as the type that call
     stands for — the chain with that argument already given — before it is taken
     apart, so a claim about the argument's positions reaches a function a
-    caller spelled by giving an argument (viba-pattern.md). A call that cannot
+    caller spelled by giving an argument (viba/core/viba-pattern.md). A call that cannot
     be given at all is a mistake in the argument, reported here rather than
     counted as a mismatch.
     """
@@ -953,7 +953,7 @@ def _match_tagged(pattern, pattern_module: ModuleType, argument, argument_module
         __decl__ = A <- int <- tagged[arg_name, T]  # and this is `$a int` again
 
     One argument in the source claims the member `$S`, two the tagged type `$S T`
-    (viba-pattern.md).
+    (viba/core/viba-pattern.md).
 
     `parts` names, for an argument that is a product, the module each of its
     members was spelled in. A product of one member is that member, so the value
@@ -1074,7 +1074,7 @@ def _is_parameter(node, module: ModuleType) -> bool:
     Anything else is a type in the source: a definition of that module, a
     builtin name, a name reached through an import. The rule is the design's own
     — a name is what it resolves to, and a name that resolves to nothing is
-    standing for whatever the argument has there (viba-pattern.md).
+    standing for whatever the argument has there (viba/core/viba-pattern.md).
     """
     if not isinstance(node, viba_ast.TypeRef):
         return False

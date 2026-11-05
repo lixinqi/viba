@@ -2,7 +2,7 @@
 #
 # This is the declaration `viba.check_convertable_to_json_schema` is held to, given as
 # a viba type so the judgment reads with the rest of the design-side signatures
-# (viba-check-convertable-to-json-schema.md is the document; the Python layer is the
+# (viba/wiki/viba-check-convertable-to-json-schema.md is the document; the Python layer is the
 # one that takes the design apart).
 #
 # `ImportableTypeName` is a dotted name an import would find: the module of a

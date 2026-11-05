@@ -8,7 +8,7 @@
 
 **任意目录**都行：仓库里的一个普通目录、一个泛型目录、更深的子目录。文档写在哪里都一样：和目录
 并列，名字是目录名加 `.viba.md`（`report.viba.md` 是 `report/` 的另一种写法）。泛型目录
-（[`viba-pattern.md`](viba-pattern.md)）里的文件叫 `__generic__.viba` 和编号文件，写法没有区别。
+（[`viba-pattern.md`](../core/viba-pattern.md)）里的文件叫 `__generic__.viba` 和编号文件，写法没有区别。
 
 ## 2. 一个普通的例子
 
@@ -85,32 +85,29 @@ Note = Object * $text str
 
 ## 5. 读法在哪用
 
-[`viba/markdown.py`](viba/markdown.py) 提供两件事：
+[`viba/markdown.py`](../markdown.py) 提供两件事：
 
 - `files_of(source)`：一份文档读出（名字，内容）的一串，是这一页说的全部规则；
 - `module_files(module_name, source)`：同一串，再把名字按目录的命名挂到模块名下——
   `pkg/report.viba.md` 里的 `point.viba` 是 `pkg.report.point`。
 
-读它的有两处：
-
-- 解释器解析名字时（[`viba/interpret.py`](viba/interpret.py) 的 `_Runner`）：按第 3 节那个顺序，
-  `<目录>.viba.md` 在就在它的章里找；
-- 从文件建描述符池的入口：`is_complete` 扫 `viba_paths` 时先扫 `*.viba.md`，目录里被文档替掉的
-  文件跳过；判定与转换工具建池时也把文档的章按模块名收进去。
+解析一个名字时，按第 3 节那个顺序：`<目录>.viba.md` 在，就在它的章里找。从文件建描述符池的入口
+同样按这个顺序——`is_complete` 扫 `viba_paths` 时先扫 `*.viba.md`，目录里被文档替掉的文件跳过；
+判定与转换工具建池时也把文档的章按模块名收进去。
 
 于是凡是“一个目录、里面一组文件”的地方，都能用一份文档顶替。
 
 ## 6. 测试
 
-- [`tests/test_markdown.py`](tests/test_markdown.py)：读法本身——章与文件、第一个代码块、空文件、
+- [`tests/test_markdown.py`](../../tests/test_markdown.py)：读法本身——章与文件、第一个代码块、空文件、
   围栏缩进、同名与未闭合的报错，以及名字写成代码的情况。
-- [`tests/test_markdown_directory.py`](tests/test_markdown_directory.py)：一个普通目录的两种写法同时
+- [`tests/test_markdown_directory.py`](../../tests/test_markdown_directory.py)：一个普通目录的两种写法同时
   存在——文档说了算（`Point` 是文档里的两个整数，不是目录里的两个字符串）、文档里没有的名字找不到、
   `is_complete` 与两个 JSON 工具都认它。
-- [`tests/test_pattern_markdown.py`](tests/test_pattern_markdown.py)：拿泛型做的对比测试。
+- [`tests/test_pattern_markdown.py`](../../tests/test_pattern_markdown.py)：拿泛型做的对比测试。
   `tests/data/pattern/demo/` 那十二个短泛型各写了一份
   `tests/data/pattern_markdown/demo/<名字>.viba.md`，同一批设计跑两遍——目录一次、文档一次——
   答案必须一样；`is_complete` 两种写法都要判成完整。
-- 判定与转换的用例里有 [`elem.viba.md`](tests/data/check_convertable_to_json_schema/kb/elem.viba.md)：
-  一个用文档写成的泛型，[`uses_elem.viba`](tests/data/check_convertable_to_json_schema/kb/uses_elem.viba)
+- 判定与转换的用例里有 [`elem.viba.md`](../../tests/data/check_convertable_to_json_schema/kb/elem.viba.md)：
+  一个用文档写成的泛型，[`uses_elem.viba`](../../tests/data/check_convertable_to_json_schema/kb/uses_elem.viba)
   应用它，判定答 `Ok`，schema 与目录写法逐字相同。

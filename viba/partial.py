@@ -45,7 +45,7 @@ class _NamedMember:
 
     `$get_attr` takes a member by a name given as a value, so the member is
     known when the chain gives that name: the next argument is the name and `X`
-    is the value the member is taken out of (viba-interpreter.md). It is gone as
+    is the value the member is taken out of (viba/exec/viba-interpreter.md). It is gone as
     soon as the name is in.
     """
 
@@ -65,7 +65,7 @@ ENVIRONMENT_TYPE = "Environment"
 
 # The two names whose call has its name as *data*: the interpreter answers them
 # itself, and what such a call answers is `Any` — the design has no name to look
-# up, so it cannot say more (viba-interpreter.md, `__dyn_call__` / `__dyn_method__`).
+# up, so it cannot say more (viba/exec/viba-interpreter.md, `__dyn_call__` / `__dyn_method__`).
 DYN_CALL_NAME = "__dyn_call__"
 DYN_METHOD_NAME = "__dyn_method__"
 
@@ -134,7 +134,7 @@ def parameters_of(chain):
     the body (documentation, or the call the chain ends on), and everything between
     them is a parameter. Each comes back as (tag, the source form, is the
     environment, argument slot) — the slot counts arguments only, so the
-    environment has none: giving it is what runs the call (viba-interpreter.md).
+    environment has none: giving it is what runs the call (viba/exec/viba-interpreter.md).
     """
     elements = _elements(chain)[1:]
     if elements and isinstance(elements[-1], (viba_ast.HintBlock, viba_ast.Partial)):
@@ -166,7 +166,7 @@ def answers_the_environment(chain) -> bool:
     """Whether a chain declares the environment itself as its answer.
 
     A function answers a value; the environment is the call's rule rather than a
-    value (viba-interpreter.md), so no function the source puts in a module
+    value (viba/exec/viba-interpreter.md), so no function the source puts in a module
     answers one — only a builtin function does (`Environment.$sub_env`,
     `$tmp_env`). The answer is a chain's first element, and `$env` on it says the
     same as the name does.
@@ -179,7 +179,7 @@ def names_the_environment(node) -> bool:
     """Whether a piece names the environment itself: `Env` or `Environment`.
 
     A tag says it too: `$env T` is the environment in the source form the
-    parameter has (viba-interpreter.md).
+    parameter has (viba/exec/viba-interpreter.md).
     """
     if isinstance(node, viba_ast.Tagged):
         if node.tag == ENVIRON_TAG:
@@ -208,7 +208,7 @@ def file_environment_result_problem(tree) -> Optional[str]:
     (`__decl__` among them) and the chains its products carry as members, however
     deep they sit. A file is no builtin library, so a file that gives a function
     answering the environment is refused where it is taken — one place for the
-    interpreter and the descriptor to ask (`viba-interpreter.md`).
+    interpreter and the descriptor to ask (`viba/exec/viba-interpreter.md`).
     """
     for stmt in getattr(tree, "body", ()):
         if not isinstance(stmt, (viba_ast.TypeDefinition, viba_ast.GenericDefinition)):
@@ -485,7 +485,7 @@ def _named_member(base, name, name_module, resolve):
     name this layer cannot take — not a string in the source, and not a name that
     stands for one — leaves the member unnamed, so the answer is `Any`: which
     member it is is known when the program runs, and no design can say it before
-    that (viba-interpreter.md).
+    that (viba/exec/viba-interpreter.md).
     """
     text = _symbol_text_of(name, name_module, resolve)
     if text is None:

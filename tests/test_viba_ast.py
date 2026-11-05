@@ -128,7 +128,7 @@ def run_module_cases():
          unparse(parse("X = A | B | C")), "X =\n  A\n  | B\n  | C")
     same("unparse of an import", unparse(parse("import a.b as c")), "import a.b as c")
 
-    # pattern: 一条语句，声明一个形参收什么（viba-pattern.md）
+    # pattern: 一条语句，声明一个形参收什么（viba/core/viba-pattern.md）
     parsed_pattern = parse("pattern bool | int\n__decl__ = true\n")
     check("a pattern statement is its own node",
           isinstance(parsed_pattern.body[0], Pattern)

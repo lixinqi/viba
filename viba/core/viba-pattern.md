@@ -31,7 +31,7 @@ demo/is_base_type/2_250.viba            同一样东西的另一种源码形式�
 `import demo.is_base_type as is_base_type` 找到的是那个**目录**：找模块的地方按顺序试
 `demo/is_base_type.viba`（文件）、`demo/is_base_type.viba.md`（目录的文档）、
 `demo/is_base_type/__generic__.viba`（目录）；文档在时就是那个目录，目录本身不再读
-（[`viba-markdown-as-directory.md`](viba-markdown-as-directory.md)，[`viba-interpreter.md`](viba-interpreter.md)
+（[`viba-markdown-as-directory.md`](../wiki/viba-markdown-as-directory.md)，[`viba-interpreter.md`](../exec/viba-interpreter.md)
 第 1 节）。目录里有标记文件，它就是一个泛型；没有，这个目录与 viba 无关。
 
 ## 1. 标记文件 `__generic__.viba`
@@ -122,17 +122,17 @@ type = A
   同一个意思也可以用 `tagged[x, F << A]`。
 
 `is_closure` 与 `unclosure` 就是两个这样的泛型
-（[`viba/builtin/is_closure/`](viba/builtin/is_closure/1_100.viba)、
-[`viba/builtin/unclosure/`](viba/builtin/unclosure/1_100.viba)）：各给 1..16 段的 16 个文件，
+（[`viba/builtin/is_closure/`](../builtin/is_closure/1_100.viba)、
+[`viba/builtin/unclosure/`](../builtin/unclosure/1_100.viba)）：各给 1..16 段的 16 个文件，
 前者给出 `value`（`true` / `false`，16 段以上落到最后那份兜底），后者给出 `f`（链头那条 api）与
 `captured`（收下的那些实参合成的一份积）。内建的 `sequential` 也是这么分的：它的
-[`sequential_step/`](viba/builtin/sequential_step/1_200.viba) 认一步那次调用（带 1..16 个 tag 实参
+[`sequential_step/`](../builtin/sequential_step/1_200.viba) 认一步那次调用（带 1..16 个 tag 实参
 各一份），
-[`tree_apply_closure_only_without_env/`](viba/builtin/tree_apply_closure_only_without_env/2_300.viba)
+[`tree_apply_closure_only_without_env/`](../builtin/tree_apply_closure_only_without_env/2_300.viba)
 认一个实参（一次变量引用一份、一次调用按实参个数各一份、别的再一份），
-[`viba/sequential_impl/`](viba/sequential_impl/2_200.viba) 按步骤数各一份（2..64；一步没有 tag 钉住
+[`viba/sequential_impl/`](../sequential_impl/2_200.viba) 按步骤数各一份（2..64；一步没有 tag 钉住
 个数，按源码里的调用实参个数各一份）
-（[`viba-interpreter.md`](viba-interpreter.md)）。这几份目录里的文件名前面都带着份数
+（[`viba-interpreter.md`](../exec/viba-interpreter.md)）。这几份目录里的文件名前面都带着份数
 （第 4 节），所以决断不必翻完整个目录。
 
 形参拿的是那一位**在源码里的整块** —— tag 也是那一块的一部分。`pattern A <- $env Env <- B <- C`
@@ -156,13 +156,13 @@ type = A
 `__decl__` 只属于"这个模块要当函数"的那种文件。
 
 `pattern A` 这种没有任何限定的形式**直接收下对象自身**：`A` 拿到的是实参在源码里的那一整份
-（`pattern A` 加 `type = A` 就是恒等；[`demo/itself/100.viba`](tests/data/pattern/demo/itself/100.viba)）。
+（`pattern A` 加 `type = A` 就是恒等；[`demo/itself/100.viba`](../../tests/data/pattern/demo/itself/100.viba)）。
 有限定的形式（`pattern bool | int`、`pattern list[A]`）才是"先看合不合，再按位置抽"。
 
 **被匹配的对象是一个模块时，取的是它的 `__decl__`**：模块当函数判出来的那条链（结果在前、参数在后）
 就是拿来按位置拆的那一份 —— `pattern A <- B` 匹配一个 `__decl__ = int <- $env Env` 的模块，
-`A` 是 `int`、`B` 是 `$env Env`（[`ret_of_a_module.viba`](tests/data/pattern/ret_of_a_module.viba)、
-[`decl_pair_of_a_module.viba`](tests/data/pattern/decl_pair_of_a_module.viba)）。模块没有 `__decl__`
+`A` 是 `int`、`B` 是 `$env Env`（[`ret_of_a_module.viba`](../../tests/data/pattern/ret_of_a_module.viba)、
+[`decl_pair_of_a_module.viba`](../../tests/data/pattern/decl_pair_of_a_module.viba)）。模块没有 `__decl__`
 就是没有函数签名，这种模式没有东西可拆。
 
 这个文件给出的是**它自己那个模块**（模块语义）：决断选中谁，调用方就在谁身上按名字取一个成员，形参名换成实参里对应的
@@ -193,8 +193,8 @@ type = (int <- $env Env <- int)   # 给出一个函数类型（带环境的那�
 
 ### 摊开实参积：`apply`
 
-"拿一个函数换一个调用"落成一份普通的模块：[`demo/wrapper.viba`](tests/data/pattern/demo/wrapper.viba)
-收下一个函数和它那一份实参积，把活交给 `apply`（[`viba/apply.viba`](viba/apply.viba)）。`apply`
+"拿一个函数换一个调用"落成一份普通的模块：[`demo/wrapper.viba`](../../tests/data/pattern/demo/wrapper.viba)
+收下一个函数和它那一份实参积，把活交给 `apply`（[`viba/apply.viba`](../apply.viba)）。`apply`
 自己也不知道实参有几个 —— 它把那份积交给泛型 `apply_impl[args.args]`，由那份决定数出来：
 
 ```viba
@@ -216,7 +216,7 @@ __impl__ =
 还是那个 tag，于是它落进函数对应的那个参数。环境那一位给的是 `nil`：这个文件不声明 `$env Env`，
 它自己没有环境可给（环境是留给它答出去的那次调用的，由调用方补，见下一节），而 `$get_attr` 只从
 自己的实参算答案，给 `nil` 跟给真环境一样。积里有几个成员就选哪一份文件，1 到 16 各一份
-（[`viba/apply_impl/`](viba/apply_impl)），所以调用方不用给实参个数。
+（[`viba/apply_impl/`](../apply_impl)），所以调用方不用给实参个数。
 
 **环境不必是一个参数**：`$env Env` 可以不带，环境由调用方单独给一个 `<<`。这时环境不进门：模块体
 取不到 `args.env`（用它就是程序错），环境只用来跑这次调用，再缀在这次调用返回的那次调用末尾。
@@ -228,7 +228,7 @@ add2 = add << $a 2
 __impl__ = wrapper << add2 << $b 1 << args.env     # 3
 ```
 
-这四步都有用例，都在 [`tests/data/apply/`](tests/data/apply)：`direct`（不套 `apply`）、
+这四步都有用例，都在 [`tests/data/apply/`](../../tests/data/apply)：`direct`（不套 `apply`）、
 `apply_once`、`apply_twice`、`apply_thrice` —— 一个函数被 `apply` 套 0 到 3 层，每套一层，环境就往后
 缀一次；外面那份积里的成员用 `$f`、`$args` 两个 tag 表示，因为决断的 `pattern tagged[...]` 是按 tag 认
 它们的。
@@ -265,7 +265,7 @@ type = Wrapped                  # 结果是 $item 实参里的元素
 一层。成员是一条函数链、又在链头时，它就是那一次调用，跑起来由宿主按**泛型自己的名字**实现。
 
 模式文件里的其它定义跟别的文件一样，是按需求值的**绑定**（binding）：被用到的时候才求值，求一次
-就把结果留下来（call-by-need 与 memoization，见 [`viba-interpreter.md`](viba-interpreter.md) 的
+就把结果留下来（call-by-need 与 memoization，见 [`viba-interpreter.md`](../exec/viba-interpreter.md) 的
 「求值策略：按需求值（call-by-need）」一节）。源码里的次序不是求值的次序，没人用到的那一份不参与求值 ——
 `tests/data/y_functions/steps/` 那批用例就靠这一点：往下调一层是一个绑定，基例那一侧不用它。
 
@@ -438,7 +438,7 @@ A | B | C` 在 `int | str` 上取两份，在 `int | str | bool` 上取三份，
   求值 —— 源码里是 `true` 就给出 `true`，源码里是 `A` 就把萃取到的那份交回去。求值按平时
   的规矩走：`int` 这个名字在值的位置上仍然不是值，`(int, str)` 是元组数据。选中的文件有
   `__impl__` 时，这一层取的就是**它那一次模块调用**（见第 2 节末）。
-- **完整性**（[`viba-is-complete.md`](viba-is-complete.md)，`viba.is_complete`）：看完整性的那一遍按同样一次决断往下走；决断失败就是
+- **完整性**（[`viba-is-complete.md`](../wiki/viba-is-complete.md)，`viba.is_complete`）：看完整性的那一遍按同样一次决断往下走；决断失败就是
   这个设计不完整。
 
 **泛型不是模块。** 它没有定义，名字单独拿出来不是一个类型（`X = g` 解不出来），它也不能当

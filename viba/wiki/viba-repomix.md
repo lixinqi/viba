@@ -34,7 +34,7 @@ VibaRepoMix =
 
 ## 4. 读回来
 
-读它的是 [`viba/markdown.py`](viba/markdown.py) 的 `files_of`：一份文档读出（名字，内容）的一串，
+读它的是 [`viba/markdown.py`](../markdown.py) 的 `files_of`：一份文档读出（名字，内容）的一串，
 章名原样当名字。
 
 - **平铺目录**（只有文件、没有子目录）：收出来的就是它的 `<目录>.viba.md`——`files_of` 读回来是
@@ -91,5 +91,5 @@ Point = Object * $x int * $y int
 
 ## 6. 测试
 
-[`tests/test_repomix.py`](tests/test_repomix.py)：章名与内容、前导与尾部注释变说明、中间注释留下、
+[`tests/test_repomix.py`](../../tests/test_repomix.py)：章名与内容、前导与尾部注释变说明、中间注释留下、
 文档优先于目录、非代码不收、平铺目录读回来是同一串、不存在的路径收成空串。

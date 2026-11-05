@@ -1,6 +1,6 @@
 # Viba 定义规范
 
-[`README.md`](README.md) 是语言参考：语法、算子、例子。这一份讲**一份定义怎么才叫对、才叫清楚**——
+[`viba-reference.md`](viba-reference.md) 是语言参考：语法、算子、例子。这一份讲**一份定义怎么才叫对、才叫清楚**——
 给做出这些定义的人看。三段：先想清楚结构，再落笔，最后自检。
 
 ## 1. 结构能说的，不要留给断言
@@ -75,7 +75,7 @@ Handler = Response <- $request Request
 Request`（这个参数是什么）或 `$d int`（哪个 d？）。
 
 tag 出现在链头时，它命中的是**第一个参数的成员**：`$sub_env << args.env << "x"` 就是
-`args.env.sub_env << args.env << "x"`（见 [`viba-interpreter.md`](viba-interpreter.md)）。tag 不是值，
+`args.env.sub_env << args.env << "x"`（见 [`viba-interpreter.md`](../exec/viba-interpreter.md)）。tag 不是值，
 `method = $sub_env` 这种源码形式编不过。
 
 tag 也可以在**字符串**里：`tagged["hello"] << X` 就是 `$hello << X`，`tagged["a", T]`
@@ -137,7 +137,7 @@ Result =
 它的第一个元素就是结果，每个实参带自己的 tag。
 
 递归结构是**类型**在指自己，不是执行在绕回来：`List[T]` 那样定义没问题。执行上的递归（函数又调到
-自己）在一份文件里不出现——文件里的定义不许绕回自己，见 [`viba-interpreter.md`](viba-interpreter.md)。
+自己）在一份文件里不出现——文件里的定义不许绕回自己，见 [`viba-interpreter.md`](../exec/viba-interpreter.md)。
 
 ## 7. 一支不成和
 
@@ -173,11 +173,11 @@ Nested = $nested list[dict[str, int]]
 - **寻址用 `$get_item`**：位置给 int，键给 str，两者各对应一条地址步子
   （`$at_index int` / `$at_key str`）。`$get_item << xs << $env nil << 1` 是 `xs[1]`，
   `$get_item << table << $env nil << "k"` 是 `table["k"]`；地址还没给时它是一条闭包，给了才走这一步取它。
-  按名字取成员是另一个：`$get_attr`（见 [`viba-interpreter.md`](viba-interpreter.md)）。
+  按名字取成员是另一个：`$get_attr`（见 [`viba-interpreter.md`](../exec/viba-interpreter.md)）。
 - **环境排在第一位，而且总是要**：`$get_item`、`$in`、`$len`、`$keys`、`$get_attr` 这五个名字是解释器
   自己答的内建成员，签名跟别的调用一样以 `$env Env` 开头。没给环境时链留着不动，那是一条**闭包**——
   正因如此它们能当 `sequential` 的一步（环境由跑链的那一方给，
-  [`viba-interpreter.md`](viba-interpreter.md)）。实现里不用这份环境：答案只从成员自己的实参算出来，
+  [`viba-interpreter.md`](../exec/viba-interpreter.md)）。实现里不用这份环境：答案只从成员自己的实参算出来，
   所以解释器自己拼链时那一位给的是 `nil`（方括号简式 `xs[1]` 就是这样），给 `nil` 跟给真环境答的一样。
 - **方括号是它的简式**：`xs[1]` 就是 `$get_item << xs << $env nil << 1`，`table["k"]` 就是
   `$get_item << table << $env nil << "k"`，容器可以是一条名字路径（`box.xs[1]`）。方括号只跟在名字后面，
@@ -192,7 +192,7 @@ Nested = $nested list[dict[str, int]]
   所以能接着 `$get_item` 取、能 `$len` 数。不是 dict、或者键不是字面量，都是程序错。
 - **走一遍是自己搭的**：语言里没有循环，枚举一个序列是 `$len` 加 `$get_item`、
   取 dict 的值是 `$keys` 加 `$get_item`，配起来从头走到尾（`Y` 递归，
-  [`viba-interpreter.md`](viba-interpreter.md)）。
+  [`viba-interpreter.md`](../exec/viba-interpreter.md)）。
 - **可以任意嵌套**：`list[dict[str, int]]`、`dict[str, list[$x int]]`。
 - **这三个名字（连 `ListLiteral` / `SetLiteral` / `DictLiteral`）不能拿来定义**：定义名和泛型形参
   里出现它们，解析器当场拒。它们出现在类型表达式里是「这个容器的居民」，出现在值的位置上是那个容器。
@@ -214,10 +214,10 @@ Distance =
   应用，`(a << $name b)` 答出来的很可能是**另一个**函数，所以 `a << $name b << $name c` 里两个
   `$name` 分属两次调用是合法的 —— 别把一条 `<<` 链摊成"一个函数 + 一张实参表"来按 tag 配。
   `|`、`*`、`<-` 是同一层的连接，一次连续出现就是一条链，可以摊平；`<<` 每一次都是一个界
-  （[`viba/viba_ast/chain.py`](viba/viba_ast/chain.py)、[`viba/viba_ast/unparse.py`](viba/viba_ast/unparse.py)）。
+  （[`viba/viba_ast/chain.py`](../viba_ast/chain.py)、[`viba/viba_ast/unparse.py`](../viba_ast/unparse.py)）。
 - **一行放不下就折行**：每个实参占一行，续行以 `<-` / `<<` 起头。可打开的例子：
-  [`tests/data/interpreter/add_demo.viba`](tests/data/interpreter/add_demo.viba)、
-  [`tests/data/closure/closure_with_module_call_argument.viba`](tests/data/closure/closure_with_module_call_argument.viba)。
+  [`tests/data/interpreter/add_demo.viba`](../../tests/data/interpreter/add_demo.viba)、
+  [`tests/data/closure/closure_with_module_call_argument.viba`](../../tests/data/closure/closure_with_module_call_argument.viba)。
 - **实参是表达式时把它括起来**：`$get_v (f << $env args.env)`，不是 `$get_v f << $env args.env`——`<<`
   比 tag 松，后者会被判成两个实参（先给 `$get_v f`，再给一个位置实参）。**函数体是一次调用时也要括**：
   `<- (f << $env args.env)`，不然那次调用会被当成又一个参数。
@@ -234,7 +234,7 @@ Distance =
   一路取出字段路径），但不要指望它是代码。
 - **可能会用不上的那个参数，用函数类型 `(T <- $env Environment)`。** 给的是**那个参数的类型**，
   不是函数：那个参数是惰性的（lazy，non-strict），实参不在这里求值，宿主拿到的是源码里的那次调用，
-  叫了才求——if/else 真正只走一支靠的就是它（见 [`viba-interpreter.md`](viba-interpreter.md) 的
+  叫了才求——if/else 真正只走一支靠的就是它（见 [`viba-interpreter.md`](../exec/viba-interpreter.md) 的
   「求值策略：按需求值（call-by-need）」一节）。宿主叫它时可以带上自己的实参
   （`f(env, 1, 2)`），源码里的那次调用按这些实参走完。只在"确实有分支语义、且实参
   求值有代价或副作用"时这样用；别的参数按值求值（call-by-value），给它们用函数类型就等于把
@@ -250,7 +250,7 @@ Distance =
 
 ## 11. 其它
 
-- **内建名字不用 import。** [`viba/builtin.viba`](viba/builtin.viba) 对每个模块可见（最低优先级，自己
+- **内建名字不用 import。** [`viba/builtin.viba`](../builtin.viba) 对每个模块可见（最低优先级，自己
   模块的同名定义优先）：`Environment` / `Env`、`Object` / `Oneof` / `nil` / `never` / `Any`、
   标量 `bool` / `int` / `float` / `str`、容器名 `list` / `set` / `dict`，以及 `builtin` 的成员。
   所以 `Environment` / `Env` 和 `builtin.echo` 都不需要任何 import。
@@ -265,7 +265,7 @@ Distance =
   带前缀的 `builtin.sub_env_run` 与 `builtin.is_closure` 叫的是同一个。用 `import` 也照旧。
 - **分支用 `if`。** 条件挑哪一支是运行时的事，所以分支是运行时的一个和，不是提示：`if` 收一个
   条件与两支（两支都是函数类型的参数），只有条件挑中的那一支被跑过（见
-  [`viba-interpreter.md`](viba-interpreter.md) 的「分支：用积选择，用和汇合」）。一支是别的文件里
+  [`viba-interpreter.md`](../exec/viba-interpreter.md) 的「分支：用积选择，用和汇合」）。一支是别的文件里
   的一个步骤、一次还没给环境的调用、或者用 `builtin.echo` 包好的值；一支要好几步，就把它包成一条
   `sequential` 链 —— viba 没有 `block`，也没有 `lambda: value`，`sequential` 起的就是这两件事的
   作用，链上那几步在开关给它环境的时候才跑。自己拼两个开关的和只在
@@ -280,7 +280,7 @@ Distance =
 - **一份定义一个表达式**，各自一行：没有逗号，也没有语句分隔符。
 - **定义是绑定，不是语句**：viba 是声明式的，求值按需求值（call-by-need）——一个绑定被用到的时候
   才求值，而且只求值一次，所以源码里的次序不是求值的次序，出现在用之后的定义照样算（见
-  [`viba-interpreter.md`](viba-interpreter.md) 的「求值策略：按需求值（call-by-need）」一节）。
+  [`viba-interpreter.md`](../exec/viba-interpreter.md) 的「求值策略：按需求值（call-by-need）」一节）。
 - **有 `__impl__` 才是程序**：没有它的文件是类型，不是程序，跑它是错。
 - **模块要收参数就用 `__decl__`**：它是模块当函数判时的整条链，结果在前，参数在后；`$env Env` 至多
   一个。用不用它，调用时给环境的方式一样：一个 `<<` 给一个环境值；用了，环境就给这个参数，模块体用

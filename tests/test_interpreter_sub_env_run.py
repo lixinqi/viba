@@ -51,7 +51,7 @@ def host_for(calls, ran_at):
     """宿主：`builtin.add`、用例自己给出的 `here`、以及那个遮蔽用例的 `sub_env_run`。
 
     `calls` 记 `get_func` 收到的（模块路径，名字）；`ran_at` 记每一步实际跑在哪个环境里 ——
-    那是环境带的数据路径，`get_func` 不再收到它（`viba-interpreter.md`）。
+    那是环境带的数据路径，`get_func` 不再收到它（`viba/exec/viba-interpreter.md`）。
     """
     def get_func(module_path, func_name):
         calls.append((module_path, func_name))
