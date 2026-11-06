@@ -98,7 +98,7 @@ VibaPath = list[VibaStep]
   类型里有 `<<`（部分计算）的，先给掉再展开：取到的数据路径是给完之后的。指数的 `$elements[0]` 是结果，其余是参数，例如：`never <- $not_operand A` 的成员就是被禁止的那个操作数，`by_tag not_operand` / `get_not_operand()` 取到的就是它。
 - **积的无标签成员是内联位**：一个不带标签的成员展开后是积（或一整条带标签的链）时，它的成员就摊在这里，摊进来的 tag 直接当这一层的成员——`A = $x int * $y int` 时，`B = A * $z int` 的成员就是 `$x` / `$y` / `$z`，没有多出来的一跳；摊完还是一样的规矩，可以一直摊下去。展开后是单位元（`Object` / `nil`，或落在它们上的名字）时它根本不是成员；其它不带标签的成员照旧按位置对位。同一个积里同一个 tag 出现两次是错的，判定与 `serialize` 都给 `Err`。
 - **内联要摊到底**：链绕回一个正在摊的定义时展不下去——`A = A * $x int` 是把 A 说成它自己，绕别名（`B = A`）或两个定义互指都算。这种类型是错的，判定与 `serialize` 都给 `Err`；数据路径层自己不抛（第 5.1 节那些访问函数不能抛），照原样把那一个成员交出来，要不要拒绝由查的人问 `VibaAccess.inline_cycle`（返回绕回的那个定义名，摊得开则返回 `nil`）。
-- **在这之前先查一遍**：上面两条（重标签、内联成环）是类型自己的事，跟实例无关，所以有一份一元检查（[`viba/check_tag_and_inline.md`](../wiki/viba-check-tag-and-inline.md)，`viba/check_tag_and_inline.py`）：它从每个定义出发走一遍，碰到的每个积都查，不受“这次拿它跟谁比”影响。判定与 [`serialize`](viba-serialize.md) 里那两条 `Err` 是兜底，不是发现它的地方。
+- **在这之前先查一遍**：上面两条（重标签、内联成环）是类型自己的事，跟实例无关，所以有一份只看类型自己的检查（[`viba/check_tag_and_inline.md`](../wiki/viba-check-tag-and-inline.md)，`viba/check_tag_and_inline.py`）：它从每个定义出发走一遍，碰到的每个积都查，不受“这次拿它跟谁比”影响。判定与 [`serialize`](viba-serialize.md) 里那两条 `Err` 是兜底，不是发现它的地方。
 
   ```viba
   CheckTagAndInline =
@@ -106,7 +106,7 @@ VibaPath = list[VibaStep]
     <- $design VibaPool
     <- $config VibaReflectConfig
     <- Comments[{
-        类型自己的一元检查：每个定义走过的每个积，摊开以后 tag 不得重复，内联链要摊到底。
+        类型自己的检查：每个定义走过的每个积，摊开以后同一个 tag 不得出现两次，内联链不得绕回来。
         Ok(nil) 是没问题；$viba_program_err 说的是第一条错。
         $config 说源码里哪些名字算单位元；accessor 在检查内部按它建，调用方不持有。
         它只看描述符，不碰实例，所以没有 [Data]。

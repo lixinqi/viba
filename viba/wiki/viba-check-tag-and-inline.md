@@ -1,4 +1,4 @@
-# check_tag_and_inline：一个积一个 tag，内联链要摊到底
+# check_tag_and_inline：摊开之后一个积里没有重复的 tag，内联链不会绕回来
 
 积里不带 tag 的成员是内联位：它展开后是积（或一整条带 tag 的链）时，那些成员摊进这个积里
 （[`viba-reflect.md`](../core/viba-reflect.md) 第 4 节）。摊开之后有两处错只有摊开才看得见：同一个积里
@@ -57,7 +57,7 @@ check_tag_and_inline(pool)          # Ok(None)，或者第一处错
 
 ## 5. 例子
 
-一个积一个 tag，这不成问题：
+一个积里每个 tag 只出现一次，这不成问题：
 
 ```viba
 A =

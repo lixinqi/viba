@@ -314,7 +314,7 @@ viba_ast.parse(Path("store.viba").read_text())   # SyntaxError: what is wrong, a
 ```
 
 语法不认识的字符、没闭合的代码块、拿内建容器当定义名，都会报，而且一定给出行号。类型本身另有一份
-检查（一个积里 tag 不重复、内联链要摊到底）：
+检查（一个积里同一个 tag 不重复、内联链不绕回来）：
 
 ```python
 from viba.check_tag_and_inline import check_tag_and_inline
