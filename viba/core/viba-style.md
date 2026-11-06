@@ -60,6 +60,10 @@ List[T] =
   选择**，不要落成领域事实。分清"领域共识"和"我的推断"。
 - **别名要诚实。** `UserId = int`、`StateName = str` 能让字段自解释、将来能收紧成枚举；但它在类型
   系统里与裸 `int` / `str` **等价**，并不阻止错填。别为了对称硬造一对没有区分度的别名。
+- **给单位元起的名字不是新类型。** `Red = Object`、`Blue = Object`、`Green = Object` 是三个名字指的
+  同一个类型（单位元，和 `nil` 等价），`Color = Red | Blue | Green` 因此也是单位元，不是三个选项。
+  要三个颜色，让每个名字承载不同的结构：带 tag（`$red Object`）、用字面量（`"red"`），或者装不同的
+  成员。判定按结构（[`viba-is-sub-type.md`](viba-is-sub-type.md) 第 2 节），名字不参与。
 
 ## 5. 标签就是语义
 
