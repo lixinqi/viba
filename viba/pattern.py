@@ -870,11 +870,20 @@ def _match(pattern, pattern_module: ModuleType, argument,
                                   AstNodeType(pattern, pattern_module)) else None
 
     node, module = _argument_as_type(argument, argument_module)
+    unit_parts = _product_parts(node, module)
+    if unit_parts is not None:
+        # A product's units carry no member: `$A int * {说明}` is `$A int`, and
+        # a product of units alone is the unit itself. What is left is what the
+        # pattern sees, and what a parameter takes.
+        if not unit_parts:
+            node = viba_ast.Nil()
+        elif len(unit_parts) == 1:
+            node = unit_parts[0]
     if isinstance(pattern, _SUM_NODES):
         return _match_sum(pattern, pattern_module, node, module, bindings)
     if isinstance(pattern, _PROD_NODES):
         return _match_parts(product_elements(pattern), pattern_module,
-                            product_elements(node) if isinstance(node, _PROD_NODES) else [node],
+                            unit_parts if unit_parts is not None else [node],
                             module, bindings, parts)
     if isinstance(pattern, _EXP_NODES):
         return _match_parts(exponent_elements(pattern), pattern_module,
@@ -984,6 +993,20 @@ def _match_tagged(pattern, pattern_module: ModuleType, argument, argument_module
     if parts and len(parts) == 1 and parts[0]:
         module = parts[0]
     return _match(pattern.args[1], pattern_module, node.type, module, bindings)
+
+
+def _product_parts(node, module: ModuleType):
+    """A product's members with its units gone; None when it is no product.
+
+    A unit is no member of a product (a hint block among them,
+    `viba/core/viba-is-sub-type.md` 第 4 节), so a product's members are what
+    the pattern matcher counts, and a product of units alone is the unit.
+    """
+    if not isinstance(node, _PROD_NODES):
+        return None
+    unit = AstNodeType(viba_ast.Nil(), module)
+    return [part for part in product_elements(node)
+            if not _judge(AstNodeType(part, module), unit)]
 
 
 def _match_parts(patterns, pattern_module: ModuleType, arguments, argument_module,
@@ -1224,8 +1247,9 @@ def _judge(sub: AstNodeType, sup: AstNodeType) -> bool:
     is still worth trying, and a design that fits none of them is reported as
     the decision that failed.
     """
+    from viba.reflect import language_config
     from viba.is_sub_type import is_sub_type
-    judged = is_sub_type(sub, sup)
+    judged = is_sub_type(sub, sup, config=language_config)
     if isinstance(judged, Err):
         return False
     return judged.ok_value is True

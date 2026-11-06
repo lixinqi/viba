@@ -466,6 +466,28 @@ class _Checker:
         return node, module
 
     def _walk_inner(self, sn, s_mod: ModuleType, sp, p_mod: ModuleType) -> bool:
+        # A product nothing but one member is left of (its unit members are no
+        # members) is that member; one with no member left is the unit itself.
+        member = self._reduce_product(sn, s_mod, "sub")
+        if member is not None:
+            pushed = member[2] is not None
+            if pushed:
+                self._env_stacks["sub"].append(member[2])
+            try:
+                return self._walk(member[0], member[1], sp, p_mod)
+            finally:
+                if pushed:
+                    self._env_stacks["sub"].pop()
+        member = self._reduce_product(sp, p_mod, "sup")
+        if member is not None:
+            pushed = member[2] is not None
+            if pushed:
+                self._env_stacks["sup"].append(member[2])
+            try:
+                return self._walk(sn, s_mod, member[0], member[1])
+            finally:
+                if pushed:
+                    self._env_stacks["sup"].pop()
         # A `tagged[...]` in the source is the tag it spells, taken before
         # anything else: the symbol may be a name a decision bound
         # (viba/core/viba-pattern.md).
@@ -1069,6 +1091,26 @@ class _Checker:
             bare.extend(b)
         return tagged, bare
 
+    def _reduce_product(self, node, module, side: str):
+        """A product with one member left, as that member: (node, module, env).
+
+        A product's unit members are no members (a hint block among them), so
+        `int * {说明}` and `((int * {说明}) * {说明})` are `int`, and a product
+        of nothing but units is the unit. None when two or more members are
+        left: that is what a product is for, and the product walk takes it.
+        """
+        if not isinstance(node, _PROD_NODES):
+            return None
+        tagged, bare = self._split_product(node, module, side)
+        if not tagged and not bare:
+            return (viba_ast.Nil(), module, None)
+        if not tagged and len(bare) == 1:
+            return bare[0]
+        if not bare and len(tagged) == 1:
+            (tag, member), = tagged.items()
+            return (viba_ast.Tagged(tag, member[0]), member[1], member[2])
+        return None
+
     def _split_element(self, elem, module, side: str, seen=frozenset(), env=None):
         """One untagged member: what it contributes to ({tag: member}, [member]).
 
@@ -1325,10 +1367,11 @@ class _Checker:
         return any(_has_code_block(arg) for arg in node.args)
 
     def _is_product_unit(self, node, module, side: str) -> bool:
-        """The product's unit: nil by form, a name the config calls nil, or a
-        name (a generic parameter among them) bound to nil. never is the sum's
-        unit and counts as a member of a product."""
-        if isinstance(node, viba_ast.Nil):
+        """The product's unit: nil by form, a hint block (the block a design
+        parks documentation in — it has no members, so it is no member), a name
+        the config calls nil, or a name (a generic parameter among them) bound
+        to nil. never is the sum's unit and counts as a member of a product."""
+        if isinstance(node, (viba_ast.Nil, viba_ast.HintBlock)):
             return True
         unit = self._config_unit(node)
         if unit is not None:

@@ -80,6 +80,7 @@ from viba import markdown, serialize, viba_ast
 from viba.partial import (file_environment_result_problem, parameters_of,
                           product_elements, names_the_environment)
 from viba.reflect import (LITERAL_CTORS, VObject, VibaFunction, VibaReflectError,
+                         language_config,
                           access as reflect_access, by_tag)
 from viba.pattern import (GENERIC_FILE, GenericModuleType,
                           file_pattern_problem, load_generic,
@@ -1405,7 +1406,8 @@ def is_interpret_result(value) -> bool:
             and piece.tag in (OK_TAG, ERR_TAG)):
         return False
     from viba.is_sub_type import is_sub_type      # the judgment, as everywhere else
-    judged = is_sub_type(AstNodeType(piece, _RESULT_MODULE), _INTERPRET_RESULT)
+    judged = is_sub_type(AstNodeType(piece, _RESULT_MODULE), _INTERPRET_RESULT,
+                             config=language_config)
     return isinstance(judged, Ok) and judged.ok_value is True
 
 
@@ -3079,7 +3081,7 @@ class _Activation:
                 case_type = AstNodeType(
                     item.data,
                     func_arg_types.source_module or arguments.source_module)
-            judged = is_sub_type(args_type, case_type)
+            judged = is_sub_type(args_type, case_type, config=language_config)
             if isinstance(judged, Err):
                 return judged
             if judged.ok_value:
@@ -5425,7 +5427,7 @@ class _IsSubType:
         if sub_type is None or sup_type is None:
             return VibaProgramErr(
                 f"{IS_SUB_TYPE_VALUE_NAME} takes two types: this argument is not one")
-        judged = is_sub_type(sub_type, sup_type)
+        judged = is_sub_type(sub_type, sup_type, config=language_config)
         if isinstance(judged, Err):
             return judged
         return Ok(_VibaData(viba_data(judged.ok_value)))
