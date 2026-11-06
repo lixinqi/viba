@@ -32,7 +32,7 @@ serialize.serialize("entry", root.ok_value)
 ## 3. 顺着协议走
 
 每一格都经协议的取法问出来——和取值用的是同一套——所以它不懂设计，也不懂数据是怎么绑的。写出来的
-源码经 [`viba.builder`](../wiki/viba_builder.md) 生，和手工拼源码是同一个出口。
+源码经 [`viba.builder`](viba_builder.md) 生，和手工拼源码是同一个出口。
 
 ## 4. 出来的是什么
 

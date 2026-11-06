@@ -1,10 +1,11 @@
 # viba/core：语言、类型模型与子类型判定
 
-viba 用纯类型描述设计：一份设计是一组类型与定义，类型之间按结构比，没有名义类型。这里放三样说明：
+viba 用纯类型描述设计：一份设计是一组类型与定义，类型之间按结构比，没有名义类型。这里放这几样说明：
 
 - **语言**：语法、一个定义怎么写、泛型——[`viba-reference.md`](viba-reference.md)、[`viba-style.md`](viba-style.md)、[`viba-pattern.md`](viba-pattern.md)。
 - **类型模型**：类型怎么被寻址、描述符是什么、怎么从实例里取值、怎么把数据写回源码——[`viba-reflect.md`](viba-reflect.md)、[`viba-serialize.md`](viba-serialize.md)。
 - **判定**：两个类型怎么比——[`viba-is-sub-type.md`](viba-is-sub-type.md)。
+- **造源码**：从 Python 表达式拼出 `.viba` 源码——[`viba_builder.md`](viba_builder.md)。
 
 ## 从哪儿开始
 
@@ -20,6 +21,7 @@ viba 用纯类型描述设计：一份设计是一组类型与定义，类型之
 | [`viba-pattern.md`](viba-pattern.md) | 泛型是一个目录：`pattern`、决断顺序，以及各层怎么取它 |
 | [`viba-reflect.md`](viba-reflect.md) | 类型模型：描述符、给类型寻址、从实例里取值 |
 | [`viba-serialize.md`](viba-serialize.md) | `serialize`：把数据写回源码，反射的逆 |
+| [`viba_builder.md`](viba_builder.md) | 从 Python 表达式造 `.viba` 源码 |
 | [`viba-is-sub-type.md`](viba-is-sub-type.md) | 子类型判定：按结构、共归纳、没有名义类型 |
 
 ## 例：取一个类型的语法树
@@ -42,5 +44,7 @@ print(viba_ast.unparse(tree))   # canonical chain-style source
 | `pattern.py` | 泛型与它的模式目录：模式匹配、决断——见 `viba-pattern.md` |
 | `viba_type_descriptor.py`、`viba_type_descriptor.viba` | 描述符层：文件、定义、成员、类型表达式 |
 | `reflect.py` | 反射协议：给类型寻址、从实例里取值——见 `viba-reflect.md` |
+| `serialize.py` | 把实例序列化成源码——见 `viba-serialize.md` |
+| `builder.py` | 从 Python 表达式造源码——见 `viba_builder.md` |
 | `partial.py` | `<<` 走的约简，判定用 |
 

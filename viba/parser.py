@@ -1005,6 +1005,7 @@ if __name__ == "__main__":
         for directory, name in ((core, "viba-reference.md"), (core, "viba-style.md"),
                                 (core, "viba-pattern.md"), (core, "viba-reflect.md"),
                                 (core, "viba-is-sub-type.md"), (core, "viba-serialize.md"),
+                                (core, "viba_builder.md"),
                                 (wiki, "viba-extract-sub-repo.md"),
                                 (wiki, "viba-check-convertable-to-json-schema.md"),
                                 (wiki, "viba-convert-to-json-schema.md"),

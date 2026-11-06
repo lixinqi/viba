@@ -609,7 +609,7 @@ def test_builder_container_case_002():
 
 
 # ----------------------------------------------------------------------
-# 元组 / 代码块
+# 元组 / 提示块
 # ----------------------------------------------------------------------
 
 
@@ -635,18 +635,18 @@ def test_builder_tuple_case_003():
     assert _text(vb) == "X =\n  ()" and _one(vb, "X").body.elements == []
 
 
-def test_builder_code_case_001():
-    """`code(text)` 给出 `{...}`。"""
+def test_builder_hint_case_001():
+    """`hint(text)` 给出 `{...}`。"""
     vb = builder.Builder()
-    vb.X = builder.code("return 1")
+    vb.X = builder.hint("return 1")
     assert _text(vb) == "X =\n  {return 1}"
     assert _kind(_one(vb, "X").body) == "HintBlock"
 
 
-def test_builder_code_case_002():
-    """代码块能进应用（谓词那种源码形式）。"""
+def test_builder_hint_case_002():
+    """提示块能进应用（谓词那种源码形式）。"""
     vb = builder.Builder()
-    vb.X = vb.Checked[builder.code("def check(self):\n    return 1")]
+    vb.X = vb.Checked[builder.hint("def check(self):\n    return 1")]
     assert str(vb).startswith("X =\n  Checked[{def check(self):")
 
 

@@ -89,7 +89,7 @@ language; the other — types, the judgment, the data, the documents — is the 
 ## Read or run
 
 - **The language, the type model and the judgment** — the grammar, the conventions a definition
-  follows, generics, the descriptors, serialization, and `is_sub_type`:
+  follows, generics, the descriptors, serialization, the Python builder, and `is_sub_type`:
   [`viba/core/README.md`](viba/core/README.md).
 - **Documents and JSON Schema** — a directory written as one Markdown document, `repomix`, JSON
   Schema, and the checks that keep a design well formed:

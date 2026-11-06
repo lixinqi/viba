@@ -94,7 +94,7 @@ latest_file[Ctx] =
 | `{k: v}` | `DictLiteral[(k, v)]` |
 | `(A, B)` / `(A,)` / `()` | `(A, B)` / `(A,)` / `()` |
 | `builder.literal(value)` | 把普通 Python 值当表达式的开头（见第 12 节） |
-| `builder.code(text)` | `{ text }` |
+| `builder.hint(text)` | `{ text }` |
 | `builder.comment(vb, text)` | `# text` |
 | `builder.add_import(vb, m, a)` | `import m as a` |
 | `builder.check(vb)` | 让解析器把 `str(vb)` 给出的源码解析一遍：返回解析出来的 Module，解析不过去就抛 ValueError |
@@ -109,7 +109,7 @@ vb.Map[vb.K, vb.V] = vb.V         # Map[K, V] = V
 - 定义名要是一个普通标识符：不能是关键字（`nil` / `never` / `true` / `false` / `void` / `None` / `import` / `as` / `pattern`），不能带点、不能带横杠 —— Python 的属性名里没有点，Viba 的定义左边也只有一段名字。要表达"一个概念的几个成员"，就用 `vb.a = tag.b(vb.A) * tag.c(vb.C)`，用的时候 `a.b`、`a.c` 这样取成员。
 - 同一个名字可以出现多次，顺序就是源码里的顺序（第 10 节的"既有文件里已有这个名字"是另一回事）。这个
   顺序只是源码的顺序：定义是绑定，求值按需求值，源码里的次序不是求值的次序
-  （[`viba-reference.md`](../core/viba-reference.md#求值)）。
+  （[`viba-reference.md`](viba-reference.md#求值)）。
 - 没有别的定义形式：Viba 的定义只有"带形参"和"不带形参"两种。
 
 ## 5. 和 / 积 / 指数
@@ -188,7 +188,7 @@ vb.M = int | str   # int | str（Python 的联合类型就是和）
 vb.N = int | None  # int | nil
 ```
 
-这几行示范的是**值和源码形式的对照**，不是在示范一份定义该怎么起头：真给一份定义时，链要摊成多行块，块的头就要放在第一行——和链用 `vb.Oneof`、积链用 `vb.Object`（见 [`viba-style.md`](../core/viba-style.md) 的「定义约定」一节）。
+这几行示范的是**值和源码形式的对照**，不是在示范一份定义该怎么起头：真给一份定义时，链要摊成多行块，块的头就要放在第一行——和链用 `vb.Oneof`、积链用 `vb.Object`（见 [`viba-style.md`](viba-style.md) 的「定义约定」一节）。
 
 `vb.nil` / `vb.never` 建出来的就是 `Nil` / `Never` 节点本身，不只是打印成 `nil` / `never`。`vb.true` / `vb.false` 是不行的（Python 里要用 `True` / `False`），当场抛。
 
@@ -203,7 +203,7 @@ vb.Nested = [[1], {"k": [2]}]        # 容器套容器
 vb.Pair   = (vb.A, vb.B)             # (A, B)
 vb.One    = (vb.B,)                  # (B,)
 vb.Unit   = ()                       # ()
-vb.Code   = builder.code("return 1") # {return 1}
+vb.Hint   = builder.hint("return 1") # {return 1}
 ```
 
 - `list` 顺序照给定；`dict` 顺序照给定，键值成对；**`set` 按打印出来的文本排序**——集合本身无序，这样同一个集合每次给出的源码一样。**交给 reflect 取的实例不要用集合的糖**：取的时候是按位置走的（`len` + `at_index`），排序过的顺序跟实例里的可能不同，同一个数据路径两边会取到不同的元素；这种场合用应用形式 `vb.SetLiteral[a, b, c]`，顺序照给定。

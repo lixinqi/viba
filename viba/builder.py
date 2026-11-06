@@ -53,7 +53,7 @@ The helpers stand outside the builder, so that every `vb.<name>` is a
 definition and never a method:
 
     viba.builder.literal(value)                a plain Python value, to start with
-    viba.builder.code(text)                    { text }
+    viba.builder.hint(text)                    { text }
     viba.builder.add_import(vb, module, alias) import module as alias
     viba.builder.comment(vb, text)             # text
     viba.builder.check(vb)                     parse str(vb) back; raises otherwise
@@ -90,7 +90,7 @@ from typing import List, Optional, Union
 
 from viba import viba_ast
 
-__all__ = ["Builder", "tag", "literal", "code", "add_import", "comment",
+__all__ = ["Builder", "tag", "literal", "hint", "add_import", "comment",
            "check", "name"]
 
 
@@ -297,7 +297,7 @@ class _Ellipsis(_Expr):
         return viba_ast.Ellipsis()
 
 
-class _Code(_Expr):
+class _Hint(_Expr):
     def __init__(self, text: str):
         self.text = text
 
@@ -376,9 +376,9 @@ def name(path: str) -> _Name:
     return _Name(path)
 
 
-def code(text: str) -> _Code:
+def hint(text: str) -> _Hint:
     """`{ text }` — a hint block, kept verbatim."""
-    return _Code(text)
+    return _Hint(text)
 
 
 def add_import(vb: "Builder", module: str, alias: Optional[str] = None) -> "Builder":
