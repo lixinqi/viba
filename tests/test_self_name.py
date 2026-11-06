@@ -57,6 +57,10 @@ def run() -> None:
           entry_type("$__entry__ int * $x int"),
           "the tag sits where the application was")
 
+    _both(entry_type("tagged[__type__, Object] * $statement (str * {说明}) * {证据}"),
+          entry_type("$__entry__ Object * $statement str"),
+          "one member of a product, beside the other members")
+
     print(f"self_name: {PASS} passed, {FAIL} failed")
 
 

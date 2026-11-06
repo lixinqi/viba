@@ -83,6 +83,24 @@ Request`（这个参数是什么）或 `$d int`（哪个 d？）。
 不必把名字抄一遍——`FooBar = tagged[__type__, Object]` 与 `FooBar = $FooBar Object` 是同一个类型，
 `__type__` 就是这份定义自己的名字（泛型用泛型自己的名字，不带实参）。
 
+`tagged[__type__, T]` 是**一个成员**，不是一个把整个积包进去的壳。它和别的成员一样用 `*` 连起来，
+放在积里就是积的一项：
+
+```viba
+ExternalOnlyPublic =
+     tagged[__type__, Object]
+  * $statement (str * { 外部只依赖 public，types/apis 是内部实现 })
+  * $evidence (str * { 原话：外部只能依赖 public })
+  * { 正例见 examples/ExternalOnlyPublic/positive }
+```
+
+这几项是并列的：带 tag 的那一项、两个 `str` 成员、一个提示块。**不要**把积写进 `tagged` 的第二个参数
+——`tagged[__type__, Object * $statement (...)]` 只说明"有一个成员，它的 tag 是定义名、里面装着这个
+积"，整个定义就成了一个成员，收数据的、做匹配的都和并列写法对不上。
+
+`tagged[S, T]` 总是"带 tag `S` 的那一项"：两个参数，一个符号，一个它装的东西；符号是 `__type__` 时
+那个符号就是这份定义自己的名字。
+
 tag 出现在链头时，它命中的是**第一个参数的成员**：`$sub_env << args.env << "x"` 就是
 `args.env.sub_env << args.env << "x"`（见 [`viba-interpreter.md`](../exec/viba-interpreter.md)）。tag 不是值，
 `method = $sub_env` 这种源码形式编不过。
