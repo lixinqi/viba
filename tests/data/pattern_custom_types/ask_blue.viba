@@ -1,0 +1,6 @@
+import is_red as is_red
+import types.colors as colors
+
+__decl__ = Any <- $env Env
+
+__impl__ = is_red[colors.Blue].value

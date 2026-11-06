@@ -1,0 +1,6 @@
+import is_unit_red as is_unit_red
+import types.units as units
+
+__decl__ = Any <- $env Env
+
+__impl__ = is_unit_red[units.Blue].value
