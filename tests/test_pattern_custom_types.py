@@ -40,7 +40,8 @@ def run() -> None:
             ("ask_red", True, "is_red[colors.Red]"),
             ("ask_blue", False, "is_red[colors.Blue]"),
             ("ask_green", False, "is_red[colors.Green]"),
-            ("ask_unit_blue", True, "is_unit_red[units.Blue]: one unit type, two names")):
+            ("ask_unit_blue", True, "is_unit_red[units.Blue]: one unit type, three names"),
+            ("ask_unit_green", True, "is_unit_red[units.Green]: the same one type")):
         result = _answer(name)
         check(is_ok(result) and value_of(result) is want,
               f"{label} -> {want}: {result!r}")

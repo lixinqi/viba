@@ -78,6 +78,11 @@ Handler = Response <- $request Request
 不要落成 `Point = float * float`（看的人不知道哪个是横、哪个是竖）、`Handler = Response <-
 Request`（这个参数是什么）或 `$d int`（哪个 d？）。
 
+一个类型要作为独立的值参与匹配或结构判定时，它得和别的类型结构不同（[`viba-is-sub-type.md`](viba-is-sub-type.md)
+第 2 节）：裸的 `Object` 是单位元，和别的单位元分不开。这时给它一个 tag，用 `tagged[__type__, T]` 就
+不必把名字抄一遍——`FooBar = tagged[__type__, Object]` 与 `FooBar = $FooBar Object` 是同一个类型，
+`__type__` 就是这份定义自己的名字（泛型用泛型自己的名字，不带实参）。
+
 tag 出现在链头时，它命中的是**第一个参数的成员**：`$sub_env << args.env << "x"` 就是
 `args.env.sub_env << args.env << "x"`（见 [`viba-interpreter.md`](../exec/viba-interpreter.md)）。tag 不是值，
 `method = $sub_env` 这种源码形式编不过。

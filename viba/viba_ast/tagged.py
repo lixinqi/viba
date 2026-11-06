@@ -16,9 +16,14 @@ place (`viba/pattern.py`).
 
 from typing import List, Optional
 
-from viba.viba_ast.nodes import (AST, Constant, Member, Module, Tagged, TypeApp)
+from viba.viba_ast.nodes import (AST, Constant, GenericDefinition, Member, Module,
+                                 Tagged, TypeApp, TypeDefinition, TypeRef)
 
 TAGGED_NAME = "tagged"
+
+# The name a definition uses for itself: `A = tagged[__type__, T]` is
+# `A = $A T`. Only the symbol of a `tagged` application has this meaning.
+SELF_NAME = "__type__"
 
 # The builtin member that takes a member by a name given as a value: `$get_attr`.
 GET_ATTR_TAG = "$get_attr"
@@ -164,6 +169,43 @@ def tagged_problem(arguments: List[AST]) -> Optional[str]:
         # another matter — which tag it spells is known where it is taken.
         return symbol_problem(first.value)
     return None
+
+
+def name_the_definitions(statements):
+    """Each definition's body, with `__type__` standing for the definition's name.
+
+    `A = tagged[__type__, T]` is `A = tagged["A", T]` — the tagged type `$A T` —
+    so a definition can carry a tag of its own without spelling the name twice.
+    A generic uses the generic's own name (`X[T] = tagged[__type__, T]` is
+    `$X T`). Only the symbol of a `tagged` application means this; anywhere else
+    `__type__` is a name like any other, and no definition answers to it.
+    """
+    if isinstance(statements, list):
+        for statement in statements:
+            name_the_definitions(statement)
+        return statements
+    if isinstance(statements, (TypeDefinition, GenericDefinition)):
+        statements.body = _self_named(statements.body, statements.name)
+    return statements
+
+
+def _self_named(tree, name):
+    """The tree with `__type__` in a `tagged` application's symbol slot replaced."""
+    if not isinstance(tree, AST):
+        return tree
+    if isinstance(tree, TypeApp) and tree.constructor == TAGGED_NAME:
+        tree.args = [_self_named(argument, name) for argument in tree.args]
+        first = tree.args[0] if tree.args else None
+        if isinstance(first, TypeRef) and first.name == SELF_NAME:
+            tree.args[0] = Constant(name)
+        return tree
+    for field in tree._fields:
+        value = getattr(tree, field, None)
+        if isinstance(value, list):
+            setattr(tree, field, [_self_named(part, name) for part in value])
+        elif isinstance(value, AST):
+            setattr(tree, field, _self_named(value, name))
+    return tree
 
 
 def fold_tagged_symbols(tree):

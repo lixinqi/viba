@@ -40,7 +40,7 @@ from viba.viba_ast.nodes import (
     HintBlock,
     AST,
 )
-from viba.viba_ast.tagged import TAGGED_NAME, fold_tagged_symbols
+from viba.viba_ast.tagged import TAGGED_NAME, fold_tagged_symbols, name_the_definitions
 
 # ================================================================= #
 # 1. LEXER DEFINITIONS
@@ -682,6 +682,7 @@ def parse_source(source: str):
         return statements
     _refuse_repeated_names([n for n in statements
                             if isinstance(n, (TypeDefinition, GenericDefinition))])
+    name_the_definitions(statements)
     return fold_tagged_symbols(statements)
 
 
