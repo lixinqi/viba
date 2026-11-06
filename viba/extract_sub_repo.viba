@@ -15,7 +15,7 @@
 #
 # The units are `never_eqv` / `nil_eqv`: the names that stand for `never` (the
 # sum's unit) and `nil` (the product's unit) while the source is read — the two
-# lists are `VibaReflectConfig`'s parameters (`viba/core/viba-reflect.md`). Nil means the
+# lists are `VibaReflectConfig`'s parameters (`viba/core/data/viba-reflect.md`). Nil means the
 # language's own set (`reflect.language_config`), which is the one a design
 # written in this repo needs.
 

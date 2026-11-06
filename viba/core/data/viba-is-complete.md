@@ -1,6 +1,6 @@
 # is_complete：这份设计能反射到底吗
 
-反射要求类型里列得出的每一条数据路径都落得到叶子（[`viba-reflect.md`](../core/viba-reflect.md) 第 9 节）。
+反射要求类型里列得出的每一条数据路径都落得到叶子（[`viba-reflect.md`](viba-reflect.md) 第 9 节）。
 `is_complete` 在还没有任何数据的时候先问一遍：把这份设计（`.viba` 源码）反射到底，走得通吗？
 它答 `true` 或 `false`，不跑任何程序。
 
@@ -40,7 +40,7 @@ IsComplete =
   就是 `false`。泛型形参按应用绑上的实参走；没绑上时它是占位符，不影响答案。`tagged[...]` 的符号
   是这种占位符时同理：只走它标的东西。
 - **泛型应用**：按源码里给的实参当场决断，选中的那个文件走一遍（它的形参名换成实参里对应的部分，
-  [`viba-pattern.md`](../core/viba-pattern.md)）。决断失败就是 `false`。
+  [`viba-pattern.md`](../viba-pattern.md)）。决断失败就是 `false`。
 - **提示块**：`Hint[...]` 这类应用、裸的 `{...}`、`...`，还有别的没有成员又不在 `terminators` 里的
   东西，都算走不通。想在某处停下，把包着它的名字放进 `terminators`（第 4 节）。
 - **递归是共归纳的**：同一个（模块、定义、实参）在走的过程中再遇到，算走通。
@@ -95,7 +95,7 @@ B = Any
 ## 6. 这一版不做的
 
 - **不说错在哪**：答案只有一个 `bool`。要指出第一处错，用
-  [`check_tag_and_inline`](viba-check-tag-and-inline.md)，或者拿这份设计去跑别的检查。
+  [`check_tag_and_inline`](../../wiki/viba-check-tag-and-inline.md)，或者拿这份设计去跑别的检查。
 - **不看数据**：只走设计，没有实例、没有 viba data。
 - **不扫内置目录**：`viba/` 下那些定义（标量、容器、算子）由内置词表回答，目录里的文件不读；
   要用内置目录里的模块，得自己在 `library` 或 `viba_paths` 里交出来。
@@ -103,5 +103,5 @@ B = Any
 
 ## 7. 测试
 
-[`tests/test_is_complete.py`](../../tests/test_is_complete.py)：叶子与单位元、和与积、泛型决断、命名、
+[`tests/test_is_complete.py`](../../../tests/test_is_complete.py)：叶子与单位元、和与积、泛型决断、命名、
 `terminators`、递归，以及 `.viba` 用例文件。

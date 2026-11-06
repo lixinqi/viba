@@ -25,7 +25,7 @@ Config = $host str * $port int * $debug bool
 的种类分开的叶子。
 
 定义只依赖源码，不依赖谁来实现它。所以一份文件可以先当类型看：看它有哪些成员、每个成员是什么类型、
-一个名字从哪来（[`viba/core/viba-reflect.md`](../core/viba-reflect.md)）。
+一个名字从哪来（[`viba/core/data/viba-reflect.md`](../core/data/viba-reflect.md)）。
 
 ```python
 from viba import viba_ast
@@ -153,7 +153,7 @@ print(answer.by_tag("$ok").value)   # 1000000
 `interpret` 与 `exec` 回答的都是一份 viba 数据（第 9 节）。
 
 宿主收到的东西分两种：**可序列化数据**到手上是实例（`a` 是节点，`a.value` 是那个数），**环境**到手就是
-环境自己。源码里的名字、字面量、调用，宿主看到的都是实例，按 [`viba/core/viba-reflect.md`](../core/viba-reflect.md) 一步步取。
+环境自己。源码里的名字、字面量、调用，宿主看到的都是实例，按 [`viba/core/data/viba-reflect.md`](../core/data/viba-reflect.md) 一步步取。
 
 `interpret` 自己不带任何实现：一次运行能碰到的实现，全部来自 `get_func` 交出来的那一个。
 
@@ -435,7 +435,7 @@ __impl__ = $flag is_base_type[bool] * $n 1
 - [`viba-interpreter.md`](viba-interpreter.md)：执行这一层——环境、模块、闭包、函数类型的那个实参、一次执行会得到
   什么、幂等与快照。
 - [`viba/core/viba-pattern.md`](../core/viba-pattern.md)：模式——泛型的目录、`pattern` 的形式、决断顺序。
-- [`viba/core/viba-reflect.md`](../core/viba-reflect.md)：按类型取实例（数据路径、步子、访问函数）。
+- [`viba/core/data/viba-reflect.md`](../core/data/viba-reflect.md)：按类型取实例（数据路径、步子、访问函数）。
 - [`../core/viba-reference.md`](../core/viba-reference.md)：文法与运算符；[`../../README.md`](README.md)：怎么装、怎么跑。
 
 检查自己改的东西：

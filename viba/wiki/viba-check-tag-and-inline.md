@@ -1,7 +1,7 @@
 # check_tag_and_inline：摊开之后一个积里没有重复的 tag，内联链不会绕回来
 
 积里不带 tag 的成员是内联位：它展开后是积（或一整条带 tag 的链）时，那些成员摊进这个积里
-（[`viba-reflect.md`](../core/viba-reflect.md) 第 4 节）。摊开之后有两处错只有摊开才看得见：同一个积里
+（[`viba-reflect.md`](../core/data/viba-reflect.md) 第 4 节）。摊开之后有两处错只有摊开才看得见：同一个积里
 同一个 tag 出现两次；内联链绕回正在摊的定义。这份检查从每个定义出发走一遍，把走得到的每个积都
 摊开查一遍，跟“这次拿它跟谁比”没有关系。
 
@@ -35,7 +35,7 @@ check_tag_and_inline(pool)          # Ok(None)，或者第一处错
 ```
 
 一份设计有几个文件就 `parse_viba_file` 几次，每次用它的模块名；池子按模块名和全名索引
-（[`viba-reflect.md`](../core/viba-reflect.md) 第 3 节）。
+（[`viba-reflect.md`](../core/data/viba-reflect.md) 第 3 节）。
 
 ## 3. 查什么
 
@@ -51,7 +51,7 @@ check_tag_and_inline(pool)          # Ok(None)，或者第一处错
 
 `is_sub_type` 与 `serialize` 也拒这两种，但只在它们自己的走法碰到的时候——嵌在带 tag 的成员里、
 或容器元素里的积，只有比较真正走下去才会被取到。这一遍不看比较：每个定义出发，走得通的每个积都查。
-所以它是“发现”的地方，那两处是兜底（[`viba-reflect.md`](../core/viba-reflect.md) 第 4 节）。
+所以它是“发现”的地方，那两处是兜底（[`viba-reflect.md`](../core/data/viba-reflect.md) 第 4 节）。
 
 判定与转换两个 JSON 工具先跑这一遍（[`viba-check-convertable-to-json-schema.md`](viba-check-convertable-to-json-schema.md) 第 3 节）。
 
@@ -103,7 +103,7 @@ B = Object * $b A
 - **和里的重复 tag**：这一遍只查积。和的两个选项带同一个 tag 是判定的事，写在一层里时编译就拒了
   （`duplicate member`）。
 - **按位置对位的积成员**：内联位之外不带 tag 的成员不带 tag 也能出现，这一遍不管它们对不对位；
-  那是反射协议的事（[`viba-reflect.md`](../core/viba-reflect.md) 第 4 节）。
+  那是反射协议的事（[`viba-reflect.md`](../core/data/viba-reflect.md) 第 4 节）。
 - **数据**：只看设计，不看实例。
 
 ## 8. 测试

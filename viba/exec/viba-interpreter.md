@@ -13,7 +13,7 @@
 里 —— 那份文件就是这个类型的定义，`interpret` 与 `exec` 的回答按它取、按它判
 （`viba/interpret.py` 的 `is_interpret_result` 用 `is_sub_type` 判它，所以"回答到底符不符合这个定义"
 本身是可查的）。它用到的名字里，`Environment` 与 `VObject` 不在定义里（前者在「宿主侧：Environment」，
-后者在 [`viba-reflect.md`](../core/viba-reflect.md)）：
+后者在 [`viba-reflect.md`](../core/data/viba-reflect.md)）：
 
 它的签名（viba 一型）：
 
@@ -291,7 +291,7 @@ __impl__ = square_sum << (args.env.tmp_env << args.env) << 3 << 4
   **数据路径**由一串步子接成（按 tag、按位置、按下标、按键），一段一段走下去就是寻址；`$a` 是它
   的一步，模块路径和 `cur_storage_path/<name>.viba` 也是数据路径。「幂等与快照」里的"快照数据
   路径"、「一次执行会得到什么」里的"这次调用的数据路径"都是这个意思，步子分哪几种见
-  [`viba-reflect.md`](../core/viba-reflect.md) 第 4 节；判定层取同一个名字取到的是成员**声明的类型**
+  [`viba-reflect.md`](../core/data/viba-reflect.md) 第 4 节；判定层取同一个名字取到的是成员**声明的类型**
   （`args.a` 就是 `int`）。一个名字，两层各取各的。
 - 实参必须是可序列化数据：它是积的一部分，交出去的东西得是能序列化的值。**环境不是它的数据成员**
   ——环境是宿主的对象，`args.env` 取得到，整份积交给宿主时不在里面；要交给宿主的是一个一个成员
@@ -921,7 +921,7 @@ __impl__ = $get_attr << box << name << args.env << 1        # name 是算出来�
 ## 按地址取元素：`$get_item`
 
 容器里的元素按**地址**取，地址也是一份可以算出来的值：位置给 int、键给 str，正是访问协议里那两条
-地址步子（`$at_index int`、`$at_key str`，[`viba-reflect.md`](../core/viba-reflect.md)）。
+地址步子（`$at_index int`、`$at_key str`，[`viba-reflect.md`](../core/data/viba-reflect.md)）。
 
 ```viba
 __impl__ = $get_item << xs << $env nil << 1                       # xs[1]，xs 是 list
@@ -990,7 +990,7 @@ __impl__ = $get_item << ($keys << table << $env nil) << $env nil << 0   # 第一
 一个算出来的键没有名字可交出去。
 
 枚举一个序列是 `$len` 加 `$get_item` 走一遍；取 dict 的值是 `$keys` 加 `$get_item`
-走一遍（[`viba-reflect.md`](../core/viba-reflect.md) 第 5.4 节）。
+走一遍（[`viba-reflect.md`](../core/data/viba-reflect.md) 第 5.4 节）。
 
 ## 容器字面量
 

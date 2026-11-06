@@ -996,6 +996,7 @@ if __name__ == "__main__":
     try:
         blocks = 0
         core = os.path.join(root, "viba", "core")
+        data = os.path.join(root, "viba", "core", "data")
         wiki = os.path.join(root, "viba", "wiki")
         run = os.path.join(root, "viba", "exec")
         chapters = [(readme, "README.md"),
@@ -1003,14 +1004,15 @@ if __name__ == "__main__":
                     (os.path.join(wiki, "README.md"), "viba/wiki/README.md"),
                     (os.path.join(run, "README.md"), "viba/exec/README.md")]
         for directory, name in ((core, "viba-reference.md"), (core, "viba-style.md"),
-                                (core, "viba-pattern.md"), (core, "viba-reflect.md"),
-                                (core, "viba-is-sub-type.md"), (core, "viba-serialize.md"),
+                                (core, "viba-pattern.md"),
+                                (core, "viba-is-sub-type.md"),
                                 (core, "viba_builder.md"),
+                                (data, "viba-data.md"), (data, "viba-reflect.md"),
+                                (data, "viba-serialize.md"), (data, "viba-is-complete.md"),
                                 (wiki, "viba-extract-sub-repo.md"),
                                 (wiki, "viba-check-convertable-to-json-schema.md"),
                                 (wiki, "viba-convert-to-json-schema.md"),
                                 (wiki, "viba-check-tag-and-inline.md"),
-                                (wiki, "viba-is-complete.md"),
                                 (wiki, "viba-repomix.md"),
                                 (wiki, "viba-markdown-as-directory.md"),
                                 (run, "viba_tutorial.md"), (run, "viba-interpreter-design.md")):

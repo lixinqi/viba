@@ -2,7 +2,7 @@
 
 Treat `entry_file_content` as a design (a `.viba` source): is it complete —
 does every address the design can list walk down to a leaf? That is the same
-question as "can this design be reflected through" (see viba/core/viba-reflect.md).
+question as "can this design be reflected through" (see viba/core/data/viba-reflect.md).
 
 Walking:
 

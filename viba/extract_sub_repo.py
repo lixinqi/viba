@@ -42,7 +42,7 @@ hint block are part of a definition and do go with it).
 
 The units: `never_eqv` and `nil_eqv` are the names that stand for `never` and
 `nil` while the source is read (VibaReflectConfig's parameters,
-viba/core/viba-reflect.md). None means the language's own set, reflect.language_config;
+viba/core/data/viba-reflect.md). None means the language's own set, reflect.language_config;
 a list given is that list, and an empty one adds no name.
 
 This layer says what to copy; it does not judge the design. A decision that

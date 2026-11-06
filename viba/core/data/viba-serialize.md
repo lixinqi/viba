@@ -32,13 +32,13 @@ serialize.serialize("entry", root.ok_value)
 ## 3. 顺着协议走
 
 每一格都经协议的取法问出来——和取值用的是同一套——所以它不懂设计，也不懂数据是怎么绑的。写出来的
-源码经 [`viba.builder`](viba_builder.md) 生，和手工拼源码是同一个出口。
+源码经 [`viba.builder`](../viba_builder.md) 生，和手工拼源码是同一个出口。
 
 ## 4. 出来的是什么
 
 - **积以 `Object` 开头**，不管源码里的积头是不是单位元：多行块的第一行就说清这是哪一层
-  （[`viba-style.md`](viba-style.md) 第 6 节）。
-- **和只给值所在的那一支**：值不带着别的分支，一支也不成和（[`viba-style.md`](viba-style.md) 第 7 节）。
+  （[`viba-style.md`](../viba-style.md) 第 6 节）。
+- **和只给值所在的那一支**：值不带着别的分支，一支也不成和（[`viba-style.md`](../viba-style.md) 第 7 节）。
 - **类型什么都没说的一格**（`Any`，顶类型）按它自己的源码形式写：类型没有成员可走，能说它是什么的
   只有那一格自己。槽位里带着 `Any` 的声明（`InterpretResult` 的 `$ok Any`）这样也能转回来。
 
@@ -60,5 +60,5 @@ serialize.serialize("entry", root.ok_value)
 
 ## 7. 测试
 
-[`tests/test_serialize.py`](../../tests/test_serialize.py)：每一层的写法、`Any` 的槽位、按位置与按 tag 的
+[`tests/test_serialize.py`](../../../tests/test_serialize.py)：每一层的写法、`Any` 的槽位、按位置与按 tag 的
 成员、容器字面量、以及第 5 节那些 `$err`。

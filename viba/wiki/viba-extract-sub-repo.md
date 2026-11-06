@@ -153,7 +153,7 @@ extracted.ok_value.viba_path   ["kb-sub", "base"]
 **`$nil_eqv`**：`(list[str] | nil)`。算作 `nil`（积的单位元）的名字；给 `nil` 就用语言默认那份
 （`Object`、`Assert`、`Appendix`、`Hint`）。
 
-这两份和 [`viba-reflect.md`](../core/viba-reflect.md) 里 `VibaReflectConfig` 的同名参数是同一份：读源码时，
+这两份和 [`viba-reflect.md`](../core/data/viba-reflect.md) 里 `VibaReflectConfig` 的同名参数是同一份：读源码时，
 这些名字不是定义，不抽，也不算“解析不到”的错。给了清单就用清单里的那些，不往上加语言默认。
 
 ## 4. 依赖怎么算

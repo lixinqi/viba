@@ -438,7 +438,7 @@ A | B | C` 在 `int | str` 上取两份，在 `int | str | bool` 上取三份，
   求值 —— 源码里是 `true` 就给出 `true`，源码里是 `A` 就把萃取到的那份交回去。求值按平时
   的规矩走：`int` 这个名字在值的位置上仍然不是值，`(int, str)` 是元组数据。选中的文件有
   `__impl__` 时，这一层取的就是**它那一次模块调用**（见第 2 节末）。
-- **完整性**（[`viba-is-complete.md`](../wiki/viba-is-complete.md)，`viba.is_complete`）：看完整性的那一遍按同样一次决断往下走；决断失败就是
+- **完整性**（[`viba-is-complete.md`](data/viba-is-complete.md)，`viba.is_complete`）：看完整性的那一遍按同样一次决断往下走；决断失败就是
   这个设计不完整。
 
 **泛型不是模块。** 它没有定义，名字单独拿出来不是一个类型（`X = g` 解不出来），它也不能当

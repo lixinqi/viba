@@ -1,6 +1,6 @@
 """viba.reflect — treat a design as a map and take a viba data through it.
 
-This is the access side of ``viba/core/viba-reflect.md``: the map (the descriptors) comes
+This is the access side of ``viba/core/data/viba-reflect.md``: the map (the descriptors) comes
 from the descriptor side walking the design, the data (Data) is one viba data's
 type expression, and access walks the map's addresses one step at a time. Names
 follow the rule ``viba_type_descriptor.py`` keeps for
@@ -8,7 +8,7 @@ follow the rule ``viba_type_descriptor.py`` keeps for
 functions land as methods in snake_case, this layer's own helpers take an
 underscore.
 
-    protocol (viba/core/viba-reflect.md)         Python
+    protocol (viba/core/data/viba-reflect.md)         Python
     ------------------------------    ------------------------------------
     VibaStep                          VibaStep
     the four VibaStep branches         by_tag / by_field_index / at_index / at_key
@@ -1398,7 +1398,7 @@ def _scalar_name(value) -> Optional[str]:
     return None
 
 
-# The protocol names (viba/core/viba-reflect.md sections 4 and 5), and only these.
+# The protocol names (viba/core/data/viba-reflect.md sections 4 and 5), and only these.
 __all__ = [
     "access", "Config", "language_config",
     "VibaAccess", "VObject", "VibaStep", "VibaPath",

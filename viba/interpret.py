@@ -3089,7 +3089,7 @@ class _Activation:
 
     def _container_len(self, container):
         """How many pieces `$len` counts: elements for a list, a set or a
-        tuple, keys for a dict (`viba/core/viba-reflect.md`, `VibaLength`).
+        tuple, keys for a dict (`viba/core/data/viba-reflect.md`, `VibaLength`).
 
         What is counted is the container itself, and a piece that holds none — a
         leaf, a product, a sum — is a program error. A `dict` is counted by its
@@ -3114,7 +3114,7 @@ class _Activation:
 
     def _container_keys(self, container):
         """The keys `$keys` gives, as a list of strings: the dict's own keys,
-        in the order the implementation keeps them (`viba/core/viba-reflect.md`, `VibaKeys`).
+        in the order the implementation keeps them (`viba/core/data/viba-reflect.md`, `VibaKeys`).
 
         A piece that is no dict is a program error, and so is a dict whose keys
         are not literals: this walks the source form, and a key that is not one
@@ -3141,7 +3141,7 @@ class _Activation:
         is the value that says which element — an int for the pieces taken by
         position (a list, a set, a tuple), a str for a dict, which is what the
         protocol's own addressing takes (`$at_index int`, `$at_key str`,
-        viba/core/viba-reflect.md). Anything else is a program error: the piece that was
+        viba/core/data/viba-reflect.md). Anything else is a program error: the piece that was
         named is not a container, or the address is of the other kind.
         """
         if not isinstance(container, _VibaData):
@@ -5837,7 +5837,7 @@ def _address_of(value):
     """(kind, address) for a value `$get_item` is given, or (None, None).
 
     The address travels as a value: an int is a position, a str is a key, and
-    anything else addresses nothing (`viba/core/viba-reflect.md`, the two address steps).
+    anything else addresses nothing (`viba/core/data/viba-reflect.md`, the two address steps).
     `True` is no int here — it is the bool literal it is spelled as.
     """
     if not isinstance(value, _VibaData):

@@ -88,11 +88,11 @@ language; the other — types, the judgment, the data, the documents — is the 
 
 ## Read or run
 
-- **The language, the type model and the judgment** — the grammar, the conventions a definition
-  follows, generics, the descriptors, serialization, the Python builder, and `is_sub_type`:
-  [`viba/core/README.md`](viba/core/README.md).
-- **Documents and JSON Schema** — a directory written as one Markdown document, `repomix`, JSON
-  Schema, and the checks that keep a design well formed:
+- **The language, the type model and the data** — the grammar, the conventions a definition
+  follows, generics, the descriptors, what a value is (and when a design describes data), the
+  Python builder, and `is_sub_type`: [`viba/core/README.md`](viba/core/README.md).
+- **Documents, JSON Schema and tools** — a directory written as one Markdown document, `repomix`,
+  JSON Schema, the tag check, sub-repo extraction, the dispatcher:
   [`viba/wiki/README.md`](viba/wiki/README.md).
 - **Run a module** — a run is `__decl__` in, `__impl__` out, and the logic comes from the
   host: [`viba/exec/README.md`](viba/exec/README.md) (`interpret`, `Environment`).
