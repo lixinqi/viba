@@ -10,7 +10,7 @@
 
 列表：答它的元素。
 
-```viba
+```viba 100.viba
 pattern list[A]
 
 type = A
@@ -20,7 +20,7 @@ type = A
 
 字典：键和值都要，答一个元组。
 
-```viba
+```viba 200.viba
 pattern dict[A, B]
 
 type = (A, B)

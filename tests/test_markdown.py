@@ -49,13 +49,13 @@ Point = Object * $x int * $y int
 
 ### note.viba
 
-```
+```viba note.viba
 Note = Object * $text str
 ```
 
 #### notes.txt
 
-没有代码块的一章是空文件。
+没有代码块的一章只有注释。
 """
 
 
@@ -65,11 +65,12 @@ def run() -> None:
           [name for name, _text in files],
           ["report", "point.viba", "note.viba", "notes.txt"])
     check("the level of a heading is not looked at", files[0], ("report", ""))
-    check("the first code block is the file's text",
-          files[1][1], "Point = Object * $x int * $y int\n")
+    check("the prose of a section is a comment in its file",
+          files[1][1], "# 一个二维点。\n\nPoint = Object * $x int * $y int\n")
     check("the info string is no part of the text",
           files[2][1], "Note = Object * $text str\n")
-    check("a section with no code block is an empty file", files[3][1], "")
+    check("a section with no viba block is a file of comments",
+          files[3][1], "# 没有代码块的一章只有注释。\n")
     check("prose outside a heading names no file",
           files_of("just a paragraph\n\nand another\n"), [])
 
@@ -84,13 +85,13 @@ X = int
 Y = str
 ```
 """
-    check("a second code block is no file either",
-          files_of(two_blocks), [("point.viba", "X = int\n")])
+    check("the viba blocks of one section are glued, in order",
+          files_of(two_blocks), [("point.viba", "X = int\n\nY = str\n")])
 
     tilde = """\
 ## point.viba
 
-~~~
+~~~viba
 X = int
 ~~~
 """
@@ -115,8 +116,8 @@ X = int
 X = int
 ```
 """
-    check("the label may be anything, or nothing",
-          files_of(labelled), [("point.viba", "X = int\n")])
+    check("a block that is not viba is documentation",
+          files_of(labelled), [("point.viba", "# X = int\n")])
 
     deep = """\
 ###### deep.viba

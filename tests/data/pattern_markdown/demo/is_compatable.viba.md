@@ -8,7 +8,7 @@
 
 两个都是单位元（`()` 或 `nil`）：没有内容可比，算合得上。
 
-```viba
+```viba 100.viba
 pattern () | nil
 pattern () | nil
 
@@ -19,7 +19,7 @@ value = true
 
 两个都是标量里的一种（`bool` 或 `int`）：也合得上。
 
-```viba
+```viba 150.viba
 pattern bool | int
 pattern bool | int
 
@@ -30,7 +30,7 @@ value = true
 
 两条模式都叫 `A`：一个名字要求两处是同一个类型。
 
-```viba
+```viba 200.viba
 pattern A
 pattern A
 
@@ -43,7 +43,7 @@ value = true
 
 两个名字不同：`A` 和 `B` 不要求是同一个类型。
 
-```viba
+```viba 300.viba
 pattern A
 pattern B
 

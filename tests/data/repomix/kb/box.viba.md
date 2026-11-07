@@ -1,11 +1,11 @@
 ## `a.viba`
 
-```viba
+```viba a.viba
 A = int
 ```
 
 ## `b.viba`
 
-```viba
+```viba b.viba
 B = str
 ```

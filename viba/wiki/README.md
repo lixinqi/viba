@@ -15,7 +15,7 @@ viba 用纯类型描述设计：一份设计是一组类型与定义，逻辑由
 
 | 文档 | 讲什么 |
 |------|---------|
-| [`viba-markdown-as-directory.md`](viba-markdown-as-directory.md) | 一个目录写成一份 Markdown：一节一个文件，第一个代码块是文件内容 |
+| [`viba-markdown-as-directory.md`](viba-markdown-as-directory.md) | 一个目录写成一份 Markdown：一节一个文件，章里的 `viba` 代码块拼成它的代码 |
 | [`viba-repomix.md`](viba-repomix.md) | `repomix`：一个目录的 viba 代码收成一份 Markdown，注释变成说明 |
 | [`viba-check-tag-and-inline.md`](viba-check-tag-and-inline.md) | `check_tag_and_inline`：摊开内联位之后，一个积里同一个 tag 不能出现两次，内联链不能绕回正在摊的定义 |
 | [`viba-check-convertable-to-json-schema.md`](viba-check-convertable-to-json-schema.md) | `check_convertable_to_json_schema`：一个类型能不能写成 JSON Schema |

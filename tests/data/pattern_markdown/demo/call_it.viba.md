@@ -8,7 +8,7 @@
 
 接住列表，把元素放进返回位和参数位。
 
-```viba
+```viba 100.viba
 pattern list[A]
 
 type = A <- $env Env <- A

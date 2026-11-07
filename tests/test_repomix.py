@@ -52,13 +52,14 @@ def run() -> None:
           sorted(sections),
           ["box/a.viba", "box/b.viba", "g/100.viba", "g/200.viba",
            "g/__generic__.viba", "report.viba"])
-    check("a file's code is the code block", sections["report.viba"],
-          "Point = Object * $x int * $y int\n")
+    check("a file's code is the code block, its comment a comment",
+          sections["report.viba"],
+          "# The point and the note.\n\nPoint = Object * $x int * $y int\n")
     check("the comment above the code is prose",
           pack.index("The point and the note.") < pack.index("Point = Object"),
           True)
     check("the comment below the code is prose",
-          pack.index("```viba\npattern bool") < pack.index("a trailing note"),
+          pack.index("```viba g/100.viba") < pack.index("a trailing note"),
           True)
     check("a comment between two lines of code stays with them",
           sections["g/200.viba"],
@@ -69,8 +70,8 @@ def run() -> None:
           "box/Shadowed.viba" in sections, False)
     check("a file the document shadows is not packed",
           "Shadowed = int" in pack, False)
-    check("a marker's comment is prose, its file empty",
-          sections["g/__generic__.viba"], "")
+    check("a marker's comment is prose, and a comment in the file",
+          sections["g/__generic__.viba"], "# __generic__.viba\n")
     check("no code, no notes", "notes.txt" in sections or "README.md" in sections,
           False)
 

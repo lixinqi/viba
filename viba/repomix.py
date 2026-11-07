@@ -4,7 +4,7 @@
     viba_repomix("kb")          # the directory's code as one document's text
 
 The text is the one `viba.markdown` reads: a section per file, the section's
-name is the file's path in the directory, and the first fenced code block is the
+name is the file's path in the directory, and the code block under it is the
 file's text ([`viba/wiki/viba-markdown-as-directory.md`](../viba-markdown-as-directory.md)).
 What counts as code:
 
@@ -44,7 +44,7 @@ def viba_repomix(viba_code_dir: str) -> str:
     """A directory of viba code as one Markdown document's content.
 
     The document is the one the loader reads for a directory: one section per
-    file, its name the file's path in `viba_code_dir`, its first code block the
+    file, its name the file's path in `viba_code_dir`, its code block the
     file's code, and the file's leading and trailing comments as prose around
     it. The design's type has no error branch (`viba/repomix.viba`): a path that
     is no directory holds no code, so the pack is empty.
@@ -57,7 +57,7 @@ def viba_repomix(viba_code_dir: str) -> str:
         if before:
             part += f"\n{before}\n"
         if code:
-            part += "\n```viba\n" + code + "```\n"
+            part += "\n```viba " + path + "\n" + code + "```\n"
         if after:
             part += f"\n{after}\n"
         parts.append(part)

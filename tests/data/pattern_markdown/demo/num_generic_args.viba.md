@@ -8,7 +8,7 @@
 
 字典：两个实参。
 
-```viba
+```viba 100.viba
 pattern dict[A, B]
 
 value = 2
@@ -18,7 +18,7 @@ value = 2
 
 列表：一个。
 
-```viba
+```viba 200.viba
 pattern list[A]
 
 value = 1
@@ -28,7 +28,7 @@ value = 1
 
 集合：也是一个。
 
-```viba
+```viba 210.viba
 pattern set[A]
 
 value = 1
@@ -38,7 +38,7 @@ value = 1
 
 别的类型：零个。
 
-```viba
+```viba 300.viba
 pattern A
 
 value = 0

@@ -8,7 +8,7 @@
 
 最里层只有一个单位元参数（`()` 或 `nil`）：答 `A`。
 
-```viba
+```viba 100.viba
 pattern A <- (() | nil)
 
 type = A
@@ -18,7 +18,7 @@ type = A
 
 一个参数：参数是什么不影响答案。
 
-```viba
+```viba 200.viba
 pattern A <- B
 
 type = A
@@ -28,7 +28,7 @@ type = A
 
 两个参数：照样只看第一个位置上的 `A`。
 
-```viba
+```viba 300.viba
 pattern A <- B <- C
 
 type = A

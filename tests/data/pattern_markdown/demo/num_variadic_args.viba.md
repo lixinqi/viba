@@ -8,7 +8,7 @@
 
 一个都没给：`num_variadic_args[]`。
 
-```viba
+```viba 50.viba
 value = 0
 ```
 
@@ -16,7 +16,7 @@ value = 0
 
 一个。
 
-```viba
+```viba 100.viba
 pattern A
 
 value = 1
@@ -26,7 +26,7 @@ value = 1
 
 两个。
 
-```viba
+```viba 200.viba
 pattern A
 pattern B
 
@@ -37,7 +37,7 @@ value = 2
 
 三个。
 
-```viba
+```viba 300.viba
 pattern A
 pattern B
 pattern C

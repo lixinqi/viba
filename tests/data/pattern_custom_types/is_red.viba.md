@@ -7,7 +7,7 @@
 
 ## `100.viba`
 
-```viba
+```viba 100.viba
 import types.colors as colors
 
 pattern colors.Red
@@ -17,7 +17,7 @@ value = true
 
 ## `200.viba`
 
-```viba
+```viba 200.viba
 pattern T
 
 value = false

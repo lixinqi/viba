@@ -8,7 +8,7 @@
 
 `pattern A` 收下整个对象，`type = A` 就是它自己。
 
-```viba
+```viba 100.viba
 pattern A
 
 type = A

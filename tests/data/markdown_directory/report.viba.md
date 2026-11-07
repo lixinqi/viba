@@ -4,7 +4,7 @@
 
 一个二维点：两个整数成员。
 
-```viba
+```viba point.viba
 Point = Object * $x int * $y int
 ```
 
@@ -12,6 +12,6 @@ Point = Object * $x int * $y int
 
 一段文字，只有一个成员。
 
-```viba
+```viba note.viba
 Note = Object * $text str
 ```

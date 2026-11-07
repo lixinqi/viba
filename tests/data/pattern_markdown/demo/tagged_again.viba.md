@@ -8,7 +8,7 @@
 
 最简单的装法：把抓到的符号原样装回去，重新装一个 `tagged[arg_name, T]`。
 
-```viba
+```viba 100.viba
 pattern tagged[arg_name, T]
 
 type = tagged[arg_name, T]
@@ -18,7 +18,7 @@ type = tagged[arg_name, T]
 
 整条链里带着同一个 tag：模式写成一条链，答的也是这条链。
 
-```viba
+```viba 200.viba
 pattern A <- int <- tagged[arg_name, T]
 
 type = A <- int <- tagged[arg_name, T]

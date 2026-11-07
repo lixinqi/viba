@@ -9,7 +9,7 @@
 `tagged` 模式认下 tag，`arg_name` 就是这个 tag 拼出来的符号——它在模式里是个参数；
 `value = arg_name` 把它答回去。
 
-```viba
+```viba 100.viba
 pattern tagged[arg_name, T]
 
 value = arg_name

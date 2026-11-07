@@ -8,7 +8,7 @@
 
 先接住列表，再把元素放进 `$item`；答的是 `Wrapped` 这个名字。
 
-```viba
+```viba 100.viba
 pattern list[A]
 
 Wrapped = $item A

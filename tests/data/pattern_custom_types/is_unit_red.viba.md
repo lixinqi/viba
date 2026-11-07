@@ -7,7 +7,7 @@
 
 ## `100.viba`
 
-```viba
+```viba 100.viba
 import types.units as units
 
 pattern units.Red

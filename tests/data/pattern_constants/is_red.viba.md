@@ -9,7 +9,7 @@
 常量 `"red"` 本身是一个类型——一个字面量类型，只有一个值。模式写成这个类型，实参是同一个字面量时
 落得进去（由 `is_sub_type` 判）。
 
-```viba
+```viba 100.viba
 pattern "red"
 
 value = true
@@ -19,7 +19,7 @@ value = true
 
 别的都落到这一支，答 `false`。
 
-```viba
+```viba 200.viba
 pattern T
 
 value = false

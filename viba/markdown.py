@@ -2,9 +2,12 @@
 
 A directory of files can be given as a single Markdown file — `<dir>.viba.md`,
 next to `<dir>/`: each heading names one file of the directory, whatever its
-level, and the first fenced code block under it is that file's text. A section
-with no code block names an empty file, and the prose above the first heading
-names no file at all:
+level. The file's code is every code block under it that is marked `viba` (the
+label may name the file, as in ```viba 100.viba), in the order they stand,
+glued into one source; the prose between them and any other code block become
+comments (`# ...`), so the section reads as the file it names and parses as one.
+A section with no `viba` block names a file of comments or nothing at all, and
+the prose above the first heading names no file at all:
 
     ## `point.viba`
 
@@ -52,8 +55,7 @@ def files_of(source: str) -> List[Tuple[str, str]]:
     files: List[Tuple[str, List[str]]] = []
     names = set()
     current: List[str] = None          # the lines of the file being read
-    taken = False                       # its first code block is already in
-    fence = None                        # (indent, marker, lines) of the open block
+    fence = None                        # (indent, marker, lines, is a viba block)
     for number, line in enumerate(source.splitlines(), 1):
         if fence is None:
             heading = _HEADING.match(line)
@@ -67,33 +69,34 @@ def files_of(source: str) -> List[Tuple[str, str]]:
                         f"line {number}: two sections name the file {name!r}")
                 names.add(name)
                 current = []
-                taken = False
                 files.append((name, current))
                 continue
         if current is None:
             continue
         if fence is not None:
-            indent, marker, lines = fence
+            indent, marker, lines, viba = fence
             closed = _FENCE.match(line)
             if (closed is not None and closed.group(2)[0] == marker[0]
                     and closed.group(2).startswith(marker)
                     and not closed.group(3)):
-                current.extend(lines)
+                # The block's lines join the file: a viba block is the code,
+                # any other block is documentation and becomes comments.
+                current.extend(lines if viba else [_comment(part) for part in lines])
                 fence = None
                 continue
             lines.append(_unindent(line, indent))
             continue
-        if taken:
-            continue
         opened = _FENCE.match(line)
         if opened is None:
+            current.append(_comment(line))
             continue
-        fence = (len(opened.group(1)), opened.group(2), [])
-        taken = True
+        info = opened.group(3).split()
+        fence = (len(opened.group(1)), opened.group(2), [],
+                 bool(info) and info[0] == "viba")
     if fence is not None:
         raise SyntaxError(
             "a fenced code block is not closed at the end of the document")
-    return [(name, _text(lines)) for name, lines in files]
+    return [(name, _text(_trimmed(lines))) for name, lines in files]
 
 
 def module_files(module_name: str, source: str):
@@ -130,6 +133,21 @@ def _heading_name(text: str) -> str:
 def _unindent(line: str, indent: int) -> str:
     """One line of a fenced block, the fence's own indent taken off."""
     return line[indent:] if line[:indent].strip() == "" else line
+
+
+def _comment(line: str) -> str:
+    """A line that is not the file's code, as a comment in the file."""
+    return f"# {line}" if line.strip() else ""
+
+
+def _trimmed(lines: List[str]) -> List[str]:
+    """The lines without the blank ones at either end."""
+    first, last = 0, len(lines)
+    while first < last and not lines[first].strip():
+        first += 1
+    while last > first and not lines[last - 1].strip():
+        last -= 1
+    return lines[first:last]
 
 
 def _text(lines: List[str]) -> str:

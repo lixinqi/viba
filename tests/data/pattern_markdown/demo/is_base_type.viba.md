@@ -8,7 +8,7 @@
 
 叶子：四种标量都收，答 `true`。
 
-```viba
+```viba 100.viba
 pattern bool | int | float | str
 
 value = true
@@ -20,7 +20,7 @@ value = true
 
 除此之外的类型都落到这一支，答 `false`。
 
-```viba
+```viba 200.viba
 pattern A
 
 value = false
