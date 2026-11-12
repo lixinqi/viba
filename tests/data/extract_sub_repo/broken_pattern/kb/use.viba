@@ -1,0 +1,3 @@
+import G
+
+Only[T] = G[T]

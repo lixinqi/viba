@@ -1,26 +1,27 @@
-# extract_sub_repo — the design: one repo in, its sub-repo out.
+# extract_sub_repo — the design: one repo in, its sub-repo as one document out.
 #
 # This is the declaration `viba.extract_sub_repo` is held to, given as a viba
 # type so the operation reads with the rest of the design-side signatures
-# (viba/wiki/viba-extract-sub-repo.md is the document; the Python layer is the one place
-# that takes files apart).
+# (viba/wiki/viba-extract-sub-repo.md is the document; the Python layer is the one
+# place that takes files apart).
 #
-# A repo is a directory: `Repo` is its path. `TypeName` is a full name the way
-# a module spells one — `xxx.yyy.zzz`, where `xxx.yyy` is the module an import
-# would find and `zzz` is a definition in it.
+# The answer is a document, not a directory: the sub-repo written as one
+# `.viba.md` (viba/core/data/viba-data.md) — one section per file, its path the
+# section's name, its body the file's text. A line of an answer has to be
+# traceable: the maps say where each one came from.
 #
-# The answer is the new sub-repo's path together with the import path it needs:
-# the definitions that were not extracted (the primitives) stay where they are,
-# and the sub-repo reaches them through that path.
+# A repo holds `.viba` files and `.viba.md` documents alike; which of the two a
+# definition is reached in changes nothing about the answer, so a section of a
+# document comes out as a section of the answer, at the path its module has.
 #
 # The units are `never_eqv` / `nil_eqv`: the names that stand for `never` (the
 # sum's unit) and `nil` (the product's unit) while the source is read — the two
-# lists are `VibaReflectConfig`'s parameters (`viba/core/data/viba-reflect.md`). Nil means the
+# lists are `VibaReflectConfig`'s parameters (viba/core/data/viba-reflect.md). Nil means the
 # language's own set (`reflect.language_config`), which is the one a design
 # written in this repo needs.
 
-ExtractSubRepo =
-    Result[$repo Repo * $viba_path list[str]]
+ExtractSubRepoIntoVibaMarkdown =
+    Result[VibaMarkdown, VibaMdToRepoSourceMap]
   <- $repo Repo
   <- $viba_path list[str]
   <- $extract_source_viba_path list[str]
@@ -28,35 +29,53 @@ ExtractSubRepo =
   <- $never_eqv (list[str] | nil)
   <- $nil_eqv (list[str] | nil)
   <- Hint[{
-      从 $type_names 出发，把 $repo 里、$extract_source_viba_path 下的那些定义抽成一个能自己编译的子 repo：
-      路径、模块名、定义名不变，一个文件只带留下的定义实际用到的 import。
-      其余定义是原语：不复制，留着 import，它所在的根进返回值的 $viba_path。
-      $never_eqv、$nil_eqv 是单位元的名字，读源码时不算定义；给 nil 就用语言默认那份。
+      从 $type_names 出发，把 $repo 里、$extract_source_viba_path 下的那些定义抽成一份 .viba.md 文档：
+      一节一个文件，节名是它在 repo 里的路径，正文是源文件自己的行（用到的 import 与留下的定义）。
+      其余定义是叶子原语：它们的定义不进文档，引用它们的文件保留 import。$repo 里的 .viba.md 文档里的定义一样抽，按它的模块路径成节。
+      $type_names 里的名字是模块里的一个定义：泛型目录与 pattern 文件不是起点——泛型靠对它的应用整份留下。
+      $never_eqv、$nil_eqv 是单位元的名字；给 nil 就用语言默认那份。
+      $VibaMdToRepoSourceMap 说文档里每个代码行来自哪个模块的哪一行。
+    }]
+
+VibaMarkdown =
+    str * { 符合 .viba.md 文件内容格式，所有类型能自描述，不能自描述的部分全是叶子，不用继续展开 }
+
+VibaMdToRepoSourceMap =
+    dict[
+      $lineno_in_viba_md int,
+      ($importable_dot_splited_module_path str, $lineno_in_module int)]
+
+ExtractSubVibaMarkdown =
+    Result[VibaMarkdown, VibaMdToVibaMdSourceMap]
+  <- $source_viba_md VibaMarkdown
+  <- $type_names list[TypeName]
+  <- $never_eqv (list[str] | nil)
+  <- $nil_eqv (list[str] | nil)
+  <- Hint[{
+      $source_viba_md 是一份文档的全文：一节一个文件，节名是它在 repo 里的路径。
+      从 $type_names 出发，按 ExtractSubRepoIntoVibaMarkdown 同一套走法，抽出它的子文档。
+      $VibaMdToVibaMdSourceMap 说子文档里每个代码行来自源文档的第几行。
     }]
   <- Assert[{
-      幂等：抽出来的子 repo 再抽一遍，两个目录的内容完全一样。
-      对任何 $repo、$viba_path、$extract_source_viba_path、$type_names、$never_eqv、$nil_eqv：
-      first = ExtractSubRepo
-        << $repo repo
-        << $viba_path viba_path
-        << $extract_source_viba_path extract_source_viba_path
+      幂等：源文档的每个 import 都指向它自己的一个节（或语言内置模块）时，抽出来的文档再抽一遍，文本完全一样。
+      带叶子原语的文档不算：叶子原语的定义不在文档里，再切会在解析它时被拒绝。
+      对任何这样的 $source_viba_md、$type_names、$never_eqv、$nil_eqv：
+      first = ExtractSubVibaMarkdown
+        << $source_viba_md source_viba_md
         << $type_names type_names
         << $never_eqv never_eqv
         << $nil_eqv nil_eqv
-      second = ExtractSubRepo
-        << $repo first.ok.repo
-        << $viba_path first.ok.viba_path
-        << $extract_source_viba_path first.ok.viba_path
+      second = ExtractSubVibaMarkdown
+        << $source_viba_md first.ok
         << $type_names type_names
         << $never_eqv never_eqv
         << $nil_eqv nil_eqv
-      assert content_of(first) === content_of(second)
-      content_of(x) 是 x.ok.repo 这个目录的内容：同样的相对路径，同样的文件原文。
-      两边都得答 $ok；first 答 $ok 而 second 答 $err 也违反这条。
+      assert first.ok === second.ok
+      first 答 $ok 时，second 也要答 $ok；first 答 $ok 而 second 答 $err 违反这条。
     }]
 
 Repo =
     str * Assert[{ this is a file path }]
 
 TypeName =
-    str * Assert[{ xxx.yyy.zzz：xxx.yyy 在 $viba_path 下 import 得到，zzz 是它里面的定义 }]
+    str * { a module and a definition, like `pkg.mod.Name` }

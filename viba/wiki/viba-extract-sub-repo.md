@@ -1,222 +1,136 @@
-# extract_sub_repo：从一个 viba repo 里抽出一个子 repo
+# extract_sub_repo：从一个 repo 抽出子文档
 
-知识库会一直累积、一直重构，而一次任务只用得上其中一小片。`extract_sub_repo` 把这一小片单独
-抽出来，成为一个能自己编译、自己运行的子 repo：原 repo 里别处的改动进不到它里面来。
+一个 repo 越写越大，而一个任务只要其中一部分。这里有两件事：把 repo 的子集写成**一份文档**
+（`.viba.md`），以及从一份文档里再抽它的子集。两次都给出**行号来源**：文档里每个代码行来自哪个模块的
+哪一行、或源文档的第几行——后读的人据此回到出处。
 
-抽出来的子 repo 有两条性质：
-
-- **闭**：子 repo 里每个定义提到的名字，要么在子 repo 里解析得到，要么是不抽走的那些定义（下面叫
-  **原语**，靠返回值里的 `$viba_path` 找到），要么是内建词汇（`viba/builtin.viba`）。
-- **小**：只有从给定的 type 走得到的定义才留下；同一个文件里别的定义不会跟着走。
-
-抽的粒度是定义：一个文件里只有几个定义被用到，子 repo 里就只带这几个。
-
-## 1. 类型
+## 1. 两个入口
 
 ```viba
-ExtractSubRepo =
-    Result[$repo Repo * $viba_path list[str]]
+ExtractSubRepoIntoVibaMarkdown =
+    Result[VibaMarkdown, VibaMdToRepoSourceMap]
   <- $repo Repo
   <- $viba_path list[str]
   <- $extract_source_viba_path list[str]
   <- $type_names list[TypeName]
   <- $never_eqv (list[str] | nil)
   <- $nil_eqv (list[str] | nil)
-  <- Hint[{
-      从 $type_names 出发，把 $repo 里、$extract_source_viba_path 下的那些定义抽成一个能自己编译的子 repo：
-      路径、模块名、定义名不变，一个文件只带留下的定义实际用到的 import。
-      其余定义是原语：不复制，留着 import，它所在的根进返回值的 $viba_path。
-      $never_eqv、$nil_eqv 是单位元的名字，读源码时不算定义；给 nil 就用语言默认那份。
-    }]
-  <- Assert[{
-      幂等：抽出来的子 repo 再抽一遍，两个目录的内容完全一样。
-      对任何 $repo、$viba_path、$extract_source_viba_path、$type_names、$never_eqv、$nil_eqv：
-      first = ExtractSubRepo
-        << $repo repo
-        << $viba_path viba_path
-        << $extract_source_viba_path extract_source_viba_path
-        << $type_names type_names
-        << $never_eqv never_eqv
-        << $nil_eqv nil_eqv
-      second = ExtractSubRepo
-        << $repo first.ok.repo
-        << $viba_path first.ok.viba_path
-        << $extract_source_viba_path first.ok.viba_path
-        << $type_names type_names
-        << $never_eqv never_eqv
-        << $nil_eqv nil_eqv
-      assert content_of(first) === content_of(second)
-      content_of(x) 是 x.ok.repo 这个目录的内容：同样的相对路径，同样的文件原文。
-      两边都得答 $ok；first 答 $ok 而 second 答 $err 也违反这条。
-    }]
+
+VibaMarkdown =
+    str * { 符合 .viba.md 文件内容格式，所有类型能自描述，不能自描述的部分全是叶子，不用继续展开 }
+
+VibaMdToRepoSourceMap =
+    dict[
+      $lineno_in_viba_md int,
+      ($importable_dot_splited_module_path str, $lineno_in_module int)]
+
+ExtractSubVibaMarkdown =
+    Result[VibaMarkdown, VibaMdToVibaMdSourceMap]
+  <- $source_viba_md VibaMarkdown
+  <- $type_names list[TypeName]
+  <- $never_eqv (list[str] | nil)
+  <- $nil_eqv (list[str] | nil)
+
+VibaMdToVibaMdSourceMap =
+    dict[$lineno_in_dst_viba_md int, $lineno_in_src_viba_md int]
 
 Repo =
     str * Assert[{ this is a file path }]
 
 TypeName =
-    str * Assert[{ xxx.yyy.zzz：xxx.yyy 在 $viba_path 下 import 得到，zzz 是它里面的定义 }]
+    str * { a module and a definition, like `pkg.mod.Name` }
 ```
 
-Python 里是这个函数（[`viba/extract_sub_repo.py`](../extract_sub_repo.py)）：
+`$never_eqv`、`$nil_eqv` 是单位元的名字，读源码时不算定义；给 `nil` 就用语言默认那份
+（[`viba/core/data/viba-reflect.md`](../core/data/viba-reflect.md)）。
+
+## 2. 抽什么
+
+- 类型名是 `xxx.yyy.zzz`：模块 `xxx.yyy` 按 import 的找法在 `viba_path` 上找，`zzz` 是模块里的一个定义；
+- 从这些名字出发走一遍：文件在 `$repo` 里、又在 `$extract_source_viba_path` 下的定义**抽出来**，连同
+  它走到的定义；其余定义是**叶子原语**（抽出来的部分走到它为止，不再展开——`VibaMarkdown` 的说明里
+  「不能自描述的部分全是叶子」就是这个意思）：它们的定义不进文档，引用它们的文件保留 `import`；
+- 泛型的文件整份留下：`__generic__.viba` 标记与决断选中的那个 pattern 文件（决断做不出时，所有能接
+  那么多实参的文件）；
+- **`$repo` 里的 `.viba.md` 文档一样抽**：文档的节就是文件，其中的定义被走到时照样抽出来——文档还是
+  目录，只是写在一块儿（[`viba-markdown-as-directory.md`](viba-markdown-as-directory.md)）。
+
+## 3. 抽成什么
+
+一份文档：一节一个文件，节名是它在 repo 里的路径（`report.viba`、`G/100.viba`），正文是**源文件自己
+的那些行**——用到的 `import` 与留下的定义，原样搬，注释与空行也在。所以：
+
+- 文档读回来就是这个子 repo（`files_of`）；
+- 拿它回答「这一行从哪来」是精确的：`VibaMdToRepoSourceMap` 把文档的每个代码行对到（模块的点分名，
+  模块里的行号）。
+
+叶子原语不写成文件：它们的 `import` 留在用它们的文件里，由调用方自己的 `viba_path` 找到。
+
+## 4. 从文档到文档
+
+`ExtractSubVibaMarkdown` 收一份文档，按同一套走法抽它的子文档；节名就是源文档里的文件路径，所以文档
+里写着的模块仍然按 `xxx.yyy` 找。答的是子文档 + `VibaMdToVibaMdSourceMap`（子文档的行号 → 源文档的
+行号）。
+
+一节也可以是一份文档（`docs/things.viba.md`）：它里面的节是 `docs/things/` 下的文件，抽出来的节按它们
+的路径写（`docs/things/colors.viba`），行号仍指回外层文档里那一行。
+
+## 5. 幂等
+
+只有 `ExtractSubVibaMarkdown` 上验这一条：源文档的每个 `import` 都指向它自己的一个节（或语言内置模块）
+时，抽出来的文档再抽一遍，文本完全一样。
+
+带叶子原语的文档不算：叶子原语的定义不在文档里，再切会在解析它时被拒绝（第 8 节）。
+`ExtractSubRepoIntoVibaMarkdown` 的输入是目录，它的幂等要先把答案落回目录才谈得上，不在这一层的承诺里。
+
+## 6. 例
 
 ```python
-from viba.extract_sub_repo import extract_sub_repo
+from viba.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
+                                   extract_sub_viba_markdown)
 
-answer = extract_sub_repo("kb", ["kb", "base"], ["kb"], ["report.Report"])
-answer.ok_value.repo         # "kb-sub"
-answer.ok_value.viba_path    # ["kb-sub", "base"]
+answer = extract_sub_repo_into_viba_markdown(
+    "kb", ["kb", "base"], ["kb"], ["report.Report"])
+document, source_map = answer.ok_value
+source_map[4]                      # (模块, 行号)：文档第 4 行来自哪
 ```
 
-答 `Ok(SubRepo(repo, viba_path))` 或 `Err(...)`（一句话，说的是第一处不成立的地方）。
+`kb/report.viba` 里被走到的定义与它用到的 `import` 进文档；`base/` 下的定义是叶子原语，不进来。
 
-## 2. 例子
+## 7. 测试
 
-```
-kb/
-  report.viba
-  item.viba
-base/
-  meta.viba
-```
+[`tests/test_extract_sub_repo.py`](../../tests/test_extract_sub_repo.py)：走到的定义与文件集合、叶子原语的定义不
+进文档（引用它们的 `import` 保留）、泛型的标记与选中的文件、`.viba.md` 里的定义（本项目
+`pattern_custom_types` 那份文档）、两个入口的行号来源——**每个映射行的文字与源行逐字相同**、**答案的每个
+代码行都有映射**——以及文档入口的幂等、文档里嵌一份文档（那一节的行号指回外层）、两个入口的报错（第
+8 节）。报错不只断言它是 `Err`，也断言消息点到了出事的名字或参数。
 
-```viba
-# kb/report.viba
-import item as it
-import meta as mt
+## 8. 报错
 
-Report = Object * $items list[it.Item] * $meta mt.Meta
-```
+两个入口都答 `Err`，消息一句话，说第一件不成立的事。
 
-```viba
-# kb/item.viba
-Item = Object * $id int * $name str
-```
+仓库入口拒绝：
 
-```viba
-# base/meta.viba
-Meta = Object * $author str
-```
+- 名字不是 `xxx.yyy.zzz`（`Fine` 这样不带模块的）；
+- 模块在 `viba_path` 上找不到；
+- 名字落在泛型目录上——泛型等实参来应用，不能当定义名；
+- 定义的文件在 `$repo` 里，但不在 `$extract_source_viba_path` 下；
+- 模块里没有这个定义；
+- 定义体里引用的名字解析不到——泛型 pattern 文件里的裸名字不算，那是 pattern 参数；
+- 泛型目录里的文件取不出来：`pattern` 行解析不了，或者决断做不出时要取遍能接那么多实参的文件，其中一个是
+  坏的；
+- 名字落在 pattern 文件里的定义上——pattern 文件靠对它的泛型的一次应用整份留下，不靠名字；
+- 泛型带实参取成员，选中的文件里没有这个定义；
+- 参数不对：`repo` 不是路径，`viba_path`、`extract_source_viba_path`、`type_names` 不是字符串列表，
+  单位元名字不是字符串。
 
-`kb` 是 repo；`kb/report.viba` 的模块是 `report`，`kb/item.viba` 的模块是 `item`。`report.viba` 里
-`item` 在它旁边找得到，`meta` 不在 `kb` 里——它落在 `base`，按 `$viba_path` 找到。
+文档入口拒绝 `type_names` 与单位元名字那几条参数错误，另有：
 
-```python
-extracted = extract_sub_repo("kb", ["kb", "base"], ["kb"], ["report.Report"])
-```
-
-`never_eqv` / `nil_eqv` 不给就用语言默认那份（签名里给 `nil` 是同一件事）。
-
-抽取源是 `kb`；`Report` 的 `$meta` 字段是 `mt.Meta`，用得到 `meta`，但 `meta` 不在抽取源里，
-所以它是原语——用得到，但不抽走。返回值：
-
-```viba
-# kb-sub/report.viba
-import item as it
-import meta as mt
-
-Report = Object * $items list[it.Item] * $meta mt.Meta
-```
-
-```viba
-# kb-sub/item.viba
-Item = Object * $id int * $name str
-```
-
-```
-extracted.ok_value.repo        "kb-sub"
-extracted.ok_value.viba_path   ["kb-sub", "base"]
-```
-
-`base/meta.viba` 不复制，但 `report.viba` 里那行 `import meta as mt` 得留下——`Report` 的
-`$meta` 字段就是 `mt.Meta`，没有这行它解析不了。`base` 进返回值的 `$viba_path`，子 repo 靠它
-解析到 `meta`，所以不复制也能编译、能跑。
-
-## 3. 参数
-
-**`$repo`**：要切的目录。它里面每个 `.viba` 文件按相对路径定模块名：去掉 `.viba`，`/` 换成 `.`
-（`kb/report.viba` 是模块 `report`，`kb/pkg/a.viba` 是模块 `pkg.a`）。只有 `.viba` 文件参与，repo 里
-别的文件既不读也不复制。
-
-**`$viba_path`**：`import` 的查找顺序——先看给出这个 `import` 的那个文件旁边，
-再按这张表的顺序，最后是内建词汇。`$type_names` 里的 `xxx.yyy` 只按这张表找，它没有“旁边”。
-
-**`$extract_source_viba_path`**：抽取源在 `$repo` 里的范围，可以给多个目录。文件在 `$repo` 里、
-且落在其中一个目录下，它的定义就是要抽走的；其余定义都是原语——包括 `$repo` 里没落进这些目录的文件，
-和 `$repo` 外、按 `$viba_path` 找到的模块。
-
-**`$type_names`**：每个是 `xxx.yyy.zzz`。`xxx.yyy` 按 `$viba_path` 找到模块，`zzz` 是它里面的定义；
-这个名字要在抽取源里。泛型目录本身不是定义，不能点名：它由用到它的应用带进来。
-
-**`$never_eqv`**：`(list[str] | nil)`。算作 `never`（和的单位元）的名字；给 `nil` 就用语言默认那份
-（`Oneof`）。
-
-**`$nil_eqv`**：`(list[str] | nil)`。算作 `nil`（积的单位元）的名字；给 `nil` 就用语言默认那份
-（`Object`、`Assert`、`Appendix`、`Hint`）。
-
-这两份和 [`viba-reflect.md`](../core/data/viba-reflect.md) 里 `VibaReflectConfig` 的同名参数是同一份：读源码时，
-这些名字不是定义，不抽，也不算“解析不到”的错。给了清单就用清单里的那些，不往上加语言默认。
-
-## 4. 依赖怎么算
-
-- 从 `$type_names` 对应的定义出发。
-- 定义体里出现名字的三处算依赖：类型位置（名字、应用、元组、和/积/指数链）、`<<` 的头、
-  `g[T].member`。提示块里的字不算。
-- 落到抽取源里的定义：留下，接着走。
-- 落到原语：不留下，也不往它里面走；它所在的根记进返回值的 `$viba_path`。原语不是“用不到”的
-  定义，它是用得到、但不抽走的那些定义。
-- 落到内建词汇：什么也不做——标量、容器、`Any`、`builtin` 的成员、`viba/builtin/` 下的模块
-  （`Either`、`make_dispatcher`），以及 `$never_eqv` / `$nil_eqv` 说的单位元名字。
-
-## 5. 泛型
-
-`G[...]` 是 `G` 那个目录：`__generic__.viba` 必留；编号文件按闭包里对 `G` 的每一次应用来留：
-
-- 这次应用的实参在源码里定得下来：只留决断选中的那一份；
-- 定不下来（实参还是泛型参数）：留下所有能收下这么多实参的编号文件。
-
-留下的编号文件整份留下、原样复制：里面有 `pattern`、`__decl__`、`__impl__` 和它们用到的定义，少一样
-这个决断就不成立，所以这些定义连同它们依赖的名字一起留下。`G` 的目录不在抽取源里，整个 `G` 是
-原语。
-
-## 6. import
-
-- 留下的定义用到哪个 `import` 的本地名，那行 `import` 就留；没用到的 `import` 不留。
-- 原语的模块要能从返回值的 `$viba_path` 找到：它所在的根进返回值的 `$viba_path`。
-
-## 7. 返回值
-
-- **`$repo`**：新子 repo 的路径。建在 `$repo` 旁边，目录名是原目录名加 `-sub`（`kb` → `kb-sub`）；
-  已经存在就整个替换（先建好新的再换上去）。原 repo 不动。
-- **`$viba_path`**：新 repo 的根排第一，其余是原语实际所在的根，按它们在原 `$viba_path` 里的顺序，
-  去重；导入文件旁边找到的根不在原表里，排在它们后面。新根排第一，所以子 repo 自己的模块优先于原
-  repo 里的同名模块。
-- **文件**：路径相对根不变（多深都一样），模块名、定义名不变；一个文件只带被依赖的定义和它们用到的
-  `import`。
-
-## 8. 幂等
-
-第 1 节 `<- Assert[{...}]` 里写的就是这条。把第一次的返回值再喂进去——`$repo` 给 `first.ok.repo`，
-`$viba_path` 和 `$extract_source_viba_path` 都给 `first.ok.viba_path`——第二次抽出来的目录与第一次
-的内容完全一样：同样的相对路径，同样的文件原文。两次落在两个目录上，路径不同，所以比的是内容，不是
-路径。
-
-这条 law 也钉住了 `$extract_source_viba_path` 的范围：它只能圈 `$repo` 里的目录。要是能圈到 `$repo`
-外，第二次就会把原语也抽进来，两边内容就不等了。例子里的 `base` 就是这样：第二次它在
-`$extract_source_viba_path` 里，但在 `$repo`（`kb-sub`）外，所以 `meta` 还是原语、还是只留
-import，内容不变。
-
-## 9. 错误
-
-- `$type_names` 里的名字按 `$viba_path` 解析不出来，或者解析到的定义不在抽取源里；
-- 留下的定义引用了既不在抽取源、也不在 `$viba_path`、也不是内建词汇、也不是单位元名字的东西；
-- 抽取走到的文件编不过。
-
-答 `$err`，说的是第一处。
-
-## 10. 这一版不做的
-
-- 普通文件重新排版：`#` 行注释和空行不保留；带提示块的成员（`Comments[{...}]`、`Hint[{...}]`）是
-  定义体的一部分，跟着走。泛型的 `__generic__.viba` 和留下的编号文件原样复制，注释和排版都在。
-- 不改模块名，不合并文件，不做任何重命名。
-- 只处理 `.viba` 文件；repo 里的其它文件不复制。
-- 不替你跑测试：闭是静态保证的，跑不跑得通由子 repo 的调用方决定。
+- 源不是文本；
+- 某个代码围栏没闭合；
+- 某个章节没有名字；
+- 两个章节同名；
+- 章节的名字不是文档目录里的文件名（绝对路径、`..`、空的一段）；
+- 两个章节把同一个名字一个当文件、一个当目录（`a` 与 `a/b.viba`）；
+- 名字在文档里找不到。文档只认自己那些节：叶子原语的 `import` 虽然还在，它的定义不在文档里，所以带
+  叶子原语的答案不能再当源切（第 5 节）。

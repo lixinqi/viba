@@ -1,0 +1,5 @@
+import nope
+
+Bare = nope.G[int]
+
+Taken = nope.G[int].value

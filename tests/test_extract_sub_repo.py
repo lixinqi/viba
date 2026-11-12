@@ -1,27 +1,25 @@
-"""Tests for extract_sub_repo: one repo in, its sub-repo out.
+"""extract_sub_repo: a sub-repo as one document, and where each line came from.
 
-Every case is a small repo under data/extract_sub_repo, copied into a temporary
-directory so the sub-repo is written somewhere disposable and the source tree is
-never touched:
+Two entries. `extract_sub_repo_into_viba_markdown` takes a repo — its `.viba`
+files, and the `.viba.md` documents inside it — and answers the sub-repo as one
+document (one section per file, its path the section's name) plus a map from
+every code line to the module and the line it came from.
+`extract_sub_viba_markdown` takes a document and answers a document, mapping to
+the source document's lines; idempotence is its law for a document that holds
+every module it imports.
 
-    data/extract_sub_repo/basic/            kb/ + base/: a primitive, an unused
-                                            definition, an unused import
-    data/extract_sub_repo/generic_chosen/   one generic, two applications
-    data/extract_sub_repo/generic_fallback/ a decision the source cannot make
-    data/extract_sub_repo/builtin_generic/  Either, which is the interpreter's
-    data/extract_sub_repo/primitive_generic/a generic outside the repo
-    data/extract_sub_repo/member/           g[T].value
-    data/extract_sub_repo/call/             a call, and the definitions it uses
-    data/extract_sub_repo/units/            Assert, a name that stands for nil
-    data/extract_sub_repo/deep/             three levels of modules, six files
-    data/extract_sub_repo/multi_extract/    two extraction roots, the rest of the
-                                            repo being a primitive
-    data/extract_sub_repo/multi_viba_path/  three search roots, in reverse use order
-    data/extract_sub_repo/errors/           a name that does not resolve
+The map is checked twice over on every answer: a mapped line's text is the
+line's text in the source, and every code line of the answer is in the map. The
+case files are `tests/data/extract_sub_repo/<case>/` — a repo to cut — and the
+documents are this project's own `.viba.md` files.
+
+An error check asserts the message too, not only that the answer is an Err: the
+words tell which refusal it is, so two cases cannot pass for each other.
 
     python3 tests/test_extract_sub_repo.py
 """
 
+import os
 import shutil
 import sys
 import tempfile
@@ -29,10 +27,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.extract_sub_repo import SubRepo, extract_sub_repo
-from viba.type import Ok, Err
+from viba import markdown
+from viba.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
+                                   extract_sub_viba_markdown)
+from viba.type import Err, Ok
 
 DATA = Path(__file__).resolve().parent / "data" / "extract_sub_repo"
+ERRORS = DATA / "errors" / "kb"
+DOCUMENTS = Path(__file__).resolve().parent / "data" / "pattern_custom_types"
 
 PASS = 0
 FAIL = 0
@@ -47,284 +49,415 @@ def check(name: str, got, want) -> None:
         print(f"FAIL: {name}\n  expected: {want!r}\n  got:      {got!r}")
 
 
-def check_true(name: str, got) -> None:
-    check(name, bool(got), True)
+def _refused(name: str, answer, words: str) -> None:
+    """The answer is an Err, and the message says which refusal it is."""
+    check(name, isinstance(answer, Err) and words in answer.msg, True)
 
 
-def content(path: Path) -> dict:
-    """Every file under `path`, by its path relative to it, with its text."""
-    found = {}
-    if not path.is_dir():
-        return found
-    for one in sorted(path.rglob("*")):
-        if one.is_file():
-            found[str(one.relative_to(path))] = one.read_text(encoding="utf-8")
-    return found
+def _run(name, type_names, extract=("kb",), viba=("kb",), **kwargs):
+    """One extraction on a copy of a case file: (the answer, the case directory)."""
+    scratch = Path(tempfile.mkdtemp(prefix="viba-extract-"))
+    case = scratch / name
+    shutil.copytree(DATA / name, case)
+    answer = extract_sub_repo_into_viba_markdown(
+        str(case / "kb"),
+        [str(case / path) for path in viba],
+        [str(case / path) for path in extract],
+        list(type_names), **kwargs)
+    return answer, case
 
 
-def slice_case(name: str, type_names, extract=("kb",), viba=("kb", "base"),
-               never_eqv=None, nil_eqv=None):
-    """Slice a copy of one case: the answer, the files, and both trees' content."""
-    with tempfile.TemporaryDirectory() as temporary:
-        root = Path(temporary) / "case"
-        shutil.copytree(DATA / name, root)
-        repo = root / "kb"
-        before = content(repo)
-        answer = extract_sub_repo(
-            str(repo),
-            [str(root / one) for one in viba],
-            [str(root / one) for one in extract],
-            list(type_names),
-            never_eqv=never_eqv,
-            nil_eqv=nil_eqv,
-        )
-        result = {"answer": answer, "before": before, "after": content(repo)}
-        if isinstance(answer, Ok):
-            sub = Path(answer.ok_value.repo)
-            result["repo"] = answer.ok_value.repo
-            result["viba_path"] = answer.ok_value.viba_path
-            result["files"] = content(sub)
-            result["sub"] = answer.ok_value.repo
-            result["names"] = [Path(one).name for one in answer.ok_value.viba_path]
-        return result
+def _files(document: str) -> dict:
+    return dict(markdown.files_of(document))
 
 
-def slice_twice(name: str, type_names, extract=("kb",), viba=("kb", "base")):
-    """Slice, then slice what came out; the two contents and the two answers."""
-    with tempfile.TemporaryDirectory() as temporary:
-        root = Path(temporary) / "case"
-        shutil.copytree(DATA / name, root)
-        first = extract_sub_repo(
-            str(root / "kb"), [str(root / one) for one in viba],
-            [str(root / one) for one in extract], list(type_names))
-        if not isinstance(first, Ok):
-            return first, None, None
-        second = extract_sub_repo(
-            first.ok_value.repo, first.ok_value.viba_path,
-            first.ok_value.viba_path, list(type_names))
-        if not isinstance(second, Ok):
-            return first, second, None
-        return (first, second,
-                (content(Path(first.ok_value.repo)),
-                 content(Path(second.ok_value.repo))))
+def _code_lines(document: str):
+    """(document line, text) for every line of the answer's code."""
+    out = []
+    for _name, lines in markdown.lines_of(document):
+        out.extend((at, text) for text, at in lines)
+    return out
+
+
+def _source_line(root: Path, module: str, line: int):
+    """A module's line in the source: its file, or its document's section."""
+    parts = module.split(".")
+    path = root.joinpath(*parts).with_suffix(".viba")
+    if path.is_file():
+        return path.read_text(encoding="utf-8").splitlines()[line - 1]
+    for cut in range(1, len(parts)):
+        document = root.joinpath(*parts[:cut]).with_suffix(".viba.md")
+        if not document.is_file():
+            continue
+        section = ".".join(parts[cut:]) + ".viba"
+        for name, lines in markdown.lines_of(document.read_text(encoding="utf-8")):
+            if name == section:
+                return lines[line - 1][0]
+    return None
+
+
+def _check_map(document: str, origin: dict, root: Path, label: str) -> None:
+    """Every code line is mapped, and each mapped line is the source's line."""
+    code = dict(_code_lines(document))
+    check(f"{label}: every code line is in the map", sorted(origin), sorted(code))
+    wrong = [(at, origin[at], text) for at, text in code.items()
+             if at in origin and _source_line(root, *origin[at]) != text]
+    check(f"{label}: a mapped line is the source's line", wrong, [])
 
 
 def run_basic() -> None:
-    answer = slice_case("basic", ["report.Report"])
-    sub = answer["answer"]
-    check_true("basic: answered a sub-repo", isinstance(sub, Ok))
-    check("basic: the answer carries the repo and its path",
-          isinstance(sub.ok_value, SubRepo), True)
-    check("basic: the sub-repo is beside the repo",
-          answer["names"], ["kb-sub", "base"])
-    check("basic: the answer's viba_path starts at the sub-repo",
-          answer["viba_path"][0], answer["repo"])
-    check("basic: the source tree is untouched", answer["after"], answer["before"])
-    check("basic: the files", sorted(answer["files"]),
+    answer, case = _run("basic", ["report.Report"], viba=("kb", "base"))
+    check("basic: answered a document", isinstance(answer, Ok), True)
+    document, origin = answer.ok_value
+    files = _files(document)
+    check("basic: the files the closure reaches", sorted(files),
           ["item.viba", "report.viba"])
-    check("basic: report keeps its definitions and the imports it uses",
-          answer["files"]["report.viba"],
-          "import item as it\n"
-          "import meta as mt\n"
-          "\n"
-          "Report =\n"
-          "  Object * $items list[it.Item] * $meta mt.Meta\n")
-    check("basic: item keeps only what was reached",
-          answer["files"]["item.viba"],
-          "Item =\n  Object * $id int * $name str\n")
+    check("basic: the imports the definitions use, and the definition",
+          files["report.viba"],
+          "import item as it\nimport meta as mt\n"
+          "Report = Object * $items list[it.Item] * $meta mt.Meta\n")
+    check("basic: a definition is written as the source has it",
+          files["item.viba"], "Item = Object * $id int * $name str\n")
+    check("basic: a definition that was not reached is not a section",
+          "Extra = bool" in files["item.viba"], False)
+    check("basic: a leaf primitive's definition is not a section",
+          "base/meta.viba" in files, False)
+    check("basic: nothing is written next to the repo",
+          sorted(path.name for path in case.iterdir()), ["base", "kb"])
+    _check_map(document, origin, case / "kb", "basic")
 
-    one = slice_case("basic", ["item.Item"])
-    check("basic: one definition, one file", sorted(one["files"]), ["item.viba"])
-    check("basic: nothing outside was reached", one["names"], ["kb-sub"])
+    one, _case = _run("basic", ["item.Item"], viba=("kb", "base"))
+    check("basic: one definition, one file", sorted(_files(one.ok_value[0])),
+          ["item.viba"])
 
-    empty = slice_case("basic", [])
-    check("basic: no type names keeps nothing", empty["files"], {})
+    empty, _case = _run("basic", [], viba=("kb", "base"))
+    check("basic: no type names, no sections", _files(empty.ok_value[0]), {})
 
 
 def run_generics() -> None:
-    chosen = slice_case("generic_chosen", ["use.Gauge"])
-    check("generic: only the file the decision chose",
-          sorted(chosen["files"]),
+    chosen, case = _run("generic_chosen", ["use.Gauge"])
+    document, origin = chosen.ok_value
+    files = _files(document)
+    check("generic: the marker and the file the decision chose", sorted(files),
           ["G/100.viba", "G/__generic__.viba", "use.viba"])
-    check("generic: the marker is kept as it is",
-          chosen["files"]["G/__generic__.viba"], "# G: one parameter, kept whole.\n")
-    check("generic: the pattern file is kept as it is",
-          chosen["files"]["G/100.viba"], "pattern int\n\n__decl__ = int\n")
+    check("generic: a file kept whole is as the source has it",
+          files["G/__generic__.viba"], "# G: one parameter, kept whole.\n")
+    check("generic: the pattern file too", files["G/100.viba"],
+          "pattern int\n\n__decl__ = int\n")
+    check("generic: the application stands in its own file",
+          files["use.viba"], "import G\n\nGauge = G[int]\n")
+    _check_map(document, origin, case / "kb", "generic")
 
-    both = slice_case("generic_chosen", ["use.Gauge", "use.Named"])
+    both, _case = _run("generic_chosen", ["use.Gauge", "use.Named"])
     check("generic: two applications keep two files",
-          sorted(both["files"]),
+          sorted(_files(both.ok_value[0])),
           ["G/100.viba", "G/200.viba", "G/__generic__.viba", "use.viba"])
 
-    fallback = slice_case("generic_fallback", ["use.Only"])
+    fallback, _case = _run("generic_fallback", ["use.Only"])
     check("generic: a decision the source cannot make keeps every file",
-          sorted(fallback["files"]),
+          sorted(_files(fallback.ok_value[0])),
           ["G/100.viba", "G/__generic__.viba", "use.viba"])
 
-    builtin = slice_case("builtin_generic", ["colour.Colour"])
+    builtin, _case = _run("builtin_generic", ["colour.Colour"])
     check("generic: the builtin vocabulary is not copied",
-          sorted(builtin["files"]), ["colour.viba"])
-    check("generic: and not named on the viba_path", builtin["names"], ["kb-sub"])
+          sorted(_files(builtin.ok_value[0])), ["colour.viba"])
 
-    primitive = slice_case("primitive_generic", ["use.Wrapped"])
-    check("generic: a generic outside the repo is a primitive",
-          sorted(primitive["files"]), ["use.viba"])
-    check("generic: its root is on the viba_path", primitive["names"],
-          ["kb-sub", "base"])
+    primitive, _case = _run("primitive_generic", ["use.Wrapped"],
+                            viba=("kb", "base"))
+    check("generic: a generic outside the repo is a leaf primitive",
+          sorted(_files(primitive.ok_value[0])), ["use.viba"])
 
 
 def run_walks() -> None:
-    member = slice_case("member", ["use.Wrapped"])
-    check("member: the chosen file's definition is kept", sorted(member["files"]),
+    member, _case = _run("member", ["use.Wrapped"])
+    check("member: the file the decision chose",
+          sorted(_files(member.ok_value[0])),
           ["M/100.viba", "M/__generic__.viba", "use.viba"])
-    check("member: the member take is spelled again",
-          member["files"]["use.viba"], "import M\n\nWrapped =\n  M[int].value\n")
+    check("member: the member take is as the source has it",
+          _files(member.ok_value[0])["use.viba"],
+          "import M\n\nWrapped = M[int].value\n")
 
-    call = slice_case("call", ["step.Call"])
+    call, _case = _run("call", ["step.Call"])
     check("call: the head, its arguments and what they use",
-          sorted(call["files"]), ["step.viba"])
+          sorted(_files(call.ok_value[0])), ["step.viba"])
     check("call: only the reached definitions are kept",
-          call["files"]["step.viba"],
-          "Step =\n"
-          "  Object * $n int\n"
-          "\n"
-          "Run =\n"
-          "  (Step <- $env Env) <- $step Step\n"
-          "\n"
-          "Call =\n"
-          "  Run << $env Env << $step Step\n")
+          _files(call.ok_value[0])["step.viba"],
+          "Step = Object * $n int\n\nRun = Step <- $env Env <- $step Step\n\n"
+          "Call = Run << $env Env << $step Step\n")
 
-    primitives = slice_case("primitives", ["use.Use"],
-                            viba=("kb", "kind", "other"))
-    check("primitives: the roots follow the viba_path", primitives["names"],
-          ["kb-sub", "kind", "other"])
-    check("primitives: nothing but the reachable file is copied",
-          sorted(primitives["files"]), ["use.viba"])
+    primitives, _case = _run("primitives", ["use.Use"],
+                             viba=("kb", "kind", "other"))
+    check("primitives: nothing but the reachable file is written",
+          sorted(_files(primitives.ok_value[0])), ["use.viba"])
+    check("primitives: the leaf primitives' imports stay",
+          _files(primitives.ok_value[0])["use.viba"],
+          "import late as l\nimport early as e\n\n"
+          "Use = Object * $y e.Early * $x l.Late\n")
 
-    units = slice_case("units", ["doc.Doc"])
-    check("units: Assert is a unit by default", sorted(units["files"]), ["doc.viba"])
-    strict = slice_case("units", ["doc.Doc"], nil_eqv=[])
-    check_true("units: an empty nil_eqv leaves Assert unresolved",
-               isinstance(strict["answer"], Err))
-    own = slice_case("units", ["doc.Doc"], nil_eqv=["Assert", "Hint"])
-    check("units: a list given is the list used", sorted(own["files"]), ["doc.viba"])
+    units, _case = _run("units", ["doc.Doc"])
+    check("units: Assert is a unit by default",
+          sorted(_files(units.ok_value[0])), ["doc.viba"])
+    check("units: the unit is not a section",
+          _files(units.ok_value[0])["doc.viba"],
+          "Doc = str * Assert[{ the text is a path }]\n")
+    strict, _case = _run("units", ["doc.Doc"], nil_eqv=[])
+    _refused("units: an empty nil_eqv leaves Assert unresolved", strict,
+             "cannot resolve 'Assert'")
+    own, _case = _run("units", ["doc.Doc"], nil_eqv=["Assert", "Hint"])
+    check("units: a list given is the list used",
+          sorted(_files(own.ok_value[0])), ["doc.viba"])
 
 
 def run_deep_and_multi() -> None:
-    """Deep directories, several files, several roots on each side."""
-    deep = slice_case("deep", ["top.Top"])
-    check("deep: every file at its own path", sorted(deep["files"]),
+    deep, case = _run("deep", ["top.Top"])
+    document, origin = deep.ok_value
+    files = _files(document)
+    check("deep: every file at its own path", sorted(files),
           ["deep/helper.viba", "pkg/a/b/choice/100.viba",
            "pkg/a/b/choice/__generic__.viba", "pkg/a/b/leaf.viba",
            "pkg/a/mid.viba", "top.viba"])
     check("deep: the top keeps both imports and only what it reached",
-          deep["files"]["top.viba"],
-          "import pkg.a.mid as mid\n"
-          "import pkg.a.b.leaf as leaf\n"
-          "\n"
-          "Top =\n"
-          "  Object * $mid mid.Mid * $leaf leaf.Leaf\n")
+          files["top.viba"],
+          "import pkg.a.mid as mid\nimport pkg.a.b.leaf as leaf\n\n"
+          "Top = Object * $mid mid.Mid * $leaf leaf.Leaf\n")
     check("deep: a nested file keeps only its own imports",
-          deep["files"]["pkg/a/b/leaf.viba"],
-          "import deep.helper as h\n"
-          "import pkg.a.b.choice as ch\n"
-          "\n"
-          "Leaf =\n"
-          "  Object * $n int * $h h.Helper * $c ch[int]\n")
+          files["pkg/a/b/leaf.viba"],
+          "import deep.helper as h\nimport pkg.a.b.choice as ch\n\n"
+          "Leaf = Object * $n int * $h h.Helper * $c ch[int]\n")
     check("deep: a nested generic keeps the file the decision chose",
-          deep["files"]["pkg/a/b/choice/100.viba"],
-          "pattern A\n\n__decl__ = A\n")
-    check("deep: an unreached directory is not copied",
-          "unused/x.viba" in deep["files"], False)
-    check("deep: nothing outside the repo", deep["names"], ["kb-sub"])
+          files["pkg/a/b/choice/100.viba"], "pattern A\n\n__decl__ = A\n")
+    check("deep: an unreached directory is not written",
+          "unused/x.viba" in files, False)
+    _check_map(document, origin, case / "kb", "deep")
 
-    both = slice_case("deep", ["top.Top", "unused.x.Unused"])
+    both, _case = _run("deep", ["top.Top", "unused.x.Unused"])
     check("deep: a second, disjoint name brings its own file",
-          "unused/x.viba" in both["files"], True)
+          "unused/x.viba" in _files(both.ok_value[0]), True)
 
-    leaf = slice_case("deep", ["pkg.a.b.leaf.Leaf"])
+    leaf, _case = _run("deep", ["pkg.a.b.leaf.Leaf"])
     check("deep: a type named in a deep module reaches only its own files",
-          sorted(leaf["files"]),
+          sorted(_files(leaf.ok_value[0])),
           ["deep/helper.viba", "pkg/a/b/choice/100.viba",
            "pkg/a/b/choice/__generic__.viba", "pkg/a/b/leaf.viba"])
 
-    multi = slice_case("multi_extract", ["one.a.A"],
-                       extract=("kb/one", "kb/two"), viba=("kb",))
-    check("multi extract: two roots, the rest of the repo a primitive",
-          multi["names"], ["kb-sub", "kb"])
-    check("multi extract: the files", sorted(multi["files"]),
+    multi, _case = _run("multi_extract", ["one.a.A"],
+                        extract=("kb/one", "kb/two"))
+    check("multi extract: two roots, the rest of the repo a leaf primitive",
+          sorted(_files(multi.ok_value[0])),
           ["one/a.viba", "one/inner/extra.viba", "two/sub/b.viba"])
-    check("multi extract: the primitive's import stays",
-          multi["files"]["one/a.viba"],
-          "import one.inner.extra as ex\n"
-          "import two.sub.b as b\n"
-          "import three.deep.c as c\n"
-          "\n"
-          "A =\n"
-          "  Object * $ex ex.Extra * $b b.B * $c c.C\n")
+    check("multi extract: a leaf primitive's import stays",
+          _files(multi.ok_value[0])["one/a.viba"],
+          "import one.inner.extra as ex\nimport two.sub.b as b\n"
+          "import three.deep.c as c\n\n"
+          "A = Object * $ex ex.Extra * $b b.B * $c c.C\n")
 
-    multi_path = slice_case("multi_viba_path", ["use.Use"],
-                            viba=("kb", "vp1", "vp2", "vp3"))
-    check("multi viba_path: the answer follows the path's order",
-          multi_path["names"], ["kb-sub", "vp1", "vp2", "vp3"])
-    check("multi viba_path: only the repo's file is copied",
-          sorted(multi_path["files"]), ["use.viba"])
+    multi_path, _case = _run("multi_viba_path", ["use.Use"],
+                             viba=("kb", "vp1", "vp2", "vp3"))
+    check("multi viba_path: only the repo's file is written",
+          sorted(_files(multi_path.ok_value[0])), ["use.viba"])
     check("multi viba_path: the use-site order does not decide it",
-          multi_path["files"]["use.viba"],
-          "import one as o1\n"
-          "import two as o2\n"
-          "import three as o3\n"
-          "\n"
-          "Use =\n"
-          "  Object * $c o3.Three * $b o2.Two * $a o1.One\n")
+          _files(multi_path.ok_value[0])["use.viba"],
+          "import one as o1\nimport two as o2\nimport three as o3\n\n"
+          "Use = Object * $c o3.Three * $b o2.Two * $a o1.One\n")
 
 
-def run_idempotence() -> None:
-    for name, type_names, extract, viba in (
-            ("basic", ["report.Report"], ("kb",), ("kb", "base")),
-            ("generic_chosen", ["use.Gauge"], ("kb",), ("kb",)),
-            ("primitive_generic", ["use.Wrapped"], ("kb",), ("kb", "base")),
-            ("deep", ["top.Top"], ("kb",), ("kb",)),
-            ("multi_extract", ["one.a.A"], ("kb/one", "kb/two"), ("kb",)),
-            ("multi_viba_path", ["use.Use"], ("kb",),
-             ("kb", "vp1", "vp2", "vp3"))):
-        first, second, contents = slice_twice(name, type_names, extract, viba)
-        check_true(f"idempotence: {name} answered twice",
-                   isinstance(first, Ok) and isinstance(second, Ok))
-        if contents is None:
-            continue
-        check(f"idempotence: {name} keeps the same content",
-              contents[1], contents[0])
+def run_documents() -> None:
+    scratch = Path(tempfile.mkdtemp(prefix="viba-extract-doc-"))
+    kb = scratch / "pattern_custom_types"
+    shutil.copytree(DOCUMENTS, kb)
+    answer = extract_sub_repo_into_viba_markdown(
+        str(kb), [str(kb)], [str(kb)], ["ask_red.__impl__"])
+    check("documents: answered a document", isinstance(answer, Ok), True)
+    document, origin = answer.ok_value
+    files = _files(document)
+    check("documents: a definition reached inside a .viba.md is a section",
+          "types/colors.viba" in files, True)
+    check("documents: its text is the document's section",
+          files["types/colors.viba"], "Red   = tagged[__type__, Object]\n")
+    check("documents: a generic written as a document keeps its marker",
+          files["is_red/__generic__.viba"], "# 标记：这份文档是一个泛型。\n")
+    check("documents: and the file the decision chose",
+          files["is_red/100.viba"],
+          "import types.colors as colors\n\npattern colors.Red\n\nvalue = true\n")
+    check("documents: the design using it", files["ask_red.viba"],
+          "import is_red as is_red\nimport types.colors as colors\n\n"
+          "__impl__ = is_red[colors.Red].value\n")
+    _check_map(document, origin, kb, "documents")
+
+    again = extract_sub_viba_markdown(document, ["ask_red.__impl__"])
+    check("document entry: answered a document", isinstance(again, Ok), True)
+    second, places = again.ok_value
+    check("document entry: the same document", second, document)
+    code = dict(_code_lines(second))
+    check("document entry: every code line is in the map",
+          sorted(places), sorted(code))
+    source = document.splitlines()
+    check("document entry: a mapped line is the source document's line",
+          [at for at, text in code.items()
+           if at in places and source[places[at] - 1] != text], [])
+    third = extract_sub_viba_markdown(second, ["ask_red.__impl__"])
+    check("document entry: idempotent",
+          isinstance(third, Ok) and third.ok_value[0], second)
+
+    # a document is the whole source: a leaf primitive is not in it, so an
+    # answer that still imports one cannot be cut again on its own
+    basic, _case = _run("basic", ["report.Report"], viba=("kb", "base"))
+    once, _source_map = basic.ok_value
+    twice = extract_sub_viba_markdown(once, ["report.Report"])
+    _refused("document entry: a leaf primitive is outside the document", twice,
+             "cannot resolve 'mt.Meta'")
+
+    # a definition in a pattern file is kept by an application, not by a name
+    inside = extract_sub_repo_into_viba_markdown(
+        str(kb), [str(kb)], [str(kb)], ["is_red.100.value"])
+    _refused("documents: a name inside a pattern file", inside,
+             "is a definition in a pattern file")
+
+    # a section may be a document of its own: its files are the document's, and
+    # a line of the answer is a line of the section that document is
+    nested = extract_sub_viba_markdown(
+        "## `docs/things.viba.md`\n\n"
+        "````viba docs/things.viba.md\n"
+        "## `colors.viba`\n\n```viba colors.viba\nRed = Object\n```\n"
+        "````\n", ["docs.things.colors.Red"])
+    check("document entry: a section that is a document",
+          isinstance(nested, Ok), True)
+    files = _files(nested.ok_value[0])
+    check("document entry: its files come out at their own paths",
+          sorted(files), ["docs/things/colors.viba"])
+    check("document entry: its text", files["docs/things/colors.viba"],
+          "Red = Object\n")
+    check("document entry: its line is the outer section's line",
+          nested.ok_value[1], {4: 7})
+
+    # a file named with the dots of its module is the module too
+    dotted = extract_sub_viba_markdown(
+        "## `a.b.c.viba`\n\n```viba a.b.c.viba\nX = int\n```\n", ["a.b.c.X"])
+    check("document entry: a file named with its dots",
+          dotted.ok_value[1], {4: 4})
 
 
 def run_errors() -> None:
-    answer = extract_sub_repo("/no/such/repo", [], [], ["a.B"])
-    check_true("error: no such repo", isinstance(answer, Err))
+    # Walking the names
+    missing, _case = _run("basic", ["nope.Nope"], viba=("kb", "base"))
+    _refused("error: a module the path cannot find", missing,
+             "cannot load the module 'nope' of 'nope.Nope'")
+    outside, _case = _run("basic", ["meta.Meta"], viba=("kb", "base"))
+    _refused("error: a definition outside the extraction source", outside,
+             "'meta.Meta' is not in the extraction source")
+    short, _case = _run("errors", ["Fine"])
+    _refused("error: a name without a module", short,
+             "'Fine' is no type name: it is a module and a definition")
+    absent, _case = _run("basic", ["report.Unrelated2"], viba=("kb", "base"))
+    _refused("error: a name the module does not define", absent,
+             "no type 'report.Unrelated2'")
+    builtin_name, _case = _run("basic", ["report.int"], viba=("kb", "base"))
+    _refused("error: a name that is no definition", builtin_name,
+             "'report.int' is no definition")
+    broken, _case = _run("errors", ["broken.Broken"])
+    _refused("error: a name used in a definition does not resolve", broken,
+             "cannot resolve 'Missing'")
+    generic_name, _case = _run("generic_chosen", ["G.value"])
+    _refused("error: a name that lands on a generic directory", generic_name,
+             "'G.value' names a generic")
+    pattern_name, _case = _run("generic_chosen", ["G.100.__decl__"])
+    _refused("error: a name that lands in a pattern file", pattern_name,
+             "is a definition in a pattern file")
 
-    short = slice_case("errors", ["Fine"])
-    check_true("error: a name without a module", isinstance(short["answer"],
-                                                            Err))
+    # Walking the definitions
+    broken_pattern, _case = _run("broken_pattern", ["use.Only"])
+    _refused("error: a pattern file that does not parse", broken_pattern,
+             "cannot parse")
+    no_member, _case = _run("member_missing", ["use.Wrapped"])
+    _refused("error: a member the chosen file does not define", no_member,
+             "no definition 'other' in")
+    bare, _case = _run("cannot_take", ["use.Bare"])
+    _refused("error: an application whose import cannot load", bare,
+             "cannot take 'nope.G' in")
+    taken, _case = _run("cannot_take", ["use.Taken"])
+    _refused("error: a member whose import cannot load", taken,
+             "cannot take 'nope.G' in")
 
-    outside = slice_case("basic", ["meta.Meta"], viba=("kb", "base"))
-    check_true("error: a name outside the extraction source",
-               isinstance(outside["answer"], Err))
+    # The arguments
+    no_repo = extract_sub_repo_into_viba_markdown("/no/such/repo", [], [], ["a.B"])
+    _refused("error: no such repo", no_repo, "no such repo directory")
+    wrong_repo = extract_sub_repo_into_viba_markdown(3, [], [], ["a.B"])
+    _refused("error: the repo is a path", wrong_repo, "repo is a path, not int")
+    wrong_path = extract_sub_repo_into_viba_markdown(
+        str(ERRORS), "kb", [], ["a.B"])
+    _refused("error: the viba path is a list", wrong_path,
+             "viba_path is a list of strings, not one string")
+    no_path = extract_sub_repo_into_viba_markdown(str(ERRORS), 3, [], ["a.B"])
+    _refused("error: the viba path is not one value", no_path,
+             "viba_path is a list of strings, not int")
+    wrong_source = extract_sub_repo_into_viba_markdown(
+        str(ERRORS), [], "kb", ["a.B"])
+    _refused("error: the extraction source is a list", wrong_source,
+             "extract_source_viba_path is a list of strings, not one string")
+    no_names = extract_sub_repo_into_viba_markdown(str(ERRORS), [], [], None)
+    _refused("error: the type names are a list", no_names,
+             "type_names is a list of strings")
+    one_name = extract_sub_repo_into_viba_markdown(str(ERRORS), [], [], "a.B")
+    _refused("error: the type names are not one string", one_name,
+             "type_names is a list of strings, not one string")
+    bad_name = extract_sub_repo_into_viba_markdown(str(ERRORS), [], [], [1])
+    _refused("error: a type name is not a string", bad_name,
+             "type_names holds a string, not int")
+    bad_unit = extract_sub_repo_into_viba_markdown(
+        str(ERRORS), [], [], [], never_eqv=[1])
+    _refused("error: a unit name is not a string", bad_unit,
+             "never_eqv holds a string, not int")
+    not_list = extract_sub_repo_into_viba_markdown(
+        str(ERRORS), [], [], [], nil_eqv="Oneof")
+    _refused("error: the nil units are a list", not_list,
+             "nil_eqv is a list of strings, not one string")
 
-    broken = slice_case("errors", ["broken.Broken"])
-    check_true("error: a name that does not resolve",
-               isinstance(broken["answer"], Err))
-    if isinstance(broken["answer"], Err):
-        check_true("error: the message names the name",
-                   "Missing" in broken["answer"].msg)
+    # The document entry
+    wrong_text = extract_sub_viba_markdown(3, ["a.B"])
+    _refused("document entry: the source is a document's text", wrong_text,
+             "source_viba_md is a document's text, not int")
+    unclosed = extract_sub_viba_markdown(
+        "## `x.viba`\n\n```viba x.viba\nX = int\n", ["x.X"])
+    _refused("document entry: a block that never closes", unclosed,
+             "a fenced code block is not closed at the end of the document")
+    unnamed = extract_sub_viba_markdown(
+        "## `x.viba`\n\n```viba x.viba\nX = int\n```\n", ["nope.Nope"])
+    _refused("document entry: a type the document does not name", unnamed,
+             "cannot load the module 'nope'")
+    no_name = extract_sub_viba_markdown("##\n\n```viba\nX = int\n```\n", ["x.X"])
+    _refused("document entry: a section with no name", no_name,
+             "a section needs a file name")
+    two_names = extract_sub_viba_markdown(
+        "## `x.viba`\n\n```viba x.viba\nX = int\n```\n\n"
+        "## `x.viba`\n\n```viba x.viba\nY = int\n```\n", ["x.X"])
+    _refused("document entry: two sections naming one file", two_names,
+             "two sections name the file 'x.viba'")
+    doc_names = extract_sub_viba_markdown(
+        "## `x.viba`\n\n```viba x.viba\nX = int\n```\n", "x.X")
+    _refused("document entry: the type names are not one string", doc_names,
+             "type_names is a list of strings, not one string")
 
-    wrong_repo = extract_sub_repo(3, [], [], ["a.B"])
-    check_true("error: the repo is a path", isinstance(wrong_repo, Err))
-    wrong_names = extract_sub_repo(str(DATA / "errors" / "kb"), [], [], "a.B")
-    check_true("error: the type names are a list",
-               isinstance(wrong_names, Err))
-    wrong_unit = extract_sub_repo(str(DATA / "errors" / "kb"), [], [], [],
-                                  never_eqv=[1])
-    check_true("error: the unit names are strings",
-               isinstance(wrong_unit, Err))
+    # A section is a file of the document's directory, and nothing else
+    escaped = Path(tempfile.gettempdir()) / f"viba-escape-{os.getpid()}.viba"
+    if escaped.exists():
+        escaped.unlink()
+    escaped_answer = extract_sub_viba_markdown(
+        f"## `../{escaped.name}`\n\n```viba ../{escaped.name}\nX = int\n```\n",
+        [f"{escaped.stem}.X"])
+    _refused("document entry: a section above the directory", escaped_answer,
+             "a section names a file outside the document's directory")
+    check("document entry: nothing is written above the directory",
+          escaped.exists(), False)
+    absolute = extract_sub_viba_markdown(
+        "## `/tmp/viba-absolute.viba`\n\n"
+        "```viba /tmp/viba-absolute.viba\nX = int\n```\n", ["viba-absolute.X"])
+    _refused("document entry: a section that is an absolute path", absolute,
+             "a section names a file outside the document's directory")
+    collision = extract_sub_viba_markdown(
+        "## `a`\n\n```viba a\ntext\n```\n\n"
+        "## `a/b.viba`\n\n```viba a/b.viba\nX = int\n```\n", ["a.b.X"])
+    _refused("document entry: a section where another needs a directory",
+             collision, "and another section needs it to be a directory")
 
 
 def main() -> int:
@@ -332,7 +465,7 @@ def main() -> int:
     run_generics()
     run_walks()
     run_deep_and_multi()
-    run_idempotence()
+    run_documents()
     run_errors()
     print(f"extract_sub_repo: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

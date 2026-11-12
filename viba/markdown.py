@@ -52,9 +52,25 @@ def files_of(source: str) -> List[Tuple[str, str]]:
     Raises SyntaxError, the way viba's own parser does, with the line it
     happened on.
     """
-    files: List[Tuple[str, List[str]]] = []
+    return [(name, _text([part for part, _at in lines]))
+            for name, lines in _read(source)]
+
+
+def lines_of(source: str) -> List[Tuple[str, List[Tuple[str, int]]]]:
+    """The files a document names, line by line: (name, [(text, document line)]).
+
+    The same reading `files_of` gives, with where each line came from: a tool
+    that answers a document of its own says which line of the source a line of
+    its answer stands for.
+    """
+    return [(name, list(lines)) for name, lines in _read(source)]
+
+
+def _read(source: str) -> List[Tuple[str, List[Tuple[str, int]]]]:
+    """The files a document names, each line with the document line it came from."""
+    files: List[Tuple[str, List[Tuple[str, int]]]] = []
     names = set()
-    current: List[str] = None          # the lines of the file being read
+    current: List[Tuple[str, int]] = None   # the file being read: text and line
     fence = None                        # (indent, marker, lines, is a viba block)
     for number, line in enumerate(source.splitlines(), 1):
         if fence is None:
@@ -81,14 +97,15 @@ def files_of(source: str) -> List[Tuple[str, str]]:
                     and not closed.group(3)):
                 # The block's lines join the file: a viba block is the code,
                 # any other block is documentation and becomes comments.
-                current.extend(lines if viba else [_comment(part) for part in lines])
+                current.extend(lines if viba else
+                               [(_comment(part), at) for part, at in lines])
                 fence = None
                 continue
-            lines.append(_unindent(line, indent))
+            lines.append((_unindent(line, indent), number))
             continue
         opened = _FENCE.match(line)
         if opened is None:
-            current.append(_comment(line))
+            current.append((_comment(line), number))
             continue
         info = opened.group(3).split()
         fence = (len(opened.group(1)), opened.group(2), [],
@@ -96,7 +113,7 @@ def files_of(source: str) -> List[Tuple[str, str]]:
     if fence is not None:
         raise SyntaxError(
             "a fenced code block is not closed at the end of the document")
-    return [(name, _text(_trimmed(lines))) for name, lines in files]
+    return [(name, list(_trimmed(lines))) for name, lines in files]
 
 
 def module_files(module_name: str, source: str):
@@ -140,12 +157,12 @@ def _comment(line: str) -> str:
     return f"# {line}" if line.strip() else ""
 
 
-def _trimmed(lines: List[str]) -> List[str]:
-    """The lines without the blank ones at either end."""
+def _trimmed(lines):
+    """The lines without the blank ones at either end: (text, line) pairs."""
     first, last = 0, len(lines)
-    while first < last and not lines[first].strip():
+    while first < last and not lines[first][0].strip():
         first += 1
-    while last > first and not lines[last - 1].strip():
+    while last > first and not lines[last - 1][0].strip():
         last -= 1
     return lines[first:last]
 

@@ -328,16 +328,21 @@ def p_member_head(p):
 def p_type_definition(p):
     """type_definition : CLASS_NAME ASSIGN partial_expr"""
     p[0] = TypeDefinition(p[1], p[3])
+    # The line the definition starts on: a tool that slices a file writes the
+    # definition back out, and has to say where it came from.
+    p[0].lineno = p.lineno(1)
 
 
 def p_generic_definition(p):
     """generic_definition : CLASS_NAME LBRACKET CLASS_NAME type_param_list RBRACKET ASSIGN partial_expr"""
     p[0] = GenericDefinition(p[1], [p[3]] + p[4], p[7])
+    p[0].lineno = p.lineno(1)
 
 
 def p_import_stmt(p):
     """import_stmt : IMPORT class_path optional_alias"""
     p[0] = Import(p[2], p[3])
+    p[0].lineno = p.lineno(1)
 
 
 def p_class_path(p):
@@ -349,6 +354,7 @@ def p_class_path(p):
 def p_pattern_stmt(p):
     """pattern_stmt : PATTERN partial_expr"""
     p[0] = Pattern(p[2])
+    p[0].lineno = p.lineno(1)
 
 
 def p_optional_alias(p):

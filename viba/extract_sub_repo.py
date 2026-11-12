@@ -1,44 +1,53 @@
-"""viba.extract_sub_repo — pull one sub-repo out of a viba repo.
+"""viba.extract_sub_repo — a sub-repo as one Markdown document.
 
-    from viba.extract_sub_repo import extract_sub_repo
+    from viba.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
+                                       extract_sub_viba_markdown)
 
-    answer = extract_sub_repo("kb", ["kb", "base"], ["kb"], ["report.Report"])
-    # Ok(SubRepo(repo="kb-sub", viba_path=["kb-sub", "base"]))
+    document, source_map = extract_sub_repo_into_viba_markdown(
+        "kb", ["kb", "base"], ["kb"], ["report.Report"]).ok_value
+    # source_map[4] is (module, line): where the document's line 4 came from
+
+    again, to_source = extract_sub_viba_markdown(document, ["report.Report"]).ok_value
 
 The design is viba/extract_sub_repo.viba and the document is
-viba/wiki/viba-extract-sub-repo.md; this module is the one layer that takes files apart.
+viba/wiki/viba-extract-sub-repo.md; this module is the one layer that takes files
+apart.
+
+The answer is a document, not a directory: one section per file, its path the
+section's name, its body the lines the source has for the imports it uses and
+the definitions kept — comments and blank lines included, so the map can be
+exact. Both entries answer that document and a map: the repo entry maps each
+code line to the module and the line in it, the document entry to the line of
+the source document.
 
 What it does, in the order the document gives it:
 
-- The repo is a directory of `.viba` files. A file's module name is its path
-  relative to the repo, without the suffix and with the separators turned into
-  dots; a generic is the directory its files sit in (`__generic__.viba` and the
-  numbered files beside it), which is the same rule.
+- The repo holds `.viba` files and `.viba.md` documents alike. A file's module
+  name is its path relative to the repo, without the suffix and with the
+  separators turned into dots; a generic is the directory its files sit in
+  (`__generic__.viba` and the numbered files beside it), which is the same rule.
+  A document's sections are its files, so a definition reached in one is
+  extracted like any other and comes out at the path its module has.
 - A type name is `xxx.yyy.zzz`: the module `xxx.yyy` is found the way an import
   would find it — on `viba_path`, in order, the builtin directory last — and
   `zzz` is a definition in it.
 - The definitions reached from those names are walked. A definition whose file
   is in the repo and under `extract_source_viba_path` is extracted, together
-  with the definitions it reaches; everything else is a primitive: not copied,
-  its import kept, and the search root it was found under added to the answer's
-  `viba_path`.
+  with the definitions it reaches; everything else is a leaf primitive: its
+  definition is not in the document, the import that names it is kept.
 - A generic application keeps the directory: the marker and the pattern file
   the decision chooses (every file that can take as many arguments as the
-  application gives, when the decision cannot be made).
-- The sub-repo is written beside the repo (`kb` -> `kb-sub`) and the answer is
-  its path with the `viba_path` it needs.
+  application gives, when the decision cannot be made). A pattern file's own
+  definitions are no names to start from: the file is kept whole by an
+  application of its generic, so a type name that lands in one is refused.
+- A file kept whole (a generic's marker and pattern file) is its own text; any
+  other keeps the definitions that were reached and the imports those
+  definitions use, as the source has them.
 
 The walk reads the source the way the interpreter's loader does — the same
 `_Runner` that serves a run — so a name resolves where it would resolve when
 the design runs. Nothing is run: no definition is called, and a hint block is
 documentation.
-
-A pattern file is kept whole: its `pattern` lines, `__decl__`, `__impl__` and
-whatever else it defines go together, because a file missing one of them is no
-decision. Every other file keeps the definitions that were reached and the
-imports those definitions use; it is spelled again from the syntax tree, so the
-`#` lines and the blank lines are not carried over (the members that carry a
-hint block are part of a definition and do go with it).
 
 The units: `never_eqv` and `nil_eqv` are the names that stand for `never` and
 `nil` while the source is read (VibaReflectConfig's parameters,
@@ -48,17 +57,18 @@ a list given is that list, and an empty one adds no name.
 This layer says what to copy; it does not judge the design. A decision that
 cannot be made in the source keeps every file that could take the application,
 so a generic whose body applies another generic to a parameter still extracts
-to a runnable sub-repo.
+to a complete document.
 """
+
 
 from __future__ import annotations
 
 import os
-import shutil
+import tempfile
 from pathlib import Path
-from typing import List, Optional, Sequence, Set
+from typing import Optional, Sequence, Set
 
-from viba import viba_ast
+from viba import markdown, viba_ast
 from viba.design_walk import (
     bindings_key,
     call_parts,
@@ -86,7 +96,7 @@ from viba.type import (
 )
 from viba.viba_ast.tagged import TAGGED_NAME
 
-__all__ = ["extract_sub_repo", "SubRepo"]
+__all__ = ["extract_sub_repo_into_viba_markdown", "extract_sub_viba_markdown"]
 
 # The language's own units (reflect.language_config): a name that stands for the
 # sum's unit or the product's unit. `Object`/`nil`/`never`/`Oneof` resolve as
@@ -99,29 +109,11 @@ CONTAINER_NAMES = ("list", "set", "dict")
 UNIT_NAMES = ("Object", "nil", "void", "None", "never", "Oneof")
 
 
-class SubRepo:
-    """What one extraction answered: the sub-repo's path and the import path it needs."""
-
-    __slots__ = ("repo", "viba_path")
-
-    def __init__(self, repo: str, viba_path: Sequence[str]):
-        self.repo = repo
-        self.viba_path = list(viba_path)
-
-    def __eq__(self, other):
-        return (isinstance(other, SubRepo)
-                and (self.repo, self.viba_path) == (other.repo, other.viba_path))
-
-    def __hash__(self):
-        return hash((self.repo, tuple(self.viba_path)))
-
-    def __repr__(self):
-        return f"SubRepo({self.repo!r}, {self.viba_path!r})"
-
-
-def extract_sub_repo(repo, viba_path=(), extract_source_viba_path=(),
-                     type_names=(), never_eqv=None, nil_eqv=None) -> Result:
-    """Result[SubRepo]: the sub-repo of `repo` that the type names reach.
+def extract_sub_repo_into_viba_markdown(repo, viba_path=(),
+                                        extract_source_viba_path=(),
+                                        type_names=(), never_eqv=None,
+                                        nil_eqv=None) -> Result:
+    """Result[(VibaMarkdown, VibaMdToRepoSourceMap)]: the sub-repo as one document.
 
     `repo` is a directory; `viba_path` the directories an import is looked up
     on, in order; `extract_source_viba_path` the directories of `repo` whose
@@ -129,8 +121,17 @@ def extract_sub_repo(repo, viba_path=(), extract_source_viba_path=(),
     (`xxx.yyy.zzz`). `never_eqv` / `nil_eqv` are the unit names, or None for the
     language's own (`reflect.language_config`).
 
-    Err says why no sub-repo was written, one sentence, the first
-    thing that does not hold.
+    The answer is the document the sub-repo is (`viba/core/data/viba-data.md`:
+    one section per file, its path the section's name), and a map from each of
+    the document's code lines to where it came from — the module it is a piece
+    of, and the line in that module.
+
+    A file of the repo may be a document (`.viba.md`): its sections are files
+    too, and a definition reached in one is extracted like any other — it comes
+    out as a section of its own, at the path its module has.
+
+    Err says why no document was made, one sentence, the first thing that does
+    not hold.
     """
     problem = _argument_problem(repo, viba_path, extract_source_viba_path,
                                 type_names, never_eqv, nil_eqv)
@@ -145,9 +146,103 @@ def extract_sub_repo(repo, viba_path=(), extract_source_viba_path=(),
         None if nil_eqv is None else [str(one) for one in nil_eqv],
     )
     try:
-        return slicer.slice()
+        document, origin = slicer.markdown()
     except _SliceErr as exc:
         return Err(str(exc))
+    return Ok((document, {at: (module, line) for at, module, line in origin}))
+
+
+def extract_sub_viba_markdown(source_viba_md, type_names=(), never_eqv=None,
+                              nil_eqv=None) -> Result:
+    """Result[(VibaMarkdown, VibaMdToVibaMdSourceMap)]: a document in, a document out.
+
+    `source_viba_md` is a document's content: one section per file, the section's
+    name the file's path in the repo the document stands for. The sub-document
+    answers the definitions `type_names` reach, cut the way the repo entry cuts
+    them; the map says, for each code line of the answer, the line of the source
+    document it came from.
+
+    A document is a repo whose files are documents in turn; this entry takes the
+    one it is given as the whole source, so the only files it can reach are the
+    ones the document holds. The section names are files of the document's
+    directory: a name outside it (an absolute path, `..`) is refused. Every code
+    line of the answer is placed in the source document; a line that cannot be
+    placed is an Err.
+    """
+    if not isinstance(source_viba_md, str):
+        return Err(f"source_viba_md is a document's text, not "
+                   f"{type(source_viba_md).__name__}")
+    try:
+        files = markdown.files_of(source_viba_md)
+    except SyntaxError as exc:
+        return Err(str(exc))
+    problem = _sections_problem([name for name, _body in files])
+    if problem is not None:
+        return Err(problem)
+    with tempfile.TemporaryDirectory(prefix="viba-extract-") as scratch:
+        root = Path(scratch)
+        for name, body in files:
+            path = root / name
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(body, encoding="utf-8")
+            except OSError as exc:
+                return Err(f"cannot write the section {name!r}: {exc}")
+        problem = _argument_problem(str(root), [str(root)], [str(root)],
+                                    type_names, never_eqv, nil_eqv)
+        if problem is not None:
+            return Err(problem)
+        slicer = _Slicer(
+            str(root), [str(root)], [str(root)],
+            [str(one) for one in type_names or ()],
+            None if never_eqv is None else [str(one) for one in never_eqv],
+            None if nil_eqv is None else [str(one) for one in nil_eqv],
+        )
+        try:
+            document, origin = slicer.markdown()
+        except _SliceErr as exc:
+            return Err(str(exc))
+    # where a line of a module is in the source document: its section's lines
+    places = {}
+    for name, lines in markdown.lines_of(source_viba_md):
+        for index, (_text, at) in enumerate(lines, 1):
+            places[(name, index)] = at
+    texts = dict(files)
+
+    def source_line_of(module: str, module_line: int):
+        """The source document's line a module line is, or None when it is not one.
+
+        The places a module can come from are the loader's, in its order: the
+        document beside its directory first (a section that is a document of its
+        own), then the file at its dotted path, then one file named with its dots.
+        """
+        parts = module.split(".")
+        if len(parts) > 1:
+            outer = "/".join(parts[:-1]) + ".viba.md"
+            if outer in texts:
+                try:
+                    inner = dict(markdown.lines_of(texts[outer]))
+                except SyntaxError:
+                    return None
+                lines = inner.get(parts[-1] + ".viba")
+                if lines is None or not 1 <= module_line <= len(lines):
+                    return None
+                return places.get((outer, lines[module_line - 1][1]))
+        for section in ("/".join(parts) + ".viba", module + ".viba"):
+            at = places.get((section, module_line))
+            if at is not None:
+                return at
+        return None
+
+    answer = {}
+    for document_line, module, module_line in origin:
+        at = source_line_of(module, module_line)
+        if at is None:
+            return Err(
+                f"line {document_line} of the answer is from {module!r}, and the "
+                f"source document has no section for it")
+        answer[document_line] = at
+    return Ok((document, answer))
 
 
 def _argument_problem(repo, viba_path, extract_source_viba_path, type_names,
@@ -172,6 +267,28 @@ def _argument_problem(repo, viba_path, extract_source_viba_path, type_names,
         for one in parts:
             if not isinstance(one, str):
                 return f"{label} holds a string, not {type(one).__name__}"
+    return None
+
+
+def _sections_problem(names: Sequence[str]) -> Optional[str]:
+    """Why the sections cannot be the files of one directory, or None when they can.
+
+    A section is a file of the document's directory, so its name is a relative
+    path without `.` or `..`; and no section may name a file that another
+    section needs as a directory (`a` beside `a/b.viba`).
+    """
+    known = set(names)
+    for name in names:
+        parts = name.split("/")
+        if (not name or name.startswith("/") or "\x00" in name
+                or any(part in ("", ".", "..") for part in parts)):
+            return (f"a section names a file outside the document's directory: "
+                    f"{name!r}")
+        for cut in range(1, len(parts)):
+            prefix = "/".join(parts[:cut])
+            if prefix in known:
+                return (f"a section names the file {prefix!r}, and another section "
+                        f"needs it to be a directory")
     return None
 
 
@@ -209,19 +326,18 @@ class _Slicer:
         self.kept = {}
         self.whole = {}
         self.whole_walked = set()
-        # The search roots the primitives were found under, in the order they are met.
-        self.roots: List[str] = []
         # (file, definition, bindings) already walked.
         self.visited = set()
 
     # ---- the entry ----
 
-    def slice(self) -> Result:
+    def markdown(self):
+        """The sub-repo as one document, and where each of its code lines came from."""
         if not self.repo.is_dir():
             raise _SliceErr(f"no such repo directory: {self.repo}")
         for name in self.type_names:
             self._start(name)
-        return self._write()
+        return self._render()
 
     def _start(self, name: str) -> None:
         module_name, definition_name = split_type_name(name)
@@ -241,6 +357,10 @@ class _Slicer:
         if not self._is_source_file(module.file_path):
             raise _SliceErr(
                 f"{name!r} is not in the extraction source: {module_label(module)}")
+        if self._is_pattern_file(module):
+            raise _SliceErr(
+                f"{name!r} is a definition in a pattern file: a generic's files "
+                f"are kept whole by an application of it, not by a name")
         found = module_get_type(module, definition_name)
         if isinstance(found, Err):
             raise _SliceErr(f"no type {name!r}: {found.msg}")
@@ -259,7 +379,6 @@ class _Slicer:
         if not file_path or under_builtin(file_path):
             return
         if not self._is_source_file(file_path):
-            self._add_root(module.root)
             return
         key = (file_path, definition.name, bindings_key(bindings))
         if key in self.visited:
@@ -274,7 +393,7 @@ class _Slicer:
         self._kept_file(module).names.add(definition.name)
         self._walk(definition.body, module, with_params(definition, bindings))
 
-    def _keep_whole(self, module: CustomModuleType) -> None:
+    def _keep_whole(self, module: CustomModuleType, document=None) -> None:
         """Keep the whole file, and walk every definition it has.
 
         A generic's pattern file is kept whole: which definitions the file needs
@@ -284,10 +403,18 @@ class _Slicer:
         parameter, and a pattern parameter is a placeholder.
         """
         file_path = module.file_path
-        if not file_path or file_path in self.whole_walked:
+        name = self._whole_name(module, document)
+        if not file_path and document is None:
             return
-        self.whole_walked.add(file_path)
-        self.whole[file_path] = module
+        if name in self.whole_walked:
+            return
+        section = None
+        if file_path is None:
+            # A section of a document: the document is the file, the section its text.
+            file_path = document
+            section = name.rsplit(".", 1)[-1] + ".viba"
+        self.whole_walked.add(name)
+        self.whole[name] = (file_path, section)
         for statement in module.module.body:
             if not is_definition(statement):
                 continue
@@ -302,10 +429,12 @@ class _Slicer:
         """Keep the marker and the pattern files the application can take."""
         directory = str(generic.directory)
         if not self._is_source_file(os.path.join(directory, GENERIC_FILE)):
-            self._add_root(_generic_root(self.loader, generic))
             return
         marker = os.path.join(directory, GENERIC_FILE)
-        self.whole[marker] = generic.module
+        is_document = str(generic.directory).endswith(".viba.md")
+        self.whole[f"{generic.name}.__generic__"] = (
+            str(generic.directory) if is_document else marker,
+            GENERIC_FILE if is_document else None)
         if choice is not None:
             self._keep_pattern(choice.entry)
             return
@@ -324,10 +453,10 @@ class _Slicer:
         module, _patterns = got.ok_value
         if not isinstance(module, CustomModuleType):
             return
-        if not self._is_source_file(module.file_path):
-            self._add_root(module.root)
+        if not self._is_source_file(entry.path):
             return
-        self._keep_whole(module)
+        document = str(Path(entry.path).parent)
+        self._keep_whole(module, document if document.endswith(".viba.md") else None)
 
     def _kept_file(self, module: CustomModuleType) -> _KeptFile:
         entry = self.kept.get(module.file_path)
@@ -335,15 +464,6 @@ class _Slicer:
             entry = _KeptFile(module)
             self.kept[module.file_path] = entry
         return entry
-
-    def _add_root(self, root) -> None:
-        if not root:
-            return
-        path = str(root)
-        if Path(path).resolve() in (BUILTIN_DIR, BUILTIN_CONCEPT_DIR):
-            return
-        if path not in self.roots:
-            self.roots.append(path)
 
     # ---- the walk ----
 
@@ -542,101 +662,146 @@ class _Slicer:
             return True
         return (path.parent / GENERIC_FILE).is_file()
 
+    def _is_pattern_file(self, module) -> bool:
+        """Is this module one pattern file: a file beside a marker, or a section
+        of a document that holds a marker?
+
+        A pattern file is no module of its own — its definitions mean something
+        only under a decision — so a name that lands on one is refused.
+        """
+        file_path = module.file_path
+        if not file_path:
+            return False
+        path = Path(file_path)
+        if path.name == GENERIC_FILE:
+            return False
+        if path.name.endswith(".viba") and self._is_generic_file(path):
+            return True
+        if not path.name.endswith(".viba.md"):
+            return False
+        try:
+            sections = dict(markdown.files_of(path.read_text(encoding="utf-8")))
+        except (OSError, SyntaxError):
+            return False
+        section = ((getattr(module, "name", "") or "").rsplit(".", 1)[-1]
+                   + ".viba")
+        return (GENERIC_FILE in sections and section in sections
+                and section != GENERIC_FILE)
+
     # ---- the answer ----
 
-    def _write(self) -> Result:
-        files = {}
-        for file_path, entry in self.kept.items():
-            files[self._relative(file_path)] = _spell_definitions(entry)
-        for file_path in self.whole:
-            # A file kept whole is copied as it is: its `#` lines and its layout are
-            # part of how a generic reads.
-            files[self._relative(file_path)] = Path(file_path).read_text(encoding="utf-8")
-        target = self._target()
-        self._write_files(target, files)
-        return Ok(SubRepo(str(target), [str(target)] + self._ordered_roots()))
+    def _render(self):
+        """The kept files as one document's sections, and the line map.
 
-    def _ordered_roots(self) -> List[str]:
-        """The primitive roots in the order the `viba_path` gave, the others after.
-
-        A root found beside the file that imported it was not on the `viba_path`,
-        so it has no place there: it goes after them, in the order it was met.
+        A section is a file: its path is the section's name, and its body is the
+        file's text as the source has it — the imports it uses and the
+        definitions kept, in the order the source has them. A file kept whole (a
+        generic's) is its own text. The map says, for each body line, the module
+        it is a piece of and the line in that module.
         """
-        places = {os.path.normpath(str(path)): index
-                  for index, path in enumerate(self.loader.paths)}
+        entries = []
+        for file_path, entry in self.kept.items():
+            module_name = self._module_name(entry, file_path)
+            entries.append((_path_of_module(module_name),
+                            self._kept_lines(entry, module_name)))
+        for module_name, (path, section) in self.whole.items():
+            lines = _lines_at(path, section)
+            entries.append((_path_of_module(module_name),
+                            [(text, module_name, index)
+                             for index, text in enumerate(lines, 1)]))
+        entries.sort(key=lambda pair: pair[0])
+        lines, origin = [], []
+        for path, parts in entries:
+            lines.append(f"## `{path}`")
+            lines.append("")
+            lines.append(f"```viba {path}")
+            for text, module, module_line in parts:
+                lines.append(text)
+                origin.append((len(lines), module, module_line))
+            lines.append("```")
+            lines.append("")
+        document = "\n".join(lines).rstrip("\n") + "\n" if lines else ""
+        return document, origin
 
-        def place(entry):
-            index, root = entry
-            found = places.get(os.path.normpath(root))
-            return (0, found) if found is not None else (1, index)
+    def _whole_name(self, module: CustomModuleType, file_path=None) -> str:
+        """The name a file kept whole answers to: its module's, or its path taken as one."""
+        name = getattr(module, "name", "") or ""
+        if name:
+            return name
+        return _module_of_path(self._relative(file_path or module.file_path))
 
-        return [root for _index, root in sorted(enumerate(self.roots), key=place)]
+    def _module_name(self, entry: "_KeptFile", file_path) -> str:
+        """The module's own name: what it was loaded as, or its path taken as one."""
+        name = getattr(entry.module, "name", "") or ""
+        if name:
+            return name
+        return _module_of_path(self._relative(file_path))
+
+    def _kept_lines(self, entry: "_KeptFile", module_name: str):
+        """The file's kept statements, line by line, with where each came from."""
+        source = self._module_lines(entry, module_name)
+        statements = [statement for statement in entry.module.module.body
+                      if getattr(statement, "lineno", None)]
+        out = []
+        for statement in statements:
+            if isinstance(statement, viba_ast.Import):
+                if (statement.alias or statement.module) not in entry.imports:
+                    continue
+            elif not (is_definition(statement) and statement.name in entry.names):
+                continue
+            start = statement.lineno
+            after = _lineno_after(statements, statement)
+            end = after if after is not None else len(source) + 1
+            out.extend((text, module_name, index)
+                       for index, text in enumerate(source[start - 1:end - 1], start))
+        while out and not out[-1][0].strip():
+            out.pop()                     # the file ends at its last line of text
+        return out
+
+    def _module_lines(self, entry: "_KeptFile", module_name: str):
+        """The module's own lines: the file's, or the section's of a document."""
+        return self._module_lines_of(entry.module, module_name)
+
+    def _module_lines_of(self, module, module_name: str):
+        file_path = str(module.file_path or "")
+        if file_path.endswith(".viba.md"):
+            section = module_name.rsplit(".", 1)[-1] + ".viba"
+            for name, lines in markdown.lines_of(
+                    Path(file_path).read_text(encoding="utf-8")):
+                if name == section:
+                    return [text for text, _at in lines]
+            return []
+        return Path(file_path).read_text(encoding="utf-8").splitlines()
 
     def _relative(self, file_path) -> str:
         return os.path.relpath(Path(file_path).resolve(), self.repo_root)
 
-    def _target(self) -> Path:
-        parent = self.repo.parent
-        name = self.repo.name + "-sub"
-        return Path(os.path.join(str(parent), name)) if str(parent) != "." else Path(name)
 
-    @staticmethod
-    def _write_files(target: Path, files: dict) -> None:
-        temporary = Path(str(target) + ".tmp")
-        if temporary.is_dir():
-            shutil.rmtree(temporary)
-        elif temporary.exists():
-            temporary.unlink()
-        temporary.mkdir(parents=True, exist_ok=True)
-        for relative, text in sorted(files.items()):
-            path = temporary / relative
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text, encoding="utf-8")
-        if target.is_dir():
-            shutil.rmtree(target)
-        elif target.exists():
-            target.unlink()
-        os.replace(temporary, target)
+def _lines_at(path, section=None):
+    """The lines of a file, or of one section of a document."""
+    text = Path(path).read_text(encoding="utf-8")
+    if section is None:
+        return text.splitlines()
+    for name, lines in markdown.lines_of(text):
+        if name == section:
+            return [part for part, _at in lines]
+    return []
 
 
-def _generic_root(loader, generic: GenericModuleType) -> "Optional[str]":
-    """The search root the generic was found under: its module name taken as a path."""
-    directory = os.path.normpath(str(generic.directory))
-    name = generic.name or ""
-    for base in loader.paths:
-        place = os.path.normpath(os.path.join(str(base), *name.split(".")))
-        if place == directory:
-            return str(base)
-    return os.path.dirname(directory) or None
+def _path_of_module(module_name: str) -> str:
+    """The file a module is: its name's dots become directories, `.viba` at the end."""
+    return module_name.replace(".", "/") + ".viba"
 
 
-# ----------------------------------------------------------------------
-# Spelling the files again
-# ----------------------------------------------------------------------
+def _module_of_path(path: str) -> str:
+    """The module a file is: the path without `.viba`, its separators dots."""
+    name = path[: -len(".viba")] if path.endswith(".viba") else path
+    return name.replace("/", ".")
 
 
-def _spell_definitions(entry: _KeptFile) -> str:
-    """Imports used, then the kept definitions, in the order the source has them."""
-    body = entry.module.module.body
-    nodes = [statement for statement in body
-             if isinstance(statement, viba_ast.Import)
-             and (statement.alias or statement.module) in entry.imports]
-    nodes += [statement for statement in body
-              if is_definition(statement) and statement.name in entry.names]
-    return _spell_nodes(nodes)
-
-
-def _spell_nodes(nodes) -> str:
-    """The statements spelled again: the imports as a block, then the rest.
-
-    Imports stay one per line and the definitions get a blank line between them,
-    which is how the source in this repo reads; a file with nothing in it is
-    empty (a generic's marker file carries only its `#` comments, which are not
-    part of a definition).
-    """
-    imports = [node for node in nodes if isinstance(node, viba_ast.Import)]
-    others = [node for node in nodes if not isinstance(node, viba_ast.Import)]
-    head = "\n".join(viba_ast.unparse_type(node) for node in imports)
-    rest = "\n\n".join(viba_ast.unparse_type(node) for node in others)
-    text = "\n\n".join(part for part in (head, rest) if part)
-    return text + "\n" if text else ""
+def _lineno_after(statements, statement):
+    """The line the next statement starts on, or None when this is the last."""
+    for index, other in enumerate(statements):
+        if other is statement:
+            return statements[index + 1].lineno if index + 1 < len(statements) else None
+    return None
