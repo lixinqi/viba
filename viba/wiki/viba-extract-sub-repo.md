@@ -75,6 +75,12 @@ TypeName =
 一节也可以是一份文档（`docs/things.viba.md`）：它里面的节是 `docs/things/` 下的文件，抽出来的节按它们
 的路径写（`docs/things/colors.viba`），行号仍指回外层文档里那一行。
 
+两个入口因此是一回事：先把 repo 收成一份文档（[`viba-repomix.md`](viba-repomix.md)），再走文档入口，
+答的与直接走仓库入口一样——文档一样，行号来源穿过那份文档也对得上：
+`ExtractSubVibaMarkdown * VibaRepoMix == ExtractSubRepoIntoVibaMarkdown`。前提是 repo 的 `import` 都在
+自己里面，并且 `viba_path`、`$extract_source_viba_path` 都指 repo 自己；收出来的文档读回来就是 repo 的
+那些文件，逐行相同。
+
 ## 5. 幂等
 
 只有 `ExtractSubVibaMarkdown` 上验这一条：源文档的每个 `import` 都指向它自己的一个节（或语言内置模块）
@@ -104,6 +110,10 @@ source_map[4]                      # (模块, 行号)：文档第 4 行来自哪
 `pattern_custom_types` 那份文档）、两个入口的行号来源——**每个映射行的文字与源行逐字相同**、**答案的每个
 代码行都有映射**——以及文档入口的幂等、文档里嵌一份文档（那一节的行号指回外层）、两个入口的报错（第
 8 节）。报错不只断言它是 `Err`，也断言消息点到了出事的名字或参数。
+
+[`tests/test_extract_sub_repo_repomix.py`](../../tests/test_extract_sub_repo_repomix.py) 验上面那条等式：
+先 repomix 再走文档入口，与直接走仓库入口，文档与行号来源都相同（泛型、成员、树、调用、代码前后的
+注释、`.viba.md` 文档，以及本项目的一份文档 repo）。
 
 ## 8. 报错
 

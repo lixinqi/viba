@@ -1,0 +1,6 @@
+# a leading note
+pattern int
+
+value = true
+
+# a trailing note

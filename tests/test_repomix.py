@@ -5,6 +5,10 @@ code, a generic directory (one file with a trailing comment, one with a comment
 between its lines, and the marker), and a directory written as one document
 (`box.viba.md`) with a `box/` beside it that the document shadows.
 
+The pack reads back as the directory's files, line for line: a comment becomes
+prose only when it comes back as the same line, and no blank line is added
+around the code block.
+
     python3 tests/test_repomix.py
 """
 
@@ -54,7 +58,7 @@ def run() -> None:
            "g/__generic__.viba", "report.viba"])
     check("a file's code is the code block, its comment a comment",
           sections["report.viba"],
-          "# The point and the note.\n\nPoint = Object * $x int * $y int\n")
+          "# The point and the note.\nPoint = Object * $x int * $y int\n")
     check("the comment above the code is prose",
           pack.index("The point and the note.") < pack.index("Point = Object"),
           True)
@@ -74,6 +78,18 @@ def run() -> None:
           sections["g/__generic__.viba"], "# __generic__.viba\n")
     check("no code, no notes", "notes.txt" in sections or "README.md" in sections,
           False)
+    check("the pack reads back as the directory's files",
+          sorted(sections.items()),
+          [("box/a.viba", "A = int\n"), ("box/b.viba", "B = str\n"),
+           ("g/100.viba", "pattern bool\n\nvalue = true\n\n"
+                         "# a trailing note\n"),
+           ("g/200.viba", "pattern A\n\n# this one sits with the line, so it "
+                         "stays\nvalue = false\n"),
+           ("g/__generic__.viba", "# __generic__.viba\n"),
+           ("report.viba", "# The point and the note.\n"
+                          "Point = Object * $x int * $y int\n")])
+    check("no blank line is added between a comment and its code",
+          "The point and the note.\n```viba report.viba" in pack, True)
 
     plain = DATA / "plain"
     check("a directory of files packs to its own document",
@@ -81,6 +97,17 @@ def run() -> None:
           [(name, (plain / name).read_text()) for name in ("x.viba", "y.viba")])
     check("a path that is no directory packs nothing",
           viba_repomix(str(DATA / "nope")), "")
+
+    with tempfile.TemporaryDirectory(prefix="viba-repomix-") as scratch:
+        root = Path(scratch)
+        (root / "x.viba").write_text(
+            "# fine note\nX = int\n## not a heading\n")
+        tricky = viba_repomix(str(root))
+        check("a comment that reads back as a heading stays in the code",
+              "```viba x.viba\nX = int\n## not a heading\n```" in tricky, True)
+        check("and the file reads back as itself",
+              dict(markdown.files_of(tricky))["x.viba"],
+              "# fine note\nX = int\n## not a heading\n")
 
     with tempfile.TemporaryDirectory(prefix="viba-repomix-") as scratch:
         root = Path(scratch)

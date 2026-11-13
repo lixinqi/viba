@@ -46,22 +46,42 @@ def viba_repomix(viba_code_dir: str) -> str:
     The document is the one the loader reads for a directory: one section per
     file, its name the file's path in `viba_code_dir`, its code block the
     file's code, and the file's leading and trailing comments as prose around
-    it. The design's type has no error branch (`viba/repomix.viba`): a path that
-    is no directory holds no code, so the pack is empty.
+    it. The document reads back as the directory's files, line for line: a
+    comment that would not come back as itself stays in the code block, and no
+    blank line is added around it. The design's type has no error branch
+    (`viba/repomix.viba`): a path that is no directory holds no code, so the pack
+    is empty.
     """
     sections = _files_of(viba_code_dir)
     parts = []
     for path in sorted(sections):
         before, code, after = sections[path]
-        part = f"## `{path}`\n"
+        lines = [f"## `{path}`", ""]
         if before:
-            part += f"\n{before}\n"
+            lines.extend(before.splitlines())
         if code:
-            part += "\n```viba " + path + "\n" + code + "```\n"
+            fence = _fence(code)
+            lines.append(f"{fence}viba {path}")
+            lines.extend(code.splitlines())
+            lines.append(fence)
         if after:
-            part += f"\n{after}\n"
-        parts.append(part)
-    return "\n".join(parts)
+            lines.extend(after.splitlines())
+        lines.append("")
+        parts.append("\n".join(lines))
+    text = "\n".join(parts)
+    return text.rstrip("\n") + "\n" if text else ""
+
+
+def _fence(code: str) -> str:
+    """Backticks that no line of the code closes: three, unless the code needs more."""
+    longest = 0
+    for line in code.splitlines():
+        opened = markdown._FENCE.match(line)
+        if opened is not None and opened.group(2)[0] == "`":
+            longest = max(longest, len(opened.group(2)))
+    return "`" * max(3, longest + 1)
+    text = "\n".join(parts)
+    return text.rstrip("\n") + "\n" if text else ""
 
 
 def _files_of(viba_code_dir: str) -> Dict[str, Tuple[str, str, str]]:
@@ -113,39 +133,59 @@ def _text(path: Path) -> str:
 def _lifted(text: str) -> Tuple[str, str, str]:
     """(before, code, after): a file's code, and the comments around it lifted.
 
-    Only the comments above the first line of code and below the last one are
-    lifted; a comment between two lines of code stays with them.
+    A comment above the first line of code or below the last one is lifted only
+    when it reads back as the same line: the prose form is the comment's text
+    without `# `, and the Markdown reader turns it back into the comment. A
+    comment that would not (an indented one, one with no space after the `#`,
+    one whose text would be a heading or a fence) stays in the code block, so
+    the section reads back as the file, line for line. A comment between two
+    lines of code stays with them.
     """
     lines = text.splitlines()
+    code_at = [index for index, line in enumerate(lines) if _code_line(line)]
+    if not code_at:
+        if all(_liftable(line) for line in lines):
+            return _prose(lines), "", ""
+        return "", _code(lines), ""
+    first, last = code_at[0], code_at[-1]
+    start = 0
+    while start < first and _liftable(lines[start]):
+        start += 1
+    end = len(lines)
+    while end > last + 1 and _liftable(lines[end - 1]):
+        end -= 1
+    return _prose(lines[:start]), _code(lines[start:end]), _prose(lines[end:])
 
-    def code_line(line: str) -> bool:
-        return bool(line.strip()) and not line.lstrip().startswith("#")
 
-    first = next((index for index, line in enumerate(lines) if code_line(line)),
-                 None)
-    if first is None:
-        return _prose(lines), "", ""
-    last = max(index for index, line in enumerate(lines) if code_line(line))
-    code = "".join(f"{line}\n" for line in lines[first:last + 1])
-    return _prose(lines[:first]), code, _prose(lines[last + 1:])
+def _code_line(line: str) -> bool:
+    return bool(line.strip()) and not line.lstrip().startswith("#")
+
+
+def _liftable(line: str) -> bool:
+    """Does this line read back as itself when it is written as prose?"""
+    if not line.strip():
+        return line == ""             # a blank line is a blank line
+    if not line.lstrip().startswith("#"):
+        return False
+    text = _prose_text(line)
+    if markdown._HEADING.match(text) or markdown._FENCE.match(text):
+        return False                   # it would name a file, or open a block
+    return markdown._comment(text) == line
+
+
+def _prose_text(line: str) -> str:
+    """One comment line as prose: `# ` gone, the rest as the line has it."""
+    text = line.lstrip()[1:]
+    if text.startswith(" "):
+        text = text[1:]
+    return text
+
+
+def _code(lines: List[str]) -> str:
+    """Lines of code as the file has them: one line, one newline."""
+    return "".join(f"{line}\n" for line in lines)
 
 
 def _prose(lines: List[str]) -> str:
     """Comment lines as prose: the `#` gone, the empty ones kept as breaks."""
-    out: List[str] = []
-    for line in lines:
-        if not line.strip():
-            out.append("")
-            continue
-        text = line.lstrip()[1:]
-        if text.startswith(" "):
-            text = text[1:]
-        text = text.rstrip()
-        if text.startswith("#"):
-            text = "\\" + text      # a heading would name a file of the document
-        out.append(text)
-    while out and not out[0]:
-        out.pop(0)
-    while out and not out[-1]:
-        out.pop()
-    return "\n".join(out)
+    return "\n".join(_prose_text(line) for line in lines)

@@ -2,7 +2,9 @@
 #
 # The document is the one viba/markdown.py reads: a section per file, its name
 # the file's path in the directory, its first code block the file's code. A
-# .viba file's leading and trailing comments become that section's prose.
+# .viba file's leading and trailing comments become that section's prose when
+# they read back as the same lines; the document reads back as the directory's
+# files, line for line.
 
 VibaRepoMix =
     (str * { markdown file content })
