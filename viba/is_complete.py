@@ -81,7 +81,9 @@ ENTRY_FILE_NAME = "entry.viba"
 ENTRY_MODULE_NAME = "entry"
 BUILTIN_MODULE_NAME = "viba.builtin"
 
-LEAF_NAMES = ("bool", "int", "float", "str")  # scalars that count as leaves
+LEAF_NAMES = ("bool", "int", "float", "str",
+              "int8_t", "uint8_t", "int16_t", "uint16_t",
+              "int32_t", "uint32_t", "int64_t", "uint64_t")  # scalars that count as leaves
 CONTAINER_NAMES = ("list", "set", "dict")  # builtin containers: walk elements
 UNIT_NAMES = ("Object", "nil", "Oneof", "never")  # unit chain heads
 

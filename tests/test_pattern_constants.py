@@ -6,6 +6,9 @@ type, so a pattern with no parameter in it is judged by `is_sub_type` like any
 other: the argument `"red"` falls in, `"blue"` and `int` do not. The second file's
 `pattern T` catches everything else, so those answer `false`.
 
+The directory generic `is_byte/` asks the same of a fixed-width integer: its first
+file's `pattern uint8_t` takes `1` (0 through 255) and not `256`, nor `int`.
+
     python3 tests/test_pattern_constants.py
 """
 
@@ -34,7 +37,10 @@ def _answer(name: str):
 def run() -> None:
     for name, want, label in (("is_red_red", True, 'is_red["red"]'),
                               ("is_red_blue", False, 'is_red["blue"]'),
-                              ("is_red_int", False, "is_red[int]")):
+                              ("is_red_int", False, "is_red[int]"),
+                              ("is_byte_1", True, "is_byte[1]"),
+                              ("is_byte_256", False, "is_byte[256]"),
+                              ("is_byte_int", False, "is_byte[int]")):
         result = _answer(name)
         check(is_ok(result) and value_of(result) is want,
               f"{label} -> {want}: {result!r}")

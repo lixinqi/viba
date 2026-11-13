@@ -12,6 +12,8 @@ Every case is one module of data/check_convertable_to_json_schema/kb:
     use.viba        a sum that flattens through an import
     generics.viba   a generic applied, a parameter left open, Either
     uses_elem.viba  a generic written as one Markdown document (elem.viba.md)
+    primitives.viba the fixed-width integers, and a product of them
+    numbers.viba    fixed-width integers in sums: one kind, so only with a unit
     empty.viba      a module with no definitions
 
     python3 tests/test_check_convertable_to_json_schema.py
@@ -105,6 +107,16 @@ def run_generics() -> None:
     reads("uses_elem.Pair")
 
 
+def run_primitives() -> None:
+    """Fixed-width integers are numbers: one width in a sum, or a unit beside it."""
+    primitives = judge(("module_name", "primitives"))
+    check("module primitives",
+          isinstance(primitives, Ok) and primitives.ok_value is None, True)
+    reads("numbers.Fine")
+    refused("numbers.Range", "int and uint8_t both read as a number")
+    refused("numbers.Two", "uint8_t and uint16_t both read as a number")
+
+
 def run_entries() -> None:
     legal = judge(("module_name", "legal"))
     check("module legal", isinstance(legal, Ok) and legal.ok_value is None, True)
@@ -181,6 +193,7 @@ def run_arguments() -> None:
 def main() -> int:
     run_reading()
     run_refused()
+    run_primitives()
     run_no_value()
     run_products()
     run_generics()

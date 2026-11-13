@@ -321,6 +321,75 @@ class StrType(Type):
     """str."""
 
 
+class FixedIntType(Type):
+    """A builtin integer with a width: the integers between its bounds.
+
+    The eight widths are the language's own scalar types, each a set of
+    integers: `int8_t` is -128 through 127, `uint64_t` is 0 through 2**64 - 1.
+    `int` is the set of all integers, so every one of them is its subtype.
+    """
+
+    name = ""
+    minimum = 0
+    maximum = 0
+
+
+class Int8Type(FixedIntType):
+    """int8_t: -128 through 127."""
+    name = "int8_t"
+    minimum = -2 ** 7
+    maximum = 2 ** 7 - 1
+
+
+class UInt8Type(FixedIntType):
+    """uint8_t: 0 through 255."""
+    name = "uint8_t"
+    minimum = 0
+    maximum = 2 ** 8 - 1
+
+
+class Int16Type(FixedIntType):
+    """int16_t: -2**15 through 2**15 - 1."""
+    name = "int16_t"
+    minimum = -2 ** 15
+    maximum = 2 ** 15 - 1
+
+
+class UInt16Type(FixedIntType):
+    """uint16_t: 0 through 2**16 - 1."""
+    name = "uint16_t"
+    minimum = 0
+    maximum = 2 ** 16 - 1
+
+
+class Int32Type(FixedIntType):
+    """int32_t: -2**31 through 2**31 - 1."""
+    name = "int32_t"
+    minimum = -2 ** 31
+    maximum = 2 ** 31 - 1
+
+
+class UInt32Type(FixedIntType):
+    """uint32_t: 0 through 2**32 - 1."""
+    name = "uint32_t"
+    minimum = 0
+    maximum = 2 ** 32 - 1
+
+
+class Int64Type(FixedIntType):
+    """int64_t: -2**63 through 2**63 - 1."""
+    name = "int64_t"
+    minimum = -2 ** 63
+    maximum = 2 ** 63 - 1
+
+
+class UInt64Type(FixedIntType):
+    """uint64_t: 0 through 2**64 - 1."""
+    name = "uint64_t"
+    minimum = 0
+    maximum = 2 ** 64 - 1
+
+
 class BoolLiteralType(Type):
     def __init__(self, value: bool):
         self.value = value
@@ -419,6 +488,14 @@ class BuiltinModuleType(ModuleType):
         "int": IntType,
         "float": FloatType,
         "str": StrType,
+        "int8_t": Int8Type,
+        "uint8_t": UInt8Type,
+        "int16_t": Int16Type,
+        "uint16_t": UInt16Type,
+        "int32_t": Int32Type,
+        "uint32_t": UInt32Type,
+        "int64_t": Int64Type,
+        "uint64_t": UInt64Type,
         "nil": NilType,
         "void": NilType,  # accepted alias
         "None": NilType,  # accepted alias

@@ -81,8 +81,12 @@ from viba.viba_type_descriptor import (
     tagged_descriptor,
 )
 
-# The three builtin containers, and the literal forms implementations use.
-SCALAR_NAMES = ("bool", "int", "float", "str")  # builtin leaves a sum can name
+# The builtin leaves a sum can name: the scalars, and the fixed-width
+# integers, whose value is a host int. Then the containers, and the literal
+# forms implementations use.
+FIXED_INT_NAMES = ("int8_t", "uint8_t", "int16_t", "uint16_t",
+                   "int32_t", "uint32_t", "int64_t", "uint64_t")
+SCALAR_NAMES = ("bool", "int", "float", "str") + FIXED_INT_NAMES
 CONTAINERS = ("list", "set", "dict")
 LITERAL_CTORS = ("ListLiteral", "SetLiteral", "DictLiteral")
 # A literal spells the container it is a resident of (`viba/type.viba`:
@@ -1106,8 +1110,11 @@ class VibaAccess:
         if branch.kind == LITERAL:
             other = branch.payload.value
             return type(other) is type(data.value) and other == data.value
-        return (branch.kind == TYPE_REF
-                and branch.payload.type_name == _scalar_name(data.value))
+        if branch.kind != TYPE_REF:
+            return False
+        name = branch.payload.type_name
+        kind = _scalar_name(data.value)
+        return name == kind or (name in FIXED_INT_NAMES and kind == "int")
 
     def _key_of(self, pair):
         """The key of one dict entry; None when it is not a literal."""

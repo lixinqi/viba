@@ -97,6 +97,7 @@ from viba.type import (
     BuiltinGenericType,
     DuplicateTagError,
     Err,
+    FixedIntType,
     FloatLiteralType,
     FloatType,
     InlineCycleError,
@@ -372,6 +373,17 @@ class _Checker:
         return next((r for r in results if r is not None), None)
 
     def _check_base(self, sub: Type, sup: Type):
+        if isinstance(sup, FixedIntType):
+            # A width is the set of integers it holds: a literal fits when its
+            # value does, and another width fits when its range does.
+            if isinstance(sub, IntLiteralType):
+                return sup.minimum <= sub.value <= sup.maximum
+            if isinstance(sub, FixedIntType):
+                return (sup.minimum <= sub.minimum
+                        and sub.maximum <= sup.maximum)
+            return False
+        if isinstance(sub, FixedIntType):
+            return isinstance(sup, IntType)
         if type(sup) not in _BASE_TYPES:
             return None
         return type(sub) is type(sup) or _BASE_OF_LITERAL.get(type(sub)) is type(sup)

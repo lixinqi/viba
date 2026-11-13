@@ -1,0 +1,3 @@
+Range = int | uint8_t
+Two = uint8_t | uint16_t
+Fine = uint8_t | nil

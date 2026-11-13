@@ -279,7 +279,8 @@ Distance =
 
 - **内建名字不用 import。** [`viba/builtin.viba`](../builtin.viba) 对每个模块可见（最低优先级，自己
   模块的同名定义优先）：`Environment` / `Env`、`Object` / `Oneof` / `nil` / `never` / `Any`、
-  标量 `bool` / `int` / `float` / `str`、容器名 `list` / `set` / `dict`，以及 `builtin` 的成员。
+  标量 `bool` / `int` / `float` / `str` 与定宽整数 `int8_t` … `uint64_t`、容器名
+  `list` / `set` / `dict`，以及 `builtin` 的成员。
   所以 `Environment` / `Env` 和 `builtin.echo` 都不需要任何 import。
 - **内建库里的模块与泛型，名字也一样可见。** `viba/` 里 `builtin.viba` 旁边那几个模块
   （`Y.viba`、`apply.viba`、`sub_env_run.viba`、`sequential.viba`、`if.viba`），以及
@@ -302,8 +303,13 @@ Distance =
   是它对每个模块可见的短名字。每个成员一张签名，实现跟别的函数一样在宿主手里 —— `get_func` 收到的
   名字是带前缀的那个（`builtin.add`）。名字说它管哪个类型：`int` 不带后缀，`float` 是 `_f`，
   `str` 是 `_str`，`bool` 是 `_bool`；`x_to_y` 是从 `x` 换算到 `y`。
-- **内建标量是 `bool` / `int` / `float` / `str`。** `string` 不是内建名：它什么都解析不到，而且
-  语法层不会报——类型层会（`module_get_type`、`is_sub_type`）。
+- **内建标量是 `bool` / `int` / `float` / `str`，以及八个定宽整数。** 定宽整数是 `int` 的子类型，
+  每个是它值域里的整数集合：`int8_t` 是 -128 到 127，`uint8_t` 是 0 到 255，`int16_t` 是 -2**15
+  到 2**15 - 1，`uint16_t` 是 0 到 2**16 - 1，`int32_t` 是 -2**31 到 2**31 - 1，`uint32_t` 是 0 到
+  2**32 - 1，`int64_t` 是 -2**63 到 2**63 - 1，`uint64_t` 是 0 到 2**64 - 1。字面量落在范围里才是
+  它的子类型（`127 << int8_t` 成立，`128 << int8_t` 不成立）；`int8_t << int` 成立，反过来不成立。
+  `string` 不是内建名：它什么都解析不到，而且语法层不会报——类型层会（`module_get_type`、
+  `is_sub_type`）。
 - **一份定义一个表达式**，各自一行：没有逗号，也没有语句分隔符。
 - **定义是绑定，不是语句**：viba 是声明式的，求值按需求值（call-by-need）——一个绑定被用到的时候
   才求值，而且只求值一次，所以源码里的次序不是求值的次序，出现在用之后的定义照样算（见

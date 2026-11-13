@@ -28,8 +28,9 @@ definition); the rest are there under their names.
 How a type is written:
 
 - `int` / `float` / `str` / `bool` → `{"type": "integer" | "number" | "string" |
-  "boolean"}`; `nil` / `Object` → `{"type": "null"}`; a literal → `{"const": …}`;
-  `never` → `false` (no value at all).
+  "boolean"}`; a fixed-width integer (`int8_t` … `uint64_t`) → `{"type": "integer"}` with
+  the width's bounds as `minimum` / `maximum`; `nil` / `Object` → `{"type": "null"}`; a
+  literal → `{"const": …}`; `never` → `false` (no value at all).
 - `list[T]` → `{"type": "array", "items": …}`; `set[T]` the same with
   `"uniqueItems": true`; `dict[str, T]` → `{"type": "object",
   "additionalProperties": …}` (a JSON object's keys are strings).
@@ -90,8 +91,30 @@ NEVER_NAMES = ("never", "Oneof") + tuple(
 UNIT_NAMES = frozenset(NULL_NAMES) | frozenset(NEVER_NAMES)
 SCALAR_TYPES = {"int": "integer", "float": "number", "str": "string",
                 "bool": "boolean"}
+# The fixed-width integers: JSON has one integer kind, so the width is the
+# range the schema allows.
+FIXED_INT_RANGES = {
+    "int8_t": (-2 ** 7, 2 ** 7 - 1),
+    "uint8_t": (0, 2 ** 8 - 1),
+    "int16_t": (-2 ** 15, 2 ** 15 - 1),
+    "uint16_t": (0, 2 ** 16 - 1),
+    "int32_t": (-2 ** 31, 2 ** 31 - 1),
+    "uint32_t": (0, 2 ** 32 - 1),
+    "int64_t": (-2 ** 63, 2 ** 63 - 1),
+    "uint64_t": (0, 2 ** 64 - 1),
+}
 ARRAY_CONSTRUCTORS = ("list", "set", "ListLiteral", "SetLiteral")
 OBJECT_CONSTRUCTORS = ("dict", "DictLiteral")
+
+
+def _scalar_schema(name: str):
+    """The schema a scalar name has, or None when it is no scalar."""
+    if name in SCALAR_TYPES:
+        return {"type": SCALAR_TYPES[name]}
+    if name in FIXED_INT_RANGES:
+        low, high = FIXED_INT_RANGES[name]
+        return {"type": "integer", "minimum": low, "maximum": high}
+    return None
 
 
 class _SchemaErr(Exception):
@@ -264,8 +287,9 @@ class _Builder:
             return {"type": "null"}
         if name in NEVER_NAMES:
             return False
-        if name in SCALAR_TYPES:
-            return {"type": SCALAR_TYPES[name]}
+        scalar = _scalar_schema(name)
+        if scalar is not None:
+            return scalar
         found = module_get_type(module, name)
         if isinstance(found, Err):
             raise _SchemaErr(
@@ -330,8 +354,9 @@ class _Builder:
                                                          bindings)}
         if constructor in NULL_NAMES:
             return {"type": "null"}
-        if constructor in SCALAR_TYPES:
-            return {"type": SCALAR_TYPES[constructor]}
+        scalar = _scalar_schema(constructor)
+        if scalar is not None:
+            return scalar
         generic = generic_named(module, constructor)
         if isinstance(generic, Err):
             raise _SchemaErr(

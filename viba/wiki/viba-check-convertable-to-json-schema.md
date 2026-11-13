@@ -84,7 +84,8 @@ check_convertable_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
 - **tag**：带 tag 的选项读成一个对象，键就是那个 tag。两个选项的 tag 一样就分不开；tag 不同就分得开。
 - **种类**：不带 tag 的选项，全靠 JSON 的种类分开——null、布尔、数字、字符串、数组、对象。两支种类
   一样就分不开。
-  - 数字不分 `int` 和 `float`：`int | float` 读不回来，两支都是数字。
+  - 数字不分 `int`、`float` 和定宽整数：`int | float`、`int | uint8_t`、`uint8_t | uint16_t`
+    都读不回来，两支都是数字。
   - `list[T]`、`set[T]`、元组都读成数组；积、`dict` 都读成对象。
 - **字面量**：同种类的字面量凭值分开（`"a" | "b"` 可以）；字面量和同种类的类型分不开（`7 | int` 不行，
   值 7 两边都说得通）。

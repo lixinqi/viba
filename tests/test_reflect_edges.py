@@ -195,10 +195,26 @@ def run_dynamic_accessors():
               f"a tag name that is not a string is refused: {error}")
 
 
+def run_fixed_widths():
+    """A fixed-width integer is a leaf branch: its value is read as it is."""
+    pick = _definition("Pick = Object * $p (uint8_t | str)\n", "Pick")
+    body = _product([viba_ast.Tagged("$p", viba_ast.Constant(7))])
+    root = _root(pick, body)
+    got = access.get(root, by_tag("p"))
+    same("a fixed-width branch is a child",
+         access.leaf(got.ok_value).ok_value, 7)
+
+    bare = _definition("Bare = uint8_t | nil\n", "Bare")
+    node = _root(bare, viba_ast.Constant(7))
+    same("a fixed-width integer in a bare sum",
+         access.leaf(node.get_field_0()).ok_value, 7)
+
+
 def run():
     run_reprs()
     run_name_helpers()
     run_access_edges()
+    run_fixed_widths()
     run_dynamic_accessors()
     print(f"reflect_edges: {PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

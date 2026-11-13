@@ -1,0 +1,5 @@
+import is_byte as is_byte
+
+__decl__ = Any <- $env Env
+
+__impl__ = is_byte[int].value

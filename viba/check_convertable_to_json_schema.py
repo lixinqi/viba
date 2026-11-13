@@ -83,8 +83,12 @@ NEVER_EQV = tuple(sorted(language_config.never_eqv))
 # The names a value of the two units reads as: null, or nothing at all.
 NULL_NAMES = ("nil", "Object", "void", "None")
 NO_VALUE_NAMES = ("never", "Oneof")
-NUMBER_NAMES = ("int", "float")
-SCALAR_NAMES = {"int": "number", "float": "number", "str": "string", "bool": "boolean"}
+NUMBER_NAMES = ("int", "float", "int8_t", "uint8_t", "int16_t", "uint16_t",
+                "int32_t", "uint32_t", "int64_t", "uint64_t")
+SCALAR_NAMES = {"int": "number", "float": "number", "str": "string", "bool": "boolean",
+                "int8_t": "number", "uint8_t": "number", "int16_t": "number",
+                "uint16_t": "number", "int32_t": "number", "uint32_t": "number",
+                "int64_t": "number", "uint64_t": "number"}
 ARRAY_CONSTRUCTORS = ("list", "set", "ListLiteral", "SetLiteral")
 OBJECT_CONSTRUCTORS = ("dict", "DictLiteral")
 

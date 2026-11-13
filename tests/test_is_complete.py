@@ -61,6 +61,13 @@ def main():
     check("only one of them (the wrapper over the hint block is still there)",
           is_complete(demo, [], [], {"Note"}), False)
 
+    # A fixed-width integer is a leaf: the value's range is the type's business
+    check("a fixed-width integer", is_complete("X = uint8_t", [], [], set()), True)
+    check("a product of fixed-width integers",
+          is_complete("X = Object * $a int8_t * $b uint64_t", [], [], set()), True)
+    check("a fixed-width integer is no definition",
+          is_complete("X = $a uint8_t * $b Missing", [], [], set()), False)
+
     # Recursive definitions: coinduction lets them through
     check("recursive Chain", is_complete(source_of(TYPES / "sub030.viba"), [], [], set()), True)
 

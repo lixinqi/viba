@@ -60,7 +60,8 @@ value = true
 
 - **源码里的类型**：实参必须能落进它，落不落得进由判定层自己的子类型（`is_sub_type`）判。
   `bool | int | float | str` 收 `bool`（`true` 也收得下），不收 `list[int]`。字面量同样是类型，
-  `pattern "red"` 只收 `"red"` 这一个常量，`"blue"` 落不进去——一个字面量类型只有一个值。自己定义的
+  `pattern "red"` 只收 `"red"` 这一个常量，`"blue"` 落不进去——一个字面量类型只有一个值。
+  定宽整数也是类型：`pattern uint8_t` 收 0 到 255 里的整数，`256` 落不进去。自己定义的
   类型也一样：模式写那个名字，它要在这个文件里解析得到（定义在这儿，或者 import 进来，如
   `pattern colors.Red`）；判定按结构，结构一样就是同一个类型（`Red = Object` 和 `Blue = Object`
   都是单位元，分不出来）。

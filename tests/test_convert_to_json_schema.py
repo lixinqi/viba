@@ -157,6 +157,29 @@ def run_generics() -> None:
            "items": False, "minItems": 2})
 
 
+def run_primitives() -> None:
+    """Fixed-width integers: JSON's integer kind, the width as its range."""
+    widths = {
+        "I8": (-2 ** 7, 2 ** 7 - 1),
+        "U8": (0, 2 ** 8 - 1),
+        "I16": (-2 ** 15, 2 ** 15 - 1),
+        "U16": (0, 2 ** 16 - 1),
+        "I32": (-2 ** 31, 2 ** 31 - 1),
+        "U32": (0, 2 ** 32 - 1),
+        "I64": (-2 ** 63, 2 ** 63 - 1),
+        "U64": (0, 2 ** 64 - 1),
+    }
+    for name, (low, high) in widths.items():
+        full = f"primitives.{name}"
+        check(f"{name} is an integer in its range",
+              definition(schema(full), full),
+              {"type": "integer", "minimum": low, "maximum": high})
+    field = definition(schema("primitives.Field"), "primitives.Field")
+    check("a product's fixed-width members", field["properties"], {
+        "id": {"type": "integer", "minimum": 0, "maximum": 2 ** 64 - 1},
+        "count": {"type": "integer", "minimum": -128, "maximum": 127}})
+
+
 def run_products() -> None:
     point = definition(schema("objects.Point"), "objects.Point")
     check("a product is an object", point.get("type"), "object")
@@ -293,6 +316,7 @@ def run_strict() -> None:
 
 def main() -> int:
     run_sums()
+    run_primitives()
     run_generics()
     run_units()
     run_products()

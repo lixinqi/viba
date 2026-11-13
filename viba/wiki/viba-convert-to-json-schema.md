@@ -95,6 +95,7 @@ convert_to_json_schema(["kb"], ("module_name", "demo"), strict=True)
 | viba | JSON Schema |
 |------|-------------|
 | `int` | `{"type": "integer"}` |
+| `int8_t` … `uint64_t` | `{"type": "integer", "minimum": 下界, "maximum": 上界}`，上下界就是这一宽度的值域 |
 | `float` | `{"type": "number"}` |
 | `str` | `{"type": "string"}` |
 | `bool` | `{"type": "boolean"}` |
