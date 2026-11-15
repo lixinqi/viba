@@ -58,6 +58,11 @@ Environment =
 
 Env = Environment
 
+# A value that may be absent: `Optional[T]` is `T | nil`, the same type written
+# the long way. It is a definition like any other, so it unfolds to its body and
+# a module's own `Optional` wins over this one.
+Optional[T] = T | nil
+
 # The error branch of a dispatcher type: what a dispatcher answers when the
 # arguments' types match none of the handlers it was built from. The message
 # says so in one sentence; what was given and what each handler takes stay in

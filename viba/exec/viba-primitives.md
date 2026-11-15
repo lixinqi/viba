@@ -18,7 +18,7 @@
 |---|---|---|
 | 算子与环境的类型 | `builtin` 这个概念的 69 个成员，`Environment`，以及同一个类型的另一个名字 `Env` | `viba/builtin.viba` |
 | 解释器自己实现 | `$get_attr`、`$get_item`、`$in`、`$len`、`$keys`、`__dyn_call__`、`__dyn_method__`、`__get_args__` | `viba/interpret.py` |
-| 内建模块与泛型 | `apply`、`if`、`sequential`、`sub_env_run`、`Y`、`y_helper`、`resumable`、`interpret_result`、`type`、`viba_type_descriptor`、`is_closure`、`unclosure` | `viba/` 与 `viba/builtin/` |
+| 内建模块与泛型 | `apply`、`if`、`sequential`、`sub_env_run`、`Y`、`y_helper`、`resumable`、`interpret_result`、`type`、`viba_type_descriptor`、`Optional[T]`（`T \| nil`）、`is_closure`、`unclosure` | `viba/` 与 `viba/builtin/` |
 
 同一个成员有两种源码形式：`add` 与 `builtin.add` 是同一次调用，宿主两次拿到的名字都是
 `builtin.add`。谁赢：模块自己给的定义先，然后是 `import` 进来的名字，内建是最后一站 ——

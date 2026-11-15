@@ -280,7 +280,8 @@ Distance =
 - **内建名字不用 import。** [`viba/builtin.viba`](../builtin.viba) 对每个模块可见（最低优先级，自己
   模块的同名定义优先）：`Environment` / `Env`、`Object` / `Oneof` / `nil` / `never` / `Any`、
   标量 `bool` / `int` / `float` / `str` 与定宽整数 `int8_t` … `uint64_t`、容器名
-  `list` / `set` / `dict`，以及 `builtin` 的成员。
+  `list` / `set` / `dict`、泛型 `Optional[T]`（就是 `T | nil`，同一个类型写短一点），以及
+  `builtin` 的成员。
   所以 `Environment` / `Env` 和 `builtin.echo` 都不需要任何 import。
 - **内建库里的模块与泛型，名字也一样可见。** `viba/` 里 `builtin.viba` 旁边那几个模块
   （`Y.viba`、`apply.viba`、`sub_env_run.viba`、`sequential.viba`、`if.viba`），以及
