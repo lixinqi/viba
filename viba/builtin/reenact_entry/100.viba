@@ -1,0 +1,32 @@
+# reenact_entry: record one call of an entry, then run it.
+#
+# `A = reenact_entry[A_impl, "reenact_entry_A"]` makes A the entry of a recording:
+# a call to A stores the entry and its arguments under the tag, then runs the
+# entry at that call's own data path, and answers what it answered
+# (viba/exec/viba-reenact.md).
+#
+# The entry's own signature is not restated: a name carries no exponent chain in
+# the source, so the pattern cannot see it. A takes any arguments and hands them
+# to the entry unchanged.
+pattern F
+pattern S
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $args ...
+
+args = __get_args__ << __decl__
+
+# The recording's base is the environment the entry was called with, not this
+# module's own layer: the wrapper is a module call, and a replay finds it again
+# by the caller's path (viba/exec/viba-reenact.md).
+base = $get_parent << args.env
+
+recorded = $record_reenact_call << $env base << $tag S << $f F << $args args.args
+
+__impl__ =
+    apply
+  << $f F
+  << $args args.args
+  << $env ($sub_env << base << recorded)

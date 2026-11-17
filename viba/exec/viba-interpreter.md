@@ -465,7 +465,7 @@ add_demo << (args.env.tmp_env << args.env)
 （[`viba/builtin.viba`](../builtin.viba)，短名字是 `Env`）：`__decl__` 里 `$env` 那个参数要的就是
 它，模块体里取它用 `args.env`。
 
-它的定义（八个成员）见上面「如何调用方法：tag 放在链头」那一节。
+它的定义（八个成员）见上面「如何调用方法：tag 放在链头」那一节。重演用的那五个成员是解释器实现的运行时成员，不在这个积里，见 [`viba-reenact.md`](viba-reenact.md)。
 
 storage 与 compute 是**宿主的词汇**，viba 里没有一个名字指得到它们（它们不是类型，是宿主
 对象），所以只在宿主侧出现（`viba.interpret`）：

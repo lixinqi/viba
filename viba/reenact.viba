@@ -1,0 +1,22 @@
+# reenact — replay every call recorded under one tag.
+#
+# `reenact << $env (env.sub_env << env << "replay") << $f A_impl
+#  << $tag "reenact_entry_A"` runs every call of the entry recorded under that
+# tag again: each at the data path it ran at during the recording, in this run's
+# store, with the answers of `reenact_with_reference` read from the recording's
+# store. `env` is a referenced environment (`env.make_referenced_env << env
+# << store`), and `A_impl` is the entry the calls were recorded through. The
+# sub-environment is this module's own layer (a module call needs one); its
+# parent is the recording's base (viba/exec/viba-reenact.md).
+__decl__ =
+    list[Any]
+  <- $env Env
+  <- $f Any
+  <- $tag str
+
+args = __get_args__ << __decl__
+
+# The caller gives this module a sub-environment of its own (a module call needs
+# one); the recording's base is that sub-environment's parent, which is where
+# the entry was called in the recording.
+__impl__ = $reenact_calls << $env args.env << $tag args.tag << $f args.f

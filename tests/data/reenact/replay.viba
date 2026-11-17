@@ -1,0 +1,14 @@
+# The replay: every guess recorded under the tag, with the entry handed over.
+import reenacted_func_a_impl
+
+__decl__ =
+    list[Any]
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ =
+    reenact
+  << $env (args.env.sub_env << args.env << "replay")
+  << $f reenacted_func_a_impl
+  << $tag "reenacted_func_a"

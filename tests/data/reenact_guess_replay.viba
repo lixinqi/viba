@@ -1,0 +1,10 @@
+# Run the document's replay as this test's replay.
+import reenact_guess.replay as replay
+
+__decl__ =
+    list[Any]
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = replay << $env (args.env.sub_env << args.env << "game")

@@ -1,0 +1,12 @@
+# The entry: one call to a recorded entry, with the argument it was recorded with.
+import reenacted_func_a_impl
+
+reenacted_func_a = reenact_entry[reenacted_func_a_impl, "reenacted_func_a"]
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = reenacted_func_a << $env args.env << $x 5

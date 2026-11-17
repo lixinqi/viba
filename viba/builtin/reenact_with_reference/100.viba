@@ -1,0 +1,28 @@
+# reenact_with_reference: the fixed side of a replay.
+#
+# `c = reenact_with_reference[C, "C"] << $env env << $input x` runs C the first
+# time and stores its answer under the tag; a replay reads that answer back
+# instead of running C again (viba/exec/viba-reenact.md). C's own signature is
+# not restated, the way `reenact_entry` does not restate the entry's.
+pattern F
+pattern S
+
+__decl__ =
+    Any
+  <- $env Env
+  <- $args ...
+
+args = __get_args__ << __decl__
+
+seen = $reenact_reference << $env args.env << $tag S
+found = $get_attr << $env args.env << seen << "found"
+value = $get_attr << $env args.env << seen << "value"
+
+chosen =
+    if
+  << $env ($sub_env << args.env << "if")
+  << $cond found
+  << $t (builtin.echo << $x value)
+  << $f (apply << $f F << $args args.args)
+
+__impl__ = $store_reenact_reference << $env args.env << $tag S << $x chosen

@@ -1,0 +1,10 @@
+# Run the document's entry as this test's recording.
+import reenact_guess.entry as entry
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = entry << $env (args.env.sub_env << args.env << "game")

@@ -1,0 +1,33 @@
+# The entry's implementation: reference_c is the reference side (stateful),
+# cached_reference_c is its answer fixed through `reenact_with_reference`;
+# candidate_b is the side under test; compare_b_c answers from the two.
+reference_c =
+    int
+  <- $env Env
+  <- $x int
+  <- { the reference side, stateful }
+
+candidate_b =
+    int
+  <- $env Env
+  <- $x int
+  <- { the side under test }
+
+compare_b_c =
+    int
+  <- $env Env
+  <- $b int
+  <- $c int
+  <- { compare the two }
+
+__decl__ =
+    int
+  <- $env Env
+  <- $x int
+
+args = __get_args__ << __decl__
+
+cached_reference_c = reenact_with_reference[reference_c, "cached_reference_c"] << $env args.env << $x args.x
+candidate_b_ret = candidate_b << $env args.env << $x args.x
+
+__impl__ = compare_b_c << $env args.env << $b candidate_b_ret << $c cached_reference_c

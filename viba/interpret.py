@@ -236,6 +236,9 @@ class Environment:
                  "get_root", "get_parent", "get_relative_path",
                  "find_by_relative_path",
                  "compress_env_path", "try_compact",
+                 "make_referenced_env", "record_reenact_call",
+                 "reenact_reference", "store_reenact_reference",
+                 "reenact_calls",
                  "uncompress_relative_path", "parent")
 
     def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute,
@@ -278,6 +281,15 @@ class Environment:
         # function of the environment and the limit, and the run is taken from
         # `_CURRENT_RUN` (the section on the work list below).
         self.try_compact = try_compact
+        # Recording and replay (viba/exec/viba-reenact.md): the environment a call
+        # was recorded under, and the steps that read it back. The members
+        # that carry a reference store are functions of the environment like the
+        # others: what they write and read lives under its storage.
+        self.make_referenced_env = make_referenced_env
+        self.record_reenact_call = record_reenact_call
+        self.reenact_reference = reenact_reference
+        self.store_reenact_reference = store_reenact_reference
+        self.reenact_calls = reenact_calls
 
 
 def sub_env(environ: "Environment", name) -> "Environment":
@@ -293,8 +305,8 @@ def sub_env(environ: "Environment", name) -> "Environment":
     `step0/a/add` — where the step stands, the tag it carries and the function
     the call in it names.
     """
-    return Environment(environ.storage.sub(_the_storage_name(name)),
-                       environ.compute, environ.viba_path, parent=environ)
+    return _child_environment(
+        environ, environ.storage.sub(_the_storage_name(name)))
 
 
 def _the_storage_name(name) -> str:
@@ -367,8 +379,51 @@ def _a_tag_text(tag: str) -> str:
 def tmp_env(environ: "Environment") -> "Environment":
     """A child environment under a name of its own, fresh every time: no name to
     pick, and no two calls share a storage path."""
-    return Environment(environ.storage.tmp(), environ.compute, environ.viba_path,
-                       parent=environ)
+    return _child_environment(environ, environ.storage.tmp())
+
+
+class ReferencedEnvironment(Environment):
+    """The replay side of a run: an environment that also points at the recording.
+
+    `reference_store_root_dir` is the store the recording wrote. Only the members
+    that read a reference (`reenact_reference`, `reenact_calls`) look there; every
+    other read and write stays in this environment's own storage, so the
+    recording's store is never written and the replay's own store holds what this
+    run computed (viba/exec/viba-reenact.md).
+    """
+
+    __slots__ = ("reference_store_root_dir",)
+
+    def __init__(self, storage: EnvironmentStorage, compute: EnvironmentCompute,
+                 viba_path=None, parent: Optional["Environment"] = None,
+                 uncompress_relative_path: Optional[str] = None,
+                 reference_store_root_dir: Optional[str] = None):
+        super().__init__(storage, compute, viba_path, parent,
+                         uncompress_relative_path)
+        self.reference_store_root_dir = reference_store_root_dir
+
+
+def _child_environment(environ: "Environment", storage: EnvironmentStorage) -> "Environment":
+    """The child of `environ` at `storage`: a referenced environment stays one."""
+    if isinstance(environ, ReferencedEnvironment):
+        return ReferencedEnvironment(storage, environ.compute, environ.viba_path,
+                                     parent=environ,
+                                     reference_store_root_dir=environ.reference_store_root_dir)
+    return Environment(storage, environ.compute, environ.viba_path, parent=environ)
+
+
+def make_referenced_env(environ, reference_store_root_dir) -> "ReferencedEnvironment":
+    """The same environment, with the store a previous recording wrote as its reference.
+
+    The data path and the storage are the given environment's own: the replay has
+    to run where the recording ran for a reference to be found (`reenact_reference`
+    looks under the same path, in the store named here).
+    """
+    env = _an_environment(environ, "make_referenced_env")
+    root = _text_of(reference_store_root_dir, "make_referenced_env")
+    return ReferencedEnvironment(env.storage, env.compute, env.viba_path,
+                                 parent=env.parent,
+                                 reference_store_root_dir=root)
 
 
 def _an_environment(value, name: str) -> "Environment":
@@ -775,6 +830,24 @@ def get_snapshot(environ: Environment, name: str = SNAPSHOT_NAME):
     text = _storage(environ).get_text(snapshot_path(environ, name))
     if text is None:
         return None
+    return _snapshot_of(text)
+
+
+def get_snapshot_from(environ: Environment, name: str, root: str):
+    """The snapshot `name` stored under `root`, at this environment's data path.
+
+    The recording's store is read without being written: a replay reads the
+    reference it needs out of it, at the path this call runs at now
+    (viba/exec/viba-reenact.md).
+    """
+    text = EnvironmentStorage(_storage(environ).cur_storage_path, None, root).get_text(
+        snapshot_path(environ, name))
+    if text is None:
+        return None
+    return _snapshot_of(text)
+
+
+def _snapshot_of(text: str) -> VObject:
     module = custom_module(text)
     stored = _definition(module, SNAPSHOT_NAME)
     if stored is None:
@@ -811,6 +884,212 @@ def _storage(environ: Environment) -> EnvironmentStorage:
     if storage is None:
         raise RuntimeError("this environment has no storage to keep a snapshot in")
     return storage
+
+
+# ----------------------------------------------------------------------
+# Recording and replay (viba/exec/viba-reenact.md)
+# ----------------------------------------------------------------------
+
+
+def _text_of(value, name: str) -> str:
+    """A str a member was given: a viba leaf, or the host's own string."""
+    if isinstance(value, VObject):
+        value = value.data
+    if isinstance(value, viba_ast.Constant) and isinstance(value.value, str):
+        return value.value
+    if isinstance(value, str):
+        return value
+    raise RuntimeError(f"{name} takes a str, not {type(value).__name__}")
+
+
+def _join_store_path(base: str, rest: str) -> str:
+    """A store path under a data path: `root/reenact/<tag>/count.viba`."""
+    return "/".join(part for part in (base, rest) if part)
+
+
+def _stored_count(storage: EnvironmentStorage, path: str) -> int:
+    """How many calls a tag has recorded, or 0 before the first one."""
+    text = storage.get_text(path)
+    if text is None:
+        return 0
+    try:
+        return int(text.strip())
+    except ValueError:
+        raise RuntimeError(f"the reenact count at {path!r} is no integer: {text!r}")
+
+
+def _answer_list(values):
+    """The answers as one list, which is what `reenact` answers."""
+    elements = []
+    for value in values:
+        data = value.data if isinstance(value, VObject) else viba_data(value).data
+        elements.append(data)
+    return viba_data(viba_ast.TypeApp("ListLiteral", elements))
+
+
+def _referenced(environ, name: str):
+    """The environment and the store it reads references from."""
+    env = _an_environment(environ, name)
+    if not isinstance(env, ReferencedEnvironment):
+        raise RuntimeError(
+            f"{name} runs on a referenced environment: "
+            f"make one with make_referenced_env")
+    root = env.reference_store_root_dir
+    if root is None:
+        raise RuntimeError("a referenced environment has no reference store")
+    return env, root
+
+
+def _found(found: bool, value):
+    """The answer `reenact_reference` gives: `$found bool * $value Any`."""
+    inner = viba_ast.Nil() if value is None else viba_data(value).data
+    node = viba_ast.ProductChain([
+        viba_ast.Tagged("$found", viba_ast.Constant(bool(found))),
+        viba_ast.Tagged("$value", inner)])
+    return viba_data(node)
+
+
+def record_reenact_call(environ, tag, f, args):
+    """Record this call of an entry; answer the name its invocation runs under.
+
+    The tag names the entry; the n-th call under it runs at
+    `<this data path>/reenact/<tag>/<n>`. The entry and the arguments are stored
+    there, so a replay can run the entry again with exactly those arguments
+    (viba/exec/viba-reenact.md).
+    """
+    env = _an_environment(environ, "record_reenact_call")
+    tag = _text_of(tag, "record_reenact_call")
+    base = _storage(env).cur_storage_path
+    count_path = _join_store_path(base, f"reenact/{tag}/count.viba")
+    count = _stored_count(_storage(env), count_path)
+    _storage(env).put_text(count_path, str(count + 1))
+    invocation = sub_env(env, f"reenact/{tag}/{count}")
+    put_snapshot(invocation, _entry_name(f), "entry")
+    put_snapshot(invocation, args, "args")
+    return f"reenact/{tag}/{count}"
+
+
+def _entry_name(f) -> str:
+    """The name a recorded entry is known by: a name is a name, not a value to
+    store — a module has no serializable answer."""
+    if isinstance(f, VObject):
+        f = f.data
+    if isinstance(f, viba_ast.TypeRef):
+        return f.name
+    if isinstance(f, viba_ast.Partial):
+        head, _arguments = _call_parts(f)
+        return _entry_name(head)
+    return str(f)
+
+
+def reenact_reference(environ, tag):
+    """Whether a reference is there, and what it is: `$found bool * $value Any`.
+
+    A referenced environment reads the value recorded under `tag` at this call's
+    data path, from the recording's store; a plain one answers `$found false`
+    and the wrapper runs the call, whose answer is stored then. A reference that
+    is missing in the recording is an error, not something to compute again.
+    """
+    env = _an_environment(environ, "reenact_reference")
+    tag = _text_of(tag, "reenact_reference")
+    if isinstance(env, ReferencedEnvironment):
+        root = env.reference_store_root_dir
+        if root is None:
+            raise RuntimeError("a referenced environment has no reference store")
+        stored = get_snapshot_from(env, tag, root)
+        if stored is None:
+            raise RuntimeError(
+                f"no reference {tag!r} at {snapshot_path(env, tag)}")
+        return _found(True, stored)
+    return _found(False, None)
+
+
+def store_reenact_reference(environ, tag, value):
+    """Store a reference's answer; a replay hands back what it read, unwritten."""
+    env = _an_environment(environ, "store_reenact_reference")
+    tag = _text_of(tag, "store_reenact_reference")
+    if isinstance(env, ReferencedEnvironment):
+        return value
+    put_snapshot(env, value, tag)
+    return value
+
+
+def reenact_calls(environ, tag, entry):
+    """Run every call recorded under `tag` again, and answer their answers.
+
+    The environment is the `reenact` module's own layer; the recording's base is
+    its parent (the replay's caller). Each call runs at the path it ran at in the
+    recording, in this environment's store, with the entry the caller handed
+    over. What each call answers is kept at that path as `answer.viba`, and the
+    answers are returned in recorded order (viba/exec/viba-reenact.md).
+    """
+    env = _an_environment(environ, "reenact_calls")
+    if not isinstance(env, ReferencedEnvironment):
+        raise RuntimeError(
+            "reenact_calls runs on a referenced environment: "
+            "make one with make_referenced_env")
+    root = env.reference_store_root_dir
+    if root is None:
+        raise RuntimeError("a referenced environment has no reference store")
+    tag = _text_of(tag, "reenact_calls")
+    base_env = env.parent
+    if base_env is None:
+        raise RuntimeError("reenact_calls needs the layer above it as the recording's base")
+    base = _storage(base_env).cur_storage_path
+    count = _stored_count(EnvironmentStorage(base, None, root),
+                          _join_store_path(base, f"reenact/{tag}/count.viba"))
+    answers = []
+    for index in range(count):
+        invocation = sub_env(base_env, f"reenact/{tag}/{index}")
+        path = _join_store_path(base, f"reenact/{tag}/{index}/args.viba")
+        text = EnvironmentStorage(base, None, root).get_text(path)
+        if text is None:
+            raise RuntimeError(f"no recorded call at {path!r}")
+        answer = _run_entry(entry, invocation, _snapshot_of(text))
+        put_snapshot(invocation, answer, "answer")
+        answers.append(answer)
+    return _answer_list(answers)
+
+
+def _run_entry(entry, environ: Environment, arguments):
+    """Run the entry a call was recorded through, at `environ`, with `arguments`.
+
+    The entry is viba data carried from the replay program (a name or a call, and
+    the module its names resolve in). It is run the way the recording ran it —
+    `apply << $f entry << $args arguments` — so the call lands on the same data
+    path the recording's call did, which is what a reference is read by. Running
+    it here is the interpreter's own call, made from a host member the way a lazy
+    argument is run from one.
+    """
+    if not isinstance(entry, VObject):
+        raise RuntimeError(
+            "the entry is a name or a call given to reenact, and this is no such value")
+    runner = _CURRENT_RUN.get()
+    if runner is None:
+        raise RuntimeError("reenact runs inside a run, and none is here")
+    if isinstance(arguments, VObject):
+        args_node = arguments.data
+    elif isinstance(arguments, viba_ast.AST):
+        args_node = arguments
+    else:
+        args_node = viba_data(arguments).data
+    call = viba_ast.Partial(
+        viba_ast.Partial(viba_ast.TypeRef("apply"),
+                         viba_ast.Tagged("$f", entry.data)),
+        viba_ast.Tagged("$args", args_node))
+    module = entry.data_module or _NO_MODULE
+    caller = _Activation(runner, module, environ, "reenact", None)
+    answered = caller._apply_without_environ(call, (), _Host(environ), ())
+    if isinstance(answered, Ok):
+        value = answered.ok_value
+        if isinstance(value, _VibaData):
+            return value.node
+        if isinstance(value, _Host):
+            return value.obj
+        return value
+    if isinstance(answered, Err):
+        raise RuntimeError(answered.msg)
+    raise _Raised(answered)
 
 
 def viba_data(value) -> VObject:
@@ -1217,7 +1496,14 @@ def _argument_value(value):
     anything else as itself — the environment among them.
     """
     if isinstance(value, _VibaData):
-        return value.node
+        node = value.node
+        if node.data_module is None and value.source_module is not None:
+            # The module the names in this piece resolve in travels with it: the
+            # host may hand the piece back, and a name is then still a name of
+            # the file that spelled it (`reenact` runs an entry by its value).
+            node = VObject(node._access, node.descriptor, node.data, node.path,
+                           data_module=value.source_module, function=node.function)
+        return node
     if isinstance(value, _HostFunction):
         return value.as_callable()
     if isinstance(value, _Host):
@@ -2091,6 +2377,20 @@ class _Runner:
         the document is there, and a name inside it comes from its sections.
         """
         parts = name.split(".")
+        if base.name.endswith(".viba.md"):
+            # The base is a document standing for a directory: its sections are
+            # the directory's files, so a file in it imports its siblings by
+            # their names (`viba/markdown.py`).
+            sections, problem = self._sections(base)
+            if problem is not None:
+                return VibaProgramErr(problem)
+            if sections is None:
+                return None
+            section = f"{parts[-1]}.viba"
+            if section not in sections:
+                return None
+            return self._module_of_section(base, section, sections[section],
+                                           name, base)
         rel = base.joinpath(*parts)
         section = f"{parts[-1]}.viba"
         # The directory holding the module, when it is a document: the module

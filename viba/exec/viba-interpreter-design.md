@@ -117,7 +117,7 @@ HostEnvironment =
       指不到。这一份把宿主那半边也写出来，好让"环境是什么"有一个完整的定义。
       两处 `$parent` 是两件事：这里的 `$parent` 是**环境链**（造它出来的那一层，`$get_parent` 走
       的那条），`EnvironmentStorage` 那边的 `$parent` 是**数据路径**往上的那一层。
-      八个成员函数在宿主侧就是 `viba.interpret` 里几个普通函数：get_parent、get_root、
+      成员函数在宿主侧就是 `viba.interpret` 里几个普通函数：get_parent、get_root、
       get_relative_path、find_by_relative_path、compress_env_path、env_chain_length……
     }]
 

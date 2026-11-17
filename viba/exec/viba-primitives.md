@@ -203,6 +203,10 @@ add << $x 3 << $y 4                      # 没给环境：这条链是一个闭�
 | `$uncompress_relative_path` | `str \| nil` | 无 | 被压过的那条路径；别的环境上是 `nil`。这是一个值，不是函数 |
 | `$try_compact` | `Env` | `$env Env` `$env_chain_length_limit int` | 链太长时把现在跑着的调用变成工作清单；答案就是给它的那个环境 |
 
+重演用的五个成员（`$make_referenced_env`、`$record_reenact_call`、`$reenact_reference`、
+`$store_reenact_reference`、`$reenact_calls`）是解释器实现的运行时成员，不在 `Environment`
+这个积里：它们各自的签名、读写哪个 store，见 [`viba-reenact.md`](viba-reenact.md)。
+
 ### 3.1 `$sub_env` 的名字
 
 名字是字符串，也可以是**源码里那次调用由哪几段组成**的一份积，各段用 `/` 接起来，

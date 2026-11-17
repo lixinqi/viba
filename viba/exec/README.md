@@ -81,6 +81,7 @@ print(exec(access.leaf(result.by_tag("$ok")).ok_value, environ))
 | [`viba_tutorial.md`](viba_tutorial.md) | 从头学：和、积、指数、`<<`、泛型，直到一个模块真跑起来 |
 | [`viba-interpreter.md`](viba-interpreter.md) | 跑一个模块：`__decl__` 进、`__impl__` 出，按需求值的策略 |
 | [`viba-primitives.md`](viba-primitives.md) | 内建 API：算子、`Environment`、成员算子、容器、不要 import 就看得见的内建模块 |
+| [`viba-reenact.md`](viba-reenact.md) | 重演：记录入口调用，按参照重跑 |
 | [`viba-interpreter-design.md`](viba-interpreter-design.md) | 解释器自己，用 viba 写：一次运行、宿主的三件东西、一次调用、一个活动、解释器自己处理的五个成员、两个入口 |
 
 ## 这里的代码
