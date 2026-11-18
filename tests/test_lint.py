@@ -17,8 +17,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import Checks
 
-from viba.lint import (fix_file, fix_markdown, fix_source, lint_file,
-                                 lint_markdown, lint_paths, lint_source, main as lint_main)
+from viba.lint import (fix_file, fix_markdown, fix_markdown_report, fix_source,
+                       lint_file, lint_markdown, lint_paths, lint_source,
+                       main as lint_main)
 
 checks = Checks("viba_lint")
 check = checks.check
@@ -116,6 +117,20 @@ def run() -> None:
     check("    Oneof" in fixed_document,
           "the fixed document carries the Oneof head")
 
+    hinted = (CASES / "document_with_hint.viba.md").read_text()
+    hinted_fixed, hinted_skipped = fix_markdown_report(hinted)
+    check("说明文字一行。" in hinted_fixed and "# 说明文字一行。" not in hinted_fixed,
+          "the document's prose is left as it was")
+    check("    Object\n  * $x str" in hinted_fixed,
+          "the fixable product in the document is laid out")
+    check("  Object\n  * $w (int * { 宽度 })" in hinted_fixed,
+          "the statement with a hint is left as it was")
+    check(hinted_skipped == [14],
+          f"the hinted statement is reported as skipped: {hinted_skipped!r}")
+    check([(v.rule, v.line) for v in lint_markdown(hinted_fixed, "doc.viba.md")]
+          == [("product-head", 15)],
+          "only the hinted statement is still reported")
+
     with tempfile.TemporaryDirectory(prefix="viba-lint-") as scratch:
         root = Path(scratch)
         box = root / "box.viba"
@@ -137,6 +152,17 @@ def run() -> None:
         check(code == 0, "the --fix command exits 0 when nothing is left")
         check(printed.getvalue().startswith("fixed "), "the --fix command says what it changed")
         check(lint_file(cli) == [], "the --fix command wrote the layout")
+
+        hinted = root / "hinted.viba.md"
+        hinted.write_text((CASES / "document_with_hint.viba.md").read_text())
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            code = lint_main(["--fix", str(hinted)])
+        check(code == 1, "the --fix command exits 1 while a hinted statement is left")
+        check("skipped " in printed.getvalue(), "the --fix command says what it skipped")
+        check("说明文字一行。" in hinted.read_text()
+              and "# 说明文字一行。" not in hinted.read_text(),
+              "the --fix command leaves the document's prose")
 
     for name in ("expression_product.viba", "expression_exponent.viba",
                  "expression_partial.viba", "expression_nested.viba",

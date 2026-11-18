@@ -57,7 +57,6 @@ from viba.viba_ast.nodes import (
     SumChain,
     TypeDefinition,
 )
-from viba.wiki import markdown
 
 INDENT = 2
 OPERATORS = ("|", "*", "<-", "<<")
@@ -416,15 +415,44 @@ def _lint_lines(lines: Sequence[_Line], path: str) -> List[Violation]:
     return found
 
 
+_FENCE = re.compile(r"^( {0,3})(`{3,}|~{3,})[ \t]*(.*)$")
+
+
+def _viba_blocks(source: str) -> List[Tuple[int, int, List[Tuple[str, int]]]]:
+    """(first line index, end index, [(text, document line)]) for each `viba` block."""
+    lines = source.splitlines()
+    blocks: List[Tuple[int, int, List[Tuple[str, int]]]] = []
+    index = 0
+    while index < len(lines):
+        opened = _FENCE.match(lines[index])
+        if opened is None:
+            index += 1
+            continue
+        marker = opened.group(2)
+        info = opened.group(3).split()
+        if not info or info[0] != "viba":
+            index += 1
+            continue
+        first = index + 1
+        end = first
+        while end < len(lines):
+            closed = _FENCE.match(lines[end])
+            if (closed is not None and closed.group(2)[0] == marker[0]
+                    and closed.group(2).startswith(marker) and not closed.group(3)):
+                break
+            end += 1
+        content = [(text, number + 1) for number, text in
+                   enumerate(lines[first:end], first)]
+        blocks.append((first, end, content))
+        index = end + 1
+    return blocks
+
+
 def lint_markdown(source: str, path: str = "<markdown>") -> List[Violation]:
-    """The layout violations of the sections of a `.viba.md` document."""
+    """The layout violations of the `viba` blocks of a `.viba.md` document."""
     found: List[Violation] = []
-    try:
-        sections = markdown.lines_of(source)
-    except SyntaxError as exc:
-        return [Violation(path, 1, 1, "parse", f"cannot parse the document: {exc}")]
-    for name, numbered in sections:
-        lines = [_Line(text, number) for text, number in numbered]
+    for _first, _end, content in _viba_blocks(source):
+        lines = [_Line(text, number) for text, number in content]
         found.extend(_lint_lines(lines, path))
     return found
 
@@ -858,15 +886,19 @@ def _fold_expressions(lines: Sequence[str]) -> List[str]:
     return out
 
 
-def fix_source(source: str, path: str = "<source>") -> str:
-    """Rewrite the fixable statements of a viba source to the layout."""
+def _fix_source_report(source: str, path: str = "<source>") -> Tuple[str, List[int]]:
+    """Rewrite the fixable statements; answer the lines left alone for a hint."""
     lines = [_Line(text, index + 1) for index, text in enumerate(source.splitlines())]
     out: List[str] = []
+    skipped: List[int] = []
     cursor = 0
     for statement in _statements(lines):
         out.extend(line.text for line in lines[cursor:statement.start])
         fixed = _fix_statement(lines, statement)
         if fixed is None:
+            block = lines[statement.start:statement.end]
+            if any(_opens_hint_or_string(line.text) for line in block):
+                skipped.append(lines[statement.start].number)
             out.extend(line.text for line in lines[statement.start:statement.end])
         else:
             out.extend(fixed)
@@ -880,36 +912,50 @@ def fix_source(source: str, path: str = "<source>") -> str:
         if updated == fixed:
             break
         fixed = updated
-    return fixed
+    return fixed, skipped
+
+
+def fix_source(source: str, path: str = "<source>") -> str:
+    """Rewrite the fixable statements of a viba source to the layout."""
+    return _fix_source_report(source, path)[0]
+
+
+def fix_markdown_report(source: str) -> Tuple[str, List[int]]:
+    """Rewrite the `viba` blocks of a document; the prose and fences stay."""
+    document = source.splitlines()
+    skipped: List[int] = []
+    for first, end, content in reversed(_viba_blocks(source)):
+        text = "\n".join(line for line, _at in content) + "\n"
+        fixed, block_skipped = _fix_source_report(text)
+        for line in block_skipped:
+            if 1 <= line <= len(content):
+                skipped.append(content[line - 1][1])
+        document[first:end] = fixed.splitlines()
+    return ("\n".join(document) + ("\n" if source.endswith("\n") else ""),
+            sorted(skipped))
 
 
 def fix_markdown(source: str) -> str:
     """Rewrite the fixable sections of a `.viba.md` document."""
-    try:
-        sections = markdown.lines_of(source)
-    except SyntaxError:
-        return source
-    document = source.splitlines()
-    for _name, numbered in reversed(sections):
-        if not numbered:
-            continue
-        first, last = numbered[0][1], numbered[-1][1]
-        if last - first + 1 != len(numbered):
-            continue
-        text = "\n".join(line for line, _at in numbered) + "\n"
-        fixed = fix_source(text).splitlines()
-        document[first - 1:last] = fixed
-    return "\n".join(document) + ("\n" if source.endswith("\n") else "")
+    return fix_markdown_report(source)[0]
+
+
+def fix_file_report(path: Path) -> Tuple[bool, List[int]]:
+    """Rewrite one file; answer whether it changed and the hint-block lines left."""
+    text = path.read_text()
+    if path.name.endswith(".viba.md"):
+        fixed, skipped = fix_markdown_report(text)
+    else:
+        fixed, skipped = _fix_source_report(text)
+    if fixed != text:
+        path.write_text(fixed)
+        return True, skipped
+    return False, skipped
 
 
 def fix_file(path: Path) -> bool:
     """Rewrite one file; answer whether it changed."""
-    text = path.read_text()
-    fixed = fix_markdown(text) if path.name.endswith(".viba.md") else fix_source(text)
-    if fixed != text:
-        path.write_text(fixed)
-        return True
-    return False
+    return fix_file_report(path)[0]
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -923,8 +969,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
     if args.fix:
         for path in _files(args.paths):
-            if fix_file(path):
+            changed, skipped = fix_file_report(path)
+            if changed:
                 print(f"fixed {path}")
+            for line in skipped:
+                print(f"skipped {path}:{line} (hint block)")
     violations = sorted(lint_paths(args.paths),
                         key=lambda v: (v.path, v.line, v.column, v.rule))
     for violation in violations:
