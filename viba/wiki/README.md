@@ -8,9 +8,8 @@ viba 用纯类型描述设计：一份设计是一组类型与定义，逻辑由
   [`viba-check-convertable-to-json-schema.md`](viba-check-convertable-to-json-schema.md)、[`viba-convert-to-json-schema.md`](viba-convert-to-json-schema.md)。
 - **检查**：一份设计自己的错（一个积里同一个 tag 两次、内联成环）——
   [`viba-check-tag-and-inline.md`](viba-check-tag-and-inline.md)。
-- **工具**：从一个 repo 里抽出子 repo、把多个 handler 拼成一个函数、检查类型语句的版式——
-  [`viba-extract-sub-repo.md`](viba-extract-sub-repo.md)、[`viba-make-dispatcher.md`](viba-make-dispatcher.md)、
-  [`viba-lint.md`](viba-lint.md)。
+- **工具**：从一个 repo 里抽出子 repo、把多个 handler 拼成一个函数——
+  [`viba-extract-sub-repo.md`](viba-extract-sub-repo.md)、[`viba-make-dispatcher.md`](viba-make-dispatcher.md)。
 
 ## 章节
 
@@ -23,7 +22,6 @@ viba 用纯类型描述设计：一份设计是一组类型与定义，逻辑由
 | [`viba-convert-to-json-schema.md`](viba-convert-to-json-schema.md) | `convert_to_json_schema`：类型写成 JSON Schema |
 | [`viba-extract-sub-repo.md`](viba-extract-sub-repo.md) | `extract_sub_repo`：把 repo 的子集写成一份文档，以及从文档再抽子集（带行号来源） |
 | [`viba-make-dispatcher.md`](viba-make-dispatcher.md) | `make_dispatcher`：多个 handler 拼成一个函数，以及它们一起构成的类型 |
-| [`viba-lint.md`](viba-lint.md) | `viba_lint`：类型语句的块头、2 个空白的缩进、结果的列、字段注释的列 |
 | [`banned-words.md`](banned-words.md) | 写文档时不许用的词，以及各自的替代词 |
 
 ## 例：抽一个子 repo
@@ -55,6 +53,5 @@ source_map[4]        # (模块的点分名, 模块里的行号)：文档第 4 �
 | `extract_sub_repo.py` | 把 repo 的子集写成一份文档，以及从文档再抽子集——见 `viba-extract-sub-repo.md` |
 | `check_convertable_to_json_schema.py` | 能不能写成 JSON Schema——见 `viba-check-convertable-to-json-schema.md` |
 | `convert_to_json_schema.py` | 类型写成 JSON Schema——见 `viba-convert-to-json-schema.md` |
-| `viba_lint.py` | 检查类型语句的版式——见 `viba-lint.md` |
 
 

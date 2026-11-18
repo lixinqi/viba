@@ -6,6 +6,7 @@ viba 用纯类型描述设计：一份设计是一组类型与定义，类型之
 - **数据**：类型描述的那组值——一个值是什么、类型模型怎么寻址、从实例里取值、写回源码、什么时候一份设计真的在描述数据——[`data/README.md`](data/README.md)。
 - **判定**：两个类型怎么比——[`viba-is-sub-type.md`](viba-is-sub-type.md)。
 - **造源码**：从 Python 表达式拼出 `.viba` 源码——[`viba_builder.md`](viba_builder.md)。
+- **工具**：检查（并改写）类型语句和括号里复合表达式的版式——[`viba-lint.md`](viba-lint.md)。
 
 ## 从哪儿开始
 
@@ -25,6 +26,7 @@ viba 用纯类型描述设计：一份设计是一组类型与定义，类型之
 | [`data/viba-is-complete.md`](data/viba-is-complete.md) | `is_complete`：这份设计反射得到底吗 |
 | [`viba_builder.md`](viba_builder.md) | 从 Python 表达式造 `.viba` 源码 |
 | [`viba-is-sub-type.md`](viba-is-sub-type.md) | 子类型判定：按结构、共归纳、没有名义类型 |
+| [`viba-lint.md`](viba-lint.md) | `viba_lint`：类型语句和括号里复合表达式的版式检查与 `--fix` |
 
 ## 例：取一个类型的语法树
 
@@ -47,4 +49,5 @@ print(viba_ast.unparse(tree))   # canonical chain-style source
 | `viba_type_descriptor.py`、`viba_type_descriptor.viba` | 描述符层：文件、定义、成员、类型表达式 |
 | `builder.py` | 从 Python 表达式造源码——见 `viba_builder.md` |
 | `partial.py` | `<<` 走的约简，判定用 |
+| `lint.py` | 检查并改写类型语句的版式——见 [`viba-lint.md`](viba-lint.md) |
 

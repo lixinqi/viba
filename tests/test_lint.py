@@ -3,7 +3,7 @@
 每条用例是 `tests/data/viba_lint/` 下的一份文件；`document.viba.md` 是一份文档，诊断要落在
 文档自己的行号上。
 
-    python3 tests/test_viba_lint.py
+    python3 tests/test_lint.py
 """
 
 import contextlib
@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import Checks
 
-from viba.wiki.viba_lint import (fix_file, fix_markdown, fix_source, lint_file,
+from viba.lint import (fix_file, fix_markdown, fix_source, lint_file,
                                  lint_markdown, lint_paths, lint_source, main as lint_main)
 
 checks = Checks("viba_lint")

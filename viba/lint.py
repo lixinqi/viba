@@ -30,8 +30,8 @@ exponent's result and a partial application's function sit three spaces past
 Both `.viba` files and the `viba` sections of `.viba.md` documents are linted;
 in a document a diagnostic points at the document's own line.
 
-    python -m viba.wiki.viba_lint viba tests
-    python -m viba.wiki.viba_lint --help
+    python -m viba.lint viba tests
+    python -m viba.lint --help
 """
 
 from __future__ import annotations
@@ -914,7 +914,7 @@ def fix_file(path: Path) -> bool:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m viba.wiki.viba_lint",
+        prog="python -m viba.lint",
         description="Report type statements whose layout is not the two-space block.")
     parser.add_argument("paths", nargs="*", default=["."],
                         help="files or directories to lint (default: .)")

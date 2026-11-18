@@ -63,7 +63,7 @@ Box =
 诊断的行号是文档自己的行号。
 
 ```bash
-python -m viba.wiki.viba_lint viba tests
+python -m viba.lint viba tests
 ```
 
 有违反时退出码是 1，每条形如 `路径:行:列: 规则: 说明`。要查的路径可以是文件，也可以是
@@ -72,7 +72,7 @@ python -m viba.wiki.viba_lint viba tests
 加 `--fix` 就直接改，不再只报：
 
 ```bash
-python -m viba.wiki.viba_lint --fix viba tests
+python -m viba.lint --fix viba tests
 ```
 
 它能改的是版式：语句折行、和补 `Oneof`、积补 `Object`、`|` / `*` / `<-` / `<<` 的缩进、结果
