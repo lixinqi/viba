@@ -1,4 +1,4 @@
-"""Host implementations of the two selectors declared in branch.viba.
+"""Host implementations of the two selectors declared in viba/branch.viba.
 
 The branch value's slot is `CalledByNeed[Any]`, so that one argument is handed
 over as something to call rather than a value: `echo_or_never(env, condition,

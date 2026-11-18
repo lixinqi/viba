@@ -92,6 +92,7 @@ print(exec(access.leaf(result.by_tag("$ok")).ok_value, environ))
 | `interpret_result.viba` | 一次运行的答案声明（`InterpretResult`） |
 | `builtin.viba` | 每个模块都看得见的内建词表——`Environment` / `Env`、`Optional[T]`（`T \| nil`）、`builtin.echo`、内建算子（`builtin.add`、`builtin.lt_f`……），以及 `builtin.echo_or_never` / `builtin.never_or_echo` 两个开关 |
 | `if.viba` | 内建 if/else：条件挑一支，只算那一支的调用——两个开关合成的和 |
+| `branch.viba` | 那两个开关的另一份模块写法（`echo_or_never` / `never_or_echo`）；教程与用例拿它讲懒实参，宿主实现见 `tests/branch.py` |
 | `sub_env_run.viba` | 在一个具名子环境里跑一次调用——`Y.viba`、`apply.viba` 在它旁边 |
 | `resumable.viba` | 太深的调用链拆成的工作清单：一次一个任务，带它的数据路径和那次调用 |
 | `sequential.viba`、`sequential_impl/` | 按顺序跑一串步骤的内建：每个步骤数一个文件，每一步在自己的子环境里跑，名字由站的位置、带的 tag 和调用的函数给（`step0/a/add`、`last/echo`），最后一步的结果就是这一串的结果 |

@@ -169,8 +169,8 @@ def the_library_says_the_same():
           f"`builtin` 的两个成员是那两个开关：{sorted(declared)}")
     check((BUILTIN_DIR / "if.viba").is_file(),
           "`viba/if.viba` 是内建目录里的那份文件，所以 `if` 不用 import")
-    check(declared == _switches_in(ROOT / "branch.viba"),
-          f"两处的签名一致：builtin {declared}，branch {_switches_in(ROOT / 'branch.viba')}")
+    check(declared == _switches_in(ROOT / "viba" / "branch.viba"),
+          f"两处的签名一致：builtin {declared}，branch {_switches_in(ROOT / 'viba' / 'branch.viba')}")
 
 
 def _switches_in(path: Path, in_the_concept: bool = False):

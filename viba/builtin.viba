@@ -94,7 +94,7 @@ DispatchError =
 builtin =
     # Hand back what it receives unchanged: `echo << $x V` answers V given an
     # environment. The work handed out is computed in the environment and at the
-    # time its receiver decides (branch.py).
+    # time its receiver decides (tests/branch.py is one host).
     $echo
     (
         $x Any
