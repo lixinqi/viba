@@ -26,7 +26,7 @@ CheckTagAndInline =
 
 ```python
 from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
-from viba.check_tag_and_inline import check_tag_and_inline
+from viba.wiki.check_tag_and_inline import check_tag_and_inline
 
 pool = empty_pool()
 file = parse_viba_file(pool, source, "kb.viba", "kb").ok_value

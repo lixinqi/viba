@@ -1,0 +1,8 @@
+A = 
+  "a"
+  | "b"
+  | "c"
+
+B = 
+  $name str
+  | $age int

@@ -1,6 +1,6 @@
 # convert_to_json_schema — the design: the JSON Schema a design's types answer to.
 #
-# This is the declaration `viba.convert_to_json_schema` is held to, given as a
+# This is the declaration `viba.wiki.convert_to_json_schema` is held to, given as a
 # viba type so the conversion reads with the rest of the design-side signatures
 # (viba/wiki/viba-convert-to-json-schema.md is the document; the Python layer is the one
 # that takes the design apart).

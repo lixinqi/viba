@@ -65,7 +65,7 @@ Relative module names match the corpora in this repo (`util.viba` is module
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
-from viba import markdown, viba_ast
+from viba import viba_ast
 from viba.partial import product_elements
 from viba.pattern import reduce_application, tagged_type_of
 from viba.type import BUILTIN_MODULE, AstNodeType, Err, Ok
@@ -76,6 +76,7 @@ from viba.viba_type_descriptor import (
     parse_viba_file,
     pool_add_file,
 )
+from viba.wiki import markdown
 
 ENTRY_FILE_NAME = "entry.viba"
 ENTRY_MODULE_NAME = "entry"

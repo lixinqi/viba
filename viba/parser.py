@@ -1023,7 +1023,7 @@ if __name__ == "__main__":
                                 (wiki, "viba-repomix.md"),
                                 (wiki, "viba-markdown-as-directory.md"),
                                 (run, "viba_tutorial.md"), (run, "viba-interpreter-design.md"),
-                                (run, "viba-reenact.md")):
+                                (run, "viba-reenact.md"), (wiki, "viba-lint.md")):
             chapters.append((os.path.join(directory, name),
                              os.path.relpath(os.path.join(directory, name), root)))
         for path, _name in chapters:

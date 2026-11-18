@@ -1,6 +1,6 @@
-"""viba.check_convertable_to_json_schema — can this design be written as a JSON Schema?
+"""viba.wiki.check_convertable_to_json_schema — can this design be written as a JSON Schema?
 
-    from viba.check_convertable_to_json_schema import check_convertable_to_json_schema
+    from viba.wiki.check_convertable_to_json_schema import check_convertable_to_json_schema
 
     check_convertable_to_json_schema(["kb"], ("type_names", ["report.Report"]))
     # Ok(None), or Err(the first sum that cannot be read back)
@@ -28,7 +28,7 @@ and a call are none, and a generic parameter with no argument is none yet. A nam
 application the source cannot decide.
 
 The product side — one tag per product, inline chains that end — is
-`viba.check_tag_and_inline.check_tag_and_inline`, run over the same design
+`viba.wiki.check_tag_and_inline.check_tag_and_inline`, run over the same design
 first; a design that fails that check is not judged further.
 
 What is read is the design the `viba_path` reaches, through the interpreter's
@@ -47,18 +47,7 @@ import os
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from viba import markdown, viba_ast
-from viba.check_tag_and_inline import check_tag_and_inline
-from viba.design_walk import (
-    is_function,
-    bindings_key,
-    chain_elements,
-    is_definition,
-    module_label,
-    split_type_name,
-    under_builtin,
-    with_params,
-)
+from viba import viba_ast
 from viba.interpret import _Runner
 from viba.pattern import GenericModuleType, decide, generic_named
 from viba.reflect import language_config
@@ -72,6 +61,18 @@ from viba.type import (
 )
 from viba.viba_ast.tagged import TAGGED_NAME
 from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
+from viba.wiki import markdown
+from viba.wiki.check_tag_and_inline import check_tag_and_inline
+from viba.wiki.design_walk import (
+    is_function,
+    bindings_key,
+    chain_elements,
+    is_definition,
+    module_label,
+    split_type_name,
+    under_builtin,
+    with_params,
+)
 
 __all__ = ["check_convertable_to_json_schema", "entry_definitions", "argument_problem", "CheckErr"]
 

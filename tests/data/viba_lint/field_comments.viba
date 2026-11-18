@@ -1,0 +1,4 @@
+X =
+  Object
+  * $a int     # one
+  * $b str # two

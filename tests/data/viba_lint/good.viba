@@ -1,0 +1,22 @@
+Result =
+    Oneof
+  | $ok Entry
+  | $missing UserId
+
+Entry =
+    Object
+  * $name str     # the name
+  * $state State  # the state
+
+Distance =
+     int
+  <- $env Environment
+  <- $a int
+
+Guess =
+     compare
+  << $a 1
+
+Box =
+    Object
+  * $value T

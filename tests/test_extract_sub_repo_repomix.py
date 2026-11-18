@@ -19,11 +19,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba import markdown
-from viba.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
-                                   extract_sub_viba_markdown)
-from viba.repomix import viba_repomix
 from viba.type import Ok
+from viba.wiki import markdown
+from viba.wiki.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
+                                        extract_sub_viba_markdown)
+from viba.wiki.repomix import viba_repomix
 
 DATA = Path(__file__).resolve().parent / "data"
 DOCUMENTS = DATA / "pattern_custom_types"

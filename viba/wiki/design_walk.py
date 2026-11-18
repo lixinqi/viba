@@ -1,4 +1,4 @@
-"""viba.design_walk — the small readings of a design's source that its walks share.
+"""viba.wiki.design_walk — the small readings of a design's source that its walks share.
 
 Two layers that walk a design and resolve its names — `extract_sub_repo` and
 `check_convertable_to_json_schema` — need the same few readings: the elements of a chain,

@@ -1,6 +1,6 @@
-"""viba.extract_sub_repo — a sub-repo as one Markdown document.
+"""viba.wiki.extract_sub_repo — a sub-repo as one Markdown document.
 
-    from viba.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
+    from viba.wiki.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
                                        extract_sub_viba_markdown)
 
     document, source_map = extract_sub_repo_into_viba_markdown(
@@ -9,7 +9,7 @@
 
     again, to_source = extract_sub_viba_markdown(document, ["report.Report"]).ok_value
 
-The design is viba/extract_sub_repo.viba and the document is
+The design is viba/wiki/extract_sub_repo.viba and the document is
 viba/wiki/viba-extract-sub-repo.md; this module is the one layer that takes files
 apart.
 
@@ -68,19 +68,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional, Sequence, Set
 
-from viba import markdown, viba_ast
-from viba.design_walk import (
-    bindings_key,
-    call_parts,
-    chain_elements,
-    is_definition,
-    is_under,
-    longest_import,
-    module_label,
-    split_type_name,
-    under_builtin,
-    with_params,
-)
+from viba import viba_ast
 from viba.interpret import _Runner
 from viba.pattern import GENERIC_FILE, GenericModuleType, PatternFile, decide, generic_named
 from viba.type import (
@@ -95,6 +83,19 @@ from viba.type import (
     module_get_type,
 )
 from viba.viba_ast.tagged import TAGGED_NAME
+from viba.wiki import markdown
+from viba.wiki.design_walk import (
+    bindings_key,
+    call_parts,
+    chain_elements,
+    is_definition,
+    is_under,
+    longest_import,
+    module_label,
+    split_type_name,
+    under_builtin,
+    with_params,
+)
 
 __all__ = ["extract_sub_repo_into_viba_markdown", "extract_sub_viba_markdown"]
 

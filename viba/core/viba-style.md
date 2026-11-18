@@ -138,36 +138,38 @@ Handler = Response <- $env Env <- $request Request
 `Object` 是积的单位元（就是 `nil`），`Oneof` 是和的单位元（就是 `never`）。带不带头都是同一个类型
 （`Object * $x int` 与 `$x int` 互为子类型），所以这是**版式**上的事：
 
-- **多成员的积/和**：总是折成多行块，头放在第一行，一个成员或分支一行。块的第一行就是"这一块是积
-  还是和"的说明书；不让它一行摊开，也不让块以字段或分支开头。
-- **单个成员**：留在一行，不必写头。`UserId = int` 不折；头写出来也只是那个单位元，等于没写。
+- **多成员的积/和**：总是折成多行块，头放在第一行，一个成员或分支一行。头在可选项/字段的**类型**
+  那一列（`|` / `*` 后面那一列），不是和 `|` / `*` 同一列；块的第一行就是"这一块是积还是和"的说明书。
+  不让它一行摊开，也不让块以字段或分支开头。
+- **语句总是折成块**，哪怕只有一个成员。`Box = Object * $value T` 是语句，也要写成 `Object` 一行、
+  `* $value T` 一行；只有类型表达式可以留在一行（`UserId = int`、`* $value T` 里的 `T`）。
 
 ```viba
 Option[T] =
-  Oneof
+    Oneof
   | $some T
   | nil
 
 Config =
-  Object
+    Object
   * $mode "fast"
   * $threads 42
   * $ratio 3.14
 
 Parent =
-  Oneof
+    Oneof
   | nil
   | $parent_of Node
 
 UserId = int
 
 Entry =
-  Object
+    Object
   * $name str
   * $state State
 
 Result =
-  Oneof
+    Oneof
   | $ok Entry
   | $missing UserId
 ```
@@ -183,8 +185,13 @@ Result =
 和的链只有一支时，头和这一层都是多余的：`Oneof | T` 就是 `T`，`Oneof | $x T` 就是 `$x T`。所以：
 
 - 要表达"二选一"，至少两支：`Result = $ok Entry | $missing UserId`；
-- 只有一种情况就别用和：直接用那个成员，或者（想给它一个名字）做成一个带标签的积
-  `Box = Object * $value T`。
+- 只有一种情况就别用和：直接用那个成员，或者（想给它一个名字）做成一个带标签的积，折成块：
+
+  ```viba
+  Box =
+      Object
+    * $value T
+  ```
 
 **也别把单个 `Object` 再包进 `Oneof`**：`Oneof | Object * $x int * $y int` 与
 `Object * $x int * $y int` 互为子类型，多包一层只是让看的人多找一次"和在哪"。
@@ -240,7 +247,7 @@ Nested = $nested list[dict[str, int]]
 
 ```viba
 Distance =
-    int
+     int
   <- $env Environment
   <- $a int
   <- $b int
@@ -363,7 +370,7 @@ viba_ast.parse(Path("store.viba").read_text())   # SyntaxError: what is wrong, a
 检查（一个积里同一个 tag 不重复、内联链不绕回来）：
 
 ```python
-from viba.check_tag_and_inline import check_tag_and_inline
+from viba.wiki.check_tag_and_inline import check_tag_and_inline
 from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
 
 pool = empty_pool()
@@ -388,34 +395,34 @@ UserId = int
 
 # told apart by the value: no tags to give
 State =
-  Oneof
+    Oneof
   | "draft"
   | "live"
 
 Parent =
-  Oneof
+    Oneof
   | nil
   | $parent_of Node
 
 Index = $by_name dict[str, UserId]
 
 Entry =
-  Object
+    Object
   * $name str
   * $state State
 
 Node =
-  Object
+    Object
   * $entry Entry
   * $parent Parent
 
 Result =
-  Oneof
+    Oneof
   | $ok Entry
   | $missing UserId
 
 Lookup =
-    Result
+     Result
   <- $env Environment
   <- $id UserId
   <- { find the entry that id names }

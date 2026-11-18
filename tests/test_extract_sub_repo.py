@@ -27,10 +27,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba import markdown
-from viba.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
-                                   extract_sub_viba_markdown)
 from viba.type import Err, Ok
+from viba.wiki import markdown
+from viba.wiki.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
+                                        extract_sub_viba_markdown)
 
 DATA = Path(__file__).resolve().parent / "data" / "extract_sub_repo"
 ERRORS = DATA / "errors" / "kb"

@@ -1,10 +1,10 @@
-"""viba.check_tag_and_inline — a design's tags, and the chains that spread them.
+"""viba.wiki.check_tag_and_inline — a design's tags, and the chains that spread them.
 
 check_tag_and_inline(design, config) -> Result[None]. Ok(None) when every
 product in the design has all its tags different once the inline chains are
 spread, and every inline chain ends; Err names the first mistake.
 
-    from viba.check_tag_and_inline import check_tag_and_inline
+    from viba.wiki.check_tag_and_inline import check_tag_and_inline
     check_tag_and_inline(pool)       # -> Ok(None), or Err(the first mistake)
 
 A product's untagged members are inline slots (viba/core/data/viba-reflect.md section 4): the

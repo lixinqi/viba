@@ -1,0 +1,4 @@
+X =
+  Oneof
+  | $a int
+  | $b str

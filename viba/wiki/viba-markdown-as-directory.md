@@ -87,7 +87,7 @@ Note = Object * $text str
 
 ## 5. 读法在哪用
 
-[`viba/markdown.py`](../markdown.py) 提供两件事：
+[`viba/wiki/markdown.py`](markdown.py) 提供两件事：
 
 - `files_of(source)`：一份文档读出（名字，内容）的一串，是这一页说的全部规则；
 - `module_files(module_name, source)`：同一串，再把名字按目录的命名挂到模块名下——

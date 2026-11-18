@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.check_convertable_to_json_schema import check_convertable_to_json_schema
+from viba.wiki.check_convertable_to_json_schema import check_convertable_to_json_schema
 from viba.type import Ok, Err
 
 DATA = Path(__file__).resolve().parent / "data" / "check_convertable_to_json_schema" / "kb"

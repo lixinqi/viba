@@ -1,11 +1,11 @@
-"""viba.repomix — a directory of viba code, packed into one Markdown document.
+"""viba.wiki.repomix — a directory of viba code, packed into one Markdown document.
 
-    from viba.repomix import viba_repomix
+    from viba.wiki.repomix import viba_repomix
     viba_repomix("kb")          # the directory's code as one document's text
 
-The text is the one `viba.markdown` reads: a section per file, the section's
+The text is the one `viba.wiki.markdown` reads: a section per file, the section's
 name is the file's path in the directory, and the code block under it is the
-file's text ([`viba/wiki/viba-markdown-as-directory.md`](../viba-markdown-as-directory.md)).
+file's text ([`viba/wiki/viba-markdown-as-directory.md`](viba-markdown-as-directory.md)).
 What counts as code:
 
 - a `.viba` file, unless the directory holding it is written as `<dir>.viba.md`:
@@ -35,7 +35,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from viba import markdown
+from viba.wiki import markdown
 
 __all__ = ["viba_repomix"]
 
@@ -49,7 +49,7 @@ def viba_repomix(viba_code_dir: str) -> str:
     it. The document reads back as the directory's files, line for line: a
     comment that would not come back as itself stays in the code block, and no
     blank line is added around it. The design's type has no error branch
-    (`viba/repomix.viba`): a path that is no directory holds no code, so the pack
+    (`viba/wiki/repomix.viba`): a path that is no directory holds no code, so the pack
     is empty.
     """
     sections = _files_of(viba_code_dir)

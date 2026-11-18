@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from viba import viba_ast
-from viba.convert_to_json_schema import convert_to_json_schema
+from viba.wiki.convert_to_json_schema import convert_to_json_schema
 from viba.is_sub_type import is_sub_type
 from viba.reflect import VibaData, access, by_tag
 from viba.type import Ok, custom_module, entry_type

@@ -92,8 +92,8 @@ TypeName =
 ## 6. 例
 
 ```python
-from viba.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
-                                   extract_sub_viba_markdown)
+from viba.wiki.extract_sub_repo import (extract_sub_repo_into_viba_markdown,
+                                        extract_sub_viba_markdown)
 
 answer = extract_sub_repo_into_viba_markdown(
     "kb", ["kb", "base"], ["kb"], ["report.Report"])

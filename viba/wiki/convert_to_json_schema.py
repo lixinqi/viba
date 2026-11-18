@@ -1,6 +1,6 @@
-"""viba.convert_to_json_schema — the JSON Schema a design's types answer to.
+"""viba.wiki.convert_to_json_schema — the JSON Schema a design's types answer to.
 
-    from viba.convert_to_json_schema import convert_to_json_schema
+    from viba.wiki.convert_to_json_schema import convert_to_json_schema
 
     answer = convert_to_json_schema(["kb"], ("type_names", ["report.Report"]))
     answer.ok_value        # the schema, as JSON text
@@ -54,15 +54,6 @@ import json
 from typing import Dict, List, Optional
 
 from viba import viba_ast
-from viba.check_convertable_to_json_schema import (CheckErr, argument_problem,
-                                        check_convertable_to_json_schema, entry_definitions)
-from viba.design_walk import (
-    chain_elements,
-    is_definition,
-    module_label,
-    split_type_name,
-    with_params,
-)
 from viba.interpret import _Runner
 from viba.pattern import decide, generic_named
 from viba.reflect import language_config
@@ -75,6 +66,16 @@ from viba.type import (
     module_get_type,
 )
 from viba.viba_ast.tagged import TAGGED_NAME
+from viba.wiki.check_convertable_to_json_schema import (CheckErr, argument_problem,
+                                                        check_convertable_to_json_schema,
+                                                        entry_definitions)
+from viba.wiki.design_walk import (
+    chain_elements,
+    is_definition,
+    module_label,
+    split_type_name,
+    with_params,
+)
 
 __all__ = ["convert_to_json_schema"]
 

@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.check_tag_and_inline import check_tag_and_inline
+from viba.wiki.check_tag_and_inline import check_tag_and_inline
 from viba.reflect import Config
 from viba.type import Ok
 from viba.viba_type_descriptor import empty_pool, parse_viba_file, pool_add_file
@@ -244,9 +244,9 @@ def run_package_sources():
     描述符（viba/viba_type_descriptor.viba）、内建词汇（viba/builtin.viba）。"""
     root = Path(__file__).resolve().parent.parent / "viba"
     paths = [root / "type.viba", root / "viba_type_descriptor.viba",
-             root / "builtin.viba", root / "extract_sub_repo.viba",
-             root / "check_convertable_to_json_schema.viba",
-             root / "convert_to_json_schema.viba", root / "repomix.viba"]
+             root / "builtin.viba", root / "wiki" / "extract_sub_repo.viba",
+             root / "wiki" / "check_convertable_to_json_schema.viba",
+             root / "wiki" / "convert_to_json_schema.viba", root / "wiki" / "repomix.viba"]
     wrong = []
     for path in paths:
         got = file_design(path)

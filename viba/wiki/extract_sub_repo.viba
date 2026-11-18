@@ -1,6 +1,6 @@
 # extract_sub_repo — the design: one repo in, its sub-repo as one document out.
 #
-# This is the declaration `viba.extract_sub_repo` is held to, given as a viba
+# This is the declaration `viba.wiki.extract_sub_repo` is held to, given as a viba
 # type so the operation reads with the rest of the design-side signatures
 # (viba/wiki/viba-extract-sub-repo.md is the document; the Python layer is the one
 # place that takes files apart).

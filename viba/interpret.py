@@ -76,7 +76,7 @@ import uuid
 from pathlib import Path
 from typing import Optional, Union
 
-from viba import markdown, serialize, viba_ast
+from viba import serialize, viba_ast
 from viba.partial import (file_environment_result_problem, parameters_of,
                           product_elements, names_the_environment)
 from viba.reflect import (LITERAL_CTORS, VObject, VibaFunction, VibaReflectError,
@@ -109,6 +109,7 @@ from viba.viba_type_descriptor import (SUM, TUPLE, VibaChainDescriptor,
                                         VibaTypeDescriptor, descriptor_of,
                                         descriptor_of_tagged,
                                         descriptor_of_values, empty_pool)
+from viba.wiki import markdown
 
 # A scalar a host answers belongs to no file: its leaf gets an empty module.
 # Parsed once, not once per answer.
@@ -2155,7 +2156,7 @@ class _Runner:
         marker of a generic, and what is built for it is the whole directory —
         every pattern file numbered inside it (viba/core/viba-pattern.md). A Markdown file
         is the same: the document is a directory, its sections are the files
-        (viba/markdown.py).
+        (viba/wiki/markdown.py).
 
         `file_path` and `root` are what the module records about where it came
         from: the file it was taken from, and the search root it was found under
@@ -2279,7 +2280,7 @@ class _Runner:
     def _generic_of_markdown(self, path: Path, name: str, source: str, root=None):
         """The directory a Markdown document stands for, taken as a generic.
 
-        A document is a directory (viba/markdown.py): its sections are the
+        A document is a directory (viba/wiki/markdown.py): its sections are the
         directory's files, and when the section `__generic__.viba` is among
         them the directory is a generic, so the files are its patterns. Each
         pattern is parsed by `_file_of`, and the document's own directory is
@@ -2372,7 +2373,7 @@ class _Runner:
         """The module `name` under `base`, or None when it is not there.
 
         A directory may be written as one Markdown document — `<dir>.viba.md`,
-        its sections are the directory's files (`viba/markdown.py`). The
+        its sections are the directory's files (`viba/wiki/markdown.py`). The
         document wins over the directory: a file of `<dir>/` is not read when
         the document is there, and a name inside it comes from its sections.
         """
@@ -2380,7 +2381,7 @@ class _Runner:
         if base.name.endswith(".viba.md"):
             # The base is a document standing for a directory: its sections are
             # the directory's files, so a file in it imports its siblings by
-            # their names (`viba/markdown.py`).
+            # their names (`viba/wiki/markdown.py`).
             sections, problem = self._sections(base)
             if problem is not None:
                 return VibaProgramErr(problem)

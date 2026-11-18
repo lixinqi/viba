@@ -38,7 +38,7 @@ VibaRepoMix =
 
 ## 4. 读回来
 
-读它的是 [`viba/markdown.py`](../markdown.py) 的 `files_of`：一份文档读出（名字，内容）的一串，
+读它的是 [`viba/wiki/markdown.py`](markdown.py) 的 `files_of`：一份文档读出（名字，内容）的一串，
 章名原样当名字。
 
 - **平铺目录**（只有文件、没有子目录）：收出来的就是它的 `<目录>.viba.md`——`files_of` 读回来是

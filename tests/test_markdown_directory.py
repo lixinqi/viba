@@ -18,8 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import Host, Checks, answer_of, is_ok, message_of
 from viba import viba_ast
-from viba.check_convertable_to_json_schema import check_convertable_to_json_schema
-from viba.convert_to_json_schema import convert_to_json_schema
+from viba.wiki.check_convertable_to_json_schema import check_convertable_to_json_schema
+from viba.wiki.convert_to_json_schema import convert_to_json_schema
 from viba.interpret import interpret
 from viba.is_complete import is_complete
 from viba.type import Ok

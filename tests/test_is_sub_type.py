@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import ast as py_ast
 
 from viba import viba_ast
-from viba.check_tag_and_inline import check_tag_and_inline
+from viba.wiki.check_tag_and_inline import check_tag_and_inline
 from viba.type import (
     CustomModuleType,
     BUILTIN_MODULE,

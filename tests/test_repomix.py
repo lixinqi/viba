@@ -20,9 +20,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from interpreter_support import Host, answer_of, is_ok, message_of
-from viba import markdown, viba_ast
+from viba import viba_ast
 from viba.interpret import interpret
-from viba.repomix import viba_repomix
+from viba.wiki import markdown
+from viba.wiki.repomix import viba_repomix
 
 DATA = Path(__file__).resolve().parent / "data" / "repomix"
 PATTERNS = Path(__file__).resolve().parent / "data" / "pattern"

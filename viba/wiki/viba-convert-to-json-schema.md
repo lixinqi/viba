@@ -9,7 +9,7 @@ Point = Object * $x float * $y float
 ```
 
 ```python
-from viba.convert_to_json_schema import convert_to_json_schema
+from viba.wiki.convert_to_json_schema import convert_to_json_schema
 
 answer = convert_to_json_schema(["kb"], ("type_names", ["objects.Point"]))
 ```

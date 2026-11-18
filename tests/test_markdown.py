@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viba.markdown import files_of, module_files
+from viba.wiki.markdown import files_of, module_files
 
 PASS = 0
 FAIL = 0
