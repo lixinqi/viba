@@ -133,20 +133,32 @@ Handler = Response <- $env Env <- $request Request
 和时，把它的子孙可选项摊到一起来判：同名或同 tag 都算错。单位元（`nil` / `never` / `Oneof`）不算
 可选项——它们没有内容，也就没有标签可带。
 
-## 6. 一行不带头，多行块的头放在第一行
+## 6. 多成员折行，块头放在第一行
 
 `Object` 是积的单位元（就是 `nil`），`Oneof` 是和的单位元（就是 `never`）。带不带头都是同一个类型
 （`Object * $x int` 与 `$x int` 互为子类型），所以这是**版式**上的事：
 
-- **一行**：不带头。整份定义一眼看全，头是多余的：用 `Parent = nil | $parent_of Node`，**不是**
-  `Parent = Oneof | nil | $parent_of Node`。
-- **摊成多行块**：头放在第一行。块的第一行就是"这一块是积还是和"的说明书；块以字段或分支开头，等于
-  让看的人自己去猜。
+- **多成员的积/和**：总是折成多行块，头放在第一行，一个成员或分支一行。块的第一行就是"这一块是积
+  还是和"的说明书；不让它一行摊开，也不让块以字段或分支开头。
+- **单个成员**：留在一行，不必写头。`UserId = int` 不折；头写出来也只是那个单位元，等于没写。
 
 ```viba
-Option[T] = $some T | nil
-Config = $mode "fast" * $threads 42 * $ratio 3.14
-Parent = nil | $parent_of Node
+Option[T] =
+  Oneof
+  | $some T
+  | nil
+
+Config =
+  Object
+  * $mode "fast"
+  * $threads 42
+  * $ratio 3.14
+
+Parent =
+  Oneof
+  | nil
+  | $parent_of Node
+
 UserId = int
 
 Entry =
@@ -284,7 +296,7 @@ Distance =
   `builtin` 的成员。
   所以 `Environment` / `Env` 和 `builtin.echo` 都不需要任何 import。
 - **内建库里的模块与泛型，名字也一样可见。** `viba/` 里 `builtin.viba` 旁边那几个模块
-  （`Y.viba`、`apply.viba`、`sub_env_run.viba`、`sequential.viba`、`if.viba`），以及
+  （`Y.viba`、`apply.viba`、`sub_env_run.viba`、`sequential.viba`、`if.viba`、`branch.viba`），以及
   `viba/builtin/` 下的那些泛型
   （`is_closure/`、`unclosure/`、`sequential_step/`）对每个模块
   可见，优先级同样最低（自己模块的同名定义、import 优先）：用 `Y << step << …`、
@@ -368,14 +380,22 @@ python -m viba.viba_ast   # 打印器输出的源码，再解析回去是同一�
 
 ## 13. 照着定义一份
 
-这一节给出一份完整的定义，用到本章各节的规矩：叶子、一行不带头、块带头、函数、容器字段。它同样由
-`python -m viba.parser` 检查。
+这一节给出一份完整的定义，用到本章各节的规矩：叶子、多成员折行带头、单成员一行、函数、容器字段。
+它同样由 `python -m viba.parser` 检查。
 
 ```viba
 UserId = int
-State = "draft" | "live"          # told apart by the value: no tags to give
 
-Parent = nil | $parent_of Node
+# told apart by the value: no tags to give
+State =
+  Oneof
+  | "draft"
+  | "live"
+
+Parent =
+  Oneof
+  | nil
+  | $parent_of Node
 
 Index = $by_name dict[str, UserId]
 
@@ -407,7 +427,7 @@ Lookup =
 - [ ] 这个类型是不是只被用了一次的中间包装（别名、单字段 `Object`、`XxxRequest`）？
 - [ ] 递归结构的 children 是 `list`，还是退化成了单个 `T`？
 - [ ] 叶子是 `list` 的 `nil` 分支，还是我在元素类型上又放了 `| nil`？
-- [ ] 一行有没有多带头？多行块有没有漏头？
+- [ ] 多成员的积/和有没有摊成一行？多行块有没有漏头？
 - [ ] `Oneof` / `Object` 用对了，没把单个 `Object` 包进 `Oneof`？
 - [ ] 字段 tag 自解释吗？函数实参都带 tag 吗？
 - [ ] 模块的参数都在 `__decl__` 里了吗（含那个 `$env Env`）？还是把参数藏进了模块名里？调用给全了吗？
