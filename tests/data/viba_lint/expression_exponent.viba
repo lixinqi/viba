@@ -1,1 +1,1 @@
-A = $foo (int <- $env Env)
+A = $foo (int <- $env Env <- $a int <- $b int <- $c int)

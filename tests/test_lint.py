@@ -248,6 +248,16 @@ def run() -> None:
           "the << of a partial application stays two spaces past the base")
     check(fixed("expression_tag.viba") == (CASES / "expression_tag.viba").read_text(),
           "a pure tag chain is left on one line")
+    for name in ("short_exponent.viba", "short_partial.viba", "short_expression.viba"):
+        check(lint_source((CASES / name).read_text(), name) == [],
+              f"a short <-/<< chain stays on one line: {name}")
+        check(fixed(name) == (CASES / name).read_text(),
+              f"the fixer leaves a short chain alone: {name}")
+    for name in ("long_exponent.viba", "long_partial.viba"):
+        check("statement-fold" in rules_of(name),
+              f"a long <-/<< statement must fold: {name}")
+        check(lint_source(fixed(name), "fixed.viba") == [],
+              f"the long statement folds into a clean layout: {name}")
     document_with_expression = (CASES / "expression_document.viba.md").read_text()
     check(lint_markdown(fix_markdown(document_with_expression), "fixed.viba.md") == [],
           "the fixer folds an expression inside a document")

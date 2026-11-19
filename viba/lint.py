@@ -60,6 +60,9 @@ from viba.viba_ast.nodes import (
 
 INDENT = 2
 OPERATORS = ("|", "*", "<-", "<<")
+# A one-line exponent/partial chain this short may stay on one line.
+SHORT_CHAIN_OPERATORS = 4
+SHORT_CHAIN_CHARS = 50
 
 # The generated pattern corpora and the test fixtures are not designs to lint.
 DEFAULT_EXCLUDES = (
@@ -255,6 +258,15 @@ def _statement_kind(block: Sequence[_Line]) -> Optional[str]:
     return None
 
 
+def _short_chain(kind: str, text: str, line_text: str) -> bool:
+    """A `<-` / `<<` chain short enough to stay on one line."""
+    if kind not in ("exponent", "partial"):
+        return False
+    operator = "<-" if kind == "exponent" else "<<"
+    return (text.count(operator) < SHORT_CHAIN_OPERATORS
+            and len(line_text) < SHORT_CHAIN_CHARS)
+
+
 def _first_token(text: str) -> str:
     stripped = text.lstrip()
     for operator in ("<-", "<<"):
@@ -408,9 +420,13 @@ def _lint_lines(lines: Sequence[_Line], path: str) -> List[Violation]:
         body = statement.body
         start_line = lines[statement.start].number
         if kind in ("sum", "product", "exponent", "partial") and statement.inline is not None:
-            found.append(Violation(
-                path, start_line, 1, "statement-fold",
-                "a type statement must fold; only a type expression may stay on one line"))
+            short = (kind in ("exponent", "partial")
+                     and _short_chain(kind, statement.inline,
+                                      lines[statement.start].text))
+            if not short:
+                found.append(Violation(
+                    path, start_line, 1, "statement-fold",
+                    "a type statement must fold; only a type expression may stay on one line"))
         if kind == "sum":
             found.extend(_check_sum(statement, body, path, start_line))
         elif kind == "product":
@@ -710,6 +726,9 @@ def _fix_statement(lines: Sequence[_Line], statement: _Statement) -> Optional[Li
     if kind not in ("sum", "product", "exponent", "partial"):
         return None
     if statement.inline is not None:
+        if kind in ("exponent", "partial") and _short_chain(
+                kind, statement.inline, lines[statement.start].text):
+            return None
         if "#" in statement.inline:
             return None
         elements = _inline_elements(kind, statement.inline)
@@ -830,7 +849,11 @@ def _check_expression_folds(lines: Sequence[_Line], path: str) -> List[Violation
         if _spans_hint_or_string([_Line(code.text, code.number)]):
             continue
         for open_col, _close_col, content in _paren_pairs(code.text):
-            if _content_kind(content) is None:
+            kind = _content_kind(content)
+            if kind is None:
+                continue
+            if (kind in ("exponent", "partial")
+                    and _short_chain(kind, content, code.text)):
                 continue
             found.append(Violation(
                 path, code.number, open_col + 1, "expression-fold",
@@ -900,9 +923,17 @@ def _fold_line(text: str) -> Optional[List[str]]:
     code = code.rstrip()
     pairs = [(open_col, close_col, content) for open_col, close_col, content
              in _paren_pairs(code) if _content_kind(content) is not None]
-    if not pairs:
+    chosen = None
+    for pair in sorted(pairs, key=lambda candidate: candidate[0]):
+        pair_kind = _content_kind(pair[2])
+        if (pair_kind in ("exponent", "partial")
+                and _short_chain(pair_kind, pair[2], text)):
+            continue
+        chosen = pair
+        break
+    if chosen is None:
         return None
-    open_col, close_col, content = min(pairs, key=lambda pair: pair[0])
+    open_col, close_col, content = chosen
     kind = _content_kind(content)
     elements = _expression_elements(kind, content)
     if elements is None:
