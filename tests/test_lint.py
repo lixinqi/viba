@@ -89,6 +89,11 @@ def run() -> None:
           "a directory's .viba.md document is read")
     check(not any(v.path.endswith("good.viba") for v in found),
           "a directory's file without violations is not reported")
+    excluded = lint_paths([str(CASES)], [str(CASES / "inline_sum.viba")])
+    check(not any(v.path.endswith("inline_sum.viba") for v in excluded),
+          "an excluded file is left alone")
+    check(any(v.path.endswith("inline_product.viba") for v in excluded),
+          "a file beside the excluded one is still read")
 
     check(lint_source(fixed("sums.viba"), "fixed.viba") == [],
           "the fixer adds Oneof to a sum whose first branch has no |")
@@ -123,13 +128,46 @@ def run() -> None:
           "the document's prose is left as it was")
     check("    Object\n  * $x str" in hinted_fixed,
           "the fixable product in the document is laid out")
-    check("  Object\n  * $w (int * { 宽度 })" in hinted_fixed,
-          "the statement with a hint is left as it was")
-    check(hinted_skipped == [14],
-          f"the hinted statement is reported as skipped: {hinted_skipped!r}")
-    check([(v.rule, v.line) for v in lint_markdown(hinted_fixed, "doc.viba.md")]
-          == [("product-head", 15)],
-          "only the hinted statement is still reported")
+    check("    Object\n  * $w (int * { 宽度 })" in hinted_fixed,
+          "the product with a one-line hint is laid out too")
+    check(hinted_fixed.count("  * $w (int * { 宽度 })") == 1,
+          "the field and its hint text are kept")
+    check(hinted_skipped == [],
+          f"a one-line hint is not skipped: {hinted_skipped!r}")
+    check(lint_markdown(hinted_fixed, "doc.viba.md") == [],
+          "both products are laid out")
+
+    long_hint = (CASES / "document_with_long_hint.viba.md").read_text()
+    long_fixed, long_skipped = fix_markdown_report(long_hint)
+    check("    Object\n  * $w Hint[{" in long_fixed,
+          "a multi-line hint still gets its head and member columns")
+    check("      宽度" in long_fixed and "    }]" in long_fixed,
+          "the hint text lines are kept byte for byte")
+    check(long_skipped == [], "a head that is already there is fixed, not skipped")
+    check(lint_markdown(long_fixed, "doc.viba.md") == [],
+          "the fixed document has no violations")
+    long_again, long_skipped_again = fix_markdown_report(long_fixed)
+    check(long_again == long_fixed and long_skipped_again == [],
+          "a second --fix changes nothing")
+
+    bad = (CASES / "document_with_field_head_hint.viba.md").read_text()
+    bad_fixed, bad_skipped = fix_markdown_report(bad)
+    check(bad_fixed == bad, "a headless product with a hint is left as it is")
+    check(bad_skipped == [7],
+          f"the field line is the skipped head line: {bad_skipped!r}")
+    check(lint_markdown(bad_fixed, "doc.viba.md") == [],
+          "a tagged statement with a hint has no statement violation")
+
+    text_doc = (CASES / "document_with_text_block.viba.md").read_text()
+    text_fixed, text_skipped = fix_markdown_report(text_doc)
+    check("X =\n  Y" in text_fixed, "a non-viba block is not rewritten")
+    check("    Object\n  * $x str" in text_fixed, "the viba block is laid out")
+    check(text_skipped == [], "the viba block has nothing to skip")
+
+    once, skipped_once = fix_markdown_report(hinted)
+    twice, skipped_twice = fix_markdown_report(once)
+    check(twice == once and skipped_once == [] and skipped_twice == [],
+          "the second --fix of the fixed document changes nothing")
 
     with tempfile.TemporaryDirectory(prefix="viba-lint-") as scratch:
         root = Path(scratch)
@@ -158,11 +196,33 @@ def run() -> None:
         printed = io.StringIO()
         with contextlib.redirect_stdout(printed):
             code = lint_main(["--fix", str(hinted)])
-        check(code == 1, "the --fix command exits 1 while a hinted statement is left")
-        check("skipped " in printed.getvalue(), "the --fix command says what it skipped")
+        check(code == 0, "the --fix command exits 0 once the one-line hint is fixed")
+        check("skipped " not in printed.getvalue(), "nothing is skipped for a one-line hint")
         check("说明文字一行。" in hinted.read_text()
               and "# 说明文字一行。" not in hinted.read_text(),
               "the --fix command leaves the document's prose")
+
+        long_path = root / "long.viba.md"
+        long_path.write_text((CASES / "document_with_long_hint.viba.md").read_text())
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            code = lint_main(["--fix", str(long_path)])
+        check(code == 0, "the --fix command fixes a multi-line hint's head")
+        check("skipped " not in printed.getvalue(),
+              "a head that is already there is not skipped")
+        check("    Object\n  * $w Hint[{" in long_path.read_text(),
+              "the multi-line hint statement is laid out")
+
+        bad_path = root / "bad.viba.md"
+        bad_path.write_text((CASES / "document_with_field_head_hint.viba.md").read_text())
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            code = lint_main(["--fix", str(bad_path)])
+        check(code == 0, "the --fix command exits 0; only the skip is left")
+        check(f"skipped {bad_path}:7 " in printed.getvalue(),
+              "the --fix command says which field line it skipped")
+        check(bad_path.read_text() == bad,
+              "the headless product with a hint is unchanged")
 
     for name in ("expression_product.viba", "expression_exponent.viba",
                  "expression_partial.viba", "expression_nested.viba",
@@ -192,9 +252,11 @@ def run() -> None:
           "the document's expression gets its fold")
 
     hint = "Distance =\n  int\n  <- $env Environment\n  <- { a hint }\n"
-    check(fix_source(hint) == hint, "a statement with a hint is left as it is")
-    check("exponent-result" in [v.rule for v in lint_source(hint)],
-          "a statement with a hint is still reported")
+    check(fix_source(hint) == ("Distance =\n     int\n  <- $env Environment\n"
+                               "  <- { a hint }\n"),
+          "a statement with a one-line hint is laid out and the hint is kept")
+    check(lint_source(fix_source(hint)) == [],
+          "the laid-out statement has no violations")
 
 
 def main() -> int:

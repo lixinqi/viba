@@ -464,7 +464,8 @@ def lint_file(path: Path) -> List[Violation]:
     return lint_source(text, str(path))
 
 
-def _files(paths: Iterable[str]) -> List[Path]:
+def _files(paths: Iterable[str], excludes: Iterable[str] = ()) -> List[Path]:
+    skip = [str(Path(ex).as_posix()).rstrip("/") for ex in excludes]
     found: List[Path] = []
     for raw in paths:
         path = Path(raw)
@@ -474,21 +475,37 @@ def _files(paths: Iterable[str]) -> List[Path]:
             for child in sorted(path.rglob("*")):
                 if "__pycache__" in child.parts or ".git" in child.parts:
                     continue
+                text = child.as_posix()
+                if any(text == ex or text.startswith(ex + "/") for ex in skip):
+                    continue
                 if child.is_file() and (child.name.endswith(".viba")
                                         or child.name.endswith(".viba.md")):
                     found.append(child)
     return found
 
 
-def lint_paths(paths: Iterable[str]) -> List[Violation]:
+def lint_paths(paths: Iterable[str], excludes: Iterable[str] = ()) -> List[Violation]:
     found: List[Violation] = []
-    for path in _files(paths):
+    for path in _files(paths, excludes):
         found.extend(lint_file(path))
     return found
 
 
 def _opens_hint_or_string(text: str) -> bool:
     return "{" in text or "}" in text or '"""' in text or "'''" in text
+
+
+def _spans_hint_or_string(lines: Sequence[_Line]) -> bool:
+    """A hint or triple-quoted string that runs past one line."""
+    depth = 0
+    for line in lines:
+        _code, _comment, opened = _scan_line(line.text)
+        if opened is not None:
+            return True
+        depth += line.text.count("{") - line.text.count("}")
+        if depth > 0:
+            return True
+    return False
 
 
 def _split_top_level(text: str, operator: str) -> List[str]:
@@ -631,14 +648,57 @@ def _render(kind: str, head: str, head_comment: str,
     return lines
 
 
+def _fix_statement_prefixes(lines: Sequence[_Line],
+                            statement: _Statement) -> Optional[List[str]]:
+    """Re-indent the head and the statement's own members; keep the rest."""
+    block = lines[statement.start:statement.end]
+    kind = _statement_kind(block)
+    if kind not in ("sum", "product", "exponent", "partial"):
+        return None
+    body = statement.body
+    if not body:
+        return None
+    head = body[0]
+    stripped = head.stripped
+    if kind == "sum":
+        if stripped != "Oneof":
+            return None
+    elif kind == "product":
+        if (stripped.startswith("$") or stripped == "Oneof"
+                or stripped.startswith(("|", "*", "<-", "<<"))):
+            return None
+        head_column = 4
+    else:
+        if stripped.startswith(("|", "*", "<-", "<<")) or stripped == "Oneof":
+            return None
+        head_column = 5
+    if kind in ("sum", "product"):
+        head_column = 4
+    blocks = _folded_blocks(lines)
+    new = [line.text for line in block]
+    for code in body:
+        if code is head:
+            column = head_column
+        elif _first_token(code.stripped) in OPERATORS:
+            inside = any(open_index < code.index < close_index
+                         for open_index, _base, close_index in blocks)
+            if inside:
+                continue
+            column = INDENT
+        else:
+            continue
+        new[code.index - statement.start] = " " * column + block[code.index - statement.start].text.lstrip()
+    return new
+
+
 def _fix_statement(lines: Sequence[_Line], statement: _Statement) -> Optional[List[str]]:
     text = lines[statement.start].text
     if text.lstrip().startswith("pattern") or "=" not in text:
         return None
     left = text.split("=", 1)[0].rstrip()
     block = lines[statement.start:statement.end]
-    if any(_opens_hint_or_string(line.text) for line in block):
-        return None
+    if _spans_hint_or_string(block):
+        return _fix_statement_prefixes(lines, statement)
     kind = _statement_kind(block)
     if kind not in ("sum", "product", "exponent", "partial"):
         return None
@@ -897,8 +957,10 @@ def _fix_source_report(source: str, path: str = "<source>") -> Tuple[str, List[i
         fixed = _fix_statement(lines, statement)
         if fixed is None:
             block = lines[statement.start:statement.end]
-            if any(_opens_hint_or_string(line.text) for line in block):
-                skipped.append(lines[statement.start].number)
+            if _spans_hint_or_string(block):
+                head = statement.body[0].number if statement.body \
+                    else lines[statement.start].number
+                skipped.append(head)
             out.extend(line.text for line in lines[statement.start:statement.end])
         else:
             out.extend(fixed)
@@ -966,15 +1028,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="files or directories to lint (default: .)")
     parser.add_argument("--fix", action="store_true",
                         help="rewrite the fixable layout, then report what is left")
+    parser.add_argument("--exclude", action="append", default=[], metavar="PATH",
+                        help="a path prefix to leave alone (repeatable)")
     args = parser.parse_args(argv)
     if args.fix:
-        for path in _files(args.paths):
+        for path in _files(args.paths, args.exclude):
             changed, skipped = fix_file_report(path)
             if changed:
                 print(f"fixed {path}")
             for line in skipped:
                 print(f"skipped {path}:{line} (hint block)")
-    violations = sorted(lint_paths(args.paths),
+    violations = sorted(lint_paths(args.paths, args.exclude),
                         key=lambda v: (v.path, v.line, v.column, v.rule))
     for violation in violations:
         print(f"{violation.path}:{violation.line}:{violation.column}: "

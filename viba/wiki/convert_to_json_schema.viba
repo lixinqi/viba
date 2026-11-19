@@ -15,9 +15,13 @@
 # `JsonStr` is the schema as JSON text.
 
 ConvertToJsonSchema =
-    Result[JsonStr]
+     Result[JsonStr]
   <- $viba_path list[str]
-  <- $entry ($module_name ImportableTypeName | $type_names list[ImportableTypeName])
+  <- $entry (
+         Oneof
+       | $module_name ImportableTypeName
+       | $type_names list[ImportableTypeName]
+     )
   <- $strict ((bool | nil) * { 默认为 False，表示允许给定 module_name 内部可以包含 <- 和 <<，函数内部会选择性忽略他们 })
   <- Hint[{
       $entry 给一个模块名：文档的 $defs 里是这个模块的每个定义；给一组 type 名：是这几个定义。
@@ -32,7 +36,9 @@ ConvertToJsonSchema =
     }]
 
 JsonStr =
-    str * Assert[{ json content }]
+    str
+  * Assert[{ json content }]
 
 ImportableTypeName =
-    str * Assert[{ 形如 xxx.yyy 等可被 import 的字符串 }]
+    str
+  * Assert[{ 形如 xxx.yyy 等可被 import 的字符串 }]

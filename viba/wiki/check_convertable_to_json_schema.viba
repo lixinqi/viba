@@ -17,9 +17,13 @@
 # end) is check_tag_and_inline's, run over the same design first.
 
 CheckConvertableToJsonSchema =
-    Result[void]
+     Result[void]
   <- $viba_path list[str]
-  <- $entry ($module_name ImportableTypeName | $type_names list[ImportableTypeName])
+  <- $entry (
+         Oneof
+       | $module_name ImportableTypeName
+       | $type_names list[ImportableTypeName]
+     )
   <- $strict ((bool | nil) * { 默认为 False，表示允许给定 module_name 内部可以包含 <- 和 <<，函数内部会选择性忽略他们 })
   <- Hint[{
       $entry 给一个模块名：查这个模块里每个定义；给一组 type 名：查这几个定义。
@@ -34,4 +38,5 @@ CheckConvertableToJsonSchema =
     }]
 
 ImportableTypeName =
-    str * Assert[{ 形如 xxx.yyy 等可被 import 的字符串 }]
+    str
+  * Assert[{ 形如 xxx.yyy 等可被 import 的字符串 }]

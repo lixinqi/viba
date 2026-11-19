@@ -21,13 +21,21 @@
 # written in this repo needs.
 
 ExtractSubRepoIntoVibaMarkdown =
-    Result[VibaMarkdown, VibaMdToRepoSourceMap]
+     Result[VibaMarkdown, VibaMdToRepoSourceMap]
   <- $repo Repo
   <- $viba_path list[str]
   <- $extract_source_viba_path list[str]
   <- $type_names list[TypeName]
-  <- $never_eqv (list[str] | nil)
-  <- $nil_eqv (list[str] | nil)
+  <- $never_eqv (
+         Oneof
+       | list[str]
+       | nil
+     )
+  <- $nil_eqv (
+         Oneof
+       | list[str]
+       | nil
+     )
   <- Hint[{
       从 $type_names 出发，把 $repo 里、$extract_source_viba_path 下的那些定义抽成一份 .viba.md 文档：
       一节一个文件，节名是它在 repo 里的路径，正文是源文件自己的行（用到的 import 与留下的定义）。
@@ -38,7 +46,8 @@ ExtractSubRepoIntoVibaMarkdown =
     }]
 
 VibaMarkdown =
-    str * { 符合 .viba.md 文件内容格式，所有类型能自描述，不能自描述的部分全是叶子，不用继续展开 }
+    str
+  * { 符合 .viba.md 文件内容格式，所有类型能自描述，不能自描述的部分全是叶子，不用继续展开 }
 
 VibaMdToRepoSourceMap =
     dict[
@@ -46,11 +55,19 @@ VibaMdToRepoSourceMap =
       ($importable_dot_splited_module_path str, $lineno_in_module int)]
 
 ExtractSubVibaMarkdown =
-    Result[VibaMarkdown, VibaMdToVibaMdSourceMap]
+     Result[VibaMarkdown, VibaMdToVibaMdSourceMap]
   <- $source_viba_md VibaMarkdown
   <- $type_names list[TypeName]
-  <- $never_eqv (list[str] | nil)
-  <- $nil_eqv (list[str] | nil)
+  <- $never_eqv (
+         Oneof
+       | list[str]
+       | nil
+     )
+  <- $nil_eqv (
+         Oneof
+       | list[str]
+       | nil
+     )
   <- Hint[{
       $source_viba_md 是一份文档的全文：一节一个文件，节名是它在 repo 里的路径。
       从 $type_names 出发，按 ExtractSubRepoIntoVibaMarkdown 同一套走法，抽出它的子文档。
@@ -75,7 +92,9 @@ ExtractSubVibaMarkdown =
     }]
 
 Repo =
-    str * Assert[{ this is a file path }]
+    str
+  * Assert[{ this is a file path }]
 
 TypeName =
-    str * { a module and a definition, like `pkg.mod.Name` }
+    str
+  * { a module and a definition, like `pkg.mod.Name` }
