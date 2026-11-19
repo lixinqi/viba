@@ -128,9 +128,9 @@ def run() -> None:
           "the document's prose is left as it was")
     check("    Object\n  * $x str" in hinted_fixed,
           "the fixable product in the document is laid out")
-    check("    Object\n  * $w (int * { 宽度 })" in hinted_fixed,
+    check("    Object\n  * $w (" in hinted_fixed,
           "the product with a one-line hint is laid out too")
-    check(hinted_fixed.count("  * $w (int * { 宽度 })") == 1,
+    check("{ 宽度 }" in hinted_fixed,
           "the field and its hint text are kept")
     check(hinted_skipped == [],
           f"a one-line hint is not skipped: {hinted_skipped!r}")
@@ -155,11 +155,14 @@ def run() -> None:
     check(bad_fixed == bad, "a headless product with a hint is left as it is")
     check(bad_skipped == [7],
           f"the field line is the skipped head line: {bad_skipped!r}")
-    check(lint_markdown(bad_fixed, "doc.viba.md") == [],
-          "a tagged statement with a hint has no statement violation")
+    check([(v.rule, v.line) for v in lint_markdown(bad_fixed, "doc.viba.md")]
+          == [("product-head", 7)],
+          "the headless product is still reported at its first field")
 
     text_doc = (CASES / "document_with_text_block.viba.md").read_text()
     text_fixed, text_skipped = fix_markdown_report(text_doc)
+    check("说明文字一行。" in text_fixed and "# 说明文字一行。" not in text_fixed,
+          "the prose next to the blocks is left as it was")
     check("X =\n  Y" in text_fixed, "a non-viba block is not rewritten")
     check("    Object\n  * $x str" in text_fixed, "the viba block is laid out")
     check(text_skipped == [], "the viba block has nothing to skip")
@@ -218,7 +221,7 @@ def run() -> None:
         printed = io.StringIO()
         with contextlib.redirect_stdout(printed):
             code = lint_main(["--fix", str(bad_path)])
-        check(code == 0, "the --fix command exits 0; only the skip is left")
+        check(code == 1, "the --fix command exits 1 for the headless product")
         check(f"skipped {bad_path}:7 " in printed.getvalue(),
               "the --fix command says which field line it skipped")
         check(bad_path.read_text() == bad,

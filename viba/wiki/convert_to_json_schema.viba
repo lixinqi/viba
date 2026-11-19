@@ -22,7 +22,14 @@ ConvertToJsonSchema =
        | $module_name ImportableTypeName
        | $type_names list[ImportableTypeName]
      )
-  <- $strict ((bool | nil) * { 默认为 False，表示允许给定 module_name 内部可以包含 <- 和 <<，函数内部会选择性忽略他们 })
+  <- $strict (
+         (
+             Oneof
+           | bool
+           | nil
+         )
+       * { 默认为 False，表示允许给定 module_name 内部可以包含 <- 和 <<，函数内部会选择性忽略他们 }
+     )
   <- Hint[{
       $entry 给一个模块名：文档的 $defs 里是这个模块的每个定义；给一组 type 名：是这几个定义。
       先跑 check_convertable_to_json_schema：它答错就把它的错答回去。

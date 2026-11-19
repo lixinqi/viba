@@ -19,9 +19,13 @@
 import sequential_impl
 
 __decl__ =
-    Any
+     Any
   <- $steps ...
 
-args = __get_args__ << __decl__
+args =
+     __get_args__
+  << __decl__
 
-__impl__ = sequential_impl[args.steps] << $steps args.steps
+__impl__ =
+     sequential_impl[args.steps]
+  << $steps args.steps

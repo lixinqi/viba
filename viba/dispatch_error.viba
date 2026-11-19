@@ -6,7 +6,7 @@
 # `$dispatch_error_message "no handler matches"` is that one-member object.
 
 __decl__ =
-    DispatchError
+     DispatchError
   <- $env Env
 
 __impl__ = $dispatch_error_message "no handler matches"

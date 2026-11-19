@@ -14,17 +14,30 @@
 import y_helper
 
 __decl__ =
-    Any
+     Any
   <- $env Env
   <- $f Any
   <- $args ...
 
-args = __get_args__ << __decl__
+args =
+     __get_args__
+  << __decl__
 
 __impl__ =
-    y_helper
-  << $env (args.env.sub_env << args.env << "y_helper")
+     y_helper
+  << $env (
+          args.env.sub_env
+       << args.env
+       << "y_helper"
+     )
   << $f args.f
   << $y_helper y_helper
-  << $caller_workspace_relative_path ($get_relative_path << args.env << ($get_root << args.env))
+  << $caller_workspace_relative_path (
+          $get_relative_path
+       << args.env
+       << (
+               $get_root
+            << args.env
+          )
+     )
   << $args args.args

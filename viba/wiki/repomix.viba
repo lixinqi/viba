@@ -7,5 +7,11 @@
 # files, line for line.
 
 VibaRepoMix =
-     (str * { markdown file content })
-  <- $viba_code_dir (str * { directory containing viba code })
+     (
+         str
+       * { markdown file content }
+     )
+  <- $viba_code_dir (
+         str
+       * { directory containing viba code }
+     )

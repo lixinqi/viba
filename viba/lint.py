@@ -61,6 +61,15 @@ from viba.viba_ast.nodes import (
 INDENT = 2
 OPERATORS = ("|", "*", "<-", "<<")
 
+# The generated pattern corpora and the test fixtures are not designs to lint.
+DEFAULT_EXCLUDES = (
+    "tests/corpus",
+    "tests/data",
+    "viba/apply_impl",
+    "viba/sequential_impl",
+    "viba/builtin",
+)
+
 
 @dataclass(frozen=True)
 class Violation:
@@ -697,8 +706,6 @@ def _fix_statement(lines: Sequence[_Line], statement: _Statement) -> Optional[Li
         return None
     left = text.split("=", 1)[0].rstrip()
     block = lines[statement.start:statement.end]
-    if _spans_hint_or_string(block):
-        return _fix_statement_prefixes(lines, statement)
     kind = _statement_kind(block)
     if kind not in ("sum", "product", "exponent", "partial"):
         return None
@@ -712,6 +719,8 @@ def _fix_statement(lines: Sequence[_Line], statement: _Statement) -> Optional[Li
         body = _render(kind, head, "", members)
         trailing = [line.text for line in lines[statement.start + 1:statement.end]]
         return [left + " ="] + body + trailing
+    if _spans_hint_or_string(block) or any("(" in line.text for line in block):
+        return _fix_statement_prefixes(lines, statement)
     body = statement.body
     if not body:
         return None
@@ -818,7 +827,7 @@ def _check_expression_folds(lines: Sequence[_Line], path: str) -> List[Violation
     found: List[Violation] = []
     code_lines = _code_lines(lines)
     for code in code_lines:
-        if _opens_hint_or_string(code.text):
+        if _spans_hint_or_string([_Line(code.text, code.number)]):
             continue
         for open_col, _close_col, content in _paren_pairs(code.text):
             if _content_kind(content) is None:
@@ -832,9 +841,10 @@ def _check_expression_folds(lines: Sequence[_Line], path: str) -> List[Violation
         if not inner:
             continue
         head = inner[0]
-        stripped = head.stripped
-        head_expected = base + 4 if stripped in ("Object", "Oneof") else base + 5
-        operators = ("|", "*") if stripped in ("Object", "Oneof") else ("<-", "<<")
+        tokens = {_first_token(code.stripped) for code in inner[1:]}
+        is_product = bool(tokens & {"|", "*"})
+        head_expected = base + 4 if is_product else base + 5
+        operators = ("|", "*") if is_product else ("<-", "<<")
         if head.indent != head_expected:
             found.append(Violation(
                 path, head.number, head.indent + 1, "expression-fold",
@@ -885,7 +895,7 @@ def _expression_elements(kind: str, content: str):
 def _fold_line(text: str) -> Optional[List[str]]:
     """The lines a line with an unfolded compound expression becomes, or None."""
     code, comment, opened = _scan_line(text)
-    if opened is not None or _opens_hint_or_string(code):
+    if opened is not None or _spans_hint_or_string([_Line(code, 1)]):
         return None
     code = code.rstrip()
     pairs = [(open_col, close_col, content) for open_col, close_col, content
@@ -932,7 +942,7 @@ def _fold_expressions(lines: Sequence[str]) -> List[str]:
             triple = opened
             out.append(text)
             continue
-        if _opens_hint_or_string(text):
+        if _spans_hint_or_string([_Line(text, 1)]):
             opens = text.count("{") - text.count("}")
             if opens > 0:
                 hints = opens
@@ -1030,15 +1040,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="rewrite the fixable layout, then report what is left")
     parser.add_argument("--exclude", action="append", default=[], metavar="PATH",
                         help="a path prefix to leave alone (repeatable)")
+    parser.add_argument("--no-default-excludes", action="store_true",
+                        help="also read the generated corpora and the fixtures")
     args = parser.parse_args(argv)
+    excludes = ([] if args.no_default_excludes
+                else list(DEFAULT_EXCLUDES)) + args.exclude
     if args.fix:
-        for path in _files(args.paths, args.exclude):
+        for path in _files(args.paths, excludes):
             changed, skipped = fix_file_report(path)
             if changed:
                 print(f"fixed {path}")
             for line in skipped:
                 print(f"skipped {path}:{line} (hint block)")
-    violations = sorted(lint_paths(args.paths, args.exclude),
+    violations = sorted(lint_paths(args.paths, excludes),
                         key=lambda v: (v.path, v.line, v.column, v.rule))
     for violation in violations:
         print(f"{violation.path}:{violation.line}:{violation.column}: "

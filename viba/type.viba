@@ -6,7 +6,7 @@
 # references and the module machinery behind them.
 
 Type =
-  Oneof
+    Oneof
   | $any_type ()                  # Any: the top type, above every type
   | $never_type ()
   | $nil_type ()
@@ -22,28 +22,34 @@ Type =
   | $module_type ModuleType
 
 ModuleType =
-  Oneof
+    Oneof
   | $builtin_module BuiltinModuleType
   | $custom_module CustomModuleType
 
 CustomModuleType =
-  Object
+    Object
   * $module ast.Module
-  * $module_environment (Result[ModuleType] <- $module_name str)
+  * $module_environment (
+         Result[ModuleType]
+      <- $module_name str
+    )
 
 AstNodeType =
-  Object
+    Object
   * $ast_node ast.Ast
   * $container_module ModuleType
-  * $env_get (Result[Type] <- $type_name str)
+  * $env_get (
+         Result[Type]
+      <- $type_name str
+    )
 
 ModuleGetType =
-  Result[Type]
+     Result[Type]
   <- $module ModuleType
   <- $type_name str
 
 IsSubType =
-  Result[bool]
+     Result[bool]
   <- $sub Type
   <- $sup Type
   <- Hint[{
@@ -59,24 +65,66 @@ IsSubType =
     对 $arg0）；只有函数能和函数比（never 是底，谁都收得下，在那之前就出结果了）。
     文档不算参数：代码块本身，或配置说成单位元的名字带上代码块（Assert 是
     单位元时 Assert[{...}] 也算）。先从链里拿掉再对齐长度，于是
-    (A <- B <- Assert[{...}]) 与 (A <- Assert[{...}] <- B) 都是 (A <- B)。
+    (
+         A
+      <- B
+      <- Assert[{...}]
+    ) 与 (
+         A
+  <- Assert[{...}]
+  <- B
+    ) 都是 (
+         A
+      <- B
+    )。
     裸名的单位元不是文档：参数表是元组，Object 就是那个 nil，真正的 nil 与
     never 一样照旧占着原来那个参数位置。
-    设计里的 `<<` 先给掉再比：(A <- $b B <- $c C) << $b B 与 A <- $c C 是同一条链，
+    设计里的 `<<` 先给掉再比：(
+         A
+      <- $b B
+      <- $c C
+    ) << $b B 与 A <- $c C 是同一条链，
     给全了就是结果本身（链没了，不是空链；末尾的文档块不算参数）。给的那个参数还得
-    坐得进那个参数——(A <- $b B) << $b C 要 C <: B ——给函数没有的参数、给的东西不合法、
+    坐得进那个参数——(
+         A
+      <- $b B
+    ) << $b C 要 C <: B ——给函数没有的参数、给的东西不合法、
     或给一个不是函数的东西，是设计错了，整个判定 $viba_program_err。
     链长不等时先把 sub 弄到 sup 的长度（sup 不动）：sub 短了就在自己末尾补 never
     （谁都没法提供的那个参数），补上来的 never 要对得上 sup 多要的那个参数——所以
-    (int <- $a int) <: (int <- $a int <- never) 成立，sup 多要的是 bool 就不成立；
-    sub 长了就截掉多出来的，sup 根本没问那几位——所以 (int <- $a int <- $b str) 能
-    用在 (int <- $a int) 的地方。弄齐以后从 $arg0 起逐位比，共享的那一段照样得比。
+    (
+         int
+      <- $a int
+    ) <: (
+         int
+  <- $a int
+  <- never
+    ) 成立，sup 多要的是 bool 就不成立；
+    sub 长了就截掉多出来的，sup 根本没问那几位——所以 (
+         int
+      <- $a int
+      <- $b str
+    ) 能
+    用在 (
+         int
+      <- $a int
+    ) 的地方。弄齐以后从 $arg0 起逐位比，共享的那一段照样得比。
     结果为 never 的指数链（never <- A）与别的指数一样：结果
     协变、参数逆变，never <- B <: never <- A 当且仅当 A <: B。核心不知道
     这一支该用什么词收尾：调用方把终止子（terminators）传进来，核心只按
     链头认——两边都是 never 头且分支 tag 对得上时，sub 的每一支都得是
     终止子才算数；sub 是带 tag 的积时按
-    never <- (A | B) = (never <- A) * (never <- B) 取，每个分支 tag 都要
+    never <- (
+                           Oneof
+                         | A
+                         | B
+                       ) = (
+                                never
+  <- A
+                           ) * (
+                                never
+                             <- B
+                           ) 取，每个分支 tag 都要
     带上一个终止子，或一个能入席 never <- 那一支的类型（参数按逆变比），
     缺一支就不算；只把这条链自己抄一遍不算数。不传终止子时只剩指数规则
     （于是 never <- B <: never <- B 为真）。哪个词是终止子属于用它那一层：调用方

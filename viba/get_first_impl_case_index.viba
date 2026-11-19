@@ -5,15 +5,21 @@
 # environment is no argument of a case, so the `$env` member of `args` is left out
 # of the product the judgment sees.
 __decl__ =
-    (int | DispatchError)
+     (
+         Oneof
+       | int
+       | DispatchError
+     )
   <- $env Env
   <- $args Any
   <- $func_arg_types list[Any]
 
-args = __get_args__ << __decl__
+args =
+     __get_args__
+  << __decl__
 
 __impl__ =
-    $first_case_index
+     $first_case_index
   << $env args.env
   << $args args.args
   << $func_arg_types args.func_arg_types

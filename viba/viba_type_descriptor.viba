@@ -84,7 +84,11 @@ VibaMemberDescriptor =
     Object
   * $pool VibaPool
   * $member_index int           # its position in $members, from 0
-  * $tag (str | nil)            # a tagged member keeps what was given (the `$` included); a positional member is nil
+  * $tag (
+        Oneof
+      | str
+      | nil
+    )  # a tagged member keeps what was given (the `$` included); a positional member is nil
   * $member_type VibaTypeDescriptor
   * $containing_full_name str
   * Comments[{
@@ -175,7 +179,7 @@ VibaHintBlockDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
-  * $code str                    # {...} kept as given, newlines and indentation included
+  * $code str  # {...} kept as given, newlines and indentation included
 
 # ---------------------------------------------------------------- #
 # 4. Literals
@@ -185,9 +189,18 @@ VibaLiteralDescriptor =
     Object
   * $pool VibaPool
   * $resolvable_type type.Type
-  * $value VibaConstant      # the literal itself
+  * $value VibaConstant  # the literal itself
 
-VibaConstant = (bool | int | float | str | nil)
+VibaConstant =
+    Oneof
+  | (
+                   Oneof
+                 | bool
+                 | int
+                 | float
+                 | str
+                 | nil
+               )
 
 # ---------------------------------------------------------------- #
 # 5. Descriptor pool
@@ -199,7 +212,10 @@ VibaPool =
   * $file_name2file dict[str, VibaFileDescriptor]
   * $full_name2definition dict[str, VibaDefinitionDescriptor]
   * $full_name2member dict[str, VibaMemberDescriptor]
-  * $module_environment (Result[type.ModuleType] <- $module_name str)
+  * $module_environment (
+         Result[type.ModuleType]
+      <- $module_name str
+    )
   * Comments[{
       描述符池只是索引，不做名字解析。protobuf: DescriptorPool。
       三张名字表的约定：
@@ -218,7 +234,7 @@ VibaPool =
 # ---------------------------------------------------------------- #
 
 ParseVibaFile =
-    Result[VibaFileDescriptor]
+     Result[VibaFileDescriptor]
   <- $pool VibaPool
   <- $source str
   <- $file_name str
@@ -231,7 +247,7 @@ ParseVibaFile =
     }]
 
 PoolAddFile =
-    Result[VibaPool]
+     Result[VibaPool]
   <- $pool VibaPool
   <- $file VibaFileDescriptor
   <- Comments[{
@@ -242,7 +258,7 @@ PoolAddFile =
     }]
 
 PoolFindFile =
-    Result[VibaFileDescriptor]
+     Result[VibaFileDescriptor]
   <- $pool VibaPool
   <- $file_name str
   <- Comments[{
@@ -250,7 +266,7 @@ PoolFindFile =
     }]
 
 PoolFindDefinition =
-    Result[VibaDefinitionDescriptor]
+     Result[VibaDefinitionDescriptor]
   <- $pool VibaPool
   <- $full_name str
   <- Comments[{
@@ -258,7 +274,7 @@ PoolFindDefinition =
     }]
 
 PoolFindMember =
-    Result[VibaMemberDescriptor]
+     Result[VibaMemberDescriptor]
   <- $pool VibaPool
   <- $full_name str
   <- Comments[{
@@ -268,7 +284,7 @@ PoolFindMember =
     }]
 
 FileFindImportByLocalName =
-    Result[VibaImportDescriptor]
+     Result[VibaImportDescriptor]
   <- $file VibaFileDescriptor
   <- $local_name str
   <- Comments[{
@@ -276,7 +292,7 @@ FileFindImportByLocalName =
     }]
 
 DefinitionMembers =
-    Result[list[VibaMemberDescriptor]]
+     Result[list[VibaMemberDescriptor]]
   <- $definition VibaDefinitionDescriptor
   <- Comments[{
       按 $member_index 升序，就是源码顺序；定义体既不是积也不是和时返回空表，
@@ -285,7 +301,7 @@ DefinitionMembers =
     }]
 
 DefinitionFindMemberByTag =
-    Result[VibaMemberDescriptor]
+     Result[VibaMemberDescriptor]
   <- $definition VibaDefinitionDescriptor
   <- $tag str
   <- Comments[{
@@ -293,7 +309,7 @@ DefinitionFindMemberByTag =
     }]
 
 DefinitionFindMemberByIndex =
-    Result[VibaMemberDescriptor]
+     Result[VibaMemberDescriptor]
   <- $definition VibaDefinitionDescriptor
   <- $member_index int
   <- Comments[{
@@ -301,14 +317,14 @@ DefinitionFindMemberByIndex =
     }]
 
 DefinitionFile =
-    Result[VibaFileDescriptor]
+     Result[VibaFileDescriptor]
   <- $definition VibaDefinitionDescriptor
   <- Comments[{
       顺着 $file_name 在 $pool 里回查。protobuf: Descriptor::file()。
     }]
 
 MemberTypeName =
-    Result[str]
+     Result[str]
   <- $member VibaMemberDescriptor
   <- Comments[{
       只在成员类型是一个名字时有值（int、fx.Graph、T）；
@@ -317,7 +333,7 @@ MemberTypeName =
     }]
 
 MemberResolvedDefinition =
-    Result[VibaDefinitionDescriptor]
+     Result[VibaDefinitionDescriptor]
   <- $member VibaMemberDescriptor
   <- Comments[{
       把 MemberTypeName 的名字落到定义。先切前缀：
@@ -330,7 +346,7 @@ MemberResolvedDefinition =
     }]
 
 MemberContainingDefinition =
-    Result[VibaDefinitionDescriptor]
+     Result[VibaDefinitionDescriptor]
   <- $member VibaMemberDescriptor
   <- Comments[{
       顺着 $containing_full_name 在 $pool 里回查。

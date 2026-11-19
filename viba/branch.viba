@@ -16,15 +16,21 @@
 # picks — `branch.py` hands it a child of the environment it was given, so the
 # branch that is taken runs under a path of its own.
 echo_or_never =
-    Any
+     Any
   <- $env Env
   <- $cond bool
-  <- $get_v (Any <- $env Env)
+  <- $get_v (
+          Any
+       <- $env Env
+     )
   <- { run get_v in its own child environment when cond holds, else never }
 
 never_or_echo =
-    Any
+     Any
   <- $env Env
   <- $cond bool
-  <- $get_v (Any <- $env Env)
+  <- $get_v (
+          Any
+       <- $env Env
+     )
   <- { run get_v in its own child environment when cond does not hold, else never }

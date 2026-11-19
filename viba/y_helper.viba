@@ -16,14 +16,16 @@
 import apply
 
 __decl__ =
-    Any
+     Any
   <- $env Env
   <- $f Any
   <- $y_helper Any
   <- $caller_workspace_relative_path str
   <- $args ...
 
-args = __get_args__ << __decl__
+args =
+     __get_args__
+  << __decl__
 
 # The compaction point: the chain of environments this call is inside is the
 # interpreter's own stack, and one link per layer of the recursion is what would
@@ -33,21 +35,27 @@ args = __get_args__ << __decl__
 # answers is this layer's environment, and the definitions below use that name:
 # they are computed when the piece that wants them is, so the compaction point is
 # in order before anything runs at this layer.
-env = $try_compact << args.env << 32
+env =
+     $try_compact
+  << args.env
+  << 32
 
 # The workspace: the same layer for every call, taken back from its relative path. The root is
 # this chain's own root, so the path is still measured from the top even though this call
 # sits deeper.
 caller_workspace_env =
-    env.find_by_relative_path
+     env.find_by_relative_path
   << args.caller_workspace_relative_path
-  << ($get_root << env)
+  << (
+          $get_root
+       << env
+     )
 
 # The layer the step runs in: the storage path of this call's own layer, compressed into a
 # sibling of the workspace. The step's own name for it (`"low"`, `"high"`) is part of that path,
 # so two branches of one step answer two different layers.
 workspace =
-    $compress_env_path
+     $compress_env_path
   << caller_workspace_env
   << env
 
@@ -56,11 +64,17 @@ workspace =
 # call runs in and this layer's arguments are still to come, and the step gives both. The
 # workspace is the same one every layer, so the path goes on as it came.
 recursive =
-    args.y_helper
+     args.y_helper
   << $f args.f
   << $y_helper args.y_helper
   << $caller_workspace_relative_path args.caller_workspace_relative_path
 
 # The step is given the next layer; `apply` goes on giving this layer's arguments, and the
 # environment reaches the step through the calls `apply` answers.
-__impl__ = apply << $env workspace << (args.f << recursive) << args.args
+__impl__ =
+     apply
+  << $env workspace
+  << (
+                args.f
+             << recursive
+           ) << args.args

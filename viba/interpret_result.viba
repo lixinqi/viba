@@ -24,23 +24,23 @@ InterpretResult =
 
 InterpretError =
     Oneof
-  | $viba_program_err ProgramErr                       # the program, or the environment
-  | $underlying_viba_op_err UnderlyingOpErr            # this step broke
-  | $not_implemented_err UnderlyingOpErr               # nothing implements it
+  | $viba_program_err ProgramErr             # the program, or the environment
+  | $underlying_viba_op_err UnderlyingOpErr  # this step broke
+  | $not_implemented_err UnderlyingOpErr     # nothing implements it
   | $environment_api_invalid_argument_err EnvironmentApiInvalidArgumentErr
 
 ProgramErr =
     Object
-  * $msg str                                           # one sentence
-  * $stack Stack                                       # the calls this run was in
+  * $msg str      # one sentence
+  * $stack Stack  # the calls this run was in
 
 Stack =
     list[Frame]
 
 Frame =
     Object
-  * $file_path str                                     # the .viba file the call is given in
-  * $lineno int                                        # the line it is on
+  * $file_path str  # the .viba file the call is given in
+  * $lineno int     # the line it is on
 
 UnderlyingOpErr =
     Object
@@ -51,6 +51,6 @@ UnderlyingOpErr =
 
 EnvironmentApiInvalidArgumentErr =
     Object
-  * $msg str                                           # one sentence, the reason first
-  * $api_name str                                      # which api: `Environment.sub_env`
-  * $args Any                                          # what it was given, environment left out
+  * $msg str       # one sentence, the reason first
+  * $api_name str  # which api: `Environment.sub_env`
+  * $args Any      # what it was given, environment left out

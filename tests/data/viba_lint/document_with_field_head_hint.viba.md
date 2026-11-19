@@ -4,7 +4,8 @@
 
 ```viba bad
 Bad =
-  $w (int * {
+  $a int
+  * $w Hint[{
       宽度
-    })
+    }]
 ```

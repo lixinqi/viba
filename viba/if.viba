@@ -36,15 +36,33 @@
 # and the branch they run is a child of it.
 
 __decl__ =
-    Any
+     Any
   <- $env Env
   <- $cond bool
-  <- $t (Any <- $env Env)
-  <- $f (Any <- $env Env)
+  <- $t (
+          Any
+       <- $env Env
+     )
+  <- $f (
+          Any
+       <- $env Env
+     )
 
-args = __get_args__ << __decl__
+args =
+     __get_args__
+  << __decl__
 
 __impl__ =
     Oneof
-  | (echo_or_never << $env args.env << $cond args.cond << $get_v args.t)
-  | (never_or_echo << $env args.env << $cond args.cond << $get_v args.f)
+  | (
+         echo_or_never
+      << $env args.env
+      << $cond args.cond
+      << $get_v args.t
+    )
+  | (
+         never_or_echo
+      << $env args.env
+      << $cond args.cond
+      << $get_v args.f
+    )

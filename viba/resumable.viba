@@ -18,4 +18,7 @@ ResumableVibaTaskStack =
 ResumableVibaTask =
     Object
   * $current_env_path str      # the data path the call runs at
-  * $call (Any <- Env)         # the call: a function or a closure, its arguments in it
+  * $call (
+         Any
+      <- Env
+    )  # the call: a function or a closure, its arguments in it
