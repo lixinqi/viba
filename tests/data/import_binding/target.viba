@@ -1,0 +1,8 @@
+TargetType =
+    Object
+  * $x int
+
+Target =
+    int
+  <- $env Env
+  <- { answer a number }

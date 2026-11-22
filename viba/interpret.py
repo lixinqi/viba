@@ -1126,6 +1126,31 @@ def _one_line(node) -> str:
     return " ".join(viba_ast.unparse_type(node).split())
 
 
+def _fold_import_bindings(tree) -> None:
+    """`d = __import__ << "a.b.c"` reads as `import a.b.c as d`."""
+    body = []
+    for node in tree.body:
+        if (isinstance(node, viba_ast.TypeDefinition)
+                and node.name not in ("__decl__", "__impl__")):
+            module = _imported_module_of(node.body)
+            if module is not None:
+                body.append(viba_ast.Import(module=module, alias=node.name))
+                continue
+        body.append(node)
+    tree.body = body
+
+
+def _imported_module_of(node):
+    """The module `__import__ << "<module>"` names, or None."""
+    if (isinstance(node, viba_ast.Partial)
+            and isinstance(node.function, viba_ast.TypeRef)
+            and node.function.name == "__import__"
+            and isinstance(node.argument, viba_ast.Constant)
+            and isinstance(node.argument.value, str)):
+        return node.argument.value
+    return None
+
+
 def _builtin_unit(node):
     """The builtin unit type `node` spells, if it names one."""
     if isinstance(node, viba_ast.Nil):
@@ -2209,6 +2234,7 @@ class _Runner:
         return self._built(path, tree, "", name=CODE_LABEL)
 
     def _built(self, path: Path, tree, near, name="", file_path=None, root=None):
+        _fold_import_bindings(tree)
         """The module a parse tree gives, remembered under its path only.
 
         The tree is already parsed (or already built): this is where the two

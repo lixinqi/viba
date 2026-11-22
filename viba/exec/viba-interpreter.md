@@ -57,6 +57,8 @@ exec =
 一个名字也可能是一个**泛型目录**（`<name>/__generic__.viba`）：文件先找，目录随后，两者都按这里的
 顺序（见 [`viba-pattern.md`](../core/viba-pattern.md)）。
 带 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
+`d = __import__ << "a.b.c"` 在读完文件时换成 `import a.b.c as d`：`d` 是那个模块，
+`d.Name` 是 `a.b.c.Name`；`d` 本身是那个模块。
 点号取的是成员：`a.b` 是在 `a` 上取成员 `b`（[`viba-style.md`](../core/viba-style.md) 第 5 节），
 所以 `a.b` 当类型判是那个成员的声明类型，出现在链头就是那一步的调用 —— 这一步问的是它**在哪个模块、
 在那儿叫什么**（下一节的 `get_func`）；定义左边只有一个名字，`a.b = A` 编不过。用别名包一层也一样：
