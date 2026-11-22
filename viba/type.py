@@ -765,7 +765,8 @@ class UnresolvedTypeError(Exception):
 
 
 class DuplicateTagError(Exception):
-    """One product gives the same tag twice, inlined members counted."""
+    """Two inlined members of one product carry the same tag — neither
+    overrides the other, since neither is written in the product itself."""
 
 
 class PartialError(Exception):

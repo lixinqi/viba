@@ -1142,10 +1142,11 @@ def run_cross_module_cases():
                         _tagged("$a", viba_ast.Constant(2))),
                expect="entry =\n  Object\n  * $x 1\n  * $a 2\n",
                resident_source="P = Object * $x int\nBox = P * $a int\n")
-    _gap_in("a tag repeated across modules",
-            pool_of("Box = d.P * $x int\n"), "main.Box",
-            _product(_tagged("$x", viba_ast.Constant(1)),
-                     _tagged("$a", viba_ast.Constant(2))), "appears twice")
+    _corner_in("a member overrides an imported one across modules",
+               pool_of("Box = d.P * $x str\n"), "main.Box",
+               _product(_tagged("$x", viba_ast.Constant("s"))),
+               expect="entry =\n  Object\n  * $x \"s\"\n",
+               resident_source="P = Object * $x int\nBox = P * $x str\n")
     _gap_in("gap an inline ring across two files",
             _pool(("other.viba", "other",
                    "import base\nA = base.B * $x int\n"),
@@ -1358,13 +1359,18 @@ def run_inline_member_cases():
                      _tagged("$y", viba_ast.Constant(2)),
                      _tagged("$z", viba_ast.Constant(3))),
             expect="entry =\n  Object\n  * $x 1\n  * $y 2\n  * $z 3\n")
-    _gap("the same tag twice through an inline",
-         "A = $x int\nB = A * $x str\n", "B",
+    _corner("a member overrides an inlined one",
+            "A = $x int\nB = A * $x str\n", "B",
+            _product(_tagged("$x", viba_ast.Constant("s"))),
+            expect="entry =\n  Object\n  * $x \"s\"\n")
+    _corner("an override beside the members it keeps",
+            "A = $x int * $y int\nB = A * $y str\n", "B",
+            _product(_tagged("$x", viba_ast.Constant(1)),
+                     _tagged("$y", viba_ast.Constant("s"))),
+            expect="entry =\n  Object\n  * $x 1\n  * $y \"s\"\n")
+    _gap("two bases with one tag",
+         "A = $x int\nB = $x str\nC = A * B\n", "C",
          _product(_tagged("$x", viba_ast.Constant(1))), "appears twice")
-    _gap("the same tag twice, one of them inlined",
-         "A = $x int * $y int\nB = A * $y str\n", "B",
-         _product(_tagged("$x", viba_ast.Constant(1)),
-                  _tagged("$y", viba_ast.Constant(2))), "appears twice")
     _gap("a member that inlines itself",
          "A = A * $x int\n", "A",
          _product(_tagged("$x", viba_ast.Constant(1))), "comes back to 'A'")

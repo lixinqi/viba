@@ -1,7 +1,7 @@
 """viba.wiki.check_tag_and_inline — a design's tags, and the chains that spread them.
 
-check_tag_and_inline(design, config) -> Result[None]. Ok(None) when every
-product in the design has all its tags different once the inline chains are
+check_tag_and_inline(design, config) -> Result[None]. Ok(None) when no two
+inlined members of one product carry the same tag once the inline chains are
 spread, and every inline chain ends; Err names the first mistake.
 
     from viba.wiki.check_tag_and_inline import check_tag_and_inline
@@ -12,8 +12,9 @@ members of the definition that stands there spread into the product that names i
 Two mistakes in a definition only become visible after that spreading, and both are
 properties of the design alone — no viba_data is involved:
 
-- the same tag twice in one product, inlined members counted: a base's `$x`
-  next to a `$x` in the source, or one base inlined twice;
+- two inlined members with one tag: one base inlined twice, or two bases
+  that both carry `$x`. A tag written in the product itself is no mistake —
+  it overrides the inlined one of the same name (`Base * $name "nice"`);
 - an inline chain that comes back to a definition it is already spreading
   (`A = A * $x int`), which has no expansion to take at all.
 
@@ -26,8 +27,8 @@ definition, and takes every product it can reach.
 
 A tag that appears twice at one level never gets this far: compiling the file already
 refuses it (`PoolAddFile` answers `duplicate member`). What is left for the
-inline taking is a tag that only repeats once a base has been spread, and a
-chain that never stops unfolding.
+inline taking is two inlined members with one tag, and a chain that never stops
+unfolding.
 
 The map does the taking (viba.reflect): a product's members come from
 ``VibaAccess.members_of`` and its chain from ``VibaAccess.inline_cycle``, and

@@ -16,7 +16,7 @@ IsSubType =
       $sub、$sup 是 Type 值：AstNodeType 包着源码里的结构，或叶子类型（nil、never、字面量、标量、Any）。
       $terminators 是一组类型名，给 `never <- A` 那种链用；默认空。
       $config 说哪些名字算单位元，默认 reflect.language_config。
-      答 Ok(true / false)；$err 说的是输入不成立（同一积里同一个 tag 两次、内联环、名字解析不到），
+      答 Ok(true / false)；$err 说的是输入不成立（两个内联成员带同一个 tag、内联环、名字解析不到），
       不是判定结果。
     }]
 ```
@@ -64,8 +64,11 @@ IsSubType =
 时什么都不贡献——所以 `A * $z T` 带着 A 的 tag，`Object * $a int`
 两个方向都等于 `$a int`。别的不带 tag 的成员是按位置对位的成员，按顺序与另一边对位。
 
-tag 把成员绑在一起：同一个积里同一个 tag 两次（内联出来的、或源码里就写重的）是输入不成立。内联链
-回到正在展开的定义（`A = A * $x int`，绕别名或泛型都算）也答 `$err`。
+tag 把成员绑在一起。**字段覆盖**：积里自己写的那个 tag 盖掉内联进来的同名 tag，跟它站在哪儿无关——
+`Base = Object * $name str` 之后 `Derived = Base * $name "nice"` 的 `$name` 是 `"nice"`，所以
+`Derived << Base` 成立、`Base << Derived` 不成立。两个**内联**成员带同一个 tag 没有谁盖谁，是输入
+不成立；源码里同层写重编译时就拒了。内联链回到正在展开的定义（`A = A * $x int`，绕别名或泛型都算）
+也答 `$err`。
 
 ## 5. 和
 
@@ -100,7 +103,7 @@ tag 底下的类型——所以 `$b str << int | str` 成立。`sup` 是 `never`
 
 `$err` 只说输入不成立，不说判定：
 
-- `the tag $a appears twice in one product`
+- `the tag $a appears twice in one product`（两个内联成员撞 tag；自己写的那一个是覆盖，不算）
 - `the inline chain comes back to 'A'`
 - 名字解析不到时的 `type … unresolved …`
 

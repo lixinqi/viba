@@ -121,10 +121,10 @@ def run_data_cases():
         check_result(is_sub_type(rt_sup, sup_e), True, f"case {num} sup roundtrip")
 
 
-# 语料里本来就错的：重标签（sub071 的标签在源码里同层、sub112 摊进来、sup113 的标签在源码里同层）
+# 语料里本来就错的：重标签（sub071 的标签在源码里同层、sup113 的标签在源码里同层）
 # 与内联成环（sub117、sub120-sub123、sub125）。语料按"对/错"标的是子类型判定，
-# 不是源码形式；这两边恰好一致，所以能拿它当设计的审查。
-MALFORMED_CORPUS = {"sub071", "sub112", "sup113", "sub117",
+# 不是源码形式；这两边恰好一致，所以能拿它当设计的审查。字段覆盖（sub112）是合法的。
+MALFORMED_CORPUS = {"sub071", "sup113", "sub117",
                     "sub120", "sub121", "sub122", "sub123", "sub125"}
 
 
@@ -557,12 +557,15 @@ TwoParams = First[int] * Second[str] * $z bool
                  "two inlined generics do not share a parameter name")
     check_result(judge("TwoParams", "$f str * $s int * $z bool"), False,
                  "each member keeps the binding it had in the source")
-    check_result(judge("Dup", "$x int"), "error",
-                 "the same tag twice through an inline -> Err")
+    check_result(judge("Dup", "$x bool * $y str"), True,
+                 "a member written in the product overrides the inlined one")
+    check_result(judge("Dup", "$x int * $y str"), False,
+                 "and the overridden member is the one the design has")
     check_result(judge("$a int * $a str", "$a int"), "error",
                  "a tag twice at one level -> Err")
-    dup = is_sub_type(entry_type("Dup", module), entry_type("$x int", module))
-    check(isinstance(dup, Err) and "$x" in dup.msg, True,
+    dup = is_sub_type(entry_type("$a int * $a str", module),
+                      entry_type("$a int", module))
+    check(isinstance(dup, Err) and "$a" in dup.msg, True,
           "the Err names the tag that repeats")
 
 
@@ -629,8 +632,8 @@ def run_cross_module_inline_cases():
                  "its tags are the product's own")
     check_result(judge("main.UBox", "$w int"), True,
                  "a unit from another module is no member")
-    check_result(judge("main.Dup", "$x int"), "error",
-                 "a tag repeated across modules -> Err")
+    check_result(judge("main.Dup", "$x int"), True,
+                 "a member written in the product overrides the imported one")
     check_result(judge("ring.Ring", "Ring"), "error",
                  "an inline ring across two files -> Err")
     ringed = judge("ring.Ring", "Ring")

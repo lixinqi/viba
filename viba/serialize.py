@@ -234,15 +234,17 @@ def _emit_product(access: VibaAccess, node: VObject):
     design gave it one; a member with a value is serialized from it (tagged
     members under their tag); a member with no value goes as `nil` when its type
     in the source admits nil, and is a gap otherwise. Positional members
-    are addressed by position, tagged ones by tag; the same tag twice is a gap,
-    since the two pieces could not be told apart when parsed back.
+    are addressed by position, tagged ones by tag; two inlined members with one
+    tag is a gap, since the two pieces could not be told apart when parsed back
+    (a tag written in the product itself overrides the inlined one, so it is
+    the member the map hands out).
     """
     parts = [_product_head()]
     seen_tags = set()
     for tag, step, descriptor in access.member_steps(node):
-        # A tag holds one member: the same tag twice is a design this cannot
-        # serialize, since the piece each occurrence carries could not be told
-        # apart when parsed back.
+        # A tag holds one member: two inlined members with one tag is a design
+        # this cannot serialize, since the piece each occurrence carries could
+        # not be told apart when parsed back.
         if tag is not None:
             if tag in seen_tags:
                 raise SerializeGap(f"the tag {tag} appears twice in one product")

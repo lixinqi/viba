@@ -110,7 +110,7 @@
 109 true  # an untagged product member is inlined
 110 true  # and taken back the same way
 111 false  # the inlined tags are the ones that count
-112 error  # the same tag twice, the inline counted
+112 false  # the member written in the product overrides the inlined one
 113 error  # a tag twice at one level is malformed too
 114 true  # inlining runs down the whole chain
 115 true  # a name over the unit is the unit
@@ -158,3 +158,5 @@
 157 true
 158 true
 159 false
+160 true  # a member written in the product overrides the base's
+161 false  # the other way round is no subtype

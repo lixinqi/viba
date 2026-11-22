@@ -1,0 +1,2 @@
+Base = Object * $name str
+Derived = Base * $name "nice"

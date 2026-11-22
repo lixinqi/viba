@@ -851,12 +851,19 @@ class VibaAccess:
         is no member at all (that is what the head `Object` has always meant);
         anything else is one positional member, as the source has it.
 
+        A tag written in the product itself overrides the same tag an inlined
+        member contributes: `Base * $name "nice"` has the `$name` the source
+        spells, wherever the base stands in the chain. Two inlined tags are no
+        override — neither is written here — so both stay and a checker says so.
+
         A definition the chain meets twice (`A = A * $x int`) has no expansion
         to take: this layer still hands the member out as it stands — it cannot
         throw — and names it in ``cycles`` when a caller asks for the malformed
         design to be caught (see inline_cycle).
         """
         seen = set() if seen is None else seen
+        direct = {element.payload.tag for element in descriptor.payload.elements
+                  if element.kind == TAGGED}
         out = []
         for element in descriptor.payload.elements:
             if element.kind == TAGGED:
@@ -864,9 +871,13 @@ class VibaAccess:
                 continue
             unfolded, inner_seen = self._unfold_seen(element, set(seen))
             if unfolded.kind == PRODUCT:
-                out.extend(self._product_members(unfolded, inner_seen, cycles))
+                out.extend((tag, member)
+                           for tag, member in self._product_members(
+                               unfolded, inner_seen, cycles)
+                           if tag is None or tag not in direct)
             elif unfolded.kind == TAGGED:
-                out.append((unfolded.payload.tag, unfolded.payload.tagged_type))
+                if unfolded.payload.tag not in direct:
+                    out.append((unfolded.payload.tag, unfolded.payload.tagged_type))
             elif self._is_product_unit(element):
                 continue
             else:

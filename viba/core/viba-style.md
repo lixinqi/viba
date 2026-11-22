@@ -101,6 +101,10 @@ ExternalOnlyPublic =
 `tagged[S, T]` 总是"带 tag `S` 的那一项"：两个参数，一个符号，一个它装的东西；符号是 `__type__` 时
 那个符号就是这份定义自己的名字。
 
+积里可以**覆盖字段**：积里自己写的那个 tag 盖掉内联进来的同名 tag，跟它写在哪个位置无关——
+`Derived = Base * $name "nice"` 的 `$name` 就是 `"nice"`，`Derived` 因此是 `Base` 的子类型。
+两个**内联**进来的成员撞同一个 tag 才是错的（[`viba-is-sub-type.md`](viba-is-sub-type.md) 第 4 节）。
+
 tag 出现在链头时，它命中的是**第一个参数的成员**：`$sub_env << args.env << "x"` 就是
 `args.env.sub_env << args.env << "x"`（见 [`viba-interpreter.md`](../exec/viba-interpreter.md)）。tag 不是值，
 `method = $sub_env` 这种源码形式编不过。
@@ -367,7 +371,7 @@ viba_ast.parse(Path("store.viba").read_text())   # SyntaxError: what is wrong, a
 ```
 
 语法不认识的字符、没闭合的代码块、拿内建容器当定义名，都会报，而且一定给出行号。类型本身另有一份
-检查（一个积里同一个 tag 不重复、内联链不绕回来）：
+检查（内联进来的 tag 不撞车、内联链不绕回来；自己写的 tag 盖掉内联进来的同名 tag）：
 
 ```python
 from viba.wiki.check_tag_and_inline import check_tag_and_inline

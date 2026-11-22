@@ -204,6 +204,11 @@ def run_products() -> None:
                                                 "objects.Tagged"),
           tagged("a", {"type": "integer"}))
 
+    child = definition(schema("products.Child"), "products.Child")
+    check("an overriding member decides the property", child.get("properties"),
+          {"a": {"type": "string"}})
+    check("and its key is required once", child.get("required"), ["a"])
+
 
 def run_references() -> None:
     node = schema("objects.Node")

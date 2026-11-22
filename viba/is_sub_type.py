@@ -738,9 +738,14 @@ class _Checker:
         if isinstance(node, viba_ast.Tagged):
             return {node.tag: (node.type, module)}
         if isinstance(node, _PROD_NODES):
+            elements = product_elements(node)
+            direct = {element.tag for element in elements
+                      if isinstance(element, viba_ast.Tagged)}
             fields = {}
-            for element in product_elements(node):
+            for element in elements:
                 for tag, field in self._tagged_fields(element, module, seen).items():
+                    if tag in direct and not isinstance(element, viba_ast.Tagged):
+                        continue        # the member spelled here overrides this one
                     if tag in fields:
                         raise DuplicateTagError(
                             f"the tag {tag} appears twice in one product")
@@ -1089,13 +1094,19 @@ class _Checker:
         product contributes its own members here, recursively, and one
         that is the product unit (nil, or a name bound to it) is no
         member at all. Every other untagged member is one positional
-        (bare) member. The same tag twice in one product is malformed
-        input, and so is an inline chain that comes back to a definition
-        it is already expanding (see _split_element)."""
+        (bare) member. A tag written in this product overrides the same tag
+        an inlined member contributes (`Base * $name "nice"`); two inlined
+        members with one tag are malformed input, and so is an inline chain
+        that comes back to a definition it is already expanding (see
+        _split_element)."""
+        elements = product_elements(node)
+        direct = {elem.tag for elem in elements if isinstance(elem, viba_ast.Tagged)}
         tagged, bare = {}, []
-        for elem in product_elements(node):
+        for elem in elements:
             t, b = self._split_element(elem, module, side, seen, env)
             for tag, member in t.items():
+                if tag in direct and not isinstance(elem, viba_ast.Tagged):
+                    continue            # the member spelled here overrides this one
                 if tag in tagged:
                     raise DuplicateTagError(
                         f"the tag {tag} appears twice in one product")

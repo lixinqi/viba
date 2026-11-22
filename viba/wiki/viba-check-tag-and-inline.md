@@ -1,9 +1,10 @@
-# check_tag_and_inline：摊开之后一个积里没有重复的 tag，内联链不会绕回来
+# check_tag_and_inline：摊开之后没有两个内联成员撞同一个 tag，内联链不会绕回来
 
 积里不带 tag 的成员是内联位：它展开后是积（或一整条带 tag 的链）时，那些成员摊进这个积里
-（[`viba-reflect.md`](../core/data/viba-reflect.md) 第 4 节）。摊开之后有两处错只有摊开才看得见：同一个积里
-同一个 tag 出现两次；内联链绕回正在摊的定义。这份检查从每个定义出发走一遍，把走得到的每个积都
-摊开查一遍，跟“这次拿它跟谁比”没有关系。
+（[`viba-reflect.md`](../core/data/viba-reflect.md) 第 4 节）。摊开之后有两处错只有摊开才看得见：两个
+**内联**成员带同一个 tag；内联链绕回正在摊的定义。积里自己写的 tag 是**字段覆盖**：它盖掉内联进来的
+同名 tag（`Base * $name "nice"` 的 `$name` 就是 `"nice"`），所以那不是重复。这份检查从每个定义出发
+走一遍，把走得到的每个积都摊开查一遍，跟“这次拿它跟谁比”没有关系。
 
 ## 1. 类型
 
@@ -39,13 +40,13 @@ check_tag_and_inline(pool)          # Ok(None)，或者第一处错
 
 ## 3. 查什么
 
-- **同一个积里同一个 tag 两次**，内联出来的算进来：`$x` 写在源里，内联进来的基又带一个 `$x`；
-  或者同一个基内联两次。
+- **两个内联成员带同一个 tag**：同一个基内联两次，或两个基各带一个 `$x`。积里自己写的 `$x`
+  盖掉内联进来的 `$x`，不是这一种。
 - **内联链摊不到底**：摊开时又回到正在摊的那个定义（`A = A * $x int`，绕别名或两个定义互指都算），
   它没有展开可取。
 
 一层里就写重的 tag 到不了这里：编译那份文件时已经拒了，`PoolAddFile` 答 `duplicate member`。
-留给这一遍的，只有摊开之后才重复的 tag，和一条永远摊不完的链。
+留给这一遍的，只有两个内联成员撞出来的 tag，和一条永远摊不完的链。
 
 ## 4. 和判定、serialize 的关系
 
@@ -66,15 +67,28 @@ A =
   * $y int
 ```
 
-一个基内联进同一个积，`$x` 就重复了：
+积里自己写的成员盖掉内联进来的同名 tag，这不重复：
+
+```viba
+Base =
+  Object
+  * $name str
+
+Derived = Base * $name "nice"
+```
+
+两个基内联进同一个积、都带 `$x`，才是重复：
 
 ```viba
 A =
   Object
   * $x int
-  * $y int
 
-B = A * $x int
+C =
+  Object
+  * $x str
+
+B = A * C
 ```
 
 链绕回它自己，摊不完：
@@ -108,5 +122,5 @@ B = Object * $b A
 
 ## 8. 测试
 
-[`tests/test_check_tag_and_inline.py`](../../tests/test_check_tag_and_inline.py)：一个 tag、内联出来的重复、
-两种内联环、带 tag 的成员、容器里的积，以及包内几份 `.viba` 设计本身编得过。
+[`tests/test_check_tag_and_inline.py`](../../tests/test_check_tag_and_inline.py)：一个 tag、字段覆盖、
+两个内联成员撞 tag、两种内联环、带 tag 的成员、容器里的积，以及包内几份 `.viba` 设计本身编得过。

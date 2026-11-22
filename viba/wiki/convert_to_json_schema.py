@@ -422,10 +422,22 @@ class _Builder:
                 "additionalProperties": False}
 
     def _members(self, elements, module, bindings: dict,
-                 properties: Dict[str, dict], required: List[str]) -> None:
+                 properties: Dict[str, dict], required: List[str],
+                 overridden=frozenset()) -> None:
+        """One product's members as the schema's properties.
+
+        A tag written here overrides the same tag an inlined product
+        contributes, wherever either stands in the chain: `Base * $name
+        "nice"` has the `$name` the source spells. ``overridden`` is what the
+        products this one is inlined into spell, so their members win here.
+        """
+        direct = {_tag_name(element.tag) for element in elements
+                  if isinstance(element, viba_ast.Tagged)}
         for element in elements:
             if isinstance(element, viba_ast.Tagged):
                 key = _tag_name(element.tag)
+                if key in overridden:
+                    continue                # the product that inlines this one spells it
                 properties[key] = self._schema(element.type, module, bindings)
                 required.append(key)
                 continue
@@ -440,7 +452,7 @@ class _Builder:
                 if self._is_unit(head):
                     inner = rest
                 self._members(inner, form_module, form_bindings,
-                              properties, required)
+                              properties, required, overridden | direct)
                 continue
             raise _SchemaErr(
                 f"the product's member {_spell(element)} has no tag: "

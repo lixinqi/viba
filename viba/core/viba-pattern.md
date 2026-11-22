@@ -152,8 +152,9 @@ type = A
 
 **哪个形参带 tag、哪个不带，由模式自己说了算**：要原样传下去就用裸名字（`wrapper` 就是靠这个
 把调用方的 tag 一路带过去的），要把 tag 认下来 —— 限定它、改名、或者拿它跟别处比 —— 就在模式里
-讲明。也正因为裸名字带着 tag，拿两个形参去拼同一个积时同一个 tag 撞上第二次会当场报错
-（`the tag $a appears twice in one product`）：那本来就是错的设计，要改名就用第三行那种源码形式。
+讲明。也正因为裸名字带着 tag，拿两个形参去拼同一个积时同名的 tag 会撞在一起：两个都是内联进来的，
+就当场报错（`the tag $a appears twice in one product`），要改名就用第三行那种源码形式；
+积里自己写的那一个则是字段覆盖（[`viba-is-sub-type.md`](viba-is-sub-type.md) 第 4 节）。
 
 成员的名字由这份文件自己起：**给出的是一份类型就叫 `type`，是一份值就叫 `value`**（跟 C++ 模板的
 `::type` / `::value` 一回事），调用方照名字取 —— `ret_type_of[int <- int].type` 是 `int`，

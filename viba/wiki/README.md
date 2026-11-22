@@ -6,7 +6,7 @@ viba 用纯类型描述设计：一份设计是一组类型与定义，逻辑由
   [`viba-markdown-as-directory.md`](viba-markdown-as-directory.md)、[`viba-repomix.md`](viba-repomix.md)。
 - **JSON Schema**：一个类型能不能写成 JSON Schema、怎么写——
   [`viba-check-convertable-to-json-schema.md`](viba-check-convertable-to-json-schema.md)、[`viba-convert-to-json-schema.md`](viba-convert-to-json-schema.md)。
-- **检查**：一份设计自己的错（一个积里同一个 tag 两次、内联成环）——
+- **检查**：一份设计自己的错（两个内联成员撞同一个 tag、内联成环；自己写的 tag 是字段覆盖）——
   [`viba-check-tag-and-inline.md`](viba-check-tag-and-inline.md)。
 - **工具**：从一个 repo 里抽出子 repo、把多个 handler 拼成一个函数——
   [`viba-extract-sub-repo.md`](viba-extract-sub-repo.md)、[`viba-make-dispatcher.md`](viba-make-dispatcher.md)。
@@ -17,7 +17,7 @@ viba 用纯类型描述设计：一份设计是一组类型与定义，逻辑由
 |------|---------|
 | [`viba-markdown-as-directory.md`](viba-markdown-as-directory.md) | 一个目录写成一份 Markdown：一节一个文件，章里的 `viba` 代码块拼成它的代码 |
 | [`viba-repomix.md`](viba-repomix.md) | `repomix`：一个目录的 viba 代码收成一份 Markdown，注释变成说明 |
-| [`viba-check-tag-and-inline.md`](viba-check-tag-and-inline.md) | `check_tag_and_inline`：摊开内联位之后，一个积里同一个 tag 不能出现两次，内联链不能绕回正在摊的定义 |
+| [`viba-check-tag-and-inline.md`](viba-check-tag-and-inline.md) | `check_tag_and_inline`：摊开内联位之后，两个内联成员不能带同一个 tag（自己写的那个是字段覆盖），内联链不能绕回正在摊的定义 |
 | [`viba-check-convertable-to-json-schema.md`](viba-check-convertable-to-json-schema.md) | `check_convertable_to_json_schema`：一个类型能不能写成 JSON Schema |
 | [`viba-convert-to-json-schema.md`](viba-convert-to-json-schema.md) | `convert_to_json_schema`：类型写成 JSON Schema |
 | [`viba-extract-sub-repo.md`](viba-extract-sub-repo.md) | `extract_sub_repo`：把 repo 的子集写成一份文档，以及从文档再抽子集（带行号来源） |
@@ -48,7 +48,7 @@ source_map[4]        # (模块的点分名, 模块里的行号)：文档第 4 �
 |------|--------|
 | `markdown.py` | 一个目录写成一份 Markdown——见 `viba-markdown-as-directory.md` |
 | `repomix.py` | 一个目录收成一份 Markdown——见 `viba-repomix.md` |
-| `check_tag_and_inline.py` | 查一份设计自己的错：摊开内联位之后，一个积里同一个 tag 不能出现两次，内联链不能绕回来——见 `viba-check-tag-and-inline.md` |
+| `check_tag_and_inline.py` | 查一份设计自己的错：摊开内联位之后，两个内联成员不能带同一个 tag（自己写的那个是字段覆盖），内联链不能绕回来——见 `viba-check-tag-and-inline.md` |
 | `design_walk.py` | 几处共用的读法：链、调用、类型名、绑定 |
 | `extract_sub_repo.py` | 把 repo 的子集写成一份文档，以及从文档再抽子集——见 `viba-extract-sub-repo.md` |
 | `check_convertable_to_json_schema.py` | 能不能写成 JSON Schema——见 `viba-check-convertable-to-json-schema.md` |

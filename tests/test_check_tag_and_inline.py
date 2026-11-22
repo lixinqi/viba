@@ -92,34 +92,40 @@ CLEAN = {
     "nested generics": (
         "Inner[T] = $i T\nOuter[T] = $o (Inner[list[T]])\nA = Outer[int] * $y int\n"),
     "a source with CRLF": "Box = int\r\nBox2 = str\r\n",
+    # 字段覆盖：写在积里的那个成员盖掉内联进来的同名 tag，跟它站在哪儿无关
+    "a member overrides an inlined one": "A = $x int\nB = A * $x str\n",
+    "the override before the base": "A = $x int\nB = $x str * A\n",
+    "the override of a real base": (
+        "Base = Object * $name str\nDerived = Base * $name \"nice\"\n"),
+    "an override through an alias": (
+        "A = $x int\nAlias = A\nB = Alias * $x str\n"),
+    "an override through a generic": "Box[T] = $x T\nB = Box[int] * $x str\n",
+    "two bases, one tag, one override": (
+        "A = $x int\nB = $x str\nC = A * B * $x bool\n"),
+    "an override inside an instantiated body": (
+        "Pair = $y int\nBox[T] = $p (T * $y int)\nA = $q Box[Pair]\n"),
+    "an override across instantiations": (
+        "Pair = $y int\nBox[T] = $p (T * $y int)\n"
+        "A = $q Box[int] * $r Box[Pair]\n"),
+    "an override behind a name": (
+        "Pair = $y int\nBox[T] = $p (T * $y int)\nAlias = Box[Pair]\n"
+        "A = $q Alias\n"),
+    "an override in an instantiation": (
+        "Base = $a int\nPair = Base * $a str\nBox[T] = T * $x int\n"
+        "A = $p Box[int] * $q Box[Pair]\n"),
 }
 
 MALFORMED = {
     "the same tag twice, in the source": ("Box = $x int * $x str\n", "does not compile"),
-    "the same tag twice, inlined": ("A = $x int\nB = A * $x str\n", "appears twice"),
     "one base inlined twice": ("A = $x int * $y int\nB = A * A\n", "appears twice"),
-    "through an alias": ("A = $x int\nAlias = A\nB = Alias * $x str\n", "appears twice"),
-    "through a generic": ("Box[T] = $x T\nB = Box[int] * $x str\n", "appears twice"),
+    "two bases with one tag": (
+        "A = $x int\nB = $x str\nC = A * B\n", "appears twice"),
     "inside a tagged body": ("Box = $p ($x int * $x str)\n", "appears twice"),
     "inside a container": ("Box = $p list[$x int * $x str]\n", "appears twice"),
     "inside a tuple": ("Box = $p ($x int * $x str, int)\n", "appears twice"),
     "inside a sum branch": ("Box = $p (($x int * $x str) | nil)\n", "appears twice"),
-    "one instantiation is bad": (
-        "Base = $a int\nPair = Base * $a str\nBox[T] = T * $x int\n"
-        "A = $p Box[int] * $q Box[Pair]\n", "appears twice"),
     "the same application twice": (
         "Box[T] = $x T\nA = Box[int] * Box[str] * $z bool\n", "appears twice"),
-    "one instantiation of a body": (
-        "Pair = $y int\nBox[T] = $p (T * $y int)\nA = $q Box[Pair]\n", "appears twice"),
-    "the good instantiation first": (
-        "Pair = $y int\nBox[T] = $p (T * $y int)\n"
-        "A = $q Box[int] * $r Box[Pair]\n", "appears twice"),
-    "the bad instantiation first": (
-        "Pair = $y int\nBox[T] = $p (T * $y int)\n"
-        "A = $q Box[Pair] * $r Box[int]\n", "appears twice"),
-    "an instantiation behind a name": (
-        "Pair = $y int\nBox[T] = $p (T * $y int)\nAlias = Box[Pair]\n"
-        "A = $q Alias\n", "appears twice"),
     "an inline cycle": ("A = A * $x int\n", "comes back to 'A'"),
     "an inline cycle through an alias": ("A = B * $x int\nB = A\n", "comes back to 'B'"),
     "an inline cycle of two": ("A = B * $x int\nB = A * $y int\n", "comes back to 'B'"),
@@ -172,8 +178,10 @@ CROSS = {
     "an import of an import is inlined": (
         [BASE, ("mid.viba", "mid", "import base as b\nM = b.A\n"),
          ("main.viba", "main", "import mid as m\nB = m.M * $z bool\n")], "Ok"),
-    "a tag repeated across modules": (
-        [BASE, ("main.viba", "main", "import base\nDup = base.A * $x int\n")],
+    "a member overrides an imported one": (
+        [BASE, ("main.viba", "main", "import base\nDup = base.A * $x int\n")], "Ok"),
+    "two imported bases with one tag": (
+        [BASE, ("main.viba", "main", "import base\nDup = base.A * base.A\n")],
         "appears twice"),
     "an inline ring across two files": (
         [("other.viba", "other", "import ring\nCyc = ring.Ring * $c int\n"),
@@ -193,7 +201,7 @@ def run_config_case():
     """换个词汇问同一件事：单位元是调用方点的名，源码里对的仍然 Ok，源码里错的仍然 Err——
     单位没有 tag，也不参与内联，所以 tag 的结果不由它决定。"""
     source = ("Base = $x Box[int]\n"
-              "Bad = Unit * Base * $x Box[str]\n"
+              "Bad = Unit * Base * Base\n"
               "Fine = Unit * $x Box[int] * $y Box[str]\n")
     pool = empty_pool()
     parsed = parse_viba_file(pool, source, "units.viba", "units")

@@ -7,7 +7,8 @@ Every case is one module of data/check_convertable_to_json_schema/kb:
                     a tuple against a list (both arrays),
                     two products
     no_value.viba   no JSON value at all: Any, a function, ...
-    products.viba   one tag twice once the inline slot is spread
+    products.viba   a member written in the product overrides the inlined one
+    products_conflict.viba  two inlined products with one tag
     cycle.viba      an inline chain that comes back to itself
     use.viba        a sum that flattens through an import
     generics.viba   a generic applied, a parameter left open, Either
@@ -94,7 +95,8 @@ def run_no_value() -> None:
 
 def run_products() -> None:
     """The product side is check_tag_and_inline's."""
-    refused("products.Child", "the tag $a appears twice in one product")
+    reads("products.Child")
+    refused("products_conflict.C", "the tag $a appears twice in one product")
     refused("cycle.Loop", "the inline chain comes back to 'Loop'")
 
 
@@ -125,8 +127,10 @@ def run_entries() -> None:
     refused("module empty", "defines no type", entry=("module_name", "empty"))
     refused("module missing", "cannot load the module 'missing'",
             entry=("module_name", "missing"))
-    refused("module products", "the tag $a appears twice in one product",
-            entry=("module_name", "products"))
+    products = judge(("module_name", "products"))
+    check("module products", isinstance(products, Ok) and products.ok_value is None, True)
+    refused("module products_conflict", "the tag $a appears twice in one product",
+            entry=("module_name", "products_conflict"))
 
     bad = judge(types("legal.A", "illegal.N"))
     check("two names: the bad one decides",
