@@ -1,7 +1,5 @@
 d = __import__ << args.env << "target"
 
-X = d.TargetType
-
 __decl__ =
     int
   <- $env Env

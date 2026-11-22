@@ -1,0 +1,11 @@
+d = __import__ << args.env << "target"
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+f = d.Target
+
+__impl__ = f << $env args.env

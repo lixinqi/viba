@@ -6,3 +6,12 @@ Target =
     int
   <- $env Env
   <- { answer a number }
+
+Number = 7
+
+Add =
+    int
+  <- $env Env
+  <- $a int
+  <- $b int
+  <- { add two integers }

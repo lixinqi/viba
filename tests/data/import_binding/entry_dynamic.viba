@@ -1,0 +1,11 @@
+import picker
+
+d = __import__ << args.env << (picker.Which << $env args.env)
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = d.Target << $env args.env

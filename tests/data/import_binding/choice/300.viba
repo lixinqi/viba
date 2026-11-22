@@ -1,0 +1,7 @@
+pattern bool
+
+__decl__ =
+    int
+  <- $env Env
+
+__impl__ = 7

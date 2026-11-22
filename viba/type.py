@@ -210,8 +210,8 @@ class UnderlyingOpErr(InterpretError):
     the call ran is not in them — that is the data path of the environment the
     step was handed (viba/exec/viba-interpreter.md). `call` is the call itself in the form that
     can be run again, with the environment left out: `__dyn_call__` and the name
-    the host was asked for, or the member a value carries,
-    then the arguments the source has on it, each with the tag it stands under
+    the host was asked for, then the arguments the source has on it, each with
+    the tag it stands under
     (`__dyn_call__ << "add" << $a 1 << $b 2`). A call the source has *inside* that
     data — a member of a value that holds one, a function handed to a step — has
     the same source form and not the name it was given with

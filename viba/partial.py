@@ -63,10 +63,12 @@ ENVIRON_TAG = "$env"
 ENV_TYPE = "Env"
 ENVIRONMENT_TYPE = "Environment"
 
-# The two names whose call has its name as *data*: the interpreter answers them
-# itself, and what such a call answers is `Any` — the design has no name to look
-# up, so it cannot say more (viba/exec/viba-interpreter.md, `__dyn_call__`).
+# The two names whose call the interpreter answers itself and whose answer the
+# design cannot unfold: `__dyn_call__` carries a name as data, and `__import__`
+# answers a module (or a generic directory) — both are `Any` here
+# (viba/exec/viba-interpreter.md, `__dyn_call__` and `__import__`).
 DYN_CALL_NAME = "__dyn_call__"
+IMPORT_NAME = "__import__"
 
 
 def module_as_function(module, name):
@@ -264,12 +266,13 @@ def _definition(module, name):
     return found
 
 
-def _dynamic_call(node) -> bool:
-    """Whether this chain is a call whose name is data (`__dyn_call__`)."""
+def _a_name_the_interpreter_answers(node) -> bool:
+    """Whether this chain is one the design cannot unfold (`__dyn_call__`,
+    `__import__`)."""
     while isinstance(node, viba_ast.Partial):
         node = node.function
     return (isinstance(node, viba_ast.TypeRef)
-            and node.name == DYN_CALL_NAME)
+            and node.name in (DYN_CALL_NAME, IMPORT_NAME))
 
 
 def reduce_partial(node, module, resolve: Callable, judge: Callable,
@@ -283,9 +286,10 @@ def reduce_partial(node, module, resolve: Callable, judge: Callable,
     environment apart from an argument (`is_the_environment`), since the
     environment's own type is what says so.
     """
-    if _dynamic_call(node):
-        # The name travels as data, so the design has nothing to unfold: what this
-        # call answers is `Any`, and its arguments are taken as they come.
+    if _a_name_the_interpreter_answers(node):
+        # The name travels as data, or the answer is a module, so the design has
+        # nothing to unfold: what this call answers is `Any`, and its arguments
+        # are taken as they come.
         return viba_ast.Any(), module
     while isinstance(node, viba_ast.Partial):
         base, base_module = reduce_partial(node.function, module, resolve, judge,

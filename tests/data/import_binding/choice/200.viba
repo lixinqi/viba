@@ -1,0 +1,6 @@
+pattern str
+
+__decl__ =
+    int
+  <- $env Env
+  <- { answer 9 }

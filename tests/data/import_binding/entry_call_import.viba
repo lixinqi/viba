@@ -1,0 +1,9 @@
+import run_me as r
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = r << (args.env.tmp_env << args.env)

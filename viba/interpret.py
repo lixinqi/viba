@@ -83,7 +83,7 @@ from viba.reflect import (LITERAL_CTORS, VObject, VibaFunction, VibaReflectError
                          language_config,
                           access as reflect_access, by_tag)
 from viba.pattern import (GENERIC_FILE, GenericModuleType,
-                          file_pattern_problem, load_generic,
+                          decide, file_pattern_problem, load_generic,
                           reduce_application, tagged_type_of)
 from viba.type import (
     Err,
@@ -123,10 +123,15 @@ IS_SUB_TYPE_VALUE_NAME = "__is_sub_type_value__"
 ENVIRON_TAG = "$env"
 ENVIRON_TYPE = "Environment"
 
-# A call whose name travels as data: the interpreter answers both names, so a
+# A call whose name travels as data: the interpreter answers the name, so a
 # call in the source can be taken anywhere without a module knowing it
 # (viba/exec/viba-interpreter.md, the section on `__dyn_call__`).
 DYN_CALL_NAME = "__dyn_call__"
+
+# The module a name stands for, taken while the run is going: the interpreter
+# answers this name too, and what it gives is the module (the section on
+# `__import__` in viba/exec/viba-interpreter.md).
+IMPORT_NAME = "__import__"
 
 # What a module given as text is compiled as: `exec` has no file to name in a
 # parse error, and this is the label it names instead.
@@ -1125,36 +1130,6 @@ def _one_line(node) -> str:
     return " ".join(viba_ast.unparse_type(node).split())
 
 
-def _fold_import_bindings(tree) -> None:
-    """`d = __import__ << "a.b.c"` reads as `import a.b.c as d`."""
-    body = []
-    for node in tree.body:
-        if (isinstance(node, viba_ast.TypeDefinition)
-                and node.name not in ("__decl__", "__impl__")):
-            module = _imported_module_of(node.body)
-            if module is not None:
-                body.append(viba_ast.Import(module=module, alias=node.name))
-                continue
-        body.append(node)
-    tree.body = body
-
-
-def _imported_module_of(node):
-    """The module `__import__ << $env << "<module>"` names, or None."""
-    if not (isinstance(node, viba_ast.Partial)
-            and isinstance(node.argument, viba_ast.Constant)
-            and isinstance(node.argument.value, str)):
-        return None
-    function = node.function
-    if isinstance(function, viba_ast.TypeRef):
-        return node.argument.value if function.name == "__import__" else None
-    if (isinstance(function, viba_ast.Partial)
-            and isinstance(function.function, viba_ast.TypeRef)
-            and function.function.name == "__import__"):
-        return node.argument.value
-    return None
-
-
 def _builtin_unit(node):
     """The builtin unit type `node` spells, if it names one."""
     if isinstance(node, viba_ast.Nil):
@@ -1951,10 +1926,11 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
     is the call's rule rather than a value, and a run that would answer one (or
     another host value) stops with a `$viba_program_err` instead.
 
-    A name a run answers itself is `__dyn_call__`: a call
-    whose name is data, so it can be taken from any module — what `$call` is
-    spelled as, and what a module may give directly (viba/exec/viba-interpreter.md, the
-    section on `__dyn_call__`).
+    Two names a run answers itself are `__dyn_call__`, a call whose name is
+    data — what `$call` is spelled as, and what a module may give directly —
+    and `__import__`, which takes a module while the run is going (`d =
+    __import__ << args.env << "a.b.c"`); both are in
+    viba/exec/viba-interpreter.md, under their own sections.
 
     The module given as text rather than named by a file is `exec`: the same entry,
     the same environment and the same way of taking files, with the text itself as its first
@@ -2238,7 +2214,6 @@ class _Runner:
         return self._built(path, tree, "", name=CODE_LABEL)
 
     def _built(self, path: Path, tree, near, name="", file_path=None, root=None):
-        _fold_import_bindings(tree)
         """The module a parse tree gives, remembered under its path only.
 
         The tree is already parsed (or already built): this is where the two
@@ -2373,26 +2348,36 @@ class _Runner:
         self.path_of[name] = str(path)
         return Ok(module)
 
-    def imported(self, name: str, near: Optional[str]):
-        """The module `name`: loaded, or found next to `near`, or on the path."""
+    def imported(self, name: str, near: Optional[str], paths=None):
+        """The module `name`: loaded, or found next to `near`, or on the path.
+
+        `paths` is the search path to use; None is this run's own
+        (`Environment.viba_path`). A run-time `__import__` may be given an
+        environment of its own, and that environment's path is the one it looks
+        through (`viba/exec/viba-interpreter.md`, the section on `__import__`).
+        """
         if name in self.by_name:
             return Ok(self.by_name[name])
-        for base in self._bases(near):
+        for base in self._bases(near, paths):
             found = self._in_base(base, name)
             if found is not None:
                 return found
         where = f"next to {near} and on VIBA_PATH" if near else "on VIBA_PATH"
         return VibaProgramErr(f"module {name!r} not found ({where})")
 
-    def _bases(self, near: Optional[str]) -> list:
+    def _bases(self, near: Optional[str], paths=None) -> list:
         """The directories a name is looked for in, in order: the directory of
         the file that gave the import first, then VIBA_PATH in order, then the
         builtin directory (`BUILTIN_DIR`) and the directory of the `builtin.`
-        names (`BUILTIN_CONCEPT_DIR`). The same directory twice is asked once."""
+        names (`BUILTIN_CONCEPT_DIR`). The same directory twice is asked once.
+
+        `paths` is the VIBA_PATH to take; None is this run's own.
+        """
         bases = []
         if near:
             bases.append(Path(near).parent)
-        bases.extend([*self.paths, BUILTIN_DIR, BUILTIN_CONCEPT_DIR])
+        bases.extend([*(self.paths if paths is None else paths),
+                      BUILTIN_DIR, BUILTIN_CONCEPT_DIR])
         out = []
         for base in bases:
             if base not in out:
@@ -3087,6 +3072,10 @@ class _Activation:
             # The judgment, with the sub type first and the sup type second: no
             # environment is part of this call, the way `__get_args__` has none.
             return Ok(_IsSubType())
+        if name == IMPORT_NAME:
+            # `__import__ << env << "a.b.c"`: the module, taken while the run is
+            # going, through the environment the call was given.
+            return Ok(_Import(self))
         if name == DEF_NAME:
             # Taken as a type `__decl__` is the module's own function chain; taken as
             # a value it is that same chain in the source, which is what `__get_args__`
@@ -3122,6 +3111,9 @@ class _Activation:
                 node = viba_ast.TypeRef(name)
                 return Ok(_VibaData(VObject(
                     reflect_access, descriptor_of(AstNodeType(node, self.module)), node)))
+        member = self._runtime_module_member(name, scope)
+        if member is not None:
+            return member
         member = self._tagged_member(name, scope)
         if member is not None:
             return member
@@ -3135,6 +3127,48 @@ class _Activation:
         if member is not None:
             return member
         return VibaProgramErr(f"no definition named {name!r} in module {self.name!r}")
+
+    def _runtime_module_member(self, name: str, scope=()):
+        """`d.Target`: a definition of the module a run-time import answered.
+
+        `d` is the name the program bound the module to (`d = __import__ << …`),
+        and `d.Target` is what that module defines under `Target` — taken as a
+        value here, and as the call it stands for when it heads a chain
+        (`_member_target`). None when the head is no module a run-time import
+        answered, so the name is taken the way it always was.
+        """
+        found = self._runtime_module_at(name, scope)
+        if found is None:
+            return None
+        if _stopped(found):
+            return found
+        module, rest = found.ok_value
+        if isinstance(module.module, GenericModuleType):
+            # A generic is no name space: its files answer applications, and a
+            # member is taken of the file one application picks (`d[T].X`).
+            return VibaProgramErr(
+                f"{module.name!r} is a generic: a member is taken of an "
+                f"application ({module.name}[T].{rest})")
+        return self._member_of(module.module, module.name, rest, name)
+
+    def _runtime_module_at(self, name: str, scope=()):
+        """(the module, the member name) when the head of `name` is one.
+
+        `Ok` of that pair, a stop when the head is a definition that did not
+        answer — the name is then that stop's business — and None when the head
+        is no such name, so the caller takes the name the way it always did.
+        """
+        head, dot, rest = name.rpartition(".")
+        if not dot or not head:
+            return None
+        if _definition(self.module, head) is None:
+            return None       # no definition to answer it: not a module, not a stop
+        value = self._resolve(head, scope)
+        if _stopped(value):
+            return value
+        if not isinstance(value.ok_value, _ImportedModule):
+            return None
+        return Ok((value.ok_value, rest))
 
     def _tagged_member(self, name: str, scope=()):
         """`args.a`: the `$a` member of a product this module names.
@@ -3252,7 +3286,7 @@ class _Activation:
         carrying those bindings (viba/core/viba-pattern.md).
         """
         source, modules, parts = self._application_piece(node.owner, scope)
-        decision = reduce_application(source, self.module, modules, parts)
+        decision, _host_name = self._application_decision(source, modules, parts, scope)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
@@ -3280,7 +3314,7 @@ class _Activation:
         """`g[T].type` at a chain head: a definition of the chosen file, and that chain is
         this step's call."""
         source, modules, parts = self._application_piece(node.owner, scope)
-        decision = reduce_application(source, self.module, modules, parts)
+        decision, host_name = self._application_decision(source, modules, parts, scope)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
@@ -3297,7 +3331,7 @@ class _Activation:
         # The implementation is looked up under the generic's own name (as in
         # `_generic_target`); the name in the source goes only into errors and messages.
         return self._func_pending(node, source_name, chosen.module, body,
-                                  node.owner.constructor, source_module=self.module)
+                                  host_name, source_module=self.module)
 
     def _value_of_definition(self, name, definition, owner_module, source_module=None,
                              source=None):
@@ -3653,6 +3687,49 @@ class _Activation:
             return node, None, None
         return viba_ast.TypeApp(node.constructor, nodes), modules, parts
 
+    def _application_decision(self, source, modules, parts, scope=()):
+        """(the decision for this application, the name the host finds it under).
+
+        A constructor that is no definition of its own is decided the way it
+        always was (`reduce_application`). A constructor a run-time `__import__`
+        answered with a generic is decided over that generic, with the arguments
+        in the source (`decide`) — and the implementation is found under the
+        generic's own name, whichever definition the module was bound to: `d[T]`
+        asks the host for `g`, the name the generic has.
+        """
+        generic = self._runtime_generic(source, scope)
+        if generic is None:
+            return (reduce_application(source, self.module, modules, parts),
+                    source.constructor)
+        return (decide(generic, source.args, self.module,
+                       argument_modules=modules, argument_parts=parts),
+                generic.name)
+
+    def _runtime_generic(self, node, scope=()):
+        """The generic a run-time `__import__` answered and this application uses, or None.
+
+        None when the constructor is no definition of this module, or the
+        definition answered something that is no generic — the application is
+        then decided the way it always was (a generic's own name included).
+        """
+        if not isinstance(node, viba_ast.TypeApp):
+            return None
+        name = node.constructor
+        if not isinstance(name, str):
+            return None
+        definition = _definition(self.module, name)
+        if definition is None:
+            return None
+        if not isinstance(definition.body, (viba_ast.Partial, viba_ast.TypeRef)):
+            # Only a call chain or an alias can answer a module; a type or a
+            # generic of the module's own is decided the way it always was.
+            return None
+        value = self._resolve(name, scope)
+        if _stopped(value) or not isinstance(value.ok_value, _ImportedModule):
+            return None
+        module = value.ok_value.module
+        return module if isinstance(module, GenericModuleType) else None
+
     def _generic_application(self, node, scope=()):
         """`gen[A, B]`: the chosen file's `__decl__`, taken where it is.
 
@@ -3688,7 +3765,7 @@ class _Activation:
             node = _substituted(node, scope)
             return Ok(_VibaData(VObject(reflect_access, self._descriptor(node), node)))
         source, modules, parts = self._application_piece(node, scope)
-        decision = reduce_application(source, self.module, modules, parts)
+        decision, _host_name = self._application_decision(source, modules, parts, scope)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
@@ -3943,9 +4020,13 @@ class _Activation:
                     value = Ok(_Given(value.ok_value.tag, member))
                 current = current.give(value.ok_value.tag, value.ok_value.value)
             elif isinstance(current, _DynCall):
-                # A name that travels as data: the environment, the name, (the
-                # value,) then the arguments, each in the position it appears
-                # in — that order is the call.
+                # A name that travels as data: the environment, the name, then
+                # the arguments, each in the position it appears in — that order
+                # is the call.
+                current = current.give(value.ok_value.tag, value.ok_value.value)
+            elif isinstance(current, _Import):
+                # `__import__`: the environment, then the module name, and the
+                # module is taken there and then.
                 current = current.give(value.ok_value.tag, value.ok_value.value)
             else:
                 current = _host_give(current, value.ok_value)
@@ -3956,6 +4037,8 @@ class _Activation:
             return self._finish(current) if finish else Ok(current)
         if isinstance(current, _DynCall):
             return self._finish_dyn(current) if finish else Ok(current)
+        if isinstance(current, _Import):
+            return VibaProgramErr(current.missing())
         if isinstance(current, _HostFunction):
             if current.filled():
                 return current.run()
@@ -4191,8 +4274,8 @@ class _Activation:
 
         A call a host holds runs the way a call in the source does: the environment the
         host hands over goes where the chain still owes one, the host's own
-        arguments land after the name (and the value), and what is left is the
-        call the name spells.
+        arguments land after the name, and what is left is the call the name
+        spells.
         """
         if target.environ is None and environ is not None:
             handed = environ if _is_environ_value(environ) else _Host(environ)
@@ -4337,13 +4420,13 @@ class _Activation:
         """The call a name in the source stands for, or None when it is no call.
 
         A definition that is a function is the call; a bare import name is the
-        module, whose environment runs it; a generic application whose decision
-        answers a function chain is the call that file's `__decl__` gives
-        (`_generic_target`). `__dyn_call__` is the one
-        names the interpreter itself answers, so they are taken here, before any
-        definition: a name a step is implemented under is data, and a module's
-        own definition does not cover them. Everything else is not a call here
-        and the caller takes the name as a value instead.
+        module, whose environment runs it; a name a run-time `__import__`
+        answered is that module too (`d << env`); a generic application whose
+        decision answers a function chain is the call that file's `__decl__`
+        gives (`_generic_target`). `__dyn_call__` is the one name the
+        interpreter answers before any definition: a name a step is implemented
+        under is data, and a module's own definition does not cover it. Everything
+        else is not a call here and the caller takes the name as a value instead.
         """
         if isinstance(name_node, viba_ast.TypeApp):
             return self._generic_target(name_node, scope)
@@ -4357,10 +4440,29 @@ class _Activation:
             return self._application_member_target(name_node, scope)
         name = name_node.name
         if name == DYN_CALL_NAME:
-            return Ok(_DynCall(self, "call", name_node, name))
+            return Ok(_DynCall(self, name))
         definition = _definition(self.module, name)
         if definition is not None:
-            return self._pending_of(definition, name_node, name, self.module, name)
+            pending = self._pending_of(definition, name_node, name, self.module, name)
+            if pending is not None:
+                return pending
+            value = self._resolve(name, scope)
+            if _stopped(value):
+                return value
+            if isinstance(value.ok_value, _ImportedModule):
+                # `d = __import__ << …`: the name stands for the module, and a
+                # call on it runs that module (`d << env`), the way a name an
+                # `import` bound does. A generic is no module: what runs is one
+                # file an application picks (`d[T] << env`).
+                module = value.ok_value
+                if isinstance(module.module, GenericModuleType):
+                    return VibaProgramErr(
+                        f"{module.name!r} is a generic: it answers an application "
+                        f"({module.name}[T, ...]), not a call")
+                return Ok(_Pending.module(self.runner, module.module, module.name,
+                                          name_node, source_module=self.module,
+                                          source_bindings=self.bindings or None))
+            return None
         member = self._member_function(name)
         if member is not None:
             chain, declared_in, own = member
@@ -4368,6 +4470,19 @@ class _Activation:
                                       source_module=self.module)
         bound = self._imported_name(name)
         if bound is None:
+            # A dotted name whose head a run-time import answered: `d.Target`.
+            module_member = self._runtime_module_at(name, scope)
+            if module_member is not None:
+                if _stopped(module_member):
+                    return module_member
+                module, rest = module_member.ok_value
+                if isinstance(module.module, GenericModuleType):
+                    return VibaProgramErr(
+                        f"{module.name!r} is a generic: a member is taken of an "
+                        f"application ({module.name}[T].{rest})")
+                return self._member_target(module.module, module.name, rest,
+                                           name_node, name,
+                                           source_module=self.module)
             # A bare name that is a member of the builtin concept is that
             # member's call (`add << …` is `builtin.add << …`), and a name that is
             # a module in the builtin directory is that module call
@@ -4409,7 +4524,7 @@ class _Activation:
         a type, not a call.
         """
         source, modules, parts = self._application_piece(node, scope)
-        decision = reduce_application(source, self.module, modules, parts)
+        decision, host_name = self._application_decision(source, modules, parts, scope)
         if _stopped(decision):
             return decision
         chosen = decision.ok_value
@@ -4435,7 +4550,7 @@ class _Activation:
                 slots=parameters_of(chain),
                 source_bindings=self.bindings or None))
         return self._func_pending(node, _one_line(node), chosen.module, chain,
-                                  node.constructor, source_module=self.module)
+                                  host_name, source_module=self.module)
 
     def _builtin_member(self, name):
         """`builtin.echo`: a member of that concept in the builtin library."""
@@ -5810,23 +5925,119 @@ class _HostFunction:
         return _answer(api, answer)
 
 
+class _ImportedModule:
+    """The module a run-time `__import__` answered: a name space, not a value.
+
+    It carries the module as this run has it (loaded, parsed, remembered under
+    its path) and the name it was asked for, so `d.X` is what that module
+    defines under `X` and `d.X << …` is that call. A generic is taken this way
+    too: `d[T]` is the application `_application_decision` decides, and a member
+    is taken of the file that decision picks. It is no data: a run that answers
+    one answers a name space, and that is not viba data
+    (viba/exec/viba-interpreter.md, the section on `__import__`).
+    """
+
+    __slots__ = ("module", "name")
+
+    def __init__(self, module, name):
+        self.module = module
+        self.name = name
+
+
+def _the_paths_of(environ):
+    """(paths, problem): where the environment of an `__import__` looks.
+
+    The environment's `viba_path` is the list, the way a run's is
+    (`_Runner.__init__`); no environment is this run's own path, which the
+    runner already carries.
+    """
+    if environ is None:
+        return None, None
+    viba_path = getattr(environ, "viba_path", None)
+    if viba_path is None:
+        return [], None
+    if not isinstance(viba_path, (str, os.PathLike)):
+        return None, (f"{IMPORT_NAME}: viba_path is a string of directories "
+                      f"(or one path), not {type(viba_path).__name__}")
+    return ([Path(one) for one in os.fspath(viba_path).split(":") if one], None)
+
+
+class _Import:
+    """`__import__ << env << "a.b.c"`: the module, taken while the run is going.
+
+    The environment says where the name is looked up (`viba_path`, and the
+    directory of the file that gave the call) and `nil` leaves that to this
+    run's own path; the name is a `str`, literal or data. The interpreter
+    answers the name itself (`_resolve`), so a module's own definition cannot
+    shadow it, and what it answers is the module, not a piece of data
+    (`_ImportedModule`).
+    """
+
+    __slots__ = ("activation", "source", "environ", "environ_given", "name")
+
+    def __init__(self, activation, environ=None, environ_given=False, name=None):
+        self.activation = activation
+        self.source = IMPORT_NAME
+        self.environ = environ         # the environment, when one was given
+        self.environ_given = environ_given   # nil is the environment given, and none
+        self.name = name               # the module name, as the value it was given
+
+    def give(self, tag, value):
+        """The environment first (or nil), then the module name; then it runs.
+
+        What it was given is kept in the call it answers with, not in this one:
+        the same `__import__` may be taken more than once (`f = __import__`).
+        """
+        if not self.environ_given:
+            if _is_environ_value(value):
+                return Ok(_Import(self.activation, value.obj, True))
+            if _is_nil(value):
+                return Ok(_Import(self.activation, None, True))
+            return VibaProgramErr(
+                f"{self.source} was given no {ENVIRON_TYPE}: the first "
+                f"argument is the environment (or nil)")
+        if self.name is not None:
+            return VibaProgramErr(
+                f"{self.source} takes the environment and the module name, "
+                f"and nothing else")
+        return _Import(self.activation, self.environ, True,
+                       value).fire()
+
+    def missing(self):
+        """Why it cannot run: what it was not given."""
+        if not self.environ_given:
+            return (f"{self.source} was given no {ENVIRON_TYPE}: give it one, "
+                    f"or nil")
+        return f"{self.source}: was given no module name"
+
+    def fire(self):
+        """Take the module the name stands for, where the program asks."""
+        name = _symbol_text(self.name)
+        if name is None:
+            return VibaProgramErr(
+                f"{self.source}: the name is a str, and this is no string")
+        paths, problem = _the_paths_of(self.environ)
+        if problem is not None:
+            return VibaProgramErr(problem)
+        found = self.activation.runner.imported(name, self.activation.file, paths)
+        if _stopped(found):
+            return found
+        return Ok(_ImportedModule(found.ok_value, name))
+
+
 class _DynCall:
     """A call whose name is data: `__dyn_call__`.
 
     The name a step is implemented under travels as a string, so a call spelled
     this way can be taken from any module: no module has to know the name, and
     nothing has to say which module the call appears in. The interpreter
-    answers both names itself (`_call_target`), so neither is ever asked of
-    `get_func`, and a module's own definition cannot shadow them.
+    answers the name itself (`_call_target`), so it is never asked of
+    `get_func`, and a module's own definition cannot shadow it.
 
-    - `__dyn_call__ << "<name>" << …`: the step `get_func(module_path, name)`
-      implements — `(__dyn_call__ << env << "a.b.c" << args…)` is
-      `(a.b.c << env << args…)`. It asks the host, not the file system: a module
-      call is given by its name (`demo << env`), not this way;
-
-      taken from the value given next and called as a method of it —
-
-      `($f << value << args…)`, with the name as data.
+    `__dyn_call__ << "<name>" << …` is the step `get_func(module_path, name)`
+    implements — `(__dyn_call__ << env << "a.b.c" << args…)` is
+    `(a.b.c << env << args…)`. It asks the host, not the file system: a module
+    call is given by its name (`demo << env`), not this way.
 
     The environment comes in the way it always does — by value, or under `$env` —
     then the name, and the rest are the
@@ -5834,13 +6045,11 @@ class _DynCall:
     serialized back out (`call_viba_data`).
     """
 
-    __slots__ = ("activation", "kind", "head", "source", "environ", "name",
+    __slots__ = ("activation", "source", "environ", "name",
                  "given", "given_tags")
 
-    def __init__(self, activation, kind, head, source):
+    def __init__(self, activation, source):
         self.activation = activation
-        self.kind = kind                  # "call"
-        self.head = head                  # the name node it is spelled as
         self.source = source            # how the source has it: for people and for errors
         self.environ = None               # the environment: giving it is what runs it
         self.name = None                  # the name, as the value it was given
@@ -5848,7 +6057,7 @@ class _DynCall:
         self.given_tags = []              # the tag each of them was spelled with
 
     def give(self, tag, value):
-        """Put one argument where it goes: the environment, the name, the value, the rest."""
+        """Put one argument where it goes: the environment, the name, the rest."""
         if self.environ is None and (tag == ENVIRON_TAG or _is_environ_value(value)):
             if not _is_environ_value(value):
                 return VibaProgramErr(f"{self.source} was not given an {ENVIRON_TYPE}")
@@ -5862,7 +6071,7 @@ class _DynCall:
         return Ok(self)
 
     def missing(self):
-        """Why it cannot run, or None when it can: the name, and the value it needs."""
+        """Why it cannot run, or None when it can: the name it was given."""
         if self.name is None:
             return f"{self.source}: was given no name to call"
         return None
@@ -5876,9 +6085,7 @@ class _DynCall:
         if name is None:
             return VibaProgramErr(
                 f"{self.source}: the name is a str, and this is no string")
-        if self.kind == "call":
-            return self._call_the_name(name)
-        return self._call_the_member(name)
+        return self._call_the_name(name)
 
     def as_viba_data(self):
         """This call without an environment: a closure, the way every call is one.

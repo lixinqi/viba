@@ -1,0 +1,9 @@
+pattern int
+
+__decl__ = 7
+
+answer = 8
+
+value =
+    int
+  <- $env Env

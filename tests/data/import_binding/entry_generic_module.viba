@@ -1,0 +1,9 @@
+d = __import__ << args.env << "choice"
+
+__decl__ =
+    int
+  <- $env Env
+
+args = __get_args__ << __decl__
+
+__impl__ = d[bool] << (args.env.tmp_env << args.env)
