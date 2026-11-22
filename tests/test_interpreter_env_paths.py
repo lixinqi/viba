@@ -315,7 +315,9 @@ def _combinations(tmp: Path):
 
 def _the_declaration(tmp: Path):
     """设计层那一份（`viba/builtin.viba`）与宿主那一份（Environment 上的方法）对得上。"""
+    import re
     declared = (BUILTIN_DIR / "builtin.viba").read_text()
+    normalized = re.sub(r"\s+", " ", declared)
     host = Host()
     environ = host.environ(store_root_dir=str(tmp / "declared"))
     for name in MEMBERS:
@@ -325,17 +327,17 @@ def _the_declaration(tmp: Path):
         check(callable(getattr(environ, name)), f"{name} is a method of an environment")
     check(environ.uncompress_relative_path is None,
           "uncompress_relative_path is a member that is a value: nil until something is pressed")
-    check("$compress_env_path (Env <- $sup Env <- $sub Env)" in declared,
+    check("$compress_env_path ( Env <- $sup Env <- $sub Env )" in normalized,
           "compress_env_path takes the sup and then the sub")
-    check("$uncompress_relative_path (str | nil)" in declared,
+    check("$uncompress_relative_path ( Oneof | str | nil )" in normalized,
           "uncompress_relative_path is a string or nil")
-    check("$find_by_relative_path (Env <- $relative_path str" in declared,
+    check("$find_by_relative_path ( Env <- $relative_path str <- $root ( Oneof | Env | nil ) )" in normalized,
           "find_by_relative_path takes the relative path and then the root")
-    check("$get_parent ((Env | nil) <- $env Env)" in declared,
+    check("$get_parent ( ( Oneof | Env | nil ) <- $env Env )" in normalized,
           "get_parent takes an environment and may answer none")
-    check("$get_root ((Env | nil) <- $current (Env | nil))" in declared,
+    check("$get_root ( ( Oneof | Env | nil ) <- $current ( Oneof | Env | nil ) )" in normalized,
           "get_root takes an environment and may answer none")
-    check("$try_compact (Env <- $env Env <- $env_chain_length_limit int)" in declared,
+    check("$try_compact ( Env <- $env Env <- $env_chain_length_limit int )" in normalized,
           "try_compact takes an environment and the chain length limit, and answers "
           "the environment")
 
