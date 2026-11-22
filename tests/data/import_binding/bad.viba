@@ -1,4 +1,4 @@
-d = __import__ << "nope"
+d = __import__ << args.env << "nope"
 
 X = d.TargetType
 

@@ -71,7 +71,7 @@ literal : FLOAT | INT | STRING | SINGLE_STRING | TRIPLE_STRING | BOOLEAN
 | 元组 | `(A, B, C)` | 按位置的积（顺序有意义），不是带 tag 的 `*` 的语法糖 |
 | 提示块 | `{ ... }` | 任意文字，可以嵌套——类型的备注，或某一步实现来处的提示 |
 | import | `import a.b [as c]` | 模块引用（顶层） |
-| `__import__` | `d = __import__ << "a.b.c"` | 同 `import a.b.c as d`：`d` 是那个模块 |
+| `__import__` | `d = __import__ << args.env << "a.b.c"` | 同 `import a.b.c as d`：`d` 是那个模块 |
 
 ## 定义约定
 

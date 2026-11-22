@@ -1,12 +1,10 @@
-"""`__dyn_call__` 与 `__dyn_method__`：名字当数据的那种调用。
+"""`__dyn_call__`：名字当数据的那种调用。
 
 一步是按名字实现的，把那个名字当**数据**给出，这次调用就从任何模块都取得起来 ——
 不用给出它的那个模块在场：`__dyn_call__ << env << "a.b.c" << $a1` 就是 `a.b.c << env << $a1`。
-成员是某份值的成员时，名字不再是名字路径，走 `__dyn_method__`：
-`__dyn_method__ << env << "f" << value << …` 就是 `$f << value << …`。
 
-`UnderlyingOpErr` 的 `$call` 就是这两种源码形式：名字是字符串数据，环境剔掉，只留下闭包
-（`viba/exec/viba-interpreter.md`「`__dyn_call__` 与 `__dyn_method__`」）。
+`UnderlyingOpErr` 的 `$call` 就是这种源码形式：名字是字符串数据，环境剔掉，只留下闭包
+（`viba/exec/viba-interpreter.md`「`__dyn_call__`」）。
 
     python3 tests/test_interpreter_dyn.py
 """
@@ -47,10 +45,8 @@ def _host(**knobs):
 
 def run(tmp: Path):
     _what_the_name_spells()
-    _what_the_member_name_spells()
     _a_call_without_an_environment_is_a_value()
     _the_call_the_error_carries(tmp)
-    _the_member_the_error_carries()
     _what_a_call_hands_on()
     _what_the_environment_api_error_records()
     _what_the_design_says()
@@ -70,22 +66,6 @@ def _what_the_name_spells():
           f"the host was asked for that name, from the module that declares it: "
           f"{host.calls}")
 
-
-def _what_the_member_name_spells():
-    """`__dyn_method__ << env << "f" << box << …` 与 `$f << box << …` 是同一次调用。"""
-    def get_func(path, func_name):
-        if func_name == "inc":
-            # 成员要 owner、环境、x 三样（`$f << box << args.env << 1`）。
-            return lambda box, environ, x: x.value + 1
-        return Host().get_func(path, func_name)
-
-    env = Environment(EnvironmentStorage("root"), EnvironmentCompute(get_func))
-    by_name = interpret(str(CASES / "method_by_name.viba"), env)
-    by_tag = interpret(str(CASES / "method_by_tag.viba"), env)
-    check(is_ok(by_name) and value_of(by_name) == 2,
-          f"a member whose name is data is taken from the value and run: {by_name!r}")
-    check(value_of(by_name) == value_of(by_tag),
-          f"and it is the call the tag at the head makes: {by_tag!r}")
 
 
 def _a_call_without_an_environment_is_a_value():
@@ -123,23 +103,6 @@ def _the_call_the_error_carries(tmp: Path):
     check(is_ok(again) and value_of(again) == 3,
           f"the call the error carried runs again, from another module: {again!r}")
 
-
-def _the_member_the_error_carries():
-    """成员那一支：`$call` 保留「取这份值的成员」，那份值里的调用按能跑的形式给出。
-
-    成员的值是一次调用（`box` 的 `$f` 是 `inc`）。成员那一层保留（`__dyn_method__`），而那份值里
-    给出这个调用的那个成员按**能再跑一遍的形式**给出：`$f (__dyn_call__ << "inc")` —— 名字当数据走，
-    取回来时不必解析 `inc` 这个名字，也就不必让给出它的那个模块在场。环境不在里面。
-    """
-    stopped = interpret(str(CASES / "missing_member.viba"), _host(missing=("inc",)).environ())
-    check(stop_tag(stopped) == NOT_IMPLEMENTED_TAG
-          and stop_text(stopped, "$full_qualified_func_name")
-          == full_name_of(CASES / "missing_member", "inc"),
-          f"the stop names the step the member's value stands for: {stopped!r}")
-    call = _source_of(stop_node(stopped, "$call").data)
-    check(call == '__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1',
-          f"the member layer is kept, the value comes first, the call in it is "
-          f"given the way a call travels, the environment is dropped: {call!r}")
 
 
 def _what_a_call_hands_on():

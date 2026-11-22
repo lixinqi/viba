@@ -281,6 +281,6 @@ NotImplemented =
   还没写成定义（上面 `Answers` 里只写了按路径那一套）。
 - **在途实参**：`_Given`（给到一半的实参）与 `_Raised`（跨宿主边界带回来的结果）只在 Python 里。
 - **宿主函数包成环境成员**：`_HostFunction`、`_GetArgs`、`_DynCall` 三个包法，`__get_args__` /
-  `__dyn_call__` / `__dyn_method__` 三个语法位置。
+  `__dyn_call__` 两个语法位置。
 - **压缩的边界**：`_Compact` 信号、`_hold`、`_driven`、`_ResumableCall` 与 `work.ResumableVibaTask`
   的字段是不是逐一对上（阈值那条策略在 viba 里，机制在这边）。

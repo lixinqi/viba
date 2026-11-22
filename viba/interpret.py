@@ -125,9 +125,8 @@ ENVIRON_TYPE = "Environment"
 
 # A call whose name travels as data: the interpreter answers both names, so a
 # call in the source can be taken anywhere without a module knowing it
-# (viba/exec/viba-interpreter.md, the section on `__dyn_call__` and `__dyn_method__`).
+# (viba/exec/viba-interpreter.md, the section on `__dyn_call__`).
 DYN_CALL_NAME = "__dyn_call__"
-DYN_METHOD_NAME = "__dyn_method__"
 
 # What a module given as text is compiled as: `exec` has no file to name in a
 # parse error, and this is the label it names instead.
@@ -1141,12 +1140,17 @@ def _fold_import_bindings(tree) -> None:
 
 
 def _imported_module_of(node):
-    """The module `__import__ << "<module>"` names, or None."""
-    if (isinstance(node, viba_ast.Partial)
-            and isinstance(node.function, viba_ast.TypeRef)
-            and node.function.name == "__import__"
+    """The module `__import__ << $env << "<module>"` names, or None."""
+    if not (isinstance(node, viba_ast.Partial)
             and isinstance(node.argument, viba_ast.Constant)
             and isinstance(node.argument.value, str)):
+        return None
+    function = node.function
+    if isinstance(function, viba_ast.TypeRef):
+        return node.argument.value if function.name == "__import__" else None
+    if (isinstance(function, viba_ast.Partial)
+            and isinstance(function.function, viba_ast.TypeRef)
+            and function.function.name == "__import__"):
         return node.argument.value
     return None
 
@@ -1947,10 +1951,10 @@ def interpret(viba_main_file: str, environ: Environment, get_file=None,
     is the call's rule rather than a value, and a run that would answer one (or
     another host value) stops with a `$viba_program_err` instead.
 
-    Two names a run answers itself are `__dyn_call__` and `__dyn_method__`: a call
+    A name a run answers itself is `__dyn_call__`: a call
     whose name is data, so it can be taken from any module — what `$call` is
     spelled as, and what a module may give directly (viba/exec/viba-interpreter.md, the
-    section on `__dyn_call__` and `__dyn_method__`).
+    section on `__dyn_call__`).
 
     The module given as text rather than named by a file is `exec`: the same entry,
     the same environment and the same way of taking files, with the text itself as its first
@@ -3795,17 +3799,10 @@ class _Activation:
         happen in. A closure stored as viba data is that same chain in the source, so
         applying more arguments to one is taking it apart again and carrying on.
 
-        `member` is set when what the chain takes is a *member of a value*
-        (`$f << box << …`, `$get_attr << box << <name> << …`): the call that
-        comes out of it keeps that layer, so serializing it back out is
-        `__dyn_method__ << "<member>" << <the value> << …` and not the name the
-        member's value happened to be (`_Pending.member_of`).
         """
         target, source = self._target_and_arguments(node, scope)
         if source is None:
             return target
-        if member is not None and isinstance(target.ok_value, _Pending):
-            target.ok_value.member_of = member
         return self._give_all(target.ok_value, source, scope, finish=finish)
 
     def _give_the_rest(self, member, answered, further, scope, finish=True):
@@ -3842,8 +3839,6 @@ class _Activation:
             if _stopped(named):
                 return named
             owner = member._member_given("$value")
-            if isinstance(target, _Pending):
-                target.member_of = (named.ok_value[1:], owner)
             source = [_Given(None, owner)] + source
         environ = member.environ
         if isinstance(environ, Environment):
@@ -4344,7 +4339,7 @@ class _Activation:
         A definition that is a function is the call; a bare import name is the
         module, whose environment runs it; a generic application whose decision
         answers a function chain is the call that file's `__decl__` gives
-        (`_generic_target`). `__dyn_call__` and `__dyn_method__` are the two
+        (`_generic_target`). `__dyn_call__` is the one
         names the interpreter itself answers, so they are taken here, before any
         definition: a name a step is implemented under is data, and a module's
         own definition does not cover them. Everything else is not a call here
@@ -4361,9 +4356,8 @@ class _Activation:
                 return self._call_target(viba_ast.TypeRef(path), scope)
             return self._application_member_target(name_node, scope)
         name = name_node.name
-        if name in (DYN_CALL_NAME, DYN_METHOD_NAME):
-            return Ok(_DynCall(self, "call" if name == DYN_CALL_NAME else "method",
-                               name_node, name))
+        if name == DYN_CALL_NAME:
+            return Ok(_DynCall(self, "call", name_node, name))
         definition = _definition(self.module, name)
         if definition is not None:
             return self._pending_of(definition, name_node, name, self.module, name)
@@ -4959,7 +4953,6 @@ class _Pending:
         self.params_override = slots         # the parameter table with the bindings put in
         self.source_bindings = source_bindings   # the decision that owns the module this call appears in
         self.appends_environ = False         # the environment goes on the call the body answers
-        self.member_of = None                # (member, value) when a value's member is what runs
         self.member_tag = None               # the member the interpreter answers itself (`$len`)
 
     @classmethod
@@ -5528,11 +5521,7 @@ class _Pending:
             __dyn_call__ << "<name>" << <the arguments, in source order>
 
         with the tags the call gave (a parameter's own name is not put back:
-        `builtin.add << 1 << 2` stays as the source has it). A call that is a *member of a
-        value* (`$f << box << …`) keeps that layer instead, because the member is
-        not a name of its own:
-
-            __dyn_method__ << "<member>" << <the value> << <the arguments>
+        `builtin.add << 1 << 2` stays as the source has it).
 
         The environment is no argument of the call but the executing of it, so it
         is no part of the call's data: it is left out wherever it appears, and
@@ -5546,23 +5535,12 @@ class _Pending:
             # The five the interpreter answers have no name a host could be asked
             # for: the member itself is the head, and the arguments follow it.
             return self._member_call_data()
-        dynamic = (viba_ast.TypeRef(DYN_METHOD_NAME) if self.member_of is not None
-                   else viba_ast.TypeRef(DYN_CALL_NAME))
-        node = dynamic
-        taken_from = None
-        if self.member_of is not None:
-            member, value = self.member_of
-            node = viba_ast.Partial(node, viba_ast.Constant(member))
-            node = viba_ast.Partial(node, self.activation._travelling_data(value))
-            # That value is the member's first argument, so it is no argument of
-            # `__dyn_method__`: it is the value the member is taken from.
-            taken_from = self._the_value_itself(value)
-        else:
-            node = viba_ast.Partial(node, viba_ast.Constant(self.full_name()))
+        dynamic = viba_ast.TypeRef(DYN_CALL_NAME)
+        node = viba_ast.Partial(dynamic, viba_ast.Constant(self.full_name()))
         environ_slot = self.environ_slot()
         for index in sorted(self.given):
-            if index == environ_slot or index == taken_from:
-                continue                    # the environment, and the value itself
+            if index == environ_slot:
+                continue                    # the environment
             piece = _travelling_piece(self.given[index], self.activation)
             if piece is None:
                 continue                    # a host value: it does not travel
@@ -5570,18 +5548,6 @@ class _Pending:
             node = viba_ast.Partial(node, viba_ast.Tagged(tag, piece) if tag else piece)
         return VObject(reflect_access, self.descriptor(node), node)
 
-    def _the_value_itself(self, value):
-        """The slot that value went into: the one the member is a member of.
-
-        A member call gives that value to the member first (`$f << box << …`), so
-        it is the first argument in source order — and the slot it landed in is
-        the one that says what it is. Matched by identity; a call that rebuilt
-        the value (`_members_as_values`) falls back to the first slot given.
-        """
-        for index in sorted(self.given):
-            if self.given[index] is value:
-                return index
-        return min(self.given) if self.given else None
 
     def _call_host(self):
         """Every slot is filled: the environment's compute side implements it."""
@@ -5768,7 +5734,7 @@ class _HostFunction:
     them refusing what a program handed it is reported as an
     `EnvironmentApiInvalidArgumentErr`: which api, and what it was given. The
     environment itself is not among those arguments — it is the api's own value,
-    and it does not travel (viba/exec/viba-interpreter.md, the section on `__dyn_call__` and `__dyn_method__`).
+    and it does not travel (viba/exec/viba-interpreter.md, the section on `__dyn_call__`).
     """
 
     def __init__(self, name: str, func, slots: int = 1, given=None, pieces=None):
@@ -5845,7 +5811,7 @@ class _HostFunction:
 
 
 class _DynCall:
-    """A call whose name is data: `__dyn_call__` and `__dyn_method__`.
+    """A call whose name is data: `__dyn_call__`.
 
     The name a step is implemented under travels as a string, so a call spelled
     this way can be taken from any module: no module has to know the name, and
@@ -5857,28 +5823,27 @@ class _DynCall:
       implements — `(__dyn_call__ << env << "a.b.c" << args…)` is
       `(a.b.c << env << args…)`. It asks the host, not the file system: a module
       call is given by its name (`demo << env`), not this way;
-    - `__dyn_method__ << "<member>" << value << …`: the member that name spells,
+
       taken from the value given next and called as a method of it —
-      `(__dyn_method__ << env << "f" << value << args…)` is
+
       `($f << value << args…)`, with the name as data.
 
     The environment comes in the way it always does — by value, or under `$env` —
-    then the name, then (for `__dyn_method__`) the value, and the rest are the
+    then the name, and the rest are the
     arguments in source order, tags kept: the tags are how the same call is
     serialized back out (`call_viba_data`).
     """
 
     __slots__ = ("activation", "kind", "head", "source", "environ", "name",
-                 "value", "given", "given_tags")
+                 "given", "given_tags")
 
     def __init__(self, activation, kind, head, source):
         self.activation = activation
-        self.kind = kind                  # "call" | "method"
+        self.kind = kind                  # "call"
         self.head = head                  # the name node it is spelled as
         self.source = source            # how the source has it: for people and for errors
         self.environ = None               # the environment: giving it is what runs it
         self.name = None                  # the name, as the value it was given
-        self.value = None                 # __dyn_method__: the value the member comes from
         self.given = []                   # the arguments, in source order
         self.given_tags = []              # the tag each of them was spelled with
 
@@ -5892,9 +5857,6 @@ class _DynCall:
         if self.name is None:
             self.name = value
             return Ok(self)
-        if self.kind == "method" and self.value is None:
-            self.value = value
-            return Ok(self)
         self.given.append(value)
         self.given_tags.append(tag)
         return Ok(self)
@@ -5903,8 +5865,6 @@ class _DynCall:
         """Why it cannot run, or None when it can: the name, and the value it needs."""
         if self.name is None:
             return f"{self.source}: was given no name to call"
-        if self.kind == "method" and self.value is None:
-            return f"{self.source}: was given no value to take the member from"
         return None
 
     def fire(self):
@@ -5973,47 +5933,6 @@ class _DynCall:
             return _completed(failure, module_path, name, call)
         return _answer(name, answer, module_path, name, call)
 
-    def _call_the_member(self, name: str):
-        """`__dyn_method__`: the member that name spells, taken from the value.
-
-        `$<name> << value << args…` is what it runs: the member is taken off the
-        value the way a tag head takes it, that value goes in as the member's
-        first argument, and the arguments follow in source order. A member that
-        is no call — a value of the product — is that value, with or without
-        arguments to refuse (`$get_attr` takes the same two ways).
-        """
-        symbol = symbol_of(name)
-        if symbol is None:
-            return VibaProgramErr(symbol_problem(name))
-        taken = self.activation._take_member(_Member(tag_of(symbol)), self.value)
-        if _stopped(taken):
-            return taken
-        current = taken.ok_value
-        # The environment goes in first, under its tag: the call's rule comes
-        # before the arguments, so the value and the arguments land in the
-        # positions they appear in. A member the environment itself carries
-        # already has the value it was taken from as its first argument, so that
-        # one is not given again.
-        arguments = []
-        if not isinstance(current, _HostFunction):
-            arguments.append(_Given(ENVIRON_TAG, _Host(self.environ)))
-            arguments.append(_Given(None, self.value))
-        arguments.extend(_Given(tag, value)
-                         for tag, value in zip(self.given_tags, self.given))
-        given = self.activation._give_all(current, arguments, (), finish=False)
-        if _stopped(given):
-            return given
-        current = given.ok_value
-        if isinstance(current, _HostFunction):
-            if not current.filled():
-                return VibaProgramErr(
-                    f"the environment's {current.name} was given {len(current.given)} "
-                    f"of its {current.slots} arguments")
-            return current.run()
-        if not isinstance(current, _Pending):
-            return Ok(current)
-        return self.activation._finish(current)
-
     def call_viba_data(self):
         """This call as the source has it: the name, the value, and the arguments.
 
@@ -6025,8 +5944,6 @@ class _DynCall:
         """
         node = viba_ast.TypeRef(self.source)
         leading = [self.name]
-        if self.kind == "method":
-            leading.append(self.value)
         for value in leading:
             piece = _travelling_piece(value, self.activation)
             if piece is not None:

@@ -17,7 +17,7 @@
 | 层 | 名字 | 在哪 |
 |---|---|---|
 | 算子与环境的类型 | `builtin` 这个概念的 69 个成员，`Environment`，以及同一个类型的另一个名字 `Env` | `viba/builtin.viba` |
-| 解释器自己实现 | `$get_attr`、`$get_item`、`$in`、`$len`、`$keys`、`__dyn_call__`、`__dyn_method__`、`__get_args__` | `viba/interpret.py` |
+| 解释器自己实现 | `$get_attr`、`$get_item`、`$in`、`$len`、`$keys`、`__dyn_call__`、`__get_args__` | `viba/interpret.py` |
 | 内建模块与泛型 | `apply`、`if`、`branch`、`sequential`、`sub_env_run`、`Y`、`y_helper`、`resumable`、`interpret_result`、`type`、`viba_type_descriptor`、`Optional[T]`（`T \| nil`）、`is_closure`、`unclosure` | `viba/` 与 `viba/builtin/` |
 
 同一个成员有两种源码形式：`add` 与 `builtin.add` 是同一次调用，宿主两次拿到的名字都是
@@ -568,8 +568,8 @@ unclosure[add << $a 1].captured          # 收下的那份积：`$a 1`
 
 ## 8. 名当数据的一次调用
 
-`__dyn_call__` 与 `__dyn_method__` 这两个名字由解释器自己回答，不向 `get_func` 要实现，
-一个模块自己的定义也盖不住它们；`__get_args__` 也是解释器自己回答的（第 8.3 节）。
+`__dyn_call__` 这个名字由解释器自己回答，不向 `get_func` 要实现，
+一个模块自己的定义也盖不住它；`__get_args__` 也是解释器自己回答的（第 8.3 节）。
 
 ```viba
 __dyn_call__ =
@@ -578,12 +578,6 @@ __dyn_call__ =
   <- $name str
   <- $args ...
 
-__dyn_method__ =
-    Any
-  <- $env Env
-  <- $name str
-  <- $value Any
-  <- $args ...
 ```
 
 ### 8.1 `__dyn_call__`
@@ -600,19 +594,7 @@ __dyn_call__ << "add" << $a 1                 # 没给环境：一个闭包
 判定层把这种链判成 `Any`，因为名字是数据，没有东西可以展开。一次运行里"某一步没有实现"
 或"某一步坏了"那一支，`$call` 里记的就是这种形式，所以它不需要原来那个模块在场就能再跑一遍。
 
-### 8.2 `__dyn_method__`
-
-成员是某份值的成员时走这一个：名字是数据，第二份是这个值。
-
-```viba
-__dyn_method__ << env << "foo" << bar << $x 1     # 就是 $foo << bar << env << $x 1
-```
-
-成员那一层保留：一份值里 `$f` 那个成员是调用 `inc` 时，落成
-`__dyn_call__ << "inc"`（[`viba-interpreter.md`](viba-interpreter.md)，
-「把一次调用落成可执行的：`__dyn_call__` 与 `__dyn_method__`」）。
-
-### 8.3 `__get_args__`
+### 8.2 `__get_args__`
 
 把这次调用收到的输入起成一份积，成员就是 `__decl__` 那些参数，按 tag 取：
 

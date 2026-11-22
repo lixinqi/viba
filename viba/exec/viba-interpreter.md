@@ -57,7 +57,14 @@ exec =
 一个名字也可能是一个**泛型目录**（`<name>/__generic__.viba`）：文件先找，目录随后，两者都按这里的
 顺序（见 [`viba-pattern.md`](../core/viba-pattern.md)）。
 带 import 的文件里的名字，按 import 绑定的名字解析（`import a.b as c` 绑 `c`，`import a.b` 绑 `a.b`）。
-`d = __import__ << "a.b.c"` 在读完文件时换成 `import a.b.c as d`：`d` 是那个模块，
+```viba
+__import__ =
+    Any
+  <- $env (Env | nil)
+  <- $name str
+```
+
+`d = __import__ << args.env << "a.b.c"` 在读完文件时换成 `import a.b.c as d`：`d` 是那个模块，
 `d.Name` 是 `a.b.c.Name`；`d` 本身是那个模块。
 点号取的是成员：`a.b` 是在 `a` 上取成员 `b`（[`viba-style.md`](../core/viba-style.md) 第 5 节），
 所以 `a.b` 当类型判是那个成员的声明类型，出现在链头就是那一步的调用 —— 这一步问的是它**在哪个模块、
@@ -1088,11 +1095,11 @@ env = $try_compact << args.env << 32
 
 细节与量到的数在 [`tests/test_interpreter_compaction.py`](../../tests/test_interpreter_compaction.py)。
 
-## 把一次调用落成可执行的：`__dyn_call__` 与 `__dyn_method__`
+## 把一次调用落成可执行的：`__dyn_call__`
 
 一步是按**名字**实现的：`get_func(module_path, func_name)` 收到的那一个。名字出现在链头时只在给出它的那个模块里成立
 ——`a.b.c` 在那里指得着，交出去、存下来、换个模块取就指不着了，因为它是一条名字路径，不是一个自己站得住的调用。
-所以把一次调用落成**可执行的数据**时，名字跟着数据走。下面这两个名字由 `interpret` 自己回答：它们不向 `get_func`
+所以把一次调用落成**可执行的数据**时，名字跟着数据走。下面这个名字由 `interpret` 自己回答：它不向 `get_func`
 要实现，一个模块自己的定义也盖不住它们。
 
 ```viba
@@ -1102,31 +1109,17 @@ __dyn_call__ =
   <- $name str
   <- $args ...
 
-__dyn_method__ =
-    Any
-  <- $env Env
-  <- $name str
-  <- $value Any
-  <- $args ...
 ```
 
 - **`__dyn_call__ << env << "a.b.c" << 实参…` 就是 `a.b.c << env << 实参…`**：名字当数据交给宿主
   （`get_func(<给的那个环境的数据路径>, "a.b.c")`），后面给的实参按源码里的次序接着交给它。它问的是**宿主**，
   不是照这个名字去找一份 `.viba` 文件：要跑一个模块，给的是它的名字（`demo << env`），不是这里。
   名字不是字符串、这次调用没拿到环境，都是**程序错**。
-- **成员是某份值的成员时走 `__dyn_method__`**：`$foo << bar << 实参…` 取的是 `bar` 的成员 `foo`，而 `bar`
-  是一份值、不是名字路径，所以这里的名字只能是数据：`__dyn_method__ << env << "foo" << bar << 实参…`
-  就是 `$foo << bar << 实参…` —— 那份值当成员的第一个实参，环境是这次调用的规矩。成员自己是一份值时
-  （`uncompress_relative_path` 那种）取出来就是这个值；值就是环境时（`args.env.tmp_env` 那种），
-  取的是那个环境自己的那一个。
 - **不带环境就是闭包**：`__dyn_call__ << "add" << $a 1` 是一个值 —— 判定层取它就判成 `Any`，因为名是数据、
   没有名字可展开；给它一个环境就执行，和别的没给环境的调用一样。
-- **`$call` 用的就是这两种源码形式**（见「一次执行会得到什么」）：名字是字符串数据，环境剔掉 —— 链上有环境的那一处也剔掉，
-  剩下的就是那个闭包。**一份数据里凡是调用，都按这两种源码形式给**：给宿主的数据里，那一处调用不给名字，给的就是
-  那个调用本身。成员那一支正是这样：`$f << box << args.env << 1` 落成
-  `__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1` —— 成员那一层保留，而那份值里
-  `$f` 这一格是调用 `inc`，就落成 `__dyn_call__ << "inc"`。反序列化时不必解析 `inc` 这个名字，也就不必让
-  给出它的那个模块在场。函数类型的实参也一样：`$f inc` 落成 `$f (__dyn_call__ << "inc")`。
+- **`$call` 用的就是这种源码形式**（见「一次执行会得到什么」）：名字是字符串数据，环境剔掉 —— 链上有环境的那一处也剔掉，
+  剩下的就是那个闭包。**一份数据里凡是调用，都按这种源码形式给**：给宿主的数据里，那一处调用不给名字，给的就是
+  那个调用本身。函数类型的实参也一样：`$f inc` 落成 `$f (__dyn_call__ << "inc")`。
 - **设计层判同一段源码形式，说的是 `Any`**：名字是数据，设计说不出这次调用答什么，所以它既不核后面那几个实参，
   也不多说。
 
@@ -1188,10 +1181,7 @@ answer.by_tag("$err").by_tag("$not_implemented_err")
 
 `$call` 是**这次调用本身，落成能再跑一遍的样子**：一步坏了的时候，取它的那份运行不一定是给出它的那个
 模块，所以名在这里当数据走，而且是**整名** —— `__dyn_call__ << "foo.bar.b_scale" << $x 2`（就是
-`foo.bar.b_scale << $x 2`）；反序列化时按最后一个点切开，前面是模块、后面是名字（上一节）。成员是某份
-值的成员时保留成员那一层：`$f << box << args.env << 1` 落成
-`__dyn_method__ << "f" << ($f (__dyn_call__ << "inc") * $y 2) << 1` —— 环境那一处剔掉了，那份值里
-`$f` 这一格是调用 `inc`，就按能跑的形式给出（上一节）。同一个规矩也在函数类型的实参上：`$f inc` 落成
+`foo.bar.b_scale << $x 2`）；反序列化时按最后一个点切开，前面是模块、后面是名字（上一节）。同一个规矩也在函数类型的实参上：`$f inc` 落成
 `$f (__dyn_call__ << "inc")`。
 环境不在里面：给出环境就是执行这次调用，它不是这次调用的数据，另一次运行自己造。声明里这一格是
 `Any`：名是数据，判定层取这种链就判成 `Any`（没有名字可展开，[`viba/partial.py`](../partial.py) 的
@@ -1245,7 +1235,6 @@ module 'x' ... same arguments         同一个模块带着同一份实参又在
 the run answered the environment ...   __impl__ 回答的是环境，而环境不是值
 ... was given no Environment to run in  __dyn_call__ 拿到环境才能跑
 ... was given no name to call         __dyn_call__ 没拿到名字
-... was given no value ...            __dyn_method__ 没拿到取值的那份值
 cannot take ...                       文件取不了
 cannot parse ...                      编译不过（语法错误）
 viba_path is a string ...             viba_path 给错了类型
