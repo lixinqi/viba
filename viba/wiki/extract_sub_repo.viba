@@ -26,16 +26,8 @@ ExtractSubRepoIntoVibaMarkdown =
   <- $viba_path list[str]
   <- $extract_source_viba_path list[str]
   <- $type_names list[TypeName]
-  <- $never_eqv (
-         Oneof
-       | list[str]
-       | nil
-     )
-  <- $nil_eqv (
-         Oneof
-       | list[str]
-       | nil
-     )
+  <- $never_eqv (list[str] | nil)
+  <- $nil_eqv (list[str] | nil)
   <- Hint[{
       从 $type_names 出发，把 $repo 里、$extract_source_viba_path 下的那些定义抽成一份 .viba.md 文档：
       一节一个文件，节名是它在 repo 里的路径，正文是源文件自己的行（用到的 import 与留下的定义）。
@@ -58,16 +50,8 @@ ExtractSubVibaMarkdown =
      Result[VibaMarkdown, VibaMdToVibaMdSourceMap]
   <- $source_viba_md VibaMarkdown
   <- $type_names list[TypeName]
-  <- $never_eqv (
-         Oneof
-       | list[str]
-       | nil
-     )
-  <- $nil_eqv (
-         Oneof
-       | list[str]
-       | nil
-     )
+  <- $never_eqv (list[str] | nil)
+  <- $nil_eqv (list[str] | nil)
   <- Hint[{
       $source_viba_md 是一份文档的全文：一节一个文件，节名是它在 repo 里的路径。
       从 $type_names 出发，按 ExtractSubRepoIntoVibaMarkdown 同一套走法，抽出它的子文档。

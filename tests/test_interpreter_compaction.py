@@ -170,7 +170,7 @@ def _the_members():
     """`$get_parent` 与 `$try_compact`：设计层那一份与宿主那一份对得上。"""
     import re
     declared = re.sub(r"\s+", " ", (BUILTIN_DIR / "builtin.viba").read_text())
-    check("$get_parent ( ( Oneof | Env | nil ) <- $env Env )" in declared,
+    check("$get_parent ( (Env | nil) <- $env Env )" in declared,
           "get_parent is declared in builtin.viba's Environment")
     check("$try_compact ( Env <- $env Env <- $env_chain_length_limit int )" in declared,
           "try_compact takes the environment and the chain length limit, and answers "

@@ -39,8 +39,26 @@ def run() -> None:
     check(lint_file(CASES / "good.viba") == [],
           "the standard lays out without violations")
 
-    check("statement-fold" in rules_of("inline_sum.viba"),
-          "a one-line sum is not folded")
+    check("statement-fold" in rules_of("long_sum.viba"),
+          "a long one-line sum is not folded")
+    for name in ("inline_sum.viba", "short_sum_expression.viba"):
+        check(lint_source((CASES / name).read_text(), name) == [],
+              f"a short sum stays on one line: {name}")
+        check(fixed(name) == (CASES / name).read_text(),
+              f"the fixer leaves a short sum alone: {name}")
+    check("expression-fold" in rules_of("long_sum_expression.viba"),
+          "a long sum expression is folded")
+    check("Oneof" in fixed("long_sum_expression.viba"),
+          "the folded sum expression gets its Oneof head")
+    check("expression-unfold" in rules_of("folded_short_sum.viba"),
+          "a folded short sum expression is put back on one line")
+    folded_sum = fixed("folded_short_sum.viba")
+    check("(int | nil)" in folded_sum and "list[(int | nil)]" in folded_sum,
+          f"the fixer puts a short sum back on one line: {folded_sum!r}")
+    check(lint_source(folded_sum, "fixed.viba") == [],
+          "the one-line short sums have no violations")
+    check("expression-unfold" not in rules_of("short_sum_expression.viba"),
+          "a one-line sum expression is not reported")
     check("sum-head" in rules_of("field_head_sum.viba"),
           "a sum whose first line is not Oneof is reported")
     check("sum-head" in rules_of("misaligned_oneof.viba"),
@@ -82,15 +100,15 @@ def run() -> None:
           f"a document's diagnostic points at its own line: {document!r}")
 
     found = lint_paths([str(CASES)])
-    check(any(v.path.endswith("inline_sum.viba") and v.rule == "statement-fold"
+    check(any(v.path.endswith("long_sum.viba") and v.rule == "statement-fold"
               for v in found),
           "a directory's .viba files are read")
     check(any(v.path.endswith("document.viba.md") and v.line == 6 for v in found),
           "a directory's .viba.md document is read")
     check(not any(v.path.endswith("good.viba") for v in found),
           "a directory's file without violations is not reported")
-    excluded = lint_paths([str(CASES)], [str(CASES / "inline_sum.viba")])
-    check(not any(v.path.endswith("inline_sum.viba") for v in excluded),
+    excluded = lint_paths([str(CASES)], [str(CASES / "long_sum.viba")])
+    check(not any(v.path.endswith("long_sum.viba") for v in excluded),
           "an excluded file is left alone")
     check(any(v.path.endswith("inline_product.viba") for v in excluded),
           "a file beside the excluded one is still read")
@@ -105,7 +123,8 @@ def run() -> None:
           "the fixed product has its Object head")
     check(fixed("good.viba") == (CASES / "good.viba").read_text(),
           "a file already laid out is left as it is")
-    for name in ("inline_sum.viba", "inline_product.viba", "inline_box.viba",
+    for name in ("long_sum.viba", "long_sum_expression.viba",
+                 "folded_short_sum.viba", "inline_product.viba", "inline_box.viba",
                  "misaligned_oneof.viba", "misaligned_product.viba",
                  "field_head_sum.viba", "field_head_product.viba",
                  "chain_indent_pipe.viba", "chain_indent_star.viba",
@@ -186,7 +205,7 @@ def run() -> None:
         check(lint_file(document_path) == [], "the written document has no violations")
 
         cli = root / "cli.viba"
-        cli.write_text((CASES / "inline_sum.viba").read_text())
+        cli.write_text((CASES / "long_sum.viba").read_text())
         printed = io.StringIO()
         with contextlib.redirect_stdout(printed):
             code = lint_main(["--fix", str(cli)])

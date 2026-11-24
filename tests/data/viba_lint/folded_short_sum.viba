@@ -1,0 +1,12 @@
+A =
+    Object
+  * $t (
+        Oneof
+      | int
+      | nil
+    )
+  * $u list[(
+        Oneof
+      | int
+      | nil
+    )]

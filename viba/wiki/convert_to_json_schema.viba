@@ -23,11 +23,7 @@ ConvertToJsonSchema =
        | $type_names list[ImportableTypeName]
      )
   <- $strict (
-         (
-             Oneof
-           | bool
-           | nil
-         )
+         (bool | nil)
        * { 默认为 False，表示允许给定 module_name 内部可以包含 <- 和 <<，函数内部会选择性忽略他们 }
      )
   <- Hint[{

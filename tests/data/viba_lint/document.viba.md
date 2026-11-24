@@ -3,7 +3,7 @@
 ## `x.viba`
 
 ```viba x.viba
-X = $a int | $b str
+X = $alpha_one int | $beta_two str | $gamma_three bool | $delta_four float
 ```
 
 ## `y.viba`

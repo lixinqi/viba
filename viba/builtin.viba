@@ -56,42 +56,22 @@ Environment =
       <- $env Env
     )
   * $get_parent (
-         (
-             Oneof
-           | Env
-           | nil
-         )
+         (Env | nil)
       <- $env Env
     )
   * $get_root (
-         (
-             Oneof
-           | Env
-           | nil
-         )
-      <- $current (
-             Oneof
-           | Env
-           | nil
-         )
+         (Env | nil)
+      <- $current (Env | nil)
     )
   * $get_relative_path (
          str
       <- $current Env
-      <- $root (
-             Oneof
-           | Env
-           | nil
-         )
+      <- $root (Env | nil)
     )
   * $find_by_relative_path (
          Env
       <- $relative_path str
-      <- $root (
-             Oneof
-           | Env
-           | nil
-         )
+      <- $root (Env | nil)
     )
   * $compress_env_path (
          Env
@@ -103,11 +83,7 @@ Environment =
       <- $env Env
       <- $env_chain_length_limit int
     )
-  * $uncompress_relative_path (
-        Oneof
-      | str
-      | nil
-    )
+  * $uncompress_relative_path (str | nil)
 
 Env = Environment
 
@@ -495,11 +471,7 @@ builtin =
     )
   * $find ((
         Oneof
-      | (
-            Oneof
-          | int
-          | nil
-        )
+      | (int | nil)
     ) <- $env Env <- $x str <- $needle str
            <- { where needle first appears in x, nil when it does not })
   * $contains (

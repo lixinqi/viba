@@ -20,12 +20,16 @@ body is the lines after it. The layout this tool enforces:
 A statement whose body is a sum, product, exponent or partial application must
 fold: the body is on the lines after `Name =` (or `pattern`). Only a type
 expression may stay on one line; `Box = Object * $value T` is a statement and
-folds, while `UserId = int` or the `T` of `* $value T` may stay inline.
+folds, while `UserId = int` or the `T` of `* $value T` may stay inline. A short
+chain is the exception: a sum, exponent or partial application with fewer than
+four operators on a line shorter than 50 characters may stay on that line.
 
 A compound type expression in parentheses folds too: `$foo ($bar int * $nice
 str)` becomes a block, its base two spaces past the line that opened it; an
 exponent's result and a partial application's function sit three spaces past
-`<-` / `<<`. A pure tag chain (`$foo ($bar ($foobar int))`) stays on one line.
+`<-` / `<<`. A pure tag chain (`$foo ($bar ($foobar int))`) stays on one line,
+and so does a short sum (`(int | nil)`); a short sum folded into a block is
+reported (`expression-unfold`) and the fixer puts it back on one line.
 
 Both `.viba` files and the `viba` sections of `.viba.md` documents are linted;
 in a document a diagnostic points at the document's own line.
@@ -60,9 +64,11 @@ from viba.viba_ast.nodes import (
 
 INDENT = 2
 OPERATORS = ("|", "*", "<-", "<<")
-# A one-line exponent/partial chain this short may stay on one line.
+# A one-line sum, exponent or partial application this short may stay on one
+# line: `(int | nil)` is a sum of two, not a block to fold.
 SHORT_CHAIN_OPERATORS = 4
 SHORT_CHAIN_CHARS = 50
+SHORT_CHAIN_OPERATOR_BY_KIND = {"sum": "|", "exponent": "<-", "partial": "<<"}
 
 # The generated pattern corpora and the test fixtures are not designs to lint.
 DEFAULT_EXCLUDES = (
@@ -259,10 +265,10 @@ def _statement_kind(block: Sequence[_Line]) -> Optional[str]:
 
 
 def _short_chain(kind: str, text: str, line_text: str) -> bool:
-    """A `<-` / `<<` chain short enough to stay on one line."""
-    if kind not in ("exponent", "partial"):
+    """A `|` / `<-` / `<<` chain short enough to stay on one line."""
+    operator = SHORT_CHAIN_OPERATOR_BY_KIND.get(kind)
+    if operator is None:
         return False
-    operator = "<-" if kind == "exponent" else "<<"
     return (text.count(operator) < SHORT_CHAIN_OPERATORS
             and len(line_text) < SHORT_CHAIN_CHARS)
 
@@ -420,9 +426,8 @@ def _lint_lines(lines: Sequence[_Line], path: str) -> List[Violation]:
         body = statement.body
         start_line = lines[statement.start].number
         if kind in ("sum", "product", "exponent", "partial") and statement.inline is not None:
-            short = (kind in ("exponent", "partial")
-                     and _short_chain(kind, statement.inline,
-                                      lines[statement.start].text))
+            short = _short_chain(kind, statement.inline,
+                                 lines[statement.start].text)
             if not short:
                 found.append(Violation(
                     path, start_line, 1, "statement-fold",
@@ -726,8 +731,7 @@ def _fix_statement(lines: Sequence[_Line], statement: _Statement) -> Optional[Li
     if kind not in ("sum", "product", "exponent", "partial"):
         return None
     if statement.inline is not None:
-        if kind in ("exponent", "partial") and _short_chain(
-                kind, statement.inline, lines[statement.start].text):
+        if _short_chain(kind, statement.inline, lines[statement.start].text):
             return None
         if "#" in statement.inline:
             return None
@@ -841,6 +845,92 @@ def _content_kind(content: str) -> Optional[str]:
     return None
 
 
+def _documentation_mask(lines: Sequence[str]) -> List[bool]:
+    """Which lines sit inside a `{...}` hint or a multi-line string.
+
+    A hint is prose: a `.viba` example in it is not this file's layout, so the
+    linter leaves it alone (the fold checks have always done so line by line;
+    the block checks need the whole span).
+    """
+    mask: List[bool] = []
+    depth = 0
+    triple = None
+    for text in lines:
+        if triple is not None:
+            mask.append(True)
+            if triple in text:
+                triple = None
+            continue
+        _code, _comment, opened = _scan_line(text)
+        mask.append(depth > 0 or opened is not None)
+        if opened is not None:
+            triple = opened
+            continue
+        depth += text.count("{") - text.count("}")
+        if depth < 0:
+            depth = 0
+    return mask
+
+
+def _collapsed_short_sum(lines: Sequence[_Line], open_index: int,
+                         close_index: int) -> Optional[str]:
+    """The one line a folded short sum expression becomes, or None.
+
+    Only a plain sum goes back on one line — a `Oneof` head, `|` member lines,
+    no comments, no nested block — and only while that line stays short. An
+    expression like `(Oneof | int | nil)` is a sum of two written as a block;
+    `(int | nil)` says the same thing.
+    """
+    opening, comment, quote = _scan_line(lines[open_index].text)
+    if comment or quote is not None:
+        return None
+    opening = opening.rstrip()
+    if not opening.endswith("("):
+        return None
+    inner = lines[open_index + 1:close_index]
+    if not inner:
+        return None
+    head, head_comment, head_quote = _scan_line(inner[0].text)
+    if head_comment or head_quote is not None or head.strip() != "Oneof":
+        return None
+    members = []
+    for line in inner[1:]:
+        code, code_comment, code_quote = _scan_line(line.text)
+        stripped = code.strip()
+        if (code_comment or code_quote is not None
+                or not stripped.startswith("| ")):
+            return None
+        members.append(stripped[2:])
+    if not members:
+        return None
+    closing, close_comment, close_quote = _scan_line(lines[close_index].text)
+    if close_comment or close_quote is not None:
+        return None
+    closing = closing.strip()
+    if not closing.startswith(")"):
+        return None
+    joined = " | ".join(members)
+    collapsed = opening[:-1] + "(" + joined + ")" + closing[1:]
+    if not _short_chain("sum", joined, collapsed):
+        return None
+    return collapsed
+
+
+def _unfold_short_sums(lines: Sequence[str]) -> Optional[List[str]]:
+    """The same lines with one folded short sum on one line, or None."""
+    texts = list(lines)
+    documented = _documentation_mask(texts)
+    wrapped = [_Line(text, index + 1) for index, text in enumerate(texts)]
+    for open_index, _base, close_index in _folded_blocks(wrapped):
+        if any(documented[open_index:close_index + 1]):
+            continue
+        collapsed = _collapsed_short_sum(wrapped, open_index, close_index)
+        if collapsed is not None:
+            return (list(lines[:open_index]) + [collapsed]
+                    + list(lines[close_index + 1:]))
+    return None
+
+
 def _check_expression_folds(lines: Sequence[_Line], path: str) -> List[Violation]:
     """A compound expression in `(...)` must fold; a pure tag chain does not."""
     found: List[Violation] = []
@@ -852,8 +942,7 @@ def _check_expression_folds(lines: Sequence[_Line], path: str) -> List[Violation
             kind = _content_kind(content)
             if kind is None:
                 continue
-            if (kind in ("exponent", "partial")
-                    and _short_chain(kind, content, code.text)):
+            if _short_chain(kind, content, code.text):
                 continue
             found.append(Violation(
                 path, code.number, open_col + 1, "expression-fold",
@@ -882,6 +971,16 @@ def _check_expression_folds(lines: Sequence[_Line], path: str) -> List[Violation
             found.append(Violation(
                 path, closing.number, 1, "expression-fold",
                 "the closing `)` must be in the expression's base column"))
+    documented = _documentation_mask([line.text for line in lines])
+    for open_index, _base, close_index in _folded_blocks(lines):
+        if any(documented[open_index:close_index + 1]):
+            continue
+        collapsed = _collapsed_short_sum(lines, open_index, close_index)
+        if collapsed is not None:
+            opening = _scan_line(lines[open_index].text)[0].rstrip()
+            found.append(Violation(
+                path, lines[open_index].number, len(opening), "expression-unfold",
+                "a short sum expression stays on one line"))
     return found
 
 
@@ -926,8 +1025,7 @@ def _fold_line(text: str) -> Optional[List[str]]:
     chosen = None
     for pair in sorted(pairs, key=lambda candidate: candidate[0]):
         pair_kind = _content_kind(pair[2])
-        if (pair_kind in ("exponent", "partial")
-                and _short_chain(pair_kind, pair[2], text)):
+        if _short_chain(pair_kind, pair[2], text):
             continue
         chosen = pair
         break
@@ -990,6 +1088,11 @@ def _fold_expressions(lines: Sequence[str]) -> List[str]:
 def _fix_source_report(source: str, path: str = "<source>") -> Tuple[str, List[int]]:
     """Rewrite the fixable statements; answer the lines left alone for a hint."""
     lines = [_Line(text, index + 1) for index, text in enumerate(source.splitlines())]
+    while True:
+        unfolded = _unfold_short_sums([line.text for line in lines])
+        if unfolded is None:
+            break
+        lines = [_Line(text, index + 1) for index, text in enumerate(unfolded)]
     out: List[str] = []
     skipped: List[int] = []
     cursor = 0
