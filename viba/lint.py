@@ -37,7 +37,7 @@ put back in its columns; the `)` stands on a line of its own.
 Both `.viba` files and the `viba` sections of `.viba.md` documents are linted;
 in a document a diagnostic points at the document's own line. A `.viba.md` file
 is viba code in its own written form, so it is also checked for the structure
-that form asks for (`document-title`, `document-equals`, `document-type-name`,
+that form asks for (`document-title`, `document-assignments`, `document-type-name`,
 `document-field`, `document-imports`, `document-order`). The order rule is
 fixed by moving sections; the rest are check only and stay reported.
 
@@ -847,8 +847,8 @@ def check_document(source: str, path: str = "<markdown>",
         equals, imports = _top_level(block)
         if one_assignment and len(equals) > 1:
             found.append(Violation(
-                path, equals[1], 1, "document-equals",
-                "a viba block holds at most one `=`"))
+                path, equals[1], 1, "document-assignments",
+                "a viba block holds at most one assignment"))
         if one_assignment and equals:
             number = equals[0]
             line_text = next(line for line, at in block if at == number)
@@ -1726,10 +1726,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="a path prefix to leave alone (repeatable)")
     parser.add_argument("--no-default-excludes", action="store_true",
                         help="also read the generated corpora and the fixtures")
-    parser.add_argument("--disable-document-code-block-num-assignments-le-one",
-                        action="store_true",
-                        help="a `.viba.md` code block may hold more than one "
-                             "assignment (one at most is the default)")
+    parser.add_argument("--document-code-block-num-assignments-le-one",
+                        dest="document_code_block_num_assignments_le_one",
+                        action="store_true", default=True,
+                        help="a `.viba.md` code block holds one assignment at "
+                             "most (default)")
+    parser.add_argument("--no-document-code-block-num-assignments-le-one",
+                        dest="document_code_block_num_assignments_le_one",
+                        action="store_false",
+                        help="a code block may hold more than one assignment")
     parser.add_argument("--split-imports-and-assignments",
                         dest="split_imports_and_assignments",
                         action="store_true", default=True,
@@ -1760,7 +1765,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 print(f"skipped {path}:{line} (hint block)")
     violations = sorted(
         lint_paths(args.paths, excludes,
-                   not args.disable_document_code_block_num_assignments_le_one,
+                   args.document_code_block_num_assignments_le_one,
                    args.split_imports_and_assignments,
                    args.present_big_picture_first),
         key=lambda v: (v.path, v.line, v.column, v.rule))

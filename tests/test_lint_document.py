@@ -41,10 +41,10 @@ def run() -> None:
           "a first-level heading that is not a `.viba` path is reported")
     check(violations_of("bad_title.viba.md")[0].line == 1,
           "the title diagnostic is on the heading's line")
-    check(rules_of("bad_equals.viba.md") == ["document-equals"],
-          "a block with two `=` is reported")
+    check(rules_of("bad_equals.viba.md") == ["document-assignments"],
+          "a block with two assignments is reported")
     check(violations_of("bad_equals.viba.md")[0].line == 7,
-          "the equals diagnostic is on the second `=`'s line")
+          "the assignments diagnostic is on the second `=`'s line")
     check(rules_of("bad_name.viba.md") == ["document-type-name"],
           "a definition whose name is not in the heading is reported")
     check(violations_of("bad_name.viba.md")[0].line == 6,
@@ -125,13 +125,19 @@ def run() -> None:
           "the command answers 1 and names the rule")
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        status = lint_main(["--disable-document-code-block-num-assignments-le-one",
+        status = lint_main(["--no-document-code-block-num-assignments-le-one",
                             str(CASES / "bad_equals.viba.md")])
     check(status == 0 and output.getvalue() == "",
           "the switch turns the one-assignment rule off")
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        status = lint_main(["--disable-document-code-block-num-assignments-le-one",
+        status = lint_main(["--document-code-block-num-assignments-le-one",
+                            str(CASES / "bad_equals.viba.md")])
+    check(status == 1 and "document-assignments" in output.getvalue(),
+          "the positive switch keeps the one-assignment rule on")
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        status = lint_main(["--no-document-code-block-num-assignments-le-one",
                             str(CASES / "bad_field.viba.md")])
     check(status == 1 and "document-field" in output.getvalue(),
           "the field rule stays on with the switch off")

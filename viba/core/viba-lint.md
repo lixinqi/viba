@@ -116,10 +116,10 @@ python -m viba.lint --fix viba tests
    文档里定义的名字都算。fix 把整节（标题 + 说明 + 代码块）挪到正确位置；成环的顺序改不了，只报。
 
 前五条只有检查，没有 `--fix`；第 6 条有 fix（挪整节）。`--fix` 还会照旧改代码的版式，改不了的
-照常报出来。规则名分别是 `document-title`、`document-equals`、`document-type-name`、
+照常报出来。规则名分别是 `document-title`、`document-assignments`、`document-type-name`、
 `document-field`、`document-imports`、`document-order`。
-第 2、3 条是一个开关，默认开着；一份文档本来就是一个块里写好几份赋值、标题只是个文件名的，用
-`--disable-document-code-block-num-assignments-le-one` 关掉它，`document-title` 和 `document-field`
-照查。第 5 条也有开关 `--split-imports-and-assignments`，默认开着；要允许 import 和赋值同块，用
+第 2、3 条是一个开关 `--document-code-block-num-assignments-le-one`，默认开着；一份文档本来就是
+一个块里写好几份赋值、标题只是个文件名的，用 `--no-document-code-block-num-assignments-le-one`
+关掉它，`document-title` 和 `document-field` 照查。第 5 条也有开关 `--split-imports-and-assignments`，默认开着；要允许 import 和赋值同块，用
 `--no-split-imports-and-assignments`。第 6 条的开关是 `--present-big-picture-first`，默认开着；
 `--no-present-big-picture-first` 关掉后，检查和 fix 都不管顺序。
