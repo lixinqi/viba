@@ -122,8 +122,11 @@ def run() -> None:
           "a source that does not parse is reported")
 
     document = lint_file(CASES / "document.viba.md")
-    check([violation.line for violation in document] == [6],
+    check([(violation.rule, violation.line) for violation in document
+           if violation.rule == "statement-fold"] == [("statement-fold", 6)],
           f"a document's diagnostic points at its own line: {document!r}")
+    check(any(violation.rule == "document-title" for violation in document),
+          "a `.viba.md` file is checked for its structure by its extension")
 
     found = lint_paths([str(CASES)])
     check(any(v.path.endswith("long_sum.viba") and v.rule == "statement-fold"
@@ -228,7 +231,8 @@ def run() -> None:
         document_path = root / "doc.viba.md"
         document_path.write_text((CASES / "document.viba.md").read_text())
         check(fix_file(document_path) is True, "fix_file writes a document's section")
-        check(lint_file(document_path) == [], "the written document has no violations")
+        check(lint_markdown(document_path.read_text(), str(document_path)) == [],
+              "the written document's sections have no layout violations")
 
         cli = root / "cli.viba"
         cli.write_text((CASES / "long_sum.viba").read_text())
@@ -244,7 +248,8 @@ def run() -> None:
         printed = io.StringIO()
         with contextlib.redirect_stdout(printed):
             code = lint_main(["--fix", str(hinted)])
-        check(code == 0, "the --fix command exits 0 once the one-line hint is fixed")
+        check(code == 1 and "document-title" in printed.getvalue(),
+              "the --fix command reports the document structure it cannot fix")
         check("skipped " not in printed.getvalue(), "nothing is skipped for a one-line hint")
         check("说明文字一行。" in hinted.read_text()
               and "# 说明文字一行。" not in hinted.read_text(),
@@ -255,7 +260,8 @@ def run() -> None:
         printed = io.StringIO()
         with contextlib.redirect_stdout(printed):
             code = lint_main(["--fix", str(long_path)])
-        check(code == 0, "the --fix command fixes a multi-line hint's head")
+        check("document-title" in printed.getvalue() and code == 1,
+              "the --fix command leaves the document structure reported")
         check("skipped " not in printed.getvalue(),
               "a head that is already there is not skipped")
         check("    Object\n  * $w Hint[{" in long_path.read_text(),

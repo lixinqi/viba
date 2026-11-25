@@ -26,7 +26,7 @@ viba 用纯类型描述设计：一份设计是一组类型与定义，类型之
 | [`data/viba-is-complete.md`](data/viba-is-complete.md) | `is_complete`：这份设计反射得到底吗 |
 | [`viba_builder.md`](viba_builder.md) | 从 Python 表达式造 `.viba` 源码 |
 | [`viba-is-sub-type.md`](viba-is-sub-type.md) | 子类型判定：按结构、共归纳、没有名义类型 |
-| [`viba-lint.md`](viba-lint.md) | `viba_lint`：类型语句和括号里复合表达式的版式检查与 `--fix` |
+| [`viba-lint.md`](viba-lint.md) | `viba_lint`：类型语句和括号里复合表达式的版式检查与 `--fix`，以及 `.viba.md` 的结构检查 |
 
 ## 例：取一个类型的语法树
 

@@ -35,7 +35,11 @@ sum is led by `Oneof`, its first branch a `|` member, and a misindented block is
 put back in its columns; the `)` stands on a line of its own.
 
 Both `.viba` files and the `viba` sections of `.viba.md` documents are linted;
-in a document a diagnostic points at the document's own line.
+in a document a diagnostic points at the document's own line. A `.viba.md` file
+is viba code in its own written form, so it is also checked for the structure
+that form asks for (`document-title`, `document-equals`, `document-type-name`,
+`document-field`, `document-imports`, `document-order`). The order rule is
+fixed by moving sections; the rest are check only and stay reported.
 
     python -m viba.lint viba tests
     python -m viba.lint --help
@@ -48,13 +52,15 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import Iterable, List, Optional, Sequence, Set, Tuple
 
 from viba import viba_ast
+from viba.partial import product_elements
 from viba.viba_ast.nodes import (
     Exponent,
     ExponentChain,
     GenericDefinition,
+    HintBlock,
     Import,
     Partial,
     Pattern,
@@ -62,7 +68,9 @@ from viba.viba_ast.nodes import (
     ProductChain,
     Sum,
     SumChain,
+    Tagged,
     TypeDefinition,
+    TypeRef,
 )
 
 INDENT = 2
@@ -496,10 +504,411 @@ def lint_markdown(source: str, path: str = "<markdown>") -> List[Violation]:
     return found
 
 
-def lint_file(path: Path) -> List[Violation]:
+_HEADING = re.compile(r"^(#{1,6})(?:[ \t]+(.*?))?[ \t]*$")
+
+
+def _closes_fence(text: str, marker: str) -> bool:
+    """A line that ends the fenced block opened with `marker`."""
+    matched = _FENCE.match(text)
+    return (matched is not None
+            and matched.group(2)[0] == marker[0]
+            and matched.group(2).startswith(marker)
+            and not (matched.group(3) or "").strip())
+
+
+def _code_name(text: str) -> str:
+    """The name a heading carries: a code span's backticks are no part of it."""
+    stripped = text.strip()
+    if (len(stripped) >= 2 and stripped.startswith("`")
+            and stripped.endswith("`")):
+        return stripped.strip("`").strip()
+    return stripped
+
+
+def _document_blocks(source: str):
+    """(the first-level headings, the `viba` blocks with the heading above each).
+
+    A heading is `(line, text)`; a block is `[(text, line), ...]`. Only `viba`
+    fenced blocks count; the prose and the other blocks are not looked at.
+    """
+    headings: List[Tuple[int, str]] = []
+    blocks: List[Tuple[Optional[Tuple[int, str]], List[Tuple[str, int]]]] = []
+    heading: Optional[Tuple[int, str]] = None
+    fence = None
+    block = None
+    for index, text in enumerate(source.splitlines()):
+        number = index + 1
+        if fence is not None:
+            if _closes_fence(text, fence):
+                fence = None
+                block = None
+            elif block is not None:
+                block.append((text, number))
+            continue
+        opened = _FENCE.match(text)
+        if opened is not None:
+            fence = opened.group(2)
+            if (opened.group(3) or "").split()[:1] == ["viba"]:
+                block = []
+                blocks.append((heading, block))
+            continue
+        matched = _HEADING.match(text)
+        if matched is not None:
+            name = (matched.group(2) or "").strip()
+            heading = (number, name)
+            if len(matched.group(1)) == 1:
+                headings.append(heading)
+    return headings, blocks
+
+
+def _top_level(block: Sequence[Tuple[str, int]]) -> Tuple[List[int], List[int]]:
+    """(the lines with an `=` outside hints, strings and comments,
+    the lines that begin with an import at the top level)."""
+    equals: List[int] = []
+    imports: List[int] = []
+    depth = 0
+    triple = None
+    for text, number in block:
+        if triple is not None:
+            if triple in text:
+                triple = None
+            continue
+        code, _comment, opened = _scan_line(text)
+        if opened is not None:
+            triple = opened
+            continue
+        quote = None
+        index = 0
+        while index < len(code):
+            char = code[index]
+            if quote is not None:
+                if char == quote:
+                    quote = None
+            elif char in "\"'":
+                quote = char
+            elif char == "{":
+                depth += 1
+            elif char == "}":
+                if depth:
+                    depth -= 1
+            elif char == "=" and depth == 0:
+                equals.append(number)
+            index += 1
+        stripped = code.strip()
+        if depth == 0 and (stripped == "import"
+                           or stripped.startswith("import ")):
+            imports.append(number)
+    return equals, imports
+
+
+def _product_fields(tree) -> List[Tagged]:
+    """The tagged members of every product in the definitions of the tree."""
+    fields: List[Tagged] = []
+    for statement in getattr(tree, "body", ()):
+        if not isinstance(statement, (TypeDefinition, GenericDefinition)):
+            continue
+        for node in viba_ast.walk(statement.body):
+            if not isinstance(node, (Product, ProductChain)):
+                continue
+            for element in product_elements(node):
+                if isinstance(element, Tagged):
+                    fields.append(element)
+    return fields
+
+
+def _field_documented(field: Tagged) -> bool:
+    """Whether a field is written `$name ($field_type * { comment })`."""
+    body = field.type
+    if not isinstance(body, (Product, ProductChain)):
+        return False
+    elements = product_elements(body)
+    if len(elements) < 2:
+        return False
+    hint = elements[-1]
+    return isinstance(hint, HintBlock) and bool(hint.code.strip())
+
+
+def _field_line(block: Sequence[Tuple[str, int]], tag: str) -> Optional[int]:
+    pattern = re.compile(r"\*\s+" + re.escape(tag) + r"(?:\s|$)")
+    for text, number in block:
+        if pattern.search(text):
+            return number
+    return None
+
+
+def _document_definitions(blocks) -> List[Tuple[str, int, Set[str]]]:
+    """(name, document line, the names it refers to) for a document's definitions."""
+    found: List[Tuple[str, int, Set[str]]] = []
+    for _heading, block in blocks:
+        code = "\n".join(line for line, _at in block) + "\n"
+        try:
+            tree = viba_ast.parse(code)
+        except SyntaxError:
+            continue
+        for statement in tree.body:
+            if not isinstance(statement, (TypeDefinition, GenericDefinition)):
+                continue
+            line = (block[statement.lineno - 1][1]
+                    if 1 <= statement.lineno <= len(block) else block[0][1])
+            params = set(getattr(statement, "generic_params", ()) or ())
+            refs = {node.name for node in viba_ast.walk(statement.body)
+                    if isinstance(node, TypeRef)}
+            found.append((statement.name, line, refs - params - {statement.name}))
+    return found
+
+
+def _headings(lines: Sequence[str]) -> List[Tuple[int, int]]:
+    """(line index, level) of the headings outside fenced blocks."""
+    found: List[Tuple[int, int]] = []
+    fence = None
+    for index, text in enumerate(lines):
+        if fence is not None:
+            if _closes_fence(text, fence):
+                fence = None
+            continue
+        opened = _FENCE.match(text)
+        if opened is not None:
+            fence = opened.group(2)
+            continue
+        matched = _HEADING.match(text)
+        if matched is not None:
+            found.append((index, len(matched.group(1))))
+    return found
+
+
+def _section_tree(lines: Sequence[str]):
+    """The headings as a tree: (the root, every section)."""
+    headings = _headings(lines)
+    root = {"start": -1, "level": 0, "end": len(lines),
+            "intro_end": len(lines), "content_end": len(lines), "children": []}
+    sections = []
+    stack = [root]
+    for index, level in headings:
+        section = {"start": index, "level": level, "end": len(lines),
+                   "intro_end": len(lines), "content_end": len(lines),
+                   "children": []}
+        while stack[-1]["level"] >= level:
+            stack.pop()
+        stack[-1]["children"].append(section)
+        stack.append(section)
+        sections.append(section)
+    for position, section in enumerate(sections):
+        end = len(lines)
+        for later_index, later_level in headings[position + 1:]:
+            if later_level <= section["level"]:
+                end = later_index
+                break
+        section["end"] = end
+        section["intro_end"] = (section["children"][0]["start"]
+                                if section["children"] else end)
+        section["content_end"] = _content_end(lines, section["start"], end)
+    root["intro_end"] = (root["children"][0]["start"]
+                         if root["children"] else len(lines))
+    root["content_end"] = _content_end(lines, 0, len(lines))
+    return root
+
+
+def _content_end(lines: Sequence[str], start: int, end: int) -> int:
+    """The line after a section's last non-blank line."""
+    position = end - 1
+    while position > start and not lines[position].strip():
+        position -= 1
+    return position + 1
+
+
+def _big_first_order(count: int, edges) -> List[int]:
+    """A stable order of the units with `(first, second)` meaning first before second."""
+    before = {index: set() for index in range(count)}
+    for first, second in edges:
+        before[second].add(first)
+    remaining = set(range(count))
+    order: List[int] = []
+    while remaining:
+        ready = [index for index in range(count)
+                 if index in remaining and not (before[index] & remaining)]
+        if not ready:
+            ready = [min(remaining)]     # a cycle: leave it in its written order
+        pick = ready[0]
+        order.append(pick)
+        remaining.remove(pick)
+    return order
+
+
+def _order_sections(section, definitions) -> bool:
+    """Put the sections a definition needs after the one that uses them.
+
+    Answers whether any section changed places.
+    """
+    children = section["children"]
+    changed = False
+    assigned = list(children)
+    units = [child for child in children
+             if any(child["start"] <= line < child["end"]
+                    for _name, line, _refs in definitions)]
+    if len(units) > 1:
+        unit_defs = [[entry for entry in definitions
+                      if child["start"] <= entry[1] < child["end"]]
+                     for child in units]
+        edges = set()
+        for first, entries in enumerate(unit_defs):
+            refs = set()
+            for _name, _line, used in entries:
+                refs |= used
+            for second, other in enumerate(unit_defs):
+                if first == second:
+                    continue
+                names = {name for name, _line, _refs in other}
+                if refs & names:
+                    edges.add((first, second))
+        order = _big_first_order(len(units), edges)
+        ordered = [units[index] for index in order]
+        starts = {unit["start"] for unit in units}
+        slot = 0
+        for position, child in enumerate(assigned):
+            if child["start"] in starts:
+                assigned[position] = ordered[slot]
+                slot += 1
+        changed = assigned != children
+    section["assigned_children"] = assigned
+    for child in assigned:
+        if _order_sections(child, definitions):
+            changed = True
+    return changed
+
+
+def _render_section(lines: Sequence[str], section, limit: int) -> List[str]:
+    """The section's lines, children in their assigned order, gaps in place."""
+    out: List[str] = []
+    children = section["children"]
+    if section["start"] >= 0:
+        out.append(lines[section["start"]])
+    if not children:
+        out.extend(lines[(section["start"] + 1 if section["start"] >= 0 else 0):limit])
+        return out
+    first = children[0]
+    out.extend(lines[(section["start"] + 1 if section["start"] >= 0 else 0):first["start"]])
+    for slot, child in zip(children, section["assigned_children"]):
+        out.extend(_render_section(lines, child, child["content_end"]))
+        gap_end = min(slot["end"], limit)
+        gap_start = min(slot["content_end"], gap_end)
+        out.extend(lines[gap_start:gap_end])
+    return out
+
+
+def _reorder_sections(source: str) -> str:
+    """The same document with the sections in big-picture-first order."""
+    lines = source.splitlines()
+    definitions = _document_definitions(_document_blocks(source)[1])
+    if not definitions:
+        return source
+    root = _section_tree(lines)
+    if not _order_sections(root, definitions):
+        return source
+    out = _render_section(lines, root, len(lines))
+    return "\n".join(out) + ("\n" if source.endswith("\n") else "")
+
+
+def check_document(source: str, path: str = "<markdown>",
+                   one_assignment: bool = True,
+                   split_imports_and_assignments: bool = True,
+                   present_big_picture_first: bool = True
+                   ) -> List[Violation]:
+    """The rules a `.viba.md` design document follows; check only, no fix.
+
+    The first-level heading is the viba file's path name; a `viba` block holds
+    one `=` at most; the name on the left of `=` is part of the heading above
+    the block; a field is written `$name ($field_type * { comment })`; an import
+    and an assignment keep out of one block; a definition stands before the
+    definitions it uses.
+
+    `one_assignment` is the switch for the middle two: a block as one assignment
+    under a heading that names it. It is on by default; a document written as a
+    set of files (several assignments in one block) turns it off, and the title
+    and field rules are still checked. Imports are no assignments, so several of
+    them may share a block either way. `split_imports_and_assignments`, on by
+    default, keeps an import and an assignment out of one block.
+    `present_big_picture_first`, on by default, asks that a definition stand
+    before the definitions it uses.
+    """
+    found: List[Violation] = []
+    headings, blocks = _document_blocks(source)
+    if len(headings) != 1:
+        found.append(Violation(
+            path, headings[0][0] if headings else 1, 1, "document-title",
+            "a document has one first-level heading, the viba file it describes"))
+    else:
+        number, name = headings[0]
+        if not _code_name(name).endswith(".viba"):
+            found.append(Violation(
+                path, number, 1, "document-title",
+                "the first-level heading is the viba file's path name "
+                "(ending `.viba`)"))
+    for heading, block in blocks:
+        equals, imports = _top_level(block)
+        if one_assignment and len(equals) > 1:
+            found.append(Violation(
+                path, equals[1], 1, "document-equals",
+                "a viba block holds at most one `=`"))
+        if one_assignment and equals:
+            number = equals[0]
+            line_text = next(line for line, at in block if at == number)
+            name = line_text.split("=", 1)[0].strip().split("[", 1)[0].strip()
+            if heading is None:
+                found.append(Violation(
+                    path, number, 1, "document-type-name",
+                    f"the definition {name!r} stands under no heading"))
+            else:
+                heading_name = _code_name(heading[1])
+                if not name or name not in heading_name:
+                    found.append(Violation(
+                        path, number, 1, "document-type-name",
+                        f"the name {name!r} is not part of the heading above "
+                        f"the block ({heading_name!r})"))
+        if split_imports_and_assignments and imports and equals:
+            line = max(imports[0], equals[0])
+            found.append(Violation(
+                path, line, 1, "document-imports",
+                "an import and an assignment do not share a block"))
+        code = "\n".join(line for line, _at in block) + "\n"
+        try:
+            tree = viba_ast.parse(code)
+        except SyntaxError:
+            continue                    # the layout lint reports the parse error
+        for field in _product_fields(tree):
+            if _field_documented(field):
+                continue
+            line = _field_line(block, field.tag) or (
+                block[0][1] if block else 1)
+            found.append(Violation(
+                path, line, 1, "document-field",
+                f"the field {field.tag} is written "
+                f"`$name ($field_type * {{ comment }})`"))
+    if present_big_picture_first:
+        definitions = _document_definitions(blocks)
+        lines_of = {}
+        for name, line, _refs in definitions:
+            lines_of.setdefault(name, line)
+        for name, line, refs in definitions:
+            for used in sorted(refs):
+                if (used in lines_of and lines_of[used] < line):
+                    found.append(Violation(
+                        path, line, 1, "document-order",
+                        f"the big picture comes first: {name} uses {used}, "
+                        f"which stands above it"))
+    return found
+
+
+def lint_file(path: Path, one_assignment: bool = True,
+              split_imports_and_assignments: bool = True,
+              present_big_picture_first: bool = True) -> List[Violation]:
     text = path.read_text()
     if path.name.endswith(".viba.md"):
-        return lint_markdown(text, str(path))
+        # A `.viba.md` file is viba code in its own written form: the layout of
+        # its blocks, and the structure that form asks for.
+        return (lint_markdown(text, str(path))
+                + check_document(text, str(path), one_assignment,
+                                 split_imports_and_assignments,
+                                 present_big_picture_first))
     return lint_source(text, str(path))
 
 
@@ -523,10 +932,15 @@ def _files(paths: Iterable[str], excludes: Iterable[str] = ()) -> List[Path]:
     return found
 
 
-def lint_paths(paths: Iterable[str], excludes: Iterable[str] = ()) -> List[Violation]:
+def lint_paths(paths: Iterable[str], excludes: Iterable[str] = (),
+               one_assignment: bool = True,
+               split_imports_and_assignments: bool = True,
+               present_big_picture_first: bool = True) -> List[Violation]:
     found: List[Violation] = []
     for path in _files(paths, excludes):
-        found.extend(lint_file(path))
+        found.extend(lint_file(path, one_assignment,
+                               split_imports_and_assignments,
+                               present_big_picture_first))
     return found
 
 
@@ -1256,8 +1670,12 @@ def fix_source(source: str, path: str = "<source>") -> str:
     return _fix_source_report(source, path)[0]
 
 
-def fix_markdown_report(source: str) -> Tuple[str, List[int]]:
+def fix_markdown_report(source: str,
+                        present_big_picture_first: bool = True
+                        ) -> Tuple[str, List[int]]:
     """Rewrite the `viba` blocks of a document; the prose and fences stay."""
+    if present_big_picture_first:
+        source = _reorder_sections(source)
     document = source.splitlines()
     skipped: List[int] = []
     for first, end, content in reversed(_viba_blocks(source)):
@@ -1271,16 +1689,18 @@ def fix_markdown_report(source: str) -> Tuple[str, List[int]]:
             sorted(skipped))
 
 
-def fix_markdown(source: str) -> str:
+def fix_markdown(source: str, present_big_picture_first: bool = True) -> str:
     """Rewrite the fixable sections of a `.viba.md` document."""
-    return fix_markdown_report(source)[0]
+    return fix_markdown_report(source, present_big_picture_first)[0]
 
 
-def fix_file_report(path: Path) -> Tuple[bool, List[int]]:
+def fix_file_report(path: Path,
+                    present_big_picture_first: bool = True
+                    ) -> Tuple[bool, List[int]]:
     """Rewrite one file; answer whether it changed and the hint-block lines left."""
     text = path.read_text()
     if path.name.endswith(".viba.md"):
-        fixed, skipped = fix_markdown_report(text)
+        fixed, skipped = fix_markdown_report(text, present_big_picture_first)
     else:
         fixed, skipped = _fix_source_report(text)
     if fixed != text:
@@ -1289,9 +1709,9 @@ def fix_file_report(path: Path) -> Tuple[bool, List[int]]:
     return False, skipped
 
 
-def fix_file(path: Path) -> bool:
+def fix_file(path: Path, present_big_picture_first: bool = True) -> bool:
     """Rewrite one file; answer whether it changed."""
-    return fix_file_report(path)[0]
+    return fix_file_report(path, present_big_picture_first)[0]
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -1306,18 +1726,44 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="a path prefix to leave alone (repeatable)")
     parser.add_argument("--no-default-excludes", action="store_true",
                         help="also read the generated corpora and the fixtures")
+    parser.add_argument("--disable-document-code-block-num-assignments-le-one",
+                        action="store_true",
+                        help="a `.viba.md` code block may hold more than one "
+                             "assignment (one at most is the default)")
+    parser.add_argument("--split-imports-and-assignments",
+                        dest="split_imports_and_assignments",
+                        action="store_true", default=True,
+                        help="a `.viba.md` block holds either imports or an "
+                             "assignment, not both (default)")
+    parser.add_argument("--no-split-imports-and-assignments",
+                        dest="split_imports_and_assignments",
+                        action="store_false",
+                        help="a block may hold imports and an assignment")
+    parser.add_argument("--present-big-picture-first", action="store_true",
+                        default=True,
+                        help="a `.viba.md` definition stands before the "
+                             "definitions it uses (default)")
+    parser.add_argument("--no-present-big-picture-first",
+                        dest="present_big_picture_first",
+                        action="store_false",
+                        help="the definitions need not be in that order")
     args = parser.parse_args(argv)
     excludes = ([] if args.no_default_excludes
                 else list(DEFAULT_EXCLUDES)) + args.exclude
     if args.fix:
         for path in _files(args.paths, excludes):
-            changed, skipped = fix_file_report(path)
+            changed, skipped = fix_file_report(path,
+                                               args.present_big_picture_first)
             if changed:
                 print(f"fixed {path}")
             for line in skipped:
                 print(f"skipped {path}:{line} (hint block)")
-    violations = sorted(lint_paths(args.paths, excludes),
-                        key=lambda v: (v.path, v.line, v.column, v.rule))
+    violations = sorted(
+        lint_paths(args.paths, excludes,
+                   not args.disable_document_code_block_num_assignments_le_one,
+                   args.split_imports_and_assignments,
+                   args.present_big_picture_first),
+        key=lambda v: (v.path, v.line, v.column, v.rule))
     for violation in violations:
         print(f"{violation.path}:{violation.line}:{violation.column}: "
               f"{violation.rule}: {violation.message}")
