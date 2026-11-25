@@ -1,0 +1,8 @@
+encode_text =
+     T.TextCondition
+  <- $request T.Request
+  <- { 编码请求中的文本 }
+  <- (
+    LTX.prompt_encoder
+  | MAGI.get_txt_embeddings
+  | SN.t2i_prefix_forward )

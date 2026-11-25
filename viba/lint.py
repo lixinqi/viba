@@ -27,7 +27,8 @@ four operators on a line shorter than 50 characters may stay on that line.
 A compound type expression in parentheses folds too: `$foo ($bar int * $nice
 str)` becomes a block, its base two spaces past the line that opened it; an
 exponent's result and a partial application's function sit three spaces past
-`<-` / `<<`. A pure tag chain (`$foo ($bar ($foobar int))`) stays on one line,
+`<-` / `<<`, and the closing `)` stands on a line of its own in the base column.
+A pure tag chain (`$foo ($bar ($foobar int))`) stays on one line,
 and so does a short sum (`(int | nil)`); a short sum folded into a block is
 reported (`expression-unfold`) and the fixer puts it back on one line.
 
@@ -283,16 +284,22 @@ def _first_token(text: str) -> str:
 
 def _check_chain_indent(lines: Sequence[_Line], path: str) -> List[Violation]:
     found: List[Violation] = []
-    blocks = _folded_blocks(lines)
+    documented = _documentation_mask([line.text for line in lines])
+    blocks = [block for block in _folded_blocks(lines)
+              if not any(documented[block[0]:block[2] + 1])]
     for code in _code_lines(lines):
+        if documented[code.index]:
+            continue                        # a hint's example is prose
         token = _first_token(code.stripped)
         if token not in OPERATORS:
             continue
-        base = 0
-        for open_index, block_base, close_index in blocks:
-            if open_index < code.index < close_index and block_base > base:
-                base = block_base
-        expected = base + INDENT
+        owner = None
+        for block in blocks:
+            if block[0] < code.index <= block[2]:
+                if owner is None or block[0] > owner[0]:
+                    owner = block
+        expected = INDENT if owner is None else _block_columns(
+            lines, owner[0], owner[1], owner[2])[0]
         if code.indent != expected:
             found.append(Violation(
                 path, code.number, code.indent + 1, "chain-indent",
@@ -710,8 +717,8 @@ def _fix_statement_prefixes(lines: Sequence[_Line],
         if code is head:
             column = head_column
         elif _first_token(code.stripped) in OPERATORS:
-            inside = any(open_index < code.index < close_index
-                         for open_index, _base, close_index in blocks)
+            inside = any(open_index < code.index <= close_index
+                         for open_index, _base, close_index, _close_col in blocks)
             if inside:
                 continue
             column = INDENT
@@ -781,24 +788,54 @@ def _expression_base(text: str) -> int:
     return i
 
 
-def _folded_blocks(lines: Sequence[_Line]) -> List[Tuple[int, int, int]]:
-    """(opening line index, base, closing line index) for folded expressions."""
-    blocks: List[Tuple[int, int, int]] = []
-    stack: List[Tuple[int, int]] = []
+def _folded_blocks(lines: Sequence[_Line]) -> List[Tuple[int, int, int, int]]:
+    """(opening line index, base, closing line index, the closing `)` column).
+
+    A block is an expression whose `(` ends a line. The `)` may sit on a line of
+    its own or trail the last member (`| nil)`); both are the same block, and the
+    second is reported so the fixer can put the `)` on its own line.
+    """
+    blocks: List[Tuple[int, int, int, int]] = []
+    stack: List[Tuple[int, int, int]] = []    # (line, base, depth before its `(`)
+    depth = 0
     for index, line in enumerate(lines):
         code, _comment, opened = _scan_line(line.text)
         if opened is not None:
             continue
-        code = code.rstrip()
-        stripped = code.strip()
-        if stack and stripped.startswith(")"):
-            open_index, base = stack.pop()
-            blocks.append((open_index, base, index))
-            continue
-        if code.endswith("("):
-            base = _expression_base(line.text)
-            stack.append((index, base))
+        for column, char in enumerate(code):
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if stack and depth == stack[-1][2]:
+                    open_index, base, _before = stack.pop()
+                    blocks.append((open_index, base, index, column))
+        if code.rstrip().endswith("("):
+            stack.append((index, _expression_base(line.text), depth - 1))
     return blocks
+
+
+def _block_columns(lines: Sequence[_Line], open_index: int, base: int,
+                   close_index: int) -> Tuple[int, int, int]:
+    """(member column, head column, closing column) for a folded expression block.
+
+    A block opened right after a chain operator — `<- (`, `* (` — and holding a
+    sum or product puts its `|` / `*` in that operator's type column, the column
+    of the `$name` tags, so the block lines up with the chain it belongs to; the
+    head is two past and the `)` closes in the same column. Other blocks keep
+    the base's columns: the head four (five for `<-` / `<<`) past the base, the
+    members two, the `)` at the base.
+    """
+    member_lines = [line for line in lines[open_index + 1:close_index + 1]]
+    tokens = {_first_token(_scan_line(line.text)[0].strip())
+              for line in member_lines}
+    is_product = bool(tokens & {"|", "*"})
+    opening = _scan_line(lines[open_index].text)[0].rstrip()
+    before = opening[:-1].strip() if opening.endswith("(") else ""
+    if before in ("<-", "<<", "*", "|") and is_product:
+        column = _expression_base(lines[open_index].text)
+        return column, column + INDENT, column
+    return base + INDENT, base + (4 if is_product else 5), base
 
 
 def _paren_pairs(text: str) -> List[Tuple[int, int, str]]:
@@ -873,7 +910,7 @@ def _documentation_mask(lines: Sequence[str]) -> List[bool]:
 
 
 def _collapsed_short_sum(lines: Sequence[_Line], open_index: int,
-                         close_index: int) -> Optional[str]:
+                         close_index: int, close_col: int) -> Optional[str]:
     """The one line a folded short sum expression becomes, or None.
 
     Only a plain sum goes back on one line — a `Oneof` head, `|` member lines,
@@ -887,7 +924,15 @@ def _collapsed_short_sum(lines: Sequence[_Line], open_index: int,
     opening = opening.rstrip()
     if not opening.endswith("("):
         return None
-    inner = lines[open_index + 1:close_index]
+    closing, close_comment, close_quote = _scan_line(lines[close_index].text)
+    if close_comment or close_quote is not None:
+        return None
+    closing = closing.rstrip()
+    before = closing[:close_col].rstrip()
+    suffix = closing[close_col + 1:].rstrip()
+    inner = list(lines[open_index + 1:close_index])
+    if before.strip():
+        inner.append(_Line(before, lines[close_index].number))
     if not inner:
         return None
     head, head_comment, head_quote = _scan_line(inner[0].text)
@@ -903,14 +948,8 @@ def _collapsed_short_sum(lines: Sequence[_Line], open_index: int,
         members.append(stripped[2:])
     if not members:
         return None
-    closing, close_comment, close_quote = _scan_line(lines[close_index].text)
-    if close_comment or close_quote is not None:
-        return None
-    closing = closing.strip()
-    if not closing.startswith(")"):
-        return None
     joined = " | ".join(members)
-    collapsed = opening[:-1] + "(" + joined + ")" + closing[1:]
+    collapsed = opening[:-1] + "(" + joined + ")" + suffix
     if not _short_chain("sum", joined, collapsed):
         return None
     return collapsed
@@ -921,14 +960,92 @@ def _unfold_short_sums(lines: Sequence[str]) -> Optional[List[str]]:
     texts = list(lines)
     documented = _documentation_mask(texts)
     wrapped = [_Line(text, index + 1) for index, text in enumerate(texts)]
-    for open_index, _base, close_index in _folded_blocks(wrapped):
+    for open_index, _base, close_index, close_col in _folded_blocks(wrapped):
         if any(documented[open_index:close_index + 1]):
             continue
-        collapsed = _collapsed_short_sum(wrapped, open_index, close_index)
+        collapsed = _collapsed_short_sum(wrapped, open_index, close_index,
+                                         close_col)
         if collapsed is not None:
             return (list(lines[:open_index]) + [collapsed]
                     + list(lines[close_index + 1:]))
     return None
+
+
+def _reindented_lines(lines: Sequence[_Line], open_index: int, base: int,
+                      close_index: int, close_col: int) -> Optional[List[str]]:
+    """The lines a folded expression block becomes, or None when it is already
+    right or cannot be put right (a comment inside, a nested block, no head).
+
+    The head shares the column four past the base (`<-` / `<<` blocks five), the
+    members two, and the `)` stands on a line of its own in the base column.
+    """
+    opening, comment, quote = _scan_line(lines[open_index].text)
+    if comment or quote is not None or not opening.rstrip().endswith("("):
+        return None
+    closing, close_comment, close_quote = _scan_line(lines[close_index].text)
+    if close_comment or close_quote is not None:
+        return None
+    closing = closing.rstrip()
+    before = closing[:close_col].rstrip()
+    suffix = closing[close_col + 1:].rstrip()
+    inner = list(lines[open_index + 1:close_index])
+    if before.strip():
+        inner.append(_Line(before, lines[close_index].number))
+    if not inner:
+        return None
+    head_code, head_comment, head_quote = _scan_line(inner[0].text)
+    head = head_code.strip()
+    if head_comment or head_quote is not None or not head:
+        return None
+    if _first_token(head) in OPERATORS:
+        return None                     # the head is no head: a member first
+    members = []
+    tokens = set()
+    for line in inner[1:]:
+        code, code_comment, code_quote = _scan_line(line.text)
+        stripped = code.strip()
+        token = _first_token(stripped)
+        if (code_comment or code_quote is not None
+                or token not in OPERATORS):
+            return None
+        members.append(stripped)
+        tokens.add(token)
+    if not members:
+        return None
+    if not tokens <= {"|", "*"} and not tokens <= {"<-", "<<"}:
+        return None
+    member_column, head_column, closing_column = _block_columns(
+        lines, open_index, base, close_index)
+    if (len(inner[0].text) - len(inner[0].text.lstrip(" ")) == head_column
+            and all(len(line.text) - len(line.text.lstrip(" ")) == member_column
+                    for line in inner[1:])
+            and not before.strip()
+            and close_col == closing_column):
+        return None                     # already the block the rules ask for
+    return ([" " * head_column + head]
+            + [" " * member_column + member for member in members]
+            + [" " * closing_column + ")" + suffix])
+
+
+def _reindent_expression_blocks(lines: Sequence[str]) -> List[str]:
+    """The same lines, with every folded expression block in its columns."""
+    out = list(lines)
+    for _ in range(32):
+        wrapped = [_Line(text, index + 1) for index, text in enumerate(out)]
+        documented = _documentation_mask(out)
+        changed = False
+        for open_index, base, close_index, close_col in _folded_blocks(wrapped):
+            if any(documented[open_index:close_index + 1]):
+                continue
+            block = _reindented_lines(wrapped, open_index, base, close_index, close_col)
+            if block is None:
+                continue
+            out[open_index + 1:close_index + 1] = block
+            changed = True
+            break
+        if not changed:
+            break
+    return out
 
 
 def _check_expression_folds(lines: Sequence[_Line], path: str) -> List[Violation]:
@@ -947,35 +1064,35 @@ def _check_expression_folds(lines: Sequence[_Line], path: str) -> List[Violation
             found.append(Violation(
                 path, code.number, open_col + 1, "expression-fold",
                 "a compound type expression in parentheses must fold"))
-    for open_index, base, close_index in _folded_blocks(lines):
+    documented = _documentation_mask([line.text for line in lines])
+    for open_index, base, close_index, _close_col in _folded_blocks(lines):
+        if any(documented[open_index:close_index + 1]):
+            continue
         inner = [code for code in code_lines
-                 if open_index < code.index < close_index]
+                 if open_index < code.index <= close_index]
         if not inner:
             continue
         head = inner[0]
-        tokens = {_first_token(code.stripped) for code in inner[1:]}
-        is_product = bool(tokens & {"|", "*"})
-        head_expected = base + 4 if is_product else base + 5
-        operators = ("|", "*") if is_product else ("<-", "<<")
-        if head.indent != head_expected:
+        member_column, head_column, closing_column = _block_columns(
+            lines, open_index, base, close_index)
+        if head.indent != head_column:
             found.append(Violation(
                 path, head.number, head.indent + 1, "expression-fold",
-                f"the expression's head must be in column {head_expected + 1}"))
-        for code in inner[1:]:
-            token = _first_token(code.stripped)
-            if token not in operators or code.indent != base + INDENT:
-                continue
+                f"the expression's head must be in column {head_column + 1}"))
         closing = lines[close_index]
         text = _scan_line(closing.text)[0].rstrip()
-        if len(text) - len(text.lstrip(" ")) != base:
+        stripped = text.lstrip(" ")
+        if (not stripped.startswith(")")
+                or len(text) - len(stripped) != closing_column):
             found.append(Violation(
                 path, closing.number, 1, "expression-fold",
-                "the closing `)` must be in the expression's base column"))
-    documented = _documentation_mask([line.text for line in lines])
-    for open_index, _base, close_index in _folded_blocks(lines):
+                f"the closing `)` must be in column {closing_column + 1}, "
+                "on a line of its own"))
+    for open_index, _base, close_index, close_col in _folded_blocks(lines):
         if any(documented[open_index:close_index + 1]):
             continue
-        collapsed = _collapsed_short_sum(lines, open_index, close_index)
+        collapsed = _collapsed_short_sum(lines, open_index, close_index,
+                                         close_col)
         if collapsed is not None:
             opening = _scan_line(lines[open_index].text)[0].rstrip()
             found.append(Violation(
@@ -1113,7 +1230,8 @@ def _fix_source_report(source: str, path: str = "<source>") -> Tuple[str, List[i
     fixed = "\n".join(out)
     trailing = "\n" if source.endswith("\n") else ""
     for _ in range(8):
-        folded = _fold_expressions(fixed.splitlines())
+        reindented = _reindent_expression_blocks(fixed.splitlines())
+        folded = _fold_expressions(reindented)
         updated = "\n".join(folded) + trailing
         if updated == fixed:
             break

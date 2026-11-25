@@ -59,6 +59,20 @@ def run() -> None:
           "the one-line short sums have no violations")
     check("expression-unfold" not in rules_of("short_sum_expression.viba"),
           "a one-line sum expression is not reported")
+    for name in ("misindented_expression_sum.viba", "misindented_expression.viba"):
+        check("expression-fold" in rules_of(name),
+              f"a folded expression in the wrong columns is reported: {name}")
+        laid_out = fixed(name)
+        check(lint_source(laid_out, "fixed.viba") == [],
+              f"the fixer lays out the expression block: {name}")
+        check(fix_source(laid_out, "fixed.viba") == laid_out,
+              f"the laid-out expression block is a fixed point: {name}")
+    misindented_sum = fixed("misindented_expression_sum.viba")
+    check("       LTX.prompt_encoder\n"
+          "     | MAGI.get_txt_embeddings\n"
+          "     | SN.t2i_prefix_forward\n"
+          "     )\n" in misindented_sum,
+          "a block opened after `<- (` lines up with the chain's `$name` column")
     check("sum-head" in rules_of("field_head_sum.viba"),
           "a sum whose first line is not Oneof is reported")
     check("sum-head" in rules_of("misaligned_oneof.viba"),
