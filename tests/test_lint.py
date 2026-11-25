@@ -113,6 +113,28 @@ def run() -> None:
     check("partial-function" in rules_of("partial_function.viba"),
           "a partial application's function must share the arguments' column")
 
+    check("statement-fold" in rules_of("inline_chain.viba"),
+          "a chain with several operators on one line must fold")
+    check([violation.line for violation in lint_file(CASES / "inline_chain.viba")]
+          == [3], "the chain diagnostic is on the line that holds them")
+    folded_chain = fixed("inline_chain.viba")
+    check(lint_source(folded_chain, "fixed.viba") == [],
+          "the fixer folds the chain one operator per line")
+    check(folded_chain.count("  << ") == 5,
+          "each argument of the chain stands on its own line")
+    check(fix_source(folded_chain, "fixed.viba") == folded_chain,
+          "the folded chain is a fixed point")
+    short_chain = "A =\n     int\n  <- $env Env <- $x int\n"
+    check(lint_source(short_chain) == [],
+          "a short chain may stay on one line")
+    check(fix_source(short_chain) == short_chain,
+          "the fixer leaves a short chain alone")
+    long_sum = "A =\n    Oneof\n  | a | b | c | d\n"
+    check("statement-fold" in [violation.rule
+                               for violation in lint_source(long_sum)],
+          "a long sum written on one line must fold")
+    check(lint_source(fix_source(long_sum)) == [],
+          "the fixer folds the sum one branch per line")
     check("field-comments" in rules_of("field_comments.viba"),
           "field comments must share a column")
     check("field-comments" not in rules_of("good.viba"),

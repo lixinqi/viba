@@ -79,6 +79,8 @@ OPERATORS = ("|", "*", "<-", "<<")
 # line: `(int | nil)` is a sum of two, not a block to fold.
 SHORT_CHAIN_OPERATORS = 4
 SHORT_CHAIN_CHARS = 50
+CHAIN_OPERATOR_BY_KIND = {"sum": "|", "product": "*",
+                          "exponent": "<-", "partial": "<<"}
 SHORT_CHAIN_OPERATOR_BY_KIND = {"sum": "|", "exponent": "<-", "partial": "<<"}
 
 # The generated pattern corpora and the test fixtures are not designs to lint.
@@ -437,6 +439,7 @@ def _lint_lines(lines: Sequence[_Line], path: str) -> List[Violation]:
                           f"cannot parse: {exc.msg}")]
     found: List[Violation] = _check_chain_indent(lines, path)
     found.extend(_check_expression_folds(lines, path))
+    documented = _documentation_mask([line.text for line in lines])
     for statement in _statements(lines):
         block = lines[statement.start:statement.end]
         kind = _statement_kind(block)
@@ -449,6 +452,13 @@ def _lint_lines(lines: Sequence[_Line], path: str) -> List[Violation]:
                 found.append(Violation(
                     path, start_line, 1, "statement-fold",
                     "a type statement must fold; only a type expression may stay on one line"))
+        if kind in CHAIN_OPERATOR_BY_KIND and statement.inline is None:
+            for code in _chain_fold_codes(kind, body):
+                if documented[code.index]:
+                    continue            # a hint's example is prose
+                found.append(Violation(
+                    path, code.number, code.indent + 1, "statement-fold",
+                    "the chain must fold: one operator per line"))
         if kind == "sum":
             found.extend(_check_sum(statement, body, path, start_line))
         elif kind == "product":
@@ -832,16 +842,15 @@ def check_document(source: str, path: str = "<markdown>",
     """
     found: List[Violation] = []
     headings, blocks = _document_blocks(source)
-    if len(headings) != 1:
+    if not headings:
         found.append(Violation(
-            path, headings[0][0] if headings else 1, 1, "document-title",
-            "a document has one first-level heading, the viba file it describes"))
-    else:
-        number, name = headings[0]
+            path, 1, 1, "document-title",
+            "a document names its viba file in a first-level heading"))
+    for number, name in headings:
         if not _code_name(name).endswith(".viba"):
             found.append(Violation(
                 path, number, 1, "document-title",
-                "the first-level heading is the viba file's path name "
+                "a first-level heading is the viba file's path name "
                 "(ending `.viba`)"))
     for heading, block in blocks:
         equals, imports = _top_level(block)
@@ -1037,16 +1046,52 @@ def _inline_elements(kind: str, inline: str):
     return None
 
 
-def _block_elements(kind: str, body: Sequence[_Code]):
-    """(head, head comment, [(content, comment)]) for a block body, or None."""
+def _chain_fold_codes(kind: str, body: Sequence[_Code]) -> List[_Code]:
+    """The body lines holding more than one operator, which must fold."""
+    operator = CHAIN_OPERATOR_BY_KIND.get(kind)
+    if operator is None:
+        return []
+    counts = [(code, len(_split_top_level(code.stripped, operator)) - 1)
+              for code in body]
+    total = sum(count for _code, count in counts)
+    if total < 2:
+        return []
+    fold: List[_Code] = []
+    for code, count in counts:
+        if count < 2:
+            continue
+        if count == total and _short_chain(kind, code.text, code.text):
+            continue
+        fold.append(code)
+    return fold
+
+
+def _block_elements(kind: str, body: Sequence[_Code], folded=()):
+    """(head, head comment, [(content, comment)]) for a block body, or None.
+
+    The lines in `folded` hold several operators of the chain; each operator
+    becomes a member of its own.
+    """
+    split = {code.index for code in folded}
+
+    def member_parts(code: _Code, operator: str):
+        if code.index not in split:
+            return [(_member_content(code, operator), code.comment)]
+        parts = [part for part in _split_top_level(code.stripped, operator)]
+        parts = [part for part in parts if part]
+        return [(part, code.comment if position == len(parts) - 1 else "")
+                for position, part in enumerate(parts)]
+
     head = body[0]
     if kind == "sum":
         if head.stripped == "Oneof":
-            members = [(_member_content(code, "|"), code.comment)
-                       for code in body[1:]]
+            members = [item for code in body[1:] for item in member_parts(code, "|")]
             return "Oneof", head.comment, members
-        members = [(head.stripped, head.comment)]
-        members += [(_member_content(code, "|"), code.comment) for code in body[1:]]
+        if head.index in split:
+            members = member_parts(head, "|")
+        else:
+            members = [(head.stripped, head.comment)]
+        members += [item for code in body[1:] for item in member_parts(code, "|")]
         return "Oneof", "", members
     if kind == "product":
         parts = _split_top_level(head.stripped, "*")
@@ -1056,7 +1101,7 @@ def _block_elements(kind: str, body: Sequence[_Code]):
             members += [(part, "") for part in parts[1:]]
         else:
             head_text = head.stripped
-        members += [(_member_content(code, "*"), code.comment) for code in body[1:]]
+        members += [item for code in body[1:] for item in member_parts(code, "*")]
         if head_text.startswith("$"):
             members = [(head_text, head.comment)] + members
             return "Object", "", members
@@ -1069,8 +1114,7 @@ def _block_elements(kind: str, body: Sequence[_Code]):
         members += [(part, "") for part in parts[1:]]
     else:
         result = head.stripped
-    members += [(_member_content(code, operator), code.comment)
-                for code in body[1:]]
+    members += [item for code in body[1:] for item in member_parts(code, operator)]
     return result, head.comment, members
 
 
@@ -1176,7 +1220,7 @@ def _fix_statement(lines: Sequence[_Line], statement: _Statement) -> Optional[Li
     if any(line.text.strip().startswith("#")
            for line in lines[statement.start + 1:first]):
         return None
-    elements = _block_elements(kind, body)
+    elements = _block_elements(kind, body, _chain_fold_codes(kind, body))
     if elements is None:
         return None
     head, head_comment, members = elements

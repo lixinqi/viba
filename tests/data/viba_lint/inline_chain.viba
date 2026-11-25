@@ -1,0 +1,3 @@
+flow_prediction =
+     torch.Tensor
+  << a.predict << $state flow_state << $text flow_text << $sampler args.sampler << $guidance args.guidance

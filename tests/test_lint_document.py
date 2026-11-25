@@ -41,6 +41,12 @@ def run() -> None:
           "a first-level heading that is not a `.viba` path is reported")
     check(violations_of("bad_title.viba.md")[0].line == 1,
           "the title diagnostic is on the heading's line")
+    two_titles = ("# a.viba\n\n# b.viba\n\n## `A`\n\n"
+                  "```viba\nA = int\n```\n")
+    check(check_document(two_titles) == [],
+          "a document may have several first-level headings")
+    check([v.rule for v in check_document("## `x`\n")] == ["document-title"],
+          "a document without a first-level heading is reported")
     check(rules_of("bad_equals.viba.md") == ["document-assignments"],
           "a block with two assignments is reported")
     check(violations_of("bad_equals.viba.md")[0].line == 7,
