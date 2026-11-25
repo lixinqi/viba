@@ -38,8 +38,9 @@ Both `.viba` files and the `viba` sections of `.viba.md` documents are linted;
 in a document a diagnostic points at the document's own line. A `.viba.md` file
 is viba code in its own written form, so it is also checked for the structure
 that form asks for (`document-title`, `document-assignments`, `document-type-name`,
-`document-field`, `document-imports`, `document-order`). The order rule is
-fixed by moving sections; the rest are check only and stay reported.
+`document-field`, `document-imports`, `document-order`, `document-backticks`).
+The order rule is fixed by moving sections; the rest are check only and stay
+reported.
 
     python -m viba.lint viba tests
     python -m viba.lint --help
@@ -541,7 +542,7 @@ def _document_blocks(source: str):
     A heading is `(line, text)`; a block is `[(text, line), ...]`. Only `viba`
     fenced blocks count; the prose and the other blocks are not looked at.
     """
-    headings: List[Tuple[int, str]] = []
+    headings: List[Tuple[int, int, str]] = []
     blocks: List[Tuple[Optional[Tuple[int, str]], List[Tuple[str, int]]]] = []
     heading: Optional[Tuple[int, str]] = None
     fence = None
@@ -565,9 +566,9 @@ def _document_blocks(source: str):
         matched = _HEADING.match(text)
         if matched is not None:
             name = (matched.group(2) or "").strip()
+            level = len(matched.group(1))
             heading = (number, name)
-            if len(matched.group(1)) == 1:
-                headings.append(heading)
+            headings.append((number, level, name))
     return headings, blocks
 
 
@@ -644,6 +645,43 @@ def _field_line(block: Sequence[Tuple[str, int]], tag: str) -> Optional[int]:
         if pattern.search(text):
             return number
     return None
+
+
+def _code_spans(text: str) -> List[Tuple[int, int]]:
+    """(start, end) of the code spans a heading holds, backticks included."""
+    spans: List[Tuple[int, int]] = []
+    index = 0
+    while index < len(text):
+        if text[index] == "`":
+            end = text.find("`", index + 1)
+            if end < 0:
+                break
+            spans.append((index, end + 1))
+            index = end + 1
+        else:
+            index += 1
+    return spans
+
+
+def _bare_in(text: str, name: str) -> bool:
+    """Whether `name` stands in the heading outside its code spans."""
+    pattern = re.compile(r"(?<![A-Za-z0-9_$.])" + re.escape(name)
+                         + r"(?![A-Za-z0-9_$.])")
+    spans = _code_spans(text)
+    for match in pattern.finditer(text):
+        if not any(start <= match.start() < end for start, end in spans):
+            return True
+    return False
+
+
+def _bare_file_names(text: str) -> List[str]:
+    """The viba file names written in the heading outside its code spans."""
+    found: List[str] = []
+    spans = _code_spans(text)
+    for match in re.finditer(r"[A-Za-z0-9_./-]+\.viba(?!\w)", text):
+        if not any(start <= match.start() < end for start, end in spans):
+            found.append(match.group(0))
+    return found
 
 
 def _document_definitions(blocks) -> List[Tuple[str, int, Set[str]]]:
@@ -829,7 +867,8 @@ def check_document(source: str, path: str = "<markdown>",
     one `=` at most; the name on the left of `=` is part of the heading above
     the block; a field is written `$name ($field_type * { comment })`; an import
     and an assignment keep out of one block; a definition stands before the
-    definitions it uses.
+    definitions it uses; a name the block uses is written in backticks in the
+    heading, and so is a viba file name.
 
     `one_assignment` is the switch for the middle two: a block as one assignment
     under a heading that names it. It is on by default; a document written as a
@@ -842,16 +881,22 @@ def check_document(source: str, path: str = "<markdown>",
     """
     found: List[Violation] = []
     headings, blocks = _document_blocks(source)
-    if not headings:
+    first = [(number, name) for number, level, name in headings if level == 1]
+    second = [(number, name) for number, level, name in headings if level == 2]
+    if not first:
         found.append(Violation(
             path, 1, 1, "document-title",
             "a document names its viba file in a first-level heading"))
-    for number, name in headings:
-        if not _code_name(name).endswith(".viba"):
-            found.append(Violation(
-                path, number, 1, "document-title",
-                "a first-level heading is the viba file's path name "
-                "(ending `.viba`)"))
+    elif all(_code_name(name).endswith(".viba") for _number, name in first):
+        pass                                # a heading per file, each a path
+    else:
+        for number, name in second:         # a title over the files
+            if not _code_name(name).endswith(".viba"):
+                found.append(Violation(
+                    path, number, 1, "document-title",
+                    "with a title above, a second-level heading is the viba "
+                    "file's path name (ending `.viba`)"))
+    heading_names: dict = {}
     for heading, block in blocks:
         equals, imports = _top_level(block)
         if one_assignment and len(equals) > 1:
@@ -883,6 +928,19 @@ def check_document(source: str, path: str = "<markdown>",
             tree = viba_ast.parse(code)
         except SyntaxError:
             continue                    # the layout lint reports the parse error
+        names = set()
+        for statement in tree.body:
+            if not isinstance(statement, (TypeDefinition, GenericDefinition)):
+                continue
+            names.add(statement.name)
+            names |= set(getattr(statement, "generic_params", ()) or ())
+            for node in viba_ast.walk(statement.body):
+                if isinstance(node, TypeRef):
+                    names.add(node.name)
+                elif isinstance(node, Tagged):
+                    names.add(node.tag)
+        if heading is not None:
+            heading_names.setdefault(heading, set()).update(names)
         for field in _product_fields(tree):
             if _field_documented(field):
                 continue
@@ -892,6 +950,17 @@ def check_document(source: str, path: str = "<markdown>",
                 path, line, 1, "document-field",
                 f"the field {field.tag} is written "
                 f"`$name ($field_type * {{ comment }})`"))
+    for (number, text), names in heading_names.items():
+        for name in sorted(names):
+            if _bare_in(text, name):
+                found.append(Violation(
+                    path, number, 1, "document-backticks",
+                    f"the name {name!r} is written in backticks in the heading"))
+    for number, _level, text in headings:
+        for name in _bare_file_names(text):
+            found.append(Violation(
+                path, number, 1, "document-backticks",
+                f"the viba file name {name!r} is written in backticks in the heading"))
     if present_big_picture_first:
         definitions = _document_definitions(blocks)
         lines_of = {}

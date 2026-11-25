@@ -147,8 +147,8 @@ def run() -> None:
     check([(violation.rule, violation.line) for violation in document
            if violation.rule == "statement-fold"] == [("statement-fold", 6)],
           f"a document's diagnostic points at its own line: {document!r}")
-    check(any(violation.rule == "document-title" for violation in document),
-          "a `.viba.md` file is checked for its structure by its extension")
+    check(not any(violation.rule == "document-title" for violation in document),
+          "a title heading over `.viba` sections is accepted")
 
     found = lint_paths([str(CASES)])
     check(any(v.path.endswith("long_sum.viba") and v.rule == "statement-fold"

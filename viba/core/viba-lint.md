@@ -106,7 +106,9 @@ python -m viba.lint --fix viba tests
 文字和标题是它的说明。`viba_lint` 按扩展名自动认它——代码块照上面那套版式检查，另外查这份写法
 自己的六条结构：
 
-1. **一级标题是 viba 文件的路径名**，以 `.viba` 结尾；文档可以有好几个一级标题，一个文件一个。
+1. **标题有两种写法**：要么每个一级标题都是 viba 文件的路径名（以 `.viba` 结尾，可以有好几个，
+   一个文件一个）；要么一级标题不是路径名（文字随意，中文标题也行，也可以有好几个），这时
+   所有二级标题都必须是 `.viba` 路径名。
 2. **每个 `viba` 围栏块最多一次赋值（一个 `=`）**：`=` 在提示块、字符串、注释里不算；
    `import` 没有 `=`，不算赋值，几条 import 可以写在一个块里。
 3. **`=` 左边的类型名是它上面那个标题的一部分**；标题几级都行，`##`、`###` 一样。
@@ -115,10 +117,12 @@ python -m viba.lint --fix viba tests
 5. **import 和赋值不放在一个块里**：import 几条可以写在一起，但和一个 `=` 不同块。
 6. **大概念先呈现**：一份文档里，定义排在它用到的定义前面；`|`、`*`、`<-` 里引用到的、同一份
    文档里定义的名字都算。fix 把整节（标题 + 说明 + 代码块）挪到正确位置；成环的顺序改不了，只报。
+7. **标题里的名字用反引号包着**：标题里出现的 viba 文件名一律写成代码（`` `a.viba` ``）；标题里
+   提到的 viba 代码块用到的名字（定义名、类型名、tag），也都要包在反引号里。
 
 前五条只有检查，没有 `--fix`；第 6 条有 fix（挪整节）。`--fix` 还会照旧改代码的版式，改不了的
 照常报出来。规则名分别是 `document-title`、`document-assignments`、`document-type-name`、
-`document-field`、`document-imports`、`document-order`。
+`document-field`、`document-imports`、`document-order`、`document-backticks`。
 第 2、3 条是一个开关 `--document-code-block-num-assignments-le-one`，默认开着；一份文档本来就是
 一个块里写好几份赋值、标题只是个文件名的，用 `--no-document-code-block-num-assignments-le-one`
 关掉它，`document-title` 和 `document-field` 照查。第 5 条也有开关 `--split-imports-and-assignments`，默认开着；要允许 import 和赋值同块，用

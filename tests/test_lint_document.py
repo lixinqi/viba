@@ -39,14 +39,39 @@ def run() -> None:
           "a document that follows the rules has no violations")
     check(rules_of("bad_title.viba.md") == ["document-title"],
           "a first-level heading that is not a `.viba` path is reported")
-    check(violations_of("bad_title.viba.md")[0].line == 1,
-          "the title diagnostic is on the heading's line")
-    two_titles = ("# a.viba\n\n# b.viba\n\n## `A`\n\n"
+    check(violations_of("bad_title.viba.md")[0].line == 5,
+          "the title diagnostic is on the second-level heading's line")
+    two_titles = ("# `a.viba`\n\n# `b.viba`\n\n## `A`\n\n"
                   "```viba\nA = int\n```\n")
     check(check_document(two_titles) == [],
           "a document may have several first-level headings")
+    titled = ("# 四仓库\n\n## `a.viba`\n\n### `A`\n\n"
+              "```viba\nA = int\n```\n\n## `b.viba`\n\n### `B`\n\n"
+              "```viba\nB = int\n```\n")
+    check(check_document(titled) == [],
+          "one title over `.viba` second-level headings is accepted")
+    several_titles = ("# 四仓库\n\n## `a.viba`\n\n### `A`\n\n"
+                      "```viba\nA = int\n```\n\n# 附注\n\n## `b.viba`\n\n"
+                      "### `B`\n\n```viba\nB = int\n```\n")
+    check(check_document(several_titles) == [],
+          "several title headings over `.viba` second-level headings are accepted")
+    titled_bad = ("# 四仓库\n\n## `a.viba`\n\n### `A`\n\n"
+                  "```viba\nA = int\n```\n\n## 说明\n\n一段说明。\n")
+    check([(v.rule, v.line) for v in check_document(titled_bad)]
+          == [("document-title", 11)],
+          "under a single title, a second-level heading that is no path is reported")
     check([v.rule for v in check_document("## `x`\n")] == ["document-title"],
           "a document without a first-level heading is reported")
+    bare_name = "# `a.viba`\n\n## A\n\n```viba\nA = B\n```\n"
+    check([(v.rule, v.line) for v in check_document(bare_name)]
+          == [("document-backticks", 3)],
+          "a heading that names the definition without backticks is reported")
+    bare_file = "# a.viba\n\n## `A`\n\n```viba\nA = int\n```\n"
+    check([(v.rule, v.line) for v in check_document(bare_file)]
+          == [("document-backticks", 1)],
+          "a viba file name without backticks is reported")
+    check(check_document("# `a.viba`\n\n## `A`\n\n```viba\nA = int\n```\n") == [],
+          "a heading whose names are code spans is accepted")
     check(rules_of("bad_equals.viba.md") == ["document-assignments"],
           "a block with two assignments is reported")
     check(violations_of("bad_equals.viba.md")[0].line == 7,
@@ -68,11 +93,11 @@ def run() -> None:
     check([v.rule for v in lint_file(CASES / "bad_name.viba.md",
                                      one_assignment=False)] == [],
           "the switch leaves the heading name alone")
-    split = ("# a.viba\n\n## `Session`\n\n```viba\n"
+    split = ("# `a.viba`\n\n## `Session`\n\n```viba\n"
              "import a.b as b\nimport c.d as d\n```\n\n"
              "```viba\nSession = int\n```\n")
     check(check_document(split) == [], "several imports keep their own block")
-    mixed = ("# a.viba\n\n## `Session`\n\n```viba\n"
+    mixed = ("# `a.viba`\n\n## `Session`\n\n```viba\n"
              "import a.b as b\nSession = int\n```\n")
     check([(v.rule, v.line) for v in check_document(mixed)]
           == [("document-imports", 7)],
@@ -103,7 +128,7 @@ def run() -> None:
           "the big-picture switch turns the check off")
     check(fix_markdown(picture, present_big_picture_first=False) == picture,
           "the switch keeps the fixer from moving the sections")
-    cycle = ("# c.viba\n\n## `A`\n\n```viba\nA = B\n```\n\n"
+    cycle = ("# `c.viba`\n\n## `A`\n\n```viba\nA = B\n```\n\n"
              "## `B`\n\n```viba\nB = A\n```\n")
     check([v.rule for v in check_document(cycle)] == ["document-order"],
           "a cycle is reported")

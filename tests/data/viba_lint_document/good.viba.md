@@ -1,4 +1,4 @@
-# viba_acp/apis.viba
+# `viba_acp/apis.viba`
 
 ## `new_session`
 
@@ -8,7 +8,7 @@ new_session =
   <- $env Env
 ```
 
-### Session
+### `Session`
 
 ```viba
 Session =

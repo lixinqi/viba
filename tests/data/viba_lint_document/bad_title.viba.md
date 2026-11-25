@@ -1,7 +1,9 @@
 # apis
 
-## `new_session`
+# `x.viba`
+
+## `X`
 
 ```viba
-new_session = int
+X = int
 ```
