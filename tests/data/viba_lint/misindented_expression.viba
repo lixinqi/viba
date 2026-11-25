@@ -1,6 +1,8 @@
 A =
     Object
   * $x (
-    F
-  | G
+    AlphaComponent
+  | BetaComponent
+  | GammaComponent
+  | DeltaComponent
   )

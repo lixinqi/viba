@@ -68,11 +68,23 @@ def run() -> None:
         check(fix_source(laid_out, "fixed.viba") == laid_out,
               f"the laid-out expression block is a fixed point: {name}")
     misindented_sum = fixed("misindented_expression_sum.viba")
-    check("       LTX.prompt_encoder\n"
+    check("       Oneof\n"
+          "     | LTX.prompt_encoder\n"
           "     | MAGI.get_txt_embeddings\n"
           "     | SN.t2i_prefix_forward\n"
           "     )\n" in misindented_sum,
           "a block opened after `<- (` lines up with the chain's `$name` column")
+    check("expression-fold" in rules_of("headless_sum_block.viba"),
+          "a folded sum without a `Oneof` head is reported")
+    headless = fixed("headless_sum_block.viba")
+    check("        Oneof\n"
+          "      | AlphaComponent\n"
+          "      | BetaComponent\n" in headless,
+          "the fixer adds the `Oneof` head and makes the first line a `|` member")
+    check(lint_source(headless, "fixed.viba") == [],
+          "the headed sum block has no violations")
+    check(fix_source(headless, "fixed.viba") == headless,
+          "the headed sum block is a fixed point")
     check("sum-head" in rules_of("field_head_sum.viba"),
           "a sum whose first line is not Oneof is reported")
     check("sum-head" in rules_of("misaligned_oneof.viba"),

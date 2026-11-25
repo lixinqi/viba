@@ -30,7 +30,9 @@ exponent's result and a partial application's function sit three spaces past
 `<-` / `<<`, and the closing `)` stands on a line of its own in the base column.
 A pure tag chain (`$foo ($bar ($foobar int))`) stays on one line,
 and so does a short sum (`(int | nil)`); a short sum folded into a block is
-reported (`expression-unfold`) and the fixer puts it back on one line.
+reported (`expression-unfold`) and the fixer puts it back on one line. A folded
+sum is led by `Oneof`, its first branch a `|` member, and a misindented block is
+put back in its columns; the `)` stands on a line of its own.
 
 Both `.viba` files and the `viba` sections of `.viba.md` documents are linted;
 in a document a diagnostic points at the document's own line.
@@ -1014,17 +1016,20 @@ def _reindented_lines(lines: Sequence[_Line], open_index: int, base: int,
         return None
     if not tokens <= {"|", "*"} and not tokens <= {"<-", "<<"}:
         return None
+    if tokens <= {"|"} and head != "Oneof":
+        # a sum block is led by `Oneof`: the line standing first is a member
+        members = ["| " + head] + members
+        head = "Oneof"
     member_column, head_column, closing_column = _block_columns(
         lines, open_index, base, close_index)
-    if (len(inner[0].text) - len(inner[0].text.lstrip(" ")) == head_column
-            and all(len(line.text) - len(line.text.lstrip(" ")) == member_column
-                    for line in inner[1:])
-            and not before.strip()
-            and close_col == closing_column):
+    rendered = ([" " * head_column + head]
+                + [" " * member_column + member for member in members]
+                + [" " * closing_column + ")" + suffix])
+    original = [line.text.rstrip()
+                for line in lines[open_index + 1:close_index + 1]]
+    if rendered == original:
         return None                     # already the block the rules ask for
-    return ([" " * head_column + head]
-            + [" " * member_column + member for member in members]
-            + [" " * closing_column + ")" + suffix])
+    return rendered
 
 
 def _reindent_expression_blocks(lines: Sequence[str]) -> List[str]:
@@ -1079,6 +1084,13 @@ def _check_expression_folds(lines: Sequence[_Line], path: str) -> List[Violation
             found.append(Violation(
                 path, head.number, head.indent + 1, "expression-fold",
                 f"the expression's head must be in column {head_column + 1}"))
+        member_tokens = {_first_token(code.stripped) for code in inner[1:]
+                         if not code.stripped.startswith(")")}
+        head_text = _scan_line(head.text)[0].strip()
+        if member_tokens == {"|"} and head_text != "Oneof":
+            found.append(Violation(
+                path, head.number, head.indent + 1, "expression-fold",
+                "a sum expression's head is `Oneof`"))
         closing = lines[close_index]
         text = _scan_line(closing.text)[0].rstrip()
         stripped = text.lstrip(" ")

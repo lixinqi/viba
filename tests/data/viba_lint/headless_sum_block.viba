@@ -1,0 +1,8 @@
+A =
+    Object
+  * $x (
+        AlphaComponent
+      | BetaComponent
+      | GammaComponent
+      | DeltaComponent
+    )
