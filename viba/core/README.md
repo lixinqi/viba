@@ -44,7 +44,7 @@ print(viba_ast.unparse(tree))   # canonical chain-style source
 |------|--------|
 | `viba_ast/`、`parser.py` | 语法层：节点类、链式规范化、unparse、访问器、`dump`；`viba_ast.parse` 背后的 PLY 语法（自测核对 `viba-reference.md` 拼的就是那份语法） |
 | `type.py`、`type.viba` | Type 模型、内建名字、`module_get_type` |
-| `is_sub_type.py` | 子类型判定（`<<`、单位元、共归纳、`Any`）——见 `viba-is-sub-type.md` |
+| `is_sub_type.py` | 子类型判定（`<:`、单位元、共归纳、`Any`）——见 `viba-is-sub-type.md` |
 | `pattern.py` | 泛型与它的模式目录：模式匹配、决断——见 `viba-pattern.md` |
 | `viba_type_descriptor.py`、`viba_type_descriptor.viba` | 描述符层：文件、定义、成员、类型表达式 |
 | `builder.py` | 从 Python 表达式造源码——见 `viba_builder.md` |

@@ -1,6 +1,6 @@
 # is_sub_type：sub 能不能当 sup 用
 
-`is_sub_type(sub, sup)` 判定 `sub << sup`：`sub` 的每一个值是不是也都能当 `sup` 的值用。它吃的是
+`is_sub_type(sub, sup)` 判定 `sub <: sup`：`sub` 的每一个值是不是也都能当 `sup` 的值用。它吃的是
 `viba.type` 的 `Type` 值——`AstNodeType` 包着源码里的结构，或者叶子类型——不看数据、不跑程序。
 
 ## 1. 类型
@@ -37,7 +37,7 @@ IsSubType =
   让同一份源码形式驻留成同一个对象。那是实现上的功课，不是这条路本身的价格；换来的是序列化与反序列化
   只需照着结构走，以及开着的和、泛型目录这类扩展不必回头改已有的值。
 
-- 定义展开成它的 body 再比：`B = A * $find bool` 里，`B << A` 成立；`X[T] = list[T]` 的
+- 定义展开成它的 body 再比：`B = A * $find bool` 里，`B <: A` 成立；`X[T] = list[T]` 的
   `X[int]` 拿 `list[int]` 的 body 比。
 - 展不开的定义引用按名字比：泛型名字不带实参时就只剩名字。
 - 一边是 `AstNodeType`（和、积、元组、指数链、应用）时按结构递归；递归到叶子时两边都抬成 `Type`
@@ -48,14 +48,14 @@ IsSubType =
 
 ## 3. 叶子
 
-- 字面量和标量：`literal(v) << base` 当且仅当同一族（`7 << int`、`"a" << str`）。定宽整数还看
-  值域：字面量落在范围内才算它的子类型（`127 << int8_t` 成立，`128 << int8_t` 不成立；
-  `-1 << uint8_t` 不成立），两个定宽整数按范围包含判定（`int8_t << int16_t`、
-  `uint8_t << int16_t`、`uint32_t << int64_t`），`int8_t << int` 成立而 `int << int8_t` 不成立；
-  两个字面量比 `<<` 当且仅当值相等。
-- `never << T` 恒成立（底类型）。
-- `T << never` 当且仅当 `T` 就是 `never`：只有 `never` 能落在 `never` 那一支里。
-- `T << Any` 恒成立；`Any << T` 当且仅当 `T` 也是 `Any`（或与它相等，比如 `Any | int`）。
+- 字面量和标量：`literal(v) <: base` 当且仅当同一族（`7 <: int`、`"a" <: str`）。定宽整数还看
+  值域：字面量落在范围内才算它的子类型（`127 <: int8_t` 成立，`128 <: int8_t` 不成立；
+  `-1 <: uint8_t` 不成立），两个定宽整数按范围包含判定（`int8_t <: int16_t`、
+  `uint8_t <: int16_t`、`uint32_t <: int64_t`），`int8_t <: int` 成立而 `int <: int8_t` 不成立；
+  两个字面量比 `<:` 当且仅当值相等。
+- `never <: T` 恒成立（底类型）。
+- `T <: never` 当且仅当 `T` 就是 `never`：只有 `never` 能落在 `never` 那一支里。
+- `T <: Any` 恒成立；`Any <: T` 当且仅当 `T` 也是 `Any`（或与它相等，比如 `Any | int`）。
 
 ## 4. 积
 
@@ -66,26 +66,26 @@ IsSubType =
 
 tag 把成员绑在一起。**字段覆盖**：积里自己写的那个 tag 盖掉内联进来的同名 tag，跟它站在哪儿无关——
 `Base = Object * $name str` 之后 `Derived = Base * $name "nice"` 的 `$name` 是 `"nice"`，所以
-`Derived << Base` 成立、`Base << Derived` 不成立。两个**内联**成员带同一个 tag 没有谁盖谁，是输入
+`Derived <: Base` 成立、`Base <: Derived` 不成立。两个**内联**成员带同一个 tag 没有谁盖谁，是输入
 不成立；源码里同层写重编译时就拒了。内联链回到正在展开的定义（`A = A * $x int`，绕别名或泛型都算）
 也答 `$err`。
 
 ## 5. 和
 
 `sub` 的每一支都要落在 `sup` 的某一支里。带 tag 的一支先按 tag 认；`sup` 那一支没有 tag 时，比的是
-tag 底下的类型——所以 `$b str << int | str` 成立。`sup` 是 `never` 时只有 `never` 落得进去。
+tag 底下的类型——所以 `$b str <: int | str` 成立。`sup` 是 `never` 时只有 `never` 落得进去。
 
 ## 6. 元组与函数
 
 - 元组按位置逐个比，长度不同就不成立。
 - 函数（指数链）是函数对函数：返回位协变，参数位逆变，从 `$arg0` 起逐个对位。`sub` 先对齐到 `sup`
   的参数个数：短了在末尾补 `never`，长了截掉，`sup` 不动。所以
-  `(int <- $a int <- $b str) << (int <- $a int)` 成立（多出来的参数 `sup` 不会问），
-  `(int <- $a int) << (int <- $a int <- never)` 也成立（补上的 `never` 正是 `sup` 要的），
-  但 `(int <- $a int) << (int <- $a int <- $b bool)` 不成立：补 `never` 答不了一个 `bool`。
+  `(int <- $a int <- $b str) <: (int <- $a int)` 成立（多出来的参数 `sup` 不会问），
+  `(int <- $a int) <: (int <- $a int <- never)` 也成立（补上的 `never` 正是 `sup` 要的），
+  但 `(int <- $a int) <: (int <- $a int <- $b bool)` 不成立：补 `never` 答不了一个 `bool`。
 - 返回位是 `never` 的链（`never <- A`）照样按函数比；指定了 `terminators` 时，这种链的分支还多两条
   取法：一个分支由某个 terminator 或一个算作 `never <- 分支` 的成员接下，而只照抄这个应用本身的
-  `sub` 什么都接不下。没给 `terminators` 时只有函数规则，`never <- B << never <- B` 成立。
+  `sub` 什么都接不下。没给 `terminators` 时只有函数规则，`never <- B <: never <- B` 成立。
 
 ## 7. 容器字面量
 
