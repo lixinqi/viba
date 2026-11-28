@@ -975,7 +975,11 @@ class _Checker:
         if isinstance(sp, _SUM_NODES):
             return self._any_branch(sn, s_mod, sp, p_mod)
         if isinstance(sp, viba_ast.Tagged):
-            return self._walk(sn, s_mod, sp.type, p_mod)
+            # A tagged member holds only a value that carries that tag: `$x int`
+            # is a product, not a rename of `int`, so a bare leaf is no resident.
+            # The tag is also what guards a recursive payload — erasing it lets
+            # the comparison meet the definition again with nothing consumed.
+            return False
         return self.check(sub_t, AstNodeType(sp, p_mod))
 
     def _struct_vs_leaf(self, sn, s_mod, sp, p_mod, sup_t) -> bool:
@@ -1050,7 +1054,7 @@ class _Checker:
                 return False
             return self._walk_bound(tagged[sp.tag], (sp.type, p_mod, None))
         if not isinstance(sn, viba_ast.Tagged):
-            return self._walk(sn, s_mod, sp.type, p_mod)
+            return False
         return sn.tag == sp.tag and self._walk(sn.type, s_mod, sp.type, p_mod)
 
     def _walk_products(self, sn, s_mod, sp, p_mod) -> bool:

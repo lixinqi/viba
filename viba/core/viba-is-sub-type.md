@@ -73,7 +73,10 @@ tag 把成员绑在一起。**字段覆盖**：积里自己写的那个 tag 盖�
 ## 5. 和
 
 `sub` 的每一支都要落在 `sup` 的某一支里。带 tag 的一支先按 tag 认；`sup` 那一支没有 tag 时，比的是
-tag 底下的类型——所以 `$b str <: int | str` 成立。`sup` 是 `never` 时只有 `never` 落得进去。
+tag 底下的类型——所以 `$b str <: int | str` 成立。`sup` 那一支有 tag 时，`sub` 得带着同一个 tag：
+`int` 落不进 `$x int`，`$zero nil` 落得进 `$zero nil`。递归的载荷回到定义时也要先过这一步：
+`Nat = $zero nil | $succ Nat` 的 `$succ` 只收带 `$succ` 的值，`int` 到不了 `Nat`。`sup` 是 `never`
+时只有 `never` 落得进去。
 
 ## 6. 元组与函数
 

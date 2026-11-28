@@ -1053,7 +1053,23 @@ Box[T] = $v T
         check_result(judge("Any", sup), False, f"Any <: {sup}")
     check_result(judge("$x int", "$x Any"), True, "a member may widen to Any")
     check_result(judge("$x Any", "$x int"), False, "but not narrow")
-    check_result(judge("Any", "$x Any"), True, "a bare Any fits the tagged field it is")
+    check_result(judge("Any", "$x Any"), False, "a bare Any is no resident of a tagged field")
+
+
+def run_recursive_tag_cases():
+    """A recursive branch is guarded by its tag: `Nat = $zero nil | $succ Nat`
+    holds the numbers, and a bare type that fits only the payload does not
+    reach the definition it would circle back to."""
+    module = custom_module("Nat = $zero nil | $succ Nat\n")
+
+    def judge(sub, sup):
+        return is_sub_type(entry_type(sub, module), entry_type(sup, module))
+
+    for sub in ("int", "nil", "Any", "list[int]", "$succ int"):
+        check_result(judge(sub, "Nat"), False, f"{sub} is no Nat")
+    for sub in ("$zero nil", "$succ ($zero nil)", "$succ Nat"):
+        check_result(judge(sub, "Nat"), True, f"{sub} is a Nat")
+    check_result(judge("$zero nil", "$succ Nat"), False, "zero is no successor")
 
 
 def run_never_head_cases():
@@ -1278,6 +1294,7 @@ run_code_block_cases()
 run_canonical_chain_cases()
 run_apply_cases()
 run_any_cases()
+run_recursive_tag_cases()
 run_type_object_cases()
 run_module_args_cases()
 run_member_head_cases()
